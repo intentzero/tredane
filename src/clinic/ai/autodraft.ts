@@ -138,6 +138,9 @@ const AUTODRAFT_ACTOR_NAME = 'IA'
  */
 export const AUTODRAFT_STALE_MS = AI_TIMEOUT_MS + 15_000
 
+/** Teto do turno `alarm()` em `runDueAutoDrafts` (evita N× AI_TIMEOUT no mesmo isolate). */
+export const AUTODRAFT_ALARM_BUDGET_MS = 45_000
+
 export type AutoDraftJob = {
   conversationId: string
   messageId: string
@@ -316,7 +319,7 @@ function isProposalConfirmButtonBody(body: string): boolean {
  * - Escolher Feminino/Masculino da consulta DEC-142 → duas listas «Temos:»
  *   iguais (~13:42, catalog_consult + handleCatalogAudienceClick).
  */
-function isInteractiveReplyBody(body: string): boolean {
+export function isInteractiveReplyBody(body: string): boolean {
   return /^\[(Botão|Lista)\]\s+/i.test(body.trim())
 }
 
@@ -363,6 +366,8 @@ export async function runDueAutoDrafts(
      * ou do envio determinístico). Fail-soft no caller — não deve lançar.
      */
     onTyping?: (outbox: OutboxRow) => Promise<void> | void
+    /** Fases por turno (ex.: extrator, runBookingTurn) para `do.step_timing`. */
+    onTurnPhase?: (phase: string, durationMs: number) => void
   } = {},
 ): Promise<AutoDraftOutcome[]> {
   const tenantId = caller.tenantId
@@ -379,7 +384,22 @@ export async function runDueAutoDrafts(
     .map(mapJob)
 
   const out: AutoDraftOutcome[] = []
+  const alarmTurnStartedMs = now
   for (const job of due) {
+    const elapsedMs = clock.nowMs() - alarmTurnStartedMs
+    if (elapsedMs >= AUTODRAFT_ALARM_BUDGET_MS) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ai.autodraft_alarm_budget',
+          tenantId,
+          elapsedMs,
+          processedJobs: out.length,
+          dueRemaining: due.length - out.length,
+        }),
+      )
+      break
+    }
     const jobStarted = clock.nowMs()
     const debounceMs = Math.max(0, job.dueAt - job.createdAt)
     // DEC-143: quadro antes do turno, para medir se as variantes vieram deste texto.
@@ -398,6 +418,7 @@ export async function runDueAutoDrafts(
     const signalTyping = async (): Promise<void> => {
       if (typingSignaled) return
       typingSignaled = true
+      const t0 = clock.nowMs()
       try {
         const typingOb = enqueueTypingIndicator(
           db,
@@ -408,6 +429,8 @@ export async function runDueAutoDrafts(
         if (typingOb && opts.onTyping) await opts.onTyping(typingOb)
       } catch {
         // Fail-soft: indicador nunca aborta a resposta (DEC-136).
+      } finally {
+        opts.onTurnPhase?.('signal_typing', clock.nowMs() - t0)
       }
     }
     const record = (
@@ -1196,7 +1219,9 @@ export async function runDueAutoDrafts(
     let liveTurn = turn
 
     try {
+      const extractorStarted = clock.nowMs()
       const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
+      opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
       if (extracted.modelCalled) {
         modelCalled = true
         modelCalls += 1
@@ -1238,7 +1263,7 @@ export async function runDueAutoDrafts(
           limitNote = decision.message
         }
       }
-      // P1 / DEC-C4: fachada runBookingTurn (gate + stack ask_info mid-funnel).
+      const bookingStarted = clock.nowMs()
       autoBook = await runBookingTurn(db, caller, clock, {
         conversationId: job.conversationId,
         enabled: true,
@@ -1247,6 +1272,7 @@ export async function runDueAutoDrafts(
         forecast: deps.forecast,
         turn: liveTurn,
       })
+      opts.onTurnPhase?.('run_booking_turn', clock.nowMs() - bookingStarted)
       if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
     } catch (err) {
       console.warn(

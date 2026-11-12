@@ -44,6 +44,8 @@ export type ProposalButtonClickInput = {
   /** context.id da mensagem da proposta (opcional). */
   contextMessageId?: string | null
   providerEventKey?: string | null
+  /** `true` só na cópia `inlineFallback` da fila após commit inline. */
+  queueFallbackResume?: boolean
 }
 
 /**

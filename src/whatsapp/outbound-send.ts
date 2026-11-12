@@ -529,6 +529,38 @@ export async function processClinicOutboxMessage(
       sendResult.outcome === 'succeeded' ? sendResult.providerMessageId : null,
     errorCode: sendResult.outcome === 'succeeded' ? null : sendResult.errorCode,
   }
+  const rq = resultQueueFor(deps)
+  if (mode === 'queue' && rq) {
+    try {
+      await rq.send({
+        source: 'clinic_outbox',
+        tenantId: msg.tenantId,
+        eventId: `${msg.eventId}:result`,
+        type: SEND_RESULT_TYPE,
+        idempotencyKey: `${msg.idempotencyKey}:result`,
+        payload: { ...applyInput },
+        occurredAt: startedAt,
+      })
+      log({
+        level: 'info',
+        event: 'queue.whatsapp_send_done',
+        detail: {
+          tenantId: msg.tenantId,
+          eventId: msg.eventId,
+          mode,
+          outcome: sendResult.outcome,
+          errorCode: sendResult.outcome === 'succeeded' ? null : sendResult.errorCode,
+          metaMs,
+          queueLagMs: typeof msg.occurredAt === 'number' ? startedAt - msg.occurredAt : null,
+          applied: 'deferred',
+          occurredAt: clock.nowMs(),
+        },
+      })
+      return 'ack'
+    } catch {
+      /* cai no apply síncrono */
+    }
+  }
   const applied = await applyWithRetry(stub, msg.tenantId, applyInput, deps)
   if (!applied.ok) {
     log({
