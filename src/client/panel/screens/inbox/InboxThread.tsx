@@ -16,7 +16,6 @@ import {
   Send,
   SendHorizontal,
   Sparkles,
-  UserCheck,
   X,
 } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
@@ -1452,6 +1451,61 @@ export function InboxThread({
     !detail.assigneeClerkUserId &&
     !windowOpen &&
     needsPerson.length === 0;
+  const composerShown =
+    !blocked && detail.status !== "closed" && !unassignedClosed;
+  // Assumir em linha colada ao compositor (proposta A, 12/11/2026): 44 px em
+  // vez do cartão flutuante. Alerta e «sem responsável» mantêm o botão cheio.
+  const needsAlert = needsPerson.length > 0;
+  const handoffStrip =
+    !unassignedClosed && (needsAlert || canAssume) ? (
+      <div
+        className={`inbox-handoff${needsAlert ? " inbox-handoff--alert" : ""}${composerShown ? "" : " inbox-handoff--solo"}`}
+        role={needsAlert ? "alert" : "status"}
+        {...(needsAlert ? { "data-testid": "pending-comm-panel" } : {})}
+      >
+        {needsAlert ? null : (
+          <span
+            className={`inbox-handoff-dot${detail.assigneeClerkUserId ? "" : " inbox-handoff-dot--none"}`}
+            aria-hidden
+          />
+        )}
+        <div className="inbox-handoff-text">
+          {needsAlert ? (
+            <>
+              <strong>
+                Precisa de alguém
+                {needsMinutes != null ? ` · há ${needsMinutes} min` : ""}
+              </strong>
+              {needsPerson.map((c) => (
+                <p key={c.id}>{c.detailText || c.kind}</p>
+              ))}
+            </>
+          ) : (
+            <p
+              className={
+                detail.assigneeClerkUserId ? undefined : "inbox-handoff-none"
+              }
+            >
+              {assignLine}
+            </p>
+          )}
+        </div>
+        {canAssume ? (
+          <Button
+            className={
+              needsAlert || !detail.assigneeClerkUserId
+                ? "panel-btn-primary panel-btn-compact inbox-handoff-btn"
+                : "panel-link-btn inbox-handoff-btn inbox-handoff-btn--quiet"
+            }
+            aria-label="Assumir conversa"
+            onPress={() => void assume()}
+            isDisabled={busy}
+          >
+            {busy ? "Assumindo…" : "Assumir"}
+          </Button>
+        ) : null}
+      </div>
+    ) : null;
   const cardMode =
     windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft;
 
@@ -1908,44 +1962,9 @@ export function InboxThread({
             Só assumir
           </Button>
         </section>
-      ) : needsPerson.length > 0 || canAssume ? (
-        <div
-          className={`inbox-handoff${needsPerson.length > 0 ? " inbox-handoff--alert" : ""}`}
-          role={needsPerson.length > 0 ? "alert" : "status"}
-          {...(needsPerson.length > 0
-            ? { "data-testid": "pending-comm-panel" }
-            : {})}
-        >
-          <span className="inbox-handoff-icon" aria-hidden>
-            <UserCheck size={18} strokeWidth={2} />
-          </span>
-          <div className="inbox-handoff-text">
-            {needsPerson.length > 0 ? (
-              <>
-                <strong>
-                  Precisa de alguém
-                  {needsMinutes != null ? ` · há ${needsMinutes} min` : ""}
-                </strong>
-                {needsPerson.map((c) => (
-                  <p key={c.id}>{c.detailText || c.kind}</p>
-                ))}
-                {canAssume ? <p>{assignLine}</p> : null}
-              </>
-            ) : (
-              <p>{assignLine}</p>
-            )}
-          </div>
-          {canAssume ? (
-            <Button
-              className="panel-btn-primary panel-btn-compact inbox-handoff-btn"
-              onPress={() => void assume()}
-              isDisabled={busy}
-            >
-              {busy ? "Assumindo…" : "Assumir conversa"}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+      ) : composerShown ? null : (
+        handoffStrip
+      )}
 
       {blocked ? (
         <div className="inbox-blocked" role="status">
@@ -1962,9 +1981,10 @@ export function InboxThread({
             Desbloquear
           </Button>
         </div>
-      ) : detail.status !== "closed" && !unassignedClosed ? (
+      ) : composerShown ? (
         <div className="inbox-composer-wrap">
           <div className="inbox-dock">
+            {handoffStrip}
             {aiNotEnabled ? (
               <div className="ai-block ai-block-unavailable" role="status">
                 <p>

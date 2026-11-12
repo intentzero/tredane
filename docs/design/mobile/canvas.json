@@ -636,6 +636,15 @@
       "title": "M-74 Assistente: uma decisão por cartão (Confirmado DEC-163)",
       "is_interactive": false,
       "radius": 32
+    },
+    "AssumirLinha.dc.html": {
+      "x": 1880,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-75 Assumir em linha no compositor (Confirmado DEC-168)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -707,7 +716,8 @@
     "ClinicaIndice.dc.html",
     "ServicosLista.dc.html",
     "HorarioSemHorarioProprio.dc.html",
-    "AssistenteDecisoes.dc.html"
+    "AssistenteDecisoes.dc.html",
+    "AssumirLinha.dc.html"
   ],
   "notes": {
     "row1": {

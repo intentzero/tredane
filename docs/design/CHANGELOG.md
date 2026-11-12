@@ -1,5 +1,8 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-168: Assumir em linha no compositor
+
+- `InboxThread` troca o cartão de handoff (~132 px no celular) por uma linha de 44 px dentro do dock do compositor; **Precisa de alguém** em bloco âmbar compacto; mock M-75 `mobile/AssumirLinha`.
 ## 12/11/2026 — Bolhas da conversa nas laterais (revê DEC-162 item 7)
 
 - **Conversas desktop:** a timeline deixa a coluna centrada de 680 px e a margem de 7 %; padding lateral ~12 px e bolhas até 65 % alinhadas às laterais do pai (como WhatsApp Web). Dock/handoff fechado mantêm 680 px. Mock `desktop/ConversasUrgenciaFicha` alinhado.
