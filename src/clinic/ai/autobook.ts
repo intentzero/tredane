@@ -1372,6 +1372,17 @@ export async function tryAiAutoBook(
       if (!missing.includes('horario')) missing = [...missing, 'horario']
     }
   }
+  // rsamp_1241995755: «hoje à tarde» no 1.º turno — period gravava no saveSession
+  // cedo; date civil só em rememberDayPeriod (ready com hora) ou remap mid-funnel.
+  if (
+    turnDayAbsolute != null &&
+    !ordinalOptionReply &&
+    date == null &&
+    (det.service?.id ?? session?.serviceId)
+  ) {
+    date = turnDayAbsolute
+    missing = missing.filter((item) => item !== 'dia')
+  }
   // Staging Paulo 09/11/2026: period=noite sticky após «Quer ver outro período?» —
   // «Sim» limpa o filtro e reoferta; troca de dia sem período novo também limpa.
   const askedOtherPeriod = Boolean(
@@ -1808,6 +1819,7 @@ export async function tryAiAutoBook(
       saveSession({
         serviceId: det.service.id,
         ...(turnExplicit || frameLine ? { audienceLine: turnExplicit ?? frameLine } : {}),
+        ...(turnDayAbsolute && !ordinalOptionReply ? { date: turnDayAbsolute } : date ? { date } : {}),
         ...(turnFacts.period ? { period: turnFacts.period } : {}),
         ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
       })
