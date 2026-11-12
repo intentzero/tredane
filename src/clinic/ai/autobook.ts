@@ -1279,29 +1279,76 @@ export async function tryAiAutoBook(
     missing = missing.filter((item) => item !== 'dia')
   }
   const turnFacts = scheduleFactsFromText(turnText)
+  // Dia civil do turno (texto completo): «próxima segunda» ≠ rótulo «segunda» sozinho
+  // (em segunda-feira extractDates('segunda') cai no dia corrente).
+  const turnDayAbsolute = (() => {
+    if (!turnFacts.dayLabel) return null
+    const todayCivil = clinicCivilDateFromUtc(tz, confirmation.created_at)
+    const fromTurn = [...extractDates(turnText, todayCivil)]
+    if (fromTurn.length === 1) return fromTurn[0]!
+    return [...extractDates(turnFacts.dayLabel, todayCivil)][0] ?? null
+  })()
+  // Quando o dia civil muda, a hora sticky/histórica não vale — senão ready=true
+  // reemite proposta no dia antigo (rsamp_fa7f138). Det.time do histórico («As 1330»)
+  // também precisa cair; ver dropStickyTimeAfterDayRemap abaixo.
+  let dropStickyTimeAfterDayRemap = false
   // rsamp_f3b49 / TR-528: «Na sexta na parte da manhã» após oferta de «amanhã à tarde»
   // — detectExplicitConfirmation não devolve dia (sem serviço no turno), o sticky
-  // amanhã ficava, e só o período remapeava → «amanhã de manhã». Remapear só quando
-  // o turno nomeia dia E período (G-07c «Para hoje» é dia-só: não wipe pending).
+  // amanhã ficava, e só o período remapeava → «amanhã de manhã».
   if (session?.serviceId && turnFacts.dayLabel && turnFacts.period) {
-    const todayCivil = clinicCivilDateFromUtc(tz, confirmation.created_at)
-    const dayAbsolute = [...extractDates(turnFacts.dayLabel, todayCivil)][0] ?? null
+    const dayAbsolute = turnDayAbsolute
     const stickyDate = frame?.date ?? date ?? null
     if (dayAbsolute != null && dayAbsolute !== stickyDate) {
+      if (openProposal) {
+        retireActiveProposal(db, tenantId, input.conversationId, clock)
+      }
       saveSession({
         serviceId: session.serviceId,
         date: dayAbsolute,
         period: turnFacts.period,
+        clockTime: null,
         pending: null,
         lastOffer: null,
       })
       session = deferred.peekSession(db, tenantId, input.conversationId)
       frame = deferred.peekFrame(db, tenantId, input.conversationId)
       date = dayAbsolute
+      dropStickyTimeAfterDayRemap = true
       missing = missing.filter((item) => item !== 'dia')
     } else if (dayAbsolute != null) {
       date = dayAbsolute
       missing = missing.filter((item) => item !== 'dia')
+    }
+  }
+  // rsamp_fa7f138: «Para a próxima segunda tem horário?» com proposta aberta (dia-só,
+  // sem período). #688 exigia período; aqui o sticky date+hora (frame/histórico)
+  // mantinha ready e repropunha o dia corrente. Remapear dia civil ≠ sticky,
+  // limpar hora/pending e retirar a proposta — reoferta de slots no dia novo.
+  if (
+    session?.serviceId &&
+    turnFacts.dayLabel &&
+    !turnFacts.period &&
+    turnDayAbsolute != null
+  ) {
+    const stickyDate = frame?.date ?? date ?? null
+    if (turnDayAbsolute !== stickyDate) {
+      if (openProposal) {
+        retireActiveProposal(db, tenantId, input.conversationId, clock)
+      }
+      saveSession({
+        serviceId: session.serviceId,
+        date: turnDayAbsolute,
+        period: null,
+        clockTime: null,
+        pending: null,
+        lastOffer: null,
+      })
+      session = deferred.peekSession(db, tenantId, input.conversationId)
+      frame = deferred.peekFrame(db, tenantId, input.conversationId)
+      date = turnDayAbsolute
+      dropStickyTimeAfterDayRemap = true
+      missing = missing.filter((item) => item !== 'dia')
+      if (!missing.includes('horario')) missing = [...missing, 'horario']
     }
   }
   // Staging Paulo 09/11/2026: period=noite sticky após «Quer ver outro período?» —
@@ -1537,21 +1584,40 @@ export async function tryAiAutoBook(
       missing = []
     }
   }
-  let time = det.time
-  if (!time && det.service && session?.serviceId === det.service.id && session.clockTime) {
+  let time = dropStickyTimeAfterDayRemap ? undefined : det.time
+  if (
+    !dropStickyTimeAfterDayRemap &&
+    !time &&
+    det.service &&
+    session?.serviceId === det.service.id &&
+    session.clockTime
+  ) {
     time = session.clockTime
     missing = missing.filter((item) => item !== 'horario')
   }
+  // Relógio neste turno (ex. «às 15») sobrevive ao remap de dia.
   if (!time && clockFromTurn) time = clockFromTurn
   // Hora pedida sem dia no quadro: o dia é o da proposta aberta, para a vaga
   // ser conferida sem gravar a hora nova (#577).
-  if (!date && clockFromTurn && openProposal && det.service?.id === openProposal.serviceId) {
+  // Após remap de dia (rsamp_fa7f138) a proposta antiga já caiu — não herdar o dia dela.
+  if (
+    !dropStickyTimeAfterDayRemap &&
+    !date &&
+    clockFromTurn &&
+    openProposal &&
+    det.service?.id === openProposal.serviceId
+  ) {
     date = clinicCivilDateFromUtc(tz, openProposal.startsAt)
     missing = missing.filter((item) => item !== 'dia')
   }
   // Sim do eco de substituição: fecha o conjunto e segue para proposta nova
   // no dia e na hora da proposta suspensa (#576). Sim não marca.
-  if (zoneEcho === 'confirm' && openProposal && det.service?.id === openProposal.serviceId) {
+  if (
+    zoneEcho === 'confirm' &&
+    openProposal &&
+    det.service?.id === openProposal.serviceId &&
+    !dropStickyTimeAfterDayRemap
+  ) {
     if (!date) date = clinicCivilDateFromUtc(tz, openProposal.startsAt)
     if (!time) time = localHHMM(tz, openProposal.startsAt)
     missing = missing.filter((item) => item !== 'dia' && item !== 'horario')

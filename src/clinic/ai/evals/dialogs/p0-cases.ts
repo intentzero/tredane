@@ -32,6 +32,7 @@
  * F-13: «Sim» após «Quer ver outro dia?» limpa date sticky (sibling #655 / sticky-frame audit F2).
  * F-14: eco Sim das zonas não herda period sticky (silencioso 1, Paulo 09/11/2026).
  * F-15: «sexta + manhã» após oferta «amanhã à tarde» remapeia o dia (rsamp_f3b49 / TR-528).
+ * F-16: proposta aberta + «próxima segunda» remapeia e reoferece (rsamp_fa7f138).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1220,6 +1221,31 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/\d{1,2}:\d{2}/, /sexta/i],
           excludes: [/amanhã de manhã/i, /amanhã à tarde/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'F-16',
+    title: 'Proposta aberta + «próxima segunda» remapeia dia e reoferece (não repropõe hoje)',
+    turnosIdeais: 2,
+    // Live MCP rsamp_fa7f138 (qui 12/11/2026): sticky date+hora da proposta mantinha
+    // ready e reemitia quinta; dia-só sem período ficava fora do gate #688.
+    nowMs: Date.UTC(2026, 10, 12, 14, 0), // qui 12/11 11:00 SP
+    turns: [
+      { role: 'client', text: 'Quero limpeza de pele hoje às 15h' },
+      { role: 'proposal_sent' },
+      { role: 'client', text: 'Para a próxima segunda tem horário?' },
+    ],
+    expect: {
+      openProposals: 0,
+      supersededProposals: 1,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 1,
+          matches: [/\d{1,2}:\d{2}/, /segunda|16\/11/i],
+          excludes: [/Proposta de horário/i, /quinta/i, /12\/11/],
         },
       ],
     },
