@@ -1,8 +1,8 @@
 import { useAuth, useSignUp } from '@clerk/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { BrandHorizontal } from '../ui/Brand'
-import { navigatePanel } from '../routes'
+import { navigatePanel, type PanelRoute } from '../routes'
 import { readPendingInviteToken } from './session'
 
 type Step = 'email' | 'code'
@@ -22,19 +22,32 @@ type ClerkLikeError = {
  * Access mode Open no Dashboard continua obrigatório (TR-523): Restricted
  * falha no `create`/`sendEmailCode` e mostramos erro claro — o produto não
  * contorna Invite-only (convites D1, ADR-0008).
+ *
+ * Após OTP, `signUp.finalize({ navigate })` corre o callback *antes* da sessão
+ * ficar ativa. Navegar já para `/invite/accept` faz o PanelRouter tratar a rota
+ * como pendente e voltar a `/cadastro` (bounce). Guardamos o destino e só
+ * navegamos quando `isSignedIn` for true.
  */
 export function ClerkSignUp() {
   const hasInvite = Boolean(readPendingInviteToken())
-  const afterSignUp = hasInvite
-    ? ({ kind: 'invite-accept' } as const)
-    : ({ kind: 'clinicas' } as const)
-  const { isLoaded } = useAuth()
+  const afterSignUp: PanelRoute = hasInvite
+    ? { kind: 'invite-accept' }
+    : { kind: 'clinicas' }
+  const { isLoaded, isSignedIn } = useAuth()
   const { signUp, errors, fetchStatus } = useSignUp()
 
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  /** Destino pós-finalize; só aplica depois da sessão Clerk estar ativa. */
+  const [pendingRoute, setPendingRoute] = useState<PanelRoute | null>(null)
+
+  useEffect(() => {
+    if (!pendingRoute || !isSignedIn) return
+    navigatePanel(pendingRoute, true)
+    setPendingRoute(null)
+  }, [pendingRoute, isSignedIn])
 
   const busy = fetchStatus === 'fetching'
   const fieldError =
@@ -81,11 +94,14 @@ export function ClerkSignUp() {
       navigate: ({ decorateUrl }) => {
         const dest = hasInvite ? '/invite/accept' : '/clinicas'
         const url = decorateUrl(dest)
+        // Safari ITP: decorateUrl pode devolver URL externa — full navigation.
         if (url.startsWith('http')) {
           window.location.href = url
           return
         }
-        navigatePanel(afterSignUp, true)
+        // Sessão ainda não está activa neste instante (Clerk Core 3).
+        // Adia o SPA navigate até `isSignedIn` (efeito acima).
+        setPendingRoute(afterSignUp)
       },
     })
     if (finalized.error) {

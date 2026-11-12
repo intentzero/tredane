@@ -4,6 +4,7 @@ import { writePendingInviteToken } from './session'
 
 const signInProps: Array<Record<string, unknown>> = []
 let clerkLoaded = true
+let clerkSignedIn = false
 let fetchStatus: 'idle' | 'fetching' = 'idle'
 let signUpStatus: string = 'missing_requirements'
 
@@ -30,7 +31,7 @@ vi.mock('@clerk/react', () => ({
     signInProps.push(props)
     return <div data-testid="clerk-sign-in" />
   },
-  useAuth: () => ({ isLoaded: clerkLoaded }),
+  useAuth: () => ({ isLoaded: clerkLoaded, isSignedIn: clerkSignedIn }),
   useSignUp: () => ({
     fetchStatus,
     errors: {
@@ -72,6 +73,7 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     sessionStorage.clear()
     signInProps.length = 0
     clerkLoaded = true
+    clerkSignedIn = false
     fetchStatus = 'idle'
     signUpStatus = 'missing_requirements'
     createMock.mockClear()
@@ -141,10 +143,10 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     expect(screen.getByTestId('signup-email-form')).toBeTruthy()
   })
 
-  it('SignUp: e-mail → código → finalize redireciona ao aceite do convite', async () => {
+  it('SignUp: e-mail → código → finalize NÃO navega antes da sessão; após isSignedIn vai ao aceite', async () => {
     writePendingInviteToken('tok_teste_nao_logar')
     const { ClerkSignUp } = await import('./ClerkSignUp')
-    render(<ClerkSignUp />)
+    const { rerender } = render(<ClerkSignUp />)
 
     fireEvent.change(screen.getByLabelText('E-mail'), {
       target: { value: 'nova@clinica.com.br' },
@@ -165,7 +167,42 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     await waitFor(() => {
       expect(verifyEmailCodeMock).toHaveBeenCalledWith({ code: '123456' })
       expect(finalizeMock).toHaveBeenCalled()
+    })
+    // finalize.navigate corre antes da sessão — não pode ir a /invite/accept ainda
+    // (PanelRouter bounce unsigned → /cadastro).
+    expect(navigatePanel).not.toHaveBeenCalled()
+
+    clerkSignedIn = true
+    rerender(<ClerkSignUp />)
+
+    await waitFor(() => {
       expect(navigatePanel).toHaveBeenCalledWith({ kind: 'invite-accept' }, true)
+    })
+  })
+
+  it('SignUp: sem convite, também espera isSignedIn antes de /clinicas', async () => {
+    const { ClerkSignUp } = await import('./ClerkSignUp')
+    const { rerender } = render(<ClerkSignUp />)
+
+    fireEvent.change(screen.getByLabelText('E-mail'), {
+      target: { value: 'nova@clinica.com.br' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    await waitFor(() => expect(screen.getByTestId('signup-code-form')).toBeTruthy())
+
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), {
+      target: { value: '123456' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
+
+    await waitFor(() => expect(finalizeMock).toHaveBeenCalled())
+    expect(navigatePanel).not.toHaveBeenCalled()
+
+    clerkSignedIn = true
+    rerender(<ClerkSignUp />)
+
+    await waitFor(() => {
+      expect(navigatePanel).toHaveBeenCalledWith({ kind: 'clinicas' }, true)
     })
   })
 
