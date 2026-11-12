@@ -2085,6 +2085,11 @@ button.panel-auth-inline-link {
   overflow: auto;
 }
 
+/* iOS: com teclado o hook lift sobe a folha; o max-height segue --panel-vvh. */
+:root[data-keyboard='open'] .inbox-template-picker {
+  max-height: var(--panel-vvh, min(70dvh, 520px));
+}
+
 .inbox-template-list {
   list-style: none;
   margin: 0;
@@ -10871,6 +10876,11 @@ button.panel-auth-inline-link {
   height: calc(100dvh - var(--space-8));
   display: flex;
   outline: none;
+}
+
+/* iOS: sem o pin JS o 100dvh fica atrás do teclado; --panel-vvh é o fallback CSS. */
+:root[data-keyboard='open'] .conversas-agendar-sheet-modal {
+  height: calc(var(--panel-vvh, 100dvh) - var(--space-8));
 }
 
 .conversas-agendar-sheet {

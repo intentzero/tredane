@@ -60,6 +60,7 @@ import {
 import { TransferSheet } from "./TransferSheet";
 import { PixPendingBar, PixPendingSheet } from "./PixPendingSheet";
 import { useMediaQuery } from "../../ui/useMediaQuery";
+import { useVisualViewportSheet } from "../../ui/useVisualViewportSheet";
 import { AiWorking } from "../../ui/AiWorking";
 import { navigatePanel } from "../../routes";
 import { ErrorState } from "../../states/StatusScreens";
@@ -401,6 +402,8 @@ export function InboxThread({
   const [notice, setNotice] = useState<string | null>(null);
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // iOS: parâmetros do modelo no fundo da folha ficam acima do teclado.
+  const templateSheetStyle = useVisualViewportSheet(pickerOpen, { mode: "lift" });
   const [confirmClose, setConfirmClose] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -2385,7 +2388,13 @@ export function InboxThread({
             <Modal>
               <Dialog
                 className="panel-sheet inbox-template-picker"
-                style={{ position: "fixed", left: 0, right: 0, bottom: 0 }}
+                style={{
+                  position: "fixed",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  ...templateSheetStyle,
+                }}
                 aria-labelledby="wa-template-title"
               >
                 {({ close }) => (

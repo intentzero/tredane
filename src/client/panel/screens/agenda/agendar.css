@@ -173,6 +173,8 @@
 .agd-summary strong { color: var(--color-text-primary); }
 .agd-btn { width: 100%; }
 .agd-sheet { max-height: 90dvh; gap: var(--space-3); }
+/* iOS: hook lift sobe o bottom; max-height segue a área visível. */
+:root[data-keyboard='open'] .agd-sheet { max-height: var(--panel-vvh, 90dvh); }
 .agd-sheet-body { display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; min-height: 0; }
 .agd-table {
   margin: 0;
