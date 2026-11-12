@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateRange, formatLongDate } from './format'
+import { formatDateRange, formatLongDate, formatShortDate } from './format'
 
 describe('formatLongDate', () => {
   it('escreve a data por extenso, sem «-feira» e com maiúscula', () => {
@@ -17,5 +17,11 @@ describe('formatDateRange', () => {
     expect(formatDateRange('2026-10-26', '2026-11-01', 'America/Sao_Paulo')).toBe(
       '26 de outubro – 1 de novembro',
     )
+  })
+})
+
+describe('formatShortDate', () => {
+  it('dia da semana, dia e mês curtos, sem pontos (DEC-167)', () => {
+    expect(formatShortDate('2026-11-12', 'America/Sao_Paulo')).toBe('qui, 12 nov')
   })
 })

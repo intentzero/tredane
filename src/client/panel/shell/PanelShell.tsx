@@ -14,6 +14,7 @@ import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
 import { ShellActions } from './ShellActions'
 import { ShellIdentity } from './ShellIdentity'
+import { ShellSlotProvider } from './ShellSlot'
 import { OfflineStrip } from '../states/OfflineStrip'
 import { BrandMark } from '../ui/Brand'
 import { useKeyboardViewport } from '../ui/useKeyboardViewport'
@@ -33,6 +34,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
   const { api } = useAuthSession()
   const { conn: waConn } = useWhatsapp(api, tenantId, generation)
   const [offline, setOffline] = useState(!navigator.onLine)
+  const [slotEl, setSlotEl] = useState<HTMLDivElement | null>(null)
   useKeyboardViewport()
 
   useEffect(() => {
@@ -153,6 +155,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
               />
             </div>
           </div>
+          <div ref={setSlotEl} className="panel-shell-slot" />
           <ShellActions
             className="panel-shell-actions"
             tenantId={ctx.tenantId}
@@ -178,7 +181,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
         tabIndex={-1}
         className={`panel-shell-main${avisosOnly ? ' panel-shell-main--flush' : ''}`}
       >
-        {children}
+        <ShellSlotProvider value={slotEl}>{children}</ShellSlotProvider>
       </main>
 
       {!avisosOnly ? (

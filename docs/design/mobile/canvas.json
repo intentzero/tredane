@@ -645,6 +645,15 @@
       "title": "M-75 Assumir em linha no compositor (Confirmado DEC-166)",
       "is_interactive": false,
       "radius": 32
+    },
+    "AgendaTopoCompacto.dc.html": {
+      "x": 2350,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-76 Agenda com topo compacto (Confirmado DEC-167)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -717,7 +726,8 @@
     "ServicosLista.dc.html",
     "HorarioSemHorarioProprio.dc.html",
     "AssistenteDecisoes.dc.html",
-    "AssumirLinha.dc.html"
+    "AssumirLinha.dc.html",
+    "AgendaTopoCompacto.dc.html"
   ],
   "notes": {
     "row1": {

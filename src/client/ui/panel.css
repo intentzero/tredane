@@ -4022,10 +4022,18 @@
 }
 
 .agenda-weekstrip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+}
+
+.agenda-weekstrip-days {
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-1);
-  padding: 0 var(--space-3);
 }
 
 .agenda-weekday {
@@ -11193,4 +11201,195 @@
 .clientes-row-next {
   color: var(--color-primary-ink);
   font-weight: var(--font-weight-medium);
+}
+
+/* ——— DEC-167 (Paulo, 12/11/2026): topo da Agenda compacto ——— */
+.panel-shell-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: center;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.panel-shell-slot:empty {
+  display: none;
+}
+
+.agenda-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.agenda-bar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.agenda-bar-btn {
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.agenda-bar-today {
+  padding: 0 var(--space-3);
+}
+
+.agenda-bar-btn[data-hovered] {
+  background: var(--color-surface-sunken);
+}
+
+.agenda-bar-btn[data-disabled] {
+  color: var(--color-text-muted);
+  cursor: default;
+  background: var(--color-surface-card);
+}
+
+.agenda-bar-btn[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+.agenda-bar-title {
+  margin: 0 0 0 var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.agenda-bar-badge {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+.agenda-bar-spacer {
+  flex: 1;
+}
+
+.agenda-view-toggle.panel-segmented {
+  margin: 0;
+  flex: none;
+  width: auto;
+}
+
+.agenda-view-toggle .panel-segmented-item {
+  min-height: 30px;
+  padding: 0 var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .agenda-day > .agenda-weekstrip {
+    padding-top: var(--space-1);
+  }
+}
+
+/* Celular: data e Dia/Semana numa linha; a faixa de dias navega. */
+.agenda-mhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-4);
+}
+
+.agenda-mhead-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.agenda-mhead .agenda-today {
+  flex: none;
+}
+
+.agenda-mhead .agenda-view-toggle .panel-segmented-item {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+}
+
+.agenda-weekstrip-arrow {
+  flex: none;
+  width: 32px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.agenda-weekstrip-arrow[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: -2px;
+}
+
+@media (max-width: 767.98px) {
+  .agenda-day {
+    gap: var(--space-2);
+  }
+
+  .agenda-day > .agenda-weekstrip {
+    padding: 0 var(--space-1);
+  }
+
+  .agenda-weekstrip .agenda-weekday {
+    min-height: 48px;
+    padding: 2px 0;
+    border-radius: var(--radius-lg);
+  }
+
+  .agenda-weekstrip .agenda-weekday-num {
+    font-size: var(--font-size-title);
+  }
+
+  .agenda-weekstrip .agenda-weekday-dot {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+/* 768–1023 px: a barra da Agenda desce para uma segunda linha do cabeçalho. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .panel-shell-header:has(.panel-shell-slot:not(:empty)) {
+    flex-wrap: wrap;
+  }
+
+  .panel-shell-slot:not(:empty) {
+    order: 3;
+    flex-basis: 100%;
+  }
 }
