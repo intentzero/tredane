@@ -7857,6 +7857,12 @@ button.panel-auth-inline-link {
   max-height: 88dvh;
 }
 
+/* iOS: com teclado aberto o hook sobe o bottom; o max-height segue a área visível
+ * (--panel-vvh de useKeyboardViewport) para o corpo da folha continuar a rolar. */
+:root[data-keyboard='open'] .clinic-sheet.panel-choice-sheet {
+  max-height: var(--panel-vvh, 88dvh);
+}
+
 .clinic-sheet-head {
   display: flex;
   align-items: center;
