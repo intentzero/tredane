@@ -551,10 +551,10 @@ export function InboxThread({
       const humanUnreadInbound = res.messages.filter(
         (m) => m.direction === "inbound" && m.readAt == null,
       );
-      if (!quiet && humanUnreadInbound.length > 0) {
-        const first = humanUnreadInbound[0];
+      const firstUnread = humanUnreadInbound[0];
+      if (!quiet && firstUnread) {
         setUnreadAnchor({
-          id: first.id,
+          id: firstUnread.id,
           count: humanUnreadInbound.length,
         });
       }
