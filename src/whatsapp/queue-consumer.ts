@@ -413,6 +413,7 @@ export async function processWhatsappMessage(
           buttonTitle: msg.buttonTitle ?? null,
           contextMessageId: msg.contextMessageId ?? null,
           providerEventKey: msg.providerEventKey,
+          queueFallbackResume: msg.inlineFallback === true,
         })
       }
 

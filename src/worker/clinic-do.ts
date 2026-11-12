@@ -126,6 +126,10 @@ import {
   sweepDueHandoffTimeouts,
 } from '../clinic/ai/human-handoff'
 import {
+  escalateChoiceClickDeliveryToTeam,
+  hasChoiceClickBookingDelivery,
+} from '../clinic/ai/interactive-click-guard'
+import {
   handleChoiceOfferClick,
   isChoiceOfferId,
 } from '../clinic/ai/choice-offer'
@@ -1122,6 +1126,29 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             },
           }),
         )
+        if (
+          input.queueFallbackResume === true &&
+          !hasChoiceClickBookingDelivery(
+            this.#db,
+            caller.tenantId,
+            input.providerEventKey,
+            input.conversationId,
+          )
+        ) {
+          const esc = escalateChoiceClickDeliveryToTeam(
+            this.#db,
+            caller.tenantId,
+            {
+              conversationId: input.conversationId,
+              providerEventKey: input.providerEventKey,
+            },
+            this.#clock,
+          )
+          if (esc.outbox.length > 0) {
+            await this.#fanoutOutboxes(caller, esc.outbox, true)
+            await this.#drain(caller)
+          }
+        }
         return {
           handled: true,
           action: 'choice' as const,

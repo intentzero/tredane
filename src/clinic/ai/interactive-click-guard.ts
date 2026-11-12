@@ -7,12 +7,13 @@ import type { ClinicCaller } from '../envelopes'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
+import { insertMessage } from '../inbox/messages'
 import { AUTODRAFT_ACTOR_ID } from './autodraft'
+import { notifyHumanHandoff } from './human-handoff'
 import { isConversationPaused } from './protection'
 
 /** Texto curto quando o funil não produziu resposta após toque válido. */
-export const CHOICE_CLICK_FALLBACK_TEXT =
-  'Recebi sua escolha. Estou preparando o próximo passo — se não aparecer em instantes, me diga o horário de novo.'
+export const CHOICE_CLICK_FALLBACK_TEXT = 'Recebi sua escolha, já confirmo para você.'
 
 /** Oferta stale / quadro limpo sem reoferta. */
 export const CHOICE_STALE_CLICK_FALLBACK_TEXT =
@@ -104,21 +105,18 @@ export function sendChoiceClickSilentFallback(
   }
 }
 
-/** Idempotência / retomada: o toque já gerou linha na outbox? */
-export function hasChoiceClickOutbound(
+const CHOICE_BOOKING_CLIENT_REQUEST_IDS = (key: string) =>
+  [`choice:${key}`, `choice-stale:${key}`, `proposal.send:${key}`] as const
+
+/** Confirmação / proposta do toque (não conta anti-silêncio genérico). */
+export function hasChoiceClickBookingDelivery(
   db: ClinicDb,
   tenantId: string,
   providerEventKey: string | null | undefined,
   conversationId: string,
 ): boolean {
   const key = (providerEventKey ?? '').trim() || conversationId
-  const ids = [
-    `choice:${key}`,
-    `choice-stale:${key}`,
-    silentGuardClientRequestId(providerEventKey, conversationId),
-    `proposal.send:${key}`,
-  ]
-  for (const clientRequestId of ids) {
+  for (const clientRequestId of CHOICE_BOOKING_CLIENT_REQUEST_IDS(key)) {
     const row = db.get<{ id: string }>(
       `SELECT id FROM outbound_messages WHERE tenant_id = ? AND client_request_id = ? LIMIT 1`,
       tenantId,
@@ -127,6 +125,103 @@ export function hasChoiceClickOutbound(
     if (row) return true
   }
   return false
+}
+
+/** Idempotência / retomada: o toque já gerou linha na outbox (inclui fallback)? */
+export function hasChoiceClickOutbound(
+  db: ClinicDb,
+  tenantId: string,
+  providerEventKey: string | null | undefined,
+  conversationId: string,
+): boolean {
+  if (hasChoiceClickBookingDelivery(db, tenantId, providerEventKey, conversationId)) return true
+  const row = db.get<{ id: string }>(
+    `SELECT id FROM outbound_messages WHERE tenant_id = ? AND client_request_id = ? LIMIT 1`,
+    tenantId,
+    silentGuardClientRequestId(providerEventKey, conversationId),
+  )
+  return Boolean(row)
+}
+
+export function choiceClickHandoffEscalationMarkerId(
+  providerEventKey: string | null | undefined,
+  conversationId: string,
+): string {
+  const key = (providerEventKey ?? '').trim() || conversationId
+  return `choice_click_handoff:${key}`
+}
+
+function hasChoiceClickHandoffEscalated(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  providerEventKey: string | null | undefined,
+): boolean {
+  const marker = choiceClickHandoffEscalationMarkerId(providerEventKey, conversationId)
+  return Boolean(
+    db.get<{ id: string }>(
+      `SELECT id FROM messages
+       WHERE tenant_id = ? AND conversation_id = ? AND direction = 'system' AND external_message_id = ?
+       LIMIT 1`,
+      tenantId,
+      conversationId,
+      marker,
+    ),
+  )
+}
+
+/**
+ * Fila fallback sem confirmação/agendamento → handoff silencioso (DEC-083) + alerta.
+ * Uma escalação por `providerEventKey`; sem nova mensagem à cliente.
+ */
+export function escalateChoiceClickDeliveryToTeam(
+  db: ClinicDb,
+  tenantId: string,
+  input: { conversationId: string; providerEventKey?: string | null },
+  clock: Clock,
+): { escalated: boolean; already: boolean; outbox: OutboxRow[] } {
+  const marker = choiceClickHandoffEscalationMarkerId(input.providerEventKey, input.conversationId)
+  if (hasChoiceClickHandoffEscalated(db, tenantId, input.conversationId, input.providerEventKey)) {
+    return { escalated: false, already: true, outbox: [] }
+  }
+  const handoff = notifyHumanHandoff(
+    db,
+    tenantId,
+    {
+      conversationId: input.conversationId,
+      reason: 'human_only',
+      clientRequestId: marker,
+      silent: true,
+    },
+    clock,
+  )
+  if (handoff.already) {
+    return { escalated: false, already: true, outbox: handoff.outbox }
+  }
+  insertMessage(
+    db,
+    {
+      tenantId,
+      conversationId: input.conversationId,
+      direction: 'system',
+      body: 'Escalação: toque em escolha sem confirmação após retentativa na fila.',
+      externalMessageId: marker,
+      deliveryState: 'received',
+      authorClerkUserId: AUTODRAFT_ACTOR_ID,
+      authorDisplayName: 'Sistema',
+    },
+    clock,
+  )
+  console.log(
+    JSON.stringify({
+      level: 'warn',
+      event: 'whatsapp.choice_click_handoff',
+      tenantId,
+      conversationId: input.conversationId,
+      providerEventKey: input.providerEventKey ?? null,
+    }),
+  )
+  return { escalated: true, already: false, outbox: handoff.outbox }
 }
 
 function patientWhatsappOutbox(rows: OutboxRow[]): OutboxRow[] {
