@@ -223,6 +223,40 @@ describe('HTTP — Equipe e convites (#25)', () => {
     }
   })
 
+  it('aceite mantém membership se o publisher lançar excepção', async () => {
+    const ctx = testTeamApp({
+      events: {
+        async publishTenantEvent() {
+          throw new Error('do_boom')
+        },
+      },
+    })
+    try {
+      const created = await invite(ctx, 'realtime.throw@example.test')
+      expect(created.status).toBe(201)
+      const token = lastToken(ctx.transport)
+      const accept = await ctx.app.request(
+        'http://localhost/api/invitations/accept',
+        ctx.auth('user_synth_invitee', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Synth-Verified-Email': 'realtime.throw@example.test',
+          },
+          body: JSON.stringify({ token }),
+        }),
+      )
+      expect(accept.status).toBe(200)
+      const body = (await accept.json()) as { realtimeNotified: boolean }
+      expect(body.realtimeNotified).toBe(false)
+      expect(
+        getMembership(ctx.boot.db, 'clinic-demo-a', 'user_synth_invitee')?.status,
+      ).toBe('active')
+    } finally {
+      ctx.close()
+    }
+  })
+
   it('e-mail errado / não verificado nega sem consumir; expiração em expires_at', async () => {
     const ctx = testTeamApp()
     try {

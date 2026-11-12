@@ -163,22 +163,27 @@ async function notifyOwnersInvitationAccepted(
     email: string
   },
 ): Promise<boolean> {
-  const published = await events.publishTenantEvent({
-    tenantId: input.tenantId,
-    type: 'invitation.accepted',
-    entityType: 'tenant_invitation',
-    entityId: input.invitationId,
-    audience: 'owners',
-    eventId: `inv:accepted:${input.invitationId}`,
-    payload: {
-      invitationId: input.invitationId,
-      clerkUserId: input.clerkUserId,
-      role: input.role,
-      status: 'accepted',
-      email: input.email,
-    },
-  })
-  return published.ok
+  try {
+    const published = await events.publishTenantEvent({
+      tenantId: input.tenantId,
+      type: 'invitation.accepted',
+      entityType: 'tenant_invitation',
+      entityId: input.invitationId,
+      audience: 'owners',
+      eventId: `inv:accepted:${input.invitationId}`,
+      payload: {
+        invitationId: input.invitationId,
+        clerkUserId: input.clerkUserId,
+        role: input.role,
+        status: 'accepted',
+        email: input.email,
+      },
+    })
+    return published.ok
+  } catch {
+    // Membership já está no D1 — nunca falhar o aceite por fan-out.
+    return false
+  }
 }
 
 async function resolveVerifiedEmail(
