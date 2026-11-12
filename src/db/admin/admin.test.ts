@@ -54,7 +54,7 @@ describe('admin schema gate', () => {
       applyRemainingFromAdmin(raw)
       const db = fromNodeSqlite(raw)
       expect(() => assertAdminSchemaReady(db)).not.toThrow()
-      expect(ADMIN_SCHEMA_VERSION).toBe(21)
+      expect(ADMIN_SCHEMA_VERSION).toBe(22)
     } finally {
       raw.close()
     }

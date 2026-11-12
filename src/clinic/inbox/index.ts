@@ -49,11 +49,14 @@ export {
   flagConversationForReview,
   isReviewFlagRequest,
   parseReviewFlagRequest,
+  parseStoredClientComments,
   readReviewFlag,
+  serializeClientComments,
   REVIEW_FLAG_CLIENT_ACK,
   type ReviewFlagReason,
   type ReviewFlagRequestMatch,
   type ReviewFlagSource,
+  type ReviewFlagState,
 } from './review-flag'
 
 export type { ContactDirectoryFilter } from './conversations'

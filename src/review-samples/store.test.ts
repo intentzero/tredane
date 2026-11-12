@@ -23,6 +23,7 @@ function snap(
     flagSource: 'auto',
     flagReason: 'nao_encontrei',
     clientComment: null,
+    clientComments: [],
     flaggedAt: 1_700_000_000_000,
     lastMessageAt: 1_700_000_000_100,
     lastMessagePreview: 'Não encontrei cotovelo',
@@ -68,6 +69,7 @@ describe('review-samples D1 store (DEC-159)', () => {
           flagSource: 'client',
           flagReason: 'client_request',
           clientComment: 'pedi para chamar o atendente e o sistema travou',
+          clientComments: ['pedi para chamar o atendente e o sistema travou'],
           flaggedAt: now - 1000,
         }),
         now,
@@ -81,6 +83,9 @@ describe('review-samples D1 store (DEC-159)', () => {
       expect(
         listed.items.find((i) => i.tenantId === 'ten_b')?.clientComment,
       ).toBe('pedi para chamar o atendente e o sistema travou')
+      expect(
+        listed.items.find((i) => i.tenantId === 'ten_b')?.clientComments,
+      ).toEqual(['pedi para chamar o atendente e o sistema travou'])
 
       const onlyA = listReviewSamplesSync(boot.db, {
         nowMs: now,
@@ -89,24 +94,34 @@ describe('review-samples D1 store (DEC-159)', () => {
       expect(onlyA.items).toHaveLength(1)
       expect(onlyA.items[0]!.id).toBe(a.sampleId)
       expect(onlyA.items[0]!.clientComment).toBeNull()
+      expect(onlyA.items[0]!.clientComments).toEqual([])
 
       const detail = getReviewSampleSync(boot.db, a.sampleId, now)
       expect(detail?.messages).toHaveLength(2)
       expect(detail?.messages[0]!.body).toBe('quero cotovelo')
       expect(detail?.clientComment).toBeNull()
+      expect(detail?.clientComments).toEqual([])
       expect(detail?.expiresAt).toBe(now + REVIEW_SAMPLE_TTL_MS)
 
       const detailB = getReviewSampleSync(boot.db, b.sampleId, now)
       expect(detailB?.clientComment).toBe(
         'pedi para chamar o atendente e o sistema travou',
       )
+      expect(detailB?.clientComments).toEqual([
+        'pedi para chamar o atendente e o sistema travou',
+      ])
 
-      // Re-flag upsert substitui mensagens.
+      // Re-flag upsert substitui mensagens e appenda comentários.
       upsertReviewSampleSync(
         boot.db,
         snap({
           tenantId: 'ten_a',
           conversationId: 'cnv_a1',
+          clientComment: 'primeiro',
+          clientComments: [
+            'primeiro',
+            'esta última mensagem deveria oferecer novamente os horários',
+          ],
           messages: [
             {
               messageId: 'msg_3',
@@ -124,6 +139,11 @@ describe('review-samples D1 store (DEC-159)', () => {
       const again = getReviewSampleSync(boot.db, a.sampleId, now + 1)
       expect(again?.messages).toHaveLength(1)
       expect(again?.messages[0]!.body).toBe('avaliar')
+      expect(again?.clientComment).toBe('primeiro')
+      expect(again?.clientComments).toEqual([
+        'primeiro',
+        'esta última mensagem deveria oferecer novamente os horários',
+      ])
 
       const purged = purgeExpiredReviewSamplesSync(
         boot.db,

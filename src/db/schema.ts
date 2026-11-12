@@ -378,8 +378,10 @@ export const reviewSamples = sqliteTable('review_samples', {
   contactDisplayName: text('contact_display_name'),
   flagSource: text('flag_source').notNull(),
   flagReason: text('flag_reason'),
-  /** DEC-166 — observação livre no 1.º «avaliar»/«feedback»; null se bare keyword. */
+  /** DEC-166 — 1.º comentário livre; null se ainda não houve texto. */
   clientComment: text('client_comment'),
+  /** DEC-167 — JSON array com todos os comentários Avaliar/feedback (ordem de chegada). */
+  clientComments: text('client_comments'),
   flaggedAt: integer('flagged_at').notNull(),
   copiedAt: integer('copied_at').notNull(),
   expiresAt: integer('expires_at').notNull(),

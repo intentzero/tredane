@@ -1,5 +1,5 @@
 /**
- * Cópia best-effort do snapshot para o D1 central (DEC-159).
+ * Cópia best-effort do snapshot para o D1 central (DEC-159 / DEC-167).
  * Nunca bloqueia o ack WhatsApp / flag local.
  */
 import type { ClinicDb } from '../clinic/store'
@@ -22,6 +22,7 @@ export async function copyReviewSampleBestEffort(input: {
   reason: ReviewFlagReason | string | null
   flaggedAt: number
   clientComment?: string | null
+  clientComments?: string[] | null
   nowMs: number
 }): Promise<{ ok: boolean; sampleId?: string; error?: string }> {
   if (!input.target) return { ok: false, error: 'no_target' }
@@ -34,6 +35,7 @@ export async function copyReviewSampleBestEffort(input: {
       reason: input.reason,
       flaggedAt: input.flaggedAt,
       clientComment: input.clientComment,
+      clientComments: input.clientComments,
     })
     if (!snapshot) return { ok: false, error: 'conversation_not_found' }
     if (input.target.kind === 'sync') {

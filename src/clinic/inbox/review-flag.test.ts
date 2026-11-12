@@ -185,7 +185,7 @@ describe('DEC-157 review flag', () => {
     expect(isReviewFlagRequest('avaliar: comment')).toBe(true)
   })
 
-  it('DEC-166: first-flag-wins guarda clientComment; re-flag não sobrescreve', () => {
+  it('DEC-166/167: 1.º flag guarda comentário; re-flag com texto appenda e emite outbox', () => {
     const { db, close, clock, tenantId, cnv } = seedConversation()
     try {
       const first = flagConversationForReview(
@@ -203,10 +203,17 @@ describe('DEC-157 review flag', () => {
       expect(readReviewFlag(db, tenantId, cnv.id)?.clientComment).toBe(
         'eu vi que o horario estava repetido',
       )
+      expect(readReviewFlag(db, tenantId, cnv.id)?.clientComments).toEqual([
+        'eu vi que o horario estava repetido',
+      ])
       const payload = JSON.parse(first.outbox[0]!.payloadJson) as {
         clientComment: string | null
+        clientComments: string[]
       }
       expect(payload.clientComment).toBe('eu vi que o horario estava repetido')
+      expect(payload.clientComments).toEqual([
+        'eu vi que o horario estava repetido',
+      ])
 
       const second = flagConversationForReview(
         db,
@@ -215,14 +222,61 @@ describe('DEC-157 review flag', () => {
         {
           source: 'client',
           reason: 'client_request',
-          clientComment: 'outro comentário que não deve gravar',
+          clientComment: 'esta última mensagem deveria oferecer novamente os horários',
         },
         clock,
       )
-      expect(second.changed).toBe(false)
-      expect(readReviewFlag(db, tenantId, cnv.id)?.clientComment).toBe(
-        'eu vi que o horario estava repetido',
+      expect(second.changed).toBe(true)
+      expect(second.outbox.some((o) => o.type === 'conversation.review_flagged')).toBe(
+        true,
       )
+      const state = readReviewFlag(db, tenantId, cnv.id)
+      expect(state?.clientComment).toBe('eu vi que o horario estava repetido')
+      expect(state?.clientComments).toEqual([
+        'eu vi que o horario estava repetido',
+        'esta última mensagem deveria oferecer novamente os horários',
+      ])
+      expect(state?.source).toBe('client')
+      const secondPayload = JSON.parse(second.outbox[0]!.payloadJson) as {
+        clientComments: string[]
+        commentAppended: boolean
+        source: string
+      }
+      expect(secondPayload.commentAppended).toBe(true)
+      expect(secondPayload.clientComments).toEqual(state?.clientComments)
+      expect(secondPayload.source).toBe('client')
+    } finally {
+      close()
+    }
+  })
+
+  it('DEC-167: re-flag bare (sem comentário) continua no-op; metadados first-flag-wins', () => {
+    const { db, close, clock, tenantId, cnv } = seedConversation()
+    try {
+      flagConversationForReview(
+        db,
+        tenantId,
+        cnv.id,
+        {
+          source: 'client',
+          reason: 'client_request',
+          clientComment: 'primeiro',
+        },
+        clock,
+      )
+      const bare = flagConversationForReview(
+        db,
+        tenantId,
+        cnv.id,
+        { source: 'auto', reason: 'nao_encontrei' },
+        clock,
+      )
+      expect(bare.changed).toBe(false)
+      expect(bare.outbox).toHaveLength(0)
+      expect(readReviewFlag(db, tenantId, cnv.id)?.source).toBe('client')
+      expect(readReviewFlag(db, tenantId, cnv.id)?.clientComments).toEqual([
+        'primeiro',
+      ])
     } finally {
       close()
     }

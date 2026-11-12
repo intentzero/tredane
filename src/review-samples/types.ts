@@ -19,8 +19,10 @@ export type ReviewSampleSnapshot = {
   contactDisplayName: string | null
   flagSource: ReviewFlagSource
   flagReason: ReviewFlagReason | string | null
-  /** DEC-166 — observação livre no 1.º flag; null se bare keyword / auto / staff. */
+  /** DEC-166 — 1.º comentário livre; null se bare keyword / auto / staff. */
   clientComment: string | null
+  /** DEC-167 — todos os comentários Avaliar/feedback (ordem de chegada). */
+  clientComments: string[]
   flaggedAt: number
   lastMessageAt: number | null
   lastMessagePreview: string | null
@@ -38,6 +40,7 @@ export type ReviewSampleListItem = {
   flagSource: string
   flagReason: string | null
   clientComment: string | null
+  clientComments: string[]
   flaggedAt: number
   copiedAt: number
   expiresAt: number
