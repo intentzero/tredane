@@ -16,7 +16,6 @@ import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { getBookingFrame, getScheduleSession } from './schedule-session'
 
-const TZ = 'America/Sao_Paulo'
 /** qui 12/11/2026 10:15 America/Sao_Paulo */
 const NOW = Date.UTC(2026, 10, 12, 13, 15)
 
@@ -25,7 +24,7 @@ const INBOUND =
 
 function seed() {
   const clock = createControllableClock(NOW)
-  const boot = bootClinicDb({ clock, timezone: TZ })
+  const boot = bootClinicDb({ clock })
   const { db } = boot
   const tenantId = 'clinic-demo-rsamp-1241995755'
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
@@ -125,7 +124,7 @@ describe('rsamp_1241995755 — primeira mensagem completa', () => {
       expect(session?.audienceLine ?? frame?.line).toBe('masculino')
       expect(session?.period ?? frame?.period).toBe('tarde')
       // Dia civil «hoje» deve gravar no quadro já no 1.º turno (DEC-137 eco).
-      expect(session?.date ?? frame?.date).toBe('2026-11-12')
+      expect(frame?.date).toBe('2026-11-12')
       const zones = listZones(s.db, s.tenantId, s.depilacao.id).filter((z) =>
         (session?.variantIds ?? frame?.variantIds ?? []).includes(z.id),
       )
