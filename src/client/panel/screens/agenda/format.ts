@@ -45,6 +45,19 @@ export function formatLongDate(isoDate: string, timeZone: string): string {
   return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${get('day')} de ${get('month')}`
 }
 
+/** «qui, 12 nov» — data curta para o topo da Agenda no celular (DEC-169). */
+export function formatShortDate(isoDate: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).formatToParts(civilProbe(isoDate))
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    (parts.find((p) => p.type === type)?.value ?? '').replace('.', '')
+  return `${get('weekday')}, ${get('day')} ${get('month')}`
+}
+
 /** «26 de outubro – 1 de novembro» para o intervalo da semana. */
 export function formatDateRange(
   startIso: string,

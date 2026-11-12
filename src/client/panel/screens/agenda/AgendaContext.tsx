@@ -1,5 +1,3 @@
-import { Plus } from 'lucide-react'
-import { Button } from 'react-aria-components'
 import type { ScheduleHold } from '../../api'
 import { AgendaDayList, type AgendaProfessional } from './AgendaDayList'
 import { AgendaMiniMonth } from './AgendaMiniMonth'
@@ -30,7 +28,7 @@ type Props = {
 }
 
 /**
- * Coluna de contexto da Agenda no desktop (≥ 1280 px, DEC-068): botão Agendar, mês pequeno,
+ * Coluna de contexto da Agenda no desktop (≥ 1280 px, DEC-068; Agendar no cabeçalho, DEC-169): mês pequeno,
  * filtros por profissional e sala e a lista do dia. A grade fica na área de trabalho ao lado.
  */
 export function AgendaContext({
@@ -57,11 +55,6 @@ export function AgendaContext({
   const filtering = selectedPros.length > 0 || selectedRooms.length > 0
   return (
     <aside className="agenda-context" aria-label="Contexto da agenda">
-      <Button className="panel-btn-primary agenda-context-add" onPress={onSchedule}>
-        <Plus aria-hidden size={18} strokeWidth={2} />
-        Agendar
-      </Button>
-
       <AgendaMiniMonth date={date} today={today} timezone={timezone} onPick={onPickDate} />
 
       {professionals.length > 1 ? (

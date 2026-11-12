@@ -137,6 +137,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Assumir em linha (Confirmado, DEC-168, Paulo, 12/11/2026):** na conversa que não é sua, **Assumir** é uma linha de 44 px colada ao compositor, e não um cartão; regras de atribuição inalteradas. Detalhe em [ux-ui](product/ux-ui.md).
 
+**Topo da Agenda compacto (Confirmado, DEC-169, Paulo, 12/11/2026):** no desktop, navegação, data, Dia/Semana e Agendar no cabeçalho; no celular, uma linha e a faixa de dias como navegação. Detalhe em [ux-ui](product/ux-ui.md).
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

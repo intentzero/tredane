@@ -85,10 +85,13 @@ afterEach(() => {
 })
 
 describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
-  it('mostra Agendar, mês, filtros e a lista do dia ao lado da grade', async () => {
+  it('mostra mês, filtros e a lista do dia ao lado da grade; Agendar fica na barra (DEC-169)', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
-    expect(within(context).getByRole('button', { name: 'Agendar' })).toBeTruthy()
+    expect(within(context).queryByRole('button', { name: 'Agendar' })).toBeNull()
+    const nav = screen.getByRole('group', { name: 'Navegação de data' })
+    expect(within(nav).getByRole('button', { name: 'Hoje' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: /^Quarta, 28 de outubro/ })).toBeTruthy()
     expect(within(context).getByRole('group', { name: 'Escolher o dia' })).toBeTruthy()
     expect(within(context).getByRole('group', { name: 'Filtrar por profissional' })).toBeTruthy()
     expect(within(context).getByRole('group', { name: 'Filtrar por sala' })).toBeTruthy()
@@ -133,10 +136,10 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     expect(await within(context).findByText('Carla Mendes')).toBeTruthy()
   })
 
-  it('«Agendar» da coluna leva o dia que está a ver', async () => {
+  it('«Agendar» da barra leva o dia que está a ver', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
-    const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
-    fireEvent.click(within(context).getByRole('button', { name: 'Agendar' }))
+    await screen.findByRole('complementary', { name: 'Contexto da agenda' })
+    fireEvent.click(screen.getByRole('button', { name: 'Agendar' }))
     await waitFor(() =>
       expect(navigatePanel).toHaveBeenCalledWith(
         expect.objectContaining({ section: 'agendar', date: '2026-10-28' }),
@@ -159,7 +162,7 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     })
     render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
-    expect(within(context).getByRole('button', { name: 'Agendar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Agendar' })).toBeTruthy()
     expect(within(context).getByText(/Hoje ·/)).toBeTruthy()
     expect(document.querySelector('.agenda-empty')).toBeNull()
     expect(screen.queryByText(/Nenhum horário marcado/)).toBeNull()

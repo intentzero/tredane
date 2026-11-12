@@ -18,6 +18,7 @@ import { ErrorState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { useVisiblePolling } from '../../ui/useVisiblePolling'
 import { isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
+import { ShellSlot } from '../../shell/ShellSlot'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
@@ -34,6 +35,7 @@ import {
   formatDateRange,
   formatDayLabel,
   formatLongDate,
+  formatShortDate,
   formatSlotTime,
   isCivilDateParam,
   upcomingCivilDates,
@@ -317,111 +319,135 @@ export function AgendaDayWeek({
     return `${base} · ${dayCount === 0 ? 'nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}`
   })()
 
+  // DEC-169: no desktop, navegação, data, Dia/Semana e Agendar vão para o
+  // cabeçalho do shell; no celular, uma linha (data + Dia/Semana) e a faixa
+  // de dias com setas de semana.
+  const onToday = view === 'day' ? date === today : weekDays.includes(today)
+  const offToday = !onToday
+  const headTitle =
+    view === 'week' ? subtitle : `${date === today ? 'Hoje · ' : ''}${formatShortDate(date, timezone)}`
+  const viewToggle = (
+    <ToggleButtonGroup
+      className="panel-segmented agenda-view-toggle"
+      aria-label="Visão da agenda"
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={[view]}
+      onSelectionChange={(keys) => {
+        const next = [...keys][0]
+        if (next !== 'day' && next !== 'week') return
+        navigatePanel({
+          kind: 'area',
+          area: 'agenda',
+          tenantId,
+          section: next === 'day' ? 'dia' : 'semana',
+        })
+      }}
+    >
+      <ToggleButton id="day" className="panel-segmented-item">
+        Dia
+      </ToggleButton>
+      <ToggleButton id="week" className="panel-segmented-item">
+        Semana
+      </ToggleButton>
+    </ToggleButtonGroup>
+  )
+
   const work = (
     <div className="agenda-day" data-screen={view === 'week' ? 'm13-semana' : 'm06-agenda'}>
-      <header className="agenda-head">
-        <div className="agenda-head-text">
-          {narrow ? (
-            <>
-              <h1 className="panel-title agenda-head-title">Agenda</h1>
-              <span className="panel-subtitle">
-                {view === 'week' ? subtitle : `${date === today ? 'Hoje · ' : ''}${subtitle}`}
-              </span>
-            </>
-          ) : (
-            <>
-              <h1 className="panel-title">{subtitle}</h1>
-              <span className="panel-subtitle">
-                {view === 'week' ? 'Semana' : date === today ? 'Hoje' : 'Dia'}
-              </span>
-            </>
-          )}
+      {narrow ? (
+        <div className="agenda-mhead">
+          <h2 className="agenda-mhead-title">{headTitle}</h2>
+          {offToday ? (
+            <Button className="panel-chip agenda-today" onPress={() => setDate(today)}>
+              Hoje
+            </Button>
+          ) : null}
+          {viewToggle}
         </div>
-        {narrow || wide ? null : (
-          <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
-            <Plus aria-hidden size={18} strokeWidth={2} />
-            Agendar
-          </Button>
-        )}
-      </header>
-
-      <ToggleButtonGroup
-        className="panel-segmented"
-        aria-label="Visão da agenda"
-        selectionMode="single"
-        disallowEmptySelection
-        selectedKeys={[view]}
-        onSelectionChange={(keys) => {
-          const next = [...keys][0]
-          if (next !== 'day' && next !== 'week') return
-          navigatePanel({
-            kind: 'area',
-            area: 'agenda',
-            tenantId,
-            section: next === 'day' ? 'dia' : 'semana',
-          })
-        }}
-      >
-        <ToggleButton id="day" className="panel-segmented-item">
-          Dia
-        </ToggleButton>
-        <ToggleButton id="week" className="panel-segmented-item">
-          Semana
-        </ToggleButton>
-      </ToggleButtonGroup>
-
-      <div className="agenda-nav" role="group" aria-label="Navegação de data">
-        <Button
-          className="panel-icon-btn"
-          aria-label={view === 'week' ? 'Semana anterior' : 'Dia anterior'}
-          onPress={() => setDate((d) => shiftCivil(d, -step))}
-        >
-          <ChevronLeft aria-hidden size={20} strokeWidth={2} />
-        </Button>
-        <Button
-          className="panel-chip agenda-today"
-          isDisabled={view === 'day' ? date === today : weekDays.includes(today)}
-          onPress={() => setDate(today)}
-        >
-          Hoje
-        </Button>
-        <Button
-          className="panel-icon-btn"
-          aria-label={view === 'week' ? 'Próxima semana' : 'Próximo dia'}
-          onPress={() => setDate((d) => shiftCivil(d, step))}
-        >
-          <ChevronRight aria-hidden size={20} strokeWidth={2} />
-        </Button>
-      </div>
+      ) : (
+        <ShellSlot>
+          <div className="agenda-bar">
+            <div className="agenda-bar-nav" role="group" aria-label="Navegação de data">
+              <Button
+                className="agenda-bar-btn"
+                aria-label={view === 'week' ? 'Semana anterior' : 'Dia anterior'}
+                onPress={() => setDate((d) => shiftCivil(d, -step))}
+              >
+                <ChevronLeft aria-hidden size={18} strokeWidth={2} />
+              </Button>
+              <Button
+                className="agenda-bar-btn"
+                aria-label={view === 'week' ? 'Próxima semana' : 'Próximo dia'}
+                onPress={() => setDate((d) => shiftCivil(d, step))}
+              >
+                <ChevronRight aria-hidden size={18} strokeWidth={2} />
+              </Button>
+              <Button className="agenda-bar-btn agenda-bar-today" isDisabled={!offToday} onPress={() => setDate(today)}>
+                Hoje
+              </Button>
+            </div>
+            <h2 className="agenda-bar-title">{subtitle}</h2>
+            {onToday ? <span className="agenda-bar-badge">Hoje</span> : null}
+            <span className="agenda-bar-spacer" />
+            {viewToggle}
+            <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
+              <Plus aria-hidden size={18} strokeWidth={2} />
+              Agendar
+            </Button>
+          </div>
+        </ShellSlot>
+      )}
 
       {wide ? null : (
         <div className="agenda-weekstrip" role="group" aria-label="Dias da semana">
-          {weekDays.map((day) => {
-            const label = formatDayLabel(day, timezone)
-            const count = byDay.get(day)?.length ?? 0
-            const selected = view === 'day' && day === date
-            return (
-              <button
-                key={day}
-                type="button"
-                className={`agenda-weekday${selected ? ' agenda-weekday--on' : ''}${day === today ? ' agenda-weekday--today' : ''}`}
-                aria-pressed={selected}
-                aria-label={`${formatLongDate(day, timezone)}${count > 0 ? `, ${count} ${count === 1 ? 'horário' : 'horários'}` : ''}`}
-                onClick={() => {
-                  setDate(day)
-                  if (view !== 'day') {
-                    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
-                  }
-                }}
-              >
-                <span className="agenda-weekday-name">{label.weekday}</span>
-                <span className="agenda-weekday-num">{label.day}</span>
-                <span className={`agenda-weekday-count${count > 0 ? ' agenda-weekday-count--on' : ''}`} aria-hidden>
-                  {count > 0 ? count : '·'}
-                </span>
-              </button>
-            )
-          })}
+          {narrow ? (
+            <Button
+              className="agenda-weekstrip-arrow"
+              aria-label="Semana anterior"
+              onPress={() => setDate((d) => shiftCivil(d, -7))}
+            >
+              <ChevronLeft aria-hidden size={18} strokeWidth={2} />
+            </Button>
+          ) : null}
+          <div className="agenda-weekstrip-days">
+            {weekDays.map((day) => {
+              const label = formatDayLabel(day, timezone)
+              const count = byDay.get(day)?.length ?? 0
+              const selected = view === 'day' && day === date
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  className={`agenda-weekday${selected ? ' agenda-weekday--on' : ''}${day === today ? ' agenda-weekday--today' : ''}`}
+                  aria-pressed={selected}
+                  aria-label={`${formatLongDate(day, timezone)}${count > 0 ? `, ${count} ${count === 1 ? 'horário' : 'horários'}` : ''}`}
+                  onClick={() => {
+                    setDate(day)
+                    if (view !== 'day') {
+                      navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+                    }
+                  }}
+                >
+                  <span className="agenda-weekday-name">{label.weekday}</span>
+                  <span className="agenda-weekday-num">{label.day}</span>
+                  <span
+                    className={`agenda-weekday-dot${count > 0 ? ' agenda-weekday-dot--on' : ''}`}
+                    aria-hidden
+                  />
+                </button>
+              )
+            })}
+          </div>
+          {narrow ? (
+            <Button
+              className="agenda-weekstrip-arrow"
+              aria-label="Próxima semana"
+              onPress={() => setDate((d) => shiftCivil(d, 7))}
+            >
+              <ChevronRight aria-hidden size={18} strokeWidth={2} />
+            </Button>
+          ) : null}
         </div>
       )}
 

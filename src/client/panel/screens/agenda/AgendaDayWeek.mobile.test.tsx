@@ -103,6 +103,28 @@ describe('Agenda — dia no celular', () => {
     expect(await screen.findByText('Carla Mendes')).toBeTruthy()
   })
 
+  it('topo compacto (DEC-169): data e Dia/Semana numa linha; setas da faixa mudam de semana; «Hoje» só fora de hoje', async () => {
+    const api = mockApi()
+    render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
+    await screen.findByText('Laura Pires')
+    expect(screen.getByRole('heading', { level: 2, name: /^Hoje · qua, 28 out/ })).toBeTruthy()
+    expect(screen.queryByRole('group', { name: 'Navegação de data' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull()
+    const strip = screen.getByRole('group', { name: 'Dias da semana' })
+    fireEvent.click(within(strip).getByRole('button', { name: 'Próxima semana' }))
+    await waitFor(() =>
+      expect(api.queryAgenda).toHaveBeenLastCalledWith(
+        't',
+        expect.objectContaining({ date: '2026-11-04' }),
+        expect.anything(),
+      ),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Hoje' }))
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 2, name: /^Hoje · / })).toBeTruthy(),
+    )
+  })
+
   it('«Agendar» leva o dia que está a ver', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
     await screen.findByText('Laura Pires')

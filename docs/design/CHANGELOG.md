@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-169: topo da Agenda compacto
+
+- `PanelShell` ganha o espaço `panel-shell-slot` (`ShellSlot`); a Agenda põe ali setas, Hoje, data, Dia/Semana e Agendar. No celular, uma linha com a data curta (`formatShortDate`) e a faixa de dias com setas de semana. Mocks M-76 `mobile/AgendaTopoCompacto` e `desktop/AgendaBarraCabecalho`.
+
 ## 12/11/2026 — DEC-168: Assumir em linha no compositor
 
 - `InboxThread` troca o cartão de handoff (~132 px no celular) por uma linha de 44 px dentro do dock do compositor; **Precisa de alguém** em bloco âmbar compacto; mock M-75 `mobile/AssumirLinha`.
