@@ -15,7 +15,6 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 
-const TZ = 'America/Sao_Paulo'
 /** qui 12/11/2026 10:41 America/Sao_Paulo */
 const NOW = Date.UTC(2026, 10, 12, 13, 41)
 
