@@ -30,6 +30,7 @@ import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { friendlyError } from '../../copy/errors'
 import { useVisiblePolling } from '../../ui/useVisiblePolling'
+import { useVisualViewportSheet } from '../../ui/useVisualViewportSheet'
 import { civilDateInZone, formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
 import {
   CALENDAR_HORIZON_DAYS,
@@ -1051,6 +1052,8 @@ type ReviewProps = {
 
 function ReviewSheet(p: ReviewProps) {
   const { api, tenantId, fo, ctx, service, slot, timezone } = p
+  // iOS: com teclado aberto a folha sobe (mensagem / «Outro» waiver).
+  const sheetStyle = useVisualViewportSheet(p.isOpen, { mode: 'lift' })
   const start = formatSlotTime(slot.startsAt, timezone)
   const end = formatSlotTime(slot.endsAt, timezone)
   const dayLabel = formatDayLabel(p.date, timezone)
@@ -1350,7 +1353,7 @@ function ReviewSheet(p: ReviewProps) {
   return (
     <ModalOverlay isOpen={p.isOpen} onOpenChange={(v) => !busy && p.onOpenChange(v)} isDismissable={!busy} className="panel-overlay">
       <Modal className="panel-choice-modal">
-        <Dialog className="panel-sheet agd-sheet" aria-labelledby="agd-review-title">
+        <Dialog className="panel-sheet agd-sheet" style={sheetStyle} aria-labelledby="agd-review-title">
           <span className="panel-sheet-handle" aria-hidden="true" />
           <Heading slot="title" id="agd-review-title" className="panel-title">
             {proposalAvailable

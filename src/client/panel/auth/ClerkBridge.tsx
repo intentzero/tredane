@@ -3,7 +3,7 @@ import { ptBR } from '@clerk/localizations'
 import { AccountMenu } from '../shell/AccountMenu'
 import { useEffect, type ReactNode } from 'react'
 import { useAuthSession, useClientConfig } from './AuthContext'
-import { clerkAppearance } from './clerkAppearance'
+import { clerkUserProfileAppearance } from './clerkAppearance'
 import { ClerkLogin } from './ClerkLogin'
 import { ClerkSignUp } from './ClerkSignUp'
 import { SyntheticLogin } from './SyntheticLogin'
@@ -61,7 +61,7 @@ export function AuthModeGate({ children }: { children: ReactNode }) {
         publishableKey={pk}
         afterSignOutUrl="/entrar"
         localization={ptBR}
-        appearance={clerkAppearance}
+        appearance={clerkUserProfileAppearance}
       >
         <ClerkSessionBridge>{children}</ClerkSessionBridge>
       </ClerkProvider>
@@ -98,7 +98,7 @@ function ClerkAccountControl({ placement }: AccountControlProps) {
       name={user?.fullName ?? user?.firstName ?? null}
       email={user?.primaryEmailAddress?.emailAddress ?? null}
       placement={placement}
-      onOpenProfile={() => openUserProfile({ appearance: clerkAppearance })}
+      onOpenProfile={() => openUserProfile({ appearance: clerkUserProfileAppearance })}
       onSignOut={() => {
         void (async () => {
           await clearLocal()

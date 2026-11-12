@@ -636,6 +636,42 @@
       "title": "M-74 Assistente: uma decisão por cartão (Confirmado DEC-163)",
       "is_interactive": false,
       "radius": 32
+    },
+    "AssumirLinha.dc.html": {
+      "x": 1880,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-75 Assumir em linha no compositor (Confirmado DEC-169)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "AgendaTopoCompacto.dc.html": {
+      "x": 2350,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-76 Agenda com topo compacto (Confirmado DEC-170)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "EquipeConviteAcoes.dc.html": {
+      "x": 2820,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-77 Equipe: ações do convite no ⋮ (Confirmado DEC-171)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "EquipeCancelarConvite.dc.html": {
+      "x": 3290,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-78 Equipe: cancelar convite pede confirmação (Confirmado DEC-171)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -707,7 +743,11 @@
     "ClinicaIndice.dc.html",
     "ServicosLista.dc.html",
     "HorarioSemHorarioProprio.dc.html",
-    "AssistenteDecisoes.dc.html"
+    "AssistenteDecisoes.dc.html",
+    "AssumirLinha.dc.html",
+    "AgendaTopoCompacto.dc.html",
+    "EquipeConviteAcoes.dc.html",
+    "EquipeCancelarConvite.dc.html"
   ],
   "notes": {
     "row1": {

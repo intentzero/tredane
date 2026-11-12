@@ -19,6 +19,7 @@ import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
 import { useOutsideClose } from '../../ui/useOutsideClose'
+import { useVisualViewportSheet } from '../../ui/useVisualViewportSheet'
 import { consumeAgendarOpen } from './agendarFocus'
 
 type Props = {
@@ -458,6 +459,20 @@ function MobileThread({
   const [agendarOpen, setAgendarOpen] = useState(() => consumeAgendarOpen())
   const sheetRef = useRef<HTMLElement | null>(null)
   const agendarConversationId = useRef(conversationId)
+  // iOS: a folha usa 100dvh; com teclado sobe e encolhe ao visualViewport (mantém o vão space-8).
+  const lift = useVisualViewportSheet(agendarOpen, { mode: 'lift' })
+  const modalStyle =
+    typeof lift.maxHeight === 'number'
+      ? ({
+          position: 'fixed' as const,
+          left: 0,
+          right: 0,
+          bottom: lift.bottom ?? 0,
+          // --space-8: vão superior sobre a conversa (ver .conversas-agendar-sheet-modal).
+          height: `calc(${lift.maxHeight}px - var(--space-8))`,
+          maxHeight: `calc(${lift.maxHeight}px - var(--space-8))`,
+        } as const)
+      : undefined
   useEffect(() => {
     if (agendarConversationId.current === conversationId) return
     agendarConversationId.current = conversationId
@@ -485,7 +500,7 @@ function MobileThread({
         isDismissable
         className="panel-overlay conversas-agendar-sheet-overlay"
       >
-        <Modal className="conversas-agendar-sheet-modal">
+        <Modal className="conversas-agendar-sheet-modal" style={modalStyle}>
           <Dialog className="conversas-agendar-sheet" aria-label="Agendar horário">
             <ConversasAgendarPanel
               asideRef={sheetRef}

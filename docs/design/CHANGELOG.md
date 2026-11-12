@@ -1,5 +1,17 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-171: revisão da Equipe
+
+- `EquipeScreen`: confirmação ao cancelar convite; selo de responsável em `primary.tint`; uma coluna de 760 px no desktop; contagens nos títulos; ações do convite em texto (desktop) ou no ⋮ com folha (celular); bloco «O que cada papel pode fazer». Mocks M-77 `mobile/EquipeConviteAcoes` e M-78 `mobile/EquipeCancelarConvite`.
+
+## 12/11/2026 — DEC-170: topo da Agenda compacto
+
+- `PanelShell` ganha o espaço `panel-shell-slot` (`ShellSlot`); a Agenda põe ali setas, Hoje, data, Dia/Semana e Agendar. No celular, uma linha com a data curta (`formatShortDate`) e a faixa de dias com setas de semana. Mocks M-76 `mobile/AgendaTopoCompacto` e `desktop/AgendaBarraCabecalho`.
+
+## 12/11/2026 — DEC-169: Assumir em linha no compositor
+
+- `InboxThread` troca o cartão de handoff (~132 px no celular) por uma linha de 44 px dentro do dock do compositor; **Precisa de alguém** em bloco âmbar compacto; mock M-75 `mobile/AssumirLinha`.
+
 ## 12/11/2026 — Tokens 0.8.0: densidade de toque (Confirmado, DEC-168)
 
 Pedido do responsável pelo produto (12/11/2026): os botões ficavam pequenos no celular. O desktop mantém a v0.4.0 (DEC-081); em `@media (pointer: coarse)` os tokens mudam:

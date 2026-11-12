@@ -1289,8 +1289,8 @@ button.panel-auth-inline-link {
   width: 100%;
 }
 
-/* Cadastro transparente: flush Clerk (elevation) + sem chrome de cartão. */
-.panel-clerk-card {
+/* Cadastro transparente: flush só no ecrã /entrar — não no UserProfile modal. */
+.panel-auth .panel-clerk-card {
   box-shadow: none !important;
   border: none !important;
   background: transparent !important;
@@ -1303,6 +1303,34 @@ button.panel-auth-inline-link {
 .panel-clerk-primary {
   background: var(--color-primary-fill) !important;
   min-height: var(--size-control-default);
+}
+
+/*
+ * Modal «Dados pessoais» (openUserProfile): cartão opaco acima do painel
+ * (Clínica / Profissionais / Serviços / Salas) — z-index acima do shell.
+ */
+.panel-clerk-profile-backdrop,
+.cl-modalBackdrop.panel-clerk-profile-backdrop {
+  z-index: 200 !important;
+  background: rgba(20, 38, 37, 0.45) !important;
+}
+
+.panel-clerk-profile-modal,
+.cl-modalContent.panel-clerk-profile-modal {
+  z-index: 201 !important;
+}
+
+.panel-clerk-profile-root {
+  width: auto;
+  max-width: min(100vw - 2 * var(--space-4), 56rem);
+}
+
+.panel-clerk-profile-card,
+.cl-card.panel-clerk-profile-card {
+  background: var(--color-surface-card) !important;
+  border: var(--size-border-width) solid var(--color-line-border) !important;
+  box-shadow: 0 12px 40px rgba(20, 38, 37, 0.18) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 /* Casas do OTP (Verifique seu e-mail): borda de controlo visível no cartão branco. */
@@ -2055,6 +2083,11 @@ button.panel-auth-inline-link {
 .inbox-template-picker {
   max-height: min(70dvh, 520px);
   overflow: auto;
+}
+
+/* iOS: com teclado o hook lift sobe a folha; o max-height segue --panel-vvh. */
+:root[data-keyboard='open'] .inbox-template-picker {
+  max-height: var(--panel-vvh, min(70dvh, 520px));
 }
 
 .inbox-template-list {
@@ -4054,10 +4087,18 @@ button.panel-auth-inline-link {
 }
 
 .agenda-weekstrip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+}
+
+.agenda-weekstrip-days {
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-1);
-  padding: 0 var(--space-3);
 }
 
 .agenda-weekday {
@@ -7821,6 +7862,12 @@ button.panel-auth-inline-link {
   max-height: 88dvh;
 }
 
+/* iOS: com teclado aberto o hook sobe o bottom; o max-height segue a área visível
+ * (--panel-vvh de useKeyboardViewport) para o corpo da folha continuar a rolar. */
+:root[data-keyboard='open'] .clinic-sheet.panel-choice-sheet {
+  max-height: var(--panel-vvh, 88dvh);
+}
+
 .clinic-sheet-head {
   display: flex;
   align-items: center;
@@ -10405,74 +10452,77 @@ button.panel-auth-inline-link {
   color: var(--color-text-muted);
 }
 
-/* Cartão único de handoff, logo acima do compositor. */
+/* Assumir em linha colada ao compositor (proposta A, 12/11/2026): sem
+   cartão, sem ícone em caixa; 44 px no celular. Dentro de .inbox-dock herda a
+   largura da coluna do compositor (680 px no desktop largo). */
 .inbox-handoff {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: 0 var(--space-4) var(--space-2);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-  border: var(--size-border-width) solid var(--color-line-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface-card);
-  box-shadow: 0 4px 16px rgb(20 38 37 / 8%);
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  padding: 0 0 0 var(--space-3);
   flex: none;
+}
+
+.inbox-handoff--solo {
+  margin: 0 var(--space-3) var(--space-2);
 }
 
 .inbox-handoff--alert {
-  border-color: var(--color-warning-border);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-tint);
 }
 
-.inbox-handoff-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-control-md);
-  height: var(--size-control-md);
-  border-radius: var(--radius-md);
-  background: var(--color-primary-tint);
-  color: var(--color-primary-ink);
+.inbox-handoff-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary-base);
   flex: none;
 }
 
-.inbox-handoff--alert .inbox-handoff-icon {
-  background: var(--color-warning-tint);
-  color: var(--color-warning-ink);
+.inbox-handoff-dot--none {
+  background: var(--color-attention-base);
 }
 
 .inbox-handoff-text {
-  flex: 1 1 200px;
+  flex: 1 1 auto;
   min-width: 0;
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
-.inbox-handoff-text strong {
-  display: block;
-  font-size: var(--font-size-body);
-  color: var(--color-warning-ink);
-}
-
 .inbox-handoff-text p {
   margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.inbox-handoff-text .inbox-handoff-none {
+  color: var(--color-attention-ink);
+  font-weight: 500;
+}
+
+.inbox-handoff-text strong {
+  display: block;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-warning-ink);
 }
 
 .inbox-handoff .inbox-handoff-btn {
   flex: none;
-  min-height: var(--size-control-lg);
-  border-radius: var(--radius-lg);
 }
 
-@media (max-width: 767.98px) {
-  .inbox-handoff {
-    margin: 0 var(--space-3) var(--space-2);
-  }
-
-  .inbox-handoff .inbox-handoff-btn {
-    flex: 1 1 100%;
-    min-height: var(--size-touch);
-  }
+.inbox-handoff .inbox-handoff-btn--quiet {
+  min-height: var(--size-touch);
+  padding-inline: var(--space-3);
+  font-weight: 500;
+  color: var(--color-primary-ink);
+  text-decoration: none;
 }
 
 /* «Gislaine tocou Confirmar»: evento discreto, alinhado ao lado da cliente. */
@@ -10828,6 +10878,11 @@ button.panel-auth-inline-link {
   outline: none;
 }
 
+/* iOS: sem o pin JS o 100dvh fica atrás do teclado; --panel-vvh é o fallback CSS. */
+:root[data-keyboard='open'] .conversas-agendar-sheet-modal {
+  height: calc(var(--panel-vvh, 100dvh) - var(--space-8));
+}
+
 .conversas-agendar-sheet {
   flex: 1;
   min-height: 0;
@@ -10879,7 +10934,12 @@ button.panel-auth-inline-link {
 }
 
 .inbox-handoff--closed .inbox-handoff-text strong {
+  font-size: var(--font-size-body);
   color: var(--color-warning-ink);
+}
+
+.inbox-handoff--closed .inbox-handoff-text p {
+  white-space: normal;
 }
 
 .inbox-handoff--closed .inbox-handoff-btn {
@@ -11360,4 +11420,286 @@ button.panel-auth-inline-link {
 .clientes-row-next {
   color: var(--color-primary-ink);
   font-weight: var(--font-weight-medium);
+}
+
+/* ——— DEC-170 (Paulo, 12/11/2026): topo da Agenda compacto ——— */
+.panel-shell-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: center;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.panel-shell-slot:empty {
+  display: none;
+}
+
+.agenda-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.agenda-bar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.agenda-bar-btn {
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.agenda-bar-today {
+  padding: 0 var(--space-3);
+}
+
+.agenda-bar-btn[data-hovered] {
+  background: var(--color-surface-sunken);
+}
+
+.agenda-bar-btn[data-disabled] {
+  color: var(--color-text-muted);
+  cursor: default;
+  background: var(--color-surface-card);
+}
+
+.agenda-bar-btn[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+.agenda-bar-title {
+  margin: 0 0 0 var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.agenda-bar-badge {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+.agenda-bar-spacer {
+  flex: 1;
+}
+
+.agenda-view-toggle.panel-segmented {
+  margin: 0;
+  flex: none;
+  width: auto;
+}
+
+.agenda-view-toggle .panel-segmented-item {
+  min-height: 30px;
+  padding: 0 var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .agenda-day > .agenda-weekstrip {
+    padding-top: var(--space-1);
+  }
+}
+
+/* Celular: data e Dia/Semana numa linha; a faixa de dias navega. */
+.agenda-mhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-4);
+}
+
+.agenda-mhead-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.agenda-mhead .agenda-today {
+  flex: none;
+}
+
+.agenda-mhead .agenda-view-toggle .panel-segmented-item {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+}
+
+.agenda-weekstrip-arrow {
+  flex: none;
+  width: 32px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.agenda-weekstrip-arrow[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: -2px;
+}
+
+@media (max-width: 767.98px) {
+  .agenda-day {
+    gap: var(--space-2);
+  }
+
+  .agenda-day > .agenda-weekstrip {
+    padding: 0 var(--space-1);
+  }
+
+  .agenda-weekstrip .agenda-weekday {
+    min-height: 48px;
+    padding: 2px 0;
+    border-radius: var(--radius-lg);
+  }
+
+  .agenda-weekstrip .agenda-weekday-num {
+    font-size: var(--font-size-title);
+  }
+
+  .agenda-weekstrip .agenda-weekday-dot {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+/* 768–1023 px: a barra da Agenda desce para uma segunda linha do cabeçalho. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .panel-shell-header:has(.panel-shell-slot:not(:empty)) {
+    flex-wrap: wrap;
+  }
+
+  .panel-shell-slot:not(:empty) {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+/* ——— DEC-171 (Paulo, 12/11/2026): revisão da Equipe ——— */
+@media (min-width: 768px) {
+  .equipe-screen {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+  }
+}
+
+.equipe-layout {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.equipe-main {
+  flex: none;
+}
+
+/* Responsável deixa o roxo da IA: o papel de uma pessoa não é coisa da IA. */
+.equipe-avatar--owner {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.equipe-invite-actions .equipe-action-btn {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.equipe-invite-actions .equipe-cancel-btn {
+  color: var(--color-danger-ink);
+}
+
+.equipe-invite-actions .equipe-action-btn[data-disabled] {
+  color: var(--color-text-muted);
+}
+
+.equipe-roles > summary {
+  cursor: pointer;
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-ink);
+}
+
+.equipe-roles-grid {
+  margin: var(--space-2) 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.equipe-roles-grid > div {
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.equipe-roles-grid dt {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.equipe-roles-grid dd {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 767.98px) {
+  /* Ações do convite no ⋮ (folha), como nos membros. */
+  .equipe-invite {
+    grid-template-columns: auto minmax(0, 1fr) var(--size-touch);
+    padding-right: var(--space-1);
+  }
+
+  .equipe-invite .equipe-row-menu {
+    grid-area: auto;
+  }
+
+  .equipe-invite .equipe-copy strong {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
 }

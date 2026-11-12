@@ -135,6 +135,12 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Agenda e Clientes (Confirmado, DEC-165, Paulo, 12/11/2026):** lista do dia em cartões de duas linhas com a cor da profissional; compromisso com dia, intervalo, cliente e conversa; Clientes com o próximo horário ou a última visita na linha; grade do dia no desktop por profissional. Implementado; filtros com contagem e tabela de Clientes no desktop ficam por fazer.
 
+**Assumir em linha (Confirmado, DEC-169, Paulo, 12/11/2026):** na conversa que não é sua, **Assumir** é uma linha de 44 px colada ao compositor, e não um cartão; regras de atribuição inalteradas. Detalhe em [ux-ui](product/ux-ui.md).
+
+**Topo da Agenda compacto (Confirmado, DEC-170, Paulo, 12/11/2026):** no desktop, navegação, data, Dia/Semana e Agendar no cabeçalho; no celular, uma linha e a faixa de dias como navegação. Detalhe em [ux-ui](product/ux-ui.md).
+
+**Equipe revista (Confirmado, DEC-171, Paulo, 12/11/2026):** cancelar convite pede confirmação; papéis em cor neutra e explicados num bloco; convites numa linha, com as ações no ⋮ no celular. Detalhe em [ux-ui](product/ux-ui.md).
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

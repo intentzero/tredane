@@ -7,6 +7,7 @@ import {
   eventDeletesConversation,
   InboxRealtimeProvider,
   isScheduleEvent,
+  isTeamEvent,
 } from './InboxRealtime'
 
 class StubWebSocket {
@@ -105,6 +106,31 @@ describe('helpers contact.deleted / agenda', () => {
         payload: { contactId: 'ct_1' },
       }),
     ).toBe(true)
+  })
+
+  it('isTeamEvent reconhece invitation.accepted e ignora inbox', () => {
+    expect(
+      isTeamEvent({
+        type: 'event',
+        seq: 1,
+        eventId: 'e',
+        eventType: 'invitation.accepted',
+        entity: { type: 'tenant_invitation', id: 'inv_1' },
+        occurredAt: 1,
+        payload: { invitationId: 'inv_1' },
+      }),
+    ).toBe(true)
+    expect(
+      isTeamEvent({
+        type: 'event',
+        seq: 2,
+        eventId: 'e2',
+        eventType: 'message.created',
+        entity: { type: 'message', id: 'm1' },
+        occurredAt: 1,
+        payload: {},
+      }),
+    ).toBe(false)
   })
 })
 

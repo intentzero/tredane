@@ -1,10 +1,24 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PanelApiError, type PanelApi, type TeamSnapshot } from '../../api'
 import { EquipeScreen } from './EquipeScreen'
 
-afterEach(cleanup)
+let emitTeamSignal: (() => void) | null = null
+vi.mock('../../realtime/InboxRealtime', async (orig) => {
+  const mod = await orig<typeof import('../../realtime/InboxRealtime')>()
+  return {
+    ...mod,
+    useInboxRealtime: (cb: (s: unknown[]) => void) => {
+      emitTeamSignal = () => cb([{ kind: 'event', event: { eventType: 'invitation.accepted' } }])
+    },
+  }
+})
+
+afterEach(() => {
+  cleanup()
+  emitTeamSignal = null
+})
 
 function snap(over: Partial<TeamSnapshot> = {}): TeamSnapshot {
   return {
@@ -152,13 +166,13 @@ describe('EquipeScreen — S1', () => {
     expect(screen.getByText('luciana@belapele.example')).toBeTruthy()
     expect(screen.getByText('Ana Souza')).toBeTruthy()
     expect(screen.getByText('ana@belapele.example')).toBeTruthy()
-    expect(screen.getByText('Responsável')).toBeTruthy()
+    expect(screen.getAllByText('Responsável').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Atendente').length).toBeGreaterThan(0)
     expect(screen.queryByText('user_owner')).toBeNull()
     expect(screen.queryByText(/recepcionista/i)).toBeNull()
   })
 
-  it('desabilita reenviar durante o cooldown e cancela o convite', async () => {
+  it('desabilita reenviar durante o cooldown; cancelar pede confirmação (DEC-171)', async () => {
     const user = userEvent.setup()
     const team = snap()
     const api = mockApi(team)
@@ -173,11 +187,19 @@ describe('EquipeScreen — S1', () => {
     await waitFor(() => expect(screen.getByText('bruno@belapele.example')).toBeTruthy())
     const resend = screen.getByRole('button', { name: /Reenviar em \d+ min/ })
     expect(resend).toHaveProperty('disabled', true)
-    expect(resend.className).toMatch(/panel-btn-secondary/)
-    const cancel = screen.getByRole('button', { name: 'Cancelar convite' })
-    expect(cancel.className).toMatch(/panel-btn-danger/)
+    expect(screen.queryByText('Pendente')).toBeNull()
+    expect(screen.queryByText(/Até 5 reenvios/)).toBeNull()
 
-    await user.click(cancel)
+    await user.click(screen.getByRole('button', { name: 'Cancelar…' }))
+    expect(api.cancelInvitation).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('heading', { name: 'Cancelar o convite de bruno@belapele.example?' }),
+    ).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Manter convite' }))
+    expect(api.cancelInvitation).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar…' }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar convite' }))
     await waitFor(() =>
       expect(api.cancelInvitation).toHaveBeenCalledWith(
         'clinic-demo-a',
@@ -185,6 +207,57 @@ describe('EquipeScreen — S1', () => {
         expect.anything(),
       ),
     )
+  })
+
+  it('celular: ações do convite numa folha pelo ⋮ (DEC-171)', async () => {
+    const user = userEvent.setup()
+    const original = window.matchMedia
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('max-width: 767.98px'),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+    try {
+      const api = mockApi(snap())
+      render(
+        <EquipeScreen
+          tenantId="clinic-demo-a"
+          api={api}
+          generation={1}
+          viewerClerkUserId="user_owner"
+        />,
+      )
+      await waitFor(() => expect(screen.getByText('bruno@belapele.example')).toBeTruthy())
+      expect(screen.queryByRole('button', { name: 'Cancelar…' })).toBeNull()
+      await user.click(
+        screen.getByRole('button', { name: 'Ações do convite para bruno@belapele.example' }),
+      )
+      expect(screen.getByText(/Até 5 reenvios em 24 h/)).toBeTruthy()
+      await user.click(screen.getByRole('button', { name: 'Cancelar convite…' }))
+      expect(
+        screen.getByRole('heading', { name: 'Cancelar o convite de bruno@belapele.example?' }),
+      ).toBeTruthy()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
+  it('responsável usa o selo neutro e há um bloco com o que cada papel pode fazer (DEC-171)', async () => {
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={mockApi(snap())}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
+    const badge = screen.getAllByText('Responsável').find((el) => el.className.includes('panel-badge'))
+    expect(badge?.className).toMatch(/panel-badge-new/)
+    expect(screen.getByText('O que cada papel pode fazer')).toBeTruthy()
+    expect(screen.queryByText('Como responsável, você')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Membros · 2' })).toBeTruthy()
   })
 
   it('mostra Convidar pessoa no cabeçalho, antes das listas, e o banner Pronto após envio', async () => {
@@ -579,5 +652,85 @@ describe('EquipeScreen — S2 remoção e DEC-103', () => {
         ),
       ).toBeTruthy(),
     )
+  })
+})
+
+describe('EquipeScreen — tempo real invitation.accepted', () => {
+  it('ao receber invitation.accepted some o pendente, entra o membro e actualiza contagens', async () => {
+    const pending = snap({
+      invitations: [
+        {
+          id: 'inv_laine',
+          tenantId: 'clinic-demo-a',
+          email: 'lainebsb@hotmail.com',
+          role: 'attendant',
+          status: 'pending',
+          issuedAt: Date.now() - 60_000,
+          expiresAt: Date.now() + 6 * 24 * 60 * 60 * 1000,
+          lastResentAt: null,
+          manageActions: { canResend: true, canCancel: true },
+          resend: {
+            cooldownMs: 10 * 60_000,
+            cooldownRemainingMs: 0,
+            windowMs: 24 * 60 * 60 * 1000,
+            maxPerWindow: 5,
+            usedInWindow: 0,
+            remainingInWindow: 5,
+          },
+        },
+      ],
+    })
+    const afterAccept = snap({
+      members: [
+        ...pending.members,
+        {
+          clerkUserId: 'user_laine',
+          displayName: 'Laine Silva',
+          email: 'lainebsb@hotmail.com',
+          role: 'attendant',
+          status: 'active',
+          manageActions: {
+            canRevoke: true,
+            canInvite: false,
+            canPromote: true,
+            canDemote: false,
+          },
+        },
+      ],
+      invitations: [],
+    })
+    let calls = 0
+    const api = mockApi(pending)
+    api.getTeam = vi.fn(async () => {
+      calls += 1
+      return calls === 1 ? pending : afterAccept
+    })
+
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('lainebsb@hotmail.com')).toBeTruthy())
+    expect(screen.getByText(/2 membros · 1 convite pendente/)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /Convites pendentes · 1/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancelar…' })).toBeTruthy()
+    expect(screen.queryByText('Laine Silva')).toBeNull()
+
+    expect(emitTeamSignal).toBeTruthy()
+    await act(async () => {
+      emitTeamSignal!()
+    })
+
+    await waitFor(() => expect(screen.getByText('Laine Silva')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Cancelar…' })).toBeNull()
+    expect(screen.getByText('Nenhum convite pendente.')).toBeTruthy()
+    expect(screen.getByText('3 membros')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /Membros · 3/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Convites pendentes$/ })).toBeTruthy()
+    expect(api.getTeam).toHaveBeenCalledTimes(2)
   })
 })
