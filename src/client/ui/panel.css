@@ -1019,7 +1019,9 @@
   gap: var(--space-2);
 }
 
-.panel-auth-stack:has(.panel-clerk-title) .panel-auth-fallback,
+/* Só esconde o fallback quando há formulário real (input). Título Restricted
+ * do Clerk («Criar sua conta») sem campos não deve apagar o lead do convite. */
+.panel-auth-stack:has(.panel-auth-clerk input) .panel-auth-fallback,
 .panel-auth-stack:has(.panel-auth-form) .panel-auth-fallback {
   display: none;
 }
@@ -1057,6 +1059,15 @@
   text-underline-offset: 2px;
 }
 
+button.panel-auth-inline-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .panel-auth-inline-link:hover,
 .panel-auth-inline-link:focus-visible {
   color: var(--color-primary-ink, var(--color-primary-base));
@@ -1071,6 +1082,19 @@
 .panel-auth-copy p {
   max-width: 22rem;
   line-height: var(--line-height-relaxed);
+}
+
+.panel-auth-error {
+  margin: 0;
+  max-width: 22rem;
+  color: var(--color-danger-ink);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-relaxed);
+  text-align: center;
+}
+
+#clerk-captcha:empty {
+  display: none;
 }
 
 .panel-auth-foot {
