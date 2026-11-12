@@ -203,6 +203,7 @@ export type ReviewFlagRequestMatch =
   | { matched: false }
 
 function stripEdgePunctuation(text: string): string {
+  // `-` no fim da classe (sem escape) — evita no-useless-escape do ESLint.
   return text
     .replace(/^[,.:\s!?–—-]+/, '')
     .replace(/[,.:\s!?–—-]+$/, '')
