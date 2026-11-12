@@ -129,6 +129,8 @@ export type DialogCase = {
     reviewFlagged?: boolean
     /** Fonte da flag de revisão (`client` | `staff` | `auto`). */
     reviewFlagSource?: 'client' | 'staff' | 'auto'
+    /** DEC-166: comentário livre no 1.º «avaliar»/«feedback»; `null` = bare keyword. */
+    reviewFlagClientComment?: string | null
     /** Família FL-: ecrãs mostrados e resultado de cada turno `flow` (pela ordem). */
     flowRuns?: Array<{ screens?: string[]; outcome?: FlowRunTrace['outcome']; nfmOutcome?: string }>
     /**
@@ -577,9 +579,18 @@ export async function runDialogCase(
         errors.push(`flowUsed: ${got}, esperado ${e.flowUsed}`)
       }
     }
-    if (e?.reviewFlagged != null || e?.reviewFlagSource != null) {
-      const row = s.db.get<{ review_flagged_at: number | null; review_flagged_source: string | null }>(
-        `SELECT review_flagged_at, review_flagged_source FROM conversations
+    if (
+      e?.reviewFlagged != null ||
+      e?.reviewFlagSource != null ||
+      e?.reviewFlagClientComment !== undefined
+    ) {
+      const row = s.db.get<{
+        review_flagged_at: number | null
+        review_flagged_source: string | null
+        review_client_comment: string | null
+      }>(
+        `SELECT review_flagged_at, review_flagged_source, review_client_comment
+         FROM conversations
          WHERE tenant_id = ? AND id = ?`,
         s.tenantId,
         s.conversationId,
@@ -592,6 +603,18 @@ export async function runDialogCase(
         errors.push(
           `reviewFlagSource: ${JSON.stringify(row?.review_flagged_source)}, esperado ${JSON.stringify(e.reviewFlagSource)}`,
         )
+      }
+      if (e.reviewFlagClientComment !== undefined) {
+        const got =
+          typeof row?.review_client_comment === 'string' &&
+          row.review_client_comment.trim() !== ''
+            ? row.review_client_comment.trim()
+            : null
+        if (got !== e.reviewFlagClientComment) {
+          errors.push(
+            `reviewFlagClientComment: ${JSON.stringify(got)}, esperado ${JSON.stringify(e.reviewFlagClientComment)}`,
+          )
+        }
       }
     }
     if (e?.assert) {

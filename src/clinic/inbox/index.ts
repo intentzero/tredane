@@ -48,9 +48,11 @@ export {
   clearConversationReviewFlag,
   flagConversationForReview,
   isReviewFlagRequest,
+  parseReviewFlagRequest,
   readReviewFlag,
   REVIEW_FLAG_CLIENT_ACK,
   type ReviewFlagReason,
+  type ReviewFlagRequestMatch,
   type ReviewFlagSource,
 } from './review-flag'
 

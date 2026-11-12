@@ -24,7 +24,7 @@ describe('bloco Tempo (S1)', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(60)
+      expect(CLINIC_SCHEMA_VERSION).toBe(61)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )

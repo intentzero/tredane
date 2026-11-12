@@ -301,6 +301,11 @@ import {
   MIGRATION_NAME as M60_NAME,
   STATEMENTS as M60_STATEMENTS,
 } from './migrations/0060_conversation_review_flag'
+import {
+  MIGRATION_ID as M61_ID,
+  MIGRATION_NAME as M61_NAME,
+  STATEMENTS as M61_STATEMENTS,
+} from './migrations/0061_review_client_comment'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -371,6 +376,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M58_ID, name: M58_NAME, statements: M58_STATEMENTS },
   { id: M59_ID, name: M59_NAME, statements: M59_STATEMENTS },
   { id: M60_ID, name: M60_NAME, statements: M60_STATEMENTS },
+  { id: M61_ID, name: M61_NAME, statements: M61_STATEMENTS },
 ]
 
 export type MigrationResult = {

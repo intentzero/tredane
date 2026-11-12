@@ -21,6 +21,7 @@ import { insertMessage } from './messages'
 import {
   flagConversationForReview,
   isReviewFlagRequest,
+  parseReviewFlagRequest,
   readReviewFlag,
   REVIEW_FLAG_CLIENT_ACK,
 } from './review-flag'
@@ -87,6 +88,144 @@ describe('DEC-157 review flag', () => {
     expect(REVIEW_FLAG_CLIENT_ACK).toBe(
       'Obrigado. Marquei esta conversa para a equipe revisar.',
     )
+  })
+
+  it('DEC-166: comentário opcional após avaliar/feedback; rejeita mid-texto', () => {
+    expect(parseReviewFlagRequest('avaliar')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(parseReviewFlagRequest('feedback')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(
+      parseReviewFlagRequest('avaliar eu vi que o horario estava repetido'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'eu vi que o horario estava repetido',
+    })
+    expect(
+      parseReviewFlagRequest(
+        'feedback pedi para chamar o atendente e o sistema travou',
+      ),
+    ).toEqual({
+      matched: true,
+      clientComment: 'pedi para chamar o atendente e o sistema travou',
+    })
+    expect(
+      parseReviewFlagRequest('Avaliar o horário estava repetido'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'o horário estava repetido',
+    })
+    expect(parseReviewFlagRequest('quero avaliar o bot')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(parseReviewFlagRequest('ÁVALIAR')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(parseReviewFlagRequest('me ajuda a avaliar')).toEqual({
+      matched: false,
+    })
+    expect(parseReviewFlagRequest('quero agendar depilação')).toEqual({
+      matched: false,
+    })
+    expect(parseReviewFlagRequest('avaliaracao')).toEqual({ matched: false })
+  })
+
+  it('DEC-166: vírgula, dois-pontos ou travessão após keyword ainda casa + comentário', () => {
+    expect(
+      parseReviewFlagRequest('avaliar, eu vi que o horario estava repetido'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'eu vi que o horario estava repetido',
+    })
+    expect(
+      parseReviewFlagRequest('avaliar: o bot repetiu o mesmo horário'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'o bot repetiu o mesmo horário',
+    })
+    expect(
+      parseReviewFlagRequest('avaliar - pedi atendente e travou'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'pedi atendente e travou',
+    })
+    expect(
+      parseReviewFlagRequest('feedback: horário errado na proposta'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'horário errado na proposta',
+    })
+    expect(
+      parseReviewFlagRequest('quero avaliar, algo estranho no eco'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'algo estranho no eco',
+    })
+    expect(
+      parseReviewFlagRequest('avaliar o atendimento: demorou a responder'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'demorou a responder',
+    })
+    expect(parseReviewFlagRequest('avaliar,')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(parseReviewFlagRequest('avaliar:')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(isReviewFlagRequest('avaliar, comment')).toBe(true)
+    expect(isReviewFlagRequest('avaliar: comment')).toBe(true)
+  })
+
+  it('DEC-166: first-flag-wins guarda clientComment; re-flag não sobrescreve', () => {
+    const { db, close, clock, tenantId, cnv } = seedConversation()
+    try {
+      const first = flagConversationForReview(
+        db,
+        tenantId,
+        cnv.id,
+        {
+          source: 'client',
+          reason: 'client_request',
+          clientComment: 'eu vi que o horario estava repetido',
+        },
+        clock,
+      )
+      expect(first.changed).toBe(true)
+      expect(readReviewFlag(db, tenantId, cnv.id)?.clientComment).toBe(
+        'eu vi que o horario estava repetido',
+      )
+      const payload = JSON.parse(first.outbox[0]!.payloadJson) as {
+        clientComment: string | null
+      }
+      expect(payload.clientComment).toBe('eu vi que o horario estava repetido')
+
+      const second = flagConversationForReview(
+        db,
+        tenantId,
+        cnv.id,
+        {
+          source: 'client',
+          reason: 'client_request',
+          clientComment: 'outro comentário que não deve gravar',
+        },
+        clock,
+      )
+      expect(second.changed).toBe(false)
+      expect(readReviewFlag(db, tenantId, cnv.id)?.clientComment).toBe(
+        'eu vi que o horario estava repetido',
+      )
+    } finally {
+      close()
+    }
   })
 
   it('marca, filtra Para revisão, limpa; idempotente', () => {

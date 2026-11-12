@@ -21,6 +21,7 @@ type SampleRow = {
   contact_display_name: string | null
   flag_source: string
   flag_reason: string | null
+  client_comment: string | null
   flagged_at: number
   copied_at: number
   expires_at: number
@@ -53,6 +54,7 @@ function mapSample(row: SampleRow): ReviewSampleListItem {
     contactDisplayName: row.contact_display_name,
     flagSource: row.flag_source,
     flagReason: row.flag_reason,
+    clientComment: row.client_comment ?? null,
     flaggedAt: row.flagged_at,
     copiedAt: row.copied_at,
     expiresAt: row.expires_at,
@@ -81,8 +83,8 @@ export function upsertReviewSampleSync(
     db.run(
       `UPDATE review_samples SET
         tenant_name = ?, contact_id = ?, contact_wa_id = ?, contact_display_name = ?,
-        flag_source = ?, flag_reason = ?, flagged_at = ?, copied_at = ?, expires_at = ?,
-        message_count = ?, last_message_at = ?, last_message_preview = ?
+        flag_source = ?, flag_reason = ?, client_comment = ?, flagged_at = ?, copied_at = ?,
+        expires_at = ?, message_count = ?, last_message_at = ?, last_message_preview = ?
        WHERE id = ?`,
       snapshot.tenantName,
       snapshot.contactId,
@@ -90,6 +92,7 @@ export function upsertReviewSampleSync(
       snapshot.contactDisplayName,
       snapshot.flagSource,
       snapshot.flagReason,
+      snapshot.clientComment,
       snapshot.flaggedAt,
       nowMs,
       expiresAt,
@@ -102,9 +105,9 @@ export function upsertReviewSampleSync(
     db.run(
       `INSERT INTO review_samples (
         id, tenant_id, tenant_name, conversation_id, contact_id, contact_wa_id,
-        contact_display_name, flag_source, flag_reason, flagged_at, copied_at,
-        expires_at, message_count, last_message_at, last_message_preview
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contact_display_name, flag_source, flag_reason, client_comment, flagged_at,
+        copied_at, expires_at, message_count, last_message_at, last_message_preview
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       sampleId,
       snapshot.tenantId,
       snapshot.tenantName,
@@ -114,6 +117,7 @@ export function upsertReviewSampleSync(
       snapshot.contactDisplayName,
       snapshot.flagSource,
       snapshot.flagReason,
+      snapshot.clientComment,
       snapshot.flaggedAt,
       nowMs,
       expiresAt,
@@ -169,8 +173,8 @@ export async function upsertReviewSampleD1(
         .prepare(
           `UPDATE review_samples SET
             tenant_name = ?, contact_id = ?, contact_wa_id = ?, contact_display_name = ?,
-            flag_source = ?, flag_reason = ?, flagged_at = ?, copied_at = ?, expires_at = ?,
-            message_count = ?, last_message_at = ?, last_message_preview = ?
+            flag_source = ?, flag_reason = ?, client_comment = ?, flagged_at = ?, copied_at = ?,
+            expires_at = ?, message_count = ?, last_message_at = ?, last_message_preview = ?
            WHERE id = ?`,
         )
         .bind(
@@ -180,6 +184,7 @@ export async function upsertReviewSampleD1(
           snapshot.contactDisplayName,
           snapshot.flagSource,
           snapshot.flagReason,
+          snapshot.clientComment,
           snapshot.flaggedAt,
           nowMs,
           expiresAt,
@@ -195,9 +200,9 @@ export async function upsertReviewSampleD1(
         .prepare(
           `INSERT INTO review_samples (
             id, tenant_id, tenant_name, conversation_id, contact_id, contact_wa_id,
-            contact_display_name, flag_source, flag_reason, flagged_at, copied_at,
-            expires_at, message_count, last_message_at, last_message_preview
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            contact_display_name, flag_source, flag_reason, client_comment, flagged_at,
+            copied_at, expires_at, message_count, last_message_at, last_message_preview
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           sampleId,
@@ -209,6 +214,7 @@ export async function upsertReviewSampleD1(
           snapshot.contactDisplayName,
           snapshot.flagSource,
           snapshot.flagReason,
+          snapshot.clientComment,
           snapshot.flaggedAt,
           nowMs,
           expiresAt,

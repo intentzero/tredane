@@ -141,6 +141,13 @@
       "when": 1793800000000,
       "tag": "0020_review_samples",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793900000000,
+      "tag": "0021_review_sample_client_comment",
+      "breakpoints": true
     }
   ]
 }

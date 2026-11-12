@@ -1313,6 +1313,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       typeof payload.reviewFlaggedAt === 'number'
         ? payload.reviewFlaggedAt
         : this.#clock.nowMs()
+    const clientComment =
+      typeof payload.clientComment === 'string' && payload.clientComment.trim() !== ''
+        ? payload.clientComment.trim()
+        : payload.clientComment === null
+          ? null
+          : undefined
     try {
       const { copyReviewSampleBestEffort } = await import('../review-samples')
       let tenantName: string | null = null
@@ -1335,6 +1341,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         source,
         reason,
         flaggedAt,
+        clientComment,
         nowMs: this.#clock.nowMs(),
       })
     } catch {
