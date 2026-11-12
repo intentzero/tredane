@@ -480,24 +480,6 @@ function semanticTextForChoice(
   return key.match(/\d{2}:\d{2}/)?.[0] ?? label
 }
 
-function clearPendingFrame(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  clock: Clock,
-): OutboxRow[] {
-  const frame = getBookingFrame(db, tenantId, conversationId)
-  if (!frame?.serviceId) return []
-  const deferred = createDeferredBookingFrame()
-  deferred.save({
-    serviceId: frame.serviceId,
-    pending: null,
-    lastOffer: null,
-    phase: 'coletando',
-  })
-  return deferred.flushNow(db, tenantId, conversationId, clock)
-}
-
 /** Limpa pending/lastOffer na mesma TX do outbound (ADR-0015). Não faz flush antecipado. */
 function attachClearPendingOnSend(
   autoBook: AutoBookOutcome,
@@ -822,7 +804,7 @@ export async function handleChoiceOfferClick(
       confirmationMessageIdOverride: confirmationMessageId,
     })
     const aiDurationMs = clock.nowMs() - aiStartedMs
-    let book = attachClearPendingOnSend(autoBook, db, input.tenantId, input.conversationId)
+    const book = attachClearPendingOnSend(autoBook, db, input.tenantId, input.conversationId)
     const choiceOut = await sendChoiceOutbound(
       db,
       caller,
@@ -911,7 +893,7 @@ export async function handleChoiceOfferClick(
   })
   const aiDurationMs = clock.nowMs() - aiStartedMs
 
-  let book = attachClearPendingOnSend(autoBook, db, input.tenantId, input.conversationId)
+  const book = attachClearPendingOnSend(autoBook, db, input.tenantId, input.conversationId)
   const choiceOut = await sendChoiceOutbound(
     db,
     caller,

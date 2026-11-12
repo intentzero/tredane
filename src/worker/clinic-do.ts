@@ -320,10 +320,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     ClinicDurableObject.#installRpcTimingPatches()
   }
 
-  #phaseMs(name: string, startedMs: number): void {
-    this.#currentTimer?.addPhase(name, this.#clock.nowMs() - startedMs)
-  }
-
   #assertInstanceTenant(caller: ClinicCaller): string {
     const name = this.ctx.id.name
     if (!name) {
