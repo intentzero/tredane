@@ -1560,15 +1560,18 @@ export async function tryAiAutoBook(
   if (pendingTimeOverride) {
     // Oferta viva no frame: identidade do serviço é a do quadro, não a do histórico
     // (detectExplicitConfirmation pode achar Massagem em turnos antigos — audit H1).
+    const framePending = frame
     const liveFrameSvc =
-      frame?.serviceId &&
-      (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
-        ? services.find((s) => s.id === frame.serviceId)
+      framePending?.serviceId &&
+      (framePending.pending?.slot === 'horario' || Boolean(framePending.lastOffer))
+        ? services.find((s) => s.id === framePending.serviceId)
         : undefined
     const pendingSvc =
       liveFrameSvc ??
       det.service ??
-      (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
+      (framePending?.serviceId
+        ? services.find((s) => s.id === framePending.serviceId)
+        : undefined)
     if (pendingSvc) {
       det = {
         ...det,
@@ -1648,17 +1651,20 @@ export async function tryAiAutoBook(
     }
   }
   if (input.boundSlot) {
+    const frameBound = frame
     const liveFrameSvc =
-      frame?.serviceId &&
-      (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
-        ? services.find((s) => s.id === frame.serviceId)
+      frameBound?.serviceId &&
+      (frameBound.pending?.slot === 'horario' || Boolean(frameBound.lastOffer))
+        ? services.find((s) => s.id === frameBound.serviceId)
         : undefined
     const sessionSvcId = session?.serviceId
     const pendingSvc =
       liveFrameSvc ??
       det.service ??
       (sessionSvcId ? services.find((s) => s.id === sessionSvcId) : undefined) ??
-      (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
+      (frameBound?.serviceId
+        ? services.find((s) => s.id === frameBound.serviceId)
+        : undefined)
     if (pendingSvc) {
       det = {
         ...det,
