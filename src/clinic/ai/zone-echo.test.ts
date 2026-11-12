@@ -8,7 +8,7 @@ import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
 import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { readZoneSnapshots } from '../config/zones'
-import { setClinicAiAssistEnabled } from '../config/settings'
+import { ensureClinicSettings, setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
@@ -28,6 +28,8 @@ function seed() {
   const boot = bootClinicDb({ clock })
   const { db } = boot
   const tenantId = 'clinic-demo-a'
+  ensureClinicSettings(db, tenantId, clock)
+  db.run(`UPDATE clinic_settings SET booking_lead_minutes = 0 WHERE id = 1`)
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
   syncWhatsappChannel(
     db,

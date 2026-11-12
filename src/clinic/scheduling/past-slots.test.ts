@@ -7,6 +7,7 @@ import { createControllableClock } from '../../db/clock'
 import { workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { ensureClinicSettings } from '../config/settings'
 import { buildClinicAiContext } from '../ai/schedule-context'
 import { checkSlotAvailabilityOp, queryAvailabilityOp, zonedCivilToUtc } from './index'
 
@@ -35,6 +36,7 @@ function seed(now: number, windows: Array<{ dayOfWeek: number; startMinute: numb
     clock,
   )
   // Estes casos isolam o corte «já passou»; antecedência mínima tem teste próprio.
+  ensureClinicSettings(boot.db, 'clinic-demo-a', clock)
   boot.db.run(`UPDATE clinic_settings SET booking_lead_minutes = 0 WHERE id = 1`)
   const starts = (date: string) =>
     queryAvailabilityOp(boot.db, caller, { serviceId: svc.id, date }, clock).slots.map((x) => x.startsAt)
