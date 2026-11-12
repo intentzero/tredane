@@ -289,7 +289,7 @@ export function formatClerkError(err: ClerkLikeError, hasInvite = false): string
     code.includes('not_allowed_to_sign_up')
   ) {
     return hasInvite
-      ? 'Cadastro indisponível neste momento. Peça à responsável da clínica para liberar o Access mode Open e abra o link de convite de novo.'
+      ? 'Cadastro indisponível neste momento. Peça à responsável da clínica para liberar o cadastro e abra o link de convite de novo.'
       : 'Cadastro indisponível neste momento. Peça ao responsável da sua clínica um convite.'
   }
   if (
@@ -302,5 +302,9 @@ export function formatClerkError(err: ClerkLikeError, hasInvite = false): string
   if (code.includes('form_code') || code.includes('incorrect') || code.includes('invalid_code')) {
     return 'Código inválido ou expirado. Confira o e-mail ou peça um novo.'
   }
-  return err.longMessage || err.message || 'Não foi possível continuar o cadastro. Tente de novo.'
+  // Frase localizada do Clerk (se houver); nunca expor códigos crus (copy.guard).
+  const { longMessage, message } = err
+  if (longMessage && /\s/.test(longMessage)) return longMessage
+  if (message && /\s/.test(message) && !/^[a-z0-9_]+$/.test(message)) return message
+  return 'Não foi possível continuar o cadastro. Tente de novo.'
 }
