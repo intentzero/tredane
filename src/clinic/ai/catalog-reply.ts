@@ -520,7 +520,10 @@ export function catalogReply(
       const settings = ensureClinicSettings(db, tenantId, clock)
       const tz = settings.timezone || 'America/Sao_Paulo'
       const today = clinicCivilDateFromUtc(tz, clock.nowMs())
-      const absolute = [...extractDates(facts.dayLabel, today)][0] ?? null
+      const absolute =
+        [...extractDates(source, today)][0] ??
+        [...extractDates(facts.dayLabel, today)][0] ??
+        null
       if (absolute) patch.date = absolute
     }
     if (facts.period) patch.period = facts.period
