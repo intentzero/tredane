@@ -28,6 +28,41 @@ import { processWhatsappMessage } from './queue-consumer'
 /** Atraso da cópia de fallback na fila quando o webhook é processado inline. */
 export const INBOUND_INLINE_FALLBACK_DELAY_S = 15
 
+/** Teto do `waitUntil` inline (abaixo do corte ~30s da plataforma). */
+export const INBOUND_INLINE_BUDGET_MS = 20_000
+
+async function runInlineWithBudget(
+  label: string,
+  budgetMs: number,
+  fn: () => Promise<'ack' | 'retry'>,
+  clock: Clock,
+): Promise<'ack' | 'retry' | 'timed_out'> {
+  const started = clock.nowMs()
+  let outcome: 'ack' | 'retry' | 'timed_out' = 'timed_out'
+  try {
+    outcome = await Promise.race([
+      fn().then((v) => v),
+      new Promise<'timed_out'>((resolve) => {
+        setTimeout(() => resolve('timed_out'), budgetMs)
+      }),
+    ])
+  } catch {
+    return 'retry'
+  }
+  if (outcome === 'timed_out') {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'webhook.inline_timed_out',
+        label,
+        budgetMs,
+        elapsedMs: clock.nowMs() - started,
+      }),
+    )
+  }
+  return outcome
+}
+
 function executionWaitUntil(c: {
   executionCtx: { waitUntil(p: Promise<unknown>): void }
 }): ((p: Promise<unknown>) => void) | null {
@@ -151,10 +186,16 @@ export function createWhatsappWebhookRoutes(opts: WhatsappWebhookRouteOptions = 
           for (const message of inline) {
             const started = clock.nowMs()
             try {
-              const outcome = await (opts.inlineProcess ?? defaultInlineProcess)(env, message)
+              const outcome = await runInlineWithBudget(
+                message.receiptId,
+                INBOUND_INLINE_BUDGET_MS,
+                () => (opts.inlineProcess ?? defaultInlineProcess)(env, message),
+                clock,
+              )
               log({
                 level: 'info',
-                event: 'webhook.inline_processed',
+                event:
+                  outcome === 'timed_out' ? 'webhook.inline_timed_out_logged' : 'webhook.inline_processed',
                 detail: {
                   receiptId: message.receiptId,
                   tenantId: message.tenantId,

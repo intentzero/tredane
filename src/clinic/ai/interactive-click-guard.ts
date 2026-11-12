@@ -26,6 +26,7 @@ export type InteractiveClickLogInput = {
   outcome?: string
   reason?: string
   outboxCount: number
+  patientOutboxCount?: number
   fallbackSent?: boolean
   autoBookStatus?: string
   proposalId?: string | null
@@ -102,6 +103,35 @@ export function sendChoiceClickSilentFallback(
   }
 }
 
+/** Idempotência / retomada: o toque já gerou linha na outbox? */
+export function hasChoiceClickOutbound(
+  db: ClinicDb,
+  tenantId: string,
+  providerEventKey: string | null | undefined,
+  conversationId: string,
+): boolean {
+  const key = (providerEventKey ?? '').trim() || conversationId
+  const ids = [
+    `choice:${key}`,
+    `choice-stale:${key}`,
+    silentGuardClientRequestId(providerEventKey, conversationId),
+    `proposal.send:${key}`,
+  ]
+  for (const clientRequestId of ids) {
+    const row = db.get<{ id: string }>(
+      `SELECT id FROM outbound_messages WHERE tenant_id = ? AND client_request_id = ? LIMIT 1`,
+      tenantId,
+      clientRequestId,
+    )
+    if (row) return true
+  }
+  return false
+}
+
+function patientWhatsappOutbox(rows: OutboxRow[]): OutboxRow[] {
+  return rows.filter((o) => o.type === 'whatsapp.send')
+}
+
 export function ensureChoiceClickOutbound(
   db: ClinicDb,
   caller: ClinicCaller,
@@ -114,7 +144,8 @@ export function ensureChoiceClickOutbound(
   },
   clock: Clock,
 ): { outbox: OutboxRow[]; fallbackSent: boolean; silentPrevented: boolean } {
-  if (input.outbox.length > 0) {
+  const patientRows = patientWhatsappOutbox(input.outbox)
+  if (patientRows.length > 0) {
     return { outbox: input.outbox, fallbackSent: false, silentPrevented: false }
   }
   const fb = sendChoiceClickSilentFallback(db, caller, input, clock)

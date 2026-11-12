@@ -536,22 +536,32 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       result.outboxes.some((o) => o.type === 'conversation.created')
 
     if (!result.duplicate && result.message && result.conversation && result.message.direction === 'inbound') {
-      // Rascunho automático da IA (debounce). Pausa DEC-083 não enfileira,
-      // excepto «avaliar»/«feedback» (DEC-157 — orthogonal à pausa).
+      const inboundBody = result.message.body ?? ''
+      // Toque autenticado: handler dedicado (S5 / M5) — não competir com autodraft.
+      if (clinicAi.isInteractiveReplyBody(inboundBody)) {
         try {
-        const job = clinicAi.enqueueAutoDraft(
-          this.#db,
-          caller.tenantId,
-          { conversationId: result.conversation.id, messageId: result.message.id },
-          this.#clock,
-        )
-        if (job) {
-          await this.#scheduleAlarmNoLaterThan(job.dueAt)
-          // Lista: spinner desde o debounce (mesmo canal que `generating` / outcome).
-          await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'queued' })
+          clinicAi.cancelAutoDraft(this.#db, caller.tenantId, result.conversation.id)
+        } catch {
+          /* best-effort */
         }
-      } catch {
-        /* best-effort: a ingestão nunca falha por causa da IA */
+      } else {
+        // Rascunho automático da IA (debounce). Pausa DEC-083 não enfileira,
+        // excepto «avaliar»/«feedback» (DEC-157 — orthogonal à pausa).
+        try {
+          const job = clinicAi.enqueueAutoDraft(
+            this.#db,
+            caller.tenantId,
+            { conversationId: result.conversation.id, messageId: result.message.id },
+            this.#clock,
+          )
+          if (job) {
+            await this.#scheduleAlarmNoLaterThan(job.dueAt)
+            // Lista: spinner desde o debounce (mesmo canal que `generating` / outcome).
+            await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'queued' })
+          }
+        } catch {
+          /* best-effort: a ingestão nunca falha por causa da IA */
+        }
       }
       try {
         const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
@@ -937,34 +947,49 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     // M5 (#415) / DEC-128 — toque em linha/variantes/horários (não marca; DEC-061).
     if (input.conversationId && isChoiceOfferId(input.buttonId)) {
-      // DEC-136: typing enquanto montamos a resposta do toque (fail-soft).
-      try {
-        const typingOb = enqueueTypingIndicatorForLatestInbound(
-          this.#db,
-          caller.tenantId,
-          input.conversationId,
-          this.#clock,
-        )
-        if (typingOb) {
-          await this.#fanoutOutboxes(caller, [typingOb], true)
-          await this.#drain(caller)
+      const turnStartedMs = this.#clock.nowMs()
+      // DEC-136: typing fora do caminho crítico (fanout WS opcional).
+      void (async () => {
+        const typingStartedMs = this.#clock.nowMs()
+        try {
+          const typingOb = enqueueTypingIndicatorForLatestInbound(
+            this.#db,
+            caller.tenantId,
+            input.conversationId,
+            this.#clock,
+          )
+          if (typingOb) {
+            await this.#fanoutOutboxes(caller, [typingOb], false)
+            await this.#drain(caller)
+          }
+          console.log(
+            JSON.stringify({
+              level: 'info',
+              event: 'do.choice_click_timing',
+              tenantId: caller.tenantId,
+              conversationId: input.conversationId,
+              phase: 'typing',
+              durationMs: this.#clock.nowMs() - typingStartedMs,
+            }),
+          )
+        } catch (err) {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'whatsapp_typing.flush_failed',
+              tenantId: caller.tenantId,
+              error: err instanceof Error ? err.message : 'unknown',
+            }),
+          )
         }
-      } catch (err) {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'whatsapp_typing.flush_failed',
-            tenantId: caller.tenantId,
-            error: err instanceof Error ? err.message : 'unknown',
-          }),
-        )
-      }
+      })()
       const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
         this.#db,
         caller.tenantId,
         this.#clock,
       )
       const capability = clinicAi.autoBookCapability() && !autoBookPaused
+      const choiceStartedMs = this.#clock.nowMs()
       const choice = await handleChoiceOfferClick(
         this.#db,
         caller,
@@ -980,11 +1005,18 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
         this.#clock,
       )
+      const choiceMs = this.#clock.nowMs() - choiceStartedMs
       if (choice.handled) {
         const dispatched = choice.outbox.length > 0
+        let fanoutMs = 0
+        let drainMs = 0
         if (dispatched) {
-          await this.#fanoutOutboxes(caller, choice.outbox, true)
+          const fanoutStartedMs = this.#clock.nowMs()
+          await this.#fanoutOutboxes(caller, choice.outbox, false)
+          fanoutMs = this.#clock.nowMs() - fanoutStartedMs
+          const drainStartedMs = this.#clock.nowMs()
           await this.#drain(caller)
+          drainMs = this.#clock.nowMs() - drainStartedMs
         }
         console.log(
           JSON.stringify({
@@ -999,6 +1031,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             dispatched,
             fallbackSent: choice.fallbackSent === true,
             silentPrevented: choice.silentPrevented === true,
+            timingMs: {
+              turn: this.#clock.nowMs() - turnStartedMs,
+              choice: choiceMs,
+              fanout: fanoutMs,
+              drain: drainMs,
+            },
           }),
         )
         return {
@@ -3698,9 +3736,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
         // DEC-136: despacha typing já, antes do LLM / envio; falha não aborta.
         onTyping: async (typingOb) => {
+          const typingStartedMs = this.#clock.nowMs()
           try {
-            await this.#fanoutOutboxes(caller, [typingOb], true)
+            await this.#fanoutOutboxes(caller, [typingOb], false)
             await this.#drain(caller)
+            console.log(
+              JSON.stringify({
+                level: 'info',
+                event: 'ai.autodraft_timing',
+                tenantId: caller.tenantId,
+                phase: 'typing',
+                durationMs: this.#clock.nowMs() - typingStartedMs,
+              }),
+            )
           } catch (err) {
             console.warn(
               JSON.stringify({
@@ -3717,8 +3765,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         // Agendamento pela IA (confirmação explícita da cliente): mesmo fanout do Agendar.
         const queued = [...(o.autoBook?.outbox ?? []), ...(o.replyOutbox ?? [])]
         if (queued.length > 0) {
-          await this.#fanoutOutboxes(caller, queued, true)
+          const fanoutStartedMs = this.#clock.nowMs()
+          await this.#fanoutOutboxes(caller, queued, false)
+          const fanoutMs = this.#clock.nowMs() - fanoutStartedMs
+          const drainStartedMs = this.#clock.nowMs()
           await this.#drain(caller)
+          console.log(
+            JSON.stringify({
+              level: 'info',
+              event: 'ai.autodraft_timing',
+              tenantId: caller.tenantId,
+              conversationId: o.conversationId,
+              phase: 'dispatch',
+              fanoutMs,
+              drainMs: this.#clock.nowMs() - drainStartedMs,
+            }),
+          )
         }
         await this.#emitAiDraftEvent(caller, o.conversationId, {
           state: o.status,

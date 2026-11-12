@@ -319,7 +319,7 @@ function isProposalConfirmButtonBody(body: string): boolean {
  * - Escolher Feminino/Masculino da consulta DEC-142 → duas listas «Temos:»
  *   iguais (~13:42, catalog_consult + handleCatalogAudienceClick).
  */
-function isInteractiveReplyBody(body: string): boolean {
+export function isInteractiveReplyBody(body: string): boolean {
   return /^\[(Botão|Lista)\]\s+/i.test(body.trim())
 }
 

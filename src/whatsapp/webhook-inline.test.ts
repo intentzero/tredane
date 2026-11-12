@@ -131,6 +131,75 @@ describe('webhook WhatsApp inline + fallback atrasado', () => {
     }
   })
 
+  it('fallback list_reply retoma quando inline marcou processado sem outbound', async () => {
+    const h = await setup()
+    try {
+      const { insertWebhookReceipt } = await import('./webhook-receipts')
+      const row = insertWebhookReceipt(h.admin.db, h.clinic.clock, {
+        providerEventKey: 'wa:msg:wamid.RESUME',
+        tenantId: 'clinic-demo-a',
+        kind: 'list_reply',
+      }).row
+      markWebhookReceiptProcessed(h.admin.db, row.id, h.clinic.clock, { kind: 'list_reply' })
+      const msg: WhatsappWebhookQueueMessage = {
+        source: 'whatsapp_webhook',
+        receiptId: row.id,
+        providerEventKey: 'wa:msg:wamid.RESUME',
+        tenantId: 'clinic-demo-a',
+        bindingId: 'b',
+        phoneNumberId: 'pnid_inline_wh',
+        kind: 'list_reply',
+        waId: '5511912340000',
+        buttonId: 'ch1~horario~v1~2026-11-16T10%3A00',
+        buttonTitle: '10:00',
+        inlineFallback: true,
+      }
+      const clicks: string[] = []
+      await handleInboundQueueBatch(
+        {
+          messages: [
+            {
+              id: 'resume1',
+              timestamp: new Date(),
+              attempts: 1,
+              body: msg,
+              ack: () => undefined,
+              retry: () => undefined,
+            },
+          ],
+          queue: 'test',
+          retryAll() {},
+          ackAll() {},
+        } as unknown as MessageBatch<WhatsappWebhookQueueMessage>,
+        {
+          env: { META_MODE: 'synthetic' } as unknown as WorkerBindings,
+          syncAdminDb: h.admin.db,
+          clinicStub: () => ({
+            ingestMessage: async (_c, input) => {
+              clicks.push(input.providerEventKey)
+              return {
+                duplicate: true,
+                contactId: 'c1',
+                conversationId: 'cnv1',
+                messageId: 'm1',
+              } as never
+            },
+            applyWhatsappInterrupt: async () => ({ status: 'interrupted' }),
+            recordInboundStatus: async () => ({ duplicate: false, inboundId: 'x', advanced: false }),
+            handleProposalButtonClick: async () => {
+              clicks.push('handled')
+              return { handled: true, action: 'choice' } as never
+            },
+          }),
+          log: () => {},
+        },
+      )
+      expect(clicks).toContain('handled')
+    } finally {
+      h.close()
+    }
+  })
+
   it('consumer ignora fallback cujo recibo já foi processado inline; processa se não', async () => {
     const h = await setup()
     try {

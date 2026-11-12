@@ -49,6 +49,7 @@ export {
   AUTODRAFT_ACTOR_ID,
   AUTODRAFT_STALE_MS,
   AUTODRAFT_ALARM_BUDGET_MS,
+  isInteractiveReplyBody,
   type AutoDraftJob,
   type AutoDraftOutcome,
 } from './autodraft'

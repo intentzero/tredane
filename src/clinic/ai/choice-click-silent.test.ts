@@ -19,7 +19,12 @@ import {
   CHOICE_CLICK_FALLBACK_TEXT,
   CHOICE_STALE_CLICK_FALLBACK_TEXT,
 } from './interactive-click-guard'
-import { enqueueAutoDraft, runDueAutoDrafts, AUTODRAFT_ALARM_BUDGET_MS } from './index'
+import {
+  enqueueAutoDraft,
+  isInteractiveReplyBody,
+  runDueAutoDrafts,
+  AUTODRAFT_ALARM_BUDGET_MS,
+} from './index'
 import { saveBookingFrame } from './schedule-session'
 
 const NOW = Date.UTC(2026, 10, 12, 22, 0)
@@ -77,6 +82,12 @@ function seed() {
       .map((r) => r.body)
   return { ...boot, clock, tenantId, caller, cnv, svc, outboundBodies }
 }
+
+describe('ingest interactivo', () => {
+  it('não enfileira autodraft para corpo [Lista]', () => {
+    expect(isInteractiveReplyBody('[Lista] horário')).toBe(true)
+  })
+})
 
 describe('anti-silêncio — toque em lista M5', () => {
   it('resultado vazio do autobook envia fallback', async () => {
