@@ -1,10 +1,24 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PanelApiError, type PanelApi, type TeamSnapshot } from '../../api'
 import { EquipeScreen } from './EquipeScreen'
 
-afterEach(cleanup)
+let emitTeamSignal: (() => void) | null = null
+vi.mock('../../realtime/InboxRealtime', async (orig) => {
+  const mod = await orig<typeof import('../../realtime/InboxRealtime')>()
+  return {
+    ...mod,
+    useInboxRealtime: (cb: (s: unknown[]) => void) => {
+      emitTeamSignal = () => cb([{ kind: 'event', event: { eventType: 'invitation.accepted' } }])
+    },
+  }
+})
+
+afterEach(() => {
+  cleanup()
+  emitTeamSignal = null
+})
 
 function snap(over: Partial<TeamSnapshot> = {}): TeamSnapshot {
   return {
@@ -638,5 +652,85 @@ describe('EquipeScreen — S2 remoção e DEC-103', () => {
         ),
       ).toBeTruthy(),
     )
+  })
+})
+
+describe('EquipeScreen — tempo real invitation.accepted', () => {
+  it('ao receber invitation.accepted some o pendente, entra o membro e actualiza contagens', async () => {
+    const pending = snap({
+      invitations: [
+        {
+          id: 'inv_laine',
+          tenantId: 'clinic-demo-a',
+          email: 'lainebsb@hotmail.com',
+          role: 'attendant',
+          status: 'pending',
+          issuedAt: Date.now() - 60_000,
+          expiresAt: Date.now() + 6 * 24 * 60 * 60 * 1000,
+          lastResentAt: null,
+          manageActions: { canResend: true, canCancel: true },
+          resend: {
+            cooldownMs: 10 * 60_000,
+            cooldownRemainingMs: 0,
+            windowMs: 24 * 60 * 60 * 1000,
+            maxPerWindow: 5,
+            usedInWindow: 0,
+            remainingInWindow: 5,
+          },
+        },
+      ],
+    })
+    const afterAccept = snap({
+      members: [
+        ...pending.members,
+        {
+          clerkUserId: 'user_laine',
+          displayName: 'Laine Silva',
+          email: 'lainebsb@hotmail.com',
+          role: 'attendant',
+          status: 'active',
+          manageActions: {
+            canRevoke: true,
+            canInvite: false,
+            canPromote: true,
+            canDemote: false,
+          },
+        },
+      ],
+      invitations: [],
+    })
+    let calls = 0
+    const api = mockApi(pending)
+    api.getTeam = vi.fn(async () => {
+      calls += 1
+      return calls === 1 ? pending : afterAccept
+    })
+
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('lainebsb@hotmail.com')).toBeTruthy())
+    expect(screen.getByText(/2 membros · 1 convite pendente/)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /Convites pendentes · 1/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancelar…' })).toBeTruthy()
+    expect(screen.queryByText('Laine Silva')).toBeNull()
+
+    expect(emitTeamSignal).toBeTruthy()
+    await act(async () => {
+      emitTeamSignal!()
+    })
+
+    await waitFor(() => expect(screen.getByText('Laine Silva')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Cancelar…' })).toBeNull()
+    expect(screen.getByText('Nenhum convite pendente.')).toBeTruthy()
+    expect(screen.getByText('3 membros')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /Membros · 3/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Convites pendentes$/ })).toBeTruthy()
+    expect(api.getTeam).toHaveBeenCalledTimes(2)
   })
 })

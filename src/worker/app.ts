@@ -222,6 +222,7 @@ export function createApp(opts: CreateAppOptions = {}) {
     clockFactory: opts.clockFactory,
     emailFactory: opts.emailFactory,
     appBaseUrlFactory: opts.appBaseUrlFactory,
+    eventPublisherFactory: opts.eventPublisherFactory,
   }
   app.route('/', createTeamRoutes(teamOpts))
 

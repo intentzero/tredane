@@ -35,7 +35,7 @@
 | POST | `/api/tenants/:tenantId/invitations` | owner; body `{ email, role?: 'attendant' \| 'owner' }` (default attendant) |
 | POST | `.../invitations/:id/resend` | owner; 429 + `retryAfterMs` em cooldown/quota |
 | POST | `.../invitations/:id/cancel` | owner do mesmo tenant |
-| POST | `/api/invitations/accept` | sessão Clerk + e-mail verificado; ignora tenant/role do body; aplica role do D1 |
+| POST | `/api/invitations/accept` | sessão Clerk + e-mail verificado; ignora tenant/role do body; aplica role do D1; best-effort `invitation.accepted` no DO da clínica (`audience: owners`, DEC-038) para Equipe em tempo real |
 | POST | `/api/tenants/:tenantId/members/:clerkUserId/promote` | owner — attendant→owner |
 | POST | `/api/tenants/:tenantId/members/:clerkUserId/demote` | owner — owner→attendant; `last_owner_protected` |
 | POST | `/api/tenants/:tenantId/members/:clerkUserId/revoke` | owner — attendants e owners; `last_owner_protected`; barreira #23 |
@@ -58,10 +58,12 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 | API | `acceptInvitation(token)` no cliente; Worker ignora tenant/role do body |
 | Erros | Expirado / inválido-cancelado / e-mail diferente / e-mail não confirmado em PT-BR |
 | Sucesso | Membership com a role do convite → abre Conversas da clínica (ou seletor se a abertura falhar) |
+| Tempo real (Equipe) | Após aceite, owners com Clínica → Equipe aberta recebem `invitation.accepted` no WS do DO; `EquipeScreen` refaz `GET /team` (sem refresh). Falha do fan-out **não** reverte o membership. |
 
 ## Fora da API #25 / ainda em fatias
 
 - Controles antiabuso globais (IP/owner) além de DEC-024
 - Notificação ao destinatário quando o convite é cancelado (**Em aberto** ADR-0008)
+- Eventos WS para create/cancel/promote/demote/revoke entre owners (só `invitation.accepted` neste recorte)
 - Faixa TEL-10 (suporte) dentro de Equipe
 - Smoke inbox real pós-Deploy (domínio onboarded + Workers Paid)

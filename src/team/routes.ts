@@ -52,6 +52,10 @@ import {
   serializeInvitation,
   serializeTeamMember,
 } from './serialize'
+import {
+  createDoEventPublisher,
+  type ClinicEventPublisher,
+} from '../realtime'
 
 type TeamEnv = {
   Bindings: WorkerBindings
@@ -63,6 +67,8 @@ export type TeamRouteOptions = {
   clockFactory?: () => Clock
   emailFactory?: (env: WorkerBindings) => EmailTransport
   appBaseUrlFactory?: (env: WorkerBindings) => string
+  /** Publicação best-effort no DO da clínica (DEC-038; padrão support). */
+  eventPublisherFactory?: (env: WorkerBindings) => ClinicEventPublisher
   /** Expõe mailbox simulado aos testes (quando o transport é simulated). */
   onSimulatedTransport?: (transport: SimulatedEmailTransport) => void
 }
@@ -130,6 +136,53 @@ function resolveTeamServices(
     clock,
     email: resolveEmail(env, opts, clock),
     appBaseUrl: resolveAppBaseUrl(env, opts),
+  }
+}
+
+function resolveEvents(
+  env: WorkerBindings | undefined,
+  opts: TeamRouteOptions,
+): ClinicEventPublisher {
+  return (
+    opts.eventPublisherFactory?.((env ?? {}) as WorkerBindings)
+    ?? createDoEventPublisher((env ?? {}) as WorkerBindings)
+  )
+}
+
+/**
+ * Após aceite no D1: sinal `invitation.accepted` para owners no DO (DEC-038).
+ * Falha de fan-out não reverte o membership (mesma classe que support).
+ */
+async function notifyOwnersInvitationAccepted(
+  events: ClinicEventPublisher,
+  input: {
+    tenantId: string
+    invitationId: string
+    clerkUserId: string
+    role: string
+    email: string
+  },
+): Promise<boolean> {
+  try {
+    const published = await events.publishTenantEvent({
+      tenantId: input.tenantId,
+      type: 'invitation.accepted',
+      entityType: 'tenant_invitation',
+      entityId: input.invitationId,
+      audience: 'owners',
+      eventId: `inv:accepted:${input.invitationId}`,
+      payload: {
+        invitationId: input.invitationId,
+        clerkUserId: input.clerkUserId,
+        role: input.role,
+        status: 'accepted',
+        email: input.email,
+      },
+    })
+    return published.ok
+  } catch {
+    // Membership já está no D1 — nunca falhar o aceite por fan-out.
+    return false
   }
 }
 
@@ -487,6 +540,17 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
             now,
           })
 
+      const realtimeNotified = await notifyOwnersInvitationAccepted(
+        resolveEvents(c.env, opts),
+        {
+          tenantId: result.invitation.tenantId,
+          invitationId: result.invitation.id,
+          clerkUserId: principal.clerkUserId,
+          role: result.invitation.role,
+          email: result.invitation.normalizedEmail,
+        },
+      )
+
       c.header('Cache-Control', 'no-store')
       return c.json({
         invitation: serializeInvitation(result.invitation, {
@@ -499,6 +563,7 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
           role: result.invitation.role,
           status: 'active',
         },
+        realtimeNotified,
       })
     } catch (err) {
       return teamErrorResponse(c, err)

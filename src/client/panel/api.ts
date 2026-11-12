@@ -2264,6 +2264,8 @@ export type AcceptInvitationResult = {
     role: 'owner' | 'attendant' | string
     status: string
   }
+  /** Fan-out `invitation.accepted` ao DO (DEC-038); false se o publish falhou. */
+  realtimeNotified?: boolean
 }
 
 export type InboxFilter =
