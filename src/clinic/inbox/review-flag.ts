@@ -182,13 +182,14 @@ export function normalizeReviewFlagText(text: string): string {
 
 /**
  * Cabeça do comando: prefixos leves + «avaliar»|«feedback» no início
- * (não mid-frase). Após a keyword: fim, pontuação ou espaço.
+ * (não mid-frase). Após a keyword: fim, espaço ou pontuação comum
+ * (`.!?`, vírgula, dois-pontos, travessão) antes do comentário opcional.
  */
 export const REVIEW_FLAG_HEAD_RE =
-  /^(?:(?:ok|pode|podes|quero|por\s+favor|pf)[,.\s!]*)*(?:avaliar|feedback)(?=$|[\s.!?])/
+  /^(?:(?:ok|pode|podes|quero|por\s+favor|pf)[,.\s!]*)*(?:avaliar|feedback)(?=$|[\s,.!?:\-–—])/
 
 const REVIEW_FLAG_OBJECT_RE =
-  /^(?:o\s+)?(?:atendimento|bot|assistente)(?=$|[\s.!?])/
+  /^(?:o\s+)?(?:atendimento|bot|assistente)(?=$|[\s,.!?:\-–—])/
 
 /**
  * @deprecated Prefer {@link REVIEW_FLAG_HEAD_RE} + {@link parseReviewFlagRequest}.
@@ -202,8 +203,12 @@ export type ReviewFlagRequestMatch =
   | { matched: false }
 
 function stripEdgePunctuation(text: string): string {
-  return text.replace(/^[.!?\s]+/, '').replace(/[.!?\s]+$/, '').trim()
+  return text
+    .replace(/^[,.:\s!?–—\-]+/, '')
+    .replace(/[,.:\s!?–—\-]+$/, '')
+    .trim()
 }
+
 
 function normalizeStoredClientComment(
   value: string | null | undefined,
@@ -220,15 +225,18 @@ function normalizeStoredClientComment(
  */
 function extractOriginalClientComment(original: string): string | null {
   const head = original.match(
-    /^(?:(?:ok|pode|podes|quero|por\s+favor|pf)[,.\s!]*)*(?:avaliar|feedback)(?=$|[\s.!?])/i,
+    /^(?:(?:ok|pode|podes|quero|por\s+favor|pf)[,.\s!]*)*(?:avaliar|feedback)(?=$|[\s,.!?:\-–—])/i,
   )
   if (!head) return null
   let rest = original.slice(head[0].length).trim()
-  const obj = rest.match(/^(?:o\s+)?(?:atendimento|bot|assistente)(?=$|[\s.!?])/i)
+  const obj = rest.match(
+    /^(?:o\s+)?(?:atendimento|bot|assistente)(?=$|[\s,.!?:\-–—])/i,
+  )
   if (obj) rest = rest.slice(obj[0].length).trim()
   rest = stripEdgePunctuation(rest)
   return rest || null
 }
+
 
 /**
  * Comando explícito de revisão (cliente / designer).

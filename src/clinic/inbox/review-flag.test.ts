@@ -136,6 +136,55 @@ describe('DEC-157 review flag', () => {
     expect(parseReviewFlagRequest('avaliaracao')).toEqual({ matched: false })
   })
 
+  it('DEC-166: vírgula, dois-pontos ou travessão após keyword ainda casa + comentário', () => {
+    expect(
+      parseReviewFlagRequest('avaliar, eu vi que o horario estava repetido'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'eu vi que o horario estava repetido',
+    })
+    expect(
+      parseReviewFlagRequest('avaliar: o bot repetiu o mesmo horário'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'o bot repetiu o mesmo horário',
+    })
+    expect(
+      parseReviewFlagRequest('avaliar - pedi atendente e travou'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'pedi atendente e travou',
+    })
+    expect(
+      parseReviewFlagRequest('feedback: horário errado na proposta'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'horário errado na proposta',
+    })
+    expect(
+      parseReviewFlagRequest('quero avaliar, algo estranho no eco'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'algo estranho no eco',
+    })
+    expect(
+      parseReviewFlagRequest('avaliar o atendimento: demorou a responder'),
+    ).toEqual({
+      matched: true,
+      clientComment: 'demorou a responder',
+    })
+    expect(parseReviewFlagRequest('avaliar,')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(parseReviewFlagRequest('avaliar:')).toEqual({
+      matched: true,
+      clientComment: null,
+    })
+    expect(isReviewFlagRequest('avaliar, comment')).toBe(true)
+    expect(isReviewFlagRequest('avaliar: comment')).toBe(true)
+  })
+
   it('DEC-166: first-flag-wins guarda clientComment; re-flag não sobrescreve', () => {
     const { db, close, clock, tenantId, cnv } = seedConversation()
     try {
