@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-166: Assumir em linha no compositor
+
+- `InboxThread` troca o cartão de handoff (~132 px no celular) por uma linha de 44 px dentro do dock do compositor; **Precisa de alguém** em bloco âmbar compacto; mock M-75 `mobile/AssumirLinha`.
+
 ## 12/11/2026 — DEC-162 a DEC-165 implementadas no painel
 
 - **Conversas (DEC-162):** `InboxList` agrupa por urgência (`urgency.ts`), mostra a espera e esconde busca e filtros na caixa vazia (`InboxEmptyStart`); `ShellIdentity` reduz «Ao vivo» a ponto no celular; `InboxThread` ganha o cartão único da conversa nova com janela fechada e «Vista por»; Agendar abre em folha no celular (`MobileThread`); Contato em tela focada com atalhos e ações em linhas.
