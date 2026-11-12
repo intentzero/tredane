@@ -52,8 +52,9 @@ function silentGuardClientRequestId(providerEventKey: string | null | undefined,
   return `choice-silent-guard:${key}`
 }
 
-function pickFallbackBody(outcome?: string, reason?: string): string {
-  if (outcome === 'stale_cleared' || reason) return CHOICE_STALE_CLICK_FALLBACK_TEXT
+/** Só oferta efetivamente limpa ou TTL vencido usam cópia «não disponível». */
+export function pickFallbackBody(outcome?: string, reason?: string): string {
+  if (outcome === 'stale_cleared' || reason === 'expired') return CHOICE_STALE_CLICK_FALLBACK_TEXT
   return CHOICE_CLICK_FALLBACK_TEXT
 }
 
