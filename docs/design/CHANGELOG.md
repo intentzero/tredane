@@ -1,5 +1,21 @@
 # Histórico do design
 
+## 12/11/2026 — Tokens 0.8.0: densidade de toque (Confirmado, DEC-168)
+
+Pedido do responsável pelo produto (12/11/2026): os botões ficavam pequenos no celular. O desktop mantém a v0.4.0 (DEC-081); em `@media (pointer: coarse)` os tokens mudam:
+
+| Token | Desktop | Toque |
+| --- | --- | --- |
+| size controlSm / Md / Lg | 28 / 32 / 36 | 36 / 44 / 48 |
+| size controlDefault | 36 | 44 |
+| size bottomNav | 48 | 56 |
+| font.size button (novo) | 14 | 16 |
+
+- `build_tokens.py` gera o bloco `@media (pointer: coarse)` a partir de `touch` em `tokens.json`.
+- `panel.css`: botões usam `--font-size-button`; secundário e perigo ficam em `--size-control-md` no toque (44), o primário em `--size-control-lg` (48).
+- Área de toque ≥ 44 px também em `.panel-btn-ghost`, `.panel-btn-compact` (agora com `min-width: 44px`), `.panel-move`, `.panel-sheet-option` e `.panel-clinic-switch`, que ficavam em 36 px.
+- Mocks `.dc.html` e PNG ainda mostram os tamanhos do desktop.
+
 ## 12/11/2026 — Bolhas da conversa nas laterais (revê DEC-162 item 7)
 
 - **Conversas desktop:** a timeline deixa a coluna centrada de 680 px e a margem de 7 %; padding lateral ~12 px e bolhas até 65 % alinhadas às laterais do pai (como WhatsApp Web). Dock/handoff fechado mantêm 680 px. Mock `desktop/ConversasUrgenciaFicha` alinhado.
