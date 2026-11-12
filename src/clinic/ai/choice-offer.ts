@@ -21,6 +21,10 @@ import {
 } from '../../whatsapp/flow/offer-live'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { cancelAutoDraft } from './autodraft'
+import {
+  ensureChoiceClickOutbound,
+  logInteractiveClickOutcome,
+} from './interactive-click-guard'
 import { isPendingOfferFresh } from './booking-frame-choice'
 import { readCatalogVersion } from './turn-context'
 import {
@@ -375,6 +379,8 @@ export type ChoiceOfferClickResult =
       autoBook?: AutoBookOutcome
       outbox: OutboxRow[]
       reason?: string
+      fallbackSent?: boolean
+      silentPrevented?: boolean
     }
 
 export function validateChoiceAgainstFrame(
@@ -502,7 +508,9 @@ async function sendChoiceOutbound(
 ): Promise<OutboxRow[]> {
   if (autoBook.proposalId && !autoBook.replyText?.trim()) {
     autoBook.deferredFrame?.discard()
-    return []
+    // Proposta no WhatsApp: sem texto duplicado. Se o outbox veio vazio
+    // (`already_sent`), o anti-silêncio trata no fim do toque.
+    if (autoBook.outbox.length > 0) return []
   }
   const replyBody = autoBook.replyText?.trim()
   if (!replyBody) {
@@ -551,6 +559,60 @@ async function sendChoiceOutbound(
   }
 }
 
+async function finishChoiceClick(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: ChoiceOfferClickInput,
+  clock: Clock,
+  partial: {
+    outcome: 'applied' | 'stale_reoffered' | 'stale_cleared'
+    autoBook?: AutoBookOutcome
+    outbox: OutboxRow[]
+    reason?: string
+  },
+  timing: { startedMs: number; aiDurationMs?: number | null },
+): Promise<ChoiceOfferClickResult> {
+  const guarded = ensureChoiceClickOutbound(
+    db,
+    caller,
+    {
+      conversationId: input.conversationId,
+      providerEventKey: input.providerEventKey,
+      outcome: partial.outcome,
+      reason: partial.reason,
+      outbox: partial.outbox,
+    },
+    clock,
+  )
+  const outbox = guarded.outbox
+  const autoBook = partial.autoBook
+  logInteractiveClickOutcome({
+    kind: 'choice',
+    tenantId: input.tenantId,
+    conversationId: input.conversationId,
+    buttonId: input.buttonId,
+    outcome: partial.outcome,
+    reason: partial.reason,
+    outboxCount: outbox.length,
+    fallbackSent: guarded.fallbackSent,
+    silentPrevented: guarded.silentPrevented,
+    autoBookStatus: autoBook?.status,
+    proposalId: autoBook?.proposalId ?? null,
+    proposalWithoutReplyText: Boolean(autoBook?.proposalId && !autoBook.replyText?.trim()),
+    aiDurationMs: timing.aiDurationMs ?? null,
+    durationMs: clock.nowMs() - timing.startedMs,
+  })
+  return {
+    handled: true,
+    outcome: partial.outcome,
+    autoBook,
+    outbox,
+    reason: partial.reason,
+    fallbackSent: guarded.fallbackSent,
+    silentPrevented: guarded.silentPrevented,
+  }
+}
+
 /**
  * Processa toque em opção de linha/variantes/horário.
  * Não marca compromisso (DEC-061): só avança o funil / monta proposta.
@@ -561,6 +623,7 @@ export async function handleChoiceOfferClick(
   input: ChoiceOfferClickInput,
   clock: Clock,
 ): Promise<ChoiceOfferClickResult> {
+  const clickStartedMs = clock.nowMs()
   const parsedChoice = parseChoiceId(input.buttonId)
   if (!parsedChoice) {
     return { handled: false, reason: 'not_choice_id' }
@@ -583,11 +646,17 @@ export async function handleChoiceOfferClick(
       },
       clock,
     )
-    return {
-      handled: true,
-      outcome: click.outcome === 'applied' ? 'applied' : 'stale_reoffered',
-      outbox: click.outbox,
-    }
+    return finishChoiceClick(
+      db,
+      caller,
+      input,
+      clock,
+      {
+        outcome: click.outcome === 'applied' ? 'applied' : 'stale_reoffered',
+        outbox: click.outbox,
+      },
+      { startedMs: clickStartedMs },
+    )
   }
 
   // Alterar detalhes → Horário | Serviço | Variantes (Paulo 09/11/2026).
@@ -612,28 +681,46 @@ export async function handleChoiceOfferClick(
           clock,
           { providerEventKey: input.providerEventKey },
         )
-        return {
-          handled: true,
-          outcome: 'stale_reoffered',
-          outbox: menu.outbox,
+        return finishChoiceClick(
+          db,
+          caller,
+          input,
+          clock,
+          {
+            outcome: 'stale_reoffered',
+            outbox: menu.outbox,
+            reason: validated.reason,
+          },
+          { startedMs: clickStartedMs },
+        )
+      }
+      return finishChoiceClick(
+        db,
+        caller,
+        input,
+        clock,
+        {
+          outcome: 'stale_cleared',
+          outbox: [],
           reason: validated.reason,
-        }
-      }
-      return {
-        handled: true,
-        outcome: 'stale_cleared',
-        outbox: [],
-        reason: validated.reason,
-      }
+        },
+        { startedMs: clickStartedMs },
+      )
     }
     const key = validated.key
     if (key !== 'horario' && key !== 'servico' && key !== 'variantes') {
-      return {
-        handled: true,
-        outcome: 'stale_cleared',
-        outbox: [],
-        reason: 'unknown_option',
-      }
+      return finishChoiceClick(
+        db,
+        caller,
+        input,
+        clock,
+        {
+          outcome: 'stale_cleared',
+          outbox: [],
+          reason: 'unknown_option',
+        },
+        { startedMs: clickStartedMs },
+      )
     }
     const { handleAlterDetailsChoice } = await import('./alter-details')
     const click = await handleAlterDetailsChoice(
@@ -648,12 +735,18 @@ export async function handleChoiceOfferClick(
       },
       clock,
     )
-    return {
-      handled: true,
-      outcome: 'applied',
-      autoBook: click.autoBook,
-      outbox: click.outbox,
-    }
+    return finishChoiceClick(
+      db,
+      caller,
+      input,
+      clock,
+      {
+        outcome: 'applied',
+        autoBook: click.autoBook,
+        outbox: click.outbox,
+      },
+      { startedMs: clickStartedMs },
+    )
   }
 
   cancelAutoDraft(db, input.tenantId, input.conversationId)
@@ -683,12 +776,14 @@ export async function handleChoiceOfferClick(
     const services = listServices(db, input.tenantId).filter((s) => s.active)
     const svc = services.find((s) => s.id === frame?.serviceId)
     const reofferText = svc?.name?.trim() || 'quero agendar'
+    const aiStartedMs = clock.nowMs()
     const autoBook = await tryAiAutoBook(db, caller, clock, {
       conversationId: input.conversationId,
       capability: input.capability !== false,
       turnTextOverride: reofferText,
       confirmationMessageIdOverride: confirmationMessageId,
     })
+    const aiDurationMs = clock.nowMs() - aiStartedMs
     const choiceOut = await sendChoiceOutbound(
       db,
       caller,
@@ -699,13 +794,20 @@ export async function handleChoiceOfferClick(
       input.prepareBookingFlowOffer,
     )
     const outbox = [...cleared, ...autoBook.outbox, ...choiceOut]
-    return {
-      handled: true,
-      outcome: autoBook.replyText?.trim() || autoBook.proposalId ? 'stale_reoffered' : 'stale_cleared',
-      autoBook,
-      outbox,
-      reason: validated.reason,
-    }
+    return finishChoiceClick(
+      db,
+      caller,
+      input,
+      clock,
+      {
+        outcome:
+          autoBook.replyText?.trim() || autoBook.proposalId ? 'stale_reoffered' : 'stale_cleared',
+        autoBook,
+        outbox,
+        reason: validated.reason,
+      },
+      { startedMs: clickStartedMs, aiDurationMs },
+    )
   }
 
   // DEC-137: toque em Opções já é explícito (sem eco). Sim confirma o conjunto
@@ -763,6 +865,7 @@ export async function handleChoiceOfferClick(
     }
   }
 
+  const aiStartedMs = clock.nowMs()
   const autoBook = await tryAiAutoBook(db, caller, clock, {
     conversationId: input.conversationId,
     capability: input.capability !== false,
@@ -771,6 +874,7 @@ export async function handleChoiceOfferClick(
     ...(boundSlot ? { boundSlot } : {}),
     zoneEcho,
   })
+  const aiDurationMs = clock.nowMs() - aiStartedMs
 
   const choiceOut = await sendChoiceOutbound(
     db,
@@ -782,7 +886,14 @@ export async function handleChoiceOfferClick(
     input.prepareBookingFlowOffer,
   )
   const outbox = [...autoBook.outbox, ...choiceOut]
-  return { handled: true, outcome: 'applied', autoBook, outbox }
+  return finishChoiceClick(
+    db,
+    caller,
+    input,
+    clock,
+    { outcome: 'applied', autoBook, outbox },
+    { startedMs: clickStartedMs, aiDurationMs },
+  )
 }
 
 /** Anexa pending (+ lastOffer) e devolve interactive para o outbound. */

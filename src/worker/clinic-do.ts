@@ -981,10 +981,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         this.#clock,
       )
       if (choice.handled) {
-        if (choice.outbox.length > 0) {
+        const dispatched = choice.outbox.length > 0
+        if (dispatched) {
           await this.#fanoutOutboxes(caller, choice.outbox, true)
           await this.#drain(caller)
         }
+        console.log(
+          JSON.stringify({
+            level: 'info',
+            event: 'whatsapp.interactive_click_dispatched',
+            tenantId: caller.tenantId,
+            conversationId: input.conversationId,
+            buttonId: input.buttonId,
+            outcome: choice.outcome,
+            reason: choice.reason ?? null,
+            outboxQueued: choice.outbox.length,
+            dispatched,
+            fallbackSent: choice.fallbackSent === true,
+            silentPrevented: choice.silentPrevented === true,
+          }),
+        )
         return {
           handled: true,
           action: 'choice' as const,

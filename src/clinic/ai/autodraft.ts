@@ -138,6 +138,9 @@ const AUTODRAFT_ACTOR_NAME = 'IA'
  */
 export const AUTODRAFT_STALE_MS = AI_TIMEOUT_MS + 15_000
 
+/** Teto do turno `alarm()` em `runDueAutoDrafts` (evita N× AI_TIMEOUT no mesmo isolate). */
+export const AUTODRAFT_ALARM_BUDGET_MS = 45_000
+
 export type AutoDraftJob = {
   conversationId: string
   messageId: string
@@ -379,7 +382,22 @@ export async function runDueAutoDrafts(
     .map(mapJob)
 
   const out: AutoDraftOutcome[] = []
+  const alarmTurnStartedMs = now
   for (const job of due) {
+    const elapsedMs = clock.nowMs() - alarmTurnStartedMs
+    if (elapsedMs >= AUTODRAFT_ALARM_BUDGET_MS) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ai.autodraft_alarm_budget',
+          tenantId,
+          elapsedMs,
+          processedJobs: out.length,
+          dueRemaining: due.length - out.length,
+        }),
+      )
+      break
+    }
     const jobStarted = clock.nowMs()
     const debounceMs = Math.max(0, job.dueAt - job.createdAt)
     // DEC-143: quadro antes do turno, para medir se as variantes vieram deste texto.
