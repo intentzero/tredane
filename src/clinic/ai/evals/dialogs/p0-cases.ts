@@ -15,6 +15,7 @@
  * A-42: 1.ª oferta de Horários leva dica «falar com a equipe» (DEC-153); 2.ª oferta no unitário.
  * A-43: meta «Como faço para terminar?» → HOW_TO_END_REPLY (#660 / DEC-154); sem soft-close/handoff.
  * A-47: «avaliar» → fila Para revisão + ack; sem pausar IA / limpar frame (DEC-157 / #670).
+ * A-50: «avaliar …» com comentário livre → mesma fila + `review_client_comment` (DEC-166).
  * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (zonas-cases).
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
@@ -2574,7 +2575,111 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       noAppointment: true,
       reviewFlagged: true,
       reviewFlagSource: 'client',
+      reviewFlagClientComment: null,
       turnDecided: [{ route: 'skip:review_flag_request', modelCalled: false, pendingSlotBefore: 'horario' }],
+      turns: [
+        {
+          turn: 0,
+          matches: [/Marquei esta conversa para a equipe revisar/i],
+          excludes: [
+            /Vou pedir para a equipe/i,
+            /Precisa de alguém/i,
+            /Não encontrei/i,
+            /quando quiser|fico por aqui/i,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-50',
+    title: '«avaliar …» com comentário livre marca revisão (DEC-166)',
+    turnosIdeais: 1,
+    // DEC-166: keyword no início + observação opcional; ack igual; first-flag-wins no DO.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-50: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-50: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-08T09:00', label: '09:00' },
+              { key: '2026-11-08T09:30', label: '09:30' },
+              { key: '2026-11-08T10:00', label: '10:00' },
+            ],
+            messageId: 'm_a50_slots',
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a50' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a50' },
+              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a50' },
+            ],
+            messageId: 'm_a50_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      {
+        role: 'client',
+        text: 'avaliar eu vi que o horario estava repetido',
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      reviewFlagged: true,
+      reviewFlagSource: 'client',
+      reviewFlagClientComment: 'eu vi que o horario estava repetido',
+      turnDecided: [
+        { route: 'skip:review_flag_request', modelCalled: false, pendingSlotBefore: 'horario' },
+      ],
       turns: [
         {
           turn: 0,
