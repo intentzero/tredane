@@ -19,6 +19,7 @@ import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
 import { useOutsideClose } from '../../ui/useOutsideClose'
+import { consumeAgendarOpen } from './agendarFocus'
 
 type Props = {
   tenantId: string
@@ -265,7 +266,8 @@ export function ConversasThreeCol({
   const [pref, setPref] = useState<'open' | 'closed' | null>(readPanelPref)
   const hasThread = Boolean(conversationId)
   // DEC-074: o Agendar ocupa o lugar do contato; ao fechar, o contato volta ao que a pessoa lembrou.
-  const [agendarOpen, setAgendarOpen] = useState(false)
+  // DEC-162: Contato focado pode pedir o Agendar ao voltar à conversa (consumeAgendarOpen).
+  const [agendarOpen, setAgendarOpen] = useState(() => consumeAgendarOpen())
   const panelOpen = hasThread && !agendarOpen && (pref ? pref === 'open' : roomy)
   // O conteúdo só é buscado na primeira abertura; depois fica montado (escondido).
   const [everOpened, setEverOpened] = useState(false)
@@ -276,9 +278,13 @@ export function ConversasThreeCol({
   const returnFocus = useRef<HTMLElement | null>(null)
   const agendarReturnFocus = useRef<HTMLElement | null>(null)
   const userToggled = useRef(false)
+  const agendarConversationId = useRef(conversationId)
 
   // Trocar de conversa fecha o Agendar: o painel nunca marca para a pessoa errada.
+  // Não limpar no primeiro mount — senão apaga o pedido vindo do Contato (DEC-162).
   useEffect(() => {
+    if (agendarConversationId.current === conversationId) return
+    agendarConversationId.current = conversationId
     setAgendarOpen(false)
   }, [conversationId])
 
@@ -409,6 +415,7 @@ export function ConversasThreeCol({
             api={api}
             generation={generation}
             isOwner={isOwner}
+            onAgendar={toggleAgendar}
           />
         </aside>
       ) : null}
@@ -447,9 +454,13 @@ function MobileThread({
   isOwner: boolean
   staffDisplayName: string | null
 }) {
-  const [agendarOpen, setAgendarOpen] = useState(false)
+  // DEC-162: Contato focado no celular pede a folha Agendar ao voltar à conversa.
+  const [agendarOpen, setAgendarOpen] = useState(() => consumeAgendarOpen())
   const sheetRef = useRef<HTMLElement | null>(null)
+  const agendarConversationId = useRef(conversationId)
   useEffect(() => {
+    if (agendarConversationId.current === conversationId) return
+    agendarConversationId.current = conversationId
     setAgendarOpen(false)
   }, [conversationId])
   return (
@@ -604,12 +615,15 @@ function ContactViaConversation({
   api,
   generation,
   isOwner,
+  onAgendar,
 }: {
   tenantId: string
   conversationId: string
   api: NonNullable<ReturnType<typeof useAuthSession>['api']>
   generation: number
   isOwner: boolean
+  /** DEC-162 / DEC-074: Agendar no painel da conversa (desktop). */
+  onAgendar?: () => void
 }) {
   const [contactId, setContactId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -646,6 +660,7 @@ function ContactViaConversation({
       api={api}
       generation={generation}
       isOwner={isOwner}
+      onAgendar={onAgendar}
     />
   )
 }

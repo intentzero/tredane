@@ -1,5 +1,6 @@
 import { CalendarPlus, ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, MessageCircle, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { requestAgendarOpen } from './agendarFocus'
 import { consumeSummaryFocus } from './summaryFocus'
 import { AiWorking } from '../../ui/AiWorking'
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
@@ -31,6 +32,11 @@ type Props = {
    * Mesmo conteúdo canónico (Opção C Confirmada).
    */
   origin?: 'conversas' | 'clientes'
+  /**
+   * DEC-162 / DEC-074: quando o Contato está no contexto da conversa (painel desktop),
+   * Agendar abre o fluxo in-context do pai em vez de ir para a área Agenda.
+   */
+  onAgendar?: () => void
 }
 
 function formatPhone(waId: string): string {
@@ -118,6 +124,7 @@ export function InboxContactScreen({
   generation,
   isOwner,
   origin = 'conversas',
+  onAgendar,
 }: Props) {
   const [data, setData] = useState<InboxContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -379,7 +386,24 @@ export function InboxContactScreen({
         <div className="ic-shortcuts">
           <Button
             className="panel-btn-primary ic-shortcut"
-            onPress={() =>
+            onPress={() => {
+              // DEC-162: Contato aberto numa conversa ativa — Agendar no contexto da conversa
+              // (painel desktop / folha no celular), sem abandonar a thread pela área Agenda.
+              if (onAgendar) {
+                onAgendar()
+                return
+              }
+              if (origin === 'conversas' && conversationId) {
+                requestAgendarOpen()
+                navigatePanel({
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId,
+                  section: 'thread',
+                  conversationId,
+                })
+                return
+              }
               navigatePanel({
                 kind: 'area',
                 area: 'agenda',
@@ -388,7 +412,7 @@ export function InboxContactScreen({
                 contactId,
                 conversationId: summaryConversationId,
               })
-            }
+            }}
           >
             <CalendarPlus aria-hidden size={18} strokeWidth={2} />
             Agendar
