@@ -84,6 +84,7 @@ describe('InboxThread — cabeçalho e Assumir', () => {
   it('sem responsável: cartão «Ninguém está atendendo» com Assumir conversa (DEC-161)', async () => {
     renderThread(mockApi(detail()))
     await screen.findByText('Ninguém está atendendo esta conversa.')
+    expect(screen.getByRole('button', { name: 'Assumir conversa' }).textContent).toBe('Assumir')
     expect(screen.getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy()
   })

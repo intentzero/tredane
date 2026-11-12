@@ -2,7 +2,7 @@
  * Equipe (M-18 / S1–S3 + DEC-103): membros + convites; convidar attendant/owner;
  * promover / despromover / remover (último owner protegido).
  */
-import { ChevronLeft, Mail, MoreVertical, Plus, RotateCw } from 'lucide-react'
+import { ChevronLeft, Mail, MoreVertical, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
@@ -25,6 +25,7 @@ import { Banner } from '../../states/Banner'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { ClinicSheet } from './ClinicSheet'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 
 type Props = {
   tenantId: string
@@ -125,6 +126,11 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
   const [actionOk, setActionOk] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [menuMember, setMenuMember] = useState<TeamMemberLite | null>(null)
+  // Revisão da Equipe (DEC-171): no celular as ações do convite vão para uma folha;
+  // cancelar pede sempre confirmação.
+  const [menuInvite, setMenuInvite] = useState<TeamInvitation | null>(null)
+  const [cancelInvite, setCancelInvite] = useState<TeamInvitation | null>(null)
+  const narrow = useMediaQuery('(max-width: 767.98px)')
   const [pendingAction, setPendingAction] = useState<{
     member: TeamMemberLite
     action: MemberAction
@@ -220,7 +226,9 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
         expectGeneration: () => generation,
       })
       if (result.emailSent) {
-        setActionOk('Convite reenviado por e-mail. O link anterior deixa de valer.')
+        setActionOk(
+          'Convite reenviado por e-mail. O link anterior deixa de valer. Dá para reenviar de novo daqui a 10 min, até 5 vezes em 24 h.',
+        )
       } else {
         setActionError(
           'O convite continua pendente, mas o e-mail de reenvio não saiu. Tente de novo ou peça ajuda ao suporte.',
@@ -245,9 +253,11 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
         expectGeneration: () => generation,
       })
       setActionOk('Convite cancelado. O link deixa de funcionar.')
+      setCancelInvite(null)
       await reload()
     } catch (err) {
       setActionError(friendlyError(err, 'Não foi possível cancelar o convite.'))
+      setCancelInvite(null)
     } finally {
       setBusyId(null)
     }
@@ -325,6 +335,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
       || 'esta pessoa'
     : ''
 
+  const cancelBusy = cancelInvite != null && busyId === `cancel:${cancelInvite.id}`
   const memberCount = members.length
   const inviteCount = invitations.length
   const summary = [
@@ -384,7 +395,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
         <div className="equipe-main">
           <section className="equipe-section" aria-labelledby="equipe-membros-t">
             <h3 id="equipe-membros-t" className="equipe-section-title">
-              Membros
+              Membros · {memberCount}
             </h3>
             {members.length === 0 ? (
               <p className="panel-subtitle">Nenhum membro ativo nesta clínica.</p>
@@ -406,7 +417,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
                         <span>{memberEmail(m)}</span>
                       </span>
                       <span className="equipe-role">
-                        <Badge tone={m.role === 'owner' ? 'ai' : 'closed'}>
+                        <Badge tone={m.role === 'owner' ? 'new' : 'closed'}>
                           {roleLabel(m.role)}
                         </Badge>
                       </span>
@@ -435,7 +446,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
 
           <section className="equipe-section" aria-labelledby="equipe-convites-t">
             <h3 id="equipe-convites-t" className="equipe-section-title">
-              Convites pendentes
+              Convites pendentes{inviteCount > 0 ? ` · ${inviteCount}` : ''}
             </h3>
             {invitations.length === 0 ? (
               <p className="panel-subtitle">Nenhum convite pendente.</p>
@@ -450,55 +461,74 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
                           <Mail size={18} strokeWidth={1.8} />
                         </span>
                         <span className="equipe-copy">
-                          <span className="equipe-invite-title">
-                            <strong>{inv.email}</strong>
-                            <Badge tone="wait">Pendente</Badge>
-                          </span>
+                          <strong>{inv.email}</strong>
                           <span>
                             {roleLabel(inv.role)} · {expiresInLabel(inv.expiresAt, nowMs)}
                           </span>
                         </span>
-                        <div className="equipe-invite-actions">
+                        {narrow ? (
                           <Button
-                            className="panel-btn panel-btn-secondary equipe-action-btn"
-                            isDisabled={!resendEnabled || busyId !== null}
-                            onPress={() => void onResend(inv)}
+                            className="equipe-row-menu"
+                            aria-label={`Ações do convite para ${inv.email}`}
+                            isDisabled={busyId !== null}
+                            onPress={() => {
+                              setActionError(null)
+                              setActionOk(null)
+                              setMenuInvite(inv)
+                            }}
                           >
-                            <RotateCw aria-hidden size={16} strokeWidth={2} />
-                            {resendButtonLabel(inv, nowMs)}
+                            <MoreVertical aria-hidden size={20} strokeWidth={2} />
                           </Button>
-                          <Button
-                            className="panel-btn panel-btn-danger equipe-action-btn equipe-cancel-btn"
-                            isDisabled={!inv.manageActions.canCancel || busyId !== null}
-                            onPress={() => void onCancel(inv)}
-                          >
-                            Cancelar convite
-                          </Button>
-                        </div>
+                        ) : (
+                          <div className="equipe-invite-actions">
+                            <Button
+                              className="panel-btn panel-btn-ghost equipe-action-btn"
+                              isDisabled={!resendEnabled || busyId !== null}
+                              onPress={() => void onResend(inv)}
+                            >
+                              {resendButtonLabel(inv, nowMs)}
+                            </Button>
+                            <Button
+                              className="panel-btn panel-btn-ghost equipe-action-btn equipe-cancel-btn"
+                              isDisabled={!inv.manageActions.canCancel || busyId !== null}
+                              onPress={() => {
+                                setActionError(null)
+                                setActionOk(null)
+                                setCancelInvite(inv)
+                              }}
+                            >
+                              Cancelar…
+                            </Button>
+                          </div>
+                        )}
                       </li>
                     )
                   })}
                 </ul>
-                <p className="clinic-footnote equipe-invite-note">
-                  Reenviar gera um novo link e invalida o anterior. Até 5 reenvios em 24 h, com 10
-                  min entre eles.
-                </p>
               </div>
             )}
           </section>
         </div>
 
-        <aside className="equipe-aside" aria-labelledby="equipe-papel-t">
-          <h3 id="equipe-papel-t" className="equipe-aside-title">
-            Como responsável, você
-          </h3>
-          <ul className="equipe-aside-list">
-            <li>convida atendentes e responsáveis</li>
-            <li>promove e despromove membros</li>
-            <li>remove acesso</li>
-          </ul>
-          <p className="clinic-footnote">A clínica precisa ficar com pelo menos um responsável.</p>
-        </aside>
+        <details className="equipe-roles">
+          <summary>O que cada papel pode fazer</summary>
+          <dl className="equipe-roles-grid">
+            <div>
+              <dt>Responsável</dt>
+              <dd>
+                Faz tudo o que a atendente faz e ainda configura a clínica, convida pessoas, muda
+                papéis e remove acessos. A clínica fica sempre com pelo menos um responsável.
+              </dd>
+            </div>
+            <div>
+              <dt>Atendente</dt>
+              <dd>
+                Atende conversas, marca e remarca horários e vê clientes. Não entra em Clínica nem
+                convida pessoas.
+              </dd>
+            </div>
+          </dl>
+        </details>
       </div>
 
       <ClinicSheet
@@ -685,6 +715,122 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
                     : pendingAction?.action === 'demote'
                       ? 'Tornar atendente'
                       : 'Remover acesso'}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      <ModalOverlay
+        isOpen={menuInvite !== null}
+        onOpenChange={(open) => {
+          if (!open) setMenuInvite(null)
+        }}
+        isDismissable
+        className="panel-overlay panel-choice-overlay"
+      >
+        <Modal className="panel-choice-modal">
+          <Dialog
+            className="panel-sheet panel-choice-sheet"
+            aria-labelledby="equipe-invite-actions-title"
+          >
+            <span className="panel-sheet-handle" aria-hidden="true" />
+            <Heading
+              slot="title"
+              id="equipe-invite-actions-title"
+              className="panel-title panel-choice-title"
+            >
+              {menuInvite?.email ?? 'Convite'}
+            </Heading>
+            {menuInvite ? (
+              <p className="clinic-footnote">
+                Convite de {roleLabel(menuInvite.role).toLowerCase()} ·{' '}
+                {expiresInLabel(menuInvite.expiresAt, nowMs)}
+              </p>
+            ) : null}
+            <div className="clinic-footer-actions" style={{ flexDirection: 'column', gap: 8 }}>
+              {menuInvite ? (
+                <>
+                  <Button
+                    className="panel-btn panel-btn-secondary"
+                    isDisabled={!canResendNow(menuInvite, nowMs) || busyId !== null}
+                    onPress={() => {
+                      const inv = menuInvite
+                      setMenuInvite(null)
+                      void onResend(inv)
+                    }}
+                  >
+                    {resendButtonLabel(menuInvite, nowMs) === 'Reenviar'
+                      ? 'Reenviar convite'
+                      : resendButtonLabel(menuInvite, nowMs)}
+                  </Button>
+                  <p className="clinic-footnote">
+                    Um link novo substitui o anterior. Até 5 reenvios em 24 h, com 10 min entre
+                    eles.
+                  </p>
+                  <Button
+                    className="panel-btn panel-btn-danger"
+                    isDisabled={!menuInvite.manageActions.canCancel || busyId !== null}
+                    onPress={() => {
+                      setCancelInvite(menuInvite)
+                      setMenuInvite(null)
+                    }}
+                  >
+                    Cancelar convite…
+                  </Button>
+                </>
+              ) : null}
+              <Button className="panel-btn panel-btn-ghost" onPress={() => setMenuInvite(null)}>
+                Fechar
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      <ModalOverlay
+        isOpen={cancelInvite !== null}
+        onOpenChange={(open) => {
+          if (!open && !cancelBusy) setCancelInvite(null)
+        }}
+        isDismissable={!cancelBusy}
+        className="panel-overlay panel-choice-overlay"
+      >
+        <Modal className="panel-choice-modal">
+          <Dialog
+            className="panel-sheet panel-choice-sheet"
+            aria-labelledby="equipe-cancel-title"
+            aria-describedby="equipe-cancel-desc"
+            role="alertdialog"
+          >
+            <span className="panel-sheet-handle" aria-hidden="true" />
+            <Heading
+              slot="title"
+              id="equipe-cancel-title"
+              className="panel-title panel-choice-title"
+            >
+              {`Cancelar o convite de ${cancelInvite?.email ?? 'esta pessoa'}?`}
+            </Heading>
+            <p id="equipe-cancel-desc" className="clinic-footnote">
+              O link do e-mail deixa de funcionar. Para a pessoa entrar depois, é preciso um
+              convite novo.
+            </p>
+            <div className="clinic-footer-actions">
+              <Button
+                className="panel-btn panel-btn-ghost"
+                isDisabled={cancelBusy}
+                onPress={() => setCancelInvite(null)}
+              >
+                Manter convite
+              </Button>
+              <Button
+                className="panel-btn panel-btn-danger"
+                isDisabled={cancelBusy}
+                onPress={() => {
+                  if (cancelInvite) void onCancel(cancelInvite)
+                }}
+              >
+                {cancelBusy ? 'Cancelando…' : 'Cancelar convite'}
               </Button>
             </div>
           </Dialog>
