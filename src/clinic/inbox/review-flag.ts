@@ -1,7 +1,9 @@
 /**
- * DEC-157 / DEC-166 — fila de revisão de conversas.
+ * DEC-157 / DEC-166 / DEC-167 — fila de revisão de conversas.
  * Flag no SQLite do Clinic DO; não pausa IA nem limpa BookingFrame.
  * DEC-166: comentário livre opcional após «avaliar» / «feedback».
+ * DEC-167: cada comentário em re-flag é appendado (metadados do flag
+ * continuam first-flag-wins); outbox dispara upsert D1.
  */
 import type { Clock } from '../../db/clock'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
@@ -19,8 +21,47 @@ export type ReviewFlagState = {
   flaggedAt: number
   source: ReviewFlagSource
   reason: ReviewFlagReason | null
-  /** Observação livre da cliente no 1.º flag (DEC-166); null se bare keyword. */
+  /**
+   * 1.º comentário livre (DEC-166); null se ainda não houve texto.
+   * Mantido estável em re-flag (DEC-167).
+   */
   clientComment: string | null
+  /** Todos os comentários na ordem de chegada (DEC-167). */
+  clientComments: string[]
+}
+
+/** Serializa a lista de comentários para a coluna JSON do DO. */
+export function serializeClientComments(comments: readonly string[]): string | null {
+  if (comments.length === 0) return null
+  return JSON.stringify(comments)
+}
+
+/**
+ * Lê a lista a partir de `review_client_comments` (JSON) com fallback
+ * lazy para o 1.º comentário em `review_client_comment` (0061).
+ */
+export function parseStoredClientComments(
+  commentsJson: string | null | undefined,
+  firstComment: string | null | undefined,
+): string[] {
+  if (typeof commentsJson === 'string' && commentsJson.trim() !== '') {
+    try {
+      const parsed: unknown = JSON.parse(commentsJson)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((c): c is string => typeof c === 'string')
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0)
+          .map((c) => c.slice(0, REVIEW_FLAG_CLIENT_COMMENT_MAX_LEN))
+      }
+    } catch {
+      /* fallback abaixo */
+    }
+  }
+  if (typeof firstComment === 'string' && firstComment.trim() !== '') {
+    return [firstComment.trim().slice(0, REVIEW_FLAG_CLIENT_COMMENT_MAX_LEN)]
+  }
+  return []
 }
 
 export function readReviewFlag(
@@ -34,9 +75,10 @@ export function readReviewFlag(
     review_flagged_source: string | null
     review_flag_reason: string | null
     review_client_comment: string | null
+    review_client_comments: string | null
   }>(
     `SELECT review_flagged_at, review_flagged_source, review_flag_reason,
-            review_client_comment
+            review_client_comment, review_client_comments
      FROM conversations WHERE tenant_id = ? AND id = ?`,
     tenantId,
     conversationId,
@@ -52,17 +94,18 @@ export function readReviewFlag(
     (REVIEW_FLAG_REASONS as readonly string[]).includes(row.review_flag_reason)
       ? (row.review_flag_reason as ReviewFlagReason)
       : null
-  const clientComment =
-    typeof row.review_client_comment === 'string' &&
-    row.review_client_comment.trim() !== ''
-      ? row.review_client_comment.trim()
-      : null
-  return { flaggedAt: row.review_flagged_at, source, reason, clientComment }
+  const clientComments = parseStoredClientComments(
+    row.review_client_comments,
+    row.review_client_comment,
+  )
+  const clientComment = clientComments[0] ?? null
+  return { flaggedAt: row.review_flagged_at, source, reason, clientComment, clientComments }
 }
 
 /**
- * Marca para revisão. Idempotente: se já flagged, não sobrescreve source/at/comment
- * (first-flag-wins — DEC-166). Devolve outbox (vazio se já estava marcada).
+ * Marca para revisão. Metadados (source/at/reason) são first-flag-wins.
+ * DEC-167: se já flagged e chega comentário novo, appenda e emite outbox
+ * para o upsert D1 (sem alterar source/at/reason).
  */
 export function flagConversationForReview(
   db: ClinicDb,
@@ -78,18 +121,60 @@ export function flagConversationForReview(
   assertClinicSchemaReady(db)
   requireConversation(db, tenantId, conversationId)
   const existing = readReviewFlag(db, tenantId, conversationId)
-  if (existing) return { changed: false, outbox: [] }
+  const incoming = normalizeStoredClientComment(input.clientComment)
   const now = clock.nowMs()
-  const clientComment = normalizeStoredClientComment(input.clientComment)
+
+  if (existing) {
+    if (!incoming) return { changed: false, outbox: [] }
+    const clientComments = [...existing.clientComments, incoming]
+    const firstComment = clientComments[0] ?? null
+    db.run(
+      `UPDATE conversations
+       SET review_client_comment = ?, review_client_comments = ?, updated_at = ?
+       WHERE tenant_id = ? AND id = ?`,
+      firstComment,
+      serializeClientComments(clientComments),
+      now,
+      tenantId,
+      conversationId,
+    )
+    const outbox = [
+      insertOutboxEvent(
+        db,
+        {
+          tenantId,
+          type: 'conversation.review_flagged',
+          aggregateType: 'conversation',
+          aggregateId: conversationId,
+          idempotencyKey: `conversation.review_flagged:${conversationId}:${now}:comment`,
+          payload: {
+            conversationId,
+            source: existing.source,
+            reason: existing.reason,
+            reviewFlaggedAt: existing.flaggedAt,
+            clientComment: firstComment,
+            clientComments,
+            commentAppended: true,
+          },
+        },
+        clock,
+      ),
+    ]
+    return { changed: true, outbox }
+  }
+
+  const clientComments = incoming ? [incoming] : []
+  const clientComment = clientComments[0] ?? null
   db.run(
     `UPDATE conversations
      SET review_flagged_at = ?, review_flagged_source = ?, review_flag_reason = ?,
-         review_client_comment = ?, updated_at = ?
+         review_client_comment = ?, review_client_comments = ?, updated_at = ?
      WHERE tenant_id = ? AND id = ?`,
     now,
     input.source,
     input.reason,
     clientComment,
+    serializeClientComments(clientComments),
     now,
     tenantId,
     conversationId,
@@ -109,6 +194,8 @@ export function flagConversationForReview(
           reason: input.reason,
           reviewFlaggedAt: now,
           clientComment,
+          clientComments,
+          commentAppended: false,
         },
       },
       clock,
@@ -131,7 +218,7 @@ export function clearConversationReviewFlag(
   db.run(
     `UPDATE conversations
      SET review_flagged_at = NULL, review_flagged_source = NULL, review_flag_reason = NULL,
-         review_client_comment = NULL, updated_at = ?
+         review_client_comment = NULL, review_client_comments = NULL, updated_at = ?
      WHERE tenant_id = ? AND id = ?`,
     now,
     tenantId,
@@ -165,7 +252,7 @@ export const REVIEW_FLAG_CLIENT_ACK =
 /** Corpo normalizado máximo (keyword + comentário opcional). */
 export const REVIEW_FLAG_REQUEST_MAX_LEN = 500
 
-/** Comentário guardado no 1.º flag / amostra central. */
+/** Comentário guardado por pedido Avaliar/feedback. */
 export const REVIEW_FLAG_CLIENT_COMMENT_MAX_LEN = 400
 
 /**

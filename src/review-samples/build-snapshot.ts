@@ -1,11 +1,15 @@
 /**
  * Constrói o snapshot de revisão a partir do SQLite do Clinic DO (DEC-159).
- * Chamado só no instante do flag (sem sync contínuo).
+ * Chamado no instante do flag / append de comentário (sem sync contínuo).
  */
 import type { ClinicDb } from '../clinic/store'
 import { listMessages } from '../clinic/inbox/messages'
 import { getConversationWithContact } from '../clinic/inbox/conversations'
-import type { ReviewFlagReason, ReviewFlagSource } from '../clinic/inbox/review-flag'
+import {
+  parseStoredClientComments,
+  type ReviewFlagReason,
+  type ReviewFlagSource,
+} from '../clinic/inbox/review-flag'
 import { REVIEW_SAMPLE_MESSAGE_LIMIT } from './constants'
 import type { ReviewSampleSnapshot } from './types'
 
@@ -18,8 +22,9 @@ export function buildReviewSampleSnapshot(
     source: ReviewFlagSource
     reason: ReviewFlagReason | string | null
     flaggedAt: number
-    /** Se omitido, lê `review_client_comment` do DO (1.º flag). */
+    /** Se omitido, lê comentários do DO. */
     clientComment?: string | null
+    clientComments?: string[] | null
   },
 ): ReviewSampleSnapshot | null {
   const item = getConversationWithContact(db, input.tenantId, input.conversationId)
@@ -28,24 +33,35 @@ export function buildReviewSampleSnapshot(
     conversationId: input.conversationId,
     limit: REVIEW_SAMPLE_MESSAGE_LIMIT,
   })
-  let clientComment: string | null
-  if (input.clientComment !== undefined) {
-    clientComment =
+
+  let clientComments: string[]
+  if (input.clientComments != null) {
+    clientComments = input.clientComments
+      .filter((c): c is string => typeof c === 'string')
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0)
+  } else if (input.clientComment !== undefined) {
+    clientComments =
       typeof input.clientComment === 'string' && input.clientComment.trim() !== ''
-        ? input.clientComment.trim()
-        : null
+        ? [input.clientComment.trim()]
+        : []
   } else {
-    const row = db.get<{ review_client_comment: string | null }>(
-      `SELECT review_client_comment FROM conversations WHERE tenant_id = ? AND id = ?`,
+    const row = db.get<{
+      review_client_comment: string | null
+      review_client_comments: string | null
+    }>(
+      `SELECT review_client_comment, review_client_comments
+       FROM conversations WHERE tenant_id = ? AND id = ?`,
       input.tenantId,
       input.conversationId,
     )
-    clientComment =
-      typeof row?.review_client_comment === 'string' &&
-      row.review_client_comment.trim() !== ''
-        ? row.review_client_comment.trim()
-        : null
+    clientComments = parseStoredClientComments(
+      row?.review_client_comments,
+      row?.review_client_comment,
+    )
   }
+  const clientComment = clientComments[0] ?? null
+
   return {
     tenantId: input.tenantId,
     tenantName: input.tenantName ?? null,
@@ -56,6 +72,7 @@ export function buildReviewSampleSnapshot(
     flagSource: input.source,
     flagReason: input.reason,
     clientComment,
+    clientComments,
     flaggedAt: input.flaggedAt,
     lastMessageAt: item.lastMessageAt,
     lastMessagePreview: item.lastMessagePreview,

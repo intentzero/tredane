@@ -27,7 +27,7 @@ export const DIAGNOSIS_GUIDANCE = [
   'Indique: (1) clínica (tenantId / tenantName) e gatilho da flag (client / staff / auto + reason);',
   '(2) passo provável do funil de marcação;',
   '(3) se a fricção parece «Não encontrei», pedido explícito da cliente, ou marcação manual;',
-  '(4) se `clientComment` estiver preenchido (DEC-166), trate-o como a observação da cliente sobre a anomalia e use-o para complementar o diagnóstico — não o ignore;',
+  '(4) se `clientComments` (DEC-167) ou `clientComment` (DEC-166) tiver texto, trate cada item como observação da cliente sobre a anomalia — use todos, não só o primeiro;',
   '(5) uma hipótese de melhoria (copy, match, handoff) sem inventar mensagens que não estão no fio.',
   'Não peça ao servidor para gravar o diagnóstico — este MCP é só leitura.',
 ].join(' ')
@@ -36,7 +36,7 @@ export const REVIEW_CENTRAL_MCP_TOOLS = [
   {
     name: 'list_review_samples' as const,
     description:
-      'Lista amostras de revisão de todos os tenants (filtro tenantId/source opcional). Inclui clientComment quando a cliente escreveu texto após «avaliar»/«feedback» (DEC-166). Só leitura; exige superadmin.',
+      'Lista amostras de revisão de todos os tenants (filtro tenantId/source opcional). Inclui clientComments (array DEC-167) e clientComment (1.º) quando a cliente escreveu texto após «avaliar»/«feedback». Só leitura; exige superadmin.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -61,7 +61,7 @@ export const REVIEW_CENTRAL_MCP_TOOLS = [
   {
     name: 'get_review_sample' as const,
     description:
-      'Detalhe de uma amostra central + mensagens do snapshot. Campo clientComment (DEC-166) traz a observação livre da cliente no 1.º «avaliar»/«feedback», se houver. 404 se inexistente ou expirada.',
+      'Detalhe de uma amostra central + mensagens do snapshot. clientComments (DEC-167) traz todas as observações Avaliar/feedback; clientComment é o 1.º. 404 se inexistente ou expirada.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -78,7 +78,7 @@ export const REVIEW_CENTRAL_MCP_TOOLS = [
   {
     name: 'propose_review_diagnosis' as const,
     description:
-      'Devolve a amostra (incl. clientComment DEC-166) + guidance fixa para o agente propor um diagnóstico. Sem LLM no Worker; sem persistir nota.',
+      'Devolve a amostra (incl. clientComments DEC-167 / clientComment) + guidance fixa para o agente propor um diagnóstico. Sem LLM no Worker; sem persistir nota.',
     inputSchema: {
       type: 'object',
       properties: {

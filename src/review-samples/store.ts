@@ -4,6 +4,11 @@
  */
 import { newId } from '../db/admin/ids'
 import type { AdminDb } from '../db/admin/store'
+import {
+  firstClientComment,
+  parseReviewSampleComments,
+  serializeReviewSampleComments,
+} from './comments'
 import { REVIEW_SAMPLE_TTL_MS } from './constants'
 import type {
   ReviewSampleDetail,
@@ -22,6 +27,7 @@ type SampleRow = {
   flag_source: string
   flag_reason: string | null
   client_comment: string | null
+  client_comments: string | null
   flagged_at: number
   copied_at: number
   expires_at: number
@@ -44,6 +50,10 @@ type MessageRow = {
 }
 
 function mapSample(row: SampleRow): ReviewSampleListItem {
+  const clientComments = parseReviewSampleComments(
+    row.client_comments,
+    row.client_comment,
+  )
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -54,13 +64,30 @@ function mapSample(row: SampleRow): ReviewSampleListItem {
     contactDisplayName: row.contact_display_name,
     flagSource: row.flag_source,
     flagReason: row.flag_reason,
-    clientComment: row.client_comment ?? null,
+    clientComment: firstClientComment(clientComments, row.client_comment),
+    clientComments,
     flaggedAt: row.flagged_at,
     copiedAt: row.copied_at,
     expiresAt: row.expires_at,
     messageCount: row.message_count,
     lastMessageAt: row.last_message_at,
     lastMessagePreview: row.last_message_preview,
+  }
+}
+
+function snapshotComments(snapshot: ReviewSampleSnapshot): {
+  clientComment: string | null
+  clientCommentsJson: string
+} {
+  const clientComments =
+    snapshot.clientComments?.length > 0
+      ? snapshot.clientComments
+      : snapshot.clientComment
+        ? [snapshot.clientComment]
+        : []
+  return {
+    clientComment: firstClientComment(clientComments, snapshot.clientComment),
+    clientCommentsJson: serializeReviewSampleComments(clientComments),
   }
 }
 
@@ -77,13 +104,15 @@ export function upsertReviewSampleSync(
   )
   const sampleId = existing?.id ?? newId('rsamp')
   const created = !existing
+  const { clientComment, clientCommentsJson } = snapshotComments(snapshot)
 
   if (existing) {
     db.run(`DELETE FROM review_sample_messages WHERE sample_id = ?`, sampleId)
     db.run(
       `UPDATE review_samples SET
         tenant_name = ?, contact_id = ?, contact_wa_id = ?, contact_display_name = ?,
-        flag_source = ?, flag_reason = ?, client_comment = ?, flagged_at = ?, copied_at = ?,
+        flag_source = ?, flag_reason = ?, client_comment = ?, client_comments = ?,
+        flagged_at = ?, copied_at = ?,
         expires_at = ?, message_count = ?, last_message_at = ?, last_message_preview = ?
        WHERE id = ?`,
       snapshot.tenantName,
@@ -92,7 +121,8 @@ export function upsertReviewSampleSync(
       snapshot.contactDisplayName,
       snapshot.flagSource,
       snapshot.flagReason,
-      snapshot.clientComment,
+      clientComment,
+      clientCommentsJson,
       snapshot.flaggedAt,
       nowMs,
       expiresAt,
@@ -105,9 +135,9 @@ export function upsertReviewSampleSync(
     db.run(
       `INSERT INTO review_samples (
         id, tenant_id, tenant_name, conversation_id, contact_id, contact_wa_id,
-        contact_display_name, flag_source, flag_reason, client_comment, flagged_at,
-        copied_at, expires_at, message_count, last_message_at, last_message_preview
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contact_display_name, flag_source, flag_reason, client_comment, client_comments,
+        flagged_at, copied_at, expires_at, message_count, last_message_at, last_message_preview
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       sampleId,
       snapshot.tenantId,
       snapshot.tenantName,
@@ -117,7 +147,8 @@ export function upsertReviewSampleSync(
       snapshot.contactDisplayName,
       snapshot.flagSource,
       snapshot.flagReason,
-      snapshot.clientComment,
+      clientComment,
+      clientCommentsJson,
       snapshot.flaggedAt,
       nowMs,
       expiresAt,
@@ -164,6 +195,7 @@ export async function upsertReviewSampleD1(
     .first<{ id: string }>()
   const sampleId = existing?.id ?? newId('rsamp')
   const created = !existing
+  const { clientComment, clientCommentsJson } = snapshotComments(snapshot)
 
   const stmts: D1PreparedStatement[] = []
   if (existing) {
@@ -173,7 +205,8 @@ export async function upsertReviewSampleD1(
         .prepare(
           `UPDATE review_samples SET
             tenant_name = ?, contact_id = ?, contact_wa_id = ?, contact_display_name = ?,
-            flag_source = ?, flag_reason = ?, client_comment = ?, flagged_at = ?, copied_at = ?,
+            flag_source = ?, flag_reason = ?, client_comment = ?, client_comments = ?,
+            flagged_at = ?, copied_at = ?,
             expires_at = ?, message_count = ?, last_message_at = ?, last_message_preview = ?
            WHERE id = ?`,
         )
@@ -184,7 +217,8 @@ export async function upsertReviewSampleD1(
           snapshot.contactDisplayName,
           snapshot.flagSource,
           snapshot.flagReason,
-          snapshot.clientComment,
+          clientComment,
+          clientCommentsJson,
           snapshot.flaggedAt,
           nowMs,
           expiresAt,
@@ -200,9 +234,9 @@ export async function upsertReviewSampleD1(
         .prepare(
           `INSERT INTO review_samples (
             id, tenant_id, tenant_name, conversation_id, contact_id, contact_wa_id,
-            contact_display_name, flag_source, flag_reason, client_comment, flagged_at,
-            copied_at, expires_at, message_count, last_message_at, last_message_preview
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            contact_display_name, flag_source, flag_reason, client_comment, client_comments,
+            flagged_at, copied_at, expires_at, message_count, last_message_at, last_message_preview
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           sampleId,
@@ -214,7 +248,8 @@ export async function upsertReviewSampleD1(
           snapshot.contactDisplayName,
           snapshot.flagSource,
           snapshot.flagReason,
-          snapshot.clientComment,
+          clientComment,
+          clientCommentsJson,
           snapshot.flaggedAt,
           nowMs,
           expiresAt,
