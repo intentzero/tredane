@@ -15,7 +15,12 @@ vi.mock('../../realtime/InboxRealtime', async (orig) => {
   }
 })
 
-function msg(id: string, direction: 'inbound' | 'outbound', body: string): InboxMessage {
+function msg(
+  id: string,
+  direction: 'inbound' | 'outbound',
+  body: string,
+  over: Partial<InboxMessage> = {},
+): InboxMessage {
   return {
     id,
     tenantId: 't',
@@ -27,6 +32,7 @@ function msg(id: string, direction: 'inbound' | 'outbound', body: string): Inbox
     authorClerkUserId: null,
     authorDisplayName: null,
     createdAt: 1,
+    ...over,
   }
 }
 
@@ -83,7 +89,7 @@ describe('InboxThread — rolagem estilo WhatsApp', () => {
 
   it('abre na primeira não lida, com a faixa e o botão «↓ N»', async () => {
     const msgs = [
-      msg('m1', 'inbound', 'antiga'),
+      msg('m1', 'inbound', 'antiga', { readAt: 1 }),
       msg('m2', 'outbound', 'resposta'),
       msg('m3', 'inbound', 'nova 1'),
       msg('m4', 'inbound', 'nova 2'),
@@ -95,14 +101,17 @@ describe('InboxThread — rolagem estilo WhatsApp', () => {
   })
 
   it('sem não lidas não mostra faixa nem botão', async () => {
-    renderThread(makeApi([detail([msg('m1', 'inbound', 'oi')], 0)]))
+    renderThread(makeApi([detail([msg('m1', 'inbound', 'oi', { readAt: 1 })], 0)]))
     await screen.findByText('oi')
     expect(screen.queryByText(/não lida/)).toBeNull()
     expect(screen.queryByRole('button', { name: /mensagens novas/ })).toBeNull()
   })
 
   it('mensagem recebida com a pessoa lendo o histórico mostra «↓ 1»', async () => {
-    const base = [msg('m1', 'inbound', 'antiga'), msg('m2', 'outbound', 'resposta')]
+    const base = [
+      msg('m1', 'inbound', 'antiga', { readAt: 1 }),
+      msg('m2', 'outbound', 'resposta'),
+    ]
     const api = makeApi([detail(base, 0), detail([...base, msg('m3', 'inbound', 'chegou')], 1)])
     renderThread(api)
     await screen.findByText('resposta')
@@ -120,5 +129,17 @@ describe('InboxThread — rolagem estilo WhatsApp', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /1 não lidas/ })).toBeTruthy(),
     )
+  })
+
+  it('após IA zerar unread_count, abrir ainda chama markInboxRead (Bugbot #690)', async () => {
+    const msgs = [
+      msg('m1', 'inbound', 'quero horários'),
+      msg('m2', 'outbound', 'Posso ajudar?'),
+    ]
+    const api = makeApi([detail(msgs, 0)])
+    renderThread(api)
+    await screen.findByText('Posso ajudar?')
+    await waitFor(() => expect(api.markInboxRead).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('1 mensagem não lida')).toBeTruthy()
   })
 })

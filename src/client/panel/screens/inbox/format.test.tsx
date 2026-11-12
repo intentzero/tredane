@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { avatarTone, dayLabel, relativeTime, sameDay, windowHint } from './format'
+import {
+  avatarTone,
+  dayLabel,
+  dualUnreadCount,
+  relativeTime,
+  sameDay,
+  windowHint,
+} from './format'
 
 const NOW = Date.UTC(2026, 9, 27, 18, 0) // 27/10/2026 15:00 em Brasília
 
@@ -53,5 +60,25 @@ describe('relativeTime', () => {
     expect(relativeTime(Date.UTC(2026, 8, 12, 18, 0), NOW)).toBe('12/09')
     expect(relativeTime(Date.UTC(2025, 8, 12, 18, 0), NOW)).toBe('12/09/25')
     expect(relativeTime(null, NOW)).toBe('')
+  })
+})
+
+describe('dualUnreadCount (DEC-160)', () => {
+  it('mostra o círculo só com inbound não lido', () => {
+    expect(
+      dualUnreadCount({ unreadCount: 2, lastMessageDirection: 'inbound', status: 'open' }),
+    ).toBe(2)
+  })
+
+  it('esconde o círculo depois da resposta IA (prévia outbound)', () => {
+    expect(
+      dualUnreadCount({ unreadCount: 2, lastMessageDirection: 'outbound', status: 'open' }),
+    ).toBe(0)
+  })
+
+  it('não conta encerrada', () => {
+    expect(
+      dualUnreadCount({ unreadCount: 3, lastMessageDirection: 'inbound', status: 'closed' }),
+    ).toBe(0)
   })
 })

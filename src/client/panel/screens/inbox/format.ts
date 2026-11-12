@@ -118,6 +118,21 @@ export function previewLine(c: InboxConversation, viewerId: string | null): stri
   return preview
 }
 
+/**
+ * Círculo «N» da linha (DEC-160): só mensagens ainda não lidas pelo humano
+ * e ainda sem resposta da IA/equipe. Outbound (prévia «IA: …») → 0, mesmo
+ * que `unreadCount` legado ainda esteja > 0 antes do Deploy.
+ */
+export function dualUnreadCount(c: {
+  unreadCount: number
+  lastMessageDirection: string | null
+  status: string
+}): number {
+  if (c.status === 'closed') return 0
+  if (c.lastMessageDirection !== 'inbound') return 0
+  return c.unreadCount > 0 ? c.unreadCount : 0
+}
+
 /** Rótulos §6.1 ux-ui.md — nunca expor raw deliveryState ao usuário. */
 export function deliveryLabel(state: string): string {
   switch (state) {

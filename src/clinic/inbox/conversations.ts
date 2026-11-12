@@ -44,11 +44,16 @@ const AI_DRAFTING_SQL = `EXISTS (
  * Badge de atenção (DEC-160): conversa ainda não lida pelo humano **e**
  * ainda não atendida pela IA / resposta.
  *
- * - Humano não leu: `unread_count > 0` (limpo em `markConversationReadOp`
- *   / `clearConversationUnread`; recibo em `messages.read_at`).
+ * - Contador de lista (`unread_count`): limpo em `markConversationReadOp`
+ *   / `clearConversationUnread`, e também zerado no outbound/system sem
+ *   `bumpUnread` (proxy de «IA/equipe atendeu» — o círculo some).
+ * - Recibo humano (`messages.read_at` / `whatsapp.mark_read`): só ao abrir
+ *   a conversa; o painel dispara `markInboxRead` por inbound com
+ *   `read_at` nulo, **não** por `unread_count > 0` (senão outbound da IA
+ *   impedia o stamp).
  * - IA / resposta ainda não leu: última mensagem continua `inbound`
- *   (proxy de «lido por IA» sem coluna nova — outbound da IA ou da equipe
- *   tira do badge; typing DEC-136 na Meta não grava marker local).
+ *   (typing DEC-136 na Meta não grava marker local).
+ * - Círculo da linha da lista e chips usam a mesma regra (não só o chip).
  */
 export const DUAL_UNREAD_SQL = `c.unread_count > 0
   AND c.last_message_direction = 'inbound'
@@ -187,7 +192,16 @@ export function touchConversationMessage(
   if (input.reopenIfClosed && status === 'closed') {
     status = current.assigneeClerkUserId ? 'open' : 'new'
   }
-  const unread = input.bumpUnread ? current.unreadCount + 1 : current.unreadCount
+  // DEC-160: outbound/system sem bump = «atendido» pela IA ou equipe —
+  // zera só o contador de badge (não `messages.read_at`; mark-on-open
+  // humano continua a usar inbound sem `read_at`). Evita que o próximo
+  // inbound some com o antigo. `bumpUnread: true` (ex. aviso system que
+  // pede a equipe) continua a incrementar.
+  const unread = input.bumpUnread
+    ? current.unreadCount + 1
+    : input.direction === 'inbound'
+      ? current.unreadCount
+      : 0
   db.run(
     `UPDATE conversations SET
       status = ?,

@@ -8,6 +8,7 @@ import {
   assigneeLine,
   avatarTone,
   contactLabel,
+  dualUnreadCount,
   filterLabel,
   initials,
   previewLine,
@@ -216,11 +217,13 @@ export function InboxList({
     const drafting = draftingById[c.id] === true
     const escalated = escalatedById[c.id] === true
     const waiting = isWaitingOnTeam(c)
+    // DEC-160: círculo só dual-unread (humano + IA); prévia «IA: …» limpa o badge.
+    const attentionUnread = dualUnreadCount(c)
     return (
       <li key={c.id}>
         <button
           type="button"
-          className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}${c.needsPerson ? ' inbox-row--needs-person' : ''}${escalated ? ' inbox-row--needs-person-escalate' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
+          className={`inbox-row${attentionUnread > 0 ? ' inbox-row--unread' : ''}${c.needsPerson ? ' inbox-row--needs-person' : ''}${escalated ? ' inbox-row--needs-person-escalate' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
           aria-current={c.id === activeConversationId ? 'page' : undefined}
           onClick={() =>
             navigatePanel({
@@ -246,9 +249,9 @@ export function InboxList({
             </span>
             <span className="inbox-row-preview-line">
               <span className="inbox-row-preview">{previewLine(c, viewerClerkUserId)}</span>
-              {c.unreadCount > 0 ? (
-                <span className="inbox-unread" aria-label={`${c.unreadCount} não lidas`}>
-                  {c.unreadCount}
+              {attentionUnread > 0 ? (
+                <span className="inbox-unread" aria-label={`${attentionUnread} não lidas`}>
+                  {attentionUnread}
                 </span>
               ) : null}
             </span>

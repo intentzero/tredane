@@ -177,4 +177,41 @@ describe('InboxList — spinner IA a preparar sugestão', () => {
     expect(document.querySelector('.inbox-row-ai')).toBeNull()
     expect(screen.queryByText(AI_DRAFTING_SR_LABEL)).toBeNull()
   })
+
+  it('esconde o círculo de não lidas quando a última mensagem é da IA', async () => {
+    const api = {
+      listInboxConversations: async () => ({
+        conversations: [
+          conv('cnv_paulo', 'Paulo', {
+            lastMessagePreview: 'Para massagem, qual horário prefere?',
+            lastMessageDirection: 'outbound',
+            assigneeClerkUserId: 'system:ai-autodraft',
+            assigneeDisplayName: 'IA',
+            unreadCount: 2,
+          }),
+        ],
+        counts: { all: 0, new: 0, mine: 0, unassigned: 0, closed: 0, unread: 0 },
+      }),
+    } as unknown as PanelApi
+
+    render(<InboxList tenantId="t" api={api} generation={1} viewerClerkUserId="u" />)
+    const paulo = await waitFor(() => screen.getByRole('button', { name: /Paulo/ }))
+    expect(paulo.querySelector('.inbox-unread')).toBeNull()
+    expect(paulo.className).not.toContain('inbox-row--unread')
+    expect(paulo.textContent).toContain('IA:')
+  })
+
+  it('mostra o círculo quando ainda há inbound dual-unread', async () => {
+    const api = {
+      listInboxConversations: async () => ({
+        conversations: [conv('cnv_paulo', 'Paulo', { unreadCount: 2 })],
+        counts: { all: 1, new: 0, mine: 0, unassigned: 1, closed: 0, unread: 1 },
+      }),
+    } as unknown as PanelApi
+
+    render(<InboxList tenantId="t" api={api} generation={1} viewerClerkUserId="u" />)
+    const paulo = await waitFor(() => screen.getByRole('button', { name: /Paulo/ }))
+    expect(paulo.querySelector('.inbox-unread')?.textContent).toBe('2')
+    expect(paulo.className).toContain('inbox-row--unread')
+  })
 })
