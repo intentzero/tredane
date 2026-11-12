@@ -20,6 +20,8 @@ export type DeliveryResult = {
   delivered: string[]
   revoked: string[]
   skippedUnavailable: string[]
+  /** Soma dos `authority.checkMembership` (D1) nesta entrega. */
+  membershipCheckMs?: number
 }
 
 function toEventMessage(row: RealtimeEventRow): EventMessage {
@@ -88,6 +90,7 @@ export async function deliverEventToSockets(
     delivered: [],
     revoked: [],
     skippedUnavailable: [],
+    membershipCheckMs: 0,
   }
   const message = encodeServerMessage(toEventMessage(event))
 
@@ -104,10 +107,12 @@ export async function deliverEventToSockets(
       continue
     }
 
+    const membershipStarted = Date.now()
     const decision = await authority.checkMembership(
       attachment.tenantId,
       attachment.clerkUserId,
     )
+    result.membershipCheckMs = (result.membershipCheckMs ?? 0) + (Date.now() - membershipStarted)
 
     if (decision.status === 'unavailable') {
       // Fail closed: não entregar conteúdo clínico com autoridade incerta.

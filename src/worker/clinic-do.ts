@@ -159,6 +159,13 @@ import {
   handlePriceFollowupButtonClick,
 } from '../clinic/followup/post-booking'
 import { systemClock, type Clock } from '../db/clock'
+import {
+  DoInvocationTimer,
+  logDoStepTiming,
+  syncDoStorage,
+  type DoStepPhases,
+} from './clinic-do-timing'
+import type { SqlInvocationStats } from '../clinic'
 import { fromD1 } from '../db/admin/async-store'
 import {
   appendRealtimeEvent,
@@ -210,10 +217,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   #ready = false
   /** Override de authority para testes determinísticos (cache positivo / falha). */
   #authorityOverride: AccessAuthority | null = null
+  #sqlStats: SqlInvocationStats = { exec: 0, rowsWritten: 0 }
+  /** Cache em memória para evitar `setAlarm` redundante. */
+  #scheduledAlarmAt: number | null = null
+  #currentTimer: DoInvocationTimer | null = null
 
   constructor(ctx: DurableObjectState, env: ClinicEnv) {
     super(ctx, env)
-    this.#db = fromDurableObjectSql(this.ctx.storage as Parameters<typeof fromDurableObjectSql>[0])
+    this.#db = fromDurableObjectSql(
+      this.ctx.storage as Parameters<typeof fromDurableObjectSql>[0],
+      this.#sqlStats,
+    )
     this.ctx.blockConcurrencyWhile(async () => {
       runClinicMigrations(this.#db, this.#clock)
       ensureRealtimeFence(this.#db, this.#clock)
@@ -235,6 +249,80 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       ensureRealtimeFence(this.#db, this.#clock)
       this.#ready = true
     }
+  }
+
+  async #withRpc<T>(method: string, fn: (timer: DoInvocationTimer) => Promise<T>): Promise<T> {
+    const timer = new DoInvocationTimer(method, this.#clock)
+    this.#currentTimer = timer
+    const sqlBefore = this.#sqlStats.exec
+    const rowsBefore = this.#sqlStats.rowsWritten
+    try {
+      return await fn(timer)
+    } finally {
+      this.#currentTimer = null
+      const storageSyncMs = await syncDoStorage(this.ctx.storage, this.#clock)
+      timer.addPhase('storage_sync', storageSyncMs)
+      const tenantId = getBoundTenant(this.#db)?.tenantId
+      logDoStepTiming({
+        method,
+        tenantId,
+        totalMs: timer.totalMs(this.#clock),
+        handlerDelayMs: timer.handlerDelayMs(),
+        phases: timer.phases,
+        sqlExec: this.#sqlStats.exec - sqlBefore,
+        sqlRowsWritten: this.#sqlStats.rowsWritten - rowsBefore,
+        storageSyncMs,
+      })
+    }
+  }
+
+  /** Evita `#withRpc` aninhado (ex.: alarm → expireDuePixCharges). */
+  static #invokeRpcTimed<T>(
+    inst: ClinicDurableObject,
+    method: string,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    if (inst.#currentTimer) return run()
+    return inst.#withRpc(method, async (timer) => {
+      inst.#ensureReady()
+      timer.markHandlerEntry(inst.#clock)
+      return run()
+    })
+  }
+
+  static #installRpcTimingPatches(): void {
+    const skip = new Set([
+      'constructor',
+      'alarm',
+      'webSocketMessage',
+      'webSocketClose',
+      'webSocketError',
+      'runAutoDrafts',
+    ])
+    const proto = ClinicDurableObject.prototype
+    for (const key of Object.getOwnPropertyNames(proto)) {
+      if (skip.has(key)) continue
+      const desc = Object.getOwnPropertyDescriptor(proto, key)
+      const fn = desc?.value
+      if (typeof fn !== 'function' || fn.constructor.name !== 'AsyncFunction') continue
+      const original = fn as (...args: unknown[]) => Promise<unknown>
+      const wrapped = function (this: ClinicDurableObject, ...args: unknown[]) {
+        return ClinicDurableObject.#invokeRpcTimed(this, key, () => original.apply(this, args))
+      }
+      Object.defineProperty(proto, key, {
+        value: wrapped,
+        writable: true,
+        configurable: true,
+      })
+    }
+  }
+
+  static {
+    ClinicDurableObject.#installRpcTimingPatches()
+  }
+
+  #phaseMs(name: string, startedMs: number): void {
+    this.#currentTimer?.addPhase(name, this.#clock.nowMs() - startedMs)
   }
 
   #assertInstanceTenant(caller: ClinicCaller): string {
@@ -959,7 +1047,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             this.#clock,
           )
           if (typingOb) {
-            await this.#fanoutOutboxes(caller, [typingOb], false)
+            await this.#fanoutOutboxes(caller, [typingOb], true)
             await this.#drain(caller)
           }
           console.log(
@@ -1012,7 +1100,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         let drainMs = 0
         if (dispatched) {
           const fanoutStartedMs = this.#clock.nowMs()
-          await this.#fanoutOutboxes(caller, choice.outbox, false)
+          await this.#fanoutOutboxes(caller, choice.outbox, true)
           fanoutMs = this.#clock.nowMs() - fanoutStartedMs
           const drainStartedMs = this.#clock.nowMs()
           await this.#drain(caller)
@@ -1318,13 +1406,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       )
       eventSeq = evt.seq
       if (fanout) {
-        fanoutResult = await deliverEventToSockets(
+        const fanoutStarted = this.#clock.nowMs()
+        const delivered = await deliverEventToSockets(
           this.#db,
           this.#asDeliverySockets(),
           evt,
           this.#authority(),
           this.#clock,
         )
+        fanoutResult = delivered
+        this.#currentTimer?.addPhase('fanout_ws', this.#clock.nowMs() - fanoutStarted)
+        this.#currentTimer?.addPhase('fanout_membership', delivered.membershipCheckMs ?? 0)
       }
     }
     for (const conversationId of needsPersonIds) {
@@ -1752,9 +1844,32 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       setAlarm?: (t: number) => Promise<void>
     }
     if (typeof storage.setAlarm !== 'function') return
+    if (this.#scheduledAlarmAt != null && this.#scheduledAlarmAt <= at) return
+    const startedMs = this.#clock.nowMs()
+    let getMs = 0
+    let setMs = 0
     const current =
-      typeof storage.getAlarm === 'function' ? await storage.getAlarm() : null
-    if (current == null || current > at) await storage.setAlarm(at)
+      typeof storage.getAlarm === 'function'
+        ? await (async () => {
+            const t0 = this.#clock.nowMs()
+            const v = await storage.getAlarm!()
+            getMs = this.#clock.nowMs() - t0
+            return v
+          })()
+        : null
+    if (current != null && current <= at) {
+      this.#scheduledAlarmAt = current
+      this.#currentTimer?.addPhase('storage_get_alarm', getMs)
+      this.#currentTimer?.addPhase('storage_set_alarm', 0)
+      return
+    }
+    const tSet = this.#clock.nowMs()
+    await storage.setAlarm(at)
+    setMs = this.#clock.nowMs() - tSet
+    this.#scheduledAlarmAt = at
+    this.#currentTimer?.addPhase('storage_get_alarm', getMs)
+    this.#currentTimer?.addPhase('storage_set_alarm', setMs)
+    this.#currentTimer?.addPhase('alarm_schedule_total', this.#clock.nowMs() - startedMs)
   }
 
   /**
@@ -3415,7 +3530,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     opts?: { delayed: ReadonlySet<string>; delaySeconds: number },
   ): Promise<{ published: string[]; failed: string[] }> {
     const queue = this.env.INBOUND_EVENTS
-    return publishPendingEffects(
+    const startedMs = this.#clock.nowMs()
+    let queueSendMs = 0
+    let queueSendCount = 0
+    const result = await publishPendingEffects(
       this.#db,
       caller,
       {
@@ -3423,34 +3541,50 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           const sendOpts = opts?.delayed.has(envelope.eventId)
             ? { delaySeconds: opts.delaySeconds }
             : undefined
-          await queue.send({
-            source: 'clinic_outbox',
-            tenantId: envelope.tenantId,
-            eventId: envelope.eventId,
-            type: envelope.type,
-            idempotencyKey: envelope.idempotencyKey,
-            entity: envelope.entity,
-            occurredAt: envelope.occurredAt,
-            payload: envelope.payload,
-          }, sendOpts)
+          const t0 = Date.now()
+          await queue.send(
+            {
+              source: 'clinic_outbox',
+              tenantId: envelope.tenantId,
+              eventId: envelope.eventId,
+              type: envelope.type,
+              idempotencyKey: envelope.idempotencyKey,
+              entity: envelope.entity,
+              occurredAt: envelope.occurredAt,
+              payload: envelope.payload,
+            },
+            sendOpts,
+          )
+          queueSendMs += Date.now() - t0
+          queueSendCount += 1
         },
       },
       this.#clock,
     )
+    this.#currentTimer?.addPhase('drain_total', this.#clock.nowMs() - startedMs)
+    this.#currentTimer?.addPhase('drain_queue_send', queueSendMs)
+    if (queueSendCount > 0) {
+      this.#currentTimer?.addPhase('drain_queue_send_count', queueSendCount)
+    }
+    return result
   }
 
   async alarm(): Promise<void> {
-    this.#ensureReady()
-    const meta = getBoundTenant(this.#db)
-    if (!meta) return
-    const caller = workerCaller(meta.tenantId)
-    try {
-      // Expiração local (#40) — sem adapter se credencial indisponível; marca local.
-      await this.expireDuePixCharges(caller)
-    } catch {
-      /* best-effort: drain outbox mesmo assim */
-    }
-    try {
+    return this.#withRpc('alarm', async (timer) => {
+      this.#ensureReady()
+      timer.markHandlerEntry(this.#clock)
+      const meta = getBoundTenant(this.#db)
+      if (!meta) return
+      const caller = workerCaller(meta.tenantId)
+      let phase = this.#clock.nowMs()
+      try {
+        await this.expireDuePixCharges(caller)
+      } catch {
+        /* best-effort: drain outbox mesmo assim */
+      }
+      timer.addPhase('alarm_pix', this.#clock.nowMs() - phase)
+      phase = this.#clock.nowMs()
+      try {
       // H7 / S4: alerta de comunicação pendente após 5 min.
       const alerted = clinicProposals.sweepPendingCommunicationAlerts(
         this.#db,
@@ -3543,10 +3677,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       }
       const nextAlert = this.#nextOpenPendingAlertAt(meta.tenantId)
       if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
-    } catch {
-      /* best-effort H7 */
-    }
-    try {
+      } catch {
+        /* best-effort H7 */
+      }
+      timer.addPhase('alarm_alerts', this.#clock.nowMs() - phase)
+      phase = this.#clock.nowMs()
+      try {
       // DEC-087: idle 30 min + segundo prazo de mais 30 min.
       const idleItems = sweepDueIdleConversations(
         this.#db,
@@ -3563,10 +3699,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       }
       const nextIdle = nextIdleDueAt(this.#db, meta.tenantId)
       if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle + 500)
-    } catch {
-      /* best-effort idle */
-    }
-    try {
+      } catch {
+        /* best-effort idle */
+      }
+      timer.addPhase('alarm_idle', this.#clock.nowMs() - phase)
+      phase = this.#clock.nowMs()
+      try {
       // DEC-155: 30 min sem Assumir → aviso + devolver à IA (fim da escalada de alertas).
       const timeoutItems = sweepDueHandoffTimeouts(this.#db, meta.tenantId, this.#clock)
       for (const item of timeoutItems) {
@@ -3575,21 +3713,31 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         }
       }
       await this.#scheduleNextHandoffTimeout(meta.tenantId)
-    } catch {
-      /* best-effort handoff timeout */
-    }
-    try {
+      } catch {
+        /* best-effort handoff timeout */
+      }
+      timer.addPhase('alarm_handoff', this.#clock.nowMs() - phase)
+      phase = this.#clock.nowMs()
+      try {
       const ended = sweepEndedAppointments(this.#db, meta.tenantId, this.#clock)
       if (ended.length > 0) await this.#fanoutOutboxes(caller, ended, true)
       const nextEnd = nextOpenAppointmentEndAt(this.#db, meta.tenantId, this.#clock.nowMs())
       if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
-    } catch {
-      /* best-effort DEC-094 */
-    }
-    const nextSweep = await this.#sweepStuckOutbound(caller)
-    await this.#drain(caller)
-    if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
-    await this.runAutoDrafts(caller)
+      } catch {
+        /* best-effort DEC-094 */
+      }
+      timer.addPhase('alarm_appointment_sweep', this.#clock.nowMs() - phase)
+      phase = this.#clock.nowMs()
+      const nextSweep = await this.#sweepStuckOutbound(caller)
+      timer.addPhase('alarm_stuck_outbound', this.#clock.nowMs() - phase)
+      phase = this.#clock.nowMs()
+      await this.#drain(caller)
+      timer.addPhase('alarm_drain', this.#clock.nowMs() - phase)
+      if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
+      phase = this.#clock.nowMs()
+      await this.#runAutoDraftsWork(caller, timer)
+      timer.addPhase('alarm_run_autodrafts', this.#clock.nowMs() - phase)
+    })
   }
 
   /** Teste: substitui deps da IA usadas pelo alarme. */
@@ -3722,33 +3870,39 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   async runAutoDrafts(caller: ClinicCaller): Promise<clinicAi.AutoDraftOutcome[]> {
+    return this.#withRpc('runAutoDrafts', async (timer) => {
+      this.#ensureReady()
+      timer.markHandlerEntry(this.#clock)
+      return this.#runAutoDraftsWork(caller, timer)
+    })
+  }
+
+  async #runAutoDraftsWork(
+    caller: ClinicCaller,
+    timer: DoInvocationTimer | null,
+  ): Promise<clinicAi.AutoDraftOutcome[]> {
     this.#ensureReady()
     let outcomes: clinicAi.AutoDraftOutcome[] = []
+    const turnPhase = (name: string, ms: number) => {
+      timer?.addPhase(name, ms)
+    }
     try {
       const deps = this.#aiAssistDepsWithFlow(
         clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
       )
       outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
         onStart: async (job) => {
+          const t0 = this.#clock.nowMs()
           await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
-          // Se este alarme morrer no fetch, o próximo acorda e reabre o job órfão.
           await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
+          turnPhase('autodraft_on_start', this.#clock.nowMs() - t0)
         },
-        // DEC-136: despacha typing já, antes do LLM / envio; falha não aborta.
         onTyping: async (typingOb) => {
-          const typingStartedMs = this.#clock.nowMs()
+          const t0 = this.#clock.nowMs()
           try {
-            await this.#fanoutOutboxes(caller, [typingOb], false)
+            await this.#fanoutOutboxes(caller, [typingOb], true)
             await this.#drain(caller)
-            console.log(
-              JSON.stringify({
-                level: 'info',
-                event: 'ai.autodraft_timing',
-                tenantId: caller.tenantId,
-                phase: 'typing',
-                durationMs: this.#clock.nowMs() - typingStartedMs,
-              }),
-            )
+            turnPhase('autodraft_signal_typing', this.#clock.nowMs() - t0)
           } catch (err) {
             console.warn(
               JSON.stringify({
@@ -3760,27 +3914,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             )
           }
         },
+        onTurnPhase: (phase, ms) => turnPhase(`autodraft_${phase}`, ms),
       })
       for (const o of outcomes) {
-        // Agendamento pela IA (confirmação explícita da cliente): mesmo fanout do Agendar.
         const queued = [...(o.autoBook?.outbox ?? []), ...(o.replyOutbox ?? [])]
         if (queued.length > 0) {
           const fanoutStartedMs = this.#clock.nowMs()
-          await this.#fanoutOutboxes(caller, queued, false)
-          const fanoutMs = this.#clock.nowMs() - fanoutStartedMs
+          await this.#fanoutOutboxes(caller, queued, true)
+          turnPhase('autodraft_dispatch_fanout', this.#clock.nowMs() - fanoutStartedMs)
           const drainStartedMs = this.#clock.nowMs()
           await this.#drain(caller)
-          console.log(
-            JSON.stringify({
-              level: 'info',
-              event: 'ai.autodraft_timing',
-              tenantId: caller.tenantId,
-              conversationId: o.conversationId,
-              phase: 'dispatch',
-              fanoutMs,
-              drainMs: this.#clock.nowMs() - drainStartedMs,
-            }),
-          )
+          turnPhase('autodraft_dispatch_drain', this.#clock.nowMs() - drainStartedMs)
         }
         await this.#emitAiDraftEvent(caller, o.conversationId, {
           state: o.status,
@@ -4030,44 +4174,58 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     const text = typeof message === 'string' ? message : new TextDecoder().decode(message)
-    const attachment = (() => {
-      try {
-        return ws.deserializeAttachment() as SocketAttachment | { harness?: boolean } | null
-      } catch {
-        return null
+  const parsedEarly = parseClientMessage(text)
+  const wsMethod =
+    parsedEarly?.type === 'ping'
+      ? 'webSocketMessage:ping'
+      : parsedEarly?.type === 'presence'
+        ? 'webSocketMessage:presence'
+        : 'webSocketMessage'
+    return this.#withRpc(wsMethod, async (timer) => {
+      this.#ensureReady()
+      timer.markHandlerEntry(this.#clock)
+      const attachment = (() => {
+        try {
+          return ws.deserializeAttachment() as SocketAttachment | { harness?: boolean } | null
+        } catch {
+          return null
+        }
+      })()
+
+      if (attachment && 'harness' in attachment && attachment.harness) {
+        ws.send(JSON.stringify({ echo: text, phase: 'f1' }))
+        return
       }
-    })()
 
-    // Eco de harness F0/F1 — sem fan-out clínico.
-    if (attachment && 'harness' in attachment && attachment.harness) {
-      ws.send(JSON.stringify({ echo: text, phase: 'f1' }))
-      return
-    }
-
-    const parsed = parseClientMessage(text)
-    if (parsed?.type === 'ping') {
-      ws.send(JSON.stringify({ v: 1, type: 'pong' }))
-      return
-    }
-    if (parsed?.type === 'presence') {
-      if (attachment && 'clerkUserId' in attachment) {
-        ws.serializeAttachment({
-          ...attachment,
-          visible: parsed.visible,
-          presenceAt: this.#clock.nowMs(),
-        } satisfies SocketAttachment)
+      const parsed = parsedEarly
+      if (parsed?.type === 'ping') {
+        const t0 = this.#clock.nowMs()
+        ws.send(JSON.stringify({ v: 1, type: 'pong' }))
+        timer.addPhase('ws_pong', this.#clock.nowMs() - t0)
+        return
       }
-      return
-    }
+      if (parsed?.type === 'presence') {
+        const t0 = this.#clock.nowMs()
+        if (attachment && 'clerkUserId' in attachment) {
+          ws.serializeAttachment({
+            ...attachment,
+            visible: parsed.visible,
+            presenceAt: this.#clock.nowMs(),
+          } satisfies SocketAttachment)
+        }
+        timer.addPhase('ws_presence', this.#clock.nowMs() - t0)
+        return
+      }
 
-    ws.send(
-      encodeServerMessage({
-        v: 1,
-        type: 'error',
-        code: 'unknown_message',
-        message: 'mensagem não reconhecida',
-      }),
-    )
+      ws.send(
+        encodeServerMessage({
+          v: 1,
+          type: 'error',
+          code: 'unknown_message',
+          message: 'mensagem não reconhecida',
+        }),
+      )
+    })
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {

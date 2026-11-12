@@ -366,6 +366,8 @@ export async function runDueAutoDrafts(
      * ou do envio determinístico). Fail-soft no caller — não deve lançar.
      */
     onTyping?: (outbox: OutboxRow) => Promise<void> | void
+    /** Fases por turno (ex.: extrator, runBookingTurn) para `do.step_timing`. */
+    onTurnPhase?: (phase: string, durationMs: number) => void
   } = {},
 ): Promise<AutoDraftOutcome[]> {
   const tenantId = caller.tenantId
@@ -416,6 +418,7 @@ export async function runDueAutoDrafts(
     const signalTyping = async (): Promise<void> => {
       if (typingSignaled) return
       typingSignaled = true
+      const t0 = clock.nowMs()
       try {
         const typingOb = enqueueTypingIndicator(
           db,
@@ -426,6 +429,8 @@ export async function runDueAutoDrafts(
         if (typingOb && opts.onTyping) await opts.onTyping(typingOb)
       } catch {
         // Fail-soft: indicador nunca aborta a resposta (DEC-136).
+      } finally {
+        opts.onTurnPhase?.('signal_typing', clock.nowMs() - t0)
       }
     }
     const record = (
@@ -1214,7 +1219,9 @@ export async function runDueAutoDrafts(
     let liveTurn = turn
 
     try {
+      const extractorStarted = clock.nowMs()
       const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
+      opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
       if (extracted.modelCalled) {
         modelCalled = true
         modelCalls += 1
@@ -1256,7 +1263,7 @@ export async function runDueAutoDrafts(
           limitNote = decision.message
         }
       }
-      // P1 / DEC-C4: fachada runBookingTurn (gate + stack ask_info mid-funnel).
+      const bookingStarted = clock.nowMs()
       autoBook = await runBookingTurn(db, caller, clock, {
         conversationId: job.conversationId,
         enabled: true,
@@ -1265,6 +1272,7 @@ export async function runDueAutoDrafts(
         forecast: deps.forecast,
         turn: liveTurn,
       })
+      opts.onTurnPhase?.('run_booking_turn', clock.nowMs() - bookingStarted)
       if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
     } catch (err) {
       console.warn(
