@@ -124,7 +124,7 @@ describe('InboxRealtimeProvider + InboxThread', () => {
     const api = {
       getRealtimeTicket: vi.fn(async () => ({ ticket: 'wst_t', expiresAt: 0 })),
       getInboxConversation,
-      markInboxRead: vi.fn(),
+      markInboxRead: vi.fn(async () => ({ conversation: { unreadCount: 0 } })),
       listWhatsappTemplates: vi.fn(async () => ({ items: [] })),
       listConversationPixCharges: vi.fn(async () => []),
       listPixPaymentAlerts: vi.fn(async () => []),
@@ -175,7 +175,7 @@ describe('InboxRealtimeProvider + InboxThread', () => {
     const api = {
       getRealtimeTicket: vi.fn(async () => ({ ticket: 'wst_t', expiresAt: 0 })),
       getInboxConversation,
-      markInboxRead: vi.fn(),
+      markInboxRead: vi.fn(async () => ({ conversation: { unreadCount: 0 } })),
       listWhatsappTemplates: vi.fn(async () => ({ items: [] })),
       listConversationPixCharges: vi.fn(async () => []),
       listPixPaymentAlerts: vi.fn(async () => []),
@@ -215,7 +215,7 @@ describe('InboxRealtimeProvider + InboxThread', () => {
     const api = {
       getRealtimeTicket: vi.fn(async () => ({ ticket: 'wst_t', expiresAt: 0 })),
       getInboxConversation,
-      markInboxRead: vi.fn(),
+      markInboxRead: vi.fn(async () => ({ conversation: { unreadCount: 0 } })),
       listWhatsappTemplates: vi.fn(async () => ({ items: [] })),
       listConversationPixCharges: vi.fn(async () => []),
       listPixPaymentAlerts: vi.fn(async () => []),

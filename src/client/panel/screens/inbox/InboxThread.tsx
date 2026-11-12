@@ -562,18 +562,21 @@ export function InboxThread({
       if (res.messagingWindow?.open && res.status !== "closed")
         void refreshAiDraft(res.messages);
       if (humanUnreadInbound.length > 0) {
-        void api
-          .markInboxRead(tenantId, conversationId, {
+        // Promise.resolve: mocks/síncrono sem .then não devem derrubar o load.
+        void Promise.resolve(
+          api.markInboxRead(tenantId, conversationId, {
             generation,
             expectGeneration: () => generation,
-          })
-          .then((r) =>
+          }),
+        )
+          .then((r) => {
+            if (!r?.conversation) return;
             setDetail((prev) =>
               prev
                 ? { ...prev, ...r.conversation, messages: prev.messages }
                 : prev,
-            ),
-          )
+            );
+          })
           .catch(() => {
             /* leitura best-effort */
           });
