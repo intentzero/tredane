@@ -7,6 +7,8 @@ import type { Clock } from '../../db/clock'
 import { quoteVisit } from '../config/zones'
 import type { ServiceRow } from '../config/types'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { ensureClinicSettings } from '../config/settings'
+import { earliestBookableStartsAt } from '../scheduling/booking-lead'
 import { queryAutomaticAvailability } from '../tempo/automatic'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ForecastAdapter } from '../tempo/evaluate'
@@ -268,7 +270,12 @@ export async function offerNearestSlots(input: {
     conversationId = '',
     _skipEmptyAdvance = false,
   } = input
-  const today = clinicCivilDateFromUtc(tz, clock.nowMs())
+  const nowMs = clock.nowMs()
+  const earliest = earliestBookableStartsAt(
+    nowMs,
+    ensureClinicSettings(db, tenantId, clock).bookingLeadMinutes,
+  )
+  const today = clinicCivilDateFromUtc(tz, nowMs)
   const dates = date
     ? [date, ...[1, 2, 3, 4, 5, 6].map((n) => addCivilDays(date, n))]
     : [0, 1, 2, 3, 4, 5, 6].map((offset) => addCivilDays(today, offset))
@@ -291,7 +298,7 @@ export async function offerNearestSlots(input: {
     )
     if (!schedulingAllowed && slots.length === 0) continue
     for (const slot of slots) {
-      if (slot.startsAt <= clock.nowMs()) continue
+      if (slot.startsAt < earliest) continue
       const time = localHHMM(tz, slot.startsAt)
       if (period && !inPeriodHHMM(period, time)) continue
       const minute = minutesOfHHMM(time)

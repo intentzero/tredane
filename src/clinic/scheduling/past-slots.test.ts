@@ -34,6 +34,8 @@ function seed(now: number, windows: Array<{ dayOfWeek: number; startMinute: numb
     { name: 'Limpeza', durationMinutes: duration, bufferMinutes: 0, professionalIds: [pro.id], roomRequirement: { mode: 'none' } },
     clock,
   )
+  // Estes casos isolam o corte «já passou»; antecedência mínima tem teste próprio.
+  boot.db.run(`UPDATE clinic_settings SET booking_lead_minutes = 0 WHERE id = 1`)
   const starts = (date: string) =>
     queryAvailabilityOp(boot.db, caller, { serviceId: svc.id, date }, clock).slots.map((x) => x.startsAt)
   const check = (startsAt: number) =>
