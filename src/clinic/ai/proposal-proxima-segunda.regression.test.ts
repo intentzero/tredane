@@ -105,6 +105,87 @@ function seed() {
 }
 
 describe('proposal-open + «próxima segunda» (rsamp_fa7f138)', () => {
+  it('A-08 spare: «a segunda opção» com pending não remapeia o dia', async () => {
+    const s = seed()
+    try {
+      const offerMsg = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'outbound',
+          body: 'Para Massagem, tenho 13:00, 14:00 e 15:30. Qual fica melhor?',
+          deliveryState: 'delivered',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const slot13 = zonedCivilToUtc(TZ, 2026, 11, 12, 13, 0)
+      const slot14 = zonedCivilToUtc(TZ, 2026, 11, 12, 14, 0)
+      const slot1530 = zonedCivilToUtc(TZ, 2026, 11, 12, 15, 30)
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.massagem.id,
+          variantIds: [s.relaxante.id],
+          date: '2026-11-12',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '13:00', label: '13:00' },
+              { key: '14:00', label: '14:00' },
+              { key: '15:30', label: '15:30' },
+            ],
+            messageId: offerMsg.id,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: slot13, professionalId: s.pro.id },
+              { startsAt: slot14, professionalId: s.pro.id },
+              { startsAt: slot1530, professionalId: s.pro.id },
+            ],
+            messageId: offerMsg.id,
+          },
+        },
+        s.clock,
+      )
+      s.clock.advance(30_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'a segunda opção',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const last = s.db.get<{ id: string }>(
+        `SELECT id FROM messages WHERE conversation_id = ? AND direction = 'inbound' ORDER BY created_at DESC LIMIT 1`,
+        s.cnv.id,
+      )!
+      enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: last.id }, s.clock)
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      const active = getActiveProposalForConversation(s.db, s.tenantId, s.cnv.id, s.clock)
+      expect(active).toBeTruthy()
+      expect(new Date(active!.startsAt).toISOString()).toBe(
+        new Date(slot14).toISOString(),
+      )
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.date).toBe('2026-11-12')
+    } finally {
+      s.close()
+    }
+  })
+
   it('remapeia para segunda e reoferece slots — não repropõe quinta', async () => {
     const s = seed()
     try {

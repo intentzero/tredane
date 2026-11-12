@@ -1279,10 +1279,29 @@ export async function tryAiAutoBook(
     missing = missing.filter((item) => item !== 'dia')
   }
   const turnFacts = scheduleFactsFromText(turnText)
+  // A-08: «a segunda opção» / «a segunda» é ordinal de pending, não weekday.
+  // scheduleFactsFromText e extractDates ainda vêem «segunda» — não remapear nesses.
+  const ordinalOptionReply = (() => {
+    const folded = norm(turnText).trim()
+    if (/\b(proxima|feira|que\s+vem|amanha|hoje|depois de amanha)\b/.test(folded)) {
+      return false
+    }
+    if (/\b(tem\s+horario|horarios?|disponiveis?|vagas?)\b/.test(folded)) return false
+    if (
+      /\b(na|para)\s+(a\s+)?(proxima\s+)?(segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/.test(
+        folded,
+      )
+    ) {
+      return false
+    }
+    return /^(a\s+)?(primeira|segunda|terceira|quarta|quinta|1[aª.]?|2[aª.]?|3[aª.]?|4[aª.]?|5[aª.]?)(\s+(opcao|vez))?[\s!.?]*$/.test(
+      folded,
+    )
+  })()
   // Dia civil do turno (texto completo): «próxima segunda» ≠ rótulo «segunda» sozinho
   // (em segunda-feira extractDates('segunda') cai no dia corrente).
   const turnDayAbsolute = (() => {
-    if (!turnFacts.dayLabel) return null
+    if (!turnFacts.dayLabel || ordinalOptionReply) return null
     const todayCivil = clinicCivilDateFromUtc(tz, confirmation.created_at)
     const fromTurn = [...extractDates(turnText, todayCivil)]
     if (fromTurn.length === 1) return fromTurn[0]!
@@ -1324,10 +1343,12 @@ export async function tryAiAutoBook(
   // sem período). #688 exigia período; aqui o sticky date+hora (frame/histórico)
   // mantinha ready e repropunha o dia corrente. Remapear dia civil ≠ sticky,
   // limpar hora/pending e retirar a proposta — reoferta de slots no dia novo.
+  // Não disparar em ordinal A-08 («a segunda opção»).
   if (
     session?.serviceId &&
     turnFacts.dayLabel &&
     !turnFacts.period &&
+    !ordinalOptionReply &&
     turnDayAbsolute != null
   ) {
     const stickyDate = frame?.date ?? date ?? null
@@ -1447,12 +1468,12 @@ export async function tryAiAutoBook(
     }
   }
     const rememberDayPeriod = (serviceId: string) => {
-    if (!turnFacts.dayLabel && !turnFacts.period) return
+    // A-08: ordinal «a segunda opção» não grava weekday no quadro.
+    const dayLabel = ordinalOptionReply ? undefined : turnFacts.dayLabel
+    if (!dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
     const absolute =
-      turnFacts.dayLabel != null
-        ? [...extractDates(turnFacts.dayLabel, today)][0] ?? null
-        : undefined
+      dayLabel != null ? [...extractDates(dayLabel, today)][0] ?? null : undefined
     // Novo dia/período invalida pending/lastOffer anteriores (nova oferta a seguir).
     // day_label deixa de ser gravado (#472 cutover); só date/period absolutos.
     // Dia novo sem período nomeado: limpa period sticky (não herdar «noite» no amanhã).
@@ -1460,7 +1481,7 @@ export async function tryAiAutoBook(
       serviceId,
       ...(turnFacts.period
         ? { period: turnFacts.period }
-        : turnFacts.dayLabel
+        : dayLabel
           ? { period: null }
           : {}),
       ...(absolute !== undefined ? { date: absolute } : {}),
