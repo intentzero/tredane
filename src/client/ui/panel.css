@@ -1289,8 +1289,8 @@ button.panel-auth-inline-link {
   width: 100%;
 }
 
-/* Cadastro transparente: flush Clerk (elevation) + sem chrome de cartão. */
-.panel-clerk-card {
+/* Cadastro transparente: flush só no ecrã /entrar — não no UserProfile modal. */
+.panel-auth .panel-clerk-card {
   box-shadow: none !important;
   border: none !important;
   background: transparent !important;
@@ -1303,6 +1303,34 @@ button.panel-auth-inline-link {
 .panel-clerk-primary {
   background: var(--color-primary-fill) !important;
   min-height: var(--size-control-default);
+}
+
+/*
+ * Modal «Dados pessoais» (openUserProfile): cartão opaco acima do painel
+ * (Clínica / Profissionais / Serviços / Salas) — z-index acima do shell.
+ */
+.panel-clerk-profile-backdrop,
+.cl-modalBackdrop.panel-clerk-profile-backdrop {
+  z-index: 200 !important;
+  background: rgba(20, 38, 37, 0.45) !important;
+}
+
+.panel-clerk-profile-modal,
+.cl-modalContent.panel-clerk-profile-modal {
+  z-index: 201 !important;
+}
+
+.panel-clerk-profile-root {
+  width: auto;
+  max-width: min(100vw - 2 * var(--space-4), 56rem);
+}
+
+.panel-clerk-profile-card,
+.cl-card.panel-clerk-profile-card {
+  background: var(--color-surface-card) !important;
+  border: var(--size-border-width) solid var(--color-line-border) !important;
+  box-shadow: 0 12px 40px rgba(20, 38, 37, 0.18) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 /* Casas do OTP (Verifique seu e-mail): borda de controlo visível no cartão branco. */

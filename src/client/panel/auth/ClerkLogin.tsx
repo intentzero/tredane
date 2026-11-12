@@ -1,7 +1,7 @@
 import { SignIn } from '@clerk/react'
 import { BrandHorizontal } from '../ui/Brand'
 import { readPendingInviteToken } from './session'
-import { clerkAppearance } from './clerkAppearance'
+import { clerkAuthAppearance } from './clerkAppearance'
 
 /**
  * Componente Clerk real (TEL-08 / M-09).
@@ -40,7 +40,7 @@ export function ClerkLogin() {
             path="/entrar"
             forceRedirectUrl={afterLogin}
             {...(hasInvite ? { signUpUrl: '/cadastro' } : {})}
-            appearance={clerkAppearance}
+            appearance={clerkAuthAppearance}
           />
         </div>
         <p className="panel-auth-foot panel-auth-note">
