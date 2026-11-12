@@ -14,9 +14,20 @@ type ClerkLikeError = {
 }
 
 /**
+ * Parte o nome completo (UX BR: um só campo «Nome») em firstName/lastName do Clerk
+ * (DEC-043 identidade mínima; DEC-102 Conta/Equipe). Uma palavra → só firstName.
+ */
+export function splitPersonName(nome: string): { firstName: string; lastName: string } {
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return { firstName: '', lastName: '' }
+  if (parts.length === 1) return { firstName: parts[0]!, lastName: '' }
+  return { firstName: parts[0]!, lastName: parts.slice(1).join(' ') }
+}
+
+/**
  * Cadastro para convidadas sem conta (DEC-021 / JRN-13).
  * Formulário próprio (React Aria) + `useSignUp` — UX Legal Layer transparente:
- * marca Tredane, título «Criar conta», e-mail e código; sem cartão Clerk vazio
+ * marca Tredane, título «Criar conta», nome, e-mail e código; sem cartão Clerk vazio
  * «Criar sua conta / Entrar». Quem já tem conta usa «Entrar» → `/entrar`.
  *
  * Access mode Open no Dashboard continua obrigatório (TR-523): Restricted
@@ -37,6 +48,7 @@ export function ClerkSignUp() {
   const { signUp, errors, fetchStatus } = useSignUp()
 
   const [step, setStep] = useState<Step>('email')
+  const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
@@ -52,17 +64,32 @@ export function ClerkSignUp() {
   const busy = fetchStatus === 'fetching'
   const fieldError =
     step === 'email'
-      ? errors.fields.emailAddress?.message ?? null
+      ? errors.fields.firstName?.message ??
+        errors.fields.lastName?.message ??
+        errors.fields.emailAddress?.message ??
+        null
       : errors.fields.code?.message ?? null
   const globalError = errors.global?.[0]
     ? formatClerkError(errors.global[0] as ClerkLikeError)
     : null
   const displayError = localError ?? fieldError ?? globalError
+  const nomeOk = nome.trim().length >= 2
+  const emailOk = Boolean(email.trim())
 
   async function continueFromEmail() {
-    if (!email.trim() || busy) return
+    if (!nomeOk || !emailOk || busy) return
     setLocalError(null)
-    const created = await signUp.create({ emailAddress: email.trim() })
+    const { firstName, lastName } = splitPersonName(nome)
+    if (!firstName) {
+      setLocalError('Informe o seu nome.')
+      return
+    }
+    // DEC-043 / Conta+Equipe: grava firstName/lastName no Clerk no create.
+    const created = await signUp.create({
+      emailAddress: email.trim(),
+      firstName,
+      ...(lastName ? { lastName } : {}),
+    })
     if (created.error) {
       setLocalError(formatClerkError(created.error as ClerkLikeError, hasInvite))
       return
@@ -83,6 +110,18 @@ export function ClerkSignUp() {
     if (verified.error) {
       setLocalError(formatClerkError(verified.error as ClerkLikeError, hasInvite))
       return
+    }
+    // Se o Dashboard exige nome e o create não o fixou, completa antes do finalize.
+    if (signUp.status === 'missing_requirements') {
+      const { firstName, lastName } = splitPersonName(nome)
+      const updated = await signUp.update({
+        firstName,
+        ...(lastName ? { lastName } : {}),
+      })
+      if (updated.error) {
+        setLocalError(formatClerkError(updated.error as ClerkLikeError, hasInvite))
+        return
+      }
     }
     if (signUp.status !== 'complete') {
       setLocalError(
@@ -157,10 +196,25 @@ export function ClerkSignUp() {
               <h1 className="panel-auth-title">Criar conta</h1>
               <p>
                 {hasInvite
-                  ? 'Use o mesmo e-mail do convite. Depois você entra na clínica.'
+                  ? 'Informe o seu nome e o mesmo e-mail do convite. Depois você entra na clínica.'
                   : 'Cadastro aberto só com convite da clínica.'}
               </p>
             </div>
+            <TextField
+              className="panel-field"
+              value={nome}
+              onChange={setNome}
+              isRequired
+              autoComplete="name"
+              isDisabled={busy}
+            >
+              <Label>Nome</Label>
+              <Input
+                className="panel-control"
+                placeholder="Maria Silva"
+                aria-label="Nome"
+              />
+            </TextField>
             <TextField
               className="panel-field"
               value={email}
@@ -184,7 +238,11 @@ export function ClerkSignUp() {
                 {displayError}
               </p>
             ) : null}
-            <Button type="submit" className="panel-btn-primary" isDisabled={busy || !email.trim()}>
+            <Button
+              type="submit"
+              className="panel-btn-primary"
+              isDisabled={busy || !nomeOk || !emailOk}
+            >
               Continuar
             </Button>
           </form>

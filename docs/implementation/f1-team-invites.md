@@ -54,7 +54,7 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 | Peça | Comportamento |
 | --- | --- |
 | Link | `APP_BASE_URL/invite/accept?token=…` (Cloudflare Email Sending em staging/prod; simulated em dev) |
-| Sessão | Sem sessão → guarda token em `sessionStorage` (nunca logado) → **`/cadastro`** (formulário Legal Layer e-mail→código via `useSignUp`; DEC-021 conta nova) → após autenticação retoma aceite; quem já tem conta usa «Entrar» → `/entrar` e volta ao aceite. **Pré-requisito Dashboard:** Access mode **Open** — Invite-only falha no create com «Cadastro indisponível» (token D1 não contorna Restricted; ver [f1-login-nav.md](f1-login-nav.md)). |
+| Sessão | Sem sessão → guarda token em `sessionStorage` (nunca logado) → **`/cadastro`** (formulário Legal Layer **Nome** + e-mail→código via `useSignUp`; DEC-021 conta nova; DEC-169 Proposto / DEC-043 / DEC-102) → após autenticação retoma aceite; quem já tem conta usa «Entrar» → `/entrar` e volta ao aceite. Contas novas sem Nome ficavam só com e-mail na Conta/Equipe. **Pré-requisito Dashboard:** Access mode **Open** — Invite-only falha no create com «Cadastro indisponível» (token D1 não contorna Restricted; ver [f1-login-nav.md](f1-login-nav.md)). |
 | API | `acceptInvitation(token)` no cliente; Worker ignora tenant/role do body |
 | Erros | Expirado / inválido-cancelado / e-mail diferente / e-mail não confirmado em PT-BR |
 | Sucesso | Membership com a role do convite → abre Conversas da clínica (ou seletor se a abertura falhar) |
