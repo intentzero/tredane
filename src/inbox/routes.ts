@@ -30,6 +30,7 @@ import { processClinicOutboxMessage } from '../whatsapp/outbound-send'
 import { createChannelLogger } from '../ops/log'
 import {
   serializeContact,
+  serializeDirectoryContact,
   serializeConversation,
   serializeConversationDetail,
   serializeCounts,
@@ -281,7 +282,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         limit: Number.isFinite(limit) ? limit : undefined,
       })
       return c.json({
-        contacts: result.contacts.map(serializeContact),
+        contacts: result.contacts.map(serializeDirectoryContact),
         nextBefore: result.nextBefore,
       })
     } catch (err) {

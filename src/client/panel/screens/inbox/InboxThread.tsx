@@ -77,6 +77,7 @@ import {
   statusTone,
   statusLabel,
 } from "./format";
+import { waitingLabel } from "./urgency";
 import { friendlyError } from "../../copy/errors";
 import { Badge } from "../../states/Badge";
 import { Banner } from "../../states/Banner";
@@ -303,7 +304,7 @@ function MessageBubble({
       ) : null}
       {showReadBy && m.readAt ? (
         <span className="inbox-msg-readby">
-          Lida por {m.readByDisplayName ?? "equipe"} ·{" "}
+          Vista por {m.readByDisplayName ?? "equipe"} ·{" "}
           {new Date(m.readAt).toLocaleTimeString("pt-BR", {
             hour: "2-digit",
             minute: "2-digit",
@@ -817,8 +818,27 @@ export function InboxThread({
     }
   }
 
-  async function assume() {
-    if (!detail) return;
+  /** Abre a lista de modelos (janela fechada) e carrega-a na primeira vez. */
+  function openTemplatePicker() {
+    setPickerOpen(true);
+    if (templates.length === 0) {
+      void api
+        .listWhatsappTemplates(tenantId, {
+          generation,
+          expectGeneration: () => generation,
+        })
+        .then((t) => setTemplates(t.items));
+    }
+  }
+
+  /** DEC-162: assumir e, quando correu bem, abrir já a escolha de modelo. */
+  async function assumeAndPickTemplate() {
+    const ok = await assume();
+    if (ok) openTemplatePicker();
+  }
+
+  async function assume(): Promise<boolean> {
+    if (!detail) return false;
     setBusy(true);
     setNotice(null);
     try {
@@ -849,6 +869,7 @@ export function InboxThread({
         );
         void closeConversationNotifications(tenantId, conversationId);
       }
+      return res.versionMatched !== false;
     } catch (err) {
       setNotice(
         friendlyError(
@@ -856,6 +877,7 @@ export function InboxThread({
           "Não foi possível assumir a conversa. Tente de novo.",
         ),
       );
+      return false;
     } finally {
       setBusy(false);
     }
@@ -1409,6 +1431,20 @@ export function InboxThread({
     ? `${detail.assigneeDisplayName ?? "Outra pessoa"} está atendendo esta conversa.`
     : "Ninguém está atendendo esta conversa.";
   const contactFirstName = label.split(" ")[0] || "A cliente";
+  // DEC-162: a cliente falou por último — a espera aparece sob o nome.
+  const lastHuman = [...detail.messages]
+    .reverse()
+    .find((m) => m.direction !== "system");
+  const waitingSince =
+    detail.status !== "closed" && lastHuman?.direction === "inbound"
+      ? lastHuman.createdAt
+      : null;
+  // DEC-162 (M-68): ninguém atende e a janela fechou — um só cartão, uma ação principal.
+  const unassignedClosed =
+    canAssume &&
+    !detail.assigneeClerkUserId &&
+    !windowOpen &&
+    needsPerson.length === 0;
   const cardMode =
     windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft;
 
@@ -1475,6 +1511,9 @@ export function InboxThread({
                 </Badge>
               )}
               <span>{assigneeLine(detail, viewerClerkUserId)}</span>
+              {waitingSince != null ? (
+                <span className="inbox-thread-wait">{waitingLabel(waitingSince)}</span>
+              ) : null}
             </span>
           </span>
         </button>
@@ -1832,7 +1871,37 @@ export function InboxThread({
         ) : null}
       </div>
 
-      {needsPerson.length > 0 || canAssume ? (
+      {unassignedClosed && !blocked ? (
+        <section
+          className="inbox-handoff inbox-handoff--closed"
+          role="status"
+          aria-labelledby="inbox-closed-title"
+        >
+          <div className="inbox-handoff-text">
+            <strong id="inbox-closed-title">
+              Ninguém respondeu · janela de 24 h fechada
+            </strong>
+            <p>
+              Para voltar a falar com {contactFirstName}, o WhatsApp só aceita um
+              modelo de mensagem aprovado.
+            </p>
+          </div>
+          <Button
+            className="panel-btn-primary inbox-handoff-btn"
+            onPress={() => void assumeAndPickTemplate()}
+            isDisabled={busy}
+          >
+            {busy ? "Assumindo…" : "Assumir e escolher modelo"}
+          </Button>
+          <Button
+            className="panel-link-btn inbox-handoff-secondary"
+            onPress={() => void assume()}
+            isDisabled={busy}
+          >
+            Só assumir
+          </Button>
+        </section>
+      ) : needsPerson.length > 0 || canAssume ? (
         <div
           className={`inbox-handoff${needsPerson.length > 0 ? " inbox-handoff--alert" : ""}`}
           role={needsPerson.length > 0 ? "alert" : "status"}
@@ -1886,7 +1955,7 @@ export function InboxThread({
             Desbloquear
           </Button>
         </div>
-      ) : detail.status !== "closed" ? (
+      ) : detail.status !== "closed" && !unassignedClosed ? (
         <div className="inbox-composer-wrap">
           <div className="inbox-dock">
             {aiNotEnabled ? (
@@ -2189,15 +2258,8 @@ export function InboxThread({
                 <Button
                   className="panel-btn-primary"
                   onPress={() => {
-                    setPickerOpen((o) => !o);
-                    if (templates.length === 0) {
-                      void api
-                        .listWhatsappTemplates(tenantId, {
-                          generation,
-                          expectGeneration: () => generation,
-                        })
-                        .then((t) => setTemplates(t.items));
-                    }
+                    if (pickerOpen) setPickerOpen(false);
+                    else openTemplatePicker();
                   }}
                   isDisabled={busy}
                 >

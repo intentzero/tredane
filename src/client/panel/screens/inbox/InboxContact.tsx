@@ -1,5 +1,6 @@
-import { ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, Sparkles } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, MessageCircle, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { requestAgendarOpen } from './agendarFocus'
 import { consumeSummaryFocus } from './summaryFocus'
 import { AiWorking } from '../../ui/AiWorking'
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
@@ -31,6 +32,11 @@ type Props = {
    * Mesmo conteúdo canónico (Opção C Confirmada).
    */
   origin?: 'conversas' | 'clientes'
+  /**
+   * DEC-162 / DEC-074: quando o Contato está no contexto da conversa (painel desktop),
+   * Agendar abre o fluxo in-context do pai em vez de ir para a área Agenda.
+   */
+  onAgendar?: () => void
 }
 
 function formatPhone(waId: string): string {
@@ -118,6 +124,7 @@ export function InboxContactScreen({
   generation,
   isOwner,
   origin = 'conversas',
+  onAgendar,
 }: Props) {
   const [data, setData] = useState<InboxContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -374,6 +381,62 @@ export function InboxContactScreen({
         </span>
       </div>
 
+      {/* DEC-162 / Clientes: atalhos para agendar e abrir a conversa, sem passar pelo ⋮. */}
+      {data.contact.blockedAt == null ? (
+        <div className="ic-shortcuts">
+          <Button
+            className="panel-btn-primary ic-shortcut"
+            onPress={() => {
+              // DEC-162: Contato aberto numa conversa ativa — Agendar no contexto da conversa
+              // (painel desktop / folha no celular), sem abandonar a thread pela área Agenda.
+              if (onAgendar) {
+                onAgendar()
+                return
+              }
+              if (origin === 'conversas' && conversationId) {
+                requestAgendarOpen()
+                navigatePanel({
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId,
+                  section: 'thread',
+                  conversationId,
+                })
+                return
+              }
+              navigatePanel({
+                kind: 'area',
+                area: 'agenda',
+                tenantId,
+                section: 'agendar',
+                contactId,
+                conversationId: summaryConversationId,
+              })
+            }}
+          >
+            <CalendarPlus aria-hidden size={18} strokeWidth={2} />
+            Agendar
+          </Button>
+          {summaryConversationId && origin === 'clientes' ? (
+            <Button
+              className="panel-btn-secondary ic-shortcut"
+              onPress={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId,
+                  section: 'thread',
+                  conversationId: summaryConversationId,
+                })
+              }
+            >
+              <MessageCircle aria-hidden size={18} strokeWidth={2} />
+              Abrir conversa
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       {data.contact.blockedAt != null ? (
         <div className="ic-blocked" role="status">
           <p className="ic-blocked-text">
@@ -526,7 +589,8 @@ export function InboxContactScreen({
           </h2>
           <AppointmentBlock title="" items={upcoming.slice(1)} tenantId={tenantId} />
           {past.length > 0 ? (
-            showPast ? (
+            // DEC-162: poucos horários anteriores aparecem logo; muitos ficam atrás do botão.
+            showPast || past.length <= 3 ? (
               <AppointmentBlock title="Anteriores" items={past} tenantId={tenantId} />
             ) : (
               <Button className="ic-more" onPress={() => setShowPast(true)}>
@@ -581,55 +645,46 @@ export function InboxContactScreen({
         do header: no desktop o .inbox-thread-header está display:none no sidepane e na
         ficha Clientes, então o menu «Mais ações» do #610 tornava as ações invisíveis.
       */}
-      {data.contact.blockedAt == null ? (
-        <section className="ic-danger" aria-labelledby="block-contact-h">
-          <h2 id="block-contact-h" className="ic-h">
-            Bloquear contato
-          </h2>
-          <p className="inbox-contact-note">
-            Mensagens novas deste número deixam de aparecer e a conversa é encerrada. O histórico
-            e os horários marcados continuam.
-          </p>
-          {blockError ? (
+      {/*
+        Bloquear / Excluir no fim, em linhas (DEC-162, M-70): a explicação fica no diálogo
+        de confirmação. No desktop o ⋮ do cabeçalho está oculto, por isso ficam aqui.
+      */}
+      {data.contact.blockedAt == null || isOwner ? (
+        <section className="ic-danger-rows" aria-label="Ações sobre o contato">
+          {blockError && data.contact.blockedAt == null ? (
             <p className="inbox-notice" role="alert">
               {blockError}
             </p>
           ) : null}
-          <Button
-            className="panel-btn-danger"
-            onPress={() => {
-              setBlockError(null)
-              setBlockOpen(true)
-            }}
-          >
-            Bloquear contato
-          </Button>
-        </section>
-      ) : null}
-
-      {isOwner ? (
-        <section className="ic-danger" aria-labelledby="delete-contact-h">
-          <h2 id="delete-contact-h" className="ic-h">
-            Zona de risco
-          </h2>
-          <p className="inbox-contact-note">
-            Exclui mensagens, anexos e dados pessoais deste contato. Compromissos na agenda ficam
-            como «Contato removido».
-          </p>
           {deleteError ? (
             <p className="inbox-notice" role="alert">
               {deleteError}
             </p>
           ) : null}
-          <Button
-            className="panel-btn-danger"
-            onPress={() => {
-              setDeleteError(null)
-              setConfirmOpen(true)
-            }}
-          >
-            Excluir contato
-          </Button>
+          {data.contact.blockedAt == null ? (
+            <Button
+              className="ic-danger-row"
+              onPress={() => {
+                setBlockError(null)
+                setBlockOpen(true)
+              }}
+            >
+              <span>Bloquear contato</span>
+              <ChevronRight aria-hidden size={18} />
+            </Button>
+          ) : null}
+          {isOwner ? (
+            <Button
+              className="ic-danger-row"
+              onPress={() => {
+                setDeleteError(null)
+                setConfirmOpen(true)
+              }}
+            >
+              <span>Excluir contato</span>
+              <ChevronRight aria-hidden size={18} />
+            </Button>
+          ) : null}
         </section>
       ) : null}
 

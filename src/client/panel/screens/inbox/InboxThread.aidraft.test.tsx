@@ -90,7 +90,7 @@ function mockApi(): PanelApi {
 }
 
 describe('InboxThread — rascunho automático da IA', () => {
-  it('compositor vazio: insere o rascunho (texto limpo); notas ficam à parte; aviso de modo de teste; «Lida por»', async () => {
+  it('compositor vazio: insere o rascunho (texto limpo); notas ficam à parte; aviso de modo de teste; «Vista por»', async () => {
     render(
       <InboxThread tenantId="clinic-demo-a" conversationId="cnv_ficticia" api={mockApi()} generation={1} viewerClerkUserId="u1" />,
     )
@@ -102,7 +102,7 @@ describe('InboxThread — rascunho automático da IA', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Nota da IA para você' }))
     expect(screen.getByText('Depilação masculina dura 60 min.')).toBeTruthy()
     expect(screen.getByText(/IA em modo de teste/)).toBeTruthy()
-    expect(screen.getByText(/Lida por Ana/)).toBeTruthy()
+    expect(screen.getByText(/Vista por Ana/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Gerar outra' })).toBeTruthy()
   })
 

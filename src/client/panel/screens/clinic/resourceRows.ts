@@ -86,6 +86,10 @@ export function roomRow(snap: ClinicConfigSnapshot, room: ClinicResource): RoomR
 export type ServiceRow = {
   occupies: string
   detail: string
+  /** DEC-163: preço à direita do nome («Sem preço» quando falta). */
+  price: string
+  /** DEC-163: «45 min + 15 de intervalo · Thaís · Sala Laser»; público só se não for «Qualquer». */
+  summary: string
   /** Aviso de exceção; null quando a linha está normal. */
   warning: string | null
 }
@@ -137,9 +141,27 @@ export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): Serv
     audienceLabel,
     zonePriceLabel ?? (svc.priceCents != null ? formatPriceCents(svc.priceCents) : 'Sem preço'),
   ].filter((p): p is string => p !== null)
+  const price =
+    zonePriceLabel ?? (svc.priceCents != null ? formatPriceCents(svc.priceCents) : 'Sem preço')
+  const duration =
+    activeZones.length > 0
+      ? occupies
+      : svc.bufferMinutes > 0
+        ? `${svc.durationMinutes} min + ${svc.bufferMinutes} de intervalo`
+        : `${svc.durationMinutes} min`
+  const summary = [
+    duration,
+    pros.length > 0 ? joinNames(pros.map((p) => p.name)) : null,
+    room,
+    audienceLabel && audienceLabel !== 'Qualquer' ? audienceLabel : null,
+  ]
+    .filter((p): p is string => p !== null)
+    .join(' · ')
   return {
     occupies,
     detail: parts.join(' · '),
+    price,
+    summary,
     warning: pros.length === 0 ? 'Sem profissional' : null,
   }
 }

@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { consumeAgendarOpen } from './agendarFocus'
 import { ConversasThreeCol } from './ConversasArea'
 
 const tenantState = vi.hoisted(() => ({
@@ -14,10 +15,12 @@ vi.mock('../../tenant/TenantContext', () => ({
 beforeEach(() => {
   tenantState.active = { phase: 'none', context: undefined }
   tenantState.listState = { phase: 'idle', tenants: [] }
+  consumeAgendarOpen()
 })
 
 afterEach(() => {
   cleanup()
+  consumeAgendarOpen()
   vi.unstubAllGlobals()
 })
 
@@ -173,5 +176,67 @@ describe('ConversasThreeCol', () => {
     expect(frame()?.getAttribute('data-contact')).toBe('open')
     // Fechar o Agendar não mexe na escolha lembrada do contato.
     expect(localStorage.getItem('tredane.contactPanel')).toBeNull()
+  })
+
+  it('DEC-162: Agendar no Contato da conversa abre o painel in-context (não sai da thread)', async () => {
+    localStorage.clear()
+    stubMatchMedia(true)
+    const now = Date.now()
+    const contact = {
+      id: 'ctc',
+      waId: '5511999000111',
+      displayName: 'Marina Fictícia',
+      createdAt: now,
+      blockedAt: null,
+      blockedByDisplayName: null,
+      blockedReason: null,
+    }
+    const detail = {
+      id: 'c',
+      tenantId: 't',
+      contactId: 'ctc',
+      status: 'open',
+      assigneeClerkUserId: 'u',
+      assigneeDisplayName: 'Ana',
+      assignmentVersion: 1,
+      lastMessageAt: now,
+      lastMessagePreview: 'Oi',
+      lastMessageDirection: 'inbound',
+      unreadCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      contact,
+      messages: [],
+      messagesHasMore: false,
+      messagesNextBefore: null,
+      messagingWindow: { open: true, lastInboundAt: now, closesAt: now + 3_600_000, remainingMs: 3_600_000 },
+    }
+    const ready: Record<string, unknown> = {
+      getInboxConversation: async () => detail,
+      getInboxContact: async () => ({
+        contact,
+        conversations: [detail],
+        appointments: { upcoming: [], past: [] },
+      }),
+      listConversationPixCharges: async () => [],
+      listPixPaymentAlerts: async () => [],
+      listWhatsappTemplates: async () => ({ items: [] }),
+      markInboxRead: async () => ({ conversation: detail }),
+    }
+    const smartApi = new Proxy({}, {
+      get: (_t, name: string) => (typeof ready[name] === 'function' ? ready[name] : () => new Promise(() => {})),
+    }) as never
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" conversationId="c" api={smartApi} generation={1} viewerId="u" isOwner />,
+    )
+    const frame = () => container.querySelector('.conversas-3col')
+    expect(frame()?.getAttribute('data-contact')).toBe('open')
+
+    // Atalho «Agendar» da ficha do Contato (não o do cabeçalho da thread).
+    const contactAgendar = await screen.findByRole('button', { name: 'Agendar' })
+    fireEvent.click(contactAgendar)
+    await screen.findByRole('complementary', { name: 'Agendar horário' })
+    expect(frame()?.getAttribute('data-agendar')).toBe('open')
+    expect(frame()?.getAttribute('data-contact')).toBe('closed')
   })
 })

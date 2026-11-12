@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
-import { Check, ChevronRight, Minus, TriangleAlert } from 'lucide-react'
+import { Button, Input, Label, NumberField, Radio, RadioGroup, SearchField, TextArea, TextField } from 'react-aria-components'
+import { Check, ChevronRight, Minus, Search, TriangleAlert } from 'lucide-react'
 import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
 import { ComboCatalog, type ComboDraft } from './ComboCatalog'
 import { VariantCatalog, type ZoneDraft } from './VariantCatalog'
@@ -135,9 +135,13 @@ type ListProps = {
 
 export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
   const [showInactive, setShowInactive] = useState(false)
+  const [query, setQuery] = useState('')
   const inactiveCount = snap.services.filter((s) => !s.active).length
   const activeCount = snap.services.length - inactiveCount
-  const items = showInactive ? snap.services : snap.services.filter((s) => s.active)
+  const needle = query.trim().toLocaleLowerCase('pt-BR')
+  const items = (showInactive ? snap.services : snap.services.filter((s) => s.active)).filter(
+    (s) => !needle || s.name.toLocaleLowerCase('pt-BR').includes(needle),
+  )
   return (
     <div className="clinic-stack">
       <div className="clinic-toolbar clinic-desktop-hide">
@@ -167,7 +171,19 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
         }
       />
       {suggestions ?? null}
-      <ul className="clinic-nav-list">
+      {snap.services.length > 5 ? (
+        // DEC-163: com muitos serviços, buscar pelo nome é mais rápido que rolar.
+        <SearchField
+          className="inbox-search clinic-search"
+          aria-label="Buscar serviço"
+          value={query}
+          onChange={setQuery}
+        >
+          <Search aria-hidden size={18} strokeWidth={2} className="inbox-search-icon" />
+          <Input className="inbox-search-input" placeholder="Buscar serviço" autoComplete="off" />
+        </SearchField>
+      ) : null}
+      <ul className="clinic-nav-list clinic-service-list">
         {items.map((svc) => {
           const row = serviceRow(snap, svc)
           return (
@@ -185,9 +201,11 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
                 }
               >
                 <span className="clinic-nav-copy">
-                  <strong>{svc.name}</strong>
-                  <span>{row.occupies}</span>
-                  <span>{row.detail}</span>
+                  <span className="clinic-service-top">
+                    <strong>{svc.name}</strong>
+                    <b className="clinic-service-price">{row.price}</b>
+                  </span>
+                  <span>{row.summary}</span>
                 </span>
                 {!svc.active ? <Badge tone="closed">Inativo</Badge> : null}
                 {svc.active && row.warning ? <Badge tone="wait">{row.warning}</Badge> : null}
@@ -198,7 +216,9 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
         })}
         {items.length === 0 ? (
           <li className="clinic-empty">
-            {inactiveCount > 0 && !showInactive
+            {needle
+              ? 'Nenhum serviço com esse nome.'
+              : inactiveCount > 0 && !showInactive
               ? 'Nenhum serviço ativo. Ligue «Mostrar inativos» para ver o histórico.'
               : 'Nenhum serviço cadastrado ainda.'}
           </li>

@@ -1,6 +1,7 @@
 import { MessageCircle, X } from 'lucide-react'
 import { useUser } from '@clerk/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
 import { useAuthSession } from '../../auth/AuthContext'
 import {
   staffFirstNameFromDisplay,
@@ -18,6 +19,7 @@ import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
 import { useOutsideClose } from '../../ui/useOutsideClose'
+import { consumeAgendarOpen } from './agendarFocus'
 
 type Props = {
   tenantId: string
@@ -131,18 +133,19 @@ function ConversasSectionView({
 }) {
   const wide = useWideLayout()
   if (section === 'thread' && conversationId) {
-    const thread = (
-      <InboxThread
-        tenantId={tenantId}
-        conversationId={conversationId}
-        api={api}
-        generation={generation}
-        viewerClerkUserId={viewerId}
-        staffDisplayName={staffDisplayName}
-        isOwner={isOwner}
-      />
-    )
-    if (!wide) return thread
+    if (!wide) {
+      return (
+        <MobileThread
+          tenantId={tenantId}
+          conversationId={conversationId}
+          api={api}
+          generation={generation}
+          viewerId={viewerId}
+          isOwner={isOwner}
+          staffDisplayName={staffDisplayName}
+        />
+      )
+    }
     return (
       <ConversasThreeCol
         tenantId={tenantId}
@@ -263,7 +266,8 @@ export function ConversasThreeCol({
   const [pref, setPref] = useState<'open' | 'closed' | null>(readPanelPref)
   const hasThread = Boolean(conversationId)
   // DEC-074: o Agendar ocupa o lugar do contato; ao fechar, o contato volta ao que a pessoa lembrou.
-  const [agendarOpen, setAgendarOpen] = useState(false)
+  // DEC-162: Contato focado pode pedir o Agendar ao voltar à conversa (consumeAgendarOpen).
+  const [agendarOpen, setAgendarOpen] = useState(() => consumeAgendarOpen())
   const panelOpen = hasThread && !agendarOpen && (pref ? pref === 'open' : roomy)
   // O conteúdo só é buscado na primeira abertura; depois fica montado (escondido).
   const [everOpened, setEverOpened] = useState(false)
@@ -274,9 +278,13 @@ export function ConversasThreeCol({
   const returnFocus = useRef<HTMLElement | null>(null)
   const agendarReturnFocus = useRef<HTMLElement | null>(null)
   const userToggled = useRef(false)
+  const agendarConversationId = useRef(conversationId)
 
   // Trocar de conversa fecha o Agendar: o painel nunca marca para a pessoa errada.
+  // Não limpar no primeiro mount — senão apaga o pedido vindo do Contato (DEC-162).
   useEffect(() => {
+    if (agendarConversationId.current === conversationId) return
+    agendarConversationId.current = conversationId
     setAgendarOpen(false)
   }, [conversationId])
 
@@ -407,6 +415,7 @@ export function ConversasThreeCol({
             api={api}
             generation={generation}
             isOwner={isOwner}
+            onAgendar={toggleAgendar}
           />
         </aside>
       ) : null}
@@ -424,6 +433,76 @@ export function ConversasThreeCol({
   )
 }
 
+/**
+ * DEC-162 (M-69): no celular, Agendar abre em folha sobre a conversa — não troca de aba.
+ * Fechar devolve à conversa no mesmo ponto.
+ */
+function MobileThread({
+  tenantId,
+  conversationId,
+  api,
+  generation,
+  viewerId,
+  isOwner,
+  staffDisplayName,
+}: {
+  tenantId: string
+  conversationId: string
+  api: NonNullable<ReturnType<typeof useAuthSession>['api']>
+  generation: number
+  viewerId: string
+  isOwner: boolean
+  staffDisplayName: string | null
+}) {
+  // DEC-162: Contato focado no celular pede a folha Agendar ao voltar à conversa.
+  const [agendarOpen, setAgendarOpen] = useState(() => consumeAgendarOpen())
+  const sheetRef = useRef<HTMLElement | null>(null)
+  const agendarConversationId = useRef(conversationId)
+  useEffect(() => {
+    if (agendarConversationId.current === conversationId) return
+    agendarConversationId.current = conversationId
+    setAgendarOpen(false)
+  }, [conversationId])
+  return (
+    <>
+      <InboxThread
+        tenantId={tenantId}
+        conversationId={conversationId}
+        api={api}
+        generation={generation}
+        viewerClerkUserId={viewerId}
+        staffDisplayName={staffDisplayName}
+        isOwner={isOwner}
+        agendarPanel={{
+          open: agendarOpen,
+          controlsId: 'conversas-agendar-sheet',
+          onToggle: () => setAgendarOpen((o) => !o),
+        }}
+      />
+      <ModalOverlay
+        isOpen={agendarOpen}
+        onOpenChange={setAgendarOpen}
+        isDismissable
+        className="panel-overlay conversas-agendar-sheet-overlay"
+      >
+        <Modal className="conversas-agendar-sheet-modal">
+          <Dialog className="conversas-agendar-sheet" aria-label="Agendar horário">
+            <ConversasAgendarPanel
+              asideRef={sheetRef}
+              tenantId={tenantId}
+              conversationId={conversationId}
+              api={api}
+              generation={generation}
+              onClose={() => setAgendarOpen(false)}
+              variant="sheet"
+            />
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </>
+  )
+}
+
 /** DEC-074: o contato da conversa vem da própria conversa; o Agendar não lê a URL. */
 function ConversasAgendarPanel({
   asideRef,
@@ -432,6 +511,7 @@ function ConversasAgendarPanel({
   api,
   generation,
   onClose,
+  variant = 'aside',
 }: {
   asideRef: React.MutableRefObject<HTMLElement | null>
   tenantId: string
@@ -439,19 +519,25 @@ function ConversasAgendarPanel({
   api: NonNullable<ReturnType<typeof useAuthSession>['api']>
   generation: number
   onClose: () => void
+  /** `sheet`: folha no celular, com a última mensagem da cliente citada (DEC-162). */
+  variant?: 'aside' | 'sheet'
 }) {
   const [contactId, setContactId] = useState<string | null>(null)
+  const [quote, setQuote] = useState<{ body: string; at: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     void api
-      .getInboxConversation(tenantId, conversationId, { messageLimit: 1 }, {
+      .getInboxConversation(tenantId, conversationId, { messageLimit: variant === 'sheet' ? 20 : 1 }, {
         generation,
         expectGeneration: () => generation,
       })
       .then((d) => {
-        if (!cancelled) setContactId(d.contactId)
+        if (cancelled) return
+        setContactId(d.contactId)
+        const lastIn = [...d.messages].reverse().find((m) => m.direction === 'inbound')
+        setQuote(lastIn ? { body: lastIn.body, at: lastIn.createdAt } : null)
       })
       .catch((err) => {
         if (!cancelled) setError(friendlyError(err, 'Não deu para abrir o Agendar agora. Tente de novo.'))
@@ -459,16 +545,17 @@ function ConversasAgendarPanel({
     return () => {
       cancelled = true
     }
-  }, [api, tenantId, conversationId, generation])
+  }, [api, tenantId, conversationId, generation, variant])
 
   return (
     <aside
-      id="conversas-agendar-panel"
+      id={variant === 'sheet' ? 'conversas-agendar-sheet' : 'conversas-agendar-panel'}
       ref={asideRef}
       tabIndex={-1}
-      className="conversas-3col-agendar"
+      className={variant === 'sheet' ? 'conversas-agendar-sheet-body' : 'conversas-3col-agendar'}
       aria-label="Agendar horário"
     >
+
       {error ? (
         <ErrorState title="Agendar indisponível" description={error} actionLabel="Fechar" onAction={onClose} />
       ) : !contactId ? (
@@ -478,7 +565,7 @@ function ConversasAgendarPanel({
           tenantId={tenantId}
           api={api}
           generation={generation}
-          embedded={{ conversationId, contactId, onClose }}
+          embedded={{ conversationId, contactId, onClose, quote: quote?.body ?? null }}
         />
       )}
     </aside>
@@ -528,12 +615,15 @@ function ContactViaConversation({
   api,
   generation,
   isOwner,
+  onAgendar,
 }: {
   tenantId: string
   conversationId: string
   api: NonNullable<ReturnType<typeof useAuthSession>['api']>
   generation: number
   isOwner: boolean
+  /** DEC-162 / DEC-074: Agendar no painel da conversa (desktop). */
+  onAgendar?: () => void
 }) {
   const [contactId, setContactId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -570,6 +660,7 @@ function ContactViaConversation({
       api={api}
       generation={generation}
       isOwner={isOwner}
+      onAgendar={onAgendar}
     />
   )
 }

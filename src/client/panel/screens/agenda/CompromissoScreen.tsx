@@ -1,4 +1,4 @@
-import { ChevronLeft, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageCircle, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { PanelSelect } from '../../ui/PanelSelect'
 import {
@@ -14,7 +14,7 @@ import {
 import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import { civilDateInZone, formatSlotTime } from './format'
+import { civilDateInZone, formatLongDate, formatSlotTime } from './format'
 import { friendlyError } from '../../copy/errors'
 
 type Props = {
@@ -285,19 +285,84 @@ export function CompromissoScreen({
           </p>
         ) : null}
 
-        <p className="panel-meta" style={{ padding: '12px 16px' }}>
-          {detail.serviceName} · {detail.professionalName}
-          {detail.roomResourceName ? ` · ${detail.roomResourceName}` : ''}
-          {detail.appliedDurationMinutes != null &&
-          detail.defaultDurationMinutes != null &&
-          detail.appliedDurationMinutes !== detail.defaultDurationMinutes
-            ? ` · duração ajustada: ${detail.appliedDurationMinutes} min (padrão ${detail.defaultDurationMinutes} min)`
-            : ''}
-          {detail.confirmedBy === 'system:ai-autobook' ? ' · Marcado pela IA' : ''}
-          <br />
-          {formatSlotTime(detail.startsAt, timezone)}
-          {detail.contactLabel ? ` · ${detail.contactLabel}` : ''}
-        </p>
+        {/* DEC-165 (tela 13): dia, intervalo e duração no topo; cliente e conversa à mão. */}
+        <section className="appt-when" aria-label="Quando">
+          <span className="appt-when-day">
+            {formatLongDate(civilDateInZone(detail.startsAt, timezone), timezone)}
+          </span>
+          <span className="appt-when-time">
+            {formatSlotTime(detail.startsAt, timezone)} – {formatSlotTime(detail.endsAt, timezone)}
+          </span>
+          <span className="appt-when-service">{detail.serviceName}</span>
+          <span className="appt-when-meta">
+            {Math.round((detail.endsAt - detail.startsAt) / 60000)} min
+            {detail.appliedDurationMinutes != null &&
+            detail.defaultDurationMinutes != null &&
+            detail.appliedDurationMinutes !== detail.defaultDurationMinutes
+              ? ` · duração ajustada (padrão ${detail.defaultDurationMinutes} min)`
+              : ''}
+            {detail.confirmedBy === 'system:ai-autobook' ? ' · Marcado pela IA' : ''}
+          </span>
+        </section>
+
+        <section className="appt-card" aria-label="Cliente">
+          {detail.contactId ? (
+            <Button
+              className="appt-card-row appt-card-row--link"
+              onPress={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'clientes',
+                  tenantId,
+                  section: 'ficha',
+                  contactId: detail.contactId!,
+                })
+              }
+            >
+              <span className="appt-card-main">
+                <strong>{detail.contactLabel ?? 'Cliente'}</strong>
+                <span>Ver ficha da cliente</span>
+              </span>
+              <ChevronRight aria-hidden size={18} />
+            </Button>
+          ) : (
+            <div className="appt-card-row">
+              <span className="appt-card-main">
+                <strong>{detail.contactLabel ?? 'Contato removido'}</strong>
+              </span>
+            </div>
+          )}
+          {mode === 'view' && detail.conversationId ? (
+            <Button
+              className="appt-card-row appt-card-row--action agenda-open-chat"
+              onPress={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId,
+                  section: 'thread',
+                  conversationId: detail.conversationId!,
+                })
+              }
+            >
+              <MessageCircle aria-hidden size={18} strokeWidth={2} />
+              Abrir conversa
+            </Button>
+          ) : null}
+        </section>
+
+        <dl className="appt-card appt-facts" aria-label="Quem e onde">
+          <div>
+            <dt>Profissional</dt>
+            <dd>{detail.professionalName}</dd>
+          </div>
+          {detail.roomResourceName ? (
+            <div>
+              <dt>Sala</dt>
+              <dd>{detail.roomResourceName}</dd>
+            </div>
+          ) : null}
+        </dl>
 
         {paidSignal ? (
           <div className="inbox-notice" role="status" style={{ margin: '0 16px' }}>
@@ -335,37 +400,8 @@ export function CompromissoScreen({
           </div>
         ) : null}
 
-        {mode === 'view' && detail.conversationId ? (
-          <div style={{ padding: '12px 16px 0' }}>
-            <Button
-              className="panel-btn-primary agenda-open-chat"
-              onPress={() =>
-                navigatePanel({
-                  kind: 'area',
-                  area: 'conversas',
-                  tenantId,
-                  section: 'thread',
-                  conversationId: detail.conversationId!,
-                })
-              }
-            >
-              Abrir conversa
-            </Button>
-          </div>
-        ) : null}
-
         {canChange && mode === 'view' ? (
-          <div className="clinic-actions" style={{ padding: '12px 16px' }}>
-            <Button
-              className="panel-btn-secondary"
-              onPress={() => {
-                setMode('cancel')
-                setReason('')
-                setDisposition('')
-              }}
-            >
-              Cancelar
-            </Button>
+          <div className="appt-actions">
             <Button
               className="panel-btn-primary"
               onPress={() =>
@@ -392,6 +428,17 @@ export function CompromissoScreen({
                 Permitir os dois
               </Button>
             ) : null}
+            {/* Cancelar no fim e em vermelho; o motivo é pedido antes de valer. */}
+            <Button
+              className="panel-btn-danger appt-cancel"
+              onPress={() => {
+                setMode('cancel')
+                setReason('')
+                setDisposition('')
+              }}
+            >
+              Cancelar compromisso
+            </Button>
           </div>
         ) : null}
 
@@ -478,9 +525,11 @@ export function CompromissoScreen({
           </div>
         ) : null}
 
-        <h2 className="panel-legend" style={{ padding: '0 16px' }}>
-          Histórico
-        </h2>
+        {detail.events.length > 0 ? (
+          <h2 className="panel-legend" style={{ padding: '0 16px' }}>
+            Histórico
+          </h2>
+        ) : null}
         <ul className="acomp-history">
           {detail.events.map((e) => (
             <li key={e.id}>

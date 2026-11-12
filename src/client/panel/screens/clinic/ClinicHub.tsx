@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import type { ClinicConfigSnapshot } from '../../api'
 import { navigatePanel, type ClinicaSection } from '../../routes'
+import { Badge } from '../../states/Badge'
 import { Banner } from '../../states/Banner'
 import { CLINIC_SCOPE_ID, toWeekDraft, windowsOf } from './clinicHours'
 import { NavRow } from './NavRow'
@@ -83,6 +84,31 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
   const services = readiness.counts.servicesActive
   const pros = readiness.counts.professionalsActive
 
+  // DEC-163: com a clínica em uso, cada linha diz o valor atual, não a instrução.
+  const activeNames = (kind: 'professional' | 'room' | 'equipment') =>
+    (snap.resources ?? []).filter((r) => r.active && r.kind === kind).map((r) => r.name)
+  const listNames = (names: string[]) =>
+    names.length <= 1
+      ? (names[0] ?? '')
+      : `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`
+  const prices = (snap.services ?? [])
+    .filter((sv) => sv.active && sv.priceCents != null)
+    .map((sv) => sv.priceCents as number)
+  const brl = (cents: number) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    }).format(cents / 100)
+  const priceRange =
+    prices.length > 0
+      ? Math.min(...prices) === Math.max(...prices)
+        ? ` · ${brl(prices[0]!)}`
+        : ` · de ${brl(Math.min(...prices))} a ${brl(Math.max(...prices))}`
+      : ''
+  const roomNames = [...activeNames('room'), ...activeNames('equipment')]
+  const proNames = activeNames('professional')
+
   const roomsDetail =
     roomsActive === 0
       ? 'Nenhuma ainda · só se algum serviço precisar'
@@ -93,6 +119,10 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
     services === 0
       ? 'Nenhum serviço cadastrado'
       : `${services} ${services === 1 ? 'serviço ativo' : 'serviços ativos'}`
+  const inUse = stepsLeft <= 1
+  const prosValue = proNames.length > 0 ? listNames(proNames) : prosDetail
+  const roomsValue = roomNames.length > 0 ? listNames(roomNames) : roomsDetail
+  const servicesValue = services > 0 ? `${servicesDetail}${priceRange}` : servicesDetail
 
   const optionalRows = (
     <>
@@ -101,7 +131,13 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
           <NavRow
             icon={Sparkles}
             title="Assistente e automações"
-            detail="Sugestões com IA, atendente virtual e limites de proteção"
+            detail={
+              inUse
+                ? snap.settings?.aiAssistEnabled
+                  ? 'Sugestões com IA ligadas'
+                  : 'Sugestões com IA desligadas'
+                : 'Sugestões com IA, atendente virtual e limites de proteção'
+            }
             state="neutral"
             onPress={go('assistente')}
           />
@@ -111,7 +147,7 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
         <NavRow
           icon={Wallet}
           title="Recebimento de sinais"
-          detail="Opcional · conta Pix, prazo e regras do sinal"
+          detail={inUse ? 'Opcional · sinal por Pix' : 'Opcional · conta Pix, prazo e regras do sinal'}
           state="neutral"
           onPress={go('recebimento')}
         />
@@ -137,7 +173,7 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
 
   return (
     <div className={`clinic-stack${stepsLeft === 0 ? ' clinic-stack--hub' : ''}`}>
-      {stepsLeft > 0 && next ? (
+      {!inUse && next ? (
         <>
           <section className="hub-next" aria-labelledby="hub-next-t">
             <div
@@ -220,9 +256,27 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
         </>
       ) : (
         <>
-          <Banner tone="ok" title="Pronta para atender">
-            <p>Agenda e WhatsApp configurados.</p>
-          </Banner>
+          {stepsLeft === 1 && next ? (
+            // DEC-163 (M-71): o passo que falta numa faixa de uma linha; o resto é o índice.
+            <section className="hub-strip" aria-labelledby="hub-strip-t">
+              <span className="hub-strip-text">
+                <strong id="hub-strip-t">
+                  {next.label === 'WhatsApp' ? 'Falta conectar o WhatsApp' : `Falta: ${next.label}`}
+                </strong>
+                <span>
+                  {done} de {steps.length} passos prontos.
+                  {next.label === 'WhatsApp' ? ' Sem ele, nenhuma conversa chega.' : ''}
+                </span>
+              </span>
+              <Button className="panel-btn-primary hub-strip-cta" onPress={next.go}>
+                {next.label === 'WhatsApp' ? 'Conectar' : next.cta}
+              </Button>
+            </section>
+          ) : (
+            <Banner tone="ok" title="Pronta para atender">
+              <p>Agenda e WhatsApp configurados.</p>
+            </Banner>
+          )}
 
           {pendingServices > 0 ? (
             <Button className="hub-alert" onPress={go('conferir')}>
@@ -272,6 +326,7 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
                   ? `Aberta ${Math.round(weekHours)} h por semana`
                   : 'Sem horário da clínica · cada profissional tem o seu'}
               </span>
+              {!hoursOk ? <Badge tone="wait">Falta</Badge> : null}
             </span>
           </button>
             </section>
@@ -282,18 +337,25 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
               <NavRow
                 icon={Users}
                 title="Profissionais"
-                detail={prosDetail}
+                detail={prosValue}
+                state={prosOk ? 'neutral' : 'todo'}
                 onPress={goEntity('recursos', 'profissionais')}
               />
             </li>
             <li>
-              <NavRow icon={ListChecks} title="Serviços" detail={servicesDetail} onPress={go('servicos')} />
+              <NavRow
+                icon={ListChecks}
+                title="Serviços"
+                detail={servicesValue}
+                state={servicesOk ? 'neutral' : 'todo'}
+                onPress={go('servicos')}
+              />
             </li>
             <li>
               <NavRow
                 icon={DoorOpen}
                 title="Salas e equipamentos"
-                detail={roomsDetail}
+                detail={roomsValue}
                 onPress={goEntity('recursos', 'salas')}
               />
             </li>
@@ -306,7 +368,8 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
               <NavRow
                 icon={MessageCircle}
                 title="WhatsApp"
-                detail="Número de WhatsApp da clínica"
+                detail={whatsappOk ? 'Conectado' : 'Não conectado'}
+                state={whatsappOk ? 'neutral' : 'todo'}
                 onPress={go('whatsapp')}
               />
             </li>
@@ -317,7 +380,13 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
         </>
       )}
 
-      {stagingCard ?? null}
+      {stagingCard ? (
+        // DEC-163: ferramenta de staging recolhida no fim, longe do uso diário.
+        <details className="hub-staging">
+          <summary>Staging: repor a clínica ao estado inicial</summary>
+          {stagingCard}
+        </details>
+      ) : null}
 
       <p className="clinic-footnote">
         Só o responsável pela clínica vê e altera esta área. Atendentes consultam serviços pela

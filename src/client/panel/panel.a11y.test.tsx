@@ -2,7 +2,7 @@
  * Acessibilidade do painel — axe + teclado/landmarkas (sem Playwright / aparelho real).
  * Contraste CSS: docs/design/tools/check_contrast.py. Q-UX-01 / UX-08 em aparelho: Em aberto.
  */
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import axe from 'axe-core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -144,7 +144,7 @@ describe('painel a11y — shell e diálogos', () => {
     writeSynthUserId(null)
   })
 
-  it('shell com skip link, main e nav; axe limpo na lista de conversas', async () => {
+  it('shell com skip link, main e nav; axe limpo na caixa de conversas vazia', async () => {
     sessionStorage.clear()
     writeSynthUserId('user_synth_owner_a')
     window.history.replaceState(null, '', '/c/clinic-demo-a/conversas')
@@ -159,12 +159,9 @@ describe('painel a11y — shell e diálogos', () => {
     expect(screen.getByRole('navigation', { name: 'Áreas' })).toBeTruthy()
     expect(screen.getByRole('main')).toBeTruthy()
 
-    const filters = await screen.findByRole('toolbar', {
-      name: 'Filtros da caixa de entrada',
-    })
-    expect(
-      within(filters).getByRole('button', { name: /^Todas/ }).getAttribute('aria-pressed'),
-    ).toBe('true')
+    // DEC-162: caixa vazia não mostra busca nem filtros; mostra o primeiro passo.
+    expect(await screen.findByRole('heading', { name: 'Nenhuma conversa ainda' })).toBeTruthy()
+    expect(screen.queryByRole('toolbar', { name: 'Filtros da caixa de entrada' })).toBeNull()
 
     await expectNoAxeViolations(container)
   })

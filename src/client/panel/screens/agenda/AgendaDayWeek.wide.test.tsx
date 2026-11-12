@@ -126,8 +126,9 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     expect(within(context).queryByText('Carla Mendes')).toBeNull()
     expect(within(context).getByText('Laura Pires')).toBeTruthy()
     const grid = document.querySelector('.agenda-grid') as HTMLElement
-    expect(within(grid).queryByText('Drenagem')).toBeNull()
-    expect(within(grid).getByText('Depilação a laser')).toBeTruthy()
+    // DEC-165: o bloco começa pela cliente; o serviço vem na segunda linha (com a sala).
+    expect(within(grid).queryByText(/Drenagem/)).toBeNull()
+    expect(within(grid).getByText(/Depilação a laser/)).toBeTruthy()
     fireEvent.click(within(context).getByRole('button', { name: 'Limpar filtros' }))
     expect(await within(context).findByText('Carla Mendes')).toBeTruthy()
   })

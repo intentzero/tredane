@@ -89,6 +89,24 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
   const changed = changedDays(draft, saved)
   const dirty = changed.length > 0
 
+  // DEC-163 (M-73): sem horário próprio da clínica, dizer o que vale de facto e oferecer
+  // copiar o horário mais comum das profissionais. Nada grava até «Salvar horário».
+  const noClinicHours = Object.values(saved).every((d) => (d ?? []).length === 0)
+  const ownWeeks = own.map((p) => toWeekDraft(windowsOf(snap, p.id)))
+  const commonWeek = (() => {
+    const tally = new Map<string, { week: WeekDraft; n: number }>()
+    for (const w of ownWeeks) {
+      const key = describeWeek(w)
+      if (Object.values(w).every((d) => (d ?? []).length === 0)) continue
+      const hit = tally.get(key)
+      if (hit) hit.n += 1
+      else tally.set(key, { week: w, n: 1 })
+    }
+    let best: { week: WeekDraft; n: number } | null = null
+    for (const v of tally.values()) if (!best || v.n > best.n) best = v
+    return best
+  })()
+
   const now = Date.now()
   const todayIso = civilOf(now, tz)
   const [ym, setYm] = useState<Ym>(() => {
@@ -202,6 +220,26 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
           </p>
         ) : null}
       </section>
+
+      {noClinicHours && commonWeek && !dirty ? (
+        <section className="hours-fallback" aria-labelledby="hours-fallback-t">
+          <h3 id="hours-fallback-t" className="hours-fallback-title">
+            A clínica não tem horário próprio
+          </h3>
+          <p>
+            A agenda funciona porque{' '}
+            {own.length === 1 ? 'a profissional tem' : `as ${own.length} profissionais têm`} horário
+            próprio
+            {commonWeek.n === own.length ? `: ${describeWeek(commonWeek.week)}` : ''}.
+          </p>
+          <Button className="panel-btn panel-btn-primary" onPress={() => setDraft(commonWeek.week)}>
+            Usar esse horário para a clínica
+          </Button>
+          <Button className="panel-link-btn hours-fallback-alt" onPress={() => setEditingDay(1)}>
+            Definir outro horário
+          </Button>
+        </section>
+      ) : null}
 
       <section className="clinic-section" aria-labelledby="week-h">
         <h3 id="week-h" className="panel-legend">
@@ -351,9 +389,14 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
                   </Button>
                 </div>
               </div>
+            ) : noClinicHours ? (
+              // Seguir um horário vazio fecharia a agenda de todas: só depois de a clínica ter horário.
+              <p className="clinic-footnote">
+                «Todas seguem o da clínica» fica disponível quando a clínica tiver horário.
+              </p>
             ) : (
-              <Button className="panel-btn panel-btn-ghost" onPress={() => setConfirmAll(true)}>
-                {own.length === 1 ? 'Passar a seguir o da clínica' : 'Todas passam a seguir o da clínica'}
+              <Button className="panel-btn panel-btn-secondary" onPress={() => setConfirmAll(true)}>
+                {own.length === 1 ? 'Passar a seguir o da clínica' : 'Todas seguem o da clínica…'}
               </Button>
             )}
           </>

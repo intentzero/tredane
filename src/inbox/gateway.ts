@@ -14,6 +14,7 @@ import type {
   BlockContactInput,
   CloseConversationInput,
   ContactAppointmentItem,
+  ContactDirectoryItem,
   ConversationDetail,
   ConversationListItem,
   InboxCounts,
@@ -79,7 +80,7 @@ export type InboxGateway = {
       limit?: number
     },
   ): Promise<{
-    contacts: ConversationListItem['contact'][]
+    contacts: ContactDirectoryItem[]
     nextBefore: null
   }>
   getContact(

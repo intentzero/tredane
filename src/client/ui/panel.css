@@ -51,8 +51,8 @@
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-md);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   font-weight: var(--font-weight-semibold);
   text-decoration: none;
   transform: translateY(-160%);
@@ -367,12 +367,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-on-primary);
+  color: var(--color-primary-on-fill);
 }
 
 .panel-checkbox[data-state='checked'],
 .panel-checkbox[data-selected] {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
   border-color: var(--color-primary-base);
 }
 
@@ -1277,7 +1277,7 @@
 }
 
 .panel-clerk-primary {
-  background: var(--color-primary-base) !important;
+  background: var(--color-primary-fill) !important;
   min-height: var(--size-control-default);
 }
 
@@ -2305,7 +2305,7 @@
 }
 
 .clinic-check[data-selected] .clinic-check-box {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
   border-color: var(--color-primary-base);
 }
 
@@ -2391,8 +2391,8 @@
 }
 
 .agenda-week-card--today .agenda-week-card-date {
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
 }
 
 .agenda-week-card-wd {
@@ -2476,7 +2476,7 @@
   display: block;
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .agenda-occ-pct {
@@ -2863,8 +2863,8 @@
 }
 
 .panel-btn-primary {
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
 }
 
 .panel-btn-primary:active,
@@ -2993,8 +2993,8 @@
 }
 
 .panel-chip-count--hot {
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
 }
 
 .panel-chip[aria-selected='true'] .panel-chip-count,
@@ -3484,8 +3484,8 @@
   height: 22px;
   padding: 0 6px;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-semibold);
   font-variant-numeric: tabular-nums;
@@ -3804,8 +3804,8 @@
   justify-content: center;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   cursor: pointer;
 }
 
@@ -4064,7 +4064,7 @@
 }
 
 .agenda-weekday-dot--on {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .agenda-weekday--today .agenda-weekday-num {
@@ -4072,18 +4072,18 @@
 }
 
 .agenda-weekday--on {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
   border-color: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  color: var(--color-primary-on-fill);
 }
 
 .agenda-weekday--on .agenda-weekday-name,
 .agenda-weekday--on .agenda-weekday-num {
-  color: var(--color-text-on-primary);
+  color: var(--color-primary-on-fill);
 }
 
 .agenda-weekday--on .agenda-weekday-dot--on {
-  background: var(--color-text-on-primary);
+  background: var(--color-primary-on-fill);
 }
 
 .agenda-body {
@@ -5724,7 +5724,7 @@
 .block-contact-radio[data-selected] .block-contact-dot {
   border-color: var(--color-primary-base);
   box-shadow: inset 0 0 0 4px var(--color-surface-card);
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .block-contact-radio[data-focus-visible] .block-contact-dot {
@@ -6138,8 +6138,8 @@
   padding: 0 var(--space-5);
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   font: inherit;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
@@ -6223,7 +6223,7 @@
 }
 
 .week-switch[aria-checked='true']::before {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .week-switch-knob {
@@ -6799,7 +6799,7 @@
 .tempo-radio[data-selected] .tempo-radio-dot {
   border-color: var(--color-primary-base);
   box-shadow: inset 0 0 0 4px var(--color-surface-card);
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .tempo-radio[data-focus-visible] .tempo-radio-dot {
@@ -6923,7 +6923,7 @@
 }
 
 .hub-week-col i[data-open='true'] {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .hub-week-text {
@@ -7015,7 +7015,7 @@
 }
 
 .clinic-switch[data-selected] .clinic-switch-track {
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .clinic-switch[data-selected] .clinic-switch-thumb {
@@ -7713,7 +7713,7 @@
   top: 0;
   bottom: 0;
   border-radius: 4px;
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .hours-section-head {
@@ -7945,12 +7945,12 @@
   border: 2px solid var(--color-line-control);
   border-radius: 6px;
   background: var(--color-surface-card);
-  color: var(--color-text-on-primary);
+  color: var(--color-primary-on-fill);
 }
 
 .panel-choice-item[data-selected] .panel-multi-box {
   border-color: var(--color-primary-base);
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .panel-choice-item:has(.panel-multi-box) {
@@ -8147,8 +8147,8 @@
   align-items: center;
   padding-left: var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   font-size: var(--font-size-caption);
   font-style: normal;
   font-weight: var(--font-weight-semibold);
@@ -8200,7 +8200,7 @@
   width: 16px;
   height: 8px;
   border-radius: 2px;
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .week-grid-key.week-grid-hatch {
@@ -8309,8 +8309,8 @@
 }
 
 .agenda-month-day[aria-pressed='true'] {
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -8457,7 +8457,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  background: var(--color-primary-base);
+  background: var(--color-primary-fill);
 }
 
 .clinic-context-item:focus-visible {
@@ -8901,8 +8901,8 @@
 
 .vc-chip[data-selected] {
   border-color: var(--color-primary-base);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   font-weight: var(--font-weight-medium);
 }
 
@@ -10176,8 +10176,8 @@
 .conversas-3col .inbox-thread-header .panel-header-action--primary {
   border-color: var(--color-primary-base);
   border-radius: var(--radius-lg);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
   padding: 0 var(--space-4) 0 var(--space-3);
   gap: var(--space-2);
 }
@@ -10466,4 +10466,723 @@
 .panel-chip-count.panel-chip-count--warn {
   background: var(--color-warning-ink);
   color: var(--color-surface-card);
+}
+
+/* ——— DEC-162 (Paulo, 11/11/2026): Conversas por urgência ———
+ * Cabeçalho do shell em 1 linha no celular; lista agrupada; espera no lugar da data;
+ * lista vazia com o estado do WhatsApp. DEC-164: `attention` só para gente à espera. */
+@media (max-width: 767.98px) {
+  .panel-shell-clinic {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .panel-live:not(.panel-live--offline) .panel-live-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .panel-live:not(.panel-live--offline) {
+    order: -1;
+  }
+}
+
+.inbox-groups {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.inbox-group-title {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.inbox-group--unassigned .inbox-group-title {
+  color: var(--color-attention-ink);
+}
+
+.inbox-group--unassigned .inbox-unread {
+  background: var(--color-attention-base);
+  color: var(--color-attention-on-base);
+}
+
+.inbox-group + .inbox-group {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.inbox-row-preview-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.inbox-row-preview-line .inbox-row-preview {
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-row .inbox-row-time--waiting,
+.inbox-row--unread .inbox-row-time--waiting {
+  color: var(--color-attention-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-row-meta:empty {
+  display: none;
+}
+
+.panel-chip-count--hot {
+  background: var(--color-attention-base);
+  color: var(--color-attention-on-base);
+}
+
+.inbox-empty-start {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+}
+
+.inbox-empty-start > .panel-status {
+  padding: 0;
+}
+
+.inbox-empty-steps {
+  display: flex;
+  flex-direction: column;
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.inbox-empty-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.inbox-empty-step + .inbox-empty-step {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.inbox-empty-step-mark {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-line-control);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inbox-empty-step-mark--done {
+  border: 0;
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+
+.inbox-empty-step-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-empty-step-title {
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-empty-step-desc {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.inbox-empty-copy {
+  min-height: var(--size-touch);
+}
+
+/* Desktop: filtros quebram em linhas em vez de cortar «Sem…» (DEC-162). */
+@media (min-width: 768px) {
+  .inbox-filters {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* Agendar em folha sobre a conversa no celular (DEC-162, M-69). */
+.conversas-agendar-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(20, 38, 37, 0.45);
+}
+
+.conversas-agendar-sheet-modal {
+  width: 100%;
+  height: calc(100dvh - var(--space-8));
+  display: flex;
+  outline: none;
+}
+
+.conversas-agendar-sheet {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-surface-card);
+  overflow: hidden;
+  outline: none;
+}
+
+.conversas-agendar-sheet-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.conversas-agendar-quote {
+  margin: var(--space-3) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.conversas-agendar-quote-label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.conversas-agendar-quote-body {
+  color: var(--color-text-primary);
+}
+
+/* Conversa nova sem responsável com janela fechada: um cartão, uma ação (DEC-162, M-68). */
+.inbox-handoff--closed {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+}
+
+.inbox-handoff--closed .inbox-handoff-text strong {
+  color: var(--color-warning-ink);
+}
+
+.inbox-handoff--closed .inbox-handoff-btn {
+  min-height: var(--size-touch);
+}
+
+.inbox-handoff-secondary {
+  align-self: center;
+  min-height: var(--size-touch);
+}
+
+.inbox-thread-wait {
+  color: var(--color-attention-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Contato / ficha em tela focada no celular (DEC-162, M-70; ficha do cliente). */
+@media (max-width: 767.98px) {
+  .panel-app:has(.panel-shell-main > .inbox-contact) .panel-shell-header,
+  .panel-app:has(.panel-shell-main > .inbox-contact) .panel-nav {
+    display: none;
+  }
+
+  .panel-shell-main:has(> .inbox-contact) {
+    padding: 0;
+  }
+}
+
+.ic-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
+}
+
+.ic-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+}
+
+.ic-danger-rows {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-4) var(--space-4) var(--space-6);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.ic-danger-rows > .inbox-notice {
+  margin: var(--space-2) var(--space-4) 0;
+}
+
+.ic-danger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-danger-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ic-danger-row + .ic-danger-row {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.ic-danger-row[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: -2px;
+}
+
+/* Desktop: coluna de leitura de 680 px e janela fechada em barra compacta (DEC-162). */
+@media (min-width: 1024px) {
+  .conversas-3col .inbox-timeline {
+    padding-inline: max(var(--space-5), calc((100% - 680px) / 2));
+  }
+
+  .conversas-3col .inbox-dock {
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+  }
+
+  .conversas-3col .inbox-composer-template {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .conversas-3col .inbox-composer-template > .panel-btn-primary {
+    width: auto;
+    padding-inline: var(--space-5);
+  }
+
+  .conversas-3col .inbox-handoff--closed {
+    width: calc(100% - 2 * var(--space-5));
+    max-width: 680px;
+    margin-inline: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .conversas-3col .inbox-handoff--closed .inbox-handoff-text {
+    flex: 1 1 280px;
+  }
+
+  .conversas-3col .inbox-handoff--closed .inbox-handoff-secondary {
+    align-self: auto;
+  }
+}
+
+/* ——— DEC-163 (Paulo, 11/11/2026): Clínica em uso ——— */
+.hub-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-tint);
+}
+
+.hub-strip-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hub-strip-text strong {
+  color: var(--color-warning-ink);
+}
+
+.hub-strip-text span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.hub-strip-cta {
+  flex: none;
+  min-height: var(--size-touch);
+}
+
+.hub-staging {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  padding-top: var(--space-3);
+}
+
+.hub-staging > summary {
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.clinic-sub-header {
+  display: none;
+}
+
+@media (max-width: 1279.98px) {
+  .panel-app:has(.clinic-sub) .panel-shell-header {
+    display: none;
+  }
+
+  .clinic-sub-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 56px;
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-3);
+    padding: 0 var(--space-2) 0 var(--space-1);
+    border-bottom: var(--size-border-width) solid var(--color-line-border);
+    background: var(--color-surface-card);
+  }
+
+  .clinic-sub-titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .clinic-sub-title {
+    margin: 0;
+    font-size: var(--font-size-headline);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .clinic-sub-eyebrow {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  /* Os «Voltar» soltos de cada tela e o título repetido do Horário saem: o cabeçalho já volta. */
+  .clinic-sub .clinic-toolbar:has(> .panel-btn-ghost:only-child),
+  .clinic-sub .hours-screen > .clinic-h2 {
+    display: none;
+  }
+}
+
+.clinic-search {
+  margin: 0;
+}
+
+.clinic-service-top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.clinic-service-top > strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-service-price {
+  flex: none;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.clinic-service-list .clinic-nav-copy > span:not(.clinic-service-top) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hours-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-tint);
+}
+
+.hours-fallback-title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-warning-ink);
+}
+
+.hours-fallback p {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.hours-fallback-alt {
+  align-self: center;
+  min-height: var(--size-touch);
+}
+
+.ai-optin-more > summary {
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.ai-optin-more > p {
+  margin: 0 0 var(--space-2);
+}
+
+/* ——— Agenda e Clientes (DEC-165) ——— */
+.appt-when {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.appt-when-day {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.appt-when-time {
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.appt-when-service {
+  font-size: var(--font-size-title);
+}
+
+.appt-when-meta {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.appt-card {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-2) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.appt-card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.appt-card-row + .appt-card-row {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.appt-card-row--link,
+.appt-card-row--action {
+  cursor: pointer;
+}
+
+.appt-card-row--action {
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.appt-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.appt-card-main > span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.appt-facts {
+  margin-block: var(--space-2);
+}
+
+.appt-facts > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+}
+
+.appt-facts > div + div {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.appt-facts dt {
+  width: 96px;
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.appt-facts dd {
+  margin: 0;
+}
+
+.appt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.appt-actions > .panel-btn-primary,
+.appt-actions > .panel-btn-secondary,
+.appt-actions > .appt-cancel {
+  width: 100%;
+  min-height: var(--size-touch);
+}
+
+.appt-cancel {
+  margin-top: var(--space-4);
+}
+
+.agenda-card {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  border: 0;
+  border-left: 4px solid var(--agenda-tone-edge, var(--color-primary-base));
+  background: var(--color-surface-sunken);
+}
+
+.agenda-card--tone-0 { --agenda-tone-edge: var(--color-primary-base); }
+.agenda-card--tone-1 { --agenda-tone-edge: var(--color-ai-border); }
+.agenda-card--tone-2 { --agenda-tone-edge: var(--color-warning-ink); }
+.agenda-card--tone-3 { --agenda-tone-edge: var(--color-success-ink); }
+
+.agenda-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.agenda-card-line {
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-row-time--same {
+  visibility: hidden;
+}
+
+.agenda-row--same {
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.agenda-grid-heads {
+  display: grid;
+  gap: 0;
+  margin-left: 52px;
+  margin-bottom: var(--space-1);
+}
+
+.agenda-grid-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 3px solid var(--agenda-tone-edge, var(--color-primary-base));
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-block[class*='agenda-card--tone-'] {
+  border: 0;
+  border-left: 4px solid var(--agenda-tone-edge);
+  background: var(--color-surface-sunken);
+}
+
+.agenda-block .agenda-block-title {
+  color: var(--color-text-primary);
+}
+
+.clientes-row-next {
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-medium);
 }

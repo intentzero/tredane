@@ -6,7 +6,9 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
 import { mapContactSummary, mapConversation, previewBody } from './rows'
 import type {
+  ContactDirectoryItem,
   ContactSummary,
+  ContactVisit,
   ConversationListItem,
   ConversationRow,
   InboxCounts,
@@ -601,7 +603,7 @@ export function listContactsDirectory(
     limit?: number
     nowMs: number
   },
-): { items: ContactSummary[]; nextBefore: null } {
+): { items: ContactDirectoryItem[]; nextBefore: null } {
   assertClinicSchemaReady(db)
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 100)
   const q = input.q?.trim()
@@ -652,8 +654,49 @@ export function listContactsDirectory(
     limit,
   )
 
+  // DEC-165: a linha da lista diz o próximo horário ou a última visita (só confirmados).
+  const ids = rows.map((r) => r.id)
+  const visits = (order: 'next' | 'last') => {
+    const map = new Map<string, ContactVisit>()
+    if (ids.length === 0) return map
+    const marks = ids.map(() => '?').join(', ')
+    const cond = order === 'next' ? 'a.starts_at > ?' : 'a.ends_at <= ?'
+    const pick = order === 'next' ? 'MIN' : 'MAX'
+    const visitRows = db.all<{ contact_id: string; starts_at: number; service_name: string | null }>(
+      `SELECT a.contact_id, a.starts_at, s.name AS service_name
+       FROM appointments a
+       LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
+       WHERE a.tenant_id = ?
+         AND a.status = 'confirmed'
+         AND a.contact_id IN (${marks})
+         AND ${cond}
+         AND a.starts_at = (
+           SELECT ${pick}(b.starts_at) FROM appointments b
+           WHERE b.tenant_id = a.tenant_id AND b.contact_id = a.contact_id
+             AND b.status = 'confirmed'
+             AND ${cond.replace('a.', 'b.')}
+         )`,
+      tenantId,
+      ...ids,
+      input.nowMs,
+      input.nowMs,
+    )
+    for (const v of visitRows) {
+      if (!map.has(v.contact_id)) {
+        map.set(v.contact_id, { startsAt: v.starts_at, serviceName: v.service_name ?? 'Serviço' })
+      }
+    }
+    return map
+  }
+  const next = visits('next')
+  const last = visits('last')
+
   return {
-    items: rows.map((row) => mapContactSummary(row)),
+    items: rows.map((row) => ({
+      ...mapContactSummary(row),
+      nextVisit: next.get(row.id) ?? null,
+      lastVisit: last.get(row.id) ?? null,
+    })),
     nextBefore: null,
   }
 }

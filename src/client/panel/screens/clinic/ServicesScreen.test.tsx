@@ -248,9 +248,10 @@ describe('ServicesList — esqueleto comum e avisos', () => {
     blocks: [],
   } as unknown as ClinicConfigSnapshot
 
-  it('mostra frase de ocupação, aviso só na exceção e esconde inativos até ligar a chave', () => {
+  it('mostra duração em linha, aviso só na exceção e esconde inativos até ligar a chave', () => {
     render(<ServicesList tenantId="t" snap={snap} />)
-    expect(screen.getByText('Ocupa 75 min (60 + 15 de intervalo)')).toBeTruthy()
+    // DEC-163: duração, profissional e sala numa linha; o preço vai à direita do nome.
+    expect(screen.getByText('60 min + 15 de intervalo · Gi')).toBeTruthy()
     expect(screen.getAllByText('Sem profissional')).toHaveLength(1)
     expect(screen.getByText('2 serviços ativos')).toBeTruthy()
     expect(screen.queryByText('Antigo')).toBeNull()
