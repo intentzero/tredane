@@ -63,7 +63,7 @@ Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController
 
 ## Cadastro transparente (UX)
 
-Confirmado (paridade Legal Layer / DEC-021): `/cadastro` usa formulário React Aria (marca + «Criar conta» + e-mail/código) com `useSignUp` — **não** o `<SignUp />` pré-built, que em Restricted pintava «Criar sua conta» só com Entrar. `/entrar` mantém `<SignIn />` com `clerkAppearance` (`elevation: 'flush'`, `logoPlacement: 'none'`, fundo transparente). Access mode **Open** continua obrigatório (passo 6): Restricted falha no create e o formulário mostra «Cadastro indisponível» com orientação — o produto não contorna Invite-only (convites D1).
+Confirmado (paridade Legal Layer / DEC-021): `/cadastro` usa formulário React Aria (marca + «Criar conta» + e-mail/código) com `useSignUp` — **não** o `<SignUp />` pré-built, que em Restricted pintava «Criar sua conta» só com Entrar. `/entrar` mantém `<SignIn />` com `clerkAuthAppearance` (`elevation: 'flush'`, `logoPlacement: 'none'`, fundo transparente). O modal **Dados pessoais** (`openUserProfile`) e o `ClerkProvider` usam `clerkUserProfileAppearance` (cartão opaco, sem flush) para não colidir com os cartões da Clínica. Access mode **Open** continua obrigatório (passo 6): Restricted falha no create e o formulário mostra «Cadastro indisponível» com orientação — o produto não contorna Invite-only (convites D1).
 
 ## Fora deste PR
 

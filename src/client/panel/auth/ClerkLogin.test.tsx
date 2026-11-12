@@ -126,17 +126,28 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
   })
 
   it('aparência flush/transparente no SignIn (cadastro transparente no SignUp é form próprio)', async () => {
-    const { clerkAppearance } = await import('./clerkAppearance')
-    expect(clerkAppearance.options.elevation).toBe('flush')
-    expect(clerkAppearance.options.logoPlacement).toBe('none')
-    expect(clerkAppearance.variables.colorBackground).toBe('transparent')
+    const { clerkAppearance, clerkAuthAppearance, clerkUserProfileAppearance } =
+      await import('./clerkAppearance')
+    expect(clerkAppearance).toBe(clerkAuthAppearance)
+    expect(clerkAuthAppearance.options.elevation).toBe('flush')
+    expect(clerkAuthAppearance.options.logoPlacement).toBe('none')
+    expect(clerkAuthAppearance.variables.colorBackground).toBe('transparent')
+    // Conta / Dados pessoais: sem flush nem fundo transparente (não colide com Clínica).
+    expect('elevation' in clerkUserProfileAppearance.options).toBe(false)
+    expect(clerkUserProfileAppearance.variables.colorBackground).toBe(
+      'var(--color-surface-card)',
+    )
+    expect(clerkUserProfileAppearance.elements.card).toBe('panel-clerk-profile-card')
+    expect(clerkUserProfileAppearance.elements.modalBackdrop).toBe(
+      'panel-clerk-profile-backdrop',
+    )
 
     writePendingInviteToken('tok_teste_nao_logar')
     const { ClerkLogin } = await import('./ClerkLogin')
     const { ClerkSignUp } = await import('./ClerkSignUp')
     render(<ClerkLogin />)
     render(<ClerkSignUp />)
-    expect(signInProps[0]?.appearance).toBe(clerkAppearance)
+    expect(signInProps[0]?.appearance).toBe(clerkAuthAppearance)
     expect(screen.getByRole('link', { name: 'Criar conta' }).getAttribute('href')).toBe(
       '/cadastro',
     )

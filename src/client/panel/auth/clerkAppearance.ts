@@ -1,6 +1,13 @@
 /**
- * Aparência Clerk partilhada (SignIn / UserProfile; OTP no SignIn).
+ * Aparência Clerk (SignIn / UserProfile; OTP no SignIn).
  * Cores/fonte alinhadas aos tokens do painel (DEC-041 / DEC-050 / DEC-073).
+ *
+ * Dois perfis (regressão Conta após #686):
+ * - `clerkAuthAppearance` — `/entrar` flush + transparente (cadastro transparente /
+ *   Legal Layer). Só no `<SignIn />`.
+ * - `clerkUserProfileAppearance` — modal «Dados pessoais» (Perfil / Segurança)
+ *   com cartão opaco e elevação; sem flush. Usado no ClerkProvider e em
+ *   `openUserProfile`, para não empilhar o perfil por cima dos cartões da Clínica.
  *
  * «Cadastro transparente» (paridade Legal Layer / DEC-021):
  * - `/cadastro` usa formulário React Aria + `useSignUp` (sem `<SignUp />` vazio)
@@ -15,7 +22,34 @@
  * «Cadastro indisponível» no formulário (não página morta). Paulo: Access → Open.
  * Ver docs/implementation/f1-login-nav.md.
  */
-export const clerkAppearance = {
+
+const clerkSharedVariables = {
+  colorPrimary: 'var(--color-primary-base)',
+  colorPrimaryForeground: 'var(--color-text-on-primary)',
+  colorForeground: 'var(--color-text-primary)',
+  colorMutedForeground: 'var(--color-text-secondary)',
+  colorInput: 'var(--color-surface-card)',
+  colorInputForeground: 'var(--color-text-primary)',
+  colorNeutral: 'var(--color-text-primary)',
+  colorBorder: 'var(--color-line-border)',
+  colorRing: 'var(--color-primary-base)',
+  colorDanger: 'var(--color-danger-ink)',
+  borderRadius: 'var(--radius-lg)',
+  fontFamily: 'var(--font-family)',
+  fontSize: '16px',
+} as const
+
+const clerkSharedElements = {
+  headerTitle: 'panel-clerk-title',
+  headerSubtitle: 'panel-clerk-subtitle',
+  formButtonPrimary: 'panel-clerk-primary',
+  footerAction: 'panel-clerk-footer',
+  logoBox: 'panel-clerk-logo',
+  otpCodeFieldInput: 'panel-clerk-otp-input',
+} as const
+
+/** `/entrar` — flush, sem chrome de cartão. Não usar no UserProfile. */
+export const clerkAuthAppearance = {
   options: {
     logoPlacement: 'none' as const,
     elevation: 'flush' as const,
@@ -23,29 +57,38 @@ export const clerkAppearance = {
     unsafe_disableDevelopmentModeWarnings: true,
   },
   variables: {
-    colorPrimary: 'var(--color-primary-base)',
-    colorPrimaryForeground: 'var(--color-text-on-primary)',
-    colorForeground: 'var(--color-text-primary)',
-    colorMutedForeground: 'var(--color-text-secondary)',
+    ...clerkSharedVariables,
     colorBackground: 'transparent',
-    colorInput: 'var(--color-surface-card)',
-    colorInputForeground: 'var(--color-text-primary)',
-    colorNeutral: 'var(--color-text-primary)',
-    colorBorder: 'var(--color-line-border)',
-    colorRing: 'var(--color-primary-base)',
-    colorDanger: 'var(--color-danger-ink)',
-    borderRadius: 'var(--radius-lg)',
-    fontFamily: 'var(--font-family)',
-    fontSize: '16px',
   },
   elements: {
+    ...clerkSharedElements,
     rootBox: 'panel-clerk-root',
     card: 'panel-clerk-card',
-    headerTitle: 'panel-clerk-title',
-    headerSubtitle: 'panel-clerk-subtitle',
-    formButtonPrimary: 'panel-clerk-primary',
-    footerAction: 'panel-clerk-footer',
-    logoBox: 'panel-clerk-logo',
-    otpCodeFieldInput: 'panel-clerk-otp-input',
   },
 } as const
+
+/**
+ * Modal «Dados pessoais» + default do ClerkProvider.
+ * Elevação normal e fundo de cartão — evita o UserProfile transparente
+ * a colidir com Profissionais / Serviços / Salas na Clínica.
+ */
+export const clerkUserProfileAppearance = {
+  options: {
+    logoPlacement: 'none' as const,
+    unsafe_disableDevelopmentModeWarnings: true,
+  },
+  variables: {
+    ...clerkSharedVariables,
+    colorBackground: 'var(--color-surface-card)',
+  },
+  elements: {
+    ...clerkSharedElements,
+    rootBox: 'panel-clerk-profile-root',
+    card: 'panel-clerk-profile-card',
+    modalBackdrop: 'panel-clerk-profile-backdrop',
+    modalContent: 'panel-clerk-profile-modal',
+  },
+} as const
+
+/** Alias histórico: SignIn / testes de cadastro transparente. */
+export const clerkAppearance = clerkAuthAppearance
