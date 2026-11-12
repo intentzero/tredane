@@ -1,76 +1,121 @@
-import { SignUp, useAuth } from '@clerk/react'
-import { useEffect, useRef, useState } from 'react'
+import { useAuth, useSignUp } from '@clerk/react'
+import { useState } from 'react'
+import { Button, Input, Label, TextField } from 'react-aria-components'
 import { BrandHorizontal } from '../ui/Brand'
+import { navigatePanel } from '../routes'
 import { readPendingInviteToken } from './session'
-import { clerkAppearance } from './clerkAppearance'
 
-/** Tempo após Clerk loaded antes de alertar — hydrate/captcha com Access Open pode demorar. */
-export const SIGNUP_FORM_WAIT_MS = 8000
+type Step = 'email' | 'code'
+
+type ClerkLikeError = {
+  code?: string
+  message?: string
+  longMessage?: string
+}
 
 /**
- * Cadastro Clerk para convidadas sem conta (DEC-021 / JRN-13).
- * Só é a entrada por defeito quando há token de convite pendente;
- * quem já tem conta usa o link «Entrar» → `/entrar`.
+ * Cadastro para convidadas sem conta (DEC-021 / JRN-13).
+ * Formulário próprio (React Aria) + `useSignUp` — UX Legal Layer transparente:
+ * marca Tredane, título «Criar conta», e-mail e código; sem cartão Clerk vazio
+ * «Criar sua conta / Entrar». Quem já tem conta usa «Entrar» → `/entrar`.
  *
- * UX: cartão flush/transparente + marca fora do Clerk (cadastro transparente).
- * Não contorna Access mode Invite-only do Dashboard — ver f1-login-nav.md.
- * Se o SignUp pintar só cabeçalho/«Entrar» sem e-mail/OTP (Restricted),
- * mostramos um alerta legível sem desmontar o `<SignUp />` — hydrate tardio
- * ou «Tentar novamente» recuperam sem reload da página.
+ * Access mode Open no Dashboard continua obrigatório (TR-523): Restricted
+ * falha no `create`/`sendEmailCode` e mostramos erro claro — o produto não
+ * contorna Invite-only (convites D1, ADR-0008).
  */
 export function ClerkSignUp() {
   const hasInvite = Boolean(readPendingInviteToken())
-  const afterSignUp = hasInvite ? '/invite/accept' : '/clinicas'
+  const afterSignUp = hasInvite
+    ? ({ kind: 'invite-accept' } as const)
+    : ({ kind: 'clinicas' } as const)
   const { isLoaded } = useAuth()
-  const clerkHostRef = useRef<HTMLDivElement>(null)
-  const [formReady, setFormReady] = useState(false)
-  const [formMissing, setFormMissing] = useState(false)
-  const [mountKey, setMountKey] = useState(0)
+  const { signUp, errors, fetchStatus } = useSignUp()
 
-  useEffect(() => {
-    if (!isLoaded) return
-    const host = clerkHostRef.current
-    if (!host) return
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
 
-    let cancelled = false
-    const hasFormInput = () => Boolean(host.querySelector('input'))
+  const busy = fetchStatus === 'fetching'
+  const fieldError =
+    step === 'email'
+      ? errors.fields.emailAddress?.message ?? null
+      : errors.fields.code?.message ?? null
+  const globalError = errors.global?.[0]
+    ? formatClerkError(errors.global[0] as ClerkLikeError)
+    : null
+  const displayError = localError ?? fieldError ?? globalError
 
-    const markReady = () => {
-      if (cancelled) return
-      setFormReady(true)
-      setFormMissing(false)
-    }
-
-    if (hasFormInput()) {
-      markReady()
+  async function continueFromEmail() {
+    if (!email.trim() || busy) return
+    setLocalError(null)
+    const created = await signUp.create({ emailAddress: email.trim() })
+    if (created.error) {
+      setLocalError(formatClerkError(created.error as ClerkLikeError, hasInvite))
       return
     }
-
-    const observer = new MutationObserver(() => {
-      if (!hasFormInput()) return
-      markReady()
-      observer.disconnect()
-    })
-    observer.observe(host, { childList: true, subtree: true })
-
-    // Restricted / falha de SignUp: título + Entrar sem campos.
-    // Não desmontamos o SignUp no timeout — o observer continua a ver hydrate tardio.
-    const timeout = window.setTimeout(() => {
-      if (cancelled || hasFormInput()) return
-      setFormMissing(true)
-    }, SIGNUP_FORM_WAIT_MS)
-
-    return () => {
-      cancelled = true
-      observer.disconnect()
-      window.clearTimeout(timeout)
+    const sent = await signUp.verifications.sendEmailCode()
+    if (sent.error) {
+      setLocalError(formatClerkError(sent.error as ClerkLikeError, hasInvite))
+      return
     }
-  }, [isLoaded, mountKey])
+    setStep('code')
+    setCode('')
+  }
 
-  const retry = () => {
-    setFormMissing(false)
-    setFormReady(false)
-    setMountKey((k) => k + 1)
+  async function continueFromCode() {
+    if (code.trim().length < 4 || busy) return
+    setLocalError(null)
+    const verified = await signUp.verifications.verifyEmailCode({ code: code.trim() })
+    if (verified.error) {
+      setLocalError(formatClerkError(verified.error as ClerkLikeError, hasInvite))
+      return
+    }
+    if (signUp.status !== 'complete') {
+      setLocalError(
+        'Não foi possível concluir o cadastro. Confira o código ou peça um novo.',
+      )
+      return
+    }
+    const finalized = await signUp.finalize({
+      navigate: ({ decorateUrl }) => {
+        const dest = hasInvite ? '/invite/accept' : '/clinicas'
+        const url = decorateUrl(dest)
+        if (url.startsWith('http')) {
+          window.location.href = url
+          return
+        }
+        navigatePanel(afterSignUp, true)
+      },
+    })
+    if (finalized.error) {
+      setLocalError(formatClerkError(finalized.error as ClerkLikeError, hasInvite))
+    }
+  }
+
+  async function resendCode() {
+    if (busy) return
+    setLocalError(null)
+    const sent = await signUp.verifications.sendEmailCode()
+    if (sent.error) {
+      setLocalError(formatClerkError(sent.error as ClerkLikeError, hasInvite))
+    }
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="panel-auth" lang="pt-BR">
+        <div className="panel-auth-atmosphere" aria-hidden="true" />
+        <div className="panel-auth-stack">
+          <div className="panel-auth-hero">
+            <div className="panel-auth-brand">
+              <BrandHorizontal height={48} />
+            </div>
+          </div>
+          <p className="panel-auth-lead">Preparando cadastro…</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -81,72 +126,165 @@ export function ClerkSignUp() {
           <div className="panel-auth-brand">
             <BrandHorizontal height={48} />
           </div>
-          {/* Mantém-se até haver input real — título Restricted não deve esconder o lead. */}
-          <div className="panel-auth-fallback" hidden={formReady || formMissing}>
-            <h1 className="panel-auth-title">Criar conta</h1>
-            {hasInvite ? (
-              <p className="panel-auth-lead">
-                Use o mesmo e-mail do convite. Depois você entra na clínica.
+        </div>
+
+        {step === 'email' ? (
+          <form
+            className="panel-auth-form"
+            data-testid="signup-email-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void continueFromEmail()
+            }}
+          >
+            <div className="panel-auth-copy">
+              <h1 className="panel-auth-title">Criar conta</h1>
+              <p>
+                {hasInvite
+                  ? 'Use o mesmo e-mail do convite. Depois você entra na clínica.'
+                  : 'Cadastro aberto só com convite da clínica.'}
+              </p>
+            </div>
+            <TextField
+              className="panel-field"
+              value={email}
+              onChange={setEmail}
+              type="email"
+              isRequired
+              autoComplete="email"
+              isDisabled={busy}
+            >
+              <Label>E-mail</Label>
+              <Input
+                className="panel-control"
+                placeholder="nome@clinica.com.br"
+                aria-label="E-mail"
+              />
+            </TextField>
+            {/* Captcha Clerk (bot protection) — elemento exigido em custom flows. */}
+            <div id="clerk-captcha" />
+            {displayError ? (
+              <p className="panel-auth-error" role="alert" data-testid="signup-error">
+                {displayError}
               </p>
             ) : null}
-          </div>
-        </div>
-        {formMissing ? (
-          <div className="panel-auth-copy" role="alert" data-testid="signup-form-missing">
-            <h1 className="panel-auth-title">Cadastro indisponível</h1>
-            <p>
-              Não foi possível abrir o formulário de criar conta (e-mail e código).
-              {hasInvite
-                ? ' Se você recebeu um convite e ainda não tem conta, peça à responsável da clínica para liberar o cadastro e abra o link de novo.'
-                : ' Peça ao responsável da sua clínica um convite.'}
-            </p>
-            <p>
-              <button type="button" className="panel-auth-inline-link" onClick={retry}>
-                Tentar novamente
-              </button>
-              {' · '}
-              Já tem conta?{' '}
+            <Button type="submit" className="panel-btn-primary" isDisabled={busy || !email.trim()}>
+              Continuar
+            </Button>
+          </form>
+        ) : null}
+
+        {step === 'code' ? (
+          <form
+            className="panel-auth-form"
+            data-testid="signup-code-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void continueFromCode()
+            }}
+          >
+            <div className="panel-auth-copy">
+              <h1 className="panel-auth-title">Digite o código</h1>
+              <p>
+                Enviamos um código de 6 dígitos para <strong>{email}</strong>.
+              </p>
+            </div>
+            <TextField
+              className="panel-field"
+              value={code}
+              onChange={setCode}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              isRequired
+              isDisabled={busy}
+            >
+              <Label>Código de 6 dígitos</Label>
+              <Input
+                className="panel-control panel-otp"
+                placeholder="000000"
+                aria-label="Código de 6 dígitos"
+              />
+            </TextField>
+            {displayError ? (
+              <p className="panel-auth-error" role="alert" data-testid="signup-error">
+                {displayError}
+              </p>
+            ) : null}
+            <Button
+              type="submit"
+              className="panel-btn-primary"
+              isDisabled={busy || code.trim().length < 4}
+            >
+              Criar conta
+            </Button>
+            <Button
+              className="panel-link-btn"
+              isDisabled={busy}
+              onPress={() => {
+                void resendCode()
+              }}
+            >
+              Reenviar código
+            </Button>
+            <Button
+              className="panel-link-btn"
+              isDisabled={busy}
+              onPress={() => {
+                setStep('email')
+                setCode('')
+                setLocalError(null)
+                void signUp.reset()
+              }}
+            >
+              Usar outro e-mail
+            </Button>
+          </form>
+        ) : null}
+
+        <p className="panel-auth-foot panel-auth-note">
+          {hasInvite ? (
+            <>
+              <span className="panel-auth-note-lead">Já tem conta?</span>
               <a className="panel-auth-inline-link" href="/entrar">
                 Entrar
-              </a>
-            </p>
-          </div>
-        ) : null}
-        {/* Mantém SignUp montado (só esconde) para hydrate/captcha tardio recuperar sem reload. */}
-        <div
-          className="panel-auth-clerk"
-          ref={clerkHostRef}
-          hidden={formMissing}
-          aria-hidden={formMissing || undefined}
-        >
-          <SignUp
-            key={mountKey}
-            routing="path"
-            path="/cadastro"
-            forceRedirectUrl={afterSignUp}
-            signInUrl="/entrar"
-            appearance={clerkAppearance}
-          />
-        </div>
-        {!formMissing ? (
-          <p className="panel-auth-foot panel-auth-note">
-            {hasInvite ? (
-              <>
-                <span className="panel-auth-note-lead">Já tem conta?</span>
-                <a className="panel-auth-inline-link" href="/entrar">
-                  Entrar
-                </a>{' '}
-                com o e-mail do convite.
-              </>
-            ) : (
-              <>
-                <span className="panel-auth-note-lead">Sem convite?</span>
-                Peça ao responsável da sua clínica. Cadastro aberto só com convite.
-              </>
-            )}
-          </p>
-        ) : null}
+              </a>{' '}
+              com o e-mail do convite.
+            </>
+          ) : (
+            <>
+              <span className="panel-auth-note-lead">Sem convite?</span>
+              Peça ao responsável da sua clínica. Cadastro aberto só com convite.
+            </>
+          )}
+        </p>
       </div>
     </div>
   )
+}
+
+/** Mensagens PT-BR estáveis a partir do `code` Clerk; Restricted ≠ silêncio. */
+export function formatClerkError(err: ClerkLikeError, hasInvite = false): string {
+  const code = (err.code ?? '').toLowerCase()
+  if (
+    code.includes('sign_up_mode') ||
+    code.includes('signups_disabled') ||
+    code.includes('restricted') ||
+    code.includes('not_allowed_to_sign_up')
+  ) {
+    return hasInvite
+      ? 'Cadastro indisponível neste momento. Peça à responsável da clínica para liberar o Access mode Open e abra o link de convite de novo.'
+      : 'Cadastro indisponível neste momento. Peça ao responsável da sua clínica um convite.'
+  }
+  if (
+    code.includes('form_identifier_exists') ||
+    code.includes('identifier_exists') ||
+    code.includes('email_address_exists')
+  ) {
+    return 'Este e-mail já tem conta. Use Entrar com o e-mail do convite.'
+  }
+  if (code.includes('form_code') || code.includes('incorrect') || code.includes('invalid_code')) {
+    return 'Código inválido ou expirado. Confira o e-mail ou peça um novo.'
+  }
+  return err.longMessage || err.message || 'Não foi possível continuar o cadastro. Tente de novo.'
 }

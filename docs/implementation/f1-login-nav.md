@@ -39,7 +39,7 @@
 ## Auth no browser
 
 - **`AUTH_MODE=synthetic` (dev):** UI no estilo M-09 + escolha de persona `user_synth_*`; Bearer `synth:<id>` em sessionStorage (por aba).
-- **`AUTH_MODE=clerk`:** `@clerk/react` `<SignIn />` em `/entrar` e `<SignUp />` em `/cadastro` (estilizados); `getToken()` → Bearer no Worker. Com convite pendente, `signUpUrl` no SignIn aponta para `/cadastro` (não para si mesmo).
+- **`AUTH_MODE=clerk`:** `@clerk/react` `<SignIn />` em `/entrar` (flush) e formulário próprio + `useSignUp` em `/cadastro` (Legal Layer transparente: e-mail → código); `getToken()` → Bearer no Worker. Com convite pendente, `signUpUrl` no SignIn aponta para `/cadastro` (não para si mesmo).
 
 Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController` e incrementa geração — respostas tardias de A não pintam B.
 
@@ -63,9 +63,7 @@ Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController
 
 ## Cadastro transparente (UX)
 
-Confirmado (paridade Legal Layer / DEC-021): `/cadastro` e `/entrar` usam `clerkAppearance` com `options.elevation: 'flush'`, `logoPlacement: 'none'`, fundo transparente e marca Tredane fora do Clerk. Isto só estiliza o formulário; se Access mode estiver Invite-only, o cartão Restricted continua a bloquear o cadastro até o passo 6.
-
-Dead-end guard (convidada): se o `<SignUp />` pintar cabeçalho/«Entrar» **sem** campo de e-mail/OTP após ~8s com Clerk loaded (Restricted ou falha), o painel mostra «Cadastro indisponível» **sem desmontar** o SignUp (só esconde) — hydrate/captcha tardio ou «Tentar novamente» recuperam sem reload. Mantém o lead do convite até haver `input` real.
+Confirmado (paridade Legal Layer / DEC-021): `/cadastro` usa formulário React Aria (marca + «Criar conta» + e-mail/código) com `useSignUp` — **não** o `<SignUp />` pré-built, que em Restricted pintava «Criar sua conta» só com Entrar. `/entrar` mantém `<SignIn />` com `clerkAppearance` (`elevation: 'flush'`, `logoPlacement: 'none'`, fundo transparente). Access mode **Open** continua obrigatório (passo 6): Restricted falha no create e o formulário mostra «Cadastro indisponível» com orientação — o produto não contorna Invite-only (convites D1).
 
 ## Fora deste PR
 

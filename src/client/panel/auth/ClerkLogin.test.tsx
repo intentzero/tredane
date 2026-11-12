@@ -1,27 +1,66 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { writePendingInviteToken } from './session'
-import { SIGNUP_FORM_WAIT_MS } from './ClerkSignUp'
 
 const signInProps: Array<Record<string, unknown>> = []
-const signUpProps: Array<Record<string, unknown>> = []
-let signUpHasInput = false
 let clerkLoaded = true
+let fetchStatus: 'idle' | 'fetching' = 'idle'
+let signUpStatus: string = 'missing_requirements'
+
+const createMock = vi.fn(async () => ({ error: null as { code: string; message: string } | null }))
+const sendEmailCodeMock = vi.fn(async () => ({ error: null as { code: string; message: string } | null }))
+const verifyEmailCodeMock = vi.fn(async () => {
+  signUpStatus = 'complete'
+  return { error: null as { code: string; message: string } | null }
+})
+const finalizeMock = vi.fn(async (params?: { navigate?: (args: { decorateUrl: (u: string) => string }) => void }) => {
+  params?.navigate?.({ decorateUrl: (u: string) => u })
+  return { error: null as { code: string; message: string } | null }
+})
+const resetMock = vi.fn(async () => ({ error: null }))
+
+const navigatePanel = vi.fn()
+
+vi.mock('../routes', () => ({
+  navigatePanel: (...args: unknown[]) => navigatePanel(...args),
+}))
 
 vi.mock('@clerk/react', () => ({
   SignIn: (props: Record<string, unknown>) => {
     signInProps.push(props)
     return <div data-testid="clerk-sign-in" />
   },
-  SignUp: (props: Record<string, unknown>) => {
-    signUpProps.push(props)
-    return (
-      <div data-testid="clerk-sign-up">
-        {signUpHasInput ? <input aria-label="Endereço de e-mail" /> : null}
-      </div>
-    )
-  },
   useAuth: () => ({ isLoaded: clerkLoaded }),
+  useSignUp: () => ({
+    fetchStatus,
+    errors: {
+      fields: {
+        firstName: null,
+        lastName: null,
+        emailAddress: null,
+        phoneNumber: null,
+        password: null,
+        username: null,
+        code: null,
+        captcha: null,
+        legalAccepted: null,
+      },
+      raw: null,
+      global: null,
+    },
+    signUp: {
+      get status() {
+        return signUpStatus
+      },
+      create: createMock,
+      verifications: {
+        sendEmailCode: sendEmailCodeMock,
+        verifyEmailCode: verifyEmailCodeMock,
+      },
+      finalize: finalizeMock,
+      reset: resetMock,
+    },
+  }),
 }))
 
 vi.mock('../ui/Brand', () => ({
@@ -32,15 +71,29 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
   beforeEach(() => {
     sessionStorage.clear()
     signInProps.length = 0
-    signUpProps.length = 0
-    signUpHasInput = false
     clerkLoaded = true
-    vi.useRealTimers()
+    fetchStatus = 'idle'
+    signUpStatus = 'missing_requirements'
+    createMock.mockClear()
+    sendEmailCodeMock.mockClear()
+    verifyEmailCodeMock.mockClear()
+    finalizeMock.mockClear()
+    resetMock.mockClear()
+    navigatePanel.mockClear()
+    createMock.mockResolvedValue({ error: null })
+    sendEmailCodeMock.mockResolvedValue({ error: null })
+    verifyEmailCodeMock.mockImplementation(async () => {
+      signUpStatus = 'complete'
+      return { error: null }
+    })
+    finalizeMock.mockImplementation(async (params?) => {
+      params?.navigate?.({ decorateUrl: (u: string) => u })
+      return { error: null }
+    })
   })
 
   afterEach(() => {
     cleanup()
-    vi.useRealTimers()
   })
 
   it('sem convite: SignIn sem signUpUrl (não anuncia cadastro aberto)', async () => {
@@ -59,18 +112,18 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     expect(signInProps[0]?.forceRedirectUrl).toBe('/invite/accept')
   })
 
-  it('SignUp liga Entrar e, com convite, redireciona para o aceite', async () => {
+  it('SignUp mostra formulário Criar conta com e-mail (Legal Layer transparente)', async () => {
     writePendingInviteToken('tok_teste_nao_logar')
     const { ClerkSignUp } = await import('./ClerkSignUp')
     render(<ClerkSignUp />)
-    expect(screen.getByTestId('clerk-sign-up')).toBeTruthy()
-    expect(signUpProps[0]?.path).toBe('/cadastro')
-    expect(signUpProps[0]?.signInUrl).toBe('/entrar')
-    expect(signUpProps[0]?.forceRedirectUrl).toBe('/invite/accept')
+    expect(screen.getByTestId('signup-email-form')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Criar conta' })).toBeTruthy()
+    expect(screen.getByLabelText('E-mail')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Entrar' }).getAttribute('href')).toBe('/entrar')
+    expect(screen.queryByTestId('clerk-sign-up')).toBeNull()
   })
 
-  it('aparência flush/transparente no SignIn e SignUp (cadastro transparente)', async () => {
+  it('aparência flush/transparente no SignIn (cadastro transparente no SignUp é form próprio)', async () => {
     const { clerkAppearance } = await import('./clerkAppearance')
     expect(clerkAppearance.options.elevation).toBe('flush')
     expect(clerkAppearance.options.logoPlacement).toBe('none')
@@ -82,109 +135,78 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     render(<ClerkLogin />)
     render(<ClerkSignUp />)
     expect(signInProps[0]?.appearance).toBe(clerkAppearance)
-    expect(signUpProps[0]?.appearance).toBe(clerkAppearance)
     expect(screen.getByRole('link', { name: 'Criar conta' }).getAttribute('href')).toBe(
       '/cadastro',
     )
+    expect(screen.getByTestId('signup-email-form')).toBeTruthy()
   })
 
-  it('SignUp sem campos após timeout: alerta Cadastro indisponível (dead-end Restricted)', async () => {
-    vi.useFakeTimers()
+  it('SignUp: e-mail → código → finalize redireciona ao aceite do convite', async () => {
     writePendingInviteToken('tok_teste_nao_logar')
     const { ClerkSignUp } = await import('./ClerkSignUp')
     render(<ClerkSignUp />)
-    expect(screen.getByTestId('clerk-sign-up')).toBeTruthy()
-    expect(screen.queryByTestId('signup-form-missing')).toBeNull()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SIGNUP_FORM_WAIT_MS)
+
+    fireEvent.change(screen.getByLabelText('E-mail'), {
+      target: { value: 'nova@clinica.com.br' },
     })
-    expect(screen.getByTestId('signup-form-missing')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Cadastro indisponível' })).toBeTruthy()
-    // SignUp stays mounted (hidden) so late hydrate can recover without reload.
-    expect(screen.getByTestId('clerk-sign-up')).toBeTruthy()
-    expect(screen.getByTestId('clerk-sign-up').closest('.panel-auth-clerk')?.hasAttribute('hidden')).toBe(
-      true,
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(createMock).toHaveBeenCalledWith({ emailAddress: 'nova@clinica.com.br' })
+      expect(sendEmailCodeMock).toHaveBeenCalled()
+      expect(screen.getByTestId('signup-code-form')).toBeTruthy()
+    })
+
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), {
+      target: { value: '123456' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
+
+    await waitFor(() => {
+      expect(verifyEmailCodeMock).toHaveBeenCalledWith({ code: '123456' })
+      expect(finalizeMock).toHaveBeenCalled()
+      expect(navigatePanel).toHaveBeenCalledWith({ kind: 'invite-accept' }, true)
+    })
+  })
+
+  it('SignUp Restricted: erro claro em vez de página vazia Criar sua conta', async () => {
+    writePendingInviteToken('tok_teste_nao_logar')
+    createMock.mockResolvedValueOnce({
+      error: { code: 'sign_up_mode_restricted', message: 'Sign ups are disabled' },
+    })
+    const { ClerkSignUp } = await import('./ClerkSignUp')
+    render(<ClerkSignUp />)
+
+    fireEvent.change(screen.getByLabelText('E-mail'), {
+      target: { value: 'nova@clinica.com.br' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('signup-error').textContent).toMatch(/Cadastro indisponível/)
+    })
+    expect(screen.getByTestId('signup-email-form')).toBeTruthy()
+    expect(screen.getByLabelText('E-mail')).toBeTruthy()
+  })
+
+  it('formatClerkError mapeia Restricted e e-mail existente', async () => {
+    const { formatClerkError } = await import('./ClerkSignUp')
+    expect(formatClerkError({ code: 'sign_up_mode_restricted' }, true)).toMatch(
+      /Cadastro indisponível/,
     )
+    expect(formatClerkError({ code: 'form_identifier_exists' })).toMatch(/já tem conta/)
   })
 
-  it('SignUp com input: não troca para alerta de indisponível', async () => {
-    vi.useFakeTimers()
-    signUpHasInput = true
-    writePendingInviteToken('tok_teste_nao_logar')
-    const { ClerkSignUp } = await import('./ClerkSignUp')
-    render(<ClerkSignUp />)
-    expect(screen.getByLabelText('Endereço de e-mail')).toBeTruthy()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SIGNUP_FORM_WAIT_MS)
-    })
-    expect(screen.queryByTestId('signup-form-missing')).toBeNull()
-    expect(screen.getByTestId('clerk-sign-up')).toBeTruthy()
-  })
-
-  it('SignUp: hydrate tardio após timeout remove o alerta sem reload', async () => {
-    vi.useFakeTimers()
-    writePendingInviteToken('tok_teste_nao_logar')
-    const { ClerkSignUp } = await import('./ClerkSignUp')
-    render(<ClerkSignUp />)
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SIGNUP_FORM_WAIT_MS)
-    })
-    expect(screen.getByTestId('signup-form-missing')).toBeTruthy()
-
-    const host = screen.getByTestId('clerk-sign-up')
-    await act(async () => {
-      const input = document.createElement('input')
-      input.setAttribute('aria-label', 'Endereço de e-mail')
-      host.appendChild(input)
-    })
-
-    expect(screen.queryByTestId('signup-form-missing')).toBeNull()
-    expect(screen.getByTestId('clerk-sign-up').closest('.panel-auth-clerk')?.hasAttribute('hidden')).toBe(
-      false,
-    )
-  })
-
-  it('SignUp: Tentar novamente remonta o formulário sem reload', async () => {
-    vi.useFakeTimers()
-    writePendingInviteToken('tok_teste_nao_logar')
-    const { ClerkSignUp } = await import('./ClerkSignUp')
-    render(<ClerkSignUp />)
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SIGNUP_FORM_WAIT_MS)
-    })
-    expect(screen.getByTestId('signup-form-missing')).toBeTruthy()
-    const mountsBefore = signUpProps.length
-
-    signUpHasInput = true
-    await act(async () => {
-      screen.getByRole('button', { name: 'Tentar novamente' }).click()
-    })
-
-    expect(screen.queryByTestId('signup-form-missing')).toBeNull()
-    expect(signUpProps.length).toBeGreaterThan(mountsBefore)
-    expect(screen.getByLabelText('Endereço de e-mail')).toBeTruthy()
-  })
-
-  it('SignUp: timeout só começa depois de Clerk loaded', async () => {
-    vi.useFakeTimers()
+  it('SignUp: espera Clerk loaded antes do formulário', async () => {
     clerkLoaded = false
     writePendingInviteToken('tok_teste_nao_logar')
     const { ClerkSignUp } = await import('./ClerkSignUp')
     const { rerender } = render(<ClerkSignUp />)
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SIGNUP_FORM_WAIT_MS)
-    })
-    expect(screen.queryByTestId('signup-form-missing')).toBeNull()
+    expect(screen.queryByTestId('signup-email-form')).toBeNull()
+    expect(screen.getByText('Preparando cadastro…')).toBeTruthy()
 
     clerkLoaded = true
     rerender(<ClerkSignUp />)
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SIGNUP_FORM_WAIT_MS - 1)
-    })
-    expect(screen.queryByTestId('signup-form-missing')).toBeNull()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1)
-    })
-    expect(screen.getByTestId('signup-form-missing')).toBeTruthy()
+    expect(screen.getByTestId('signup-email-form')).toBeTruthy()
   })
 })

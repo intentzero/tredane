@@ -1084,6 +1084,19 @@ button.panel-auth-inline-link {
   line-height: var(--line-height-relaxed);
 }
 
+.panel-auth-error {
+  margin: 0;
+  max-width: 22rem;
+  color: var(--color-danger-ink);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-relaxed);
+  text-align: center;
+}
+
+#clerk-captcha:empty {
+  display: none;
+}
+
 .panel-auth-foot {
   margin: 0;
   text-align: center;
