@@ -285,6 +285,8 @@ export type ClinicSettingsRow = {
   virtualAttendantName: string
   /** DEC-089 — género opcional para concordância; null = neutro. */
   virtualAttendantGender: 'masculino' | 'feminino' | null
+  /** Antecedência mínima para ofertas/consulta (minutos; grade 15). */
+  bookingLeadMinutes: number
   updatedAt: number
 }
 

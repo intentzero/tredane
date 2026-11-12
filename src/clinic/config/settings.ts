@@ -1,4 +1,4 @@
-import { DEFAULT_CLINIC_TIMEZONE } from '../constants'
+import { DEFAULT_BOOKING_LEAD_MINUTES, DEFAULT_CLINIC_TIMEZONE } from '../constants'
 import { DEFAULT_SIGNAL_DEADLINE_SECONDS } from '../../pix/money'
 import { DEFAULT_ABUSE_LIMIT_NUMBERS } from '../ai/abuse-limits'
 import type { Clock } from '../../db/clock'
@@ -34,6 +34,7 @@ type SettingsSql = {
   abuse_proposals_per_clinic?: number
   virtual_attendant_name?: string
   virtual_attendant_gender?: string | null
+  booking_lead_minutes?: number
   updated_at: number
 }
 
@@ -85,6 +86,7 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
       row.abuse_proposals_per_clinic ?? DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerClinic,
     virtualAttendantName: row.virtual_attendant_name ?? '',
     virtualAttendantGender: mapVirtualGender(row.virtual_attendant_gender),
+    bookingLeadMinutes: row.booking_lead_minutes ?? DEFAULT_BOOKING_LEAD_MINUTES,
     updatedAt: row.updated_at,
   }
 }
@@ -102,7 +104,7 @@ export function ensureClinicSettings(
        abuse_auto_drafts_per_contact, abuse_ai_bookings_per_contact, abuse_ai_bookings_per_clinic,
        abuse_future_appointments_per_contact, abuse_pending_pix_per_contact,
        abuse_pending_proposals_per_contact, abuse_proposals_per_contact, abuse_proposals_per_clinic,
-       virtual_attendant_name, virtual_attendant_gender,
+       virtual_attendant_name, virtual_attendant_gender, booking_lead_minutes,
        updated_at
      FROM clinic_settings WHERE id = 1`,
   )
@@ -149,6 +151,7 @@ export function ensureClinicSettings(
     abuseProposalsPerClinic: DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerClinic,
     virtualAttendantName: '',
     virtualAttendantGender: null,
+    bookingLeadMinutes: DEFAULT_BOOKING_LEAD_MINUTES,
     updatedAt: now,
   }
 }

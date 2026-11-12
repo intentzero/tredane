@@ -15,6 +15,7 @@ import {
   clinicMinuteOfDay,
 } from './timezone'
 import { serviceOfferingAllows } from './occupancy'
+import { earliestBookableStartsAt } from './booking-lead'
 import { activeRoomsForService, placementBlockers } from './query'
 import { currentRoomBlockSex, type BlockSex } from './sex-block'
 import type {
@@ -61,8 +62,8 @@ export function checkSlotAvailability(
   const occupiesUntil = startsAt + occMins * 60_000
   const range = { startsAt, endsAt: occupiesUntil }
 
-  // Marcar com início no passado é recusado (coerente com a consulta).
-  if (startsAt < asOf) {
+  // Passado ou antes da antecedência mínima (coerente com queryAvailability).
+  if (startsAt < earliestBookableStartsAt(asOf, settings.bookingLeadMinutes)) {
     reasons.push('past_slot')
   }
 

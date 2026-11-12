@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { ensureClinicSettings } from '../config/settings'
 import { ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
@@ -274,6 +275,8 @@ describe('DEC-086 post-booking follow-up', () => {
     const clock = createControllableClock(zonedCivilToUtc(TZ, 2026, 11, 4, 14, 37))
     const { db, close } = bootClinicDb({ clock })
     try {
+      ensureClinicSettings(db, 'clinic-demo-a', clock)
+      db.run(`UPDATE clinic_settings SET booking_lead_minutes = 0 WHERE id = 1`)
       connectWa(db, clock)
       const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
       const room = upsertResourceOp(

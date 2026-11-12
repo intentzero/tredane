@@ -21,6 +21,7 @@ import {
   resourceCapacity,
   serviceOfferingAllows,
 } from './occupancy'
+import { earliestBookableStartsAt } from './booking-lead'
 import { candidateBreaksHolds } from './hold-fit'
 import { roomSexConflict } from './sex-block'
 import type {
@@ -210,6 +211,7 @@ export function queryAvailability(
   const timezone = settings.timezone
   const readiness = computeConfigReadiness(db, tenantId, clock)
   const asOf = clock.nowMs()
+  const earliest = earliestBookableStartsAt(asOf, settings.bookingLeadMinutes)
 
   const service = getService(db, tenantId, input.serviceId)
   if (!service || !service.active) {
@@ -271,8 +273,8 @@ export function queryAvailability(
     const occupiesUntil = startsAt + occMins * 60_000
     const range = { startsAt, endsAt: occupiesUntil }
 
-    // Horário cujo início já passou não é oferecido (início < agora).
-    if (startsAt < asOf) continue
+    // Início no passado ou antes da antecedência mínima da clínica.
+    if (startsAt < earliest) continue
 
     if (!serviceOfferingAllows(service.weeklyWindows, dayOfWeek, startMinute, occMins)) {
       continue

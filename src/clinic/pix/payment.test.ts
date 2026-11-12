@@ -16,6 +16,7 @@ import {
   upsertResourceOp,
   upsertServiceOp,
 } from '../config'
+import { ensureClinicSettings } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
@@ -39,6 +40,8 @@ async function seed(
   clock: ReturnType<typeof createControllableClock>,
 ) {
   const tenantId = 'clinic-demo-a'
+  ensureClinicSettings(db, tenantId, clock)
+  db.run(`UPDATE clinic_settings SET booking_lead_minutes = 0 WHERE id = 1`)
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
   const room = upsertResourceOp(
     db,

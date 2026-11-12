@@ -6,6 +6,6 @@ describe('0062_review_client_comments', () => {
   it('id/nome e CLINIC_SCHEMA_VERSION alinhados', () => {
     expect(MIGRATION_ID).toBe(62)
     expect(MIGRATION_NAME).toBe('0062_review_client_comments')
-    expect(CLINIC_SCHEMA_VERSION).toBe(62)
+    expect(CLINIC_SCHEMA_VERSION).toBe(63)
   })
 })
