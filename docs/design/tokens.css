@@ -1,4 +1,4 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.7.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.8.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
@@ -10,6 +10,7 @@
   --font-size-title: 16px;
   --font-size-headline: 18px;
   --font-size-display: 22px;
+  --font-size-button: 14px;
   --line-height-default: 1.35;
   --line-height-relaxed: 1.4;
   --color-surface-app: #F5F4EF;
@@ -160,5 +161,16 @@
     --color-nav-icon: #98A2A1;
     --color-nav-icon-active: #E4E7E6;
     color-scheme: dark;
+  }
+}
+/* Densidade de toque (Confirmado, DEC-168) */
+@media (pointer: coarse) {
+  :root {
+    --size-control-sm: 36px;
+    --size-control-md: 44px;
+    --size-control-lg: 48px;
+    --size-control-default: 44px;
+    --size-bottom-nav: 56px;
+    --font-size-button: 16px;
   }
 }
