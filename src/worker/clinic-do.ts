@@ -163,7 +163,6 @@ import {
   DoInvocationTimer,
   logDoStepTiming,
   syncDoStorage,
-  type DoStepPhases,
 } from './clinic-do-timing'
 import type { SqlInvocationStats } from '../clinic'
 import { fromD1 } from '../db/admin/async-store'
