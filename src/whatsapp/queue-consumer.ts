@@ -47,6 +47,7 @@ import {
   isFlowTokenUsable,
 } from './flow/tokens'
 import { parseNfmResponseJson } from './flow/nfm-reply'
+import { INBOUND_INLINE_BUDGET_MS } from './webhook-routes'
 
 export type QueueConsumerDeps = {
   env: WorkerBindings
@@ -105,6 +106,7 @@ export async function processWhatsappMessage(
 ): Promise<'ack' | 'retry'> {
   const clock = deps.clock ?? systemClock
   const log = deps.log ?? defaultLog
+  const turnStartedMs = clock.nowMs()
 
   if (msg.__poison) {
     log({
@@ -391,7 +393,8 @@ export async function processWhatsappMessage(
               : `[Botão] ${buttonTitle}`,
           occurredAtMs: msg.providerTimestamp ?? undefined,
         },
-        { drain: true, fanout: true },
+        // O handler publica outbound + drain; evita fanout/drain duplicado no ingest.
+        { drain: false, fanout: false },
       )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
 
       if (
@@ -410,6 +413,7 @@ export async function processWhatsappMessage(
           buttonTitle: msg.buttonTitle ?? null,
           contextMessageId: msg.contextMessageId ?? null,
           providerEventKey: msg.providerEventKey,
+          queueFallbackResume: msg.inlineFallback === true,
         })
       }
 
@@ -571,13 +575,33 @@ export async function processWhatsappMessage(
       }
     }
 
+    const turnMs = clock.nowMs() - turnStartedMs
+    if (
+      turnMs > INBOUND_INLINE_BUDGET_MS &&
+      (msg.kind === 'list_reply' || msg.kind === 'button_reply')
+    ) {
+      log({
+        level: 'warn',
+        event: 'queue.interactive_turn_budget_exceeded',
+        detail: {
+          receiptId: msg.receiptId,
+          tenantId: msg.tenantId,
+          kind: msg.kind,
+          turnMs,
+          budgetMs: INBOUND_INLINE_BUDGET_MS,
+        },
+      })
+      return 'retry'
+    }
+
     if (deps.syncAdminDb) {
       markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
         kind: msg.kind,
+        turnMs,
       })
     } else {
       const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
-      await ops.markProcessed(msg.receiptId, { kind: msg.kind })
+      await ops.markProcessed(msg.receiptId, { kind: msg.kind, turnMs })
     }
 
     log({
@@ -791,13 +815,25 @@ export async function handleInboundQueueBatch(
     }
 
     if (body.inlineFallback && (await receiptAlreadyProcessed(deps, body.receiptId))) {
+      if (body.kind !== 'list_reply' && body.kind !== 'button_reply') {
+        log({
+          level: 'info',
+          event: 'queue.inline_fallback_skip',
+          detail: { receiptId: body.receiptId, tenantId: body.tenantId, kind: body.kind },
+        })
+        message.ack()
+        continue
+      }
       log({
         level: 'info',
-        event: 'queue.inline_fallback_skip',
-        detail: { receiptId: body.receiptId, tenantId: body.tenantId, kind: body.kind },
+        event: 'queue.interactive_fallback_resume',
+        detail: {
+          receiptId: body.receiptId,
+          tenantId: body.tenantId,
+          kind: body.kind,
+          providerEventKey: body.providerEventKey,
+        },
       })
-      message.ack()
-      continue
     }
 
     const outcome = await processWhatsappMessage(deps, body, attempts)

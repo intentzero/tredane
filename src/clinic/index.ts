@@ -22,7 +22,13 @@ export * as clinicPix from './pix'
 export * as clinicAi from './ai'
 export * as clinicProposals from './proposals'
 export * as clinicRetention from './retention'
-export { fromNodeSqlite, fromDurableObjectSql, type ClinicDb, type SqlValue } from './store'
+export {
+  fromNodeSqlite,
+  fromDurableObjectSql,
+  type ClinicDb,
+  type SqlValue,
+  type SqlInvocationStats,
+} from './store'
 export {
   runClinicMigrations,
   assertClinicSchemaReady,

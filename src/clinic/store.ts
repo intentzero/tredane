@@ -61,6 +61,13 @@ export function fromNodeSqlite(db: {
 type DoSqlCursor = {
   toArray(): Record<string, SqlValue>[]
   one(): Record<string, SqlValue>
+  /** Cloudflare DO SQLite (quando exposto pelo runtime). */
+  rowsWritten?: number
+}
+
+export type SqlInvocationStats = {
+  exec: number
+  rowsWritten: number
 }
 
 type DoSqlStorage = {
@@ -74,21 +81,34 @@ type DoSqlStorage = {
  * Adaptador sobre `ctx.storage.sql` + `transactionSync` do Durable Object.
  * `SqlStorage` não expõe `changes` de forma uniforme — contamos via SELECT quando preciso.
  */
-export function fromDurableObjectSql(storage: DoSqlStorage): ClinicDb {
+export function fromDurableObjectSql(
+  storage: DoSqlStorage,
+  stats?: SqlInvocationStats,
+): ClinicDb {
+  const track = (cursor: DoSqlCursor) => {
+    if (!stats) return
+    stats.exec += 1
+    const written = cursor.rowsWritten
+    if (typeof written === 'number' && written > 0) stats.rowsWritten += written
+  }
   return {
     run(sql: string, ...params: SqlValue[]) {
-      storage.sql.exec(sql, ...params)
+      track(storage.sql.exec(sql, ...params))
       return { changes: -1 }
     },
     get<T extends Record<string, unknown>>(sql: string, ...params: SqlValue[]) {
-      const rows = storage.sql.exec(sql, ...params).toArray()
+      const cursor = storage.sql.exec(sql, ...params)
+      track(cursor)
+      const rows = cursor.toArray()
       return rows[0] as T | undefined
     },
     all<T extends Record<string, unknown>>(sql: string, ...params: SqlValue[]) {
-      return storage.sql.exec(sql, ...params).toArray() as T[]
+      const cursor = storage.sql.exec(sql, ...params)
+      track(cursor)
+      return cursor.toArray() as T[]
     },
     exec(sql: string) {
-      storage.sql.exec(sql)
+      track(storage.sql.exec(sql))
     },
     transactionSync<T>(fn: () => T): T {
       return storage.transactionSync(fn)
