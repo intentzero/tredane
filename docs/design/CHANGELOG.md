@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 12/11/2026 — Bolhas da conversa nas laterais (revê DEC-162 item 7)
+
+- **Conversas desktop:** a timeline deixa a coluna centrada de 680 px e a margem de 7 %; padding lateral ~12 px e bolhas até 65 % alinhadas às laterais do pai (como WhatsApp Web). Dock/handoff fechado mantêm 680 px. Mock `desktop/ConversasUrgenciaFicha` alinhado.
+
 ## 12/11/2026 — DEC-162 a DEC-165 implementadas no painel
 
 - **Conversas (DEC-162):** `InboxList` agrupa por urgência (`urgency.ts`), mostra a espera e esconde busca e filtros na caixa vazia (`InboxEmptyStart`); `ShellIdentity` reduz «Ao vivo» a ponto no celular; `InboxThread` ganha o cartão único da conversa nova com janela fechada e «Vista por»; Agendar abre em folha no celular (`MobileThread`); Contato em tela focada com atalhos e ações em linhas.

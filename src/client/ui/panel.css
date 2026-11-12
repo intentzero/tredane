@@ -9646,15 +9646,22 @@
   align-items: center;
 }
 
-/* Desktop: margem lateral de 7 % e bolhas até 65 %, como no WhatsApp Web (sem coluna estreita). */
+/* Desktop / tablet: bolhas até 65 %; timeline, compositor e handoff com o
+   mesmo padding mínimo nas laterais do pai (~12 px, WhatsApp Web), sem
+   coluna centrada nem margem de 7 %. Em ≥1024 3-col o dock/handoff fechado
+   continuam centrados a 680 px (bloco abaixo). */
 @media (min-width: 768px) {
-  .inbox-timeline,
-  .inbox-composer-wrap {
-    padding-inline: max(var(--space-4), 7%);
+  .inbox-timeline {
+    padding-inline: var(--space-3);
   }
 
   .inbox-composer-wrap {
+    padding-inline: var(--space-3);
     padding-bottom: var(--space-4);
+  }
+
+  .inbox-handoff {
+    margin-inline: var(--space-3);
   }
 
   .inbox-msg {
@@ -10785,12 +10792,10 @@
   outline-offset: -2px;
 }
 
-/* Desktop: coluna de leitura de 680 px e janela fechada em barra compacta (DEC-162). */
+/* Desktop DEC-162: janela fechada em barra compacta; dock centrado 680 px
+   dentro do wrap já alinhado a 12 px. Timeline: sem coluna 680 — padding
+   12 px + bolhas 65 % nas laterais (Paulo 12/11/2026; revê DEC-162 item 7). */
 @media (min-width: 1024px) {
-  .conversas-3col .inbox-timeline {
-    padding-inline: max(var(--space-5), calc((100% - 680px) / 2));
-  }
-
   .conversas-3col .inbox-dock {
     width: 100%;
     max-width: 680px;
