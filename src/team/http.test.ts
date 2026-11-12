@@ -24,11 +24,19 @@ import {
   type SimulatedEmailTransport,
 } from '../email'
 import { hashToken } from '../db/tokens'
+import type { ClinicEventPublisher } from '../realtime'
 
-function testTeamApp() {
+function testTeamApp(opts: { events?: ClinicEventPublisher } = {}) {
   const boot = bootAdminDb()
   const clock = createControllableClock(3_100_000_000_000)
   const transport = createSimulatedEmailTransport({ clock })
+  const published: Array<Record<string, unknown>> = []
+  const events: ClinicEventPublisher = opts.events ?? {
+    async publishTenantEvent(input) {
+      published.push(input as unknown as Record<string, unknown>)
+      return { ok: true, seq: published.length, delivered: ['owner'], revoked: [] }
+    },
+  }
   const services: AuthServices = {
     sessions: createSyntheticSessionAuthenticator({
       authorizedParties: ['http://localhost:5173'],
@@ -44,12 +52,14 @@ function testTeamApp() {
     clockFactory: () => clock,
     emailFactory: () => transport,
     appBaseUrlFactory: () => 'http://localhost:5173',
+    eventPublisherFactory: () => events,
   })
   return {
     app,
     boot,
     clock,
     transport,
+    published,
     close: boot.close,
     auth: (userId: string, init: RequestInit = {}) => {
       const headers = new Headers(init.headers)
@@ -119,10 +129,28 @@ describe('HTTP — Equipe e convites (#25)', () => {
       expect(accept.status).toBe(200)
       const accepted = (await accept.json()) as {
         membership: { tenantId: string; role: string }
+        realtimeNotified: boolean
       }
       expect(accepted.membership).toMatchObject({
         tenantId: 'clinic-demo-a',
         role: 'attendant',
+      })
+      expect(accepted.realtimeNotified).toBe(true)
+      expect(ctx.published).toHaveLength(1)
+      expect(ctx.published[0]).toMatchObject({
+        tenantId: 'clinic-demo-a',
+        type: 'invitation.accepted',
+        entityType: 'tenant_invitation',
+        entityId: createdBody.invitation.id,
+        audience: 'owners',
+        eventId: `inv:accepted:${createdBody.invitation.id}`,
+        payload: {
+          invitationId: createdBody.invitation.id,
+          clerkUserId: 'user_synth_invitee',
+          role: 'attendant',
+          status: 'accepted',
+          email: 'invitee@example.test',
+        },
       })
 
       expect(
@@ -149,6 +177,47 @@ describe('HTTP — Equipe e convites (#25)', () => {
         }),
       )
       expect(replay.status).toBe(409)
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('aceite mantém membership se o DO falhar a publicar invitation.accepted', async () => {
+    const ctx = testTeamApp({
+      events: {
+        async publishTenantEvent() {
+          return { ok: false, error: 'do_publish_failed' }
+        },
+      },
+    })
+    try {
+      const created = await invite(ctx, 'realtime.fail@example.test')
+      expect(created.status).toBe(201)
+      const token = lastToken(ctx.transport)
+      const accept = await ctx.app.request(
+        'http://localhost/api/invitations/accept',
+        ctx.auth('user_synth_invitee', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Synth-Verified-Email': 'realtime.fail@example.test',
+          },
+          body: JSON.stringify({ token }),
+        }),
+      )
+      expect(accept.status).toBe(200)
+      const body = (await accept.json()) as {
+        membership: { tenantId: string; status: string }
+        realtimeNotified: boolean
+      }
+      expect(body.realtimeNotified).toBe(false)
+      expect(body.membership).toMatchObject({
+        tenantId: 'clinic-demo-a',
+        status: 'active',
+      })
+      expect(
+        getMembership(ctx.boot.db, 'clinic-demo-a', 'user_synth_invitee')?.status,
+      ).toBe('active')
     } finally {
       ctx.close()
     }

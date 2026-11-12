@@ -1,6 +1,7 @@
 /**
  * Equipe (M-18 / S1–S3 + DEC-103): membros + convites; convidar attendant/owner;
  * promover / despromover / remover (último owner protegido).
+ * Aceite de convite noutra sessão invalida a lista via WS (DEC-038 / invitation.accepted).
  */
 import { ChevronLeft, Mail, MoreVertical, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -20,6 +21,11 @@ import type { PanelApi, TeamInvitation, TeamMemberLite, TeamSnapshot } from '../
 import { PanelApiError } from '../../api'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
+import {
+  InboxRealtimeProvider,
+  isTeamEvent,
+  useInboxRealtime,
+} from '../../realtime/InboxRealtime'
 import { Badge } from '../../states/Badge'
 import { Banner } from '../../states/Banner'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -114,7 +120,21 @@ function hasMemberMenu(m: TeamMemberLite, viewerId: string | null): boolean {
   return canShowPromote(m, viewerId) || canShowDemote(m) || canShowRevoke(m, viewerId)
 }
 
-export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: Props) {
+export function EquipeScreen(props: Props) {
+  // DEC-038: WebSocket da clínica invalida Equipe quando um convite é aceite noutro browser.
+  return (
+    <InboxRealtimeProvider
+      tenantId={props.tenantId}
+      api={props.api}
+      generation={props.generation}
+      acceptEvent={isTeamEvent}
+    >
+      <EquipeScreenInner {...props} />
+    </InboxRealtimeProvider>
+  )
+}
+
+function EquipeScreenInner({ tenantId, api, generation, viewerClerkUserId }: Props) {
   const [snap, setSnap] = useState<TeamSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -156,6 +176,11 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
   useEffect(() => {
     void reload()
   }, [reload])
+
+  // Aceite / resync → refetch GET /team (WS não é fonte de verdade; DEC-038).
+  useInboxRealtime(() => {
+    void reload()
+  })
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 15_000)

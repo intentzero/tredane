@@ -57,6 +57,18 @@ export function isScheduleEvent(event: RealtimeServerEvent): boolean {
   )
 }
 
+/**
+ * Eventos que invalidam Clínica → Equipe (DEC-038).
+ * Aceite de convite publica `invitation.accepted`; create/cancel/role podem seguir a mesma família.
+ */
+export function isTeamEvent(event: RealtimeServerEvent): boolean {
+  return (
+    event.eventType.startsWith('invitation.')
+    || event.eventType.startsWith('membership.')
+    || event.eventType === 'team.updated'
+  )
+}
+
 /** conversationId afetado (payload ou entidade), se houver. */
 export function eventConversationId(event: RealtimeServerEvent): string | null {
   const fromPayload = event.payload?.conversationId
