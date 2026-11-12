@@ -31,6 +31,7 @@
  * F-12: «Sim» após «Quer ver outro período?» limpa period=noite sticky (staging Paulo 09/11/2026).
  * F-13: «Sim» após «Quer ver outro dia?» limpa date sticky (sibling #655 / sticky-frame audit F2).
  * F-14: eco Sim das zonas não herda period sticky (silencioso 1, Paulo 09/11/2026).
+ * F-15: «sexta + manhã» após oferta «amanhã à tarde» remapeia o dia (rsamp_f3b49 / TR-528).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1160,6 +1161,65 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/\d{1,2}:\d{2}/],
           excludes: [/à noite não tenho/i, /outro período\?/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'F-15',
+    title: 'Sexta de manhã após oferta amanhã à tarde — dia remapeia (não «amanhã de manhã»)',
+    turnosIdeais: 1,
+    // Live MCP rsamp_f3b49 (qua 11/11/2026): period remapeava, date sticky ficava amanhã.
+    nowMs: Date.UTC(2026, 10, 11, 18, 0), // qua 11/11 15:00 SP — amanhã ≠ sexta
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+      )
+      const variantIds = zones
+        .filter((z) => z.audience === 'masculino' && (z.name === 'Axila' || z.name === 'Pernas'))
+        .map((z) => z.id)
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          audienceLine: 'masculino',
+          variantIds,
+          date: '2026-11-12', // amanhã (qui)
+          period: 'tarde',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-12T15:30', label: '15:30' },
+              { key: '2026-11-12T16:00', label: '16:00' },
+              { key: '2026-11-12T16:30', label: '16:30' },
+            ],
+            messageId: 'm_f15_amanha',
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 12, 18, 30), professionalId: s.ids.gi }],
+            messageId: 'm_f15_amanha',
+          },
+        },
+        s.clock,
+      )
+      s.sayOutbound(
+        'Os horários disponíveis para amanhã à tarde são 15:30, 16:00, 16:30. Algum serve?',
+      )
+    },
+    turns: [{ role: 'client', text: 'Na sexta na parte da manhã tem algum horário?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{1,2}:\d{2}/, /sexta/i],
+          excludes: [/amanhã de manhã/i, /amanhã à tarde/i],
         },
       ],
     },
