@@ -2,7 +2,7 @@ import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { InboxDirectoryContact, PanelApi } from '../../api'
-import { getClinicTimezone } from '../../clinicTimezone'
+import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -31,8 +31,7 @@ type Props = {
 }
 
 /** «sex 13, 09:30» no fuso da clínica (DEC-008). */
-function shortWhen(ms: number): string {
-  const timeZone = getClinicTimezone()
+function shortWhen(ms: number, timeZone: string): string {
   const day = new Intl.DateTimeFormat('pt-BR', { timeZone, weekday: 'short', day: 'numeric' })
     .format(new Date(ms))
     .replace('.', '')
@@ -45,9 +44,9 @@ function shortWhen(ms: number): string {
   return `${day}, ${time}`
 }
 
-function shortDate(ms: number): string {
+function shortDate(ms: number, timeZone: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: getClinicTimezone(),
+    timeZone,
     day: '2-digit',
     month: '2-digit',
   }).format(new Date(ms))
@@ -57,12 +56,21 @@ function shortDate(ms: number): string {
  * DEC-165 (tela 14): a segunda linha diz o que vem a seguir — próximo horário, ou a
  * última visita, ou «Sem horários». O telefone fica na ficha.
  */
-export function visitLine(c: InboxDirectoryContact): { text: string; next: boolean } {
+export function visitLine(
+  c: InboxDirectoryContact,
+  timeZone: string,
+): { text: string; next: boolean } {
   if (c.nextVisit) {
-    return { text: `Próximo: ${shortWhen(c.nextVisit.startsAt)} · ${c.nextVisit.serviceName}`, next: true }
+    return {
+      text: `Próximo: ${shortWhen(c.nextVisit.startsAt, timeZone)} · ${c.nextVisit.serviceName}`,
+      next: true,
+    }
   }
   if (c.lastVisit) {
-    return { text: `Última visita ${shortDate(c.lastVisit.startsAt)} · ${c.lastVisit.serviceName}`, next: false }
+    return {
+      text: `Última visita ${shortDate(c.lastVisit.startsAt, timeZone)} · ${c.lastVisit.serviceName}`,
+      next: false,
+    }
   }
   return { text: 'Sem horários', next: false }
 }
@@ -71,6 +79,8 @@ export function visitLine(c: InboxDirectoryContact): { text: string; next: boole
  * Lista Clientes (fase 1, Opção C Confirmada): directório só leitura + busca.
  */
 export function ClientesList({ tenantId, api, generation, activeContactId }: Props) {
+  // Fuso da clínica activa (Agenda → Horários), como em Conversas/Agenda.
+  const timeZone = useClinicTimezone(api, tenantId, generation)
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [items, setItems] = useState<InboxDirectoryContact[] | null>(null)
@@ -188,6 +198,10 @@ export function ClientesList({ tenantId, api, generation, activeContactId }: Pro
           {list.map((c) => {
             const label = contactLabel(c)
             const active = c.id === activeContactId
+            const visit =
+              c.nextVisit !== undefined || c.lastVisit !== undefined
+                ? visitLine(c, timeZone)
+                : null
             return (
               <li key={c.id}>
                 <button
@@ -217,11 +231,11 @@ export function ClientesList({ tenantId, api, generation, activeContactId }: Pro
                         <Badge tone="wait">Bloqueada</Badge>
                       ) : null}
                     </span>
-                    {c.nextVisit !== undefined || c.lastVisit !== undefined ? (
+                    {visit ? (
                       <span
-                        className={`inbox-row-preview${visitLine(c).next ? ' clientes-row-next' : ''}`}
+                        className={`inbox-row-preview${visit.next ? ' clientes-row-next' : ''}`}
                       >
-                        {visitLine(c).text}
+                        {visit.text}
                       </span>
                     ) : (
                       // API antiga sem visitas: mantém o telefone mascarado.
