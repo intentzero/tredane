@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-170: revisão da Equipe
+
+- `EquipeScreen`: confirmação ao cancelar convite; selo de responsável em `primary.tint`; uma coluna de 760 px no desktop; contagens nos títulos; ações do convite em texto (desktop) ou no ⋮ com folha (celular); bloco «O que cada papel pode fazer». Mocks M-77 `mobile/EquipeConviteAcoes` e M-78 `mobile/EquipeCancelarConvite`.
+
 ## 12/11/2026 — DEC-169: topo da Agenda compacto
 
 - `PanelShell` ganha o espaço `panel-shell-slot` (`ShellSlot`); a Agenda põe ali setas, Hoje, data, Dia/Semana e Agendar. No celular, uma linha com a data curta (`formatShortDate`) e a faixa de dias com setas de semana. Mocks M-76 `mobile/AgendaTopoCompacto` e `desktop/AgendaBarraCabecalho`.

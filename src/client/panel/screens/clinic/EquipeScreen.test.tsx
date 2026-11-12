@@ -152,13 +152,13 @@ describe('EquipeScreen — S1', () => {
     expect(screen.getByText('luciana@belapele.example')).toBeTruthy()
     expect(screen.getByText('Ana Souza')).toBeTruthy()
     expect(screen.getByText('ana@belapele.example')).toBeTruthy()
-    expect(screen.getByText('Responsável')).toBeTruthy()
+    expect(screen.getAllByText('Responsável').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Atendente').length).toBeGreaterThan(0)
     expect(screen.queryByText('user_owner')).toBeNull()
     expect(screen.queryByText(/recepcionista/i)).toBeNull()
   })
 
-  it('desabilita reenviar durante o cooldown e cancela o convite', async () => {
+  it('desabilita reenviar durante o cooldown; cancelar pede confirmação (DEC-170)', async () => {
     const user = userEvent.setup()
     const team = snap()
     const api = mockApi(team)
@@ -173,11 +173,19 @@ describe('EquipeScreen — S1', () => {
     await waitFor(() => expect(screen.getByText('bruno@belapele.example')).toBeTruthy())
     const resend = screen.getByRole('button', { name: /Reenviar em \d+ min/ })
     expect(resend).toHaveProperty('disabled', true)
-    expect(resend.className).toMatch(/panel-btn-secondary/)
-    const cancel = screen.getByRole('button', { name: 'Cancelar convite' })
-    expect(cancel.className).toMatch(/panel-btn-danger/)
+    expect(screen.queryByText('Pendente')).toBeNull()
+    expect(screen.queryByText(/Até 5 reenvios/)).toBeNull()
 
-    await user.click(cancel)
+    await user.click(screen.getByRole('button', { name: 'Cancelar…' }))
+    expect(api.cancelInvitation).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('heading', { name: 'Cancelar o convite de bruno@belapele.example?' }),
+    ).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Manter convite' }))
+    expect(api.cancelInvitation).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar…' }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar convite' }))
     await waitFor(() =>
       expect(api.cancelInvitation).toHaveBeenCalledWith(
         'clinic-demo-a',
@@ -185,6 +193,57 @@ describe('EquipeScreen — S1', () => {
         expect.anything(),
       ),
     )
+  })
+
+  it('celular: ações do convite numa folha pelo ⋮ (DEC-170)', async () => {
+    const user = userEvent.setup()
+    const original = window.matchMedia
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('max-width: 767.98px'),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+    try {
+      const api = mockApi(snap())
+      render(
+        <EquipeScreen
+          tenantId="clinic-demo-a"
+          api={api}
+          generation={1}
+          viewerClerkUserId="user_owner"
+        />,
+      )
+      await waitFor(() => expect(screen.getByText('bruno@belapele.example')).toBeTruthy())
+      expect(screen.queryByRole('button', { name: 'Cancelar…' })).toBeNull()
+      await user.click(
+        screen.getByRole('button', { name: 'Ações do convite para bruno@belapele.example' }),
+      )
+      expect(screen.getByText(/Até 5 reenvios em 24 h/)).toBeTruthy()
+      await user.click(screen.getByRole('button', { name: 'Cancelar convite…' }))
+      expect(
+        screen.getByRole('heading', { name: 'Cancelar o convite de bruno@belapele.example?' }),
+      ).toBeTruthy()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
+  it('responsável usa o selo neutro e há um bloco com o que cada papel pode fazer (DEC-170)', async () => {
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={mockApi(snap())}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
+    const badge = screen.getAllByText('Responsável').find((el) => el.className.includes('panel-badge'))
+    expect(badge?.className).toMatch(/panel-badge-new/)
+    expect(screen.getByText('O que cada papel pode fazer')).toBeTruthy()
+    expect(screen.queryByText('Como responsável, você')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Membros · 2' })).toBeTruthy()
   })
 
   it('mostra Convidar pessoa no cabeçalho, antes das listas, e o banner Pronto após envio', async () => {

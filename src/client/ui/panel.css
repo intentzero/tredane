@@ -11550,3 +11550,94 @@ button.panel-auth-inline-link {
     flex-basis: 100%;
   }
 }
+
+/* ——— DEC-170 (Paulo, 12/11/2026): revisão da Equipe ——— */
+@media (min-width: 768px) {
+  .equipe-screen {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+  }
+}
+
+.equipe-layout {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.equipe-main {
+  flex: none;
+}
+
+/* Responsável deixa o roxo da IA: o papel de uma pessoa não é coisa da IA. */
+.equipe-avatar--owner {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.equipe-invite-actions .equipe-action-btn {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.equipe-invite-actions .equipe-cancel-btn {
+  color: var(--color-danger-ink);
+}
+
+.equipe-invite-actions .equipe-action-btn[data-disabled] {
+  color: var(--color-text-muted);
+}
+
+.equipe-roles > summary {
+  cursor: pointer;
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-ink);
+}
+
+.equipe-roles-grid {
+  margin: var(--space-2) 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.equipe-roles-grid > div {
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.equipe-roles-grid dt {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.equipe-roles-grid dd {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 767.98px) {
+  /* Ações do convite no ⋮ (folha), como nos membros. */
+  .equipe-invite {
+    grid-template-columns: auto minmax(0, 1fr) var(--size-touch);
+    padding-right: var(--space-1);
+  }
+
+  .equipe-invite .equipe-row-menu {
+    grid-area: auto;
+  }
+
+  .equipe-invite .equipe-copy strong {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}

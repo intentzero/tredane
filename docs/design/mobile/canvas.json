@@ -654,6 +654,24 @@
       "title": "M-76 Agenda com topo compacto (Confirmado DEC-169)",
       "is_interactive": false,
       "radius": 32
+    },
+    "EquipeConviteAcoes.dc.html": {
+      "x": 2820,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-77 Equipe: ações do convite no ⋮ (Confirmado DEC-170)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "EquipeCancelarConvite.dc.html": {
+      "x": 3290,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-78 Equipe: cancelar convite pede confirmação (Confirmado DEC-170)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -727,7 +745,9 @@
     "HorarioSemHorarioProprio.dc.html",
     "AssistenteDecisoes.dc.html",
     "AssumirLinha.dc.html",
-    "AgendaTopoCompacto.dc.html"
+    "AgendaTopoCompacto.dc.html",
+    "EquipeConviteAcoes.dc.html",
+    "EquipeCancelarConvite.dc.html"
   ],
   "notes": {
     "row1": {
