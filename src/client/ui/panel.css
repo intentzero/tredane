@@ -9646,14 +9646,16 @@
   align-items: center;
 }
 
-/* Desktop: margem lateral de 7 % e bolhas até 65 %, como no WhatsApp Web (sem coluna estreita). */
+/* Desktop: bolhas até 65 %; timeline com padding mínimo nas laterais do pai
+   (~12 px, WhatsApp Web), sem coluna centrada nem margem de 7 %.
+   Compositor mantém a margem de 7 % (inalterado neste recorte). */
 @media (min-width: 768px) {
-  .inbox-timeline,
-  .inbox-composer-wrap {
-    padding-inline: max(var(--space-4), 7%);
+  .inbox-timeline {
+    padding-inline: var(--space-3);
   }
 
   .inbox-composer-wrap {
+    padding-inline: max(var(--space-4), 7%);
     padding-bottom: var(--space-4);
   }
 
@@ -10785,12 +10787,10 @@
   outline-offset: -2px;
 }
 
-/* Desktop: coluna de leitura de 680 px e janela fechada em barra compacta (DEC-162). */
+/* Desktop DEC-162: janela fechada em barra compacta; dock centrado 680 px.
+   Timeline: sem coluna 680 — padding-inline 12 px + bolhas 65 % nas laterais
+   (Paulo 12/11/2026; revê DEC-162 item 7 e a margem de 7 % só na timeline). */
 @media (min-width: 1024px) {
-  .conversas-3col .inbox-timeline {
-    padding-inline: max(var(--space-5), calc((100% - 680px) / 2));
-  }
-
   .conversas-3col .inbox-dock {
     width: 100%;
     max-width: 680px;
