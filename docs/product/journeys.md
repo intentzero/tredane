@@ -193,7 +193,7 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Ator:** cliente final (WhatsApp); sistema; ACT-02 no fallback.
 - **Gatilho:** marcação confirmada pelo botão da proposta (DEC-061) — ou o caminho que confirma o horário após Pix pago, sem duplicar a pergunta.
 - **Pré-condições:** compromisso criado; janela de WhatsApp aberta.
-- **Fluxo:** (1) o sistema envia pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**; (2a) «Não, obrigado» → agradecimento, etapa permanece **Agendado** e o cartão mostra a data (revisão DEC-086, 31/10/2026); (2b) «Quero agendar outro serviço» → ciclo aberto, nova intenção de serviço na mesma conversa. O evento que leva o cartão a **Concluído** depois da visita é o fim do horário confirmado, sem outro horário futuro (DEC-094).
+- **Fluxo:** (1) o sistema envia pergunta se pode ajudar em algo mais, com **«Não, obrigado»** / **Terminar** e **«Quero agendar outro serviço»** / **Marcar outro**; (2a) «Não, obrigado» / **Terminar** → agradecimento, etapa permanece **Agendado**, o cartão mostra a data (revisão DEC-086, 31/10/2026), idle/timeout DEC-155 cancelados e a **IA assume** (Paulo 13/11/2026); (2b) «Quero agendar outro serviço» / **Marcar outro** → ciclo aberto, nova intenção de serviço na mesma conversa. O evento que leva o cartão a **Concluído** depois da visita é o fim do horário confirmado, sem outro horário futuro (DEC-094).
 - **Alternativas:** texto livre não marca nem conclui o ciclo; falha de envio fica observável sem desfazer o compromisso; conversa com humano activo não dispara este follow-up automático em paralelo se a equipa já assumiu.
 - **Requisitos:** REQ-097; aceite AC-71.
 
@@ -202,7 +202,7 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Estado:** Confirmado (DEC-087), incluindo o segundo prazo de mais 30 min.
 - **Ator:** cliente final; sistema.
 - **Gatilho:** 30 minutos desde a última mensagem inbound ou outbound da conversa (a mais recente), com ciclo aberto e sem responsável humano activo.
-- **Fluxo:** (1) pergunta com botões **prosseguir** ou **terminar**; (2a) prosseguir → reinicia o atendimento / cancela o fecho automático; (2b) terminar com horário futuro confirmado → agradece e a etapa permanece **Agendado**; terminar sem horário futuro → agradece e **Perdido** (revisão DEC-087, 31/10/2026); (2c) sem resposta em mais 30 min → o mesmo destino do terminar (permanece em **Agendado** se houver horário futuro; **Perdido** se não houver).
+- **Fluxo:** (1) pergunta com botões **prosseguir** ou **terminar**; (2a) prosseguir → reinicia o atendimento / cancela o fecho automático; (2b) terminar com horário futuro confirmado → agradece, etapa permanece **Agendado**, cancela idle/timeout e a **IA assume**; terminar sem horário futuro → agradece, **Perdido** e a IA assume (revisão DEC-087, 31/10/2026; Terminar→IA Paulo 13/11/2026); (2c) sem resposta em mais 30 min → o mesmo destino do terminar.
 - **Alternativas:** mensagem nova reinicia a contagem; `system` no painel não conta; humano Assumir cancela o idle automático.
 - **Requisitos:** REQ-098; aceite AC-72.
 

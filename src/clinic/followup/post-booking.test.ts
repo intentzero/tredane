@@ -31,6 +31,7 @@ import {
   readHandoffTimeoutAt,
   sweepDueHandoffTimeouts,
 } from '../ai/human-handoff'
+import { assignConversationOp } from '../inbox/operations'
 import {
   IDLE_PROMPT_AFTER_MS,
   IDLE_PROMPT_BODY,
@@ -567,12 +568,14 @@ describe('DEC-086 post-booking follow-up', () => {
       expect(click.handled).toBe(true)
       expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)).toBeNull()
       expect(readHandoffTimeoutAt(db, 'clinic-demo-a', conversationId)).toBeNull()
-      const idleRow = db.get<{ due: number | null; phase: string | null }>(
-        `SELECT idle_due_at AS due, idle_phase AS phase FROM conversations WHERE id = ?`,
+      const idleRow = db.get<{ due: number | null; phase: string | null; assignee: string | null }>(
+        `SELECT idle_due_at AS due, idle_phase AS phase, assignee_clerk_user_id AS assignee
+         FROM conversations WHERE id = ?`,
         conversationId,
       )
       expect(idleRow?.due).toBeNull()
       expect(idleRow?.phase).toBeNull()
+      expect(idleRow?.assignee).toBe('system:ai-autodraft')
 
       clock.advance(HANDOFF_TIMEOUT_MS + 1)
       expect(sweepDueHandoffTimeouts(db, 'clinic-demo-a', clock)).toHaveLength(0)
@@ -592,6 +595,93 @@ describe('DEC-086 post-booking follow-up', () => {
       expect(findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)?.stage).toBe(
         'agendado',
       )
+    } finally {
+      close()
+    }
+  })
+
+  it('após Assumir, Terminar pós-agendamento devolve a conversa à IA', () => {
+    const clock = createControllableClock(Date.UTC(2026, 10, 13, 13, 0))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:terminar-after-assumir',
+          waId: '5511987001770',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)!
+      db.run(
+        `UPDATE opportunities SET stage = 'agendado', updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        opp.id,
+      )
+      notifyHumanHandoff(
+        db,
+        'clinic-demo-a',
+        {
+          conversationId,
+          reason: 'customer_requested',
+          clientRequestId: 'wa:fu:terminar-after-assumir:handoff',
+        },
+        clock,
+      )
+      assignConversationOp(
+        db,
+        caller,
+        {
+          conversationId,
+          assigneeClerkUserId: 'user_synth_attendant_a',
+          assigneeDisplayName: 'Ana',
+          actorClerkUserId: 'user_synth_attendant_a',
+          actorDisplayName: 'Ana',
+        },
+        clock,
+      )
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)?.at).not.toBeNull()
+      expect(readHandoffTimeoutAt(db, 'clinic-demo-a', conversationId)).toBeNull()
+
+      sendPostBookingFollowupOp(
+        db,
+        caller,
+        { conversationId, appointmentId: 'apt_fu_assumir' },
+        clock,
+      )
+      const click = handlePostBookingButtonClick(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          conversationId,
+          buttonId: postBookingButtonId('apt_fu_assumir', 'end'),
+          providerEventKey: 'wa:fu:terminar-after-assumir:end',
+        },
+        clock,
+      )
+      expect(click.handled).toBe(true)
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)).toBeNull()
+      expect(
+        db.get<{ a: string | null }>(
+          `SELECT assignee_clerk_user_id AS a FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.a,
+      ).toBe('system:ai-autodraft')
     } finally {
       close()
     }
