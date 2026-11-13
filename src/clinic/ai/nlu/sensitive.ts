@@ -39,9 +39,42 @@ export type SensitiveHit = {
   matchedBy?: string
 }
 
-/** Pedido explícito de pessoa/equipe (DEC-083). */
-export const WANTS_HUMAN_RE =
-  /\b(falar com (a )?(equipe|equipa|algu[eé]m|uma pessoa|atendente)|quero (uma )?pessoa|atendimento humano)\b/i
+/**
+ * Pedido explícito de pessoa/equipe (DEC-083). Lista fechada — sem LLM (DEC-104).
+ *
+ * rsamp_fa7f138 (13/11/2026): «Posso falar com um atendente?» não casava (só o
+ * artigo «a» era aceite) e caía no funil como «Não encontrei falar nas opções».
+ * Agora: verbo de pedido («falar/conversar com», «me passa/transfere pra»,
+ * «chama», «quero/preciso de») + artigo opcional + alvo humano; ou a mensagem
+ * inteira só com o alvo («humano», «atendente»). «pessoa» isolada (ex.: «são
+ * duas pessoas», «para uma pessoa») não casa — precisa do verbo de pedido.
+ * Corre também sobre o texto sem acentos (ver `wantsHumanText`).
+ */
+const HUMAN_TARGET = String.raw`(?:(?:o|a|um|uma|algum|alguma)\s+)?(?:atendente(?:\s+humano)?|atendimento\s+humano|humano|humana|pessoa(?:\s+(?:real|de\s+verdade))?|algu[eé]m|equipe|equipa|recepcionista|recep[cç][aã]o)`
+export const WANTS_HUMAN_RE = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(?:` +
+    [
+      // «falar com um atendente», «posso conversar com alguém?»
+      String.raw`(?:falar|conversar)\s+com\s+${HUMAN_TARGET}`,
+      // «me passa pra alguém», «me transfere para um humano», «passa pra equipe»
+      String.raw`(?:me\s+)?(?:passa|passe|passar|transfere|transfira|transferir|encaminha|encaminhe|encaminhar|coloca|coloque|bota)\s+(?:pra|para|com)\s+${HUMAN_TARGET}`,
+      // «chama um atendente», «chame alguém»
+      String.raw`(?:chama|chame|chamar)\s+${HUMAN_TARGET}`,
+      // «quero um atendente», «quero uma pessoa», «preciso de um humano»
+      String.raw`(?:quero|queria|gostaria\s+de|preciso\s+de|prefiro)\s+(?:ser\s+atendid[oa]\s+por\s+)?${HUMAN_TARGET}`,
+      String.raw`atendimento\s+humano`,
+      // Mensagem inteira só com o alvo: «humano», «um atendente?», «pessoa real».
+      String.raw`^\s*(?:(?:o|a|um|uma)\s+)?(?:atendente(?:\s+humano)?|humano|pessoa\s+real)\s*[?!.…]*\s*$`,
+    ].join('|') +
+    String.raw`)(?![\p{L}\p{N}])`,
+  'iu',
+)
+
+/** Pedido explícito de pessoa, com fold de acentos e caixa (DEC-083). */
+export function wantsHumanText(text: string): boolean {
+  if (!text?.trim()) return false
+  return WANTS_HUMAN_RE.test(text) || WANTS_HUMAN_RE.test(fold(text))
+}
 
 /**
  * Pedido para parar mensagens (DEC-114). Singular e plural (CF-37, sonda L4 05/11/2026):
@@ -152,7 +185,7 @@ export function classifySensitive(text: string): SensitiveHit[] {
   const hits: SensitiveHit[] = []
 
   if (STOP_MESSAGES_RE.test(body)) hits.push({ label: 'pedir_parar', matchedBy: 'stop_messages' })
-  if (WANTS_HUMAN_RE.test(body)) hits.push({ label: 'pedir_pessoa', matchedBy: 'wants_human' })
+  if (wantsHumanText(body)) hits.push({ label: 'pedir_pessoa', matchedBy: 'wants_human' })
   if (AI_TRANSPARENCY_RE.test(body)) hits.push({ label: 'pergunta_ia', matchedBy: 'ai_transparency' })
   // Recomeçar / desistir antes de ofensa/saúde: limpam o frame sem pausar.
   if (RESTART_BOOKING_RE.test(body) && !OFF_TOPIC_RE.test(body)) {
