@@ -117,6 +117,12 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 2. `Tudo bem! Fico por aqui quando você decidir.`
 3. `Fica à vontade. Qualquer coisa, me chama.`
 
+Soft-decline mid-funil (DEC-147). **Não** é o adeus dos botões **Terminar** (pós-agendamento DEC-086, idle DEC-087, preço T3): esses usam `pickTerminarFarewell` em `src/clinic/followup/terminar-farewell.ts` — **Confirmado** Paulo 13/11/2026, America/Sao_Paulo — uma das três ao acaso:
+
+1. `Perfeito. Qualquer coisa, estamos por aqui.`
+2. `Até lá — se precisar, é só escrever.`
+3. `Combinado. Bom dia/Boa tarde/Boa noite e até a sua visita.` (saudação pelo fuso da clínica; noite ≥ 18h)
+
 ### orientar_terminar
 
 1. `Se quiser parar, diga terminar.`

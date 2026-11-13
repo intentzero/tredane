@@ -26,7 +26,7 @@ import {
   rescheduleConversationIdle,
   sweepDueIdleConversations,
 } from './idle'
-import { THANKS_REPLY_BODY } from './post-booking'
+import { isTerminarFarewellBody } from './terminar-farewell'
 
 function connectWa(
   db: ReturnType<typeof bootClinicDb>['db'],
@@ -128,13 +128,15 @@ describe('DEC-087 idle follow-up', () => {
         conversationId,
       )
       expect(opp).toEqual({ stage: 'perdido', status: 'closed' })
-      const thanks = db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM messages
-         WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,
+      const thanks = db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
         conversationId,
-        THANKS_REPLY_BODY,
       )
-      expect(thanks?.n).toBe(1)
+      expect(isTerminarFarewellBody(thanks?.body ?? '', 'America/Sao_Paulo', clock.nowMs())).toBe(
+        true,
+      )
     } finally {
       close()
     }
@@ -335,13 +337,15 @@ describe('DEC-087 idle follow-up', () => {
       if (!text.handled) return
       expect(text.action).toBe('end')
       expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()
-      const thanks = db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM messages
-         WHERE conversation_id = ? AND body = ?`,
+      const thanksText = db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
         conversationId,
-        THANKS_REPLY_BODY,
       )
-      expect(thanks?.n).toBe(1)
+      expect(
+        isTerminarFarewellBody(thanksText?.body ?? '', 'America/Sao_Paulo', clock.nowMs()),
+      ).toBe(true)
       // [Botão] fica no handler de botão — não no texto.
       expect(
         handleIdleTextReply(
@@ -418,13 +422,15 @@ describe('DEC-087 idle follow-up', () => {
       const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
       expect(closed.some((s) => s.action === 'closed')).toBe(true)
       expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()
-      const thanks = db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM messages
-         WHERE conversation_id = ? AND body = ?`,
+      const thanksClose = db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
         conversationId,
-        THANKS_REPLY_BODY,
       )
-      expect(thanks?.n).toBe(1)
+      expect(
+        isTerminarFarewellBody(thanksClose?.body ?? '', 'America/Sao_Paulo', clock.nowMs()),
+      ).toBe(true)
     } finally {
       close()
     }

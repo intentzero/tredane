@@ -29,8 +29,10 @@ import {
   rescheduleConversationIdle,
   setConversationIdle,
 } from './idle-state'
-import { FOLLOWUP_ACTOR, FOLLOWUP_ACTOR_DISPLAY, THANKS_REPLY_BODY } from './post-booking'
+import { ensureClinicSettings } from '../config/settings'
+import { FOLLOWUP_ACTOR, FOLLOWUP_ACTOR_DISPLAY } from './post-booking'
 import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
+import { pickTerminarFarewell } from './terminar-farewell'
 import {
   planIdleContinueResume,
   sendIdleContinueProposalReoffer,
@@ -357,12 +359,13 @@ function settleIdle(
     }
   }
   if (input.thanks) {
+    const timezone = ensureClinicSettings(db, tenantId, clock).timezone
     const thanks = sendOutboundMessageOp(
       db,
       caller,
       {
         conversationId,
-        body: THANKS_REPLY_BODY,
+        body: pickTerminarFarewell({ timezone, nowMs: clock.nowMs() }),
         clientRequestId: input.clientRequestId,
         authorClerkUserId: FOLLOWUP_ACTOR,
         authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,

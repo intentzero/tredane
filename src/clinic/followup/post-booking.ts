@@ -2,15 +2,15 @@
  * DEC-086 — follow-up pós-agendamento com botões.
  * T3 (Paulo 09/11/2026): «Marcar outro» | «Terminar».
  * «Marcar outro» = B2 / DEC-142 (catálogo, mantém audiência).
- * «Terminar» = soft-decline Class A (limpa frame + acolher_adiamento).
+ * «Terminar» = limpa frame + adeus aleatório (terminar-farewell.ts; Paulo 13/11/2026).
  * O compromisso confirmado fica. Badge de não lidas zera no Terminar.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
 import { deliverCatalogConsult, planCatalogConsult } from '../ai/catalog-consult'
-import { sayAct } from '../ai/dialogue-acts'
 import { clearBookingFrame, getBookingFrame } from '../ai/schedule-session'
 import { readCatalogVersion } from '../ai/turn-context'
+import { ensureClinicSettings } from '../config/settings'
 import { listServices } from '../config/services'
 import { getActiveProposalForConversation, retireActiveProposal } from '../proposals/proposals'
 import type { ClinicCaller } from '../envelopes'
@@ -24,6 +24,7 @@ import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
+import { pickTerminarFarewell } from './terminar-farewell'
 
 export const FOLLOWUP_ACTOR = 'system:conversational-followup'
 export const FOLLOWUP_ACTOR_DISPLAY = 'Sistema'
@@ -43,12 +44,16 @@ export const POST_BOOKING_BUTTONS = {
   },
 } as const
 
-/** Adeus Class A (DEC-147 / T3 Terminar) — fallback do acto `acolher_adiamento`. */
+/**
+ * Fallback legado do soft-decline mid-funil (`acolher_adiamento` / DEC-147).
+ * O adeus dos botões Terminar (pós-agendamento, idle, preço) usa
+ * `pickTerminarFarewell` — não esta constante.
+ */
 export const TERMINAR_REPLY_BODY = 'Sem problema. Quando quiser, é só chamar.'
 
 /**
- * Idle DEC-087 / «Não, obrigado» legado — agradecimento pós-contacto.
- * Distinto de Terminar Class A (T3).
+ * @deprecated Idle DEC-087 / Terminar partilham `pickTerminarFarewell` (Paulo 13/11/2026).
+ * Frase antiga do agradecimento idle; não usar em novos call-sites.
  */
 export const THANKS_REPLY_BODY =
   'Agradecemos o contato. Estamos à disposição quando precisar.'
@@ -221,12 +226,11 @@ export function handlePostBookingButtonClick(
   const outbox: OutboxRow[] = []
 
   if (parsed.action === 'end') {
-    const replyText = sayAct(
-      'acolher_adiamento',
-      input.conversationId,
-      {},
-      TERMINAR_REPLY_BODY,
-    )
+    const timezone = ensureClinicSettings(db, input.tenantId, clock).timezone
+    const replyText = pickTerminarFarewell({
+      timezone,
+      nowMs: clock.nowMs(),
+    })
     const thanks = sendOutboundMessageOp(
       db,
       caller,
@@ -381,12 +385,11 @@ export function handlePriceFollowupButtonClick(
   const key = input.providerEventKey ?? 'x'
 
   if (action === 'end') {
-    const replyText = sayAct(
-      'acolher_adiamento',
-      input.conversationId,
-      {},
-      TERMINAR_REPLY_BODY,
-    )
+    const timezone = ensureClinicSettings(db, input.tenantId, clock).timezone
+    const replyText = pickTerminarFarewell({
+      timezone,
+      nowMs: clock.nowMs(),
+    })
     const sent = sendOutboundMessageOp(
       db,
       caller,
