@@ -97,4 +97,9 @@ export type AiAssistDeps = {
    * para trocar M5 (linha/Opções/Horários) pelo CTA `type: flow`.
    */
   prepareBookingFlowOffer?: import('../../whatsapp/flow/offer-live').PrepareBookingFlowOffer
+  /**
+   * Sombra do interpretador LLM (Proposto): mede cada turno de texto livre sem
+   * alterar o atendimento. Desligada por omissão (`AI_INTERPRETER_SHADOW=on`).
+   */
+  interpreterShadow?: boolean
 }

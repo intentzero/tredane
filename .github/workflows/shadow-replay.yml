@@ -1,0 +1,73 @@
+# Reexecução da sombra do interpretador LLM sobre o corpus fixo (Proposto).
+# Ver docs/architecture/hipotese-compreensao-llm-primeiro.md §5.3b.
+#
+# Só manual: cada corrida chama o modelo real (59 chamadas, teto US$ 2 no script).
+# Não corre em PR nem em push. O disparo manual só aparece em Actions depois de este
+# ficheiro estar na branch padrão.
+# Exige no environment `staging`: AI_GATEWAY_ID e AI_GATEWAY_TOKEN (CLOUDFLARE_ACCOUNT_ID já existe).
+# A chave da Anthropic está guardada no AI Gateway (Provider Keys, alias `staging`); o segredo
+# ANTHROPIC_API_KEY é opcional e, se existir, é enviado em cada pedido.
+name: Reexecução da sombra
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shadow-replay
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verificar segredos (só nomes, nunca valores)
+        env:
+          AI_GATEWAY_ID: ${{ secrets.AI_GATEWAY_ID }}
+          AI_GATEWAY_TOKEN: ${{ secrets.AI_GATEWAY_TOKEN }}
+          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          for v in AI_GATEWAY_ID AI_GATEWAY_TOKEN CF_ACCOUNT_ID; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Faltam no environment 'staging':$missing"
+            exit 1
+          fi
+      - name: Reexecução com o modelo real
+        env:
+          EVAL_SHADOW_REPLAY: live
+          AI_GATEWAY_ID: ${{ secrets.AI_GATEWAY_ID }}
+          AI_GATEWAY_TOKEN: ${{ secrets.AI_GATEWAY_TOKEN }}
+          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # BYOK: o gateway sem Unified Billing exige a chave da Anthropic (erro 2044 sem ela).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Alias da chave guardada no gateway (Provider Keys). Sem ele o gateway procura `default`.
+          AI_GATEWAY_BYOK_ALIAS: staging
+        run: npm run eval:shadow-replay
+      - name: Relatório no resumo do job
+        if: always()
+        run: |
+          if [ -f .eval/shadow-replay.md ]; then cat .eval/shadow-replay.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Guardar relatório e saída bruta
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-replay
+          path: |
+            .eval/shadow-replay.md
+            .eval/shadow-replay-raw.json
+          if-no-files-found: ignore
+          retention-days: 14

@@ -2,6 +2,8 @@
 
 **Estado:** **Proposto**: análise de engenharia pedida pelo Paulo em 01/11/2026. O documento não altera decisões. Os pontos que exigem decisão estão na secção 10. Complementa o [modelo híbrido](conversational-hybrid-model.md) (a IA interpreta, o backend decide), o [plano de testes](../implementation/plano-testes-conversacional.md) e a [matriz de diálogos](../implementation/matriz-dialogos-conversacional.md). Todos os exemplos são fictícios.
 
+**Leitura posterior (13/11/2026):** a análise do que a implementação fez da §3.2 (o extrator 2b quase não tem efeito) e a hipótese de inverter a compreensão estão em [hipotese-compreensao-llm-primeiro.md](hipotese-compreensao-llm-primeiro.md). **Proposto**; não altera este documento.
+
 **Tese:** quase tudo o que o atendente precisa de decidir está no **grafo de dados da clínica**: serviço, variantes, linha, combos, profissionais, salas, janelas, bloqueios, Tempo, sinal, compromissos e propostas. Uma conversa de marcação é um percurso nesse grafo até um nó «horário livre». Esse percurso pode ser conduzido por **código determinístico**. O LLM fica onde acrescenta valor: entender texto que o léxico não cobre e responder a perguntas abertas. Esta mudança também resolve a tensão da NC-01, porque o texto livre do LLM deixa de ser o caminho normal de envio (secção 10).
 
 ## 1. Diagnóstico do modelo atual

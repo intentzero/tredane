@@ -6,6 +6,7 @@ import {
   type SimulatedAiOptions,
 } from '../../ai'
 import { abuseLimitsFromEnv, type AbuseLimits } from './abuse-limits'
+import { interpreterShadowEnabled } from './interpreter-shadow'
 import type { AiAssistDeps } from './types'
 
 /** Config serializável Worker → DO (RPC não transporta classes). */
@@ -16,6 +17,7 @@ export type AiAssistRpcDeps = {
     gatewayId: string
     gatewayToken: string
     anthropicApiKey?: string
+    byokAlias?: string
     replyModel?: string
     summaryModel?: string
   }
@@ -32,6 +34,8 @@ export type AiAssistRpcDeps = {
    * env `ABUSE_LIMIT_*` = tetos/bootstrap. `ABUSE_LIMITS=on` só marca platform.enabled legado.
    */
   abuseLimits?: AbuseLimits
+  /** Sombra do interpretador LLM; só mede (ver `interpreter-shadow.ts`). */
+  interpreterShadow?: boolean
 }
 
 /** Capacidade de proposta e clique. Sempre ligada; a pausa da owner é o desligamento. */
@@ -46,6 +50,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
         gatewayId: rpc.gateway.gatewayId,
         gatewayToken: rpc.gateway.gatewayToken,
         anthropicApiKey: rpc.gateway.anthropicApiKey,
+        ...(rpc.gateway.byokAlias ? { byokAlias: rpc.gateway.byokAlias } : {}),
         replyModel: rpc.gateway.replyModel,
         summaryModel: rpc.gateway.summaryModel,
       }
@@ -58,6 +63,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     clinicName: rpc.clinicName ?? null,
     autoBookPaused: rpc.autoBookPaused === true,
     ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
+    ...(rpc.interpreterShadow ? { interpreterShadow: true } : {}),
   }
 }
 
@@ -67,18 +73,22 @@ export function rpcDepsFromEnv(env: {
   AI_GATEWAY_ID?: string
   AI_GATEWAY_TOKEN?: string
   ANTHROPIC_API_KEY?: string
+  AI_GATEWAY_BYOK_ALIAS?: string
   ABUSE_LIMITS?: string
+  AI_INTERPRETER_SHADOW?: string
   [key: `ABUSE_LIMIT_${string}`]: string | undefined
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
   return {
     mode,
+    ...(interpreterShadowEnabled(env.AI_INTERPRETER_SHADOW) ? { interpreterShadow: true } : {}),
     abuseLimits: abuseLimitsFromEnv(env as Record<string, string | undefined>),
     gateway: {
       accountId: env.CF_ACCOUNT_ID ?? '',
       gatewayId: env.AI_GATEWAY_ID ?? 'default',
       gatewayToken: env.AI_GATEWAY_TOKEN ?? '',
       anthropicApiKey: env.ANTHROPIC_API_KEY,
+      ...(env.AI_GATEWAY_BYOK_ALIAS ? { byokAlias: env.AI_GATEWAY_BYOK_ALIAS } : {}),
     },
   }
 }

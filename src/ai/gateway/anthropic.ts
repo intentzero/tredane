@@ -19,6 +19,11 @@ export type AiGatewayConfig = {
   gatewayToken: string
   /** BYOK Anthropic opcional; se ausente, Unified Billing. */
   anthropicApiKey?: string
+  /**
+   * Alias da chave Anthropic guardada no gateway (BYOK). Sem alias o gateway usa `default`.
+   * Omisso = comportamento anterior (nenhum cabeçalho).
+   */
+  byokAlias?: string
   fetchImpl?: typeof fetch
   replyModel?: string
   summaryModel?: string
@@ -68,6 +73,9 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
     }
     if (this.#cfg.anthropicApiKey) {
       headers['x-api-key'] = this.#cfg.anthropicApiKey
+    }
+    if (this.#cfg.byokAlias) {
+      headers['cf-aig-byok-alias'] = this.#cfg.byokAlias
     }
 
     this.#last = {

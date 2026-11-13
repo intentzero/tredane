@@ -136,6 +136,11 @@
         // Secrets: CF_ACCOUNT_ID, AI_GATEWAY_ID, AI_GATEWAY_TOKEN (+ ANTHROPIC_API_KEY se BYOK).
         // Sem esses secrets o adaptador cai no simulado. Nunca definir em production sem novo OK.
         "AI_MODE": "gateway",
+        // STAGING-ONLY (Paulo, 13/11/2026): sombra do interpretador LLM. Só mede: uma chamada extra
+        // ao extrator por turno de texto livre, depois das respostas; não altera o atendimento nem
+        // conta no teto diário. Log `ai.interpreter_shadow` sem texto. Nunca definir em production
+        // sem novo OK (docs/architecture/hipotese-compreensao-llm-primeiro.md).
+        "AI_INTERPRETER_SHADOW": "on",
         // #25 / Cloudflare Email Sending (Paulo Confirmado 2026-11-11). Sem secret de API no
         // path Workers binding. Gate ops: Onboard Domain `tredane.com` + Workers Paid (destinatários
         // arbitrários). Preferir `mail.tredane.com` só se MX/SPF da raiz conflitar com e-mail

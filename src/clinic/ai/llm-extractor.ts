@@ -10,6 +10,7 @@ import {
   buildExtractTool,
   buildExtractorUserContent,
   type AiContextPayload,
+  type AiGenerateResult,
 } from '../../ai'
 import type { AiAssistDeps } from './types'
 import type { Clock } from '../../db/clock'
@@ -57,6 +58,8 @@ export type ValidatedExtraction = {
   /** Slots aceites após validação (fonte llm). Confiança ignorada. */
   applied: boolean
   discarded: string[]
+  /** Saída bruta do modelo (ids e trechos literais), para a sombra reutilizar sem 2.ª chamada. */
+  raw?: ExtractorRaw | null
   modelCalled: boolean
   model: string | null
   inputTokens: number | null
@@ -271,6 +274,49 @@ function parseRaw(text: string): ExtractorRaw | null {
 }
 
 /**
+ * Chamada ao modelo do extrator (contexto DEC-109: turno, pergunta pendente, nomes do catálogo).
+ * Partilhada pelo caminho real e pela sombra do interpretador.
+ */
+export async function callExtractorModel(
+  deps: AiAssistDeps,
+  input: {
+    turnText: string
+    pending: BookingFramePending | null
+    services: ServiceRow[]
+    professionals: Array<{ id: string; name: string }>
+    timeoutMs?: number
+  },
+): Promise<{ gen: AiGenerateResult; raw: ExtractorRaw | null }> {
+  const catalog = catalogNamesFromServices(input.services, input.professionals)
+  const tool = buildExtractTool(catalog)
+  const userContent = buildExtractorUserContent({
+    turnText: input.turnText,
+    pending: input.pending
+      ? { slot: input.pending.slot, options: input.pending.options }
+      : null,
+    catalog,
+  })
+  const gen = await deps.adapter.generate({
+    kind: 'reply',
+    profile: 'extract',
+    context: emptyContext(),
+    warnings: [],
+    servicesWithoutPrice: [],
+    servicesWithoutExplanation: [],
+    explanationSources: [],
+    maxOutputTokens: 512,
+    timeoutMs: input.timeoutMs ?? AI_TIMEOUT_MS,
+    model: AI_MODEL_EXTRACT,
+    systemPromptOverride: EXTRACTOR_STABLE_SYSTEM,
+    userContentOverride: userContent,
+    tools: [tool],
+    toolChoice: { type: 'tool', name: EXTRACT_TOOL_NAME },
+    promptCache: true,
+  })
+  return { gen, raw: gen.ok ? parseRaw(gen.text) : null }
+}
+
+/**
  * Corre o interpretador; se cobertura baixa, chama o extrator e aplica slots válidos ao frame.
  */
 export async function runRestrictedExtractor(
@@ -309,32 +355,11 @@ export async function runRestrictedExtractor(
     }
   }
 
-  const catalog = catalogNamesFromServices(turn.catalog.services, proList)
-  const tool = buildExtractTool(catalog)
-  const userContent = buildExtractorUserContent({
+  const { gen, raw } = await callExtractorModel(deps, {
     turnText: turn.turnText,
-    pending: frame?.pending
-      ? { slot: frame.pending.slot, options: frame.pending.options }
-      : null,
-    catalog,
-  })
-
-  const gen = await deps.adapter.generate({
-    kind: 'reply',
-    profile: 'extract',
-    context: emptyContext(),
-    warnings: [],
-    servicesWithoutPrice: [],
-    servicesWithoutExplanation: [],
-    explanationSources: [],
-    maxOutputTokens: 512,
-    timeoutMs: AI_TIMEOUT_MS,
-    model: AI_MODEL_EXTRACT,
-    systemPromptOverride: EXTRACTOR_STABLE_SYSTEM,
-    userContentOverride: userContent,
-    tools: [tool],
-    toolChoice: { type: 'tool', name: EXTRACT_TOOL_NAME },
-    promptCache: true,
+    pending: frame?.pending ?? null,
+    services: turn.catalog.services,
+    professionals: proList,
   })
 
   if (!gen.ok) {
@@ -350,7 +375,6 @@ export async function runRestrictedExtractor(
     }
   }
 
-  const raw = parseRaw(gen.text)
   if (!raw) {
     return {
       interpretation: base,
@@ -425,6 +449,7 @@ export async function runRestrictedExtractor(
     interpretation,
     applied,
     discarded: validated.discarded,
+    raw,
     modelCalled: true,
     model: gen.model,
     inputTokens: gen.inputTokens,
