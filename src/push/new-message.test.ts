@@ -15,15 +15,21 @@ const clock = createControllableClock(1_700_000_000_000)
 
 describe('push nova mensagem em conversa existente', () => {
   it('payload sem conteúdo, deep link e tag por conversa partilhada com nova conversa', () => {
-    const input = { tenantId: 'clinic-demo-a', tenantName: 'Clínica Aurora', conversationId: 'cnv_1' }
+    const input = {
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Aurora',
+      conversationId: 'cnv_1',
+      contactLabel: 'Ana',
+    }
     const msg = buildNewMessagePayload(input)
     const conv = buildNewConversationPayload(input)
     expect(msg.kind).toBe('new_message')
     expect(msg.title).toBe('Nova mensagem')
-    expect(msg.body).toBe('Nova mensagem na Clínica Aurora')
+    expect(msg.body).toBe('Mensagem de Ana · Clínica Aurora')
     expect(msg.url).toBe('/c/clinic-demo-a/conversas/cnv_1')
     expect(msg.tag).toBe('conversation:clinic-demo-a:cnv_1')
     expect(conv.tag).toBe(msg.tag)
+    expect(conv.body).toBe('Ana · Clínica Aurora')
     assertSafePushPayload(msg)
     expect(() => assertSafePushPayload({ ...msg, body: 'Olá, quero marcar' })).toThrow(
       /unexpected/,

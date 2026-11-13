@@ -132,7 +132,7 @@ describe('push HTTP (#42)', () => {
         records: Array<{ payloadBody: string; payloadUrl: string }>
       }
       expect(body.sent).toBeGreaterThanOrEqual(1)
-      expect(body.records[0]!.payloadBody).toBe('Nova conversa na Clínica Aurora')
+      expect(body.records[0]!.payloadBody).toBe('Cliente · Clínica Aurora')
       expect(body.records[0]!.payloadUrl).toContain('/conversas/cnv_http_1')
       expect(JSON.stringify(body)).not.toMatch(/bodyPreview|waId/)
     } finally {
@@ -192,7 +192,7 @@ describe('push HTTP (#42)', () => {
       {
         kind: 'new_conversation',
         title: 'Nova conversa',
-        body: 'Nova conversa na X',
+        body: 'Cliente · X',
         tag: 't',
         url: '/c/x/conversas/1',
         tenantId: 'x',

@@ -72,17 +72,60 @@ export function createPushTransport(
   return createLivePushTransport(vapid)
 }
 
-/** Texto legado DEC-040 — já não disparado (DEC-173). Mantido para harness/testes. */
+/** Fallback quando o contacto não tem nome de apresentação (DEC-040 / copy 13/11/2026). */
+export const PUSH_CONTACT_FALLBACK = 'Cliente'
+
+/**
+ * Motivos de handoff → rótulo curto e fixo no corpo do push (DEC-156).
+ * Desconhecido → omitir o segmento (não inventar).
+ */
+export const HANDOFF_REASON_PUSH_LABELS: Readonly<Record<string, string>> = {
+  customer_requested: 'pediu a equipe',
+  off_purpose: 'fora do assunto',
+  payment_proof: 'comprovativo',
+  human_only: 'outro',
+  media_after_ask: 'outro',
+}
+
+const ALLOWED_HANDOFF_REASON_LABELS = new Set(
+  Object.values(HANDOFF_REASON_PUSH_LABELS),
+)
+
+export function handoffReasonPushLabel(
+  reason: string | null | undefined,
+): string | null {
+  if (!reason) return null
+  return HANDOFF_REASON_PUSH_LABELS[reason] ?? null
+}
+
+/** Nome da clínica no corpo — mesma sanitização do contacto (sem « · »). */
+function clinicLabel(tenantName: string): string {
+  return sanitizePushLabel(tenantName) ?? 'clínica'
+}
+
+/** Nome do contacto no corpo do push — sanitizado ou «Cliente». */
+export function resolvePushContactLabel(
+  raw: string | null | undefined,
+): string {
+  return sanitizePushLabel(raw) ?? PUSH_CONTACT_FALLBACK
+}
+
+/**
+ * Texto legado DEC-040 / harness — DEC-173 já não dispara no ingest.
+ * Corpo: `{contacto} · {clínica}` (sem preview da mensagem).
+ */
 export function buildNewConversationPayload(input: {
   tenantId: string
   tenantName: string
   conversationId: string
+  contactLabel?: string | null
 }): NewConversationPushPayload {
-  const clinic = input.tenantName.trim() || 'clínica'
+  const clinic = clinicLabel(input.tenantName)
+  const contact = resolvePushContactLabel(input.contactLabel)
   return {
     kind: 'new_conversation',
     title: 'Nova conversa',
-    body: `Nova conversa na ${clinic}`,
+    body: `${contact} · ${clinic}`,
     tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
@@ -104,7 +147,7 @@ export function appointmentPushTag(tenantId: string, appointmentId: string): str
 
 /**
  * DEC-173 — inbound só em fio assumido/handoff.
- * Contacto opcional no corpo (rótulo da agenda; sem telefone).
+ * Corpo: `Mensagem de {contacto} · {clínica}` (sem telefone nem texto WhatsApp).
  */
 export function buildNewMessagePayload(input: {
   tenantId: string
@@ -112,15 +155,12 @@ export function buildNewMessagePayload(input: {
   conversationId: string
   contactLabel?: string | null
 }): NewConversationPushPayload {
-  const clinic = input.tenantName.trim() || 'clínica'
-  const contact = sanitizePushLabel(input.contactLabel)
-  const body = contact
-    ? `Nova mensagem — ${contact} na ${clinic}`
-    : `Nova mensagem na ${clinic}`
+  const clinic = clinicLabel(input.tenantName)
+  const contact = resolvePushContactLabel(input.contactLabel)
   return {
     kind: 'new_message',
     title: 'Nova mensagem',
-    body,
+    body: `Mensagem de ${contact} · ${clinic}`,
     tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
@@ -128,29 +168,40 @@ export function buildNewMessagePayload(input: {
   }
 }
 
-/** DEC-156 — cliente pediu equipe / handoff (sem telefone nem corpo WhatsApp). */
+/**
+ * DEC-156 — cliente pediu equipe / handoff.
+ * Corpo: `{contacto} · {clínica}` [· motivo]; escalate acrescenta «há 5 min».
+ */
 export function buildNeedsPersonPayload(input: {
   tenantId: string
   tenantName: string
   conversationId: string
+  contactLabel?: string | null
+  /** `ai_reply_pause_reason` — só rótulos do mapa curto entram no corpo. */
+  handoffReason?: string | null
   escalate?: boolean
 }): NewConversationPushPayload {
-  const clinic = input.tenantName.trim() || 'clínica'
+  const clinic = clinicLabel(input.tenantName)
+  const contact = resolvePushContactLabel(input.contactLabel)
   if (input.escalate) {
     return {
       kind: 'needs_person_escalate',
       title: 'Ainda precisa de alguém',
-      body: `Continua a aguardar a equipe na ${clinic}`,
+      body: `${contact} · ${clinic} · há 5 min`,
       tag: conversationPushTag(input.tenantId, input.conversationId),
       url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
       tenantId: input.tenantId,
       conversationId: input.conversationId,
     }
   }
+  const reason = handoffReasonPushLabel(input.handoffReason)
+  const body = reason
+    ? `${contact} · ${clinic} · ${reason}`
+    : `${contact} · ${clinic}`
   return {
     kind: 'needs_person',
     title: 'Precisa de alguém',
-    body: `Chamada de atendente na ${clinic}`,
+    body,
     tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
@@ -170,7 +221,7 @@ export function buildAppointmentConfirmedPayload(input: {
   contactLabel?: string | null
   serviceName?: string | null
 }): NewConversationPushPayload {
-  const clinic = input.tenantName.trim() || 'clínica'
+  const clinic = clinicLabel(input.tenantName)
   const contact = sanitizePushLabel(input.contactLabel)
   const service = sanitizePushLabel(input.serviceName)
   const detail = [contact, service].filter(Boolean).join(' · ')
@@ -192,7 +243,7 @@ export function buildAppointmentConfirmedPayload(input: {
   }
 }
 
-/** Rótulo curto para o corpo do push — sem telefone / control chars. */
+/** Rótulo curto para o corpo do push — sem telefone / control chars / separador. */
 export function sanitizePushLabel(raw: string | null | undefined): string | null {
   if (!raw) return null
   let cleaned = ''
@@ -200,7 +251,8 @@ export function sanitizePushLabel(raw: string | null | undefined): string | null
     const code = raw.charCodeAt(i)
     cleaned += code <= 0x1f || code === 0x7f ? ' ' : raw[i]!
   }
-  let s = cleaned.replace(/\s+/g, ' ').trim()
+  // O corpo usa « · » como separador de segmentos — não deixar no rótulo.
+  let s = cleaned.replace(/·/g, ' ').replace(/\s+/g, ' ').trim()
   if (!s) return null
   // Recusa se parecer número de telefone (E.164 / nacional denso).
   if (/^\+?\d[\d\s().-]{6,}$/.test(s)) return null
@@ -220,6 +272,7 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
   if (!allowed.has(payload.kind)) {
     throw new Error('unsupported_push_kind')
   }
+  // Chaves proibidas no JSON (o nome do contacto só pode ir no `body`, nunca como campo).
   const forbidden = ['waId', 'bodyPreview', 'phone', 'messageBody', 'displayName']
   const json = JSON.stringify(payload)
   for (const key of forbidden) {
@@ -227,15 +280,55 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
       throw new Error('push_payload_contains_sensitive_field')
     }
   }
-  // Corpo tipado: só o template sem trecho de mensagem WhatsApp.
-  const prefixes: Record<NewConversationPushPayload['kind'], string> = {
-    new_conversation: 'Nova conversa na ',
-    new_message: 'Nova mensagem',
-    needs_person: 'Chamada de atendente na ',
-    needs_person_escalate: 'Continua a aguardar a equipe na ',
-    appointment_confirmed: 'Agendamento confirmado',
-  }
-  if (!payload.body.startsWith(prefixes[payload.kind])) {
+  const body = payload.body
+  if (!body || /\r|\n/.test(body) || body.length > 160) {
     throw new Error('push_body_unexpected')
+  }
+  // Templates Confirmados (13/11/2026): título = tipo; corpo = segmentos com « · ».
+  // Sem preview de mensagem WhatsApp — rejeita corpos que não casem o formato.
+  switch (payload.kind) {
+    case 'new_conversation': {
+      if (!/^[^·]+ · [^·]+$/.test(body)) throw new Error('push_body_unexpected')
+      break
+    }
+    case 'new_message': {
+      if (!/^Mensagem de [^·]+ · [^·]+$/.test(body)) {
+        throw new Error('push_body_unexpected')
+      }
+      break
+    }
+    case 'needs_person': {
+      const parts = body.split(' · ')
+      if (parts.length === 2) {
+        if (!parts[0]?.trim() || !parts[1]?.trim()) {
+          throw new Error('push_body_unexpected')
+        }
+      } else if (parts.length === 3) {
+        if (
+          !parts[0]?.trim() ||
+          !parts[1]?.trim() ||
+          !ALLOWED_HANDOFF_REASON_LABELS.has(parts[2]!)
+        ) {
+          throw new Error('push_body_unexpected')
+        }
+      } else {
+        throw new Error('push_body_unexpected')
+      }
+      break
+    }
+    case 'needs_person_escalate': {
+      if (!/^[^·]+ · [^·]+ · há 5 min$/.test(body)) {
+        throw new Error('push_body_unexpected')
+      }
+      break
+    }
+    case 'appointment_confirmed': {
+      if (!body.startsWith('Agendamento confirmado')) {
+        throw new Error('push_body_unexpected')
+      }
+      break
+    }
+    default:
+      throw new Error('unsupported_push_kind')
   }
 }

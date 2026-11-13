@@ -1649,6 +1649,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     escalate: boolean,
   ): Promise<void> {
     try {
+      const row = this.#db.get<{
+        display_name: string | null
+        pause_reason: string | null
+      }>(
+        `SELECT ct.display_name AS display_name,
+                c.ai_reply_pause_reason AS pause_reason
+         FROM conversations c
+         JOIN contacts ct
+           ON ct.tenant_id = c.tenant_id AND ct.id = c.contact_id
+         WHERE c.tenant_id = ? AND c.id = ?`,
+        tenantId,
+        conversationId,
+      )
+      const contactLabel = row?.display_name?.trim() || null
+      const handoffReason = escalate ? null : row?.pause_reason ?? null
       const { maybeNotifyNeedsPersonPush } = await import('../push/queue-hook')
       await maybeNotifyNeedsPersonPush({
         env: this.env as WorkerBindings,
@@ -1656,6 +1671,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         tenantId,
         conversationId,
         escalate,
+        contactLabel,
+        handoffReason,
         badgeCount: countUnreadConversations(this.#db, tenantId),
         suppressUserIds: this.#activeViewerUserIds(),
         log: (entry) => {
