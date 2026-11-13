@@ -134,6 +134,15 @@
       "w": 1440,
       "h": 720,
       "title": "TEL-04 desktop: Agenda com barra no cabeçalho · Confirmado DEC-170"
+    },
+    "ServicosPalavras.dc.html": {
+      "x": 100,
+      "y": 10164,
+      "w": 1280,
+      "h": 820,
+      "title": "M-82 Serviços: O que a IA reconhece (Confirmado DEC-176)",
+      "is_interactive": false,
+      "radius": 12
     }
   },
   "order": [
@@ -152,7 +161,8 @@
     "ConversaCabecalhoAntesDepois.dc.html",
     "ConversasUrgenciaFicha.dc.html",
     "ClinicaServicosTabela.dc.html",
-    "AgendaBarraCabecalho.dc.html"
+    "AgendaBarraCabecalho.dc.html",
+    "ServicosPalavras.dc.html"
   ],
   "notes": {
     "row1": {

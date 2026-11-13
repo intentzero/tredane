@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Editar a zona Axila</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A4547}a:hover{color:#142625}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; font-family: Roboto, Helvetica, Arial, sans-serif; color: #142625; overflow: hidden">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(20, 38, 37, 0.45)"></div>
+  <div role="dialog" aria-labelledby="ed-t" style="position: absolute; left: 0; right: 0; bottom: 0; top: 56px; padding: 8px 16px 16px; background: #FFFFFF; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; gap: 14px">
+    <span aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 999px; background: #CBD0CF"></span>
+    <h2 id="ed-t" style="margin: 0; font-size: 18px; font-weight: 500">Zona · Axila</h2>
+    <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 500">Nome</span><input value="Axila" style="height: 44px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font: 400 16px Roboto, sans-serif; color: #142625"></label>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 500">Também chamam de</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid #7A8584; border-radius: 8px"><span style="height: 32px; padding: 0 6px 0 12px; border-radius: 999px; background: #E7F1F1; color: #0A4547; font-size: 14px; display: flex; align-items: center">sovaco<button aria-label="Tirar sovaco" style="width: 28px; height: 28px; border: 0; background: none; color: #0A4547">×</button></span><span style="height: 32px; padding: 0 6px 0 12px; border-radius: 999px; background: #E7F1F1; color: #0A4547; font-size: 14px; display: flex; align-items: center">axilas<button aria-label="Tirar axilas" style="width: 28px; height: 28px; border: 0; background: none; color: #0A4547">×</button></span><input aria-label="Novo sinônimo" placeholder="Adicionar…" style="flex: 1; min-width: 90px; height: 32px; border: 0; outline: 0; font: 400 14px Roboto, sans-serif"></div>
+      <span style="font-size: 13px; color: #424B4A">Valem para feminino e masculino. A resposta usa sempre «Axila».</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 500">Para quem, tempo e preço</span>
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="2">
+        <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid #EEEDE7">
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px"><input type="checkbox" checked="{{r.on}}" style="width: 20px; height: 20px; accent-color: #0E5A5C">{{r.who}}</label>
+          <label style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; color: #424B4A">Minutos</span><input value="{{r.min}}" inputmode="numeric" style="height: 40px; padding: 0 10px; border: 1px solid #7A8584; border-radius: 8px; font: 400 16px Roboto, sans-serif; color: #142625"></label>
+          <label style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; color: #424B4A">Preço</span><input value="{{r.price}}" style="height: 40px; padding: 0 10px; border: 1px solid #7A8584; border-radius: 8px; font: 400 16px Roboto, sans-serif; color: #142625"></label>
+        </div>
+      </sc-for>
+      <span style="font-size: 13px; color: #424B4A">Desmarque um público para deixar de oferecer esta zona a ele. As marcações antigas ficam.</span>
+    </div>
+    <span style="flex: 1"></span>
+    <div style="display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid #EEEDE7">
+      <button style="height: 44px; padding: 0 4px; border: 0; background: none; color: #B42318; font: 500 14px Roboto, sans-serif">Remover zona…</button>
+      <span style="flex: 1"></span>
+      <button style="height: 44px; padding: 0 14px; border: 0; border-radius: 8px; background: #EEEDE7; color: #142625; font: 500 14px Roboto, sans-serif">Cancelar</button>
+      <button style="height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: #0E5A5C; color: #FFFFFF; font: 500 14px Roboto, sans-serif">Aplicar</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return { rows: [
+  { who: 'Feminino', on: true, min: '10', price: '50,00' },
+  { who: 'Masculino', on: true, min: '10', price: '50,00' }
+] }; }
+}
+</script>
+</body>
+</html>

@@ -257,11 +257,13 @@ export function replaceZones(
       selfZoneId: id,
       claims: pendingClaims,
     })
+    const ownerFolded = foldSynonym(name)
     pendingClaims.push({
-      folded: foldSynonym(name),
+      folded: ownerFolded,
       label: name,
       serviceId: service.id,
       zoneId: id,
+      ownerFolded,
     })
     for (const syn of keptSynonyms) {
       pendingClaims.push({
@@ -269,6 +271,7 @@ export function replaceZones(
         label: syn,
         serviceId: service.id,
         zoneId: id,
+        ownerFolded,
       })
     }
     if (prior) {

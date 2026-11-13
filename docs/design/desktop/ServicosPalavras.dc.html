@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>O que a IA reconhece</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A4547}a:hover{color:#142625}
+</style>
+</helmet>
+<div style="width: 1280px; height: 820px; box-sizing: border-box; display: flex; background: #F5F4EF; font-family: Roboto, Helvetica, Arial, sans-serif; color: #142625; overflow: hidden">
+  <nav aria-label="Áreas" style="width: 64px; flex: none; background: #0B3B3C"></nav>
+  <main style="flex: 1; display: flex; justify-content: center; padding: 24px">
+    <div style="width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: flex-end; gap: 16px">
+        <div style="flex: 1"><span style="font-size: 13px; color: #566160">Serviços</span><h1 style="margin: 0; font-size: 22px; font-weight: 500">O que a IA reconhece</h1><span style="font-size: 14px; color: #424B4A">Cada linha é um nome do catálogo e as palavras que a cliente pode usar para ele.</span></div>
+        <label style="width: 260px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Procurar palavra</span><input placeholder="Procurar uma palavra" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font: 400 14px Roboto, sans-serif"></label>
+      </div>
+      <section aria-labelledby="new-t" style="padding: 14px 16px; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; display: flex; flex-direction: column; gap: 10px">
+        <h2 id="new-t" style="margin: 0; font-size: 14px; font-weight: 500">Palavras que a assistente não reconheceu</h2>
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 14px"><strong style="font-weight: 500; width: 160px">«buço com cera»</strong><span style="flex: 1; color: #424B4A">3 vezes</span><button style="height: 36px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; font: 500 13px Roboto, sans-serif; color: #142625">Gravar em Depilação</button><button style="height: 36px; padding: 0 10px; border: 0; background: none; color: #424B4A; font: 500 13px Roboto, sans-serif">Descartar</button></div>
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 14px"><strong style="font-weight: 500; width: 160px">«drenagem»</strong><span style="flex: 1; color: #424B4A">1 vez</span><button style="height: 36px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; font: 500 13px Roboto, sans-serif; color: #142625">Gravar em Massagem</button><button style="height: 36px; padding: 0 10px; border: 0; background: none; color: #424B4A; font: 500 13px Roboto, sans-serif">Descartar</button></div>
+      </section>
+      <div style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; overflow: hidden">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px">
+          <thead><tr style="background: #EEEDE7; text-align: left; color: #424B4A; font-size: 13px"><th style="padding: 10px 16px; font-weight: 500">No catálogo</th><th style="padding: 10px 16px; font-weight: 500">Também chamam de</th><th style="padding: 10px 16px; font-weight: 500; width: 90px"></th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+              <tr style="border-top: 1px solid #EEEDE7; background: {{r.bg}}">
+                <td style="padding: 10px 16px; vertical-align: top"><strong style="display: block; font-weight: {{r.weight}}">{{r.name}}</strong><span style="font-size: 12px; color: #566160">{{r.kind}}</span></td>
+                <td style="padding: 10px 16px; vertical-align: top; color: #424B4A">{{r.syn}}<span style="display: block; font-size: 13px; color: #9A3F12">{{r.warn}}</span></td>
+                <td style="padding: 10px 16px; vertical-align: top; text-align: right"><a href="#editar" style="font-weight: 500">Editar</a></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+const svc = (name, syn) => ({ name, kind: 'Serviço', syn, warn: '', bg: '#FFFFFF', weight: '500' });
+const opt = (name, syn, warn) => ({ name: '   ' + name, kind: 'Zona ou tipo', syn, warn: warn || '', bg: warn ? '#FFF7EA' : '#FFFFFF', weight: '400' });
+return { rows: [
+  svc('Depilação', 'depilar'),
+  opt('Depilação › Axila', 'sovaco, axilas'),
+  opt('Depilação › Pernas', 'perna inteira, pernas', '«pernas» também está em Massagem › Relaxante. Deixe a palavra num sítio só.'),
+  opt('Depilação › Braços', 'Sem outras palavras'),
+  svc('Massagem', 'massagem relaxante'),
+  opt('Massagem › Relaxante', 'pernas cansadas, pernas'),
+  opt('Massagem › Ventosaterapia', 'ventosa, ventosas')
+] };
+}
+}
+</script>
+</body>
+</html>

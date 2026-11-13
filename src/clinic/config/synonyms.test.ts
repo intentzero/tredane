@@ -192,6 +192,57 @@ describe('sinónimos DEC-110 (#421)', () => {
     }
   })
 
+  it('DEC-176: variantes com o mesmo nome partilham sinónimos; outra variante não', () => {
+    const s = boot()
+    try {
+      const svc = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+        },
+        systemClock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [
+          { name: 'Axila', durationMinutes: 10, priceCents: 5000, audience: 'feminino', synonyms: ['sovaco'] },
+          { name: 'axila', durationMinutes: 10, priceCents: 5000, audience: 'masculino', synonyms: ['sovaco'] },
+        ],
+        systemClock,
+      )
+      const loaded = getService(s.db, s.tenantId, svc.id)!
+      expect(loaded.zones.map((z) => z.synonyms)).toEqual([['sovaco'], ['sovaco']])
+
+      let err: unknown
+      try {
+        replaceServiceZonesOp(
+          s.db,
+          s.caller,
+          svc.id,
+          [
+            { id: loaded.zones[0]!.id, name: 'Axila', audience: 'feminino', synonyms: ['sovaco'] },
+            { id: loaded.zones[1]!.id, name: 'Pernas', audience: 'masculino', synonyms: ['sovaco'] },
+          ],
+          systemClock,
+        )
+      } catch (e) {
+        err = e
+      }
+      expect((err as ValidationError).code).toBe('synonym_collision')
+    } finally {
+      s.close()
+    }
+  })
+
   it('textCitesNameOrSynonym reconhece sinónimo sem ecoar o nome', () => {
     expect(textCitesNameOrSynonym('quero buço amanhã', 'Lábio superior', ['buço'])).toBe(true)
     expect(textCitesNameOrSynonym('quero axila', 'Lábio superior', ['buço'])).toBe(false)

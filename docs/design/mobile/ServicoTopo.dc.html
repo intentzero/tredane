@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ficha do serviço, topo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A4547}a:hover{color:#142625}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #F5F4EF; font-family: Roboto, Helvetica, Arial, sans-serif; color: #142625; overflow: hidden">
+  <header style="display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 4px; background: #FFFFFF; border-bottom: 1px solid #E1E3E0">
+    <button aria-label="Voltar a Serviços" style="width: 44px; height: 44px; border: 0; background: none; color: #142625; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+    <div style="flex: 1; display: flex; flex-direction: column"><span style="font-size: 11px; color: #566160">Serviços</span><h1 style="margin: 0; font-size: 18px; font-weight: 500">Depilação</h1></div>
+    <span style="padding: 2px 8px; border-radius: 6px; background: #EAF5EF; color: #1F7A4D; font-size: 11px; font-weight: 500; margin-right: 8px">Ativo</span>
+  </header>
+  <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 16px">
+    <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 500">Nome no catálogo</span><input value="Depilação" style="height: 44px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font: 400 16px Roboto, sans-serif; color: #142625"></label>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 500">Também chamam de</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; background: #FFFFFF; border: 1px solid #7A8584; border-radius: 8px"><span style="height: 32px; padding: 0 6px 0 12px; border-radius: 999px; background: #E7F1F1; color: #0A4547; font-size: 14px; display: flex; align-items: center; gap: 4px">depilar<button aria-label="Tirar depilar" style="width: 28px; height: 28px; border: 0; background: none; color: #0A4547; font-size: 14px">×</button></span><input aria-label="Novo sinônimo" placeholder="Outra palavra para este serviço" style="flex: 1; min-width: 120px; height: 32px; border: 0; outline: 0; font: 400 14px Roboto, sans-serif"></div>
+      <span style="font-size: 13px; color: #424B4A">Palavras que a cliente pode escrever. A IA percebe o pedido; a resposta usa sempre «Depilação».</span>
+    </div>
+    <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+      <legend style="font-size: 13px; font-weight: 500; margin-bottom: 8px">Como a cliente escolhe</legend>
+      <div role="radiogroup" aria-label="Como a cliente escolhe" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; background: #EEEDE7; border-radius: 8px">
+        <button role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 6px; background: none; color: #424B4A; font: 400 13px Roboto, sans-serif">Só um</button>
+        <button role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 6px; background: none; color: #424B4A; font: 400 13px Roboto, sans-serif">Uma opção</button>
+        <button role="radio" aria-checked="true" style="height: 40px; border: 0; border-radius: 6px; background: #FFFFFF; color: #142625; font: 500 13px Roboto, sans-serif">Várias juntas</button>
+      </div>
+      <span style="font-size: 13px; color: #424B4A">A cliente junta opções na mesma visita. Preço e tempo somam. Ex.: zonas de depilação.</span>
+    </fieldset>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 500">Para quem</span>
+      <div role="radiogroup" aria-label="Para quem" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; background: #EEEDE7; border-radius: 8px">
+        <button role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 6px; background: none; color: #424B4A; font: 400 13px Roboto, sans-serif">Qualquer</button>
+        <button role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 6px; background: none; color: #424B4A; font: 400 13px Roboto, sans-serif">Feminino</button>
+        <button role="radio" aria-checked="true" style="height: 40px; border: 0; border-radius: 6px; background: #FFFFFF; color: #142625; font: 500 13px Roboto, sans-serif">Masculino</button>
+      </div>
+      <div role="alert" style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid #EBCB94; border-radius: 8px; background: #FFF7EA; font-size: 13px; color: #6E4200"><span style="flex: 1">5 zonas são só para feminino, e o serviço está em «Masculino». O serviço não esconde essas opções.</span><button style="height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: #FFFFFF; color: #6E4200; font: 500 13px Roboto, sans-serif; white-space: nowrap">Usar «Qualquer»</button></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 500">Como se chama cada opção</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+        <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 11px; color: #424B4A">Uma</span><input value="Zonas" style="height: 44px; padding: 0 12px; border: 1px solid #9A3F12; border-radius: 8px; font: 400 16px Roboto, sans-serif; color: #142625"></label>
+        <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 11px; color: #424B4A">Várias</span><input value="Zonas" style="height: 44px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font: 400 16px Roboto, sans-serif; color: #142625"></label>
+      </div>
+      <div role="alert" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: #FFF7EA; color: #6E4200; font-size: 13px"><span style="flex: 1">«Zonas» nos dois dá «1 zonas». Para uma, use «Zona».</span><button style="height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: #FFFFFF; color: #6E4200; font: 500 13px Roboto, sans-serif; white-space: nowrap">Usar «Zona»</button></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

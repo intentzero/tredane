@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, SearchField, TextArea, TextField } from 'react-aria-components'
-import { Check, ChevronRight, Minus, Search, TriangleAlert } from 'lucide-react'
-import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
+import { Check, ChevronRight, MessageSquareText, Minus, Search, TriangleAlert } from 'lucide-react'
+import {
+  suggestVariantKindPlural,
+  variantKindLabels,
+} from '../../../../clinic/catalog/variant-kind'
 import { ComboCatalog, type ComboDraft } from './ComboCatalog'
 import { VariantCatalog, type ZoneDraft } from './VariantCatalog'
 import { Badge } from '../../states/Badge'
@@ -33,6 +36,7 @@ import { WeekEditor } from './WeekEditor'
 import { RuleRow } from './RuleRow'
 import { SynonymsField } from './SynonymsField'
 import { TempoSheet, tempoSummary } from './TempoSheet'
+import { claimedElsewhere, groupZones, serviceClaims } from './variantGroups'
 
 /** Preço que o sinal percentual enxerga: a linha, ou a soma das variantes em uso. */
 function signalBaseCents(withVariants: boolean, price: string, zones: ZoneDraft[]): number | null {
@@ -170,6 +174,21 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
           })
         }
       />
+      <ul className="clinic-nav-list clinic-words-link">
+        <li>
+      <Button
+        className="clinic-nav-row"
+        onPress={() => navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'palavras' })}
+      >
+        <MessageSquareText aria-hidden size={18} />
+        <span className="clinic-nav-copy">
+          <strong>O que a IA reconhece</strong>
+          <span>Os nomes do catálogo e as palavras que a cliente pode usar</span>
+        </span>
+        <ChevronRight aria-hidden size={18} />
+      </Button>
+        </li>
+      </ul>
       {snap.services.length > 5 ? (
         // DEC-163: com muitos serviços, buscar pelo nome é mais rápido que rolar.
         <SearchField
@@ -223,7 +242,7 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
           </li>
         ) : null}
       </ul>
-      {/* DEC-175: as sugestões chegam num segundo pedido; no fim, não empurram a lista. */}
+      {/* DEC-176: as sugestões chegam num segundo pedido; no fim, não empurram a lista. */}
       {suggestions ?? null}
     </div>
   )
@@ -473,7 +492,7 @@ export function ServiceForm({
         ? { state: 'ok', text: 'Não ocupa sala.' }
         : { state: 'ok', text: `${roomIds.length} ${roomIds.length === 1 ? 'sala' : 'salas'}` },
     withVariants && zones.filter((z) => z.active).length === 0
-      ? { state: 'warn', text: 'Nenhuma opção em uso: não há marcação nova.' }
+      ? { state: 'warn', text: 'Nenhuma opção ativa: não há marcação nova.' }
       : missingPrice > 0
         ? {
             state: 'warn',
@@ -486,31 +505,58 @@ export function ServiceForm({
             : linePriceMissing
               ? { state: 'opt', text: 'Preço em aberto (opcional).' }
               : { state: 'ok', text: 'Preço e duração definidos.' },
-    explanation.trim()
-      ? { state: 'ok', text: 'Explicação para a IA escrita.' }
-      : {
-          state: 'opt',
-          text: 'Explicação para a IA (opcional).',
-          fix: { label: 'Escrever', run: () => setOpenRule('explicacao') },
-        },
   ]
 
-  const occupied = duration + buffer
+  const kindLabels = variantKindLabels({ variantKind, variantKindPlural }, 'Opção')
+  const activeGroups = groupZones(zones.filter((z) => z.active))
+  const agendaLine = (() => {
+    const pause = buffer > 0 ? ` + ${buffer} min de intervalo` : ''
+    if (!withVariants) {
+      return `Ocupa ${duration + buffer} min: ${duration} de atendimento${buffer > 0 ? ` + ${buffer} de intervalo` : ''}`
+    }
+    const lowerS = kindLabels.singular.toLocaleLowerCase('pt-BR')
+    const lowerP = kindLabels.plural.toLocaleLowerCase('pt-BR')
+    const minutesOf = (i: number) => activeGroups[i]?.members.find((m) => m.active)?.durationMinutes ?? 0
+    if (variantSelection === 'uma') {
+      const ex = activeGroups[0]
+      return `Ocupa o tempo da ${lowerS} escolhida${pause}${
+        ex ? `. Ex.: ${ex.name} = ${minutesOf(0) + buffer} min` : ''
+      }`
+    }
+    const [a, b] = activeGroups
+    return `Ocupa a soma das ${lowerP} escolhidas${pause}, uma vez${
+      a && b ? `. Ex.: ${a.name} + ${b.name} = ${minutesOf(0) + minutesOf(1) + buffer} min` : ''
+    }`
+  })()
   const hasFemale = zones.some((z) => z.active && z.audience === 'feminino')
   const hasMale = zones.some((z) => z.active && z.audience === 'masculino')
   const audienceConflict =
     withVariants && ((audiencia === 'masculino' && hasFemale) || (audiencia === 'feminino' && hasMale))
+  const conflictCount = zones.filter(
+    (z) => z.active && z.audience === (audiencia === 'masculino' ? 'feminino' : 'masculino'),
+  ).length
+  // DEC-176 — a mesma palavra num só sítio: avisa antes do servidor recusar.
+  const selfId = existing?.id ?? 'novo'
+  const otherClaims = useMemo(
+    () => snap.services.filter((s) => s.id !== selfId).flatMap((s) => serviceClaims(s)),
+    [snap.services, selfId],
+  )
+  const allClaims = [
+    ...otherClaims,
+    ...serviceClaims({ id: selfId, name, synonyms, zones: withVariants ? zones : [] }),
+  ]
+  const serviceTakenBy = (word: string) => claimedElsewhere(word, `${selfId}:`, allClaims)
+  const groupTakenBy = (groupKey: string, word: string) =>
+    claimedElsewhere(word, `${selfId}:${groupKey}`, allClaims)
   const [spaceError, setSpaceError] = useState<string | null>(null)
   const [tempoOpen, setTempoOpen] = useState(false)
   const [openRule, setOpenRule] = useState<
-    null | 'intervalo' | 'audiencia' | 'sinal' | 'horas' | 'explicacao' | 'equipamento'
+    null | 'intervalo' | 'sinal' | 'horas' | 'explicacao' | 'equipamento'
   >(null)
   const roomNames = roomIds
     .map((id) => rooms.find((r) => r.id === id)?.name)
     .filter((name): name is string => Boolean(name))
     .sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  const audienciaLabel =
-    audiencia === 'feminino' ? 'Feminino' : audiencia === 'masculino' ? 'Masculino' : 'Qualquer'
   const signalLabel = !requiresSignal
     ? 'Sem sinal'
     : signalKind === 'percent'
@@ -522,7 +568,7 @@ export function ServiceForm({
   const hoursLabel =
     hoursOpenCount === 0 ? 'Qualquer dia com profissional livre' : `${hoursOpenCount} dia(s) com janela`
   const toggleRule = (
-    id: 'intervalo' | 'audiencia' | 'sinal' | 'horas' | 'explicacao' | 'equipamento',
+    id: 'intervalo' | 'sinal' | 'horas' | 'explicacao' | 'equipamento',
   ) => setOpenRule((cur) => (cur === id ? null : id))
 
   async function save() {
@@ -576,17 +622,17 @@ export function ServiceForm({
     }
     const draftZones = withVariants ? zones : []
     if (withVariants && draftZones.length === 0) {
-      setFormError('Adicione ao menos uma variante. O que você digitou continua aqui.')
+      setFormError('Adicione ao menos uma opção. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
     if (draftZones.length > 0 && (!variantKind.trim() || !variantKindPlural.trim())) {
-      setFormError('Dê o singular e o plural do tipo. O que você digitou continua aqui.')
+      setFormError('Diga como se chama uma opção e várias. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
     if (draftZones.some((z) => !z.name.trim())) {
-      setFormError('Dê um nome a cada variante. O que você digitou continua aqui.')
+      setFormError('Dê um nome a cada opção. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
@@ -612,7 +658,7 @@ export function ServiceForm({
     const small = draftCombos.find((c) => c.zoneKeys.length < 2)
     if (small) {
       setFormError(
-        `O combo «${small.name.trim() || 'sem nome'}» precisa de pelo menos 2 variantes. Complete ou remova. O que você digitou continua aqui.`,
+        `O combo «${small.name.trim() || 'sem nome'}» precisa de pelo menos 2 opções. Complete ou remova. O que você digitou continua aqui.`,
       )
       setSaving(false)
       return
@@ -723,15 +769,18 @@ export function ServiceForm({
         </div>
       </header>
       <TextField className="clinic-field">
-        <Label>Nome</Label>
+        <Label>Nome no catálogo</Label>
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
       <SynonymsField
-        label="Sinônimos"
+        label="Também chamam de"
         value={synonyms}
         onChange={setSynonyms}
-        placeholder="Adicionar…"
-        hint="Nomes populares do serviço. Só ajudam a entender o pedido; as respostas usam o nome do catálogo."
+        placeholder="Outra palavra para este serviço"
+        hint={`Palavras que a cliente pode escrever. A IA percebe o pedido; a resposta usa sempre «${
+          name.trim() || 'o nome do catálogo'
+        }».`}
+        takenBy={serviceTakenBy}
       />
       <ClinicCheck className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
         Serviço ativo
@@ -741,8 +790,9 @@ export function ServiceForm({
           Como a cliente escolhe
         </h2>
         <RadioGroup
-          className="svc-format"
+          className="vc-seg svc-mode"
           aria-label="Como a cliente escolhe"
+          orientation="horizontal"
           value={withVariants ? variantSelection : 'unica'}
           onChange={(v) => {
             if (v === 'unica') {
@@ -753,19 +803,66 @@ export function ServiceForm({
             }
           }}
         >
-          <Radio value="unica" className="svc-format-item">
-            <strong>Um só serviço</strong>
-            <span>Sempre o mesmo preço e a mesma duração.</span>
+          <Radio value="unica" className="vc-seg-item">
+            Só um
           </Radio>
-          <Radio value="uma" className="svc-format-item">
-            <strong>Escolhe uma opção</strong>
-            <span>Ex.: tipo de massagem. Exatamente uma por visita.</span>
+          <Radio value="uma" className="vc-seg-item">
+            Uma opção
           </Radio>
-          <Radio value="varias" className="svc-format-item">
-            <strong>Pode juntar opções</strong>
-            <span>Ex.: zonas de depilação. Preço e tempo somam.</span>
+          <Radio value="varias" className="vc-seg-item">
+            Várias juntas
           </Radio>
         </RadioGroup>
+        <p className="clinic-footnote svc-mode-note">
+          {!withVariants
+            ? 'Sempre o mesmo preço e a mesma duração.'
+            : variantSelection === 'uma'
+              ? 'A cliente escolhe uma opção por visita. Ex.: tipo de massagem.'
+              : 'A cliente junta opções na mesma visita. Preço e tempo somam. Ex.: zonas de depilação.'}
+        </p>
+        <div className="svc-who-for">
+          <RadioGroup
+            className="svc-aud"
+            orientation="horizontal"
+            value={audiencia}
+            onChange={(v) => {
+              if (v === 'feminino' || v === 'masculino' || v === 'qualquer') setAudiencia(v)
+            }}
+          >
+            <Label className="vc-label">Para quem</Label>
+            <div className="vc-seg">
+              <Radio value="qualquer" className="vc-seg-item">
+                Qualquer
+              </Radio>
+              <Radio value="feminino" className="vc-seg-item">
+                Feminino
+              </Radio>
+              <Radio value="masculino" className="vc-seg-item">
+                Masculino
+              </Radio>
+            </div>
+          </RadioGroup>
+          {audienceConflict ? (
+            <div className="svc-conflict" role="status">
+              <TriangleAlert aria-hidden size={16} />
+              <span>
+                {kindLabels.count(conflictCount)}{' '}
+                {conflictCount === 1 ? 'é' : 'são'} só para{' '}
+                {audiencia === 'masculino' ? 'feminino' : 'masculino'}, e o serviço está em «
+                {audiencia === 'masculino' ? 'Masculino' : 'Feminino'}». O serviço não esconde{' '}
+                {conflictCount === 1 ? 'essa opção' : 'essas opções'}.
+              </span>
+              <Button className="svc-conflict-fix" onPress={() => setAudiencia('qualquer')}>
+                Usar «Qualquer»
+              </Button>
+            </div>
+          ) : (
+            <p className="clinic-footnote">
+              Descreve o serviço, não a pessoa. Um nome como «Bronzeamento feminino» não preenche este
+              campo.
+            </p>
+          )}
+        </div>
         {withVariants ? (
           <>
           <VariantCatalog
@@ -783,6 +880,8 @@ export function ServiceForm({
             zones={zones}
             onZones={(update) => setZones(update)}
             seed={{ durationMinutes: duration, price }}
+            selection={variantSelection}
+            takenBy={groupTakenBy}
           />
           {variantSelection === 'varias' ? (
             <ComboCatalog
@@ -795,8 +894,8 @@ export function ServiceForm({
           ) : combos.some((c) => c.active) ? (
             // DEC-149 — combos ficam ocultos em `uma`; avisar antes do Salvar.
             <p className="clinic-form-error" role="status">
-              Este serviço ainda tem combo ativo. Volte a «Pode juntar opções», desative ou
-              remova os combos, e só depois grave «Escolhe uma opção».
+              Este serviço ainda tem combo ativo. Volte a «Várias juntas», desative ou remova os
+              combos, e só depois grave «Uma opção».
             </p>
           ) : null}
           </>
@@ -832,24 +931,13 @@ export function ServiceForm({
             </p>
             {zones.length > 0 ? (
               <p className="clinic-hint-box">
-                As variantes já cadastradas ficam guardadas, mas não valem enquanto o serviço for opção
-                única. Ao salvar, elas só saem se nunca entraram numa visita.
+                As opções já cadastradas ficam guardadas, mas não valem enquanto o serviço for «Só
+                um». Ao salvar, elas só saem se nunca entraram numa visita.
               </p>
             ) : null}
           </>
         )}
       </section>
-      {audienceConflict ? (
-        <p className="clinic-warn" role="status">
-          <TriangleAlert aria-hidden size={16} />
-          <span>
-            O serviço está como {audiencia}, e há variantes só para{' '}
-            {audiencia === 'masculino' ? 'feminino' : 'masculino'}. A audiência do serviço não esconde
-            essas variantes.
-          </span>
-        </p>
-      ) : null}
-
       <section className="clinic-section" aria-labelledby="svc-who">
         <h2 id="svc-who" className="clinic-section-title">
           Quem faz
@@ -933,11 +1021,7 @@ export function ServiceForm({
       </section>
 
       <p className="clinic-hint-box" role="status" aria-label="Como fica na agenda">
-        <strong>Como fica na agenda.</strong> Ocupa {occupied} min
-        {withVariants
-          ? ' (soma das variantes + intervalo uma vez)'
-          : `: ${duration} de atendimento + ${buffer} de intervalo`}
-        . Bloqueia a profissional
+        <strong>Como fica na agenda.</strong> {agendaLine}. Bloqueia a profissional
         {space === 'none'
           ? ' e não ocupa sala.'
           : roomNames.length > 0
@@ -946,7 +1030,7 @@ export function ServiceForm({
       </p>
 
       <section aria-labelledby="svc-ready-t" className="clinic-stack">
-        <h2 id="svc-ready-t" className="clinic-section-title">
+        <h2 id="svc-ready-t" className="svc-ready-title">
           Pronto para atender
         </h2>
         <ul className="svc-ready">
@@ -989,33 +1073,6 @@ export function ServiceForm({
                 label: m === 0 ? 'Nenhum' : `${m} min`,
               }))}
             />
-          ) : null}
-        </RuleRow>
-        <RuleRow
-          label="Para quem"
-          value={audienciaLabel}
-          onPress={() => toggleRule('audiencia')}
-        >
-          {openRule === 'audiencia' ? (
-            <>
-              <PanelSelect
-                className="clinic-field"
-                label="Audiência"
-                value={audiencia}
-                onChange={(v) => {
-                  if (v === 'feminino' || v === 'masculino' || v === 'qualquer') setAudiencia(v)
-                }}
-                options={[
-                  { id: 'qualquer', label: 'Qualquer' },
-                  { id: 'feminino', label: 'Feminino' },
-                  { id: 'masculino', label: 'Masculino' },
-                ]}
-              />
-              <p className="clinic-footnote">
-                Descreve o serviço, não a pessoa. Um nome como «Bronzeamento feminino» não preenche
-                este campo.
-              </p>
-            </>
           ) : null}
         </RuleRow>
         <RuleRow
@@ -1113,8 +1170,8 @@ export function ServiceForm({
           ) : null}
         </RuleRow>
         <RuleRow
-          label="Explicação IA"
-          value={explanation.trim() ? 'Com texto para a IA' : 'Sem explicação'}
+          label="Explicação para a IA"
+          value={explanation.trim() ? 'Escrita' : 'Opcional, sem texto'}
           onPress={() => toggleRule('explicacao')}
         >
           {openRule === 'explicacao' ? (
@@ -1165,6 +1222,11 @@ export function ServiceForm({
         </p>
       ) : null}
       <div className="clinic-footer-actions clinic-footer-sticky">
+        {dirty ? (
+          <span className="svc-dirty" role="status">
+            Alterações por salvar
+          </span>
+        ) : null}
         <Button
           className="panel-btn panel-btn-ghost clinic-desktop-hide"
           isDisabled={saving}

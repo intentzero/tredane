@@ -57,7 +57,7 @@ export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
           id: 'servicos',
           label: 'Serviços',
           go: 'servicos',
-          sections: ['servicos', 'servico'],
+          sections: ['servicos', 'servico', 'palavras'],
           pending: pending?.services,
         },
       ],

@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-176: ficha do serviço e «O que a IA reconhece»
+
+- `ServicesScreen` / `VariantCatalog`: modo e «Para quem» em segmentos (`vc-seg`), aviso de singular igual ao plural, opções agrupadas pelo nome (`variantGroups`), folha da opção com uma linha por público e **Aplicar**, «Alterações por salvar», «Como fica na agenda» com exemplo. `ServiceWords` em `/clinica/servicos/palavras`. Mocks M-79 `mobile/ServicoTopo`, M-80 `mobile/ServicoOpcoesAgrupadas`, M-81 `mobile/ServicoEditarOpcao` e M-82 `desktop/ServicosPalavras`.
+
 ## 12/11/2026 — DEC-171: revisão da Equipe
 
 - `EquipeScreen`: confirmação ao cancelar convite; selo de responsável em `primary.tint`; uma coluna de 760 px no desktop; contagens nos títulos; ações do convite em texto (desktop) ou no ⋮ com folha (celular); bloco «O que cada papel pode fazer». Mocks M-77 `mobile/EquipeConviteAcoes` e M-78 `mobile/EquipeCancelarConvite`.

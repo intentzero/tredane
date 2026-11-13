@@ -17,6 +17,7 @@ import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
 import { UnmatchedTermsCard } from './UnmatchedTermsCard'
+import { ServiceWords } from './ServiceWords'
 import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 import { RecebimentoScreen } from './pix/RecebimentoScreen'
@@ -86,6 +87,14 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
             mobileSub: section === 'recursos',
           }
     }
+    case 'palavras':
+      return {
+        title: 'O que a IA reconhece',
+        description: 'Os nomes do catálogo e as palavras que a cliente pode usar.',
+        shape: 'list',
+        header: true,
+        mobileSub: true,
+      }
     case 'servicos':
     case 'servico':
       return {
@@ -182,7 +191,15 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         {panel}
       </div>
     ) : meta.mobileSub ? (
-      <ClinicSubScreen tenantId={tenantId} title={meta.title}>
+      <ClinicSubScreen
+        tenantId={tenantId}
+        title={meta.title}
+        back={
+          section === 'palavras'
+            ? { section: 'servicos', label: 'Voltar a Serviços', eyebrow: 'Serviços' }
+            : undefined
+        }
+      >
         {node}
       </ClinicSubScreen>
     ) : (
@@ -356,6 +373,8 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         )
       case 'servicos':
         return <ServicesList tenantId={tenantId} snap={snap} suggestions={termsCard} />
+      case 'palavras':
+        return <ServiceWords tenantId={tenantId} snap={snap} suggestions={termsCard} />
       case 'servico': {
         const form = (
           <ServiceForm

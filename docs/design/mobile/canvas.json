@@ -672,6 +672,33 @@
       "title": "M-78 Equipe: cancelar convite pede confirmação (Confirmado DEC-171)",
       "is_interactive": false,
       "radius": 32
+    },
+    "ServicoTopo.dc.html": {
+      "x": 100,
+      "y": 18740,
+      "w": 390,
+      "h": 844,
+      "title": "M-79 Serviço: topo com modo e público em segmentos (Confirmado DEC-176)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ServicoOpcoesAgrupadas.dc.html": {
+      "x": 570,
+      "y": 18740,
+      "w": 390,
+      "h": 844,
+      "title": "M-80 Serviço: opções agrupadas pelo nome (Confirmado DEC-176)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ServicoEditarOpcao.dc.html": {
+      "x": 1040,
+      "y": 18740,
+      "w": 390,
+      "h": 844,
+      "title": "M-81 Serviço: folha da opção com uma linha por público (Confirmado DEC-176)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -747,7 +774,10 @@
     "AssumirLinha.dc.html",
     "AgendaTopoCompacto.dc.html",
     "EquipeConviteAcoes.dc.html",
-    "EquipeCancelarConvite.dc.html"
+    "EquipeCancelarConvite.dc.html",
+    "ServicoTopo.dc.html",
+    "ServicoOpcoesAgrupadas.dc.html",
+    "ServicoEditarOpcao.dc.html"
   ],
   "notes": {
     "row1": {
