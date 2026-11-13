@@ -126,9 +126,29 @@ O que a medição mostra:
 - **O `interpretTurn` tem defeitos próprios** (não necessariamente o funil real; ver limite abaixo): «a segunda opção» lido também como segunda-feira (P07), «massagem relaxante» sem serviço (L02), «sobrancelha» sem «Design de sobrancelha» (C02, C10, T04).
 - **Custo e latência baixos:** 59 chamadas, 38,5 mil tokens de entrada e 6,9 mil de saída, cerca de US$ 0,007 (≈ US$ 0,00012 por turno); latência p50 1,2 s e p95 1,8 s.
 
-**Limite importante (correção de 13/11/2026):** a coluna `rule`/`today` mede o `interpretTurn`, que só é chamado pelo portão do extrator ([`llm-extractor.ts`](../../src/clinic/ai/llm-extractor.ts)) e pela sombra. O funil que decide a conversa em produção usa outras funções do [`autobook.ts`](../../src/clinic/ai/autobook.ts) (`extractServices`, `zonesNamedInText`, `extractDates`, `extractTimes`), com regras próprias. Por isso **«64 % hoje» não é a taxa do funil real**; é a de um léxico parecido. A comparação válida entre o modelo e o funil real ainda não foi feita (ver «Em aberto»). O que a medição sustenta sem esta ressalva é só: o modelo, validado por id, lê bem este corpus e o seu custo é baixo.
+**Limite importante (correção de 13/11/2026):** a coluna `rule`/`today` mede o `interpretTurn`, que só é chamado pelo portão do extrator ([`llm-extractor.ts`](../../src/clinic/ai/llm-extractor.ts)) e pela sombra. O funil que decide a conversa em produção usa outras funções do [`autobook.ts`](../../src/clinic/ai/autobook.ts) (`extractServices`, `zonesNamedInText`, `extractDates`, `extractTimes`), com regras próprias. Por isso **«64 % hoje» não é a taxa do funil real**; é a de um léxico parecido. A medição do funil real está na secção seguinte, com as suas próprias ressalvas. O que a medição sustenta sem esta ressalva é só: o modelo, validado por id, lê bem este corpus e o seu custo é baixo.
 
-Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: medir o funil real (frame depois de um turno no harness L1) contra o mesmo corpus; rever os rótulos com outra pessoa; repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
+#### Medição do funil real (13/11/2026)
+
+`npm run eval:funnel` ([`funnel.ts`](../../src/clinic/ai/evals/shadow/funnel.ts)) corre cada frase como primeira mensagem de uma conversa no cenário do harness L1 e lê o `BookingFrame` que o funil gravou, **sem modelo** (adaptador simulado). Fora ficam as 11 frases que dependem de pergunta pendente. Os ids do corpus traduzem-se por nome para o catálogo do cenário, ao qual acrescentei «Design de sobrancelha» e «Laser facial».
+
+| Sistema (48 frases) | Frases perfeitas | Campos certos | Errados | Em falta | Inventados |
+| --- | --- | --- | --- | --- | --- |
+| **Funil real** (quadro gravado) | 22 (46 %) | 42/82 (51 %) | 1 | 39 | 0 |
+| `interpretTurn` | 34 (71 %) | 66/82 (80 %) | 2 | 14 | 0 |
+| Modelo, validação por id | 43 (90 %) | 81/82 (99 %) | 0 | 1 | 4 |
+| Modelo, citação literal | 37 (77 %) | 70/82 (85 %) | 0 | 12 | 0 |
+
+**Como ler, sem exagerar:** o número do funil é um **limite inferior**, não uma taxa de erro. O quadro só guarda o que o funil decidiu gravar nesse turno: «umas 3 da tarde» sozinha não deixa nada, porque não há serviço em jogo; uma pergunta de preço («Quanto custa a massagem?») responde sem gravar o serviço; e algumas variantes e datas só entram depois de uma pergunta seguinte. Nesses casos «em falta» pode ser desenho e não falha de leitura, e não consegui separar uma coisa da outra sem rever cada caso. Por isso a comparação com o modelo, que devolve campos mesmo sem serviço, não é de igual para igual.
+
+O que o resultado sustenta, apesar disso:
+
+- **Defeitos reais do funil** nas frases que nomeiam o serviço: «massagem relaxante» (L02) e «limpeza de pele profunda» (L11) não deixam **nada** no quadro, porque o nome de um serviço contém o de outro («Massagem», «Limpeza de pele»). É um padrão comum em catálogos reais.
+- **Erros de escrita e linguagem coloquial** não gravam nada: «masagem amanha as 14h» (T01), «ajeitar as sobrancelhas» (C10), «depilar o peito pro verão» (C12).
+- **Um serviço errado:** «limpeza bem completa, a mais demorada» fica em «Limpeza de pele» e não na profunda (C11; o rótulo é meu).
+- O modelo, validado por id, acerta quase todos os casos em que o funil falha (18 de 26), mas continua a ser **só medição**: nada disto autoriza ainda a mudar o funil.
+
+Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: separar, no funil, o que é falha de leitura do que é desenho (campos que só se gravam mais tarde); rever os rótulos com outra pessoa; repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
 
 **Configuração da chave:** o gateway só encontrou a chave guardada depois de o adaptador enviar `cf-aig-byok-alias` (variável opcional `AI_GATEWAY_BYOK_ALIAS`; sem ela nada muda). Sem esse cabeçalho o gateway procura o alias `default` e responde com o erro 2044.
 
