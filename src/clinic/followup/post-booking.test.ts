@@ -22,6 +22,7 @@ import {
   POST_BOOKING_BODY,
   sendPostBookingFollowupOp,
 } from './post-booking'
+import { isTerminarFarewellBody } from './terminar-farewell'
 import { getBookingFrame, getScheduleSession, saveBookingFrame, saveScheduleSession } from '../ai/schedule-session'
 import { HANDOFF_TIMEOUT_MS } from '../constants'
 import {
@@ -177,8 +178,8 @@ describe('DEC-086 post-booking follow-up', () => {
         'clinic-demo-a',
         conversationId,
       )
-      // Class A — acto `acolher_adiamento` (redação estável por conversa).
-      expect(thanksBody?.body).toMatch(/quando quiser|Fico por aqui|Qualquer coisa|fica à vontade|fica a vontade/i)
+      // Class A — adeus Terminar (3 frases; Paulo 13/11/2026).
+      expect(isTerminarFarewellBody(thanksBody?.body ?? '', TZ, clock.nowMs())).toBe(true)
     } finally {
       close()
     }
