@@ -21,9 +21,9 @@ import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
-import { clearConversationIdle } from './idle-state'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
+import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
 
 export const FOLLOWUP_ACTOR = 'system:conversational-followup'
 export const FOLLOWUP_ACTOR_DISPLAY = 'Sistema'
@@ -266,7 +266,16 @@ export function handlePostBookingButtonClick(
       clock,
     )
     outbox.push(...thanks.outbox)
-    clearConversationIdle(db, input.tenantId, input.conversationId, clock.nowMs())
+    // Depois do outbound: sendOutboundMessageOp reagenda idle; e se a IA
+    // estava pausada (Confirmar funciona com pausa), cancela DEC-155.
+    outbox.push(
+      ...suppressFollowupsAfterClientEnd(
+        db,
+        input.tenantId,
+        input.conversationId,
+        clock,
+      ),
+    )
 
     writeOperationalAudit(
       db,
@@ -398,7 +407,14 @@ export function handlePriceFollowupButtonClick(
       clock,
     )
     outbox.push(...sent.outbox)
-    clearConversationIdle(db, input.tenantId, input.conversationId, clock.nowMs())
+    outbox.push(
+      ...suppressFollowupsAfterClientEnd(
+        db,
+        input.tenantId,
+        input.conversationId,
+        clock,
+      ),
+    )
     return { handled: true, action: 'end', outbox }
   }
 
