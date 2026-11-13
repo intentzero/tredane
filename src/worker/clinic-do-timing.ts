@@ -105,3 +105,20 @@ export function canSkipAlarmSchedule(
 ): boolean {
   return cachedAt != null && cachedAt > nowMs && cachedAt <= at
 }
+
+/**
+ * Depois de limpar `ai_handoff_timeout_at` (Terminar / Assumir / Devolver à IA),
+ * o alarme partilhado do DO pode ficar órfão com o timestamp antigo do DEC-155.
+ * `#scheduleAlarmNoLaterThan` só agenda mais cedo — nunca cancela nem atrasa.
+ * Plano: apagar o alarme e, se houver outro wake (idle/alerta/…), voltar a armar.
+ */
+export type AlarmAfterHandoffClearedPlan =
+  | { action: 'delete' }
+  | { action: 'set'; at: number }
+
+export function planAlarmAfterHandoffCleared(
+  nextWakeAt: number | null,
+): AlarmAfterHandoffClearedPlan {
+  if (nextWakeAt == null) return { action: 'delete' }
+  return { action: 'set', at: nextWakeAt }
+}

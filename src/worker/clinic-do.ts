@@ -169,6 +169,7 @@ import {
   DoInvocationTimer,
   canSkipAlarmSchedule,
   logDoStepTiming,
+  planAlarmAfterHandoffCleared,
   syncDoStorage,
 } from './clinic-do-timing'
 import type { SqlInvocationStats } from '../clinic'
@@ -1440,6 +1441,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       skippedUnavailable: string[]
     } | null = null
     const needsPersonIds = new Set<string>()
+    /** Terminar / Devolver à IA / timeout_resume — cancelar alarme DEC-155 órfão. */
+    let handoffTimeoutCleared = false
     const appointmentConfirmed: Array<{
       appointmentId: string
       conversationId: string | null
@@ -1465,6 +1468,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         typeof payload.conversationId === 'string'
       ) {
         needsPersonIds.add(payload.conversationId)
+      }
+      if (ob.type === 'conversation.ai_pause' && payload.aiReplyPaused === false) {
+        handoffTimeoutCleared = true
       }
       // DEC-173: push quando o compromisso fica confirmado.
       if (ob.type === 'appointment.confirmed' && typeof payload.appointmentId === 'string') {
@@ -1514,6 +1520,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (needsPersonIds.size > 0) {
       const nextAlert = this.#nextOpenPendingAlertAt(caller.tenantId)
       if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+    } else if (handoffTimeoutCleared) {
+      // Terminar / resume: limpa `ai_handoff_timeout_at` mas o setAlarm antigo
+      // ficava órfão (#scheduleAlarmNoLaterThan nunca cancela).
       await this.#scheduleNextHandoffTimeout(caller.tenantId)
     }
     return { eventSeq, fanout: fanoutResult }
@@ -1791,6 +1801,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const result = clinicInbox.assignConversationOp(this.#db, caller, input, this.#clock)
     await this.#fanoutOutboxes(caller, result.outbox, true)
     await this.#drain(caller)
+    // Assumir limpa `ai_handoff_timeout_at` sem emitir ai_pause — sync do alarme.
+    await this.#scheduleNextHandoffTimeout(caller.tenantId)
     return result.value
   }
 
@@ -1815,6 +1827,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outbox, true)
       await this.#drain(caller)
+    } else {
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
     }
     return { aiReplyPause: null as null }
   }
@@ -2003,10 +2017,64 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
   }
 
-  /** DEC-155 — agenda o alarme do timeout de handoff se houver prazo pendente. */
+  /**
+   * DEC-155 — agenda o alarme do timeout de handoff se houver prazo pendente.
+   * Sem prazos: cancela o alarme órfão e volta a armar o próximo wake (idle/…).
+   * Terminar / Assumir / resume precisam disto — `#scheduleAlarmNoLaterThan`
+   * nunca apaga nem atrasa um setAlarm já feito no handoff.
+   */
   async #scheduleNextHandoffTimeout(tenantId: string): Promise<void> {
     const nextTimeout = nextHandoffTimeoutAt(this.#db, tenantId)
-    if (nextTimeout != null) await this.#scheduleAlarmNoLaterThan(nextTimeout + 500)
+    if (nextTimeout != null) {
+      await this.#scheduleAlarmNoLaterThan(nextTimeout + 500)
+      return
+    }
+    await this.#rearmAlarmAfterHandoffCleared(tenantId)
+  }
+
+  /** Próximo wake que não é o timeout DEC-155 (alarme partilhado do DO). */
+  #nextWakeAtExcludingHandoff(tenantId: string): number | null {
+    const times: number[] = []
+    const idle = nextIdleDueAt(this.#db, tenantId)
+    if (idle != null) times.push(idle + 500)
+    const alert = this.#nextOpenPendingAlertAt(tenantId)
+    if (alert != null) times.push(alert + 500)
+    const apt = nextOpenAppointmentEndAt(this.#db, tenantId, this.#clock.nowMs())
+    if (apt != null) times.push(apt + 500)
+    const draft = clinicAi.nextAutoDraftDueAt(this.#db, tenantId)
+    if (draft != null) times.push(draft)
+    try {
+      const pix = clinicPix.peekNextPixExpiryOp(
+        this.#db,
+        workerCaller(tenantId),
+        this.#clock,
+      )
+      if (pix != null) times.push(pix)
+    } catch {
+      /* best-effort */
+    }
+    if (times.length === 0) return null
+    return Math.min(...times)
+  }
+
+  async #rearmAlarmAfterHandoffCleared(tenantId: string): Promise<void> {
+    const storage = this.ctx.storage as {
+      getAlarm?: () => Promise<number | null>
+      setAlarm?: (t: number) => Promise<void>
+      deleteAlarm?: () => Promise<void>
+    }
+    if (typeof storage.deleteAlarm !== 'function' && typeof storage.setAlarm !== 'function') {
+      return
+    }
+    const plan = planAlarmAfterHandoffCleared(this.#nextWakeAtExcludingHandoff(tenantId))
+    if (typeof storage.deleteAlarm === 'function') {
+      await storage.deleteAlarm()
+      this.#scheduledAlarmAt = null
+    }
+    if (plan.action === 'set' && typeof storage.setAlarm === 'function') {
+      await storage.setAlarm(plan.at)
+      this.#scheduledAlarmAt = plan.at
+    }
   }
 
   async #scheduleAlarmNoLaterThan(at: number): Promise<void> {

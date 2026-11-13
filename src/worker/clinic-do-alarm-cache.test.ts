@@ -3,11 +3,14 @@
  * o cache `#scheduledAlarmAt` (PR #708) ficava com uma hora já passada e
  * suprimia todos os `setAlarm` seguintes — o autodraft da 2.ª mensagem nunca
  * corria (sem typing, sem «lida», sem resposta).
+ *
+ * Também: após Terminar limpar DEC-155, `#scheduleAlarmNoLaterThan` não cancela
+ * o setAlarm órfão — `planAlarmAfterHandoffCleared` força delete (+ rearm).
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { canSkipAlarmSchedule } from './clinic-do-timing'
+import { canSkipAlarmSchedule, planAlarmAfterHandoffCleared } from './clinic-do-timing'
 
 /** Modelo mínimo de `#scheduleAlarmNoLaterThan` + runtime de alarmes do DO. */
 function makeScheduler() {
@@ -66,5 +69,18 @@ describe('ClinicDurableObject — cache do alarme', () => {
     const head = src.slice(start, src.indexOf("#withRpc('alarm'", start))
     expect(head).toMatch(/this\.#scheduledAlarmAt = null/)
     expect(src).toMatch(/canSkipAlarmSchedule\(this\.#scheduledAlarmAt, at, this\.#clock\.nowMs\(\)\)/)
+  })
+
+  it('planAlarmAfterHandoffCleared apaga órfão e rearma outro wake', () => {
+    expect(planAlarmAfterHandoffCleared(null)).toEqual({ action: 'delete' })
+    expect(planAlarmAfterHandoffCleared(90_000)).toEqual({ action: 'set', at: 90_000 })
+  })
+
+  it('fonte: resume/Terminar chama scheduleNextHandoffTimeout (cancel órfão)', () => {
+    const src = readFileSync(resolve(import.meta.dirname, 'clinic-do.ts'), 'utf8')
+    expect(src).toMatch(/handoffTimeoutCleared/)
+    expect(src).toMatch(/#rearmAlarmAfterHandoffCleared/)
+    expect(src).toMatch(/planAlarmAfterHandoffCleared/)
+    expect(src).toMatch(/deleteAlarm/)
   })
 })

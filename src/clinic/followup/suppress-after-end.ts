@@ -1,7 +1,12 @@
 /**
  * Após a cliente escolher Terminar (pós-agendamento, idle, preço):
- * cancela idle DEC-087 e timeout de handoff DEC-155, e a IA assume a conversa
- * (`system:ai-autodraft` via resumeAiReply).
+ * cancela idle DEC-087 e timeout de handoff DEC-155 (`ai_handoff_timeout_at` +
+ * alerta `alter_awaiting_team` via resumeAiReply), e a IA assume a conversa
+ * (`system:ai-autodraft`).
+ *
+ * O alarme Durable Object do DEC-155 é cancelado/rearmado no fanout do
+ * `conversation.ai_pause` (paused=false) em `clinic-do.ts` — esta helper só
+ * mexe no SQLite da clínica.
  *
  * **Confirmado** (Paulo, 13/11/2026, America/Sao_Paulo): Terminar religa a IA
  * mesmo depois de Assumir — revê DEC-083 só neste caminho (Assumir sozinho
