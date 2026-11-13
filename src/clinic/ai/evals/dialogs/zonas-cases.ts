@@ -7,6 +7,7 @@
  * A-50: «gostaria de saber» não ecoa «saber» como zona (staging).
  * A-53 / A-54: FAQ gate mid-zonas (DEC-177) — pergunta ≠ leftover.
  * A-57 / A-58: DEC-178 acumulação Opções + Mais|Pronto.
+ * A-59: pedido de atendente na ask de zonas (DEC-083; #725 — id único, não colidir com A-53 FAQ).
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
@@ -519,11 +520,12 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'A-53',
+    id: 'A-59',
     title: '«Posso falar com um atendente?» na pergunta das zonas → equipe (DEC-083)',
     turnosIdeais: 2,
     // rsamp_fa7f138 (staging 13/11/2026 13:16): pedido de atendente virava
     // «Não encontrei falar nas opções» + lista de zonas em vez do handoff.
+    // #725 entrou com id A-53 duplicado face à FAQ DEC-177; renumerado A-59 neste PR.
     turns: [
       { role: 'client', text: 'Quero agendar uma depilação masculina' },
       { role: 'client', text: 'Posso falar com um atendente?' },

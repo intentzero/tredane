@@ -98,6 +98,7 @@
 | A-54 | P0 | FAQ mid-zonas com sinónimo | [Intima com sinónimo anus] C: «A íntima inclui anus?» | «Sim — no cadastro, … faz parte de Intima» + re-pergunta zonas; **sem** leftover nem Horários. | INV-05, DEC-177, DEC-110 | 2 | ✅ L1 |
 | A-57 | P0 | Ask zonas `varias` + Opções | C: «Quero depilação feminina» | «Quais zonas?» + hint Toque em Opções; lista Meta Opções **sem** Todas; **sem** handoff. | INV-05, DEC-178 | 1 | ✅ L1 |
 | A-58 | P0 | Texto livre ainda ecoa | [Depilação feminina] C: «axila e pernas» | Eco «Entendi: axila, pernas. Certo?» (DEC-137); ask anterior com Opções (DEC-178). | INV-05, DEC-137/178 | 2 | ✅ L1 |
+| A-59 | P0 | Pedido de atendente na ask zonas | [Depilação masculina + zonas] C: «Posso falar com um atendente?» | Handoff «Vou pedir para a equipe…»; **sem** leftover «Não encontrei falar». | INV-05, DEC-083 | 2 | ✅ L1 |
 
 ## B. Linguagem temporal
 
