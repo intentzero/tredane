@@ -2,9 +2,10 @@
  * M-33 — Recebimento de sinais (conta Woovi + prazo + política).
  * Só owner (área Clínica). Cobrança na conversa = Agendar / #38.
  * DEC-175: estado em faixa, um cartão por decisão, resposta junto do botão.
+ * DEC-179: prazo em presets + Outro… (min|h); API em deadlineSeconds.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { Button, Input, Label, TextArea, TextField, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
 import type { PanelApi, PixSnapshot } from '../../../api'
 import { PanelApiError } from '../../../api'
 import { ErrorState } from '../../../states/StatusScreens'
@@ -12,6 +13,19 @@ import { friendlyError } from '../../../copy/errors'
 import { Banner } from '../../../states/Banner'
 import { ClinicSkeleton } from '../ClinicSkeleton'
 import { BusyLabel, CardNotice, type CardNoticeValue } from '../CardFooter'
+import {
+  DEFAULT_SIGNAL_DEADLINE_MINUTES,
+  OTHER_DEADLINE_SEED_MINUTES,
+  SIGNAL_DEADLINE_PRESETS_MINUTES,
+  combineCustomDeadline,
+  formatDeadlinePresetLabel,
+  isDeadlineMinutesValid,
+  isDeadlinePreset,
+  minutesToSeconds,
+  secondsToMinutes,
+  splitCustomDeadline,
+  type DeadlineUnit,
+} from './deadlinePresets'
 
 type Props = {
   tenantId: string
@@ -22,11 +36,34 @@ type Props = {
 type Busy = null | 'connect' | 'disconnect' | 'save'
 type Notice = CardNoticeValue & { card: 'account' | 'policy' }
 
+type DeadlineState = {
+  minutes: number
+  custom: boolean
+  amount: string
+  unit: DeadlineUnit
+}
+
+function fromSeconds(deadlineSeconds: number): DeadlineState {
+  const minutes = secondsToMinutes(deadlineSeconds)
+  if (isDeadlinePreset(minutes)) {
+    return { minutes, custom: false, amount: String(OTHER_DEADLINE_SEED_MINUTES), unit: 'min' }
+  }
+  const split = splitCustomDeadline(minutes)
+  return {
+    minutes,
+    custom: true,
+    amount: String(split.amount),
+    unit: split.unit,
+  }
+}
+
 export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   const [snap, setSnap] = useState<PixSnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [appId, setAppId] = useState('')
-  const [deadlineHours, setDeadlineHours] = useState('2')
+  const [deadline, setDeadline] = useState<DeadlineState>(() =>
+    fromSeconds(DEFAULT_SIGNAL_DEADLINE_MINUTES * 60),
+  )
   const [policy, setPolicy] = useState('')
   const [busy, setBusy] = useState<Busy>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -39,7 +76,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         expectGeneration: () => generation,
       })
       setSnap(next)
-      setDeadlineHours(String(next.signalSettings.deadlineSeconds / 3600))
+      setDeadline(fromSeconds(next.signalSettings.deadlineSeconds))
       setPolicy(next.signalSettings.cancellationPolicy)
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
@@ -129,11 +166,67 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
     }
   }
 
+  function pickPreset(minutes: number) {
+    setDeadline((prev) => ({
+      ...prev,
+      minutes,
+      custom: false,
+    }))
+    setNotice(null)
+  }
+
+  function pickOther() {
+    setDeadline((prev) => {
+      if (prev.custom) return prev
+      const seed = OTHER_DEADLINE_SEED_MINUTES
+      const split = splitCustomDeadline(seed)
+      return {
+        minutes: seed,
+        custom: true,
+        amount: String(split.amount),
+        unit: split.unit,
+      }
+    })
+    setNotice(null)
+  }
+
+  function setCustomAmount(raw: string) {
+    setDeadline((prev) => {
+      const amount = raw
+      const combined = combineCustomDeadline(Number(amount), prev.unit)
+      return {
+        ...prev,
+        custom: true,
+        amount,
+        minutes: combined ?? prev.minutes,
+      }
+    })
+  }
+
+  function setCustomUnit(unit: DeadlineUnit) {
+    setDeadline((prev) => {
+      const combined = combineCustomDeadline(Number(prev.amount), unit)
+      return {
+        ...prev,
+        custom: true,
+        unit,
+        minutes: combined ?? prev.minutes,
+      }
+    })
+  }
+
+  const customMinutes = deadline.custom
+    ? combineCustomDeadline(Number(deadline.amount), deadline.unit)
+    : deadline.minutes
+  const deadlineValid =
+    customMinutes != null && isDeadlineMinutesValid(customMinutes)
+  const saveDisabled = busy !== null || !deadlineValid
+
   async function onSaveSettings() {
+    if (!deadlineValid || customMinutes == null) return
     setBusy('save')
     setNotice(null)
-    const hours = Number(deadlineHours)
-    const deadlineSeconds = Math.round(hours * 3600)
+    const deadlineSeconds = minutesToSeconds(customMinutes)
     try {
       const signalSettings = await api.updatePixSignalSettings(
         tenantId,
@@ -146,6 +239,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       setSnap((prev) =>
         prev ? { ...prev, signalSettings } : { account: snap!.account, signalSettings },
       )
+      setDeadline(fromSeconds(signalSettings.deadlineSeconds))
       setNotice({ card: 'policy', tone: 'ok', text: 'Prazo e política salvos.' })
     } catch (err) {
       setNotice({
@@ -160,6 +254,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
 
   const accountNotice = notice?.card === 'account' ? notice : null
   const policyNotice = notice?.card === 'policy' ? notice : null
+  const otherPressed = deadline.custom || !isDeadlinePreset(deadline.minutes)
 
   return (
     <div className="clinic-stack">
@@ -233,17 +328,86 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         <h2 id="pix-policy" className="panel-title-md">
           Prazo e política de cancelamento
         </h2>
-        <TextField className="clinic-field">
-          <Label>Prazo para pagar (horas)</Label>
-          <Input
-            value={deadlineHours}
-            onChange={(e) => setDeadlineHours(e.target.value)}
-            inputMode="decimal"
-          />
-          <span className="clinic-footnote">
-            Padrão: 2 horas. Mínimo de 15 minutos e máximo de 48 horas.
+
+        <div className="clinic-deadline" role="group" aria-labelledby="pix-deadline-label">
+          <span id="pix-deadline-label" className="clinic-deadline-label">
+            Prazo para pagar
           </span>
-        </TextField>
+          <div className="clinic-deadline-presets" role="group" aria-label="Presets de prazo">
+            {SIGNAL_DEADLINE_PRESETS_MINUTES.map((m) => {
+              const pressed = !otherPressed && deadline.minutes === m
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  className="clinic-deadline-chip"
+                  aria-pressed={pressed}
+                  onClick={() => pickPreset(m)}
+                >
+                  {formatDeadlinePresetLabel(m)}
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              className="clinic-deadline-chip"
+              aria-pressed={otherPressed}
+              onClick={() => pickOther()}
+            >
+              Outro…
+            </button>
+          </div>
+          <span className="clinic-footnote">
+            Padrão: 2 h. Mínimo 15 min · máximo 48 h. Cobranças já enviadas mantêm o prazo original.
+          </span>
+        </div>
+
+        {otherPressed ? (
+          <div className="clinic-deadline-custom" aria-label="Prazo personalizado">
+            <span className="clinic-deadline-label">Prazo personalizado</span>
+            <div className="clinic-deadline-custom-row">
+              <TextField className="clinic-field clinic-deadline-amount">
+                <Label>Número</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={deadline.amount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  aria-describedby="pix-deadline-help"
+                />
+              </TextField>
+              <div className="clinic-deadline-unit">
+                <span className="clinic-deadline-label" id="pix-unit-label">
+                  Unidade
+                </span>
+                <ToggleButtonGroup
+                  className="panel-segmented"
+                  aria-labelledby="pix-unit-label"
+                  selectionMode="single"
+                  selectedKeys={new Set([deadline.unit])}
+                  onSelectionChange={(keys) => {
+                    const next = [...keys][0]
+                    if (next === 'min' || next === 'h') setCustomUnit(next)
+                  }}
+                >
+                  <ToggleButton id="min" className="panel-segmented-item">
+                    min
+                  </ToggleButton>
+                  <ToggleButton id="h" className="panel-segmented-item">
+                    h
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+            </div>
+            <span id="pix-deadline-help" className="clinic-footnote">
+              {deadlineValid
+                ? 'Exemplo: 90 min (= 1 h 30). Fora de 15 min–48 h o Salvar fica desabilitado.'
+                : 'Prazo fora de 15 min–48 h. Ajuste o número ou a unidade para salvar.'}
+            </span>
+          </div>
+        ) : null}
+
         <TextField className="clinic-field">
           <Label>Política de cancelamento do sinal</Label>
           <TextArea
@@ -258,7 +422,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
           <CardNotice notice={policyNotice} />
           <Button
             className="panel-btn-primary"
-            isDisabled={busy !== null}
+            isDisabled={saveDisabled}
             onPress={() => void onSaveSettings()}
           >
             <BusyLabel busy={busy === 'save'} busyText="Salvando…">

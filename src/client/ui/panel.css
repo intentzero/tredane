@@ -1481,6 +1481,79 @@ button.panel-auth-inline-link {
   color: var(--color-warning-ink, #6e4200);
 }
 
+/* DEC-179 — M-33 prazo do Pix: presets + Outro… */
+.clinic-deadline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-deadline-label {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.clinic-deadline-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.clinic-deadline-chip {
+  min-height: var(--size-control-lg);
+  min-width: 0;
+  padding: 0 var(--space-2);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.clinic-deadline-chip[aria-pressed='true'] {
+  border-width: 2px;
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-deadline-custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.clinic-deadline-custom-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.clinic-deadline-amount {
+  flex: 1;
+  min-width: 0;
+}
+
+.clinic-deadline-unit {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.clinic-deadline-unit .panel-segmented {
+  height: var(--size-control-md);
+}
+
 .clinic-empty {
   padding: var(--space-4);
   color: var(--color-text-secondary);

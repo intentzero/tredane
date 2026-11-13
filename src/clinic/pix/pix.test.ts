@@ -256,6 +256,22 @@ describe('Clinic Pix account + signal config (#37)', () => {
       )
       expect(settings.deadlineSeconds).toBe(3600)
       expect(settings.cancellationPolicy).toContain('devolver')
+
+      // DEC-179: UI em minutos; servidor guarda segundos (15 min … 48 h).
+      expect(
+        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 15 * 60 }, clock)
+          .deadlineSeconds,
+      ).toBe(900)
+      expect(
+        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 48 * 60 * 60 }, clock)
+          .deadlineSeconds,
+      ).toBe(172_800)
+      expect(() =>
+        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 14 * 60 }, clock),
+      ).toThrow(ValidationError)
+      expect(() =>
+        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 48 * 60 * 60 + 60 }, clock),
+      ).toThrow(ValidationError)
     } finally {
       close()
     }
