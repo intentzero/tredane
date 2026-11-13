@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 13/11/2026 — M-33 Recebimento: prazo em presets (**Proposto**)
+
+- `mobile/Recebimento.dc.html`: cartão **Prazo e política de cancelamento** com presets **15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h** (2 h selecionado no estado inicial) e **Outro…** (número + unidade min|h; mín. 15 min, máx. 48 h; valor conceptual em minutos). Mantém textarea da política e **Salvar prazo e política**. Alinha a DEC-175 (faixa + dois cartões). Fecha como UI o Em aberto «prazo do Pix em opções»; **não** implementa no painel até o Paulo confirmar.
+
 ## 12/11/2026 — DEC-176: ficha do serviço e «O que a IA reconhece»
 
 - `ServicesScreen` / `VariantCatalog`: modo e «Para quem» em segmentos (`vc-seg`), aviso de singular igual ao plural, opções agrupadas pelo nome (`variantGroups`), folha da opção com uma linha por público e **Aplicar**, «Alterações por salvar», «Como fica na agenda» com exemplo. `ServiceWords` em `/clinica/servicos/palavras`. Mocks M-79 `mobile/ServicoTopo`, M-80 `mobile/ServicoOpcoesAgrupadas`, M-81 `mobile/ServicoEditarOpcao` e M-82 `desktop/ServicosPalavras`.
