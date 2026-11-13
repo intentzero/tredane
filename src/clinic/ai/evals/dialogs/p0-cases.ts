@@ -16,6 +16,7 @@
  * A-43: meta «Como faço para terminar?» → HOW_TO_END_REPLY (#660 / DEC-154); sem soft-close/handoff.
  * A-47: «avaliar» → fila Para revisão + ack; sem pausar IA / limpar frame (DEC-157 / #670).
  * A-51: «avaliar …» com comentário livre → mesma fila + `review_client_comment` (DEC-166).
+ * A-52: typo «feora»←«feira» após massagem relaxante ≠ option-miss (TRE-11 / DEC-145).
  * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (zonas-cases).
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
@@ -45,6 +46,7 @@ import {
   listUnmatchedTermsOp,
   recordUnmatchedTerm,
   replaceServiceZonesOp,
+  setServiceActiveOp,
   upsertServiceOp,
 } from '../../../config'
 import { setClinicAiProfile } from '../../../config/settings'
@@ -2690,6 +2692,73 @@ export const P0_DIALOG_CASES: DialogCase[] = [
             /Precisa de alguém/i,
             /Não encontrei/i,
             /quando quiser|fico por aqui/i,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-52',
+    title: '«próxima terça feora» + massagem relaxante não vira option-miss',
+    turnosIdeais: 1,
+    // Staging TRE-11: typo «feora»←«feira» era leftover após casar relaxante →
+    // «Entendi: relaxante. Não encontrei feora…» + re-lista tipos.
+    // O cenário seed tem serviço «Massagem relaxante» à parte de «Massagem»;
+    // desactiva-o para o pedido casar só Massagem+tipo (como no piloto).
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-52: serviço Massagem ausente no cenário')
+      const aliasRelaxante = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem relaxante')
+      if (aliasRelaxante) setServiceActiveOp(s.db, s.caller, aliasRelaxante.id, false, s.clock)
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+    },
+    turns: [
+      {
+        role: 'client',
+        text: 'Quero agendar uma massagem relaxante para a próxima terça feora',
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{1,2}:\d{2}/, /terça|10\/11/i],
+          excludes: [
+            /Não encontrei\s+feora/i,
+            /Quer Liberação miofascial/i,
+            /\bqual tipo\b/i,
+            /\bquais tipos?\b/i,
           ],
         },
       ],
