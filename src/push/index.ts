@@ -45,6 +45,10 @@ export {
   buildNewMessagePayload,
   createLivePushTransport,
   createPushTransport,
+  handoffReasonPushLabel,
+  HANDOFF_REASON_PUSH_LABELS,
+  PUSH_CONTACT_FALLBACK,
+  resolvePushContactLabel,
   sanitizePushLabel,
 } from './send'
 export { isHumanAttendedConversation } from './human-attended'

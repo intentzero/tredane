@@ -72,6 +72,8 @@ export async function notifyNewConversation(
     appointmentId?: string
     contactLabel?: string | null
     serviceName?: string | null
+    /** Motivo de handoff (`ai_reply_pause_reason`) — só para needs_person. */
+    handoffReason?: string | null
     /** Badge do ícone (conversas com não lidas). */
     badgeCount?: number
     /** Utilizadores com a app aberta e visível — não recebem push. */
@@ -90,6 +92,7 @@ export async function notifyNewConversation(
     appointmentId: input.appointmentId,
     contactLabel: input.contactLabel,
     serviceName: input.serviceName,
+    handoffReason: input.handoffReason,
   })
   if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
     payload.badgeCount = Math.floor(input.badgeCount)
@@ -137,6 +140,8 @@ export async function notifyNewConversationAsync(
     appointmentId?: string
     contactLabel?: string | null
     serviceName?: string | null
+    /** Motivo de handoff (`ai_reply_pause_reason`) — só para needs_person. */
+    handoffReason?: string | null
     /** Badge do ícone (conversas com não lidas). */
     badgeCount?: number
     /** Utilizadores com a app aberta e visível — não recebem push. */
@@ -165,6 +170,7 @@ export async function notifyNewConversationAsync(
     appointmentId: input.appointmentId,
     contactLabel: input.contactLabel,
     serviceName: input.serviceName,
+    handoffReason: input.handoffReason,
   })
   if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
     payload.badgeCount = Math.floor(input.badgeCount)
@@ -221,6 +227,7 @@ function buildPushPayloadForKind(
     appointmentId?: string
     contactLabel?: string | null
     serviceName?: string | null
+    handoffReason?: string | null
   },
 ) {
   if (kind === 'new_message') {
@@ -229,9 +236,19 @@ function buildPushPayloadForKind(
       contactLabel: input.contactLabel,
     })
   }
-  if (kind === 'needs_person') return buildNeedsPersonPayload(input)
+  if (kind === 'needs_person') {
+    return buildNeedsPersonPayload({
+      ...input,
+      contactLabel: input.contactLabel,
+      handoffReason: input.handoffReason,
+    })
+  }
   if (kind === 'needs_person_escalate') {
-    return buildNeedsPersonPayload({ ...input, escalate: true })
+    return buildNeedsPersonPayload({
+      ...input,
+      contactLabel: input.contactLabel,
+      escalate: true,
+    })
   }
   if (kind === 'appointment_confirmed') {
     return buildAppointmentConfirmedPayload({

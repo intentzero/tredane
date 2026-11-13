@@ -121,9 +121,9 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Timeout de handoff e fora do expediente (Confirmado, DEC-155, Paulo, 10/11/2026):** sem Assumir em 30 min após pausa DEC-083, aviso curto e a IA retoma. Fora do horário da clínica: sem botão/dica de equipe; pedido explícito → horário e IA activa (revê DEC-113 neste caminho). Em expediente, DEC-083/153 + timeout. Detalhe: [DEC-155](product/decisions.md).
 
-**Alertas ao atendente em handoff (Confirmado, DEC-156, Paulo, 10/11/2026):** badge + som, faixa até Assumir, push/PWA sem conteúdo da mensagem, reforço aos 5 min; aos 30 min a IA retoma via DEC-155. Consome `source` / `handoffTimeoutAt` / `clearedAwaitingTeam`. Detalhe: [DEC-156](product/decisions.md).
+**Alertas ao atendente em handoff (Confirmado, DEC-156, Paulo, 10/11/2026; copy 13/11/2026):** badge + som, faixa até Assumir, push/PWA sem conteúdo da mensagem WhatsApp (corpo `{contacto} · {clínica}` [· motivo]; escalate «há 5 min»), reforço aos 5 min; aos 30 min a IA retoma via DEC-155. Consome `source` / `handoffTimeoutAt` / `clearedAwaitingTeam`. Detalhe: [DEC-156](product/decisions.md).
 
-**Push accionável (Confirmado, DEC-173, Paulo, 13/11/2026):** deixa de notificar toda mensagem/conversa inbound. Push só para agendamento confirmado, chamada de atendente (DEC-156) e mensagens inbound em fio assumido ou em handoff. Detalhe: [DEC-173](product/decisions.md), [f5-pwa-push.md](implementation/f5-pwa-push.md).
+**Push accionável (Confirmado, DEC-173, Paulo, 13/11/2026; copy rica no mesmo dia):** deixa de notificar toda mensagem/conversa inbound. Push só para agendamento confirmado, chamada de atendente (DEC-156) e mensagens inbound em fio assumido ou em handoff; título = tipo e corpo com contacto · clínica (sem preview). Detalhe: [DEC-173](product/decisions.md), [f5-pwa-push.md](implementation/f5-pwa-push.md).
 
 **Badge Conversas dual-unread (Confirmado, DEC-160, Paulo, 11/11/2026; #677; reconfirmado 12/11/2026 — círculo da linha):** chips Todas / Novas / Minhas / Sem responsável, badge do ícone e círculo «N» da linha contam só conversas/mensagens ainda não lidas pelo humano e ainda sem resposta (não o total de fios; prévia IA limpa o círculo). Detalhe: [DEC-160](product/decisions.md).
 

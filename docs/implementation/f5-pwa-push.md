@@ -7,9 +7,9 @@
 | DEC / REQ | Comportamento |
 | --- | --- |
 | DEC-039 | Painel mobile first; PWA sem app nativo no MVP |
-| DEC-040 | Push via PWA; texto **sem** conteúdo da mensagem WhatsApp |
-| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA |
-| DEC-156 | Push **Precisa de alguém** / reforço aos 5 min (`needs_person`, `needs_person_escalate`); dispara em `ai_pause` `source:handoff`; Assumir (`clearedAwaitingTeam`) fecha a notificação no cliente |
+| DEC-040 | Push via PWA; texto **sem** conteúdo da mensagem WhatsApp nem telefone. **Copy (Paulo, 13/11/2026):** título = tipo; corpo = `{contacto} · {clínica}` (fallback «Cliente») |
+| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA. `new_message` = «Mensagem de {contacto} · {clínica}» |
+| DEC-156 | Push **Precisa de alguém** / reforço aos 5 min (`needs_person`, `needs_person_escalate`); corpo `{contacto} · {clínica}` [· motivo curto] / escalate «· há 5 min»; dispara em `ai_pause` `source:handoff`; Assumir (`clearedAwaitingTeam`) fecha a notificação no cliente |
 | DEC-041 | Ícone provisório (azul primary); marca definitiva Em aberto |
 | DEC-026 / REQ-003 | Revogação remove assinaturas push do par user×tenant; deep link revalida Clerk + membership |
 | Q-UX-05 | Pacote DEC-173 Confirmado no toggle M-14; «só as minhas» / falha de envio ficam **Propostos** / desactivados na UI |

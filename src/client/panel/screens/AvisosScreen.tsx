@@ -135,7 +135,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
       setActive(true)
       setStatus({
         phase: 'ok',
-        message: `Avisos ativos. Recebe agendamento confirmado, chamada de atendente e mensagens só em conversas que você (ou a equipe) está a atender — sem o texto da mensagem.`,
+        message: `Avisos ativos. Recebe agendamento confirmado, «Precisa de alguém» e mensagens só em conversas que você (ou a equipe) está a atender — com o nome do contacto e da clínica, sem o texto da mensagem.`,
       })
     } catch {
       setStatus({
@@ -297,9 +297,10 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
         </section>
 
         <p className="panel-card panel-muted-sm">
-          Em {clinicName}, o aviso não traz o texto da mensagem WhatsApp. Não
-          notifica cada mensagem da IA automática — só quando a equipe precisa
-          agir.
+          Em {clinicName}, o aviso pode mostrar o nome do contacto e da clínica
+          («Mensagem de Ana · {clinicName}»), sem o texto da mensagem WhatsApp.
+          Não notifica cada mensagem da IA automática — só quando a equipe
+          precisa agir.
         </p>
 
         {active ? (

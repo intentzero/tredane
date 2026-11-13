@@ -88,6 +88,10 @@ export async function maybeNotifyNeedsPersonPush(input: {
   tenantId: string
   conversationId: string
   escalate?: boolean
+  /** Nome de apresentação do contacto — fallback «Cliente» no builder. */
+  contactLabel?: string | null
+  /** `ai_reply_pause_reason` — rótulo curto opcional no corpo. */
+  handoffReason?: string | null
   badgeCount?: number
   suppressUserIds?: readonly string[]
   log?: (entry: {
@@ -101,6 +105,8 @@ export async function maybeNotifyNeedsPersonPush(input: {
   await deliverPushKind({
     ...input,
     kind,
+    contactLabel: input.contactLabel,
+    handoffReason: input.handoffReason,
     logEvent: input.escalate
       ? 'queue.push_needs_person_escalate'
       : 'queue.push_needs_person',
@@ -149,6 +155,7 @@ async function deliverPushKind(input: {
   appointmentId?: string
   contactLabel?: string | null
   serviceName?: string | null
+  handoffReason?: string | null
   badgeCount?: number
   suppressUserIds?: readonly string[]
   logEvent: string
@@ -169,6 +176,7 @@ async function deliverPushKind(input: {
       appointmentId: input.appointmentId,
       contactLabel: input.contactLabel,
       serviceName: input.serviceName,
+      handoffReason: input.handoffReason,
       badgeCount: input.badgeCount,
       suppressUserIds: input.suppressUserIds,
     }

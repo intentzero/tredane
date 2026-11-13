@@ -23,12 +23,20 @@ describe('push / PWA (#42)', () => {
       tenantId: 'clinic-demo-a',
       tenantName: 'Clínica Aurora',
       conversationId: 'cnv_1',
+      contactLabel: 'Ana Silva',
     })
-    expect(payload.body).toBe('Nova conversa na Clínica Aurora')
+    expect(payload.body).toBe('Ana Silva · Clínica Aurora')
     expect(payload.title).toBe('Nova conversa')
     expect(payload.url).toContain('/c/clinic-demo-a/conversas/cnv_1')
     expect(JSON.stringify(payload)).not.toMatch(/waId|bodyPreview|5511/)
     assertSafePushPayload(payload)
+    const fallback = buildNewConversationPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Aurora',
+      conversationId: 'cnv_1',
+    })
+    expect(fallback.body).toBe('Cliente · Clínica Aurora')
+    assertSafePushPayload(fallback)
   })
 
   it('buildNeedsPersonPayload (DEC-156) sem PII e com escalate', () => {
@@ -36,18 +44,28 @@ describe('push / PWA (#42)', () => {
       tenantId: 'clinic-demo-a',
       tenantName: 'Clínica Aurora',
       conversationId: 'cnv_9',
+      contactLabel: 'Lia',
+      handoffReason: 'customer_requested',
     })
     expect(base.kind).toBe('needs_person')
-    expect(base.body).toBe('Chamada de atendente na Clínica Aurora')
+    expect(base.body).toBe('Lia · Clínica Aurora · pediu a equipe')
     assertSafePushPayload(base)
+    const noReason = buildNeedsPersonPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Aurora',
+      conversationId: 'cnv_9',
+    })
+    expect(noReason.body).toBe('Cliente · Clínica Aurora')
+    assertSafePushPayload(noReason)
     const esc = buildNeedsPersonPayload({
       tenantId: 'clinic-demo-a',
       tenantName: 'Clínica Aurora',
       conversationId: 'cnv_9',
+      contactLabel: 'Lia',
       escalate: true,
     })
     expect(esc.kind).toBe('needs_person_escalate')
-    expect(esc.body).toBe('Continua a aguardar a equipe na Clínica Aurora')
+    expect(esc.body).toBe('Lia · Clínica Aurora · há 5 min')
     assertSafePushPayload(esc)
   })
 
@@ -56,7 +74,7 @@ describe('push / PWA (#42)', () => {
       assertSafePushPayload({
         kind: 'new_conversation',
         title: 'x',
-        body: 'Nova conversa na A',
+        body: 'Cliente · A',
         tag: 't',
         url: '/c/a/conversas/1',
         tenantId: 'a',
@@ -132,7 +150,7 @@ describe('push / PWA (#42)', () => {
       expect(result.skippedUnauthorized).toBeGreaterThanOrEqual(1)
       expect(result.removedGone).toBe(1)
       expect(result.sent).toBeGreaterThanOrEqual(1)
-      expect(live.mailbox.every((m) => m.payload.body.startsWith('Nova conversa na '))).toBe(
+      expect(live.mailbox.every((m) => m.payload.body.endsWith(' · Clínica Aurora'))).toBe(
         true,
       )
       expect(live.mailbox.every((m) => !JSON.stringify(m.payload).includes('bodyPreview'))).toBe(

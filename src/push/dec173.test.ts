@@ -34,22 +34,33 @@ describe('DEC-173 push gates', () => {
     assertSafePushPayload(payload)
   })
 
-  it('new_message com contacto e needs_person com copy de chamada', () => {
+  it('new_message com contacto e needs_person com copy rica', () => {
     const msg = buildNewMessagePayload({
       tenantId: 'clinic-demo-a',
       tenantName: 'Clínica Aurora',
       conversationId: 'cnv_1',
       contactLabel: 'Ana',
     })
-    expect(msg.body).toBe('Nova mensagem — Ana na Clínica Aurora')
+    expect(msg.body).toBe('Mensagem de Ana · Clínica Aurora')
     assertSafePushPayload(msg)
     const handoff = buildNeedsPersonPayload({
       tenantId: 'clinic-demo-a',
       tenantName: 'Clínica Aurora',
       conversationId: 'cnv_1',
+      contactLabel: 'Ana',
+      handoffReason: 'payment_proof',
     })
-    expect(handoff.body).toBe('Chamada de atendente na Clínica Aurora')
+    expect(handoff.body).toBe('Ana · Clínica Aurora · comprovativo')
     assertSafePushPayload(handoff)
+    const esc = buildNeedsPersonPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Aurora',
+      conversationId: 'cnv_1',
+      contactLabel: 'Ana',
+      escalate: true,
+    })
+    expect(esc.body).toBe('Ana · Clínica Aurora · há 5 min')
+    assertSafePushPayload(esc)
   })
 
   it('queue-hook ignora inbound sem humanAttended e envia com humanAttended', async () => {
