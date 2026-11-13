@@ -31,6 +31,7 @@ import {
   openPendingCommunication,
   resolvePendingByProposalKind,
 } from './pending-communication'
+import { readZoneSnapshots } from '../config/zones'
 import { proposalResultClientRequestId, renderProposalResultBody } from './render'
 import type { AppointmentProposalRow } from './types'
 
@@ -82,20 +83,32 @@ export function sendProposalResultMessageOp(
     return { status: 'already_queued', proposal, outbox: [] }
   }
 
-  const body = renderProposalResultBody(proposal, input.resultKind, {
-    alternativesListing: input.alternativesListing,
-  })
-  const clientRequestId = proposalResultClientRequestId(
-    proposal.id,
-    proposal.version,
-    input.resultKind,
-  )
   requireConversation(db, meta.tenantId, proposal.conversationId)
   const window = messagingWindowForConversation(
     db,
     meta.tenantId,
     proposal.conversationId,
     clock.nowMs(),
+  )
+  // DEC-174: variantes no rótulo; rodapé de dúvida só se o follow-up DEC-086 não seguir
+  // (mesma janela 24 h que `appendPostBookingFollowup` exige).
+  const zones =
+    input.resultKind === 'booked'
+      ? readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
+      : []
+  const body = renderProposalResultBody(proposal, input.resultKind, {
+    alternativesListing: input.alternativesListing,
+    ...(input.resultKind === 'booked'
+      ? {
+          zones,
+          omitDoubtFallback: window.open,
+        }
+      : {}),
+  })
+  const clientRequestId = proposalResultClientRequestId(
+    proposal.id,
+    proposal.version,
+    input.resultKind,
   )
 
   if (!window.open) {

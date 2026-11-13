@@ -2,11 +2,16 @@
  * Corpo e botões determinísticos da proposta (S4 / #175 / DEC-061 / H8).
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
  * DEC-090: sem sala nem intervalo/buffer ao cliente; localização só se a clínica tiver morada.
+ * DEC-174: Agendado curto — serviço · variante, weekday DD/MM, só hora de início.
  */
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
+import type { ZoneSnapshot } from '../config/types'
+import { dayTextPt } from '../ai/slot-offer'
+import { formatClinicTime } from '../ai/schedule-context'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import {
   HUMAN_HANDOFF_BUTTON_TITLE,
   isHumanTeamOfferAllowed,
@@ -86,7 +91,8 @@ function formatBrl(cents: number): string {
 
 /**
  * Intervalo no relógio local da clínica (IANA só calcula; nunca aparece no texto).
- * Preferência de produto: ofertas, propostas e Agendado sem rótulo IANA.
+ * Preferência de produto: ofertas e propostas sem rótulo IANA.
+ * A mensagem Agendado usa {@link formatBookedWhen} (DEC-174).
  */
 function formatSlotRange(proposal: AppointmentProposalRow): string {
   try {
@@ -109,6 +115,27 @@ function formatSlotRange(proposal: AppointmentProposalRow): string {
     return `${new Date(proposal.startsAt).toISOString()} – ${new Date(proposal.endsAt).toISOString()}`
   }
 }
+
+/**
+ * Quando curto para Agendado (DEC-174): `terça 17/11 às 10:00`.
+ * Sem ano, sem hora de fim, sem «em …-feira», sem IANA — mesma forma que a lista Horários.
+ */
+export function formatBookedWhen(proposal: AppointmentProposalRow): string {
+  try {
+    const civil = clinicCivilDateFromUtc(proposal.timezone, proposal.startsAt)
+    const hhmm = formatClinicTime(proposal.timezone, proposal.startsAt)
+    const match = hhmm.match(/(\d{1,2})\D(\d{2})/)
+    const time = match
+      ? `${match[1]!.padStart(2, '0')}:${match[2]}`
+      : hhmm
+    return `${dayTextPt(civil)} às ${time}`
+  } catch {
+    return new Date(proposal.startsAt).toISOString()
+  }
+}
+
+/** Fallback curto só quando o follow-up «Posso ajudar…» não segue (DEC-174). */
+export const BOOKED_DOUBT_FALLBACK = 'Qualquer dúvida, responda.'
 
 function formatSignal(proposal: AppointmentProposalRow): string | null {
   if (!proposal.requiresSignal) return null
@@ -261,6 +288,20 @@ export type ProposalResultBodyOpts = {
    * Ex.: «sexta 06/11 às 14:00, 16:00». Sem IANA.
    */
   alternativesListing?: string | null
+  /**
+   * Variantes/zonas do snapshot da proposta (DEC-174).
+   * Com variantes: `Massagem · relaxante` (mesma voz do catálogo / zoneLabel).
+   */
+  zones?: readonly Pick<
+    ZoneSnapshot,
+    'name' | 'audience' | 'durationMinutes' | 'priceCents'
+  >[]
+  /**
+   * DEC-174: omitir o rodapé de dúvida quando o follow-up «Posso ajudar em algo mais?»
+   * (DEC-086) segue a seguir. `true` por defeito no caminho booked (follow-up é o normal).
+   * Passar `false` só quando o follow-up não é enviado.
+   */
+  omitDoubtFallback?: boolean
 }
 
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
@@ -274,12 +315,15 @@ export function renderProposalResultBody(
   switch (kind) {
     case 'booked': {
       const location = proposal.clinicLocationText.trim()
+      const service = zoneLabel(proposal.serviceName, opts.zones ?? [])
+      const bookedWhen = formatBookedWhen(proposal)
+      const omitDoubt = opts.omitDoubtFallback !== false
       return (
-        `Agendado: ${proposal.serviceName} em ${when}` +
+        `Agendado: ${service} · ${bookedWhen}` +
         (proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
         (location ? ` Local: ${location}.` : '') +
-        ` Qualquer dúvida, responda esta mensagem.`
+        (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)
       )
     }
     case 'slot_refused':

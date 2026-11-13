@@ -32,6 +32,8 @@ export type {
 export {
   renderProposalInteractive,
   renderProposalResultBody,
+  formatBookedWhen,
+  BOOKED_DOUBT_FALLBACK,
   parseProposalButtonId,
   proposalButtonId,
   proposalSendClientRequestId,
@@ -39,6 +41,7 @@ export {
   PROPOSAL_BUTTON_TITLES,
   type ProposalButtonAction,
   type ProposalInteractivePayload,
+  type ProposalResultBodyOpts,
 } from './render'
 export {
   sendProposalToWhatsAppOp,
