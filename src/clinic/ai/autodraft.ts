@@ -19,6 +19,7 @@ import { ClinicError } from '../errors'
 import { isClinicAiAssistEnabled } from '../config/settings'
 import { listServices } from '../config/services'
 import { handleIdleTextReply } from '../followup/idle'
+import { runIdleContinueChoiceResume } from '../followup/idle-continue-resume'
 import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
@@ -615,12 +616,28 @@ export async function runDueAutoDrafts(
       )
       if (idleText.handled) {
         cancelAutoDraft(db, tenantId, job.conversationId)
+        let replyOutbox = idleText.outbox
+        if (idleText.action === 'continue' && idleText.resumeChoice) {
+          const resumed = await runIdleContinueChoiceResume(
+            db,
+            caller,
+            {
+              tenantId,
+              conversationId: job.conversationId,
+              resume: idleText.resumeChoice,
+              providerEventKey: job.messageId,
+              capability: deps.autoBookPaused !== true,
+            },
+            clock,
+          )
+          replyOutbox = [...replyOutbox, ...resumed]
+        }
         record({
           ...job,
           status: 'skipped',
           suggestion: null,
           reason: idleText.action === 'end' ? 'idle_end_text' : 'idle_continue_text',
-          replyOutbox: idleText.outbox,
+          replyOutbox,
         })
         continue
       }

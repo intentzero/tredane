@@ -157,6 +157,7 @@ import {
   nextIdleDueAt,
   sweepDueIdleConversations,
 } from '../clinic/followup/idle'
+import { runIdleContinueChoiceResume } from '../clinic/followup/idle-continue-resume'
 import { nextOpenAppointmentEndAt, sweepEndedAppointments } from '../clinic/pipeline/appointment-stage'
 import {
   handlePostBookingButtonClick,
@@ -1170,6 +1171,27 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         this.#clock,
       )
       if (idle.handled) {
+        if (idle.resumeChoice) {
+          const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
+            this.#db,
+            caller.tenantId,
+            this.#clock,
+          )
+          const capability = clinicAi.autoBookCapability() && !autoBookPaused
+          const resumed = await runIdleContinueChoiceResume(
+            this.#db,
+            caller,
+            {
+              tenantId: caller.tenantId,
+              conversationId: input.conversationId,
+              resume: idle.resumeChoice,
+              providerEventKey: input.providerEventKey,
+              capability,
+            },
+            this.#clock,
+          )
+          idle.outbox.push(...resumed)
+        }
         if (idle.outbox.length > 0) {
           await this.#fanoutOutboxes(caller, idle.outbox, true)
           await this.#drain(caller)
