@@ -195,7 +195,12 @@ export function buildAppointmentConfirmedPayload(input: {
 /** Rótulo curto para o corpo do push — sem telefone / control chars. */
 export function sanitizePushLabel(raw: string | null | undefined): string | null {
   if (!raw) return null
-  let s = raw.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+  let cleaned = ''
+  for (let i = 0; i < raw.length; i += 1) {
+    const code = raw.charCodeAt(i)
+    cleaned += code <= 0x1f || code === 0x7f ? ' ' : raw[i]!
+  }
+  let s = cleaned.replace(/\s+/g, ' ').trim()
   if (!s) return null
   // Recusa se parecer número de telefone (E.164 / nacional denso).
   if (/^\+?\d[\d\s().-]{6,}$/.test(s)) return null
