@@ -7,17 +7,24 @@
 </head>
 <body>
 <x-dc>
-<helmet>
+    10|<helmet>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0}
 a{color:#0E5A5C}a:hover{color:#0A4547}
-button{font:inherit}
-button:focus-visible,a:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+button,input,textarea,select{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
 </style>
 </helmet>
-<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+<!--
+  M-33 Recebimento — Prazo e política de cancelamento.
+  Proposto (Paulo, 13/11/2026): prazo em presets discretos (minutos internamente)
+  + «Outro…» com número e unidade min|h (mín. 15 min, máx. 48 h).
+  Fecha o Em aberto de DEC-175 («prazo do Pix em opções») como proposta de UI;
+  ainda não é decisão Confirmada. DEC-047 (padrão 2 h) mantém-se.
+-->
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Roboto, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
 
 <header style="background: #FFFFFF; border-bottom: 1px solid #E1E3E0; display: flex; align-items: center; gap: 4px; padding: 8px 4px">
 <a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625; border-radius: 999px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
@@ -25,32 +32,62 @@ button:focus-visible,a:focus-visible{outline:2px solid #0E5A5C;outline-offset:2p
 </header>
 
 <div style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
-<section aria-labelledby="c-t" style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
-<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
-<h2 id="c-t" style="margin: 0; font-size: 14px; font-weight: 600">Conta da clínica</h2>
-<span style="display: flex; align-items: center; gap: 6px; padding: 2px 12px; border-radius: 999px; background: #EAF5EF; color: #1F7A4D; font-size: 13px; font-weight: 600"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Conectada</span>
+
+<div role="status" style="display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D">
+<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px"><path d="M20 6L9 17l-5-5"></path></svg>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<strong style="font-size: 14px; font-weight: 600">Conta conectada</strong>
+<span style="font-size: 13px">Woovi · ****a3f2 · Luciana, 20 out. Os sinais caem na conta da clínica.</span>
 </div>
-<dl style="margin: 0; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; font-size: 13px">
-<dt style="color: #566160">Provedor</dt><dd style="margin: 0">[PROVEDOR DE PIX]</dd>
-<dt style="color: #566160">Titular</dt><dd style="margin: 0">Espaço Bela Pele</dd>
-<dt style="color: #566160">Conectada por</dt><dd style="margin: 0">Luciana Moraes, 20 out</dd>
-</dl>
-<p style="margin: 0; font-size: 13px; color: #424B4A">Os sinais caem direto nesta conta. O Tredane não recebe nem repassa o dinheiro.</p>
-<button type="button" style="align-self: flex-start; min-height: 44px; padding: 0 16px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; color: #B42318; font-size: 13px; font-weight: 500; cursor: pointer">Desconectar conta</button>
+</div>
+
+<section aria-labelledby="c-t" style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="c-t" style="margin: 0; font-size: 14px; font-weight: 600">Conta Woovi</h2>
+<p style="margin: 0; font-size: 13px; color: #424B4A">Para trocar de conta, desconecte esta e conecte a nova. As cobranças já feitas ficam no histórico.</p>
+<button type="button" style="align-self: stretch; min-height: 36px; padding: 0 16px; border: 0; border-radius: 8px; background: #B42318; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Desconectar conta</button>
 </section>
 
-<section aria-labelledby="z-t" style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
-<h2 id="z-t" style="margin: 0; font-size: 14px; font-weight: 600">Prazo para pagar</h2>
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Horas depois do envio
-<select style="height: 36px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; background: #FFFFFF; font-size: 14px; color: #142625"><option>1 hora</option><option selected>2 horas</option><option>4 horas</option><option>12 horas</option><option>24 horas</option></select></label>
-<span style="font-size: 13px; color: #566160">Vale para os próximos envios. Cobranças já enviadas mantêm o prazo original.</span>
-</section>
+<section aria-labelledby="p-t" style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="p-t" style="margin: 0; font-size: 14px; font-weight: 600">Prazo e política de cancelamento</h2>
 
-<section aria-labelledby="p-t" style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
-<h2 id="p-t" style="margin: 0; font-size: 14px; font-weight: 600">Política de cancelamento do sinal</h2>
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Texto mostrado à cliente antes de pagar
-<textarea rows="4" style="padding: 12px; border: 1px solid #7A8584; border-radius: 6px; font: inherit; font-size: 14px; line-height: 1.4; color: #142625; resize: vertical">Cancelamento com devolução do sinal até 24 h antes do horário. Depois disso, o sinal não é devolvido.</textarea></label>
-<span style="font-size: 13px; color: #566160">No cancelamento, a equipe escolhe devolver ou reter, e o motivo fica registrado.</span>
+<div role="group" aria-labelledby="z-l" style="display: flex; flex-direction: column; gap: 8px">
+<span id="z-l" style="font-size: 13px; font-weight: 600; color: #424B4A">Prazo para pagar</span>
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px">
+<button type="button" aria-pressed="{{p15}}" onClick="{{pick15}}" style="{{s15}}">15 min</button>
+<button type="button" aria-pressed="{{p30}}" onClick="{{pick30}}" style="{{s30}}">30 min</button>
+<button type="button" aria-pressed="{{p60}}" onClick="{{pick60}}" style="{{s60}}">1 h</button>
+<button type="button" aria-pressed="{{p120}}" onClick="{{pick120}}" style="{{s120}}">2 h</button>
+<button type="button" aria-pressed="{{p360}}" onClick="{{pick360}}" style="{{s360}}">6 h</button>
+<button type="button" aria-pressed="{{p1440}}" onClick="{{pick1440}}" style="{{s1440}}">24 h</button>
+<button type="button" aria-pressed="{{p2880}}" onClick="{{pick2880}}" style="{{s2880}}">48 h</button>
+<button type="button" aria-pressed="{{pOther}}" onClick="{{pickOther}}" style="{{sOther}}">Outro…</button>
+</div>
+<span style="font-size: 13px; color: #566160">Padrão: 2 h. Mínimo 15 min · máximo 48 h. O valor fica em minutos no servidor; cobranças já enviadas mantêm o prazo original.</span>
+</div>
+
+<sc-if value="{{isOther}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: #EEEDE7">
+<span style="font-size: 13px; font-weight: 600; color: #424B4A">Prazo personalizado</span>
+<div style="display: flex; gap: 8px; align-items: stretch">
+<label style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #424B4A">Número
+<input type="number" inputmode="numeric" min="1" value="90" aria-describedby="z-help" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; color: #142625; font-size: 14px; font-variant-numeric: tabular-nums"></label>
+<div role="group" aria-label="Unidade" style="flex: none; display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 13px; color: #424B4A">Unidade</span>
+<div style="display: flex; height: 36px; border: 1px solid #7A8584; border-radius: 8px; overflow: hidden; background: #FFFFFF">
+<button type="button" aria-pressed="true" style="min-width: 52px; border: 0; background: #142625; color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">min</button>
+<button type="button" aria-pressed="false" style="min-width: 52px; border: 0; border-left: 1px solid #E1E3E0; background: #FFFFFF; color: #142625; font-size: 13px; cursor: pointer">h</button>
+</div>
+</div>
+</div>
+<span id="z-help" style="font-size: 13px; color: #566160">Exemplo: 90 min (= 1 h 30). Fora de 15 min–48 h o Salvar fica desabilitado.</span>
+</div>
+</sc-if>
+
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Política de cancelamento do sinal
+<textarea rows="4" style="padding: 12px; border: 1px solid #7A8584; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: #142625; resize: vertical; background: #FFFFFF">Cancelamento com devolução do sinal até 24 h antes do horário. Depois disso, o sinal não é devolvido.</textarea></label>
+<span style="font-size: 13px; color: #566160; margin-top: -8px">A cliente vê este texto antes de pagar. No cancelamento, a equipe escolhe devolver ou reter, e o motivo fica registrado.</span>
+
+<button type="button" style="width: 100%; height: 36px; border: 0; border-radius: 8px; background: #0E5A5C; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Salvar prazo e política</button>
 </section>
 
 <section aria-labelledby="s-t" style="display: flex; flex-direction: column; gap: 8px">
@@ -61,17 +98,36 @@ button:focus-visible,a:focus-visible{outline:2px solid #0E5A5C;outline-offset:2p
 </ul>
 </section>
 </div>
-
-<div style="flex: none; background: #FFFFFF; border-top: 1px solid #E1E3E0; padding: 12px 16px 30px">
-<button type="button" style="width: 100%; height: 36px; border: 0; border-radius: 8px; background: #0E5A5C; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Salvar política</button>
-</div>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
 class Component extends DCLogic {
-renderVals() {
-return {};
-}
+  constructor(props) {
+    super(props);
+    this.state = { minutes: 120 }; // padrão Confirmado DEC-047
+  }
+  chip(on) {
+    return on
+      ? 'border: 2px solid #0E5A5C; background: #E7F1F1; color: #142625; border-radius: 8px; min-height: 44px; cursor: pointer; font-size: 13px; font-weight: 600'
+      : 'border: 1px solid #7A8584; background: #FFFFFF; color: #142625; border-radius: 8px; min-height: 44px; cursor: pointer; font-size: 13px';
+  }
+  renderVals() {
+    const presets = [15, 30, 60, 120, 360, 1440, 2880];
+    const m = this.state.minutes;
+    const isOther = !presets.includes(m);
+    const pick = (n) => () => this.setState({ minutes: n });
+    return {
+      isOther,
+      p15: m === 15, p30: m === 30, p60: m === 60, p120: m === 120,
+      p360: m === 360, p1440: m === 1440, p2880: m === 2880, pOther: isOther,
+      s15: this.chip(m === 15), s30: this.chip(m === 30), s60: this.chip(m === 60),
+      s120: this.chip(m === 120), s360: this.chip(m === 360), s1440: this.chip(m === 1440),
+      s2880: this.chip(m === 2880), sOther: this.chip(isOther),
+      pick15: pick(15), pick30: pick(30), pick60: pick(60), pick120: pick(120),
+      pick360: pick(360), pick1440: pick(1440), pick2880: pick(2880),
+      pickOther: () => this.setState({ minutes: 90 }),
+    };
+  }
 }
 </script>
 </body>

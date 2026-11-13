@@ -11,7 +11,8 @@ let n = 0;
 for (const dir of ['mobile', 'desktop']) {
   for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.dc.html'))) {
     const text = fs.readFileSync(`${dir}/${f}`, 'utf8');
-    if (!text.includes('<sc-for')) continue;
+    // Expande mocks com <sc-for> ou com <sc-if> + renderVals (ex. M-33 Outro…).
+    if (!text.includes('<sc-for') && !(text.includes('<sc-if') && text.includes('data-dc-script'))) continue;
     const out = await page.evaluate((text) => {
       const doc = new DOMParser().parseFromString(text, 'text/html');
       const sc = doc.querySelector('script[data-dc-script]');
