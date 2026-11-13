@@ -163,6 +163,21 @@ Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição su
 
 **Configuração da chave:** o gateway só encontrou a chave guardada depois de o adaptador enviar `cf-aig-byok-alias` (variável opcional `AI_GATEWAY_BYOK_ALIAS`; sem ela nada muda). Sem esse cabeçalho o gateway procura o alias `default` e responde com o erro 2044.
 
+### 5.3c Ler os eventos de staging
+
+Com a sombra ligada em staging (`AI_INTERPRETER_SHADOW=on` em [wrangler.jsonc](../../wrangler.jsonc), só nesse ambiente), cada turno de texto livre gera um evento `ai.interpreter_shadow`. [`scripts/interpreter-shadow-report.mjs`](../../scripts/interpreter-shadow-report.mjs) resume-os; só lê, não chama rede nem o modelo.
+
+```bash
+# Deixar correr enquanto há conversas; Ctrl-C para parar
+npx wrangler tail --env staging --format json > sombra.ndjson
+```
+
+```bash
+node scripts/interpreter-shadow-report.mjs sombra.ndjson --sample 20
+```
+
+Mostra, por campo, quantas vezes léxico e modelo concordam, só o modelo leu, só o léxico leu ou se contradizem; o que a citação literal recusaria; cobertura do léxico; latência e custo da sombra. `--json` dá o resumo estruturado e `--sample N` lista até N conversas/mensagens (ids internos, não texto) de cada tipo de divergência, para abrir no painel e rotular à mão. **Sem rótulo, o relatório não diz quem tem razão**: é a lista do que rever, não uma taxa de acerto. Para um histórico em vez de uma sessão de `tail`, exportar os Workers Logs do Worker de staging e passar o ficheiro ao script (aceita JSON por linha, a saída do `tail` ou uma exportação).
+
 ### 5.4 De onde vêm as conversas
 
 O tráfego do staging é da equipe e escreve como o léxico espera, por isso **subestima** o ganho. Por ordem de esforço:
