@@ -17,6 +17,7 @@ export type AiAssistRpcDeps = {
     gatewayId: string
     gatewayToken: string
     anthropicApiKey?: string
+    byokAlias?: string
     replyModel?: string
     summaryModel?: string
   }
@@ -49,6 +50,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
         gatewayId: rpc.gateway.gatewayId,
         gatewayToken: rpc.gateway.gatewayToken,
         anthropicApiKey: rpc.gateway.anthropicApiKey,
+        ...(rpc.gateway.byokAlias ? { byokAlias: rpc.gateway.byokAlias } : {}),
         replyModel: rpc.gateway.replyModel,
         summaryModel: rpc.gateway.summaryModel,
       }
@@ -71,6 +73,7 @@ export function rpcDepsFromEnv(env: {
   AI_GATEWAY_ID?: string
   AI_GATEWAY_TOKEN?: string
   ANTHROPIC_API_KEY?: string
+  AI_GATEWAY_BYOK_ALIAS?: string
   ABUSE_LIMITS?: string
   AI_INTERPRETER_SHADOW?: string
   [key: `ABUSE_LIMIT_${string}`]: string | undefined
@@ -85,6 +88,7 @@ export function rpcDepsFromEnv(env: {
       gatewayId: env.AI_GATEWAY_ID ?? 'default',
       gatewayToken: env.AI_GATEWAY_TOKEN ?? '',
       anthropicApiKey: env.ANTHROPIC_API_KEY,
+      ...(env.AI_GATEWAY_BYOK_ALIAS ? { byokAlias: env.AI_GATEWAY_BYOK_ALIAS } : {}),
     },
   }
 }

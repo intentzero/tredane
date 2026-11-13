@@ -102,6 +102,8 @@ export type WorkerBindings = {
   AI_GATEWAY_TOKEN?: string
   /** BYOK Anthropic opcional. */
   ANTHROPIC_API_KEY?: string
+  /** Alias da chave Anthropic guardada no AI Gateway (BYOK). Opcional; omisso = `default`. */
+  AI_GATEWAY_BYOK_ALIAS?: string
   /**
    * Web Push / PWA (#42): `synthetic` (default) | `live`.
    * Live exige VAPID_*; CI e local usam synthetic sem HTTP a FCM/APNs.

@@ -140,7 +140,8 @@ describe.skipIf(MODE !== 'dry' && MODE !== 'live')(`reexecução (${MODE})`, () 
           accountId,
           gatewayId,
           gatewayToken,
-          anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          anthropicApiKey: process.env.ANTHROPIC_API_KEY || undefined,
+          byokAlias: process.env.AI_GATEWAY_BYOK_ALIAS || undefined,
           fetchImpl: capturingFetch,
         }),
       }

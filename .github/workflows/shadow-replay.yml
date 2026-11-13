@@ -57,6 +57,8 @@ jobs:
           CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           # BYOK: o gateway sem Unified Billing exige a chave da Anthropic (erro 2044 sem ela).
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Alias da chave guardada no gateway (Provider Keys). Sem ele o gateway procura `default`.
+          AI_GATEWAY_BYOK_ALIAS: staging
         run: npm run eval:shadow-replay
       - name: Relatório no resumo do job
         if: always()

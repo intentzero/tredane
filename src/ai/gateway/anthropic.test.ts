@@ -104,4 +104,21 @@ describe('AiGatewayAnthropicAdapter', () => {
     ])
     expect(captured.tools?.[0]?.cache_control).toEqual({ type: 'ephemeral' })
   })
+
+  it('envia o alias da chave guardada no gateway só quando configurado', async () => {
+    const seen: Array<Record<string, string>> = []
+    const capture: typeof fetch = async (_url, init) => {
+      seen.push({ ...(init?.headers as Record<string, string>) })
+      return new Response(
+        JSON.stringify({ content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
+    const base = { accountId: 'account', gatewayId: 'gateway', gatewayToken: 'token-de-teste', fetchImpl: capture }
+    await new AiGatewayAnthropicAdapter(base).generate(input(1_000))
+    await new AiGatewayAnthropicAdapter({ ...base, byokAlias: 'staging' }).generate(input(1_000))
+    expect(seen[0]!['cf-aig-byok-alias']).toBeUndefined()
+    expect(seen[1]!['cf-aig-byok-alias']).toBe('staging')
+    expect(seen[1]!['x-api-key']).toBeUndefined()
+  })
 })
