@@ -252,6 +252,10 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
       'Quarta feira tem horário?',
       'quarta-feira tem horário?',
       'terça feira',
+      // Typo do sufixo («feora» ← «feira») — staging TRE-11.
+      'terça feora',
+      'próxima terça feora',
+      'Quarta feora tem horário?',
       'Tem horário?',
       // Staging Paulo 08/11/2026 — leftover era «disponivel».
       'Na próxima quarta tem horário disponível?',
@@ -315,6 +319,17 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
   it('palavra distintiva «relaxante» (única) escolhe Massagem relaxante', () => {
     const got = resolveZoneMention('quero a relaxante', massagemZones, ignore)
     expect(got.unrecognized).toBe(false)
+    expect(got.zones.map((z) => z.id)).toEqual(['rel'])
+  })
+
+  it('«próxima terça feora» + relaxante mantém a variante (typo feira, TRE-11)', () => {
+    const got = resolveZoneMention(
+      'Quero agendar uma massagem relaxante para a próxima terça feora',
+      massagemZones,
+      ignore,
+    )
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
     expect(got.zones.map((z) => z.id)).toEqual(['rel'])
   })
 

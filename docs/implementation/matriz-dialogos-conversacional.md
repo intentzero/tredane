@@ -91,6 +91,7 @@
 | A-26 | P0 | Telemetria: zonas por iniciativa | C: «Quero depilação» ⟶ C: «feminina, axila e pernas» | `variantsChanged` verdadeiro e `zonesAskedBefore` **falso**: são zonas escritas sem lhas pedirem. | CA-09 | 2 | ✅ L1 (#588; falha se `zonesAskedBefore` for sempre verdadeiro) |
 | A-27 | P0 | Zonas escritas antes da linha | C: «Quero depilação de axila e pernas» ⟶ C: «feminina» ⟶ C: «sim» | Pergunta a linha; depois «Entendi: axila, pernas. Certo?» sem voltar a pedir as zonas; o Sim abre os Horários e não marca (DEC-061, DEC-137). | INV-08 | 3 | ✅ L1 (#589, DEC-143; falha sem a janela recuada do funil; id A-27 após #597 ocupar A-24) |
 | A-50 | P0 | «gostaria de saber» ≠ zona | [Depilação masculina + Intima] C: «Gostaria de saber se faz depilação masculina íntima e pernas» | Eco «Entendi: … íntima … pernas. Certo?»; **sem** «Não encontrei saber» (nem «faz»). | INV-05, DEC-137 | 2 | ✅ L1 |
+| A-52 | P0 | Typo «feira» no dia | [Massagem tipos] C: «Quero agendar uma massagem relaxante para a próxima terça feora» | Mantém relaxante e oferece horários da terça; **sem** «Não encontrei feora» nem re-lista tipos. | INV-05, DEC-145 | 1 | ✅ L1 |
 
 ## B. Linguagem temporal
 

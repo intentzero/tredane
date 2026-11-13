@@ -239,6 +239,22 @@ describe('DEC-145 staging: Massagem modo uma', () => {
     }
   }, 30_000)
 
+  it('cold start «próxima terça feora» + relaxante oferece slots, sem Não encontrei feora', async () => {
+    // Staging TRE-11: typo «feora»←«feira» virava leftover após casar relaxante.
+    const s = seedMassagemUma()
+    try {
+      const out = await say(s, 'Quero agendar uma massagem relaxante para a próxima terça feora')
+      const reply = out.autoBook?.replyText ?? ''
+      expect(reply).not.toMatch(/Não encontrei\s+feora/i)
+      expect(reply).not.toMatch(/Quer Liberação miofascial/i)
+      expect(reply).not.toMatch(/\bqual tipo\b/i)
+      expect(reply).toMatch(/\d{1,2}:\d{2}/)
+      expect(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds).toEqual([s.relaxante.id])
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
   it.each([
     // Âncora: seg 26/10 → «próxima quarta» / «Quarta feira» = 28/10 (não está nos primeiros slots).
     'Tem horário na próxima quarta?',

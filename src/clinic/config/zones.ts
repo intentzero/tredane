@@ -900,10 +900,43 @@ function maskClockSpans(folded: string): string {
   return chars.join('')
 }
 
+/**
+ * Typos a 1 edição do sufixo «feira» («feora», «feria»).
+ * Não é fuzzy de zona — só evita option-miss em fragmentos de «terça-feira».
+ */
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  let j = 0
+  let edits = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i += 1
+      j += 1
+      continue
+    }
+    edits += 1
+    if (edits > 1) return false
+    if (a.length === b.length) {
+      i += 1
+      j += 1
+    } else if (a.length > b.length) i += 1
+    else j += 1
+  }
+  if (i < a.length || j < b.length) edits += 1
+  return edits <= 1
+}
+
+function isMentionStopToken(word: string): boolean {
+  if (ZONE_MENTION_STOP.has(word)) return true
+  // «feira» já está na stop-list; typos comuns (staging «feora») também.
+  return editDistanceAtMostOne(word, 'feira')
+}
+
 function mentionContentTokens(folded: string): string[] {
   return maskClockSpans(folded)
     .split(/[^a-z0-9]+/)
-    .filter((word) => word.length >= 3 && !ZONE_MENTION_STOP.has(word) && !isClockToken(word))
+    .filter((word) => word.length >= 3 && !isMentionStopToken(word) && !isClockToken(word))
 }
 
 function stripPhrase(text: string, phrase: string): string {
