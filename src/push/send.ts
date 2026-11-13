@@ -98,8 +98,9 @@ export function handoffReasonPushLabel(
   return HANDOFF_REASON_PUSH_LABELS[reason] ?? null
 }
 
+/** Nome da clínica no corpo — mesma sanitização do contacto (sem « · »). */
 function clinicLabel(tenantName: string): string {
-  return tenantName.trim() || 'clínica'
+  return sanitizePushLabel(tenantName) ?? 'clínica'
 }
 
 /** Nome do contacto no corpo do push — sanitizado ou «Cliente». */
@@ -220,7 +221,7 @@ export function buildAppointmentConfirmedPayload(input: {
   contactLabel?: string | null
   serviceName?: string | null
 }): NewConversationPushPayload {
-  const clinic = input.tenantName.trim() || 'clínica'
+  const clinic = clinicLabel(input.tenantName)
   const contact = sanitizePushLabel(input.contactLabel)
   const service = sanitizePushLabel(input.serviceName)
   const detail = [contact, service].filter(Boolean).join(' · ')

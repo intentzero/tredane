@@ -5,6 +5,7 @@ import {
   assertSafePushPayload,
   buildNeedsPersonPayload,
   buildNewConversationPayload,
+  buildNewMessagePayload,
 } from './send'
 import {
   deletePushSubscriptionsForMember,
@@ -37,6 +38,26 @@ describe('push / PWA (#42)', () => {
     })
     expect(fallback.body).toBe('Cliente · Clínica Aurora')
     assertSafePushPayload(fallback)
+  })
+
+  it('clinicLabel com « · » no nome não parte o corpo tipado', () => {
+    const payload = buildNeedsPersonPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica · Aurora · Sul',
+      conversationId: 'cnv_dot',
+      contactLabel: 'Lia · Silva',
+      handoffReason: 'off_purpose',
+    })
+    expect(payload.body).toBe('Lia Silva · Clínica Aurora Sul · fora do assunto')
+    assertSafePushPayload(payload)
+    const msg = buildNewMessagePayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'A · B',
+      conversationId: 'cnv_dot',
+      contactLabel: 'Ana',
+    })
+    expect(msg.body).toBe('Mensagem de Ana · A B')
+    assertSafePushPayload(msg)
   })
 
   it('buildNeedsPersonPayload (DEC-156) sem PII e com escalate', () => {
