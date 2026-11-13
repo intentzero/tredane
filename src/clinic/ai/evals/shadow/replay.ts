@@ -155,6 +155,8 @@ export function renderReport(input: {
   calls: RawCall[]
   mode: string
   model: string | null
+  /** Corpos de erro HTTP do provedor (truncados e sem tokens), para diagnosticar. */
+  errorBodies?: string[]
 }): string {
   const { results, calls } = input
   const sum = summarise(results)
@@ -194,6 +196,7 @@ export function renderReport(input: {
     lines.push('')
     lines.push(`**⚠ ${calls.length - ok.length} de ${calls.length} chamadas falharam; as colunas do modelo (strict, relaxed, hybrid) não valem.**`)
     for (const [msg, n] of failures) lines.push(`- ${n}× ${msg}`)
+    for (const b of input.errorBodies ?? []) lines.push(`- corpo do erro: \`${b}\``)
   }
   lines.push('')
   lines.push('## Onde o modelo (relaxado) acerta e o léxico de hoje não')
@@ -227,7 +230,7 @@ export async function collectCalls(
 ): Promise<{ calls: RawCall[]; spentUsd: number; truncated: boolean }> {
   const phrases = opts.phrases ?? REPLAY_CORPUS
   const budget = opts.budgetUsd ?? 2
-  const concurrency = opts.concurrency ?? 4
+  const concurrency = opts.concurrency ?? 2
   const calls: RawCall[] = []
   let spent = 0
   let truncated = false
@@ -242,13 +245,24 @@ export async function collectCalls(
       if (i >= phrases.length) return
       const p = phrases[i]!
       try {
-        const res = await callExtractorModel(deps, {
+        // Rate limit do gateway: repete com espera crescente antes de desistir.
+        let res = await callExtractorModel(deps, {
           turnText: p.text,
           pending: p.pending ? { ...p.pending, messageId: 'prev' } : null,
           services: EVAL_BOOKING_CATALOG,
           professionals: [],
           timeoutMs: opts.timeoutMs ?? 20_000,
         })
+        for (let attempt = 1; attempt <= 4 && !res.gen.ok && res.gen.code === 'rate_limit'; attempt++) {
+          await new Promise((r) => setTimeout(r, 2_000 * attempt))
+          res = await callExtractorModel(deps, {
+            turnText: p.text,
+            pending: p.pending ? { ...p.pending, messageId: 'prev' } : null,
+            services: EVAL_BOOKING_CATALOG,
+            professionals: [],
+            timeoutMs: opts.timeoutMs ?? 20_000,
+          })
+        }
         const g = res.gen
         if (g.ok) {
           spent += costUsd({ model: g.model, inputTokens: g.inputTokens ?? 0, outputTokens: g.outputTokens ?? 0 })

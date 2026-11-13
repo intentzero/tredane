@@ -112,6 +112,21 @@ const MODE = process.env.EVAL_SHADOW_REPLAY ?? ''
 describe.skipIf(MODE !== 'dry' && MODE !== 'live')(`reexecução (${MODE})`, () => {
   it('chama o modelo uma vez por frase e escreve o relatório', async () => {
     let deps: AiAssistDeps
+    // Só no teste: o adaptador de produção esconde o corpo do erro HTTP. Guardamos um
+    // excerto (sem sequências longas que possam ser tokens) para diagnosticar.
+    const errorBodies = new Set<string>()
+    const capturingFetch: typeof fetch = async (input, init) => {
+      const res = await fetch(input, init)
+      if (!res.ok) {
+        try {
+          const text = (await res.clone().text()).replace(/[A-Za-z0-9_\-]{32,}/g, '…').slice(0, 300)
+          errorBodies.add(`${res.status} ${text}`)
+        } catch {
+          // sem corpo
+        }
+      }
+      return res
+    }
     if (MODE === 'live') {
       const accountId = process.env.CF_ACCOUNT_ID
       const gatewayId = process.env.AI_GATEWAY_ID
@@ -126,6 +141,7 @@ describe.skipIf(MODE !== 'dry' && MODE !== 'live')(`reexecução (${MODE})`, () 
           gatewayId,
           gatewayToken,
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          fetchImpl: capturingFetch,
         }),
       }
     } else {
@@ -136,7 +152,7 @@ describe.skipIf(MODE !== 'dry' && MODE !== 'live')(`reexecução (${MODE})`, () 
     const results = REPLAY_CORPUS.map((p) => analysePhrase(p, byId.get(p.id)))
     const model = calls.find((c) => c.model)?.model ?? null
     const md =
-      renderReport({ results, calls, mode: MODE, model }) +
+      renderReport({ results, calls, mode: MODE, model, errorBodies: [...errorBodies].slice(0, 5) }) +
       `\n\nCusto estimado: US$ ${spentUsd.toFixed(4)}${truncated ? ' (TRUNCADO pelo teto: relatório incompleto)' : ''}\n`
     mkdirSync('.eval', { recursive: true })
     writeFileSync('.eval/shadow-replay.md', md)
