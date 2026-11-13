@@ -38,7 +38,7 @@ type Props = {
   api: PanelApi
   generation: number
   viewerClerkUserId: string | null
-  /** DEC-174: enquanto não se sabe quem vê, a lista espera (o «(você)» não aparece depois). */
+  /** DEC-175: enquanto não se sabe quem vê, a lista espera (o «(você)» não aparece depois). */
   viewerPending?: boolean
 }
 
@@ -55,7 +55,7 @@ function initials(name: string): string {
   return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase()
 }
 
-/** DEC-174: sem nome no cadastro, o e-mail faz de nome e as iniciais saem dele. */
+/** DEC-175: sem nome no cadastro, o e-mail faz de nome e as iniciais saem dele. */
 function memberInitials(m: TeamMemberLite): string {
   const name = m.displayName?.trim()
   if (name) return initials(name)

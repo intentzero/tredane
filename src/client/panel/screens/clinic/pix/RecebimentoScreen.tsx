@@ -1,7 +1,7 @@
 /**
  * M-33 — Recebimento de sinais (conta Woovi + prazo + política).
  * Só owner (área Clínica). Cobrança na conversa = Agendar / #38.
- * DEC-174: estado em faixa, um cartão por decisão, resposta junto do botão.
+ * DEC-175: estado em faixa, um cartão por decisão, resposta junto do botão.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'

@@ -125,6 +125,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Push accionável (Confirmado, DEC-173, Paulo, 13/11/2026; copy rica no mesmo dia):** deixa de notificar toda mensagem/conversa inbound. Push só para agendamento confirmado, chamada de atendente (DEC-156) e mensagens inbound em fio assumido ou em handoff; título = tipo e corpo com contacto · clínica (sem preview). Detalhe: [DEC-173](product/decisions.md), [f5-pwa-push.md](implementation/f5-pwa-push.md).
 
+**Agendado curto no WhatsApp (Confirmado, DEC-174, Paulo, 13/11/2026):** `Agendado: {serviço}[ · variante] · terça 17/11 às 10:00 com {profissional}.` — sem ano, sem hora de fim, sem «Qualquer dúvida…» quando o follow-up DEC-086 segue; variante no rótulo. Detalhe: [DEC-174](product/decisions.md).
+
 **Badge Conversas dual-unread (Confirmado, DEC-160, Paulo, 11/11/2026; #677; reconfirmado 12/11/2026 — círculo da linha):** chips Todas / Novas / Minhas / Sem responsável, badge do ícone e círculo «N» da linha contam só conversas/mensagens ainda não lidas pelo humano e ainda sem resposta (não o total de fios; prévia IA limpa o círculo). Detalhe: [DEC-160](product/decisions.md).
 
 **Conversa focada (Confirmado, DEC-161, Paulo, 11/11/2026):** fundo liso, ficha em coluna fixa ~300 px no desktop ≥ 1440 px, Agendar como ícone no cabeçalho do celular, prazo de 24 h dentro da barra e rail escuro (tokens `nav.*`, v0.6.0). Ampliado no mesmo dia: cabeçalho só com Agendar e ⋮ (ficha pelo nome), cartão único «Precisa de alguém» com Assumir e mensagens do sistema em cartões também **Confirmados** ([ux-ui.md](product/ux-ui.md), M-65). Implementado no painel em 11/11/2026; atalhos de teclado seguem Proposto.
@@ -143,7 +145,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Equipe revista (Confirmado, DEC-171, Paulo, 12/11/2026):** cancelar convite pede confirmação; papéis em cor neutra e explicados num bloco; convites numa linha, com as ações no ⋮ no celular. Detalhe em [ux-ui](product/ux-ui.md).
 
-**Clínica normalizada (Confirmado, DEC-174, Paulo, 13/11/2026):** todas as opções da Clínica abrem na mesma moldura, com a coluna centrada, o mesmo cabeçalho e um esqueleto com a forma de cada tela enquanto carregam. Detalhe em [ux-ui](product/ux-ui.md).
+**Clínica normalizada (Confirmado, DEC-175, Paulo, 13/11/2026):** todas as opções da Clínica abrem na mesma moldura, com a coluna centrada, o mesmo cabeçalho e um esqueleto com a forma de cada tela enquanto carregam. Detalhe em [ux-ui](product/ux-ui.md).
 
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 

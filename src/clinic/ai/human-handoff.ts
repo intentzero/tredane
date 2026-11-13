@@ -266,7 +266,12 @@ export function nextHandoffTimeoutAt(db: ClinicDb, tenantId: string): number | n
 
 /**
  * DEC-155 — conversas com timeout vencido e IA ainda pausada: aviso + devolver à IA.
- * Assumir / Devolver à IA limpam `ai_handoff_timeout_at` antes; se alguém Assumiu, não chega aqui.
+ * Assumir / Devolver à IA / Terminar limpam `ai_handoff_timeout_at` (e o alerta) antes;
+ * se alguém Assumiu ou a cliente terminou, não chega aqui.
+ *
+ * Exige `alter_awaiting_team` ainda aberto/alertado: o Terminar resolve o alerta via
+ * `resumeAiReply`. Se o alarme do DO disparar com estado parcial (pausa/timeout
+ * órfãos após cancelamento), não envia «A equipe não conseguiu…».
  */
 export function sweepDueHandoffTimeouts(
   db: ClinicDb,
@@ -275,10 +280,17 @@ export function sweepDueHandoffTimeouts(
 ): Array<{ conversationId: string; outbox: OutboxRow[] }> {
   const now = clock.nowMs()
   const due = db.all<{ id: string }>(
-    `SELECT id FROM conversations
-     WHERE tenant_id = ? AND ai_handoff_timeout_at IS NOT NULL AND ai_handoff_timeout_at <= ?
-       AND ai_reply_paused_at IS NOT NULL
-     ORDER BY ai_handoff_timeout_at ASC
+    `SELECT c.id AS id FROM conversations c
+     WHERE c.tenant_id = ? AND c.ai_handoff_timeout_at IS NOT NULL AND c.ai_handoff_timeout_at <= ?
+       AND c.ai_reply_paused_at IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM pending_communications pc
+         WHERE pc.tenant_id = c.tenant_id
+           AND pc.conversation_id = c.id
+           AND pc.kind = 'alter_awaiting_team'
+           AND pc.status != 'resolved'
+       )
+     ORDER BY c.ai_handoff_timeout_at ASC
      LIMIT 50`,
     tenantId,
     now,

@@ -102,7 +102,7 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
         </div>
       )}
       {review.services.length > 0 ? (
-        // DEC-174: tabela no desktop, linhas no celular; a linha inteira abre a ficha.
+        // DEC-175: tabela no desktop, linhas no celular; a linha inteira abre a ficha.
         <div className="conferir-table">
           <div className="conferir-table-head" aria-hidden="true">
             <span>Serviço</span>

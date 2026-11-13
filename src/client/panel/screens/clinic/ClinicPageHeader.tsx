@@ -7,7 +7,7 @@ type Props = {
 }
 
 /**
- * Cabeçalho de página da Clínica (DEC-174): título, uma frase e, se houver, a ação principal.
+ * Cabeçalho de página da Clínica (DEC-175): título, uma frase e, se houver, a ação principal.
  * No celular o título já está no cabeçalho único (DEC-163); aqui fica só a frase.
  */
 export function ClinicPageHeader({ title, description, action }: Props) {

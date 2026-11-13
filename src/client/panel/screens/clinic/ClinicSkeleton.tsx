@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
-/** Forma do esqueleto: a de cada tela da Clínica quando pronta (DEC-174). */
+/** Forma do esqueleto: a de cada tela da Clínica quando pronta (DEC-175). */
 export type ClinicSkeletonShape =
   | 'index'
   | 'table'
@@ -138,7 +138,7 @@ function Shape({ shape }: { shape: ClinicSkeletonShape }) {
 }
 
 /**
- * Esqueleto com a forma da tela (DEC-174): fica dentro da moldura da Clínica, sem spinner
+ * Esqueleto com a forma da tela (DEC-175): fica dentro da moldura da Clínica, sem spinner
  * de página nem texto visível; só aparece depois de `delayMs` para não piscar.
  */
 export function ClinicSkeleton({ shape, label, delayMs = 300 }: Props) {

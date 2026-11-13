@@ -171,7 +171,7 @@ export function WhatsappScreen({
   // STAGING-ONLY (dono): mesma ação da tela /clinica/whatsapp/dev-sync.
   const devSync =
     isOwner && isStagingHostname() ? (
-      // DEC-174: ferramentas só de staging ficam recolhidas, no fim.
+      // DEC-175: ferramentas só de staging ficam recolhidas, no fim.
       <details className="hub-staging whatsapp-dev-sync-section">
         <summary>
           Ferramentas de staging <span className="clinic-staging-tag">Staging</span>

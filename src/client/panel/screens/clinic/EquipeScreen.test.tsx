@@ -146,7 +146,7 @@ describe('EquipeScreen — S1', () => {
     const status = screen.getByRole('status')
     expect(status.getAttribute('aria-busy')).toBe('true')
     expect(screen.getByText('Carregando Equipe').className).toContain('panel-sr-only')
-    // DEC-174: esqueleto com a forma da lista, dentro da moldura (aparece após 300 ms).
+    // DEC-175: esqueleto com a forma da lista, dentro da moldura (aparece após 300 ms).
     expect(container.querySelector('.clinic-skeleton[data-shape="list"]')).toBeTruthy()
     expect(container.querySelector('.panel-spin')).toBeNull()
     resolveTeam(snap())
@@ -173,7 +173,7 @@ describe('EquipeScreen — S1', () => {
     expect(screen.queryByText(/recepcionista/i)).toBeNull()
   })
 
-  it('DEC-174: sem nome no cadastro, o e-mail faz de nome e as iniciais saem dele', async () => {
+  it('DEC-175: sem nome no cadastro, o e-mail faz de nome e as iniciais saem dele', async () => {
     const base = snap()
     const api = mockApi({
       ...base,
@@ -189,7 +189,7 @@ describe('EquipeScreen — S1', () => {
     expect(avatars).toContain('CS')
   })
 
-  it('DEC-174: espera saber quem vê antes de mostrar a lista', async () => {
+  it('DEC-175: espera saber quem vê antes de mostrar a lista', async () => {
     const api = mockApi(snap())
     const { rerender } = render(
       <EquipeScreen tenantId="clinic-demo-a" api={api} generation={1} viewerClerkUserId={null} viewerPending />,
@@ -310,7 +310,7 @@ describe('EquipeScreen — S1', () => {
     expect(cta).toBeTruthy()
     const position = membros!.compareDocumentPosition(cta!)
     expect(position & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
-    // DEC-174: a contagem fica só no título da secção; o cabeçalho diz para que serve a tela.
+    // DEC-175: a contagem fica só no título da secção; o cabeçalho diz para que serve a tela.
     expect(container.querySelector('.clinic-page-desc')?.textContent).toBe(
       'Quem entra no painel desta clínica e o que pode fazer.',
     )

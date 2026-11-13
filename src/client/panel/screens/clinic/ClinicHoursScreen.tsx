@@ -195,7 +195,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
 
   return (
     <div className="clinic-stack clinic-form hours-screen">
-      {/* DEC-174: título e voltar vêm da moldura (cabeçalho de página / cabeçalho único). */}
+      {/* DEC-175: título e voltar vêm da moldura (cabeçalho de página / cabeçalho único). */}
       <section className="hours-summary" aria-label="Resumo do horário">
         <span className="hours-status" data-open={status.open}>
           <Clock aria-hidden size={14} strokeWidth={2.2} />

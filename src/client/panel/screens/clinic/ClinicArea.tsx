@@ -44,7 +44,7 @@ type PageMeta = {
   wideColumn?: boolean
 }
 
-/** DEC-174: título, frase e forma do esqueleto de cada opção da Clínica. */
+/** DEC-175: título, frase e forma do esqueleto de cada opção da Clínica. */
 function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
   switch (section) {
     case 'hub':
@@ -159,7 +159,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
 
   const meta = pageMeta(section, entityId)
 
-  // DEC-174: título e frase comuns; coluna centrada no desktop.
+  // DEC-175: título e frase comuns; coluna centrada no desktop.
   const page = (node: ReactNode, header = meta.header) => (
     <div className={`clinic-page${meta.wideColumn ? ' clinic-page--wide' : ''}`}>
       {header ? <ClinicPageHeader title={meta.title} description={meta.description} /> : null}
@@ -167,7 +167,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     </div>
   )
 
-  // DEC-174: no desktop toda opção abre dentro da moldura (navegação lateral), mesmo a carregar.
+  // DEC-175: no desktop toda opção abre dentro da moldura (navegação lateral), mesmo a carregar.
   // No celular, cabeçalho único nas telas internas (DEC-163).
   const frame = (node: ReactNode, panel: ReactNode = null) =>
     wide ? (

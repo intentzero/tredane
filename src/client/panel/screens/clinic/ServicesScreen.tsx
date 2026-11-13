@@ -223,7 +223,7 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
           </li>
         ) : null}
       </ul>
-      {/* DEC-174: as sugestões chegam num segundo pedido; no fim, não empurram a lista. */}
+      {/* DEC-175: as sugestões chegam num segundo pedido; no fim, não empurram a lista. */}
       {suggestions ?? null}
     </div>
   )

@@ -1508,7 +1508,7 @@ button.panel-auth-inline-link {
 .clinic-field input:not([type='checkbox']):not([type='radio']),
 .clinic-field select,
 .clinic-field textarea {
-  /* DEC-174: campos na altura do token (36 px no desktop, 44 px no toque, DEC-168). */
+  /* DEC-175: campos na altura do token (36 px no desktop, 44 px no toque, DEC-168). */
   min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
@@ -11705,7 +11705,7 @@ button.panel-auth-inline-link {
   }
 }
 
-/* ——— DEC-174 (Paulo, 13/11/2026): Clínica normalizada ———
+/* ——— DEC-175 (Paulo, 13/11/2026): Clínica normalizada ———
  * Moldura em todas as opções, coluna centrada, cabeçalho de página comum,
  * esqueleto com a forma de cada tela e resposta no rodapé do cartão. */
 .clinic-page {

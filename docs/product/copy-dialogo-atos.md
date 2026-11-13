@@ -308,6 +308,17 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 
 `{lista}` no formato da oferta (`sexta 06/11 às 14:00, 16:00`). `{hora}` = `HH:MM` no relógio da clínica.
 
+## Mensagem Agendado (após Confirmar) — Confirmado (DEC-174)
+
+**Estado:** **Confirmado** (Paulo, 13/11/2026, America/Sao_Paulo). Relógio da clínica; sem fuso IANA. Variante com a mesma voz do catálogo (`zoneLabel`).
+
+| Onde | Texto confirmado |
+| --- | --- |
+| Confirmação após Confirmar (follow-up DEC-086 a seguir) | `Agendado: {serviço}[ · {variante(s)}] · {weekday} {DD/MM} às {HH:MM} com {profissional}.` (+ ` Local: {morada}.` se `clinic_address`, DEC-090) |
+| Exemplo | `Agendado: Massagem · relaxante · terça 17/11 às 10:00 com Samua.` |
+| Sem follow-up «Posso ajudar…» | acrescenta ` Qualquer dúvida, responda.` |
+| Fora | ano; hora de fim; «em …-feira, … de … de …»; «Qualquer dúvida, responda esta mensagem.» quando o follow-up sai |
+
 ## Rótulos fixos do M5 (listas e botões) — Confirmado
 
 **Estado:** os cinco rótulos fixos estão **Confirmados** (Paulo, 03/11/2026, DEC-134). Entraram no código com o #479 (M5). A DEC-133 (revisão 03/11/2026) liga as escolhas interativas de forma permanente — sem flag de ambiente — por isso Feminina, Masculina, Opções, Todas e Horários chegam à cliente no funil. O corte em 24 caracteres no título da linha está **Confirmado** (opção A: truncar; nome completo na descrição quando disponível). O texto da pergunta que acompanha a lista ou os botões é o das levas 1 e 2 (já aprovado); só mudam os rótulos abaixo.

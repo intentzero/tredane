@@ -412,14 +412,14 @@ describe('InboxThread — conversa focada (DEC-161)', () => {
               direction: 'outbound',
               authorDisplayName: 'Sistema',
               deliveryState: 'delivered',
-              body: 'Agendado: Limpeza de pele em quinta-feira às 14:30 com Ana.',
+              body: 'Agendado: Limpeza de pele · quinta 12/11 às 14:30 com Ana.',
             }),
           ],
         }),
       ),
     )
     expect(await screen.findByText('Agendado', { selector: '.inbox-msg-booked-head' })).toBeTruthy()
-    expect(screen.getByText(/Limpeza de pele em quinta-feira/)).toBeTruthy()
+    expect(screen.getByText(/Limpeza de pele · quinta 12\/11 às 14:30/)).toBeTruthy()
   })
 
   it('mensagem com 3+ linhas «Rótulo: valor» mostra a grade de campos', async () => {
