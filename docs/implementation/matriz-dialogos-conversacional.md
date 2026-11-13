@@ -308,6 +308,9 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-20 | P0 | «À tarde» sem cue de fim | C: «Quero massagem sexta à tarde» | Os mais cedo (13:00…), como sempre; a ordem não muda sem «fim de». | EF-01 | 1 | ✅ L1 |
 | CC-21 | P0 | «Final da manhã» (DEC-181) | C: «Quero massagem sexta no final da manhã» | Os últimos horários da manhã (10:30–11:xx); não 09:00. | EF-01 | 1 | ✅ L1 |
 | CC-22 | P0 | «Fim do dia» sem período (DEC-181) | C: «Quero massagem sexta no fim do dia» | Os últimos horários do dia (17:xx); não 09:00. | EF-01 | 1 | ✅ L1 |
+| CC-23 | P0 | Período sem vaga na semana, com dia | C: «Quero massagem sexta à noite» | Avisa «à noite não tenho horário livre» (frase `sem_horario_periodo`) e, na mesma mensagem, oferece os horários que existem. Antes: o período era descartado em silêncio. | EF-01, Q | 1 | ✅ L1 |
+| CC-24 | P0 | Período sem vaga na semana, sem dia | C: «Quero massagem à noite» | O mesmo aviso e a oferta, sem repetir «Para massagem,». | EF-01, Q | 1 | ✅ L1 |
+| CC-25 | P0 | Período com vaga: sem aviso | C: «Quero massagem sexta à tarde» | Oferta direta (13:00…), sem «não tenho horário livre». | EF-01 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

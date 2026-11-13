@@ -771,4 +771,44 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 0, matches: [/\b17:\d\d\b/], excludes: [/\b09:00\b/] }],
     },
   },
+  {
+    id: 'CC-23',
+    title: 'Período sem vaga na semana: «sexta à noite» diz que não há e oferece outros horários',
+    turnosIdeais: 1,
+    // A clínica fecha às 18:00: não há horário à noite em nenhum dia. O funil descartava o
+    // período em silêncio e a cliente lia 09:00 sem saber que «à noite» não foi atendido.
+    turns: [{ role: 'client', text: 'Quero massagem sexta à noite' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/noite não tenho (horário|nada) livre/i, /\b09:00\b/],
+        },
+      ],
+    },
+  },
+  {
+    id: 'CC-24',
+    title: 'Período sem vaga na semana, sem dia: «à noite» também avisa antes de oferecer',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem à noite' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/noite não tenho (horário|nada) livre/i, /\b\d{2}:\d{2}\b/], excludes: [/Para massagem, .*Para massagem, /s] }],
+    },
+  },
+  {
+    id: 'CC-25',
+    title: 'Período com vaga continua sem aviso: «sexta à tarde» oferece direto',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem sexta à tarde' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/\b13:00\b/], excludes: [/não tenho horário livre/i] }],
+    },
+  },
 ]
