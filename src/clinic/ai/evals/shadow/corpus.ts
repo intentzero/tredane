@@ -7,6 +7,8 @@
  * medir, sem tráfego, o que o léxico, o validador de hoje e o modelo acertam,
  * falham ou inventam. Não é amostra de clientes reais: as frases são escritas
  * pela equipa e tendem a ser mais limpas do que as reais.
+ *
+ * O modelo é chamado pelo AI Gateway com a chave Anthropic guardada nele (BYOK, alias `staging`).
  */
 import type { ShadowField, ShadowSlots } from '../../interpreter-shadow'
 
