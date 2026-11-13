@@ -9,10 +9,10 @@ name: Reexecução da sombra
 on:
   workflow_dispatch:
   # TEMPORÁRIO: o disparo manual só existe depois de o ficheiro estar na main.
-  # Corre uma vez ao enviar este ficheiro nesta branch; remover antes do merge.
+  # Corre ao enviar este ficheiro ou o corpus/análise nesta branch; remover antes do merge.
   push:
     branches: [claude/tredane-conversational-analysis-4731fb]
-    paths: ['.github/workflows/shadow-replay.yml']
+    paths: ['.github/workflows/shadow-replay.yml', 'src/clinic/ai/evals/shadow/**']
 
 permissions:
   contents: read

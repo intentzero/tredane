@@ -33,6 +33,8 @@ export type RawCall = {
   id: string
   raw: ExtractorRaw | null
   status: 'ok' | 'provider' | 'parse'
+  /** Falha do provedor: código e mensagem do adaptador («AI Gateway HTTP 401»), sem segredos. */
+  error?: string
   model: string | null
   latencyMs: number | null
   inputTokens: number | null
@@ -186,6 +188,13 @@ export function renderReport(input: {
   lines.push(
     `Chamadas: ${calls.length} (${ok.length} ok, ${calls.filter((c) => c.status === 'provider').length} falha do provedor, ${calls.filter((c) => c.status === 'parse').length} saída inválida) · latência p50 ${q(0.5) ?? '—'} ms · p95 ${q(0.95) ?? '—'} ms`,
   )
+  const failures = new Map<string, number>()
+  for (const c of calls) if (c.status !== 'ok') failures.set(c.error ?? c.status, (failures.get(c.error ?? c.status) ?? 0) + 1)
+  if (failures.size > 0) {
+    lines.push('')
+    lines.push(`**⚠ ${calls.length - ok.length} de ${calls.length} chamadas falharam; as colunas do modelo (strict, relaxed, hybrid) não valem.**`)
+    for (const [msg, n] of failures) lines.push(`- ${n}× ${msg}`)
+  }
   lines.push('')
   lines.push('## Onde o modelo (relaxado) acerta e o léxico de hoje não')
   lines.push('')
@@ -248,6 +257,7 @@ export async function collectCalls(
           id: p.id,
           raw: res.raw,
           status: !g.ok ? 'provider' : res.raw ? 'ok' : 'parse',
+          ...(!g.ok ? { error: `${g.code}: ${g.message}`.slice(0, 160) } : {}),
           model: g.model,
           latencyMs: g.latencyMs,
           inputTokens: g.ok ? g.inputTokens : null,

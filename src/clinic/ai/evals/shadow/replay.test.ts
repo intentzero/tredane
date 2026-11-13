@@ -144,5 +144,11 @@ describe.skipIf(MODE !== 'dry' && MODE !== 'live')(`reexecução (${MODE})`, () 
     console.info(md)
     expect(truncated).toBe(false)
     expect(calls).toHaveLength(REPLAY_CORPUS.length)
+    // Uma corrida em que o modelo não respondeu não mede nada: falha, em vez de «sucesso».
+    const failed = calls.filter((c) => c.status !== 'ok')
+    expect(
+      failed.length,
+      `${failed.length}/${calls.length} chamadas falharam: ${[...new Set(failed.map((c) => c.error ?? c.status))].join(' | ')}`,
+    ).toBeLessThanOrEqual(Math.floor(calls.length * 0.1))
   }, 300_000)
 })
