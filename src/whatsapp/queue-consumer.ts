@@ -352,6 +352,8 @@ export async function processWhatsappMessage(
           conversationId: ingested.conversationId,
           createdConversation: Boolean(ingested.createdConversation),
           newMessage: isNewMessage,
+          humanAttended: Boolean(ingested.humanAttended),
+          contactLabel: ingested.contactLabel ?? null,
           badgeCount: ingested.unreadConversations,
           suppressUserIds: ingested.activeViewerUserIds,
           log,
@@ -438,6 +440,8 @@ export async function processWhatsappMessage(
           conversationId: ingested.conversationId,
           createdConversation: Boolean(ingested.createdConversation),
           newMessage: isNewMessage,
+          humanAttended: Boolean(ingested.humanAttended),
+          contactLabel: ingested.contactLabel ?? null,
           badgeCount: ingested.unreadConversations,
           suppressUserIds: ingested.activeViewerUserIds,
           log,
@@ -454,12 +458,16 @@ export async function processWhatsappMessage(
             duplicate?: boolean
             activeViewerUserIds?: string[]
             unreadConversations?: number
+            humanAttended?: boolean
+            contactLabel?: string | null
           }
           return {
             ...row,
             duplicate: row.duplicate,
             messageId: row.messageId ?? null,
             conversationId: row.conversationId ?? null,
+            humanAttended: Boolean(row.humanAttended),
+            contactLabel: row.contactLabel ?? null,
           }
         },
         createPendingAttachment: (c, input) => {
@@ -510,6 +518,8 @@ export async function processWhatsappMessage(
           conversationId: mediaOutcome.conversationId,
           createdConversation: Boolean(mediaOutcome.createdConversation),
           newMessage: Boolean(mediaOutcome.newMessage),
+          humanAttended: Boolean(mediaOutcome.humanAttended),
+          contactLabel: mediaOutcome.contactLabel ?? null,
           badgeCount: mediaOutcome.badgeCount,
           suppressUserIds: mediaOutcome.suppressUserIds,
           log,
@@ -567,6 +577,8 @@ export async function processWhatsappMessage(
           conversationId: ingested.conversationId,
           createdConversation: Boolean(ingested.createdConversation),
           newMessage: isNewMessage,
+          humanAttended: Boolean(ingested.humanAttended),
+          contactLabel: ingested.contactLabel ?? null,
           badgeCount: ingested.unreadConversations,
           suppressUserIds: ingested.activeViewerUserIds,
           log,

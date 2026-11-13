@@ -1,6 +1,7 @@
 import { readOpenMeteo } from '../clinic/tempo/open-meteo'
 import { tempoWarningsAt, withTempoWarnings } from '../clinic/tempo/warnings'
 import { countUnreadConversations, touchConversationMessage } from '../clinic/inbox/conversations'
+import { isHumanAttendedConversation } from '../push/human-attended'
 import { insertMessage } from '../clinic/inbox/messages'
 import { insertOutboxEvent } from '../clinic/outbox'
 import {
@@ -607,6 +608,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     activeViewerUserIds: string[]
     /** Push: conversas com não lidas (badge do ícone). */
     unreadConversations: number
+    /**
+     * DEC-173 — inbound push só se Assumir (humano) ou handoff (IA pausada).
+     */
+    humanAttended: boolean
+    /** Rótulo do contacto para o corpo do push (sem telefone). */
+    contactLabel: string | null
   }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -676,6 +683,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       drained = pub.published
     }
 
+    const contactLabel =
+      !result.duplicate && result.contact?.displayName?.trim()
+        ? result.contact.displayName.trim()
+        : null
+    let humanAttended = false
+    if (!result.duplicate && result.conversation) {
+      humanAttended = isHumanAttendedConversation(
+        this.#db,
+        caller.tenantId,
+        result.conversation.id,
+        result.conversation.assigneeClerkUserId,
+      )
+    }
+
     return {
       duplicate: result.duplicate,
       contactId: result.contact?.id ?? null,
@@ -692,6 +713,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       unreadConversations: result.duplicate
         ? 0
         : countUnreadConversations(this.#db, caller.tenantId),
+      humanAttended: result.duplicate ? false : humanAttended,
+      contactLabel,
     }
   }
 
@@ -1417,6 +1440,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       skippedUnavailable: string[]
     } | null = null
     const needsPersonIds = new Set<string>()
+    const appointmentConfirmed: Array<{
+      appointmentId: string
+      conversationId: string | null
+      serviceId: string | null
+      contactId: string | null
+    }> = []
     for (const ob of outboxes) {
       let payload: Record<string, unknown> = {}
       try {
@@ -1436,6 +1465,16 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         typeof payload.conversationId === 'string'
       ) {
         needsPersonIds.add(payload.conversationId)
+      }
+      // DEC-173: push quando o compromisso fica confirmado.
+      if (ob.type === 'appointment.confirmed' && typeof payload.appointmentId === 'string') {
+        appointmentConfirmed.push({
+          appointmentId: payload.appointmentId,
+          conversationId:
+            typeof payload.conversationId === 'string' ? payload.conversationId : null,
+          serviceId: typeof payload.serviceId === 'string' ? payload.serviceId : null,
+          contactId: typeof payload.contactId === 'string' ? payload.contactId : null,
+        })
       }
       const evt = appendRealtimeEvent(
         this.#db,
@@ -1466,6 +1505,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     for (const conversationId of needsPersonIds) {
       await this.#maybePushNeedsPerson(caller.tenantId, conversationId, false)
+    }
+    for (const apt of appointmentConfirmed) {
+      await this.#maybePushAppointmentConfirmed(caller.tenantId, apt)
     }
     // DEC-156: escalada aos 5 min — agendar o wake em `alert_after_at`
     // (não esperar só o timeout de 30 min / DEC-155).
@@ -1614,6 +1656,73 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         tenantId,
         conversationId,
         escalate,
+        badgeCount: countUnreadConversations(this.#db, tenantId),
+        suppressUserIds: this.#activeViewerUserIds(),
+        log: (entry) => {
+          console.log(JSON.stringify(entry))
+        },
+      })
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  /** DEC-173 — push de agendamento confirmado (best-effort). */
+  async #maybePushAppointmentConfirmed(
+    tenantId: string,
+    apt: {
+      appointmentId: string
+      conversationId: string | null
+      serviceId: string | null
+      contactId: string | null
+    },
+  ): Promise<void> {
+    try {
+      let contactLabel: string | null = null
+      let serviceName: string | null = null
+      if (apt.contactId) {
+        contactLabel =
+          this.#db.get<{ label: string | null }>(
+            `SELECT COALESCE(NULLIF(TRIM(display_name), ''), NULL) AS label
+             FROM contacts WHERE tenant_id = ? AND id = ?`,
+            tenantId,
+            apt.contactId,
+          )?.label ?? null
+        if (!contactLabel) {
+          contactLabel =
+            this.#db.get<{ label: string | null }>(
+              `SELECT contact_label AS label FROM appointments
+               WHERE tenant_id = ? AND id = ?`,
+              tenantId,
+              apt.appointmentId,
+            )?.label ?? null
+        }
+      } else {
+        contactLabel =
+          this.#db.get<{ label: string | null }>(
+            `SELECT contact_label AS label FROM appointments
+             WHERE tenant_id = ? AND id = ?`,
+            tenantId,
+            apt.appointmentId,
+          )?.label ?? null
+      }
+      if (apt.serviceId) {
+        serviceName =
+          this.#db.get<{ name: string | null }>(
+            `SELECT name FROM services WHERE tenant_id = ? AND id = ?`,
+            tenantId,
+            apt.serviceId,
+          )?.name ?? null
+      }
+      const { maybeNotifyAppointmentConfirmedPush } = await import('../push/queue-hook')
+      await maybeNotifyAppointmentConfirmedPush({
+        env: this.env as WorkerBindings,
+        clock: this.#clock,
+        tenantId,
+        appointmentId: apt.appointmentId,
+        conversationId: apt.conversationId,
+        contactLabel,
+        serviceName,
         badgeCount: countUnreadConversations(this.#db, tenantId),
         suppressUserIds: this.#activeViewerUserIds(),
         log: (entry) => {

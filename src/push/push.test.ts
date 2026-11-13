@@ -38,7 +38,7 @@ describe('push / PWA (#42)', () => {
       conversationId: 'cnv_9',
     })
     expect(base.kind).toBe('needs_person')
-    expect(base.body).toBe('Equipe necessária na Clínica Aurora')
+    expect(base.body).toBe('Chamada de atendente na Clínica Aurora')
     assertSafePushPayload(base)
     const esc = buildNeedsPersonPayload({
       tenantId: 'clinic-demo-a',

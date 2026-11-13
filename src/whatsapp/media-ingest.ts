@@ -99,8 +99,11 @@ export type MediaIngestOutcome = {
   result: 'ack' | 'retry'
   /** #42 — para disparar push sem corpo da mensagem. */
   createdConversation?: boolean
-  /** Mensagem nova (não duplicada) — push «Nova mensagem» se a conversa já existia. */
+  /** Mensagem nova (não duplicada) — push «Nova mensagem» se DEC-173 (fio humano). */
   newMessage?: boolean
+  /** DEC-173 — Assumir ou handoff. */
+  humanAttended?: boolean
+  contactLabel?: string | null
   conversationId?: string | null
   badgeCount?: number
   suppressUserIds?: string[]
@@ -114,6 +117,8 @@ async function linkAfterIngest(
 ): Promise<{
   createdConversation: boolean
   newMessage: boolean
+  humanAttended: boolean
+  contactLabel: string | null
   conversationId: string | null
   badgeCount?: number
   suppressUserIds?: string[]
@@ -136,11 +141,15 @@ async function linkAfterIngest(
     suppressedTombstone?: boolean
     activeViewerUserIds?: string[]
     unreadConversations?: number
+    humanAttended?: boolean
+    contactLabel?: string | null
   }
   if (ingested.suppressedTombstone) {
     return {
       createdConversation: false,
       newMessage: false,
+      humanAttended: false,
+      contactLabel: null,
       conversationId: null,
     }
   }
@@ -154,6 +163,8 @@ async function linkAfterIngest(
   return {
     createdConversation: Boolean(ingested.createdConversation),
     newMessage: !ingested.duplicate && Boolean(ingested.messageId),
+    humanAttended: Boolean(ingested.humanAttended),
+    contactLabel: ingested.contactLabel ?? null,
     badgeCount: ingested.unreadConversations,
     suppressUserIds: ingested.activeViewerUserIds,
     conversationId: ingested.conversationId ?? null,

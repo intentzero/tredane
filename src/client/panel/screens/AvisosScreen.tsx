@@ -1,6 +1,6 @@
 /**
- * M-14 — Instalar PWA e ativar avisos de nova conversa (#42 / DEC-040).
- * Preferências extras (atribuída / falha / resposta) ficam Propostas (Q-UX-05).
+ * M-14 — Instalar PWA e ativar avisos (#42 / DEC-040; recorte DEC-173).
+ * Preferências extras (atribuída / falha) ficam Propostas (Q-UX-05).
  */
 import { Share } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -135,7 +135,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
       setActive(true)
       setStatus({
         phase: 'ok',
-        message: `Avisos ativos. Em nova conversa verá «Nova conversa na ${clinicName}» — sem o texto da mensagem.`,
+        message: `Avisos ativos. Recebe agendamento confirmado, chamada de atendente e mensagens só em conversas que você (ou a equipe) está a atender — sem o texto da mensagem.`,
       })
     } catch {
       setStatus({
@@ -229,9 +229,10 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
           </h2>
           <label className="panel-switch-row">
             <span>
-              <span className="panel-switch-label">Nova conversa</span>
+              <span className="panel-switch-label">Avisos da clínica</span>
               <span className="panel-muted-sm">
-                Quando um contato escreve pela primeira vez
+                Agendamento confirmado, chamada de atendente e mensagens em
+                conversas assumidas ou em handoff
               </span>
             </span>
             <input
@@ -239,12 +240,12 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
               className="panel-checkbox"
               checked={notifyNew}
               onChange={(e) => setNotifyNew(e.target.checked)}
-              aria-label="Nova conversa"
+              aria-label="Avisos da clínica"
             />
           </label>
           <label className="panel-switch-row panel-switch-row--proposed">
             <span>
-              <span className="panel-switch-label">Conversa atribuída a mim</span>
+              <span className="panel-switch-label">Só as minhas conversas</span>
               <span className="panel-muted-sm">Em breve</span>
             </span>
             <input
@@ -252,7 +253,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
               className="panel-checkbox"
               checked
               disabled
-              aria-label="Conversa atribuída (proposta)"
+              aria-label="Só as minhas conversas (proposta)"
             />
           </label>
           <label className="panel-switch-row panel-switch-row--proposed">
@@ -266,19 +267,6 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
               checked
               disabled
               aria-label="Mensagem não enviada (proposta)"
-            />
-          </label>
-          <label className="panel-switch-row panel-switch-row--proposed">
-            <span>
-              <span className="panel-switch-label">Resposta de contato</span>
-              <span className="panel-muted-sm">Proposto (Q-UX-05) — desligado por omissão</span>
-            </span>
-            <input
-              type="checkbox"
-              className="panel-checkbox"
-              checked={false}
-              disabled
-              aria-label="Resposta de contato (proposta)"
             />
           </label>
         </section>
@@ -309,8 +297,9 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
         </section>
 
         <p className="panel-card panel-muted-sm">
-          O aviso mostra só «Nova conversa na {clinicName}». O texto da mensagem
-          fica dentro do app.
+          Em {clinicName}, o aviso não traz o texto da mensagem WhatsApp. Não
+          notifica cada mensagem da IA automática — só quando a equipe precisa
+          agir.
         </p>
 
         {active ? (
