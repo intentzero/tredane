@@ -8,6 +8,7 @@ import {
   synthAuthHeader,
   type AuthServices,
 } from '../auth'
+import { clinicWhatsapp } from '../clinic'
 import { bootClinicDb } from '../clinic/test-db'
 import { createWhatsappService } from './service'
 import { createMemoryWhatsappChannelSync } from './routes'
@@ -35,6 +36,7 @@ function testWhatsappApp() {
   const app = createApp({
     authServicesFactory: () => services,
     syncAdminDbFactory: () => admin.db,
+    whatsappClinicDbFactory: getClinic,
     whatsappServiceFactory: () =>
       createWhatsappService({
         db: admin.db,
@@ -44,6 +46,7 @@ function testWhatsappApp() {
   })
   return {
     app,
+    getClinic,
     close: () => {
       for (const c of clinics.values()) c.close()
       admin.close()
@@ -135,6 +138,70 @@ describe('HTTP — WhatsApp conexão (#31)', () => {
       expect(clash.status).toBe(409)
       const clashBody = (await clash.json()) as { error: string }
       expect(clashBody.error).toBe('phone_in_use')
+    } finally {
+      close()
+    }
+  })
+
+  it('GET /whatsapp lê lastInboundAt do espelho da clínica (não null hardcodado)', async () => {
+    const { app, getClinic, close, auth } = testWhatsappApp()
+    try {
+      const sessionRes = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/whatsapp/session',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purpose: 'connect' }),
+        }),
+      )
+      expect(sessionRes.status).toBe(201)
+      const session = (await sessionRes.json()) as { state: string }
+
+      const complete = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/whatsapp/complete',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            state: session.state,
+            code: SYNTHETIC_CODES.valid,
+            phoneNumberId: 'pnid_http_inbound',
+            wabaId: 'waba_http_inbound',
+            displayPhone: '+15551820342',
+            displayName: 'Test Number',
+          }),
+        }),
+      )
+      expect(complete.status).toBe(200)
+
+      const before = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/whatsapp',
+        auth('user_synth_owner_a'),
+      )
+      expect(before.status).toBe(200)
+      const beforeBody = (await before.json()) as { lastInboundAt: number | null }
+      expect(beforeBody.lastInboundAt).toBeNull()
+
+      const inboundAt = 1_730_000_000_000
+      clinicWhatsapp.touchWhatsappLastInbound(
+        getClinic('clinic-demo-a').db,
+        'clinic-demo-a',
+        inboundAt,
+      )
+
+      const after = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/whatsapp',
+        auth('user_synth_owner_a'),
+      )
+      expect(after.status).toBe(200)
+      const afterBody = (await after.json()) as {
+        status: string
+        lastInboundAt: number | null
+        displayPhone: string | null
+      }
+      expect(afterBody.status).toBe('connected')
+      expect(afterBody.displayPhone).toBe('+15551820342')
+      expect(afterBody.lastInboundAt).toBe(inboundAt)
     } finally {
       close()
     }

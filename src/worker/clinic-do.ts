@@ -2775,6 +2775,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return row
   }
 
+  /** Leitura do espelho WhatsApp (last_inbound_at para GET /whatsapp). */
+  async getWhatsappChannel(caller: ClinicCaller) {
+    this.#ensureReady()
+    const tenantId = this.#assertInstanceTenant(caller)
+    return clinicWhatsapp.getWhatsappChannel(this.#db, tenantId)
+  }
+
   async listWhatsappTemplates(
     caller: ClinicCaller,
     opts: { approvedOnly?: boolean } = {},
