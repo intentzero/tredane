@@ -114,6 +114,8 @@ import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 import { runRestrictedExtractor } from './llm-extractor'
+import { runInterpreterShadow, type InterpreterShadowTask } from './interpreter-shadow'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { generateExceptionReply } from './exception-reply'
 import {
   promiseTeamFollowUp,
@@ -387,6 +389,8 @@ export async function runDueAutoDrafts(
 
   const out: AutoDraftOutcome[] = []
   const alarmTurnStartedMs = now
+  /** Sombra do interpretador: corre depois de todas as respostas deste alarme. */
+  const shadowTasks: InterpreterShadowTask[] = []
   for (const job of due) {
     const elapsedMs = clock.nowMs() - alarmTurnStartedMs
     if (elapsedMs >= AUTODRAFT_ALARM_BUDGET_MS) {
@@ -1240,9 +1244,38 @@ export async function runDueAutoDrafts(
     let liveTurn = turn
 
     try {
+      // Fotografia para a sombra antes de o extrator ou o motor mexerem no quadro.
+      const shadowTurn = liveTurn
+      const shadowPending = deps.interpreterShadow
+        ? (getBookingFrame(db, tenantId, job.conversationId)?.pending ?? null)
+        : null
       const extractorStarted = clock.nowMs()
       const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
       opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
+      if (
+        deps.interpreterShadow &&
+        shadowTurn.turnText.trim() &&
+        !isInteractiveReplyBody(shadowTurn.turnText)
+      ) {
+        const pros = new Map(
+          [...shadowTurn.catalog.professionalsByService.values()].flat().map((p) => [p.id, p]),
+        )
+        shadowTasks.push({
+          tenantId,
+          conversationId: job.conversationId,
+          messageId: job.messageId,
+          turnText: shadowTurn.turnText,
+          today: clinicCivilDateFromUtc(
+            shadowTurn.settings.timezone || 'America/Sao_Paulo',
+            clock.nowMs(),
+          ),
+          services: shadowTurn.catalog.services,
+          professionals: [...pros.values()],
+          pending: shadowPending,
+          mainRaw: extracted.raw ?? null,
+          mainModelCalled: extracted.modelCalled,
+        })
+      }
       if (extracted.modelCalled) {
         modelCalled = true
         modelCalls += 1
@@ -1672,6 +1705,17 @@ export async function runDueAutoDrafts(
         decisionMs: Math.max(0, clock.nowMs() - jobStarted),
       },
     )
+  }
+  // As respostas já saíram; a sombra só mede e respeita o teto do alarme.
+  for (const task of shadowTasks) {
+    if (clock.nowMs() - alarmTurnStartedMs >= AUTODRAFT_ALARM_BUDGET_MS) break
+    const started = clock.nowMs()
+    try {
+      await runInterpreterShadow(deps, task)
+    } catch {
+      // Medição nunca afecta o atendimento.
+    }
+    opts.onTurnPhase?.('interpreter_shadow', clock.nowMs() - started)
   }
   return out
 }

@@ -89,6 +89,11 @@ export type WorkerBindings = {
    * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
    */
   AI_MODE?: string
+  /**
+   * `on` liga a sombra do interpretador LLM (Proposto): uma chamada extra ao
+   * extrator por turno de texto livre, só para medir. Omisso = desligada.
+   */
+  AI_INTERPRETER_SHADOW?: string
   /** S7 (#178): «on» liga os limites de abuso (padrão desligado). Valores: ABUSE_LIMIT_* (Proposto). */
   ABUSE_LIMITS?: string
   CF_ACCOUNT_ID?: string
