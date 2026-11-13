@@ -100,8 +100,12 @@ async function seed(
     db,
     caller,
     {
+      enabled: true,
+      amountKind: 'fixed',
+      fixedCents: 5_400,
       deadlineSeconds: 7200,
-      cancellationPolicy: 'Sinal devolvido se remarcar com 24h; senão retido.',
+      policyKind: 'custom',
+      customPolicyText: 'Sinal devolvido se remarcar com 24h; senão retido.',
     },
     clock,
   )

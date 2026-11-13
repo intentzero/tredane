@@ -7,7 +7,7 @@ describe('0055_variant_selection', () => {
   it('sobe o schema e cria variant_selection com default varias', () => {
     expect(MIGRATION_ID).toBe(55)
     expect(MIGRATION_NAME).toBe('0055_variant_selection')
-    expect(CLINIC_SCHEMA_VERSION).toBe(63)
+    expect(CLINIC_SCHEMA_VERSION).toBe(64)
     const boot = bootClinicDb()
     try {
       const col = boot.db.get<{ name: string; dflt_value: string | null }>(

@@ -422,7 +422,7 @@ describe('ServiceForm — catálogo de variantes', () => {
     )
     // DEC-180: UI de sinal por serviço some; nota aponta para Recebimento.
     expect(screen.queryByRole('button', { name: /Sinal Pix/i })).toBeNull()
-    expect(screen.getByText(/Sinal activo nesta clínica/)).toBeTruthy()
+    expect(screen.getByText(/Sinal ativo nesta clínica/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalled())
     const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>

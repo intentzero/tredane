@@ -565,7 +565,7 @@ export function InboxContactScreen({
             <div>
               <h3 id="c-sinal">Dispensar sinal nesta cliente</h3>
               <p className="clinic-footnote" style={{ margin: '6px 0 0' }}>
-                Com isto ligado, o Agendar confirma sem pedir Pix — mesmo com o sinal global activo na
+                Com isto ligado, o Agendar confirma sem pedir Pix — mesmo com o sinal global ativo na
                 clínica.
               </p>
             </div>

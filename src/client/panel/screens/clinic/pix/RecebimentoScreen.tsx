@@ -385,7 +385,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         </h2>
         <p className="clinic-footnote" style={{ marginTop: 0 }}>
           O sinal é um Pix que a cliente paga para o horário deixar de ficar livre. Até pagar, o
-          horário continua disponível (DEC-047). Só a responsável altera estas regras.
+          horário continua disponível. Só a responsável altera estas regras.
         </p>
 
         <div className="clinic-signal-toggle">
@@ -487,7 +487,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
                 </button>
               </div>
               <span className="clinic-footnote">
-                Padrão 2 h (DEC-047 / DEC-179). Cobranças já enviadas mantêm o prazo original.
+                Padrão 2 h. Cobranças já enviadas mantêm o prazo original.
               </span>
             </div>
 
@@ -638,7 +638,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
           </Button>
         </div>
         <p className="clinic-footnote">
-          Atendentes não editam este ecrã — só podem dispensar o sinal num Contato.
+          Atendentes não editam esta tela — só podem dispensar o sinal num Contato.
         </p>
       </section>
     </div>

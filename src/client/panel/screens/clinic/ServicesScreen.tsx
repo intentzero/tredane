@@ -1065,7 +1065,7 @@ export function ServiceForm({
             A UI por serviço some; o servidor ainda espelha requires_signal ao salvar Recebimento. */}
         {requiresSignal ? (
           <p className="clinic-footnote" role="note">
-            Sinal activo nesta clínica ({signalLabel}). Valor e política: Clínica → Recebimento.
+            Sinal ativo nesta clínica ({signalLabel}). Valor e política: Clínica → Recebimento.
           </p>
         ) : null}
         <RuleRow
