@@ -22,8 +22,16 @@ export function serializePixAccount(row: PixAccountPublic) {
 
 export function serializePixSignalSettings(row: PixSignalSettings) {
   return {
+    enabled: row.enabled,
+    amountKind: row.amountKind,
+    fixedCents: row.fixedCents,
+    percent: row.percent,
     deadlineSeconds: row.deadlineSeconds,
+    policyKind: row.policyKind,
+    creditWindowHours: row.creditWindowHours,
+    customPolicyText: row.customPolicyText,
     cancellationPolicy: row.cancellationPolicy,
+    preview: row.preview,
     updatedAt: row.updatedAt,
   }
 }

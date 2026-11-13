@@ -1680,6 +1680,46 @@ export function InboxThread({
         </div>
       ) : null}
 
+      {detail.contact?.signalWaived ? (
+        <div className="inbox-signal-waive-banner" role="status">
+          <Info aria-hidden size={18} strokeWidth={2} style={{ flex: "none", marginTop: 1 }} />
+          <div>
+            <strong>Sinal dispensado nesta cliente</strong>
+            <span>
+              Motivo: {detail.contact.signalWaiveReason ?? "—"}
+              {detail.contact.signalWaivedByDisplayName
+                ? ` · ${detail.contact.signalWaivedByDisplayName}`
+                : ""}
+              {detail.contact.signalWaivedAt
+                ? `, ${new Date(detail.contact.signalWaivedAt).toLocaleString("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                  })}`
+                : ""}
+              .{" "}
+              <button
+                type="button"
+                className="inbox-signal-waive-link"
+                onClick={() =>
+                  contactPanel
+                    ? contactPanel.onToggle()
+                    : navigatePanel({
+                        kind: "area",
+                        area: "conversas",
+                        tenantId,
+                        section: "contato",
+                        conversationId: detail.id,
+                        contactId: detail.contactId,
+                      })
+                }
+              >
+                Gerir no Contato
+              </button>
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       {detail.aiReplyPause ? (
         <div className="inbox-assign" role="status">
           <p>A IA está pausada. Uma pessoa continua esta conversa.</p>

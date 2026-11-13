@@ -601,16 +601,11 @@ export function ServiceForm({
       roomRequirement:
         space === 'none' ? { mode: 'none' } : { mode: 'rooms', resourceIds: roomIds },
       equipmentResourceId: equipmentId,
-      requiresSignal,
-      signalKind: requiresSignal ? signalKind : null,
-      signalFixedCents:
-        requiresSignal && signalKind === 'fixed'
-          ? parsePriceToCents(signalFixed)
-          : null,
-      signalPercent:
-        requiresSignal && signalKind === 'percent'
-          ? Number.parseInt(signalPercent, 10) || null
-          : null,
+      // DEC-180: sinal é global em Recebimento — preserva o espelho do serviço.
+      requiresSignal: existing?.requiresSignal ?? false,
+      signalKind: existing?.signalKind ?? null,
+      signalFixedCents: existing?.signalFixedCents ?? null,
+      signalPercent: existing?.signalPercent ?? null,
       weeklyWindows: fromWeekDraft(hoursDraft),
       tempoCeu,
       tempoTemperatura,
@@ -633,11 +628,6 @@ export function ServiceForm({
     }
     if (draftZones.some((z) => !z.name.trim())) {
       setFormError('Dê um nome a cada opção. O que você digitou continua aqui.')
-      setSaving(false)
-      return
-    }
-    if (requiresSignal && signalKind === 'percent' && signalBase == null) {
-      setFormError('Cadastre o preço antes do sinal percentual. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
@@ -1075,72 +1065,13 @@ export function ServiceForm({
             />
           ) : null}
         </RuleRow>
-        <RuleRow
-          label="Sinal Pix"
-          value={signalLabel}
-          onPress={() => toggleRule('sinal')}
-        >
-          {openRule === 'sinal' ? (
-            <fieldset className="clinic-fieldset">
-              <legend className="visually-hidden">Sinal por Pix</legend>
-              <ClinicCheck
-                className="clinic-check"
-                isSelected={requiresSignal}
-                onChange={setRequiresSignal}
-              >
-                Exige sinal
-              </ClinicCheck>
-              {requiresSignal ? (
-                <>
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Tipo"
-                    value={signalKind}
-                    onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
-                    options={[
-                      { id: 'fixed', label: 'Valor fixo (R$)' },
-                      {
-                        id: 'percent',
-                        label: 'Percentual do preço',
-                        hint: signalBase ? undefined : 'Cadastre o preço primeiro',
-                        disabled: !signalBase,
-                      },
-                    ]}
-                  />
-                  {signalKind === 'fixed' ? (
-                    <TextField className="clinic-field">
-                      <Label>Valor do sinal</Label>
-                      <Input
-                        value={signalFixed}
-                        onChange={(e) => setSignalFixed(e.target.value)}
-                        inputMode="decimal"
-                        placeholder="R$ 0,00"
-                      />
-                    </TextField>
-                  ) : (
-                    <TextField className="clinic-field">
-                      <Label>Percentual (1–100)</Label>
-                      <Input
-                        value={signalPercent}
-                        onChange={(e) => setSignalPercent(e.target.value)}
-                        inputMode="numeric"
-                      />
-                    </TextField>
-                  )}
-                  {signalKind === 'percent' && signalBase != null ? (
-                    <p className="clinic-hint-box">
-                      Resumo: sinal de{' '}
-                      {formatPriceCents(
-                        Math.trunc((signalBase * (Number.parseInt(signalPercent, 10) || 0)) / 100),
-                      )}{' '}
-                      ({signalPercent}% de {formatPriceCents(signalBase)}).
-                    </p>
-                  ) : null}
-                </>
-              ) : null}
-            </fieldset>
-          ) : null}
-        </RuleRow>
+        {/* DEC-180: valor/exigência do sinal passam a ser globais em Recebimento.
+            A UI por serviço some; o servidor ainda espelha requires_signal ao salvar Recebimento. */}
+        {requiresSignal ? (
+          <p className="clinic-footnote" role="note">
+            Sinal activo nesta clínica ({signalLabel}). Valor e política: Clínica → Recebimento.
+          </p>
+        ) : null}
         <RuleRow
           label="Tempo"
           value={tempoSummary({

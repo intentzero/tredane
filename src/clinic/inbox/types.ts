@@ -67,6 +67,11 @@ export type ContactSummary = {
   blockedAt: number | null
   blockedByDisplayName: string | null
   blockedReason: string | null
+  /** DEC-180 — isenção durável do sinal (Contato). */
+  signalWaived?: boolean
+  signalWaiveReason?: string | null
+  signalWaivedByDisplayName?: string | null
+  signalWaivedAt?: number | null
 }
 
 /** Visita resumida para o directório Clientes (DEC-165): o que vem a seguir ou o que já houve. */

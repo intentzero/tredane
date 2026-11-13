@@ -405,7 +405,7 @@ describe('ServiceForm — catálogo de variantes', () => {
     expect(screen.getByText(/Adicione ao menos uma opção/)).toBeTruthy()
   })
 
-  it('com variantes, o sinal percentual usa a soma e não grava o preço da linha', async () => {
+  it('com variantes e sinal, grava preço da linha null e preserva o espelho do sinal (DEC-180)', async () => {
     const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
     const replaceServiceZones = vi.fn(async () => [])
     renderForm(
@@ -420,14 +420,14 @@ describe('ServiceForm — catálogo de variantes', () => {
       }),
       { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('button', { name: /Sinal Pix/i }))
-    const summary = screen.getByText(/30% de/).textContent ?? ''
-    expect(summary).toMatch(/50,00/)
-    expect(summary).not.toMatch(/100,00/)
+    // DEC-180: UI de sinal por serviço some; nota aponta para Recebimento.
+    expect(screen.queryByRole('button', { name: /Sinal Pix/i })).toBeNull()
+    expect(screen.getByText(/Sinal activo nesta clínica/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalled())
     const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
     expect(body.priceCents).toBeNull()
+    expect(body.requiresSignal).toBe(true)
     expect(body.signalPercent).toBe(30)
   })
 

@@ -78,6 +78,10 @@ export function mapContactSummary(row: {
   blocked_at?: number | null
   blocked_by_display_name?: string | null
   blocked_reason?: string | null
+  signal_waived?: number | null
+  signal_waive_reason?: string | null
+  signal_waived_by_display_name?: string | null
+  signal_waived_at?: number | null
 }): ContactSummary {
   return {
     id: row.id,
@@ -87,6 +91,10 @@ export function mapContactSummary(row: {
     blockedAt: row.blocked_at ?? null,
     blockedByDisplayName: row.blocked_by_display_name ?? null,
     blockedReason: row.blocked_reason ?? null,
+    signalWaived: (row.signal_waived ?? 0) === 1,
+    signalWaiveReason: row.signal_waive_reason ?? null,
+    signalWaivedByDisplayName: row.signal_waived_by_display_name ?? null,
+    signalWaivedAt: row.signal_waived_at ?? null,
   }
 }
 

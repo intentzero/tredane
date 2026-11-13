@@ -60,7 +60,25 @@ function makeApi(opts: { emptyFirstDay?: boolean; service?: Record<string, unkno
     })),
     getPix: vi.fn(async () => ({
       account: { canCreateCharge: true },
-      signalSettings: { deadlineSeconds: 7200, cancellationPolicy: '', updatedAt: 0 },
+      signalSettings: {
+        enabled: true,
+        amountKind: 'fixed',
+        fixedCents: 9000,
+        percent: null,
+        deadlineSeconds: 7200,
+        policyKind: 'credit_next',
+        creditWindowHours: 24,
+        customPolicyText: '',
+        cancellationPolicy: '',
+        preview: {
+          booking: '',
+          reschedule: '',
+          cancel: '',
+          combined: '',
+          generated: true,
+        },
+        updatedAt: 0,
+      },
     })),
     getInboxConversation: vi.fn(async () => ({
       contact: { id: 'c1', waId: '5511987654321', displayName: 'Marina Souza', createdAt: 0 },

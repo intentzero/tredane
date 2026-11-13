@@ -225,6 +225,8 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [pix, setPix] = useState<PixSnapshot | null>(null)
   const [contact, setContact] = useState<Contact | null>(null)
+  /** DEC-180 — isenção durável no Contato (salta o sinal). */
+  const [contactSignalWaived, setContactSignalWaived] = useState(false)
   const [window24, setWindow24] = useState<MessagingWindow | null>(null)
   /** «Por período» = reserva por bloco (antigo «Reservar bloco»); só com conversa. */
   const [periodOpen, setPeriodOpen] = useState(false)
@@ -318,11 +320,13 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           const conv = await api.getInboxConversation(tenantId, ctx.conversationId, { messageLimit: 1 }, fo)
           if (cancelled) return
           setContact({ name: conv.contact.displayName, phone: maskPhone(conv.contact.waId) })
+          setContactSignalWaived(conv.contact.signalWaived === true)
           setWindow24(conv.messagingWindow)
         } else if (ctx.contactId) {
           const det = await api.getInboxContact(tenantId, ctx.contactId, fo)
           if (cancelled) return
           setContact({ name: det.contact.displayName, phone: maskPhone(det.contact.waId) })
+          setContactSignalWaived(det.contact.signalWaived === true)
         }
       } catch {
         // Sem contato legível: o cabeçalho mostra só «Agendar horário».
@@ -455,7 +459,12 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
       service.signalKind === 'percent',
   )
   const paidSignalMode = Boolean(ctx.alertId)
-  const requiresSignal = !paidSignalMode && Boolean(service?.requiresSignal && amountCents != null)
+  const globalSignalOn = pix?.signalSettings.enabled !== false
+  const requiresSignal =
+    !paidSignalMode
+    && !contactSignalWaived
+    && globalSignalOn
+    && Boolean(service?.requiresSignal && amountCents != null)
   const professionals =
     config?.resources.filter(
       (r) =>
