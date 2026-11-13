@@ -3,13 +3,15 @@
  *
  * Ordem fixa **antes** de pending answer / slot fillers / zone leftover:
  *   handoff (fora — autodraft) → restart → exit A/B → reject C
- *   → ask_info (preço|duração) → confusão (DEC-151, classificada; realização noutro sítio)
+ *   → ask_info (preço|duração|explicação FAQ DEC-177)
+ *   → confusão (DEC-151, classificada; realização noutro sítio)
  *
  * Classificação aqui; realização de `ask_info` mid-funnel em `ask-info-realize`
  * (stack park/resume) via `tryAiAutoBook`. Política vive no acto; `sayAct` só redige.
- * **Proposto → em progresso**.
+ * **Proposto → em progresso**. FAQ (DEC-177) usa o mesmo gate para não cair em leftover.
  */
 import { isCatalogInfoAsk, CATALOG_PRICE_ASK } from './booking-intent-text'
+import { isCatalogClarificationAsk } from './faq-clarification'
 import {
   classifySensitive,
   hasRestartRequest,
@@ -19,7 +21,7 @@ import {
   type SensitiveHit,
 } from './nlu/sensitive'
 
-export type AskInfoTopic = 'price' | 'duration'
+export type AskInfoTopic = 'price' | 'duration' | 'explanation'
 
 /**
  * Acto cross-cutting classificado no início do motor de turno.
@@ -39,14 +41,18 @@ export type ClassifyCrossCuttingInput = {
 }
 
 function askInfoTopic(text: string): AskInfoTopic | null {
-  if (!isCatalogInfoAsk(text)) return null
-  // «quanto tempo dura» casa `quanto` em CATALOG_PRICE_ASK — preferir duração
-  // quando há sinal de tempo e não há preço explícito (custa/valor/tabela).
-  const durationCue = /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(text)
-  const explicitPrice = /\b(pre[cç]os?|custam?|valor(es)?|or[cç]amento|tabela)\b/i.test(text)
-  if (durationCue && !explicitPrice) return 'duration'
-  if (CATALOG_PRICE_ASK.test(text) || explicitPrice) return 'price'
-  return 'duration'
+  if (isCatalogInfoAsk(text)) {
+    // «quanto tempo dura» casa `quanto` em CATALOG_PRICE_ASK — preferir duração
+    // quando há sinal de tempo e não há preço explícito (custa/valor/tabela).
+    const durationCue = /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(text)
+    const explicitPrice = /\b(pre[cç]os?|custam?|valor(es)?|or[cç]amento|tabela)\b/i.test(text)
+    if (durationCue && !explicitPrice) return 'duration'
+    if (CATALOG_PRICE_ASK.test(text) || explicitPrice) return 'price'
+    return 'duration'
+  }
+  // DEC-177: pergunta/clarificação (inclui?, o que é?) antes do leftover de zona.
+  if (isCatalogClarificationAsk(text)) return 'explanation'
+  return null
 }
 
 /**

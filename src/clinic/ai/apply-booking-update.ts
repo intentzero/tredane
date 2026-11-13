@@ -75,10 +75,10 @@ export type BookingUpdateIntent =
     }
   | { type: 'set_service'; serviceId: string }
   | { type: 'set_audience_line'; line: ScheduleAudienceLine | null }
-  /** D4: consulta de preço/duração — não grava variante. */
+  /** D4: consulta de preço/duração/FAQ — não grava variante. */
   | {
       type: 'ask_info'
-      topic: 'preco' | 'duracao' | 'catalogo' | 'local' | 'outro'
+      topic: 'preco' | 'duracao' | 'catalogo' | 'local' | 'outro' | 'explicacao'
     }
   /**
    * D3 / toque: conjunto explícito com modo.

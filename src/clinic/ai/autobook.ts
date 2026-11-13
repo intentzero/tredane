@@ -127,7 +127,15 @@ import {
 import { extractDates, extractTimes, norm } from './nlu/temporal'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { realizeAskInfo, realizeClarify } from './ask-info-realize'
-import { shouldResumeSlotAsk } from './dialogue-interrupt-stack'
+import {
+  answerFaqFromCatalog,
+  faqMissingChoiceInteractive,
+} from './faq-clarification'
+import {
+  parkFromFrame,
+  shouldResumeSlotAsk,
+  shouldResumeVariantAsk,
+} from './dialogue-interrupt-stack'
 import {
   obligationFromFrame,
   shouldEmitOptionMiss,
@@ -1063,6 +1071,7 @@ export async function tryAiAutoBook(
 
   // P1 / DEC-C1/C4: ask_info mid-funnel — park → realize → resume (stack explícita).
   // Não depende de suppress leftover; não limpa variante / não reabre tipo por engano.
+  // DEC-177: FAQ (explanation) usa o mesmo gate — factos do cadastro, sem leftover.
   if (gate.kind === 'ask_info') {
     const frameAsk = getBookingFrame(db, tenantId, input.conversationId)
     const svcAsk = frameAsk?.serviceId
@@ -1075,16 +1084,63 @@ export async function tryAiAutoBook(
         needsAudienceLine(activeAsk) && lineAsk
           ? zonesForAudienceLine(activeAsk, lineAsk)
           : activeAsk
-      const namedAsk = zonesNamedInText(turnText, poolAsk.length > 0 ? poolAsk : activeAsk, {
+      const pool = poolAsk.length > 0 ? poolAsk : activeAsk
+
+      if (gate.topic === 'explanation') {
+        runBookingUpdate({ type: 'ask_info', topic: 'explicacao' })
+        const faq = answerFaqFromCatalog({
+          text: turnText,
+          conversationId: input.conversationId,
+          service: svcAsk,
+          zones: pool,
+        })
+        if (faq.kind === 'missing') {
+          return finish({
+            ...none('needs_info', {
+              confirmationMessageId: confirmation.id,
+              serviceId: svcAsk.id,
+            }),
+            replyText: faq.replyText,
+            interactive: faqMissingChoiceInteractive(db, tenantId, clock),
+            notes: 'DEC-177: FAQ missing catalog detail; Continuar/equipe; no leftover.',
+          })
+        }
+        let replyText = faq.replyText
+        // Com facto: retoma a pergunta de zonas se ainda não há variante (não avança Horários).
+        const parked = parkFromFrame(frameAsk, 'ask_info', 'explanation')
+        if (shouldResumeVariantAsk(parked)) {
+          const ask = variantListQuestion(
+            svcAsk.name,
+            variantKindForAsk(svcAsk),
+            pool,
+            input.conversationId,
+            { selectionMode: svcAsk.variantSelection },
+          )
+          replyText = `${faq.replyText}\n${ask}`
+        }
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: svcAsk.id,
+          }),
+          replyText,
+          notes: `DEC-177: FAQ ${faq.kind} from catalog facts (pending kept).`,
+        })
+      }
+
+      const namedAsk = zonesNamedInText(turnText, pool, {
         ignoreWords: [svcAsk.name, ...(svcAsk.synonyms ?? [])],
       })
       // D4: ask_info não grava variante — só aplica o intent no actualizador.
-      runBookingUpdate({ type: 'ask_info', topic: gate.topic === 'price' ? 'preco' : 'duracao' })
+      runBookingUpdate({
+        type: 'ask_info',
+        topic: gate.topic === 'price' ? 'preco' : 'duracao',
+      })
       const realized = realizeAskInfo({
         conversationId: input.conversationId,
         topic: gate.topic,
         service: svcAsk,
-        zones: poolAsk.length > 0 ? poolAsk : activeAsk,
+        zones: pool,
         frame: frameAsk,
         namedZones: namedAsk,
         sameFunnel: true,

@@ -5,11 +5,12 @@
  * A-44..A-46: singular↔plural + stopwords pt-BR (Paulo 10/11/2026).
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (staging).
+ * A-53 / A-54: FAQ gate mid-zonas (DEC-177) — pergunta ≠ leftover.
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
  */
-import { listZones, replaceServiceZonesOp } from '../../../config'
+import { getService, listZones, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { frictionTermHash } from '../../turn-friction'
 import type { DialogCase } from './runner'
 
@@ -58,6 +59,74 @@ function withMasculineIntimaZones(s: Parameters<NonNullable<DialogCase['prepare'
   withIntimaZones(s, [
     { name: 'Intima', audience: 'masculino', durationMinutes: 20, priceCents: 18000 },
   ])
+}
+
+/**
+ * Intima sem sinónimo + Explicação genérica no serviço.
+ * Bugbot/DEC-177: cobertura sem prova não pode cair nessa explicação.
+ */
+function withIntimaAndServiceExplanation(
+  s: Parameters<NonNullable<DialogCase['prepare']>>[0],
+): void {
+  withIntimaZones(s)
+  const dep = getService(s.db, s.tenantId, s.ids.depilacao)
+  if (!dep) throw new Error('A-53: Depilação ausente')
+  upsertServiceOp(
+    s.db,
+    s.caller,
+    {
+      id: dep.id,
+      name: dep.name,
+      durationMinutes: dep.durationMinutes,
+      bufferMinutes: dep.bufferMinutes,
+      priceCents: dep.priceCents,
+      clientExplanation: 'Retirada de pelos com cera em várias zonas do corpo.',
+      professionalIds: dep.professionalIds,
+      roomRequirement: dep.roomRequirement,
+      audiencia: dep.audiencia,
+      variantKind: dep.variantKind,
+      variantKindPlural: dep.variantKindPlural,
+      variantSelection: dep.variantSelection,
+    },
+    s.clock,
+  )
+}
+
+/** Intima com sinónimo ânus (DEC-110 / «O que a IA reconhece») para FAQ de cobertura. */
+function withIntimaAnusSynonym(s: Parameters<NonNullable<DialogCase['prepare']>>[0]): void {
+  const prior = listZones(s.db, s.tenantId, s.ids.depilacao)
+  const hasIntima = prior.some((z) => z.name === 'Intima' && z.audience === 'feminino')
+  replaceServiceZonesOp(
+    s.db,
+    s.caller,
+    s.ids.depilacao,
+    [
+      ...prior.map((z) => ({
+        id: z.id,
+        name: z.name,
+        audience: z.audience,
+        durationMinutes: z.durationMinutes,
+        priceCents: z.priceCents,
+        active: z.active,
+        synonyms:
+          z.name === 'Intima' && z.audience === 'feminino'
+            ? Array.from(new Set([...(z.synonyms ?? []), 'anus']))
+            : z.synonyms,
+      })),
+      ...(hasIntima
+        ? []
+        : [
+            {
+              name: 'Intima',
+              audience: 'feminino' as const,
+              durationMinutes: 20,
+              priceCents: 15000,
+              synonyms: ['anus'],
+            },
+          ]),
+    ],
+    s.clock,
+  )
 }
 
 export const ZONAS_DIALOG_CASES: DialogCase[] = [
@@ -315,6 +384,60 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
           turn: 1,
           matches: [/Entendi:.*(intima|íntima).*(pernas)|Entendi:.*(pernas).*(intima|íntima)/i, /Certo\?/],
           excludes: [/Não encontrei saber/i, /Não encontrei faz/i, /«saber»/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-53',
+    title: 'FAQ mid-zonas sem detalhe: não leftover (DEC-177)',
+    turnosIdeais: 2,
+    // Staging: «A íntima inclui anus?» → «Entendi: intima. Não encontrei inclui…».
+    // Com Explicação no serviço: não usar essa frase genérica como «sim/não inclui».
+    prepare: withIntimaAndServiceExplanation,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'A íntima inclui anus?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Não tenho esse detalhe no cadastro; a equipe confirma/i],
+          excludes: [
+            /Não encontrei inclui/i,
+            /Não encontrei anus/i,
+            /Entendi:.*intima/i,
+            /Certo\?/,
+            /Retirada de pelos/i,
+          ],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-54',
+    title: 'FAQ mid-zonas com sinónimo ânus→Intima (DEC-177 camada 4)',
+    turnosIdeais: 2,
+    prepare: withIntimaAnusSynonym,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'A íntima inclui anus?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/faz parte de Intima/i, /quais zonas/i],
+          excludes: [/Não encontrei inclui/i, /Não encontrei anus/i, /Horários/i],
         },
       ],
       outboundExcludes: NO_LEAK,

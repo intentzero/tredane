@@ -21,6 +21,7 @@ const CALL_SITE_FILES = [
   'variant-line.ts',
   'autobook.ts',
   'ask-info-realize.ts',
+  'faq-clarification.ts',
   'booking-object.ts',
   'reschedule.ts',
   'end-help-hint.ts',
@@ -61,6 +62,8 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'orientar_ajuda_humana',
   // P1 / DEC-C3: leftover mid Horários sem escolha de opção.
   'esclarecer',
+  // DEC-177: FAQ a partir de Explicação para clientes.
+  'informar_explicacao',
 ]
 
 /** Sem rota natural neste recorte — não inventar call-site. */
@@ -68,7 +71,6 @@ const UNWIRED_ACTS: readonly DialogueActId[] = [
   'abrir',
   'informar_local',
   'informar_local_link',
-  'informar_explicacao',
 ]
 
 /**
@@ -117,6 +119,15 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // DEC-C1/C4 — notas internas (stack ask_info / esclarecer)
   /^DEC-C1\/C4: ask_info \$\{gate\.topic\} via interrupt stack \(pending kept\)\.$/,
   /^DEC-C3\/C4: bare choose_slot leftover → esclarecer via stack \(not option-miss\)\.$/,
+  // DEC-177 — FAQ gate (factos do cadastro / sinónimos; sem leftover)
+  /^Não tenho esse detalhe no cadastro; a equipe confirma\.$/,
+  /^Sim — no cadastro, \$\{display\} faz parte de \$\{subject\.name\}\.$/,
+  /^No cadastro, \$\{objectTerm\} corresponde a \$\{mapped\.name\}\.$/,
+  /^No cadastro, \$\{display\} corresponde a \$\{mapped\.name\}\.$/,
+  /^Pode continuar — diga o serviço ou a opção que prefere\.$/,
+  /^DEC-177: FAQ missing catalog detail; Continuar\/equipe; no leftover\.$/,
+  /^DEC-177: FAQ \$\{faq\.kind\} from catalog facts \(pending kept\)\.$/,
+  /^Continuar$/,
   // ask-info-realize fallbacks (acto decide; sayAct redige)
   /^\$\{zone\.name\} custa \$\{preço\} e dura \$\{duração\} min\.$/,
   /^No total, ficam \$\{preço\} e \$\{duração\} min de atendimento\.$/,
@@ -247,8 +258,8 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(31)
-    expect(UNWIRED_ACTS).toHaveLength(4)
+    expect(WIRED_ACTS).toHaveLength(32)
+    expect(UNWIRED_ACTS).toHaveLength(3)
   })
 
   it('cada ato ligado aparece em sayAct nos módulos do funil', () => {

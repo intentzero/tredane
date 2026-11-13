@@ -92,6 +92,8 @@
 | A-27 | P0 | Zonas escritas antes da linha | C: «Quero depilação de axila e pernas» ⟶ C: «feminina» ⟶ C: «sim» | Pergunta a linha; depois «Entendi: axila, pernas. Certo?» sem voltar a pedir as zonas; o Sim abre os Horários e não marca (DEC-061, DEC-137). | INV-08 | 3 | ✅ L1 (#589, DEC-143; falha sem a janela recuada do funil; id A-27 após #597 ocupar A-24) |
 | A-50 | P0 | «gostaria de saber» ≠ zona | [Depilação masculina + Intima] C: «Gostaria de saber se faz depilação masculina íntima e pernas» | Eco «Entendi: … íntima … pernas. Certo?»; **sem** «Não encontrei saber» (nem «faz»). | INV-05, DEC-137 | 2 | ✅ L1 |
 | A-52 | P0 | Typo «feira» no dia | [Massagem tipos] C: «Quero agendar uma massagem relaxante para a próxima terça feora» | Mantém relaxante e oferece horários da terça; **sem** «Não encontrei feora» nem re-lista tipos. | INV-05, DEC-145 | 1 | ✅ L1 |
+| A-53 | P0 | FAQ mid-zonas sem detalhe | [Depilação feminina + Intima] C: «A íntima inclui anus?» | «Não tenho esse detalhe no cadastro; a equipe confirma.» + Continuar/equipe; **sem** leftover «Não encontrei inclui». Não marca. | INV-05, DEC-177 | 2 | ✅ L1 |
+| A-54 | P0 | FAQ mid-zonas com sinónimo | [Intima com sinónimo anus] C: «A íntima inclui anus?» | «Sim — no cadastro, … faz parte de Intima» + re-pergunta zonas; **sem** leftover nem Horários. | INV-05, DEC-177, DEC-110 | 2 | ✅ L1 |
 
 ## B. Linguagem temporal
 
