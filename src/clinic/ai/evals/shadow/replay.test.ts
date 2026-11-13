@@ -119,7 +119,7 @@ describe.skipIf(MODE !== 'dry' && MODE !== 'live')(`reexecução (${MODE})`, () 
       const res = await fetch(input, init)
       if (!res.ok) {
         try {
-          const text = (await res.clone().text()).replace(/[A-Za-z0-9_\-]{32,}/g, '…').slice(0, 300)
+          const text = (await res.clone().text()).replace(/[A-Za-z0-9_-]{32,}/g, '…').slice(0, 300)
           errorBodies.add(`${res.status} ${text}`)
         } catch {
           // sem corpo
