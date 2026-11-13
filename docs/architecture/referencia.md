@@ -26,7 +26,8 @@
 5. **Confirmado** (DEC-104, ADR-0016): o modelo não escolhe zona, hora nem marcação. No atendimento automático, a frase à cliente é determinística; o LLM interpreta o que o código não cobre e responde a perguntas abertas, com validador.
 6. **Confirmado** (DEC-138, ADR-0015, ADR-0016): o Flow é o percurso por ids. O texto livre preenche o mesmo `BookingFrame`. Não há segundo quadro.
 7. **Confirmado** (Paulo, conversa de 06/11/2026): as quatro leituras da secção seguinte. Não estão em `docs/product/decisions.md` de `main`. O código que as aplica está em curso no [#580](https://github.com/intentzero/tredane/pull/580). Não assumas que `main` já as cumpre, e não escrevas o contrário.
-8. **Proposto** (núcleo determinístico em [`nucleo-deterministico-conversacional.md`](nucleo-deterministico-conversacional.md)): o grafo completo por turno. O actualizador único do quadro ([#579](https://github.com/intentzero/tredane/issues/579)) vive em `src/clinic/ai/apply-booking-update.ts` (#575–#578 + intents PR-D). Ainda há bypasses residuais em `autobook`/`catalog-reply` (gramática compare/mention_only diferida).
+8. **Proposto** (hipótese de compreensão por LLM primeiro e experimento da sombra, [`hipotese-compreensao-llm-primeiro.md`](hipotese-compreensao-llm-primeiro.md)): não está decidida. A sombra `AI_INTERPRETER_SHADOW` só mede; não mudes o que a cliente recebe por conta dela.
+9. **Proposto** (núcleo determinístico em [`nucleo-deterministico-conversacional.md`](nucleo-deterministico-conversacional.md)): o grafo completo por turno. O actualizador único do quadro ([#579](https://github.com/intentzero/tredane/issues/579)) vive em `src/clinic/ai/apply-booking-update.ts` (#575–#578 + intents PR-D). Ainda há bypasses residuais em `autobook`/`catalog-reply` (gramática compare/mention_only diferida).
 
 ## O que o Tredane é
 

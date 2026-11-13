@@ -199,6 +199,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | 8 | G-09 | Famílias seguintes. **Feito** a 06/11: Flow a meio do diálogo com o catálogo a mudar (FL-18, gancho `mutateBefore`), Flow com o quadro preenchido (FL-17), zonas antes da linha (A-27; id antigo A-24 cedido ao #597) e a telemetria da DEC-143 (A-25, A-26, expectativa `turnDecided`). **Falta:** hora a deixar de estar livre, `fallback_reason` `no_slots`/`too_many_variants`, token de outra clínica; `confirm_suspended` com Corrigir e Sim | Nada que dependa de decisão |
 | 9 | G-11 | Verificar que o `ai.turn_decided` chega ao `wrangler tail`; correr `scripts/flow-funnel.mjs staging` e registar a primeira linha de K-FLW-* | Acesso ao staging |
 | 10 | G-09 | Corrigir o CF-44 e retirar o `knownFailure` do A-23 (**CF-45 feito** a 06/11) | CF-44 precisa de copy (DEC-104) |
+| 11 | G-03 | Sombra do interpretador LLM (`AI_INTERPRETER_SHADOW`): medir `llm_only` / `differ` por turno de texto livre; script de agregação e amostra rotulada. Ver [hipótese e experimento](../architecture/hipotese-compreensao-llm-primeiro.md) | Merge do #733; gateway em staging |
 
 ## 10. Decisões
 
