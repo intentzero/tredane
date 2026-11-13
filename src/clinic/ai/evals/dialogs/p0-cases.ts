@@ -953,7 +953,10 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/Agradecemos o contato/i],
+          // Paulo 13/11/2026: adeus Terminar — uma das três frases (terminar-farewell.ts).
+          matches: [
+            /Perfeito\. Qualquer coisa, estamos por aqui\.|Até lá — se precisar, é só escrever\.|Combinado\. (Bom dia|Boa tarde|Boa noite) e até a sua visita\./i,
+          ],
         },
         {
           turn: 1,
