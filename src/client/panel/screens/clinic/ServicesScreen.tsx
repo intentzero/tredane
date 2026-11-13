@@ -324,18 +324,14 @@ export function ServiceForm({
   const [withVariants, setWithVariants] = useState((existing?.zones?.length ?? 0) > 0)
   const [explanation, setExplanation] = useState(existing?.clientExplanation ?? '')
   const [active, setActive] = useState(existing?.active ?? true)
-  const [requiresSignal, setRequiresSignal] = useState(existing?.requiresSignal ?? false)
-  const [signalKind, setSignalKind] = useState<'fixed' | 'percent'>(
-    existing?.signalKind === 'percent' ? 'percent' : 'fixed',
-  )
-  const [signalFixed, setSignalFixed] = useState(
-    existing?.signalFixedCents != null
-      ? formatPriceCents(existing.signalFixedCents)
-      : '',
-  )
-  const [signalPercent, setSignalPercent] = useState(
-    existing?.signalPercent != null ? String(existing.signalPercent) : '30',
-  )
+  // DEC-180: sinal é global em Recebimento — só leitura do espelho do serviço.
+  const requiresSignal = existing?.requiresSignal ?? false
+  const signalKind: 'fixed' | 'percent' =
+    existing?.signalKind === 'percent' ? 'percent' : 'fixed'
+  const signalFixed =
+    existing?.signalFixedCents != null ? formatPriceCents(existing.signalFixedCents) : ''
+  const signalPercent =
+    existing?.signalPercent != null ? String(existing.signalPercent) : '30'
   // Serviço novo: todas as profissionais ativas fazem, até a dona desmarcar.
   const [proIds, setProIds] = useState<string[]>(
     existing?.professionalIds ?? professionals.filter((p) => p.active).map((p) => p.id),
@@ -551,7 +547,7 @@ export function ServiceForm({
   const [spaceError, setSpaceError] = useState<string | null>(null)
   const [tempoOpen, setTempoOpen] = useState(false)
   const [openRule, setOpenRule] = useState<
-    null | 'intervalo' | 'sinal' | 'horas' | 'explicacao' | 'equipamento'
+    null | 'intervalo' | 'horas' | 'explicacao' | 'equipamento'
   >(null)
   const roomNames = roomIds
     .map((id) => rooms.find((r) => r.id === id)?.name)
@@ -568,7 +564,7 @@ export function ServiceForm({
   const hoursLabel =
     hoursOpenCount === 0 ? 'Qualquer dia com profissional livre' : `${hoursOpenCount} dia(s) com janela`
   const toggleRule = (
-    id: 'intervalo' | 'sinal' | 'horas' | 'explicacao' | 'equipamento',
+    id: 'intervalo' | 'horas' | 'explicacao' | 'equipamento',
   ) => setOpenRule((cur) => (cur === id ? null : id))
 
   async function save() {
