@@ -545,9 +545,8 @@ describe('DEC-086 post-booking follow-up', () => {
       )
       expect(handoff.already).toBe(false)
       expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)?.at).not.toBeNull()
-      expect(readHandoffTimeoutAt(db, 'clinic-demo-a', conversationId)).toBe(
-        clock.nowMs() + HANDOFF_TIMEOUT_MS,
-      )
+      const scheduledHandoffAt = clock.nowMs() + HANDOFF_TIMEOUT_MS
+      expect(readHandoffTimeoutAt(db, 'clinic-demo-a', conversationId)).toBe(scheduledHandoffAt)
 
       sendPostBookingFollowupOp(
         db,
@@ -579,6 +578,8 @@ describe('DEC-086 post-booking follow-up', () => {
       expect(idleRow?.assignee).toBe('system:ai-autodraft')
 
       clock.advance(HANDOFF_TIMEOUT_MS + 1)
+      // Simula o alarme DO a disparar no timestamp antigo do handoff (órfão).
+      expect(clock.nowMs()).toBeGreaterThanOrEqual(scheduledHandoffAt)
       expect(sweepDueHandoffTimeouts(db, 'clinic-demo-a', clock)).toHaveLength(0)
       clock.advance(IDLE_PROMPT_AFTER_MS)
       const idleSweep = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
@@ -596,6 +597,27 @@ describe('DEC-086 post-booking follow-up', () => {
       expect(findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)?.stage).toBe(
         'agendado',
       )
+      // Corrida: alarme antigo + pausa/timeout reaparecem sem alerta (Terminar já resolveu).
+      db.run(
+        `UPDATE conversations
+         SET ai_reply_paused_at = ?, ai_reply_pause_reason = 'customer_requested',
+             ai_handoff_timeout_at = ?, updated_at = ?
+         WHERE tenant_id = ? AND id = ?`,
+        scheduledHandoffAt - HANDOFF_TIMEOUT_MS,
+        scheduledHandoffAt,
+        clock.nowMs(),
+        'clinic-demo-a',
+        conversationId,
+      )
+      expect(sweepDueHandoffTimeouts(db, 'clinic-demo-a', clock)).toHaveLength(0)
+      const bodiesAfterStale = db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'`,
+          'clinic-demo-a',
+          conversationId,
+        )
+        .map((r) => r.body)
+      expect(bodiesAfterStale).not.toContain(HANDOFF_TIMEOUT_RESUME_TEXT)
     } finally {
       close()
     }

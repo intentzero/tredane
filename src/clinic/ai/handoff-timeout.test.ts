@@ -200,6 +200,50 @@ describe('DEC-155 handoff timeout', () => {
       s.close()
     }
   })
+
+  it('alarme agendado após Terminar/resume: sem alerta aberto → sem DEC-155', () => {
+    const s = seed(TZ_OPEN)
+    try {
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        {
+          conversationId: s.cnv.id,
+          reason: 'customer_requested',
+          clientRequestId: 'timeout-test-orphan-alarm',
+        },
+        s.clock,
+      )
+      const armedAt = readHandoffTimeoutAt(s.db, s.tenantId, s.cnv.id)!
+      resumeAiReply(s.db, s.tenantId, s.cnv.id, s.clock, { source: 'manual_resume' })
+      expect(readHandoffTimeoutAt(s.db, s.tenantId, s.cnv.id)).toBeNull()
+
+      // Estado parcial como se o setAlarm órfão disparasse com colunas reaparecidas.
+      s.db.run(
+        `UPDATE conversations
+         SET ai_reply_paused_at = ?, ai_reply_pause_reason = 'customer_requested',
+             ai_handoff_timeout_at = ?, updated_at = ?
+         WHERE tenant_id = ? AND id = ?`,
+        TZ_OPEN,
+        armedAt,
+        s.clock.nowMs(),
+        s.tenantId,
+        s.cnv.id,
+      )
+      s.clock.advance(HANDOFF_TIMEOUT_MS + 1)
+      expect(sweepDueHandoffTimeouts(s.db, s.tenantId, s.clock)).toHaveLength(0)
+      const body = s.db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+         AND body = ? LIMIT 1`,
+        s.tenantId,
+        s.cnv.id,
+        HANDOFF_TIMEOUT_RESUME_TEXT,
+      )
+      expect(body).toBeUndefined()
+    } finally {
+      s.close()
+    }
+  })
 })
 
 describe('DEC-155 fora do expediente', () => {
