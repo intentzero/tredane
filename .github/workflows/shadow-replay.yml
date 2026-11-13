@@ -3,7 +3,8 @@
 #
 # Só manual: cada corrida chama o modelo real (59 chamadas, teto US$ 2 no script).
 # Não corre em PR nem em push, e PRs de forks não recebem segredos de qualquer forma.
-# Exige no environment `staging`: AI_GATEWAY_ID e AI_GATEWAY_TOKEN (CLOUDFLARE_ACCOUNT_ID já existe).
+# Exige no environment `staging`: AI_GATEWAY_ID, AI_GATEWAY_TOKEN e ANTHROPIC_API_KEY (BYOK;
+# CLOUDFLARE_ACCOUNT_ID já existe).
 name: Reexecução da sombra
 
 on:
@@ -54,6 +55,8 @@ jobs:
           AI_GATEWAY_ID: ${{ secrets.AI_GATEWAY_ID }}
           AI_GATEWAY_TOKEN: ${{ secrets.AI_GATEWAY_TOKEN }}
           CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # BYOK: o gateway sem Unified Billing exige a chave da Anthropic (erro 2044 sem ela).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm run eval:shadow-replay
       - name: Relatório no resumo do job
         if: always()
