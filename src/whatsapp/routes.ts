@@ -137,6 +137,27 @@ function createDoChannelSync(env: WorkerBindings) {
 }
 
 /**
+ * last_inbound_at no espelho SQLite do Clinic DO (actualizado no ingest).
+ * D1 / toView não guarda este campo — ler só aqui para o painel.
+ */
+async function readLastInboundAt(
+  env: WorkerBindings,
+  tenantId: string,
+  opts: WhatsappRouteOptions,
+): Promise<number | null> {
+  const mem = opts.clinicDbFactory?.(tenantId)
+  if (mem) {
+    return clinicWhatsapp.getWhatsappChannel(mem.db, tenantId)?.lastInboundAt ?? null
+  }
+  if (env.CLINIC) {
+    const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+    const row = await stub.getWhatsappChannel(workerCaller(tenantId, 'whatsapp'))
+    return row?.lastInboundAt ?? null
+  }
+  return null
+}
+
+/**
  * `read`: só leitura do estado do painel (GET /whatsapp) — não exige
  * META_CONFIG_ID (staging sem Tech Provider). `manage` (padrão): sessão,
  * complete, disconnect, interrupt — mantém a exigência estrita (fail-closed).
@@ -207,7 +228,9 @@ export function createWhatsappRoutes(opts: WhatsappRouteOptions = {}) {
       requireClinicPermission(ctx, 'clinic.context.read')
       const ops = await resolveOps(c.env, ctx.tenantId, opts, 'read')
       const view = await ops.getConnection(ctx.tenantId)
-      const body = serializeConnection(view)
+      // lastInboundAt vive no espelho DO (touchWhatsappLastInbound); toView D1 deixa null.
+      const lastInboundAt = await readLastInboundAt(c.env, ctx.tenantId, opts)
+      const body = serializeConnection({ ...view, lastInboundAt })
       assertNoSecretsInPayload(body)
       return c.json(body)
     } catch (err) {

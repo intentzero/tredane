@@ -140,6 +140,8 @@ export type CreateAppOptions = {
   ) => PipelineGateway | Promise<PipelineGateway>
   /** Serviço WhatsApp (#31) — testes injectam AdminDb + sync em memória. */
   whatsappServiceFactory?: WhatsappRouteOptions['serviceFactory']
+  /** Testes: SQLite da clínica em memória (lastInboundAt / templates no GET). */
+  whatsappClinicDbFactory?: WhatsappRouteOptions['clinicDbFactory']
   /** Testes: dependências da rota staging-only dev/sync-existing-binding. */
   whatsappDevSync?: Pick<WhatsappRouteOptions, 'devSyncStoreFactory' | 'devSyncChannelSyncFactory'>
   /** Webhooks Meta (#32) — AdminDb sync + fila injectável nos testes. */
@@ -261,6 +263,7 @@ export function createApp(opts: CreateAppOptions = {}) {
     syncAdminDbFactory: opts.syncAdminDbFactory,
     clockFactory: opts.clockFactory,
     serviceFactory: opts.whatsappServiceFactory,
+    clinicDbFactory: opts.whatsappClinicDbFactory,
     ...opts.whatsappDevSync,
   }
   app.route('/', createWhatsappRoutes(whatsappOpts))
