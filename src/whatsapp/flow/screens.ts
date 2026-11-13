@@ -4,7 +4,7 @@
  * Não marca, não escolhe sala/profissional, não chama o modelo.
  */
 import { needsAudienceLine, zonesForAudienceLine } from '../../clinic/ai/variant-line'
-import { slotListRowCopy } from '../../clinic/ai/slot-offer'
+import { slotListRowCopy, slotOfferSameCivilDay } from '../../clinic/ai/slot-offer'
 import {
   allowsMultipleVariants,
   type VariantSelection,
@@ -285,8 +285,10 @@ function variantOptions(
 }
 
 function slotOptions(slots: FlowSlotOption[]): FlowDataOption[] {
-  return slots.slice(0, FLOW_MAX_SLOTS).map((s) => {
-    const copy = slotListRowCopy(s.date, s.time)
+  const capped = slots.slice(0, FLOW_MAX_SLOTS)
+  const timeOnly = slotOfferSameCivilDay(capped)
+  return capped.map((s) => {
+    const copy = slotListRowCopy(s.date, s.time, { timeOnly })
     return { id: s.id, title: copy.title.slice(0, FLOW_OPTION_TITLE_MAX) }
   })
 }

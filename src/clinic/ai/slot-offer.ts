@@ -35,7 +35,7 @@ export function weekdayOfCivil(date: string): number {
  * Rótulo de dia civil à cliente (relógio da clínica).
  * Paulo 09/11/2026: «hoje» / «amanhã» quando o dia ofertado é o civil atual
  * ou o seguinte; a partir de depois de amanhã mantém «segunda 09/11».
- * A lista Horários (DEC-138) continua com weekday+DD/MM no título da linha.
+ * Lista Horários same-day: só HH:MM (Paulo 13/11/2026); multi-dia: weekday+DD/MM+hora.
  */
 export function dayTextPt(date: string, today?: string | null): string {
   if (today) {
@@ -49,9 +49,17 @@ export function dayTextPt(date: string, today?: string | null): string {
 /** Limite Meta do título da linha da lista (DEC-134 A / Cloud API). */
 const SLOT_LIST_ROW_TITLE_MAX = 24
 
+/** True when every offered slot shares the same civil YYYY-MM-DD. */
+export function slotOfferSameCivilDay(slots: Array<{ date: string }>): boolean {
+  if (slots.length === 0) return false
+  const day = slots[0]!.date
+  return slots.every((s) => s.date === day)
+}
+
 /**
- * Linha da lista Horários (DEC-138 / #507): uma só forma à cliente —
- * `terça 03/11 17:00` no relógio da clínica, sem fuso IANA e sem mês-dia.
+ * Linha da lista Horários (DEC-138 / #507; Paulo 13/11/2026):
+ * - same-day (`timeOnly`): só `HH:MM` — o dia já vai no corpo («disponíveis para terça 17/11»).
+ * - multi-dia: `terça 03/11 17:00` no relógio da clínica, sem fuso IANA e sem mês-dia.
  * Título ≤24 (DEC-134 A); descrição só quando o título corta — o cliente
  * WhatsApp ecoa título e descrição no bubble da resposta; se forem iguais,
  * a cliente vê a linha duplicada.
@@ -59,7 +67,11 @@ const SLOT_LIST_ROW_TITLE_MAX = 24
 export function slotListRowCopy(
   date: string,
   time: string,
+  opts?: { timeOnly?: boolean },
 ): { title: string; description: string } {
+  if (opts?.timeOnly) {
+    return { title: time, description: '' }
+  }
   const wd = weekdayOfCivil(date)
   const [, month, day] = date.split('-')
   const long = WEEKDAY_LABEL[wd] ?? ''
@@ -425,7 +437,7 @@ export async function offerNearestSlots(input: {
   if (dayConstrained) {
     const diaBase = dayOfferLabelPt(date!, today)
     const dia = period ? `${diaBase} ${periodWordPt(period)}` : diaBase
-    // Horas só no corpo — o dia já vai no enquadramento; a lista interativa mantém DD/MM.
+    // Horas só no corpo e na lista interativa — o dia já vai no enquadramento (Paulo 13/11/2026).
     const listed = (byDay.get(date!) ?? picked.map((slot) => slot.time)).join(', ')
     const fallback = `Os horários disponíveis para ${dia} são ${listed}. Algum serve?`
     const body = sayAct(

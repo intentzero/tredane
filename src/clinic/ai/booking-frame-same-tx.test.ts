@@ -78,16 +78,17 @@ describe('BookingFrame same-TX (ADR-0015)', () => {
     const { db, clock, tenantId, conversationId, close, caller } = boot()
     try {
       const deferred = createDeferredBookingFrame()
-      deferred.save(
-        offerFramePatch({
-          serviceId: 'svc-dep',
-          phase: 'ofertado',
-          slots: [
-            { startsAt: clock.nowMs() + 3600_000, professionalId: 'pro-1', time: '14:00', date: '2026-11-06' },
-            { startsAt: clock.nowMs() + 7200_000, professionalId: 'pro-1', time: '15:00', date: '2026-11-06' },
-          ],
-        }),
-      )
+      const patch = offerFramePatch({
+        serviceId: 'svc-dep',
+        phase: 'ofertado',
+        slots: [
+          { startsAt: clock.nowMs() + 3600_000, professionalId: 'pro-1', time: '14:00', date: '2026-11-06' },
+          { startsAt: clock.nowMs() + 7200_000, professionalId: 'pro-1', time: '15:00', date: '2026-11-06' },
+        ],
+      })
+      // Same-day offer → pending labels are HH:MM only (Paulo 13/11/2026).
+      expect(patch.pending?.options.map((o) => o.label)).toEqual(['14:00', '15:00'])
+      deferred.save(patch)
       expect(getBookingFrame(db, tenantId, conversationId)).toBeNull()
 
       const sent = sendOutboundMessageOp(

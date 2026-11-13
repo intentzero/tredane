@@ -137,6 +137,7 @@ import {
   occupiedSlotAlternativesReply,
   offerNearestSlots,
   slotListRowCopy,
+  slotOfferSameCivilDay,
   type DayPeriod,
   type OfferedSlot,
 } from './slot-offer'
@@ -191,11 +192,13 @@ function rememberOfferFrameImpl(
     })),
   })
   // M5 / #507: id opaco leva a chave civil (YYYY-MM-DDTHH:MM). O título não autoriza o slot.
+  // Same-day → HH:MM; multi-dia → weekday+DD/MM+hora (Paulo 13/11/2026).
+  const timeOnly = slotOfferSameCivilDay(slots)
   const built = buildSlotChoiceInteractive({
     catalogVersion,
     slots: (patch.pending?.options ?? []).map((o) => {
       const bound = slotBindingFromChoice(o.key, o.label)
-      const copy = bound ? slotListRowCopy(bound.date, bound.time) : null
+      const copy = bound ? slotListRowCopy(bound.date, bound.time, { timeOnly }) : null
       const description = copy?.description?.trim()
       return {
         key: o.key,
@@ -204,7 +207,7 @@ function rememberOfferFrameImpl(
       }
     }),
   })
-  // Pending: chave civil + rótulo na forma única à cliente (terça 03/11 17:00).
+  // Pending: chave civil + rótulo (same-day HH:MM; multi-dia terça 03/11 17:00).
   deferred.save({
     ...patch,
     catalogVersion,

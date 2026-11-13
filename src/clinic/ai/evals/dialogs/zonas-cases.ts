@@ -322,10 +322,11 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'A-48',
-    title: 'Lista Horários: uma linha «{dia} {hora}» no reply Meta (sem description=title)',
+    title: 'Lista Horários: uma linha no reply Meta (sem description=title)',
     turnosIdeais: 3,
     // Smoke staging: toque no horário ecoava «sexta 13/11 11:15» ×2 no bubble verde —
     // title e description iguais no payload da lista. DEC-134 A: description só se cortar.
+    // Same-day (Paulo 13/11/2026): título da linha é só HH:MM; o dia vai no corpo.
     turns: [
       { role: 'client', text: 'Quero depilação feminina' },
       { role: 'client', text: 'axila e pernas' },

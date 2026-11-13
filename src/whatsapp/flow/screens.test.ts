@@ -191,8 +191,22 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
     if (!('screen' in next)) return
     const slots = next.data.slots as Array<{ id: string; title: string }>
     expect(slots[0]?.id).toBe('2026-11-05T10:00')
-    expect(slots[0]?.title).toMatch(/quinta/)
+    // Same-day: título só HH:MM (Paulo 13/11/2026).
+    expect(slots[0]?.title).toBe('10:00')
     expect(next.data.body).toBe(FLOW_COPY.slotBody)
+
+    const multi = nextFlowScreen({
+      catalog: [limpeza],
+      frame: { serviceId: 'svc_limp', line: null, variantIds: null, slotKey: null },
+      slots: [
+        { id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' },
+        { id: '2026-11-06T10:00', date: '2026-11-06', time: '10:00' },
+      ],
+    })
+    expect(multi).toMatchObject({ screen: 'HORARIO' })
+    if (!('screen' in multi)) return
+    const multiSlots = multi.data.slots as Array<{ id: string; title: string }>
+    expect(multiSlots.map((s) => s.title)).toEqual(['quinta 05/11 10:00', 'sexta 06/11 10:00'])
   })
 
   it('HORARIO mostra o total cotado, sem fuso IANA', () => {
