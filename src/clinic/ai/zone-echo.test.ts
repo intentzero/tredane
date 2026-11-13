@@ -467,7 +467,9 @@ describe('DEC-137: eco e plural das zonas', () => {
         list?: { sections?: Array<{ rows?: Array<{ id: string; title: string; description?: string }> }> }
       }
       const rows = parsed.list?.sections?.flatMap((section) => section.rows ?? []) ?? []
-      const slot = rows.find((row) => row.title === 'terça 03/11 17:00')
+      // Same-day offer: título só HH:MM (Paulo 13/11/2026); o id civil autoriza o slot.
+      const slot = rows.find((row) => parseChoiceId(row.id)?.key === '2026-11-03T17:00')
+      expect(slot?.title).toBe('17:00')
       // Título ≤24: sem description — Meta não duplica no bubble do toque.
       expect(slot?.description).toBeUndefined()
       expect(slot?.title).not.toBe('11-03 17:00')
