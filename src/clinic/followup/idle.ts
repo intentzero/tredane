@@ -30,6 +30,12 @@ import {
   setConversationIdle,
 } from './idle-state'
 import { FOLLOWUP_ACTOR, FOLLOWUP_ACTOR_DISPLAY, THANKS_REPLY_BODY } from './post-booking'
+import {
+  planIdleContinueResume,
+  sendIdleContinueProposalReoffer,
+  sendIdleContinueReoffer,
+  type IdleContinueChoiceResume,
+} from './idle-continue-resume'
 
 export {
   clearConversationIdle,
@@ -403,6 +409,8 @@ export type IdleButtonResult =
       action: 'continue' | 'end'
       closedOpportunityId?: string | null
       outbox: OutboxRow[]
+      /** Escolha M5 silenciosa a concluir no DO (handleChoiceOfferClick). */
+      resumeChoice?: IdleContinueChoiceResume
     }
 
 function applyIdleClientAction(
@@ -459,19 +467,64 @@ function applyIdleClientAction(
     }
   }
 
-  const reply = sendOutboundMessageOp(
-    db,
-    caller,
-    {
-      conversationId: input.conversationId,
-      body: IDLE_CONTINUE_REPLY_BODY,
-      clientRequestId: `followup.idle.continue:${viaTag}:${input.conversationId}:${key}`,
-      authorClerkUserId: FOLLOWUP_ACTOR,
-      authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-    },
-    clock,
-  )
-  outbox.push(...reply.outbox)
+  const continueClientRequestId = `followup.idle.continue:${viaTag}:${input.conversationId}:${key}`
+  const plan = planIdleContinueResume(db, input.tenantId, input.conversationId, clock)
+  let resumeChoice: IdleContinueChoiceResume | undefined
+  let usedGenericReply = false
+
+  if (plan.mode === 'process_choice') {
+    resumeChoice = { buttonId: plan.buttonId, buttonTitle: plan.buttonTitle }
+  } else if (plan.mode === 'reoffer') {
+    const reoffer = sendIdleContinueReoffer(
+      db,
+      caller,
+      {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        clientRequestId: `followup.idle.continue.reoffer:${viaTag}:${input.conversationId}:${key}`,
+      },
+      clock,
+    )
+    outbox.push(...reoffer.outbox)
+    if (reoffer.duplicate && reoffer.outbox.length === 0) {
+      return { handled: true, action: 'continue', outbox }
+    }
+  } else if (plan.mode === 'reoffer_proposal') {
+    const reoffer = sendIdleContinueProposalReoffer(
+      db,
+      caller,
+      {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        proposalId: plan.proposalId,
+        clientRequestId: `followup.idle.continue.proposal:${viaTag}:${input.conversationId}:${key}`,
+      },
+      clock,
+    )
+    outbox.push(...reoffer.outbox)
+    if (reoffer.duplicate && reoffer.outbox.length === 0) {
+      return { handled: true, action: 'continue', outbox }
+    }
+  } else {
+    const reply = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId: input.conversationId,
+        body: IDLE_CONTINUE_REPLY_BODY,
+        clientRequestId: continueClientRequestId,
+        authorClerkUserId: FOLLOWUP_ACTOR,
+        authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+      },
+      clock,
+    )
+    if (reply.value.duplicate && reply.outbox.length === 0) {
+      return { handled: true, action: 'continue', outbox }
+    }
+    outbox.push(...reply.outbox)
+    usedGenericReply = true
+  }
+
   rescheduleConversationIdle(db, input.tenantId, input.conversationId, clock, {
     progressAt: clock.nowMs(),
   })
@@ -483,11 +536,16 @@ function applyIdleClientAction(
       action: 'followup.idle_continue',
       objectType: 'conversation',
       objectId: input.conversationId,
-      detail: { via: input.via },
+      detail: { via: input.via, resume: plan.mode, generic: usedGenericReply },
     },
     clock,
   )
-  return { handled: true, action: 'continue', outbox }
+  return {
+    handled: true,
+    action: 'continue',
+    outbox,
+    ...(resumeChoice ? { resumeChoice } : {}),
+  }
 }
 
 export function handleIdleButtonClick(
@@ -525,6 +583,7 @@ export type IdleTextResult =
       action: 'continue' | 'end'
       closedOpportunityId?: string | null
       outbox: OutboxRow[]
+      resumeChoice?: IdleContinueChoiceResume
     }
 
 /**
