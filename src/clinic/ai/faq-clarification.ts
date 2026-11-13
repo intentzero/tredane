@@ -257,6 +257,12 @@ export function answerFaqFromCatalog(input: {
         replyText: `No cadastro, ${objectTerm} corresponde a ${mapped.name}.`,
       }
     }
+    // DEC-177 / Bugbot: cobertura sem prova no cadastro → missing.
+    // Não cair na Explicação geral do serviço (não responde «inclui X?»).
+    return {
+      kind: 'missing',
+      replyText: FAQ_MISSING_DETAIL_BODY,
+    }
   }
 
   // Termo sozinho que é sinónimo de uma zona («ânus?» com cue de cobertura).

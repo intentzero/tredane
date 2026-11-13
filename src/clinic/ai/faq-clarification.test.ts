@@ -82,6 +82,21 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
   })
 
+  it('cobertura sem prova não usa Explicação geral do serviço (Bugbot / DEC-177)', () => {
+    const bare = { ...intima, synonyms: [] }
+    const r = answerFaqFromCatalog({
+      text: 'A íntima inclui anus?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Retirada de pelos com cera em várias zonas.',
+      } as ServiceRow,
+      zones: [bare, axila],
+    })
+    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r.replyText).not.toMatch(/Retirada de pelos/)
+  })
+
   it('Explicação para clientes → informar_explicacao', () => {
     const r = answerFaqFromCatalog({
       text: 'o que é depilação?',

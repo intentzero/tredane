@@ -10,7 +10,7 @@
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
  */
-import { listZones, replaceServiceZonesOp } from '../../../config'
+import { getService, listZones, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { frictionTermHash } from '../../turn-friction'
 import type { DialogCase } from './runner'
 
@@ -59,6 +59,37 @@ function withMasculineIntimaZones(s: Parameters<NonNullable<DialogCase['prepare'
   withIntimaZones(s, [
     { name: 'Intima', audience: 'masculino', durationMinutes: 20, priceCents: 18000 },
   ])
+}
+
+/**
+ * Intima sem sinónimo + Explicação genérica no serviço.
+ * Bugbot/DEC-177: cobertura sem prova não pode cair nessa explicação.
+ */
+function withIntimaAndServiceExplanation(
+  s: Parameters<NonNullable<DialogCase['prepare']>>[0],
+): void {
+  withIntimaZones(s)
+  const dep = getService(s.db, s.tenantId, s.ids.depilacao)
+  if (!dep) throw new Error('A-53: Depilação ausente')
+  upsertServiceOp(
+    s.db,
+    s.caller,
+    {
+      id: dep.id,
+      name: dep.name,
+      durationMinutes: dep.durationMinutes,
+      bufferMinutes: dep.bufferMinutes,
+      priceCents: dep.priceCents,
+      clientExplanation: 'Retirada de pelos com cera em várias zonas do corpo.',
+      professionalIds: dep.professionalIds,
+      roomRequirement: dep.roomRequirement,
+      audiencia: dep.audiencia,
+      variantKind: dep.variantKind,
+      variantKindPlural: dep.variantKindPlural,
+      variantSelection: dep.variantSelection,
+    },
+    s.clock,
+  )
 }
 
 /** Intima com sinónimo ânus (DEC-110 / «O que a IA reconhece») para FAQ de cobertura. */
@@ -363,7 +394,8 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
     title: 'FAQ mid-zonas sem detalhe: não leftover (DEC-177)',
     turnosIdeais: 2,
     // Staging: «A íntima inclui anus?» → «Entendi: intima. Não encontrei inclui…».
-    prepare: withIntimaZones,
+    // Com Explicação no serviço: não usar essa frase genérica como «sim/não inclui».
+    prepare: withIntimaAndServiceExplanation,
     turns: [
       { role: 'client', text: 'Quero depilação feminina' },
       { role: 'client', text: 'A íntima inclui anus?' },
@@ -381,6 +413,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
             /Não encontrei anus/i,
             /Entendi:.*intima/i,
             /Certo\?/,
+            /Retirada de pelos/i,
           ],
         },
       ],
