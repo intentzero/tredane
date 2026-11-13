@@ -1738,7 +1738,7 @@ button.panel-auth-inline-link {
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--color-surface-card);
-  border: var(--size-border-width) solid var(--color-line-subtle);
+  border: var(--size-border-width) solid var(--color-line-border);
   border-radius: var(--radius-lg);
 }
 
