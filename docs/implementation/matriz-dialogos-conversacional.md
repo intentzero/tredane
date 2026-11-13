@@ -304,6 +304,10 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-16 | P0 | Nome contido noutro: «limpeza de pele profunda» | [Limpeza de pele e Limpeza de pele profunda] C: «Quero limpeza de pele profunda na sexta às 14h» | Proposta de **Limpeza de pele profunda**; sem pedido de um serviço de cada vez. | EF-01, EE-01 | 1 | ✅ L1 |
 | CC-17 | P0 | Dois serviços distintos continuam a ser dois | C: «Quero massagem relaxante e depilação amanhã» | «Marcamos um serviço de cada vez»; sem proposta (a correção não pode abrir o composto). | INV-01 | 1 | ✅ L1 |
 | CC-18 | P0 | O nome curto continua a escolher o serviço curto | C: «Quero massagem amanhã às 15h» | Proposta de **Massagem**, não de Massagem relaxante. | EF-01 | 1 | ✅ L1 |
+| CC-19 | P0 | «Fim da tarde» (DEC-181) | C: «Quero massagem sexta no fim da tarde» | Os 3 horários livres **mais tardios** da tarde (ex.: 16:00, 16:30, 17:00), na frase atual; não 13:00, 13:30, 14:00. | EF-01 | 1 | ✅ L1 |
+| CC-20 | P0 | «À tarde» sem cue de fim | C: «Quero massagem sexta à tarde» | Os mais cedo (13:00…), como sempre; a ordem não muda sem «fim de». | EF-01 | 1 | ✅ L1 |
+| CC-21 | P0 | «Final da manhã» (DEC-181) | C: «Quero massagem sexta no final da manhã» | Os últimos horários da manhã (10:30–11:xx); não 09:00. | EF-01 | 1 | ✅ L1 |
+| CC-22 | P0 | «Fim do dia» sem período (DEC-181) | C: «Quero massagem sexta no fim do dia» | Os últimos horários do dia (17:xx); não 09:00. | EF-01 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 
