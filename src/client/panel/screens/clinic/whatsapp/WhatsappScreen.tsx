@@ -8,7 +8,8 @@ import { Button, Input, Label, TextField } from 'react-aria-components'
 import type { PanelApi, WhatsappConnection, WhatsappSignupPurpose } from '../../../api'
 import { PanelApiError } from '../../../api'
 import { navigatePanel } from '../../../routes'
-import { ErrorState, LoadingState } from '../../../states/StatusScreens'
+import { ErrorState } from '../../../states/StatusScreens'
+import { ClinicSkeleton } from '../ClinicSkeleton'
 import { TestOnly } from '../../../states/TestOnly'
 import { useTenant } from '../../../tenant/TenantContext'
 import {
@@ -170,10 +171,12 @@ export function WhatsappScreen({
   // STAGING-ONLY (dono): mesma ação da tela /clinica/whatsapp/dev-sync.
   const devSync =
     isOwner && isStagingHostname() ? (
-      <section aria-labelledby="wa-devsync" className="whatsapp-dev-sync-section">
-        <h3 id="wa-devsync" className="whatsapp-subhead">
-          Staging: WhatsApp de teste
-        </h3>
+      // DEC-175: ferramentas só de staging ficam recolhidas, no fim.
+      <details className="hub-staging whatsapp-dev-sync-section">
+        <summary>
+          Ferramentas de staging <span className="clinic-staging-tag">Staging</span>
+        </summary>
+        <p className="clinic-footnote">Só existe no staging. Usa o número de teste da Meta nesta clínica.</p>
         <WhatsappDevSyncAction
           tenantId={tenantId}
           api={api}
@@ -182,11 +185,11 @@ export function WhatsappScreen({
           className="panel-btn-secondary"
           onSuccess={() => void reload()}
         />
-      </section>
+      </details>
     ) : null
 
   if (loading && !conn) {
-    return <LoadingState label="Carregando conexão WhatsApp…" />
+    return <ClinicSkeleton shape="connection" label="Carregando WhatsApp" />
   }
   if (error && !conn) {
     return (
@@ -199,7 +202,7 @@ export function WhatsappScreen({
       />
     )
   }
-  if (!conn) return <LoadingState label="Carregando conexão WhatsApp…" />
+  if (!conn) return <ClinicSkeleton shape="connection" label="Carregando WhatsApp" />
 
   async function onConnect(purpose: WhatsappSignupPurpose) {
     setBusy(true)
@@ -298,7 +301,7 @@ export function WhatsappScreen({
             }
           >
             <ChevronLeft aria-hidden size={20} strokeWidth={2} />
-            Voltar
+            WhatsApp
           </Button>
         </header>
         <Banner tone="warn" title="Desconectar WhatsApp">
@@ -364,7 +367,7 @@ export function WhatsappScreen({
             }
           >
             <ChevronLeft aria-hidden size={20} strokeWidth={2} />
-            Voltar
+            WhatsApp
           </Button>
         </header>
         <Banner tone="info" title="Trocar número">
@@ -403,22 +406,6 @@ export function WhatsappScreen({
   if (conn.status === 'disconnected') {
     return (
       <div className="clinic-stack whatsapp-stack">
-        <header className="clinic-toolbar">
-          <Button
-            className="panel-btn-ghost"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'hub',
-              })
-            }
-          >
-            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
-            Clínica
-          </Button>
-        </header>
         <Banner tone="info" title="Conectar WhatsApp">
           <p>
             Conecte o WhatsApp da clínica. Você vai entrar com a conta do Facebook
@@ -454,22 +441,6 @@ export function WhatsappScreen({
   if (conn.status === 'interrupted') {
     return (
       <div className="clinic-stack whatsapp-stack">
-        <header className="clinic-toolbar">
-          <Button
-            className="panel-btn-ghost"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'hub',
-              })
-            }
-          >
-            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
-            Clínica
-          </Button>
-        </header>
         <Banner tone="error" title="O WhatsApp parou de funcionar">
           <p>
             {conn.interruptedAt
@@ -520,23 +491,7 @@ export function WhatsappScreen({
   // connected
   return (
     <div className="clinic-stack whatsapp-stack">
-      <header className="clinic-toolbar">
-        <Button
-          className="panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'clinica',
-              tenantId,
-              section: 'hub',
-            })
-          }
-        >
-          <ChevronLeft aria-hidden size={20} strokeWidth={2} />
-          Clínica
-        </Button>
-      </header>
-      <Banner tone="ok" title="WhatsApp conectado">
+      <Banner tone="ok" title="Conectado">
         <p>
           <strong>{formatPhone(conn.displayPhone)}</strong>
           {conn.displayName ? ` · ${conn.displayName}` : ''}
@@ -548,13 +503,17 @@ export function WhatsappScreen({
         </p>
       </Banner>
 
-      <section aria-labelledby="wa-tpl">
-        <h3 id="wa-tpl" className="whatsapp-subhead">
-          Modelos de mensagem
-        </h3>
+      <section aria-labelledby="wa-tpl" className="panel-card clinic-card">
+        <div className="clinic-card-head">
+          <h2 id="wa-tpl" className="panel-title-md">
+            Modelos de mensagem
+          </h2>
+          <Badge tone="closed">{templateCount(conn.messageTemplates)}</Badge>
+        </div>
         {conn.messageTemplates.length === 0 ? (
           <p className="clinic-footnote">
-            Nenhum modelo aprovado ainda. Modelos servem para falar com a cliente depois de 24 horas sem resposta. A Meta aprova cada um e isso pode levar alguns dias.
+            Servem para falar com a cliente depois de 24 horas sem resposta. A Meta aprova cada um;
+            pode levar alguns dias.
           </p>
         ) : (
           <ul className="whatsapp-tpl-list clinic-nav-list">
@@ -623,6 +582,11 @@ export function WhatsappScreen({
       {devSync}
     </div>
   )
+}
+
+function templateCount(items: WhatsappConnection['messageTemplates']): string {
+  const approved = items.filter((t) => t.status.toUpperCase() === 'APPROVED').length
+  return approved === 1 ? '1 aprovado' : `${approved} aprovados`
 }
 
 function historyCount(n: number): string {

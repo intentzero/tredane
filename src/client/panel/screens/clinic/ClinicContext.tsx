@@ -8,7 +8,8 @@ type Props = {
   tenantId: string
   section: ClinicaSection
   entityId?: string
-  snap: ClinicConfigSnapshot
+  /** Sem `snap` (a carregar) a navegação aparece sem os selos de pendência. */
+  snap?: ClinicConfigSnapshot
 }
 
 type Item = {
@@ -30,7 +31,7 @@ function pendingLabel(n: number): string {
  * «N pendência» onde há exceção (Proposto, #226). Troca de área sem voltar ao início.
  */
 export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
-  const pending = useMemo(() => pendingCounts(snap, Date.now()), [snap])
+  const pending = useMemo(() => (snap ? pendingCounts(snap, Date.now()) : null), [snap])
   const groups: Array<{ title: string; items: Item[] }> = [
     {
       title: 'Visão geral',
@@ -49,7 +50,7 @@ export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
           go: 'recursos',
           entity: 'profissionais',
           sections: ['recursos', 'profissional'],
-          pending: pending.professionals,
+          pending: pending?.professionals,
         },
         { id: 'salas', label: 'Salas', go: 'recursos', entity: 'salas', sections: ['sala'] },
         {
@@ -57,7 +58,7 @@ export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
           label: 'Serviços',
           go: 'servicos',
           sections: ['servicos', 'servico'],
-          pending: pending.services,
+          pending: pending?.services,
         },
       ],
     },

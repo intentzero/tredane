@@ -85,7 +85,7 @@ describe('WhatsappScreen main — dev-sync de staging', () => {
   it('não mostra o autor interno nem IDs técnicos da conexão', async () => {
     const api = mockApi({ status: 200, body: okBody })
     renderMain(api)
-    await screen.findByText('WhatsApp conectado')
+    await screen.findByText('Conectado')
     const text = document.body.textContent ?? ''
     expect(text).toContain('Conectado pela equipe do Tredane')
     expect(text).not.toContain('system:')
@@ -97,7 +97,7 @@ describe('WhatsappScreen main — dev-sync de staging', () => {
     const user = userEvent.setup()
     const api = mockApi({ status: 200, body: okBody })
     renderMain(api)
-    await screen.findByText('WhatsApp conectado')
+    await screen.findByText('Conectado')
     await user.click(screen.getByRole('button', { name: DEV_SYNC_BUTTON_LABEL }))
     await waitFor(() => {
       expect(api.devSyncExistingWhatsappBinding).toHaveBeenCalledWith(
@@ -130,14 +130,14 @@ describe('WhatsappScreen main — dev-sync de staging', () => {
 
   it('não aparece para não-donos', async () => {
     renderMain(mockApi({ status: 200, body: okBody }), false)
-    await screen.findByText('WhatsApp conectado')
+    await screen.findByText('Conectado')
     expect(screen.queryByRole('button', { name: DEV_SYNC_BUTTON_LABEL })).toBeNull()
   })
 
   it('não aparece fora de staging', async () => {
     staging.value = false
     renderMain(mockApi({ status: 200, body: okBody }))
-    await screen.findByText('WhatsApp conectado')
+    await screen.findByText('Conectado')
     expect(screen.queryByRole('button', { name: DEV_SYNC_BUTTON_LABEL })).toBeNull()
   })
 })
