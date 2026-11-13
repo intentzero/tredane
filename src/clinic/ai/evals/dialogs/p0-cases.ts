@@ -14,8 +14,10 @@
  * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
  * A-42: 1.ª oferta de Horários leva dica «falar com a equipe» (DEC-153); 2.ª oferta no unitário.
  * A-43: meta «Como faço para terminar?» → HOW_TO_END_REPLY (#660 / DEC-154); sem soft-close/handoff.
- * A-47: «avaliar» → fila Para revisão + ack; sem pausar IA / limpar frame (DEC-157 / #670).
+ * A-47: «avaliar» → fila Para revisão + ack Continuar|Terminar; sem pausar IA / limpar frame (DEC-157 / TRE-29).
  * A-51: «avaliar …» com comentário livre → mesma fila + `review_client_comment` (DEC-166).
+ * A-55: após ack Avaliar, toque Terminar → farewell + limpa frame (TRE-29).
+ * A-56: após ack Avaliar, toque Continuar → retoma («Combinado!» ou reoferta) (TRE-29).
  * A-52: typo «feora»←«feira» após massagem relaxante ≠ option-miss (TRE-11 / DEC-145).
  * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (zonas-cases).
@@ -52,11 +54,18 @@ import {
 import { setClinicAiProfile } from '../../../config/settings'
 import {
   IDLE_CLOSE_AFTER_MS,
+  IDLE_CONTINUE_REPLY_BODY,
   IDLE_PROMPT_AFTER_MS,
   IDLE_PROMPT_BODY,
   rescheduleConversationIdle,
   sweepDueIdleConversations,
 } from '../../../followup/idle'
+import { handleReviewFlagAckButtonClick } from '../../../followup/review-ack'
+import { isTerminarFarewellBody } from '../../../followup/terminar-farewell'
+import {
+  reviewFlagAckButtonId,
+  reviewFlagAckInteractiveButtons,
+} from '../../../inbox/review-flag'
 import { ensureOpenOpportunity } from '../../../pipeline'
 import { encodeChoiceId } from '../../choice-offer'
 import {
@@ -2594,6 +2603,29 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           ],
         },
       ],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+             AND m.body LIKE '%Marquei esta conversa%'
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['A-47: ack sem interactive Continuar|Terminar']
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: Array<{ id: string; title: string }>
+        }
+        const expected = reviewFlagAckInteractiveButtons(s.conversationId)
+        if (JSON.stringify(parsed.buttons) !== JSON.stringify(expected)) {
+          return [
+            `A-47: botões do ack ≠ Continuar|Terminar (got ${JSON.stringify(parsed.buttons)})`,
+          ]
+        }
+        return []
+      },
     },
   },
   {
@@ -2698,6 +2730,220 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           ],
         },
       ],
+    },
+  },
+  {
+    id: 'A-55',
+    title: 'Após ack Avaliar, Terminar limpa o funil (TRE-29)',
+    turnosIdeais: 2,
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-55: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-55: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-08T09:00', label: '09:00' },
+              { key: '2026-11-08T09:30', label: '09:30' },
+            ],
+            messageId: 'm_a55_slots',
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a55' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a55' },
+            ],
+            messageId: 'm_a55_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Avaliar' },
+      {
+        role: 'owner',
+        note: 'toque Terminar no ack de revisão (TRE-29)',
+        act: (s) => {
+          s.clock.advance(1_000)
+          handleReviewFlagAckButtonClick(
+            s.db,
+            {
+              tenantId: s.tenantId,
+              conversationId: s.conversationId,
+              buttonId: reviewFlagAckButtonId(s.conversationId, 'end'),
+              providerEventKey: `dialog-review-end:A-55`,
+            },
+            s.clock,
+          )
+        },
+      },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      reviewFlagged: true,
+      outboundExcludes: [/Não encontrei/i, /Vou pedir para a equipe/i],
+      assert: (s) => {
+        if (getBookingFrame(s.db, s.tenantId, s.conversationId) != null) {
+          return ['A-55: Terminar não limpou o BookingFrame']
+        }
+        const last = s.outboundBodies().at(-1) ?? ''
+        if (!isTerminarFarewellBody(last, 'America/Sao_Paulo', s.clock.nowMs())) {
+          return [`A-55: última outbound não é farewell Terminar (got «${last}»)`]
+        }
+        return []
+      },
+    },
+  },
+  {
+    id: 'A-56',
+    title: 'Após ack Avaliar, Continuar retoma o atendimento (TRE-29)',
+    turnosIdeais: 2,
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-56: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-56: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-08T09:00', label: '09:00' },
+              { key: '2026-11-08T09:30', label: '09:30' },
+            ],
+            messageId: 'm_a56_slots',
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a56' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a56' },
+            ],
+            messageId: 'm_a56_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Avaliar' },
+      {
+        role: 'owner',
+        note: 'toque Continuar no ack de revisão (TRE-29)',
+        act: (s) => {
+          s.clock.advance(1_000)
+          handleReviewFlagAckButtonClick(
+            s.db,
+            {
+              tenantId: s.tenantId,
+              conversationId: s.conversationId,
+              buttonId: reviewFlagAckButtonId(s.conversationId, 'continue'),
+              providerEventKey: `dialog-review-continue:A-56`,
+            },
+            s.clock,
+          )
+        },
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      reviewFlagged: true,
+      outboundExcludes: [/Não encontrei/i, /Vou pedir para a equipe/i],
+      assert: (s) => {
+        const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
+        if (frame?.pending?.slot !== 'horario') {
+          return ['A-56: Continuar não manteve o pending de horário']
+        }
+        const last = s.outboundBodies().at(-1) ?? ''
+        const ok =
+          last === IDLE_CONTINUE_REPLY_BODY ||
+          /\d{1,2}:\d{2}/.test(last) ||
+          /Horários|Algum serve/i.test(last)
+        if (!ok) {
+          return [`A-56: Continuar não retomou (got «${last}»)`]
+        }
+        return []
+      },
     },
   },
   {

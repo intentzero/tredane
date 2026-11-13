@@ -249,6 +249,47 @@ export function clearConversationReviewFlag(
 export const REVIEW_FLAG_CLIENT_ACK =
   'Obrigado. Marquei esta conversa para a equipe revisar.'
 
+/**
+ * Botões reply no ack de revisão (TRE-29 / Paulo 13/11/2026).
+ * Continuar → retoma marcação (mesmo caminho do Prosseguir idle / DEC-087).
+ * Terminar → encerra sessão (mesmo caminho Terminar idle/DEC-086).
+ */
+export const REVIEW_FLAG_ACK_BUTTONS = {
+  continue: { idSuffix: 'continue', title: 'Continuar' },
+  end: { idSuffix: 'end', title: 'Terminar' },
+} as const
+
+/** Id opaco: fu:review:{conversationId}:{continue|end} */
+export function reviewFlagAckButtonId(
+  conversationId: string,
+  action: 'continue' | 'end',
+): string {
+  return `fu:review:${conversationId}:${action}`
+}
+
+export function parseReviewFlagAckButtonId(
+  raw: string,
+): { conversationId: string; action: 'continue' | 'end' } | null {
+  const m = /^fu:review:([^:]+):(continue|end)$/.exec(raw.trim())
+  if (!m) return null
+  return { conversationId: m[1]!, action: m[2] as 'continue' | 'end' }
+}
+
+export function reviewFlagAckInteractiveButtons(
+  conversationId: string,
+): Array<{ id: string; title: string }> {
+  return [
+    {
+      id: reviewFlagAckButtonId(conversationId, 'continue'),
+      title: REVIEW_FLAG_ACK_BUTTONS.continue.title,
+    },
+    {
+      id: reviewFlagAckButtonId(conversationId, 'end'),
+      title: REVIEW_FLAG_ACK_BUTTONS.end.title,
+    },
+  ]
+}
+
 /** Corpo normalizado máximo (keyword + comentário opcional). */
 export const REVIEW_FLAG_REQUEST_MAX_LEN = 500
 

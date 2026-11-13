@@ -83,6 +83,7 @@ import {
   isReviewFlagRequest,
   parseReviewFlagRequest,
   REVIEW_FLAG_CLIENT_ACK,
+  reviewFlagAckInteractiveButtons,
 } from '../inbox/review-flag'
 import {
   classifySensitive,
@@ -566,6 +567,9 @@ export async function runDueAutoDrafts(
             clientRequestId: `ai-review-flag:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            interactive: {
+              buttons: reviewFlagAckInteractiveButtons(job.conversationId),
+            },
           },
           clock,
         )
