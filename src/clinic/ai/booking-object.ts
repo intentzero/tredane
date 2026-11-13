@@ -350,6 +350,34 @@ function clarifyingQuestion(
   return `Para ${serviço}, pode confirmar a opção?`
 }
 
+/** Palavras do nome dobradas, na ordem (inclui as de 1–2 letras: «de», «da»). */
+function nameTokens(name: string): string[] {
+  return fold(name).split(/[^a-z0-9]+/).filter(Boolean)
+}
+
+/** `short` aparece em `long` como sequência contígua de palavras. */
+function nameContainedIn(short: string, long: string): boolean {
+  const a = nameTokens(short)
+  const b = nameTokens(long)
+  if (a.length === 0 || a.length >= b.length) return false
+  for (let i = 0; i + a.length <= b.length; i++) {
+    if (a.every((w, j) => b[i + j] === w)) return true
+  }
+  return false
+}
+
+/**
+ * Ids dos serviços citados cujo nome está contido no de outro serviço também citado
+ * («Massagem» quando o pedido diz «massagem relaxante»). Só nomes: sinónimos não contam.
+ */
+function shadowedByLongerName(hits: readonly ServiceRow[]): Set<string> {
+  const out = new Set<string>()
+  for (const s of hits) {
+    if (hits.some((o) => o.id !== s.id && nameContainedIn(s.name, o.name))) out.add(s.id)
+  }
+  return out
+}
+
 function handoff(reason: BookingHandoffReason): BookingMatchResult {
   return {
     kind: 'handoff',
@@ -420,9 +448,13 @@ export function resolveBookingObject(input: {
   const wantsPrice = PRICE.test(text)
 
   // Vários serviços nomeados de forma exacta → handoff (sem booking composto).
-  const exactServiceHits = services.filter(
+  // Um nome contido noutro («Massagem» em «Massagem relaxante») não é um segundo
+  // serviço: quando o nome mais comprido também bate, vale só esse.
+  const allExactHits = services.filter(
     (s) => serviceNameHit(text, s.name, s.synonyms) === 'exact',
   )
+  const shadowedServiceIds = shadowedByLongerName(allExactHits)
+  const exactServiceHits = allExactHits.filter((s) => !shadowedServiceIds.has(s.id))
   if (exactServiceHits.length >= 2) return handoff('multiplos_servicos')
 
   type Scored = { option: BookableOption; score: number; source: BookingMatchResult['source'] }
@@ -433,6 +465,8 @@ export function resolveBookingObject(input: {
   )
 
   for (const option of options) {
+    // O serviço de nome contido noutro que também foi citado fica de fora da disputa.
+    if (shadowedServiceIds.has(option.serviceId)) continue
     let score = 0
     let source: BookingMatchResult['source'] = 'none'
     const svcHit = serviceNameHit(
