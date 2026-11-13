@@ -123,6 +123,8 @@ describe('webhook WhatsApp inline + fallback atrasado', () => {
       await Promise.all(pending)
       expect(processed).toHaveLength(1)
       expect(processed[0]!.providerEventKey).toBe('wa:msg:wamid.INLINE1')
+      // P8 (rsamp_fa7f138): a 1.ª tentativa inline não é a retentativa da fila.
+      expect(processed[0]!.inlineFallback).not.toBe(true)
       expect(sent).toHaveLength(1)
       expect(sent[0]!.delay).toBe(INBOUND_INLINE_FALLBACK_DELAY_S)
       expect(sent[0]!.body.inlineFallback).toBe(true)
