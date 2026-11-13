@@ -28,6 +28,7 @@ export type ClinicaSection =
   | 'conferir'
   | 'servicos'
   | 'servico'
+  | 'palavras'
   | 'recursos'
   | 'profissional'
   | 'sala'
@@ -139,6 +140,7 @@ function parseClinicaRest(rest: string | undefined): {
   const head = parts[0]
   if (head === 'servicos') {
     if (parts[1] === 'novo') return { section: 'servico', entityId: 'novo' }
+    if (parts[1] === 'palavras') return { section: 'palavras' }
     if (parts[1]) return { section: 'servico', entityId: decodeURIComponent(parts[1]) }
     return { section: 'servicos' }
   }
@@ -371,6 +373,8 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/servicos`
         case 'servico':
           return `${base}/servicos/${encodeURIComponent(route.entityId ?? 'novo')}`
+        case 'palavras':
+          return `${base}/servicos/palavras`
         case 'recursos':
           return route.entityId === 'salas' ? `${base}/recursos/salas` : `${base}/recursos`
         case 'profissional':

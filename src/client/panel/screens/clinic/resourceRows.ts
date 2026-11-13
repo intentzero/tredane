@@ -7,6 +7,7 @@ import { variantKindWord } from '../../../../ai/types'
 import type { ClinicConfigSnapshot, ClinicResource, ClinicService } from '../../api'
 import { CLINIC_SCOPE_ID, windowsOf } from './clinicHours'
 import { formatMinutes, formatPriceCents } from './format'
+import { foldWord } from './variantGroups'
 
 /** 1 = segunda … 7 = domingo, no fuso da clínica. */
 export function dayOfWeekIn(now: number, timeZone: string): number {
@@ -97,10 +98,14 @@ export type ServiceRow = {
 export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): ServiceRow {
   const activeZones = (svc.zones ?? []).filter((z) => z.active)
   const total = svc.occupiedMinutes || svc.durationMinutes + svc.bufferMinutes
-  const kind = variantKindWord(svc.variantKind, svc.variantKindPlural, activeZones.length)
+  // DEC-176: conta opções pelo nome (Axila feminino e masculino é uma só).
+  const optionCount = new Set(activeZones.map((z) => foldWord(z.name))).size
+  const kind = variantKindWord(svc.variantKind, svc.variantKindPlural, optionCount).toLocaleLowerCase(
+    'pt-BR',
+  )
   const occupies =
     activeZones.length > 0
-      ? `${activeZones.length} ${kind}`
+      ? `${optionCount} ${kind}`
       : svc.bufferMinutes > 0
         ? `Ocupa ${total} min (${svc.durationMinutes} + ${svc.bufferMinutes} de intervalo)`
         : `Ocupa ${total} min`

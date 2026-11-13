@@ -16,6 +16,11 @@ type Props = {
   maxCount?: number
   /** Exemplo mostrado quando a lista está vazia. */
   placeholder?: string
+  /**
+   * DEC-176 — onde mais a palavra já está («Massagem › Relaxante»), ou null.
+   * O servidor recusa a mesma palavra em dois sítios; aqui avisa-se antes.
+   */
+  takenBy?: (word: string) => string | null
 }
 
 const DEFAULT_MAX = 8
@@ -28,6 +33,7 @@ export function SynonymsField({
   hint = 'Nomes que a cliente usa. Só ajudam a entender o pedido; as respostas usam o nome do catálogo.',
   maxCount = DEFAULT_MAX,
   placeholder = 'Adicionar…',
+  takenBy,
 }: Props) {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -36,16 +42,21 @@ export function SynonymsField({
     const text = raw.trim()
     if (!text) return
     if (text.length < 2 || text.length > 40) {
-      setError('Cada sinônimo tem entre 2 e 40 caracteres.')
+      setError('Cada palavra tem entre 2 e 40 caracteres.')
       return
     }
     const key = text.toLocaleLowerCase('pt-BR')
     if (value.some((v) => v.toLocaleLowerCase('pt-BR') === key)) {
-      setError('Este sinônimo já está na lista.')
+      setError('Esta palavra já está na lista.')
+      return
+    }
+    const owner = takenBy?.(text)
+    if (owner) {
+      setError(`«${text}» já está em ${owner}. Deixe a palavra num sítio só.`)
       return
     }
     if (value.length >= maxCount) {
-      setError(`No máximo ${maxCount} sinônimos.`)
+      setError(`No máximo ${maxCount} palavras.`)
       return
     }
     setError(null)

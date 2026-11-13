@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Opções agrupadas por nome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A4547}a:hover{color:#142625}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #F5F4EF; font-family: Roboto, Helvetica, Arial, sans-serif; color: #142625; overflow: hidden">
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px">
+    <div style="display: flex; align-items: baseline; gap: 8px"><h2 style="margin: 0; flex: 1; font-size: 16px; font-weight: 500">Zonas · 8</h2><button style="height: 36px; padding: 0 10px; border: 0; background: none; color: #0A4547; font: 500 14px Roboto, sans-serif">Mudar todos…</button></div>
+    <span style="font-size: 13px; color: #424B4A">A cliente pode juntar várias. Na mesma visita não se mistura feminino com masculino; «Todos» serve para os dois.</span>
+    <ul style="margin: 0; padding: 0; list-style: none; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px">
+      <sc-for list="{{zones}}" as="z" hint-placeholder-count="8">
+        <li style="border-bottom: 1px solid #EEEDE7">
+          <button style="width: 100%; min-height: 56px; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border: 0; background: none; text-align: left; font-family: Roboto, sans-serif; color: #142625">
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+              <strong style="font-size: 14px; font-weight: 500">{{z.n}}</strong>
+              <span style="font-size: 13px; color: #424B4A">{{z.prices}}</span>
+              <span style="font-size: 11px; color: {{z.synColor}}">{{z.syn}}</span>
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#566160" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+          </button>
+        </li>
+      </sc-for>
+    </ul>
+    <div style="display: flex; gap: 8px"><label style="flex: 1"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Nova zona</span><input placeholder="Nome (ex.: Virilha)" style="width: 100%; box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font: 400 16px Roboto, sans-serif"></label><button style="height: 44px; padding: 0 14px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; color: #142625; font: 500 14px Roboto, sans-serif">Adicionar</button></div>
+    <div style="padding: 10px 12px; border-radius: 8px; background: #E7F1F1; color: #0A4547; font-size: 13px"><strong style="font-weight: 500">Como fica na agenda.</strong> Ocupa a soma das zonas escolhidas + 15 min de intervalo, uma vez. Ex.: Axila + Pernas = 45 min.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const none = '#9A3F12', has = '#424B4A';
+return { zones: [
+  { n: 'Axila', prices: 'Fem. 10 min · R$ 50; Masc. 10 min · R$ 50', syn: 'Também: sovaco, axilas', synColor: has },
+  { n: 'Pernas', prices: 'Fem. 20 min · R$ 120; Masc. 20 min · R$ 150', syn: 'Também: perna inteira', synColor: has },
+  { n: 'Braços', prices: 'Fem. 20 min · R$ 120; Masc. 20 min · R$ 120', syn: 'Sem sinônimos', synColor: none },
+  { n: 'Íntima', prices: 'Fem. 30 min · R$ 120; Masc. 20 min · R$ 200', syn: 'Também: virilha cavada', synColor: has },
+  { n: 'Tórax e Abdômen', prices: 'Só masc. 15 min · R$ 120', syn: 'Também: peito, barriga', synColor: has },
+  { n: 'Costas', prices: 'Só masc. 10 min · R$ 120', syn: 'Sem sinônimos', synColor: none },
+  { n: 'Orelha', prices: 'Só masc. 10 min · R$ 40', syn: 'Sem sinônimos', synColor: none },
+  { n: 'Buço', prices: 'Só fem. 10 min · R$ 40', syn: 'Também: bigode', synColor: has }
+] };
+}
+}
+</script>
+</body>
+</html>

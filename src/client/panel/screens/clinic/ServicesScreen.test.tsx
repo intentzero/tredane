@@ -150,7 +150,7 @@ describe('ServiceForm — duração e variantes', () => {
       }),
       { upsertService, replaceServiceZones } as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('radio', { name: /Um só serviço/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Só um/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(order).toEqual(['zones', 'service']))
     expect(replaceServiceZones).toHaveBeenCalledWith('t', 'svc_1', [], expect.anything())
@@ -160,18 +160,18 @@ describe('ServiceForm — duração e variantes', () => {
     const upsertService = vi.fn()
     const replaceServiceZones = vi.fn()
     renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
-    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
+    fireEvent.click(screen.getByRole('radio', { name: /Várias juntas/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: /nome no singular/ }), { target: { value: 'Zona' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
     fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
     const names = screen.getAllByRole('textbox', { name: /^Nome$/ })
     fireEvent.change(names[names.length - 1]!, { target: { value: '' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    // DEC-176: a folha não aplica um nome vazio; a ficha fica como estava.
+    expect(screen.getByText(/Dê um nome a esta zona/)).toBeTruthy()
     expect(upsertService).not.toHaveBeenCalled()
     expect(replaceServiceZones).not.toHaveBeenCalled()
-    expect(screen.getByText(/Dê um nome a cada variante/)).toBeTruthy()
   })
 
   it('se a primeira variante não grava, o tipo não fica sozinho', async () => {
@@ -180,8 +180,8 @@ describe('ServiceForm — duração e variantes', () => {
       throw new Error('nome')
     })
     renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
-    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
+    fireEvent.click(screen.getByRole('radio', { name: /Várias juntas/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: /nome no singular/ }), { target: { value: 'Zona' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
@@ -298,7 +298,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       }),
       { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('radio', { name: /Escolhe uma opção/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Uma opção/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalled())
     const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
@@ -316,7 +316,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       {},
     )
     // Modo uma: catálogo de variantes visível; combos (só em varias) ocultos.
-    expect(screen.getByLabelText('Nome no singular')).toBeTruthy()
+    expect(screen.getByLabelText(/nome no singular/)).toBeTruthy()
     expect(screen.getByText('Relaxante')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Adicionar combo/i })).toBeNull()
     expect(screen.queryByText(/economia R\$/)).toBeNull()
@@ -352,7 +352,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       }),
       { upsertService } as unknown as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('radio', { name: /Escolhe uma opção/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Uma opção/ }))
     expect(screen.getByText(/ainda tem combo ativo/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() =>
@@ -368,11 +368,11 @@ describe('ServiceForm — catálogo de variantes', () => {
       svc({ variantKind: 'Zona', zones: [zone('z1', 'Axila', 'ambos')] }),
       { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
     )
-    expect((screen.getByLabelText('Nome no singular') as HTMLInputElement).value).toBe('Zona')
-    expect((screen.getByLabelText('No plural') as HTMLInputElement).value).toBe('Zonas')
+    expect((screen.getByLabelText(/nome no singular/) as HTMLInputElement).value).toBe('Zona')
+    expect((screen.getByLabelText(/nome no plural/) as HTMLInputElement).value).toBe('Zonas')
 
-    fireEvent.change(screen.getByLabelText('Nome no singular'), { target: { value: 'Sessão' } })
-    expect((screen.getByLabelText('No plural') as HTMLInputElement).value).toBe('Sessões')
+    fireEvent.change(screen.getByLabelText(/nome no singular/), { target: { value: 'Sessão' } })
+    expect((screen.getByLabelText(/nome no plural/) as HTMLInputElement).value).toBe('Sessões')
 
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalled())
@@ -396,13 +396,13 @@ describe('ServiceForm — catálogo de variantes', () => {
   it('não grava opção única quando o formato é com variantes e não há linha', () => {
     const upsertService = vi.fn()
     renderForm(svc({}), { upsertService } as Partial<PanelApi>)
-    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), {
+    fireEvent.click(screen.getByRole('radio', { name: /Várias juntas/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: /nome no singular/ }), {
       target: { value: 'Zona' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(upsertService).not.toHaveBeenCalled()
-    expect(screen.getByText(/Adicione ao menos uma variante/)).toBeTruthy()
+    expect(screen.getByText(/Adicione ao menos uma opção/)).toBeTruthy()
   })
 
   it('com variantes, o sinal percentual usa a soma e não grava o preço da linha', async () => {
@@ -437,14 +437,14 @@ describe('ServiceForm — catálogo de variantes', () => {
       {},
     )
     fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Preço' }), { target: { value: 'abc' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
-    expect(screen.getByText('Sem preço')).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: /^Preço/ }), { target: { value: 'abc' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    expect(screen.getByText('15 min · sem preço')).toBeTruthy()
   })
 
   it('opção única esconde o catálogo e mostra duração e preço', () => {
     renderForm(svc({}), {})
-    expect(screen.queryByLabelText('Nome no singular')).toBeNull()
+    expect(screen.queryByLabelText(/nome no singular/)).toBeNull()
     expect(screen.getByText('Preço (opcional)')).toBeTruthy()
   })
 })
@@ -457,8 +457,8 @@ describe('ServiceForm — alterações não salvas', () => {
   }
 
   function addZone(name: string) {
-    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), {
+    fireEvent.click(screen.getByRole('radio', { name: /Várias juntas/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: /nome no singular/ }), {
       target: { value: 'Zona' },
     })
     fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), {
@@ -516,7 +516,8 @@ describe('ServiceForm — alterações não salvas', () => {
       {},
     )
     fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remover zona…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remover zona' }))
     act(() => {
       navigatePanel({
         kind: 'area',
@@ -575,13 +576,13 @@ describe('ServiceForm — alterações não salvas', () => {
         />
       </ClinicPanel>,
     )
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Com rascunho' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no catálogo' }), { target: { value: 'Com rascunho' } })
     fireEvent.click(screen.getByRole('button', { name: 'Fechar serviço' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
     const dialog = screen.getByRole('dialog', { name: 'Alterações não salvas' })
     expect(window.location.pathname).toBe(here)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continuar editando' }))
-    expect((screen.getByRole('textbox', { name: 'Nome' }) as HTMLInputElement).value).toBe('Com rascunho')
+    expect((screen.getByRole('textbox', { name: 'Nome no catálogo' }) as HTMLInputElement).value).toBe('Com rascunho')
     expect(window.location.pathname).toBe(here)
     fireEvent.click(screen.getByRole('button', { name: 'Fechar serviço' }))
     fireEvent.click(screen.getByRole('button', { name: 'Sair sem salvar' }))
@@ -592,7 +593,7 @@ describe('ServiceForm — alterações não salvas', () => {
     atService()
     const upsertService = vi.fn(async () => svc({ name: 'Novo nome' }))
     renderForm(svc({}), { upsertService, replaceServiceZones: vi.fn() } as Partial<PanelApi>)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Novo nome' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no catálogo' }), { target: { value: 'Novo nome' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalled())
     expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
@@ -611,7 +612,7 @@ describe('ServiceForm — alterações não salvas', () => {
         entityId: 'svc_1',
       })
     })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Rascunho' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no catálogo' }), { target: { value: 'Rascunho' } })
     act(() => {
       window.history.pushState(null, '', '/c/t/agenda')
       window.dispatchEvent(new PopStateEvent('popstate'))
@@ -620,7 +621,7 @@ describe('ServiceForm — alterações não salvas', () => {
     expect(window.location.pathname).toBe(here)
     fireEvent.click(screen.getByRole('button', { name: 'Continuar editando' }))
     expect(window.location.pathname).toBe(here)
-    expect((screen.getByRole('textbox', { name: 'Nome' }) as HTMLInputElement).value).toBe('Rascunho')
+    expect((screen.getByRole('textbox', { name: 'Nome no catálogo' }) as HTMLInputElement).value).toBe('Rascunho')
     act(() => {
       window.history.pushState(null, '', '/c/t/agenda')
       window.dispatchEvent(new PopStateEvent('popstate'))
@@ -636,7 +637,7 @@ describe('ServiceForm — alterações não salvas', () => {
     window.dispatchEvent(clean)
     expect(clean.defaultPrevented).toBe(false)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Rascunho' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no catálogo' }), { target: { value: 'Rascunho' } })
     const dirty = new Event('beforeunload', { cancelable: true })
     window.dispatchEvent(dirty)
     expect(dirty.defaultPrevented).toBe(true)
@@ -720,23 +721,33 @@ describe('ServiceForm — variantes: folha, lote e prontidão', () => {
     })
   }
 
-  it('resume durações e preços iguais e aplica «Alterar todos»', () => {
+  it('resume durações e preços iguais e aplica «Mudar todos…»', () => {
     renderForm(withTwoZones(), {})
-    expect(screen.getByText(/Todos com/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Alterar todos' }))
-    const all = screen.getByRole('textbox', { name: 'Duração de todos (min)' })
+    expect(screen.getByText(/Todas com/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Mudar todos…' }))
+    const all = screen.getByRole('textbox', { name: 'Duração de todas (min)' })
     fireEvent.change(all, { target: { value: '30' } })
     fireEvent.blur(all)
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar a todos' }))
-    expect(screen.getAllByText('30 min').length).toBeGreaterThanOrEqual(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar a todas' }))
+    expect(screen.getAllByText(/^30 min/).length).toBeGreaterThanOrEqual(2)
   })
 
-  it('duração rápida na folha da opção', () => {
+  it('a duração aparece uma vez na folha e só entra com «Aplicar»', () => {
     renderForm(withTwoZones(), {})
     fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
-    fireEvent.click(screen.getByRole('button', { name: '45 min' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
-    expect(screen.getByText('45 min')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '45 min' })).toBeNull()
+    const minutes = screen.getByRole('textbox', { name: /^Minutos/ })
+    fireEvent.change(minutes, { target: { value: '45' } })
+    fireEvent.blur(minutes)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByText(/^45 min/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
+    const again = screen.getByRole('textbox', { name: /^Minutos/ })
+    fireEvent.change(again, { target: { value: '45' } })
+    fireEvent.blur(again)
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    expect(screen.getByText(/^45 min/)).toBeTruthy()
+    expect(screen.getByText('Alterações por salvar')).toBeTruthy()
   })
 
   it('«Pronto para atender» avisa opção sem preço', () => {
@@ -821,11 +832,175 @@ describe('ServiceForm — layout do painel (overflow horizontal)', () => {
     )
     const group = screen.getByRole('radiogroup', { name: 'Como a cliente escolhe' })
     const copy = group.textContent ?? ''
-    expect(copy).toContain('Um só serviço')
-    expect(copy).toContain('Escolhe uma opção')
-    expect(copy).toContain('Pode juntar opções')
+    expect(copy).toContain('Só um')
+    expect(copy).toContain('Uma opção')
+    expect(copy).toContain('Várias juntas')
     expect(copy).not.toMatch(/\bno a cliente escolhe\b/)
-    const uma = within(group).getByRole('radio', { name: /Escolhe uma opção/ }) as HTMLInputElement
+    const uma = within(group).getByRole('radio', { name: /Uma opção/ }) as HTMLInputElement
     expect(uma.checked).toBe(true)
+  })
+})
+
+describe('ServiceForm — opções agrupadas e palavras (DEC-176)', () => {
+  const z = (
+    id: string,
+    name: string,
+    audience: 'ambos' | 'feminino' | 'masculino',
+    over: Partial<{ durationMinutes: number; priceCents: number | null; synonyms: string[] }> = {},
+  ) => ({
+    id,
+    name,
+    durationMinutes: 10,
+    priceCents: 5_000,
+    audience,
+    active: true,
+    sortOrder: 0,
+    synonyms: [] as string[],
+    ...over,
+  })
+
+  function depilacao(over: Partial<ClinicService> = {}) {
+    return svc({
+      name: 'Depilação',
+      bufferMinutes: 15,
+      variantKind: 'Zona',
+      variantKindPlural: 'Zonas',
+      variantSelection: 'varias',
+      zones: [
+        z('z1', 'Axila', 'feminino', { synonyms: ['sovaco'] }),
+        z('z2', 'Axila', 'masculino', { priceCents: 6_000, synonyms: ['sovaco'] }),
+        z('z3', 'Pernas', 'feminino', { durationMinutes: 20, priceCents: 12_000 }),
+      ],
+      ...over,
+    })
+  }
+
+  it('mostra uma linha por nome, com tempo e preço de cada público e os sinônimos', () => {
+    renderForm(depilacao(), {})
+    const list = screen.getByRole('list', { name: 'Zonas' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByText('Fem. 10 min · R$ 50,00; Masc. 10 min · R$ 60,00')).toBeTruthy()
+    expect(screen.getByText('Só fem. 20 min · R$ 120,00')).toBeTruthy()
+    expect(screen.getByText('Também: sovaco')).toBeTruthy()
+    expect(screen.getByText('Sem sinônimos')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Zonas · 2' })).toBeTruthy()
+  })
+
+  it('sinônimos e nome da opção gravam em todas as variantes do grupo', async () => {
+    const upsertService = vi.fn(async () => depilacao())
+    const replaceServiceZones = vi.fn(async () => depilacao())
+    renderForm(depilacao(), { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Axila' }))
+    const sheetField = screen.getAllByRole('textbox', { name: 'Também chamam de' }).at(-1)!
+    fireEvent.change(sheetField, { target: { value: 'axilas' } })
+    fireEvent.keyDown(sheetField, { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(replaceServiceZones).toHaveBeenCalled())
+    const sent = (replaceServiceZones.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
+    expect(sent.slice(0, 2)).toMatchObject([
+      { id: 'z1', name: 'Axila', audience: 'feminino', synonyms: ['sovaco', 'axilas'] },
+      { id: 'z2', name: 'Axila', audience: 'masculino', synonyms: ['sovaco', 'axilas'] },
+    ])
+  })
+
+  it('desmarcar um público gravado deixa a variante inativa; marcar cria a que falta', async () => {
+    const upsertService = vi.fn(async () => depilacao())
+    const replaceServiceZones = vi.fn(async () => depilacao())
+    renderForm(depilacao(), { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Axila' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Masculino' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Pernas' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Masculino' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(replaceServiceZones).toHaveBeenCalled())
+    const sent = (replaceServiceZones.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
+    expect(sent).toHaveLength(4)
+    expect(sent[1]).toMatchObject({ id: 'z2', active: false })
+    expect(sent[3]).toMatchObject({ id: undefined, name: 'Pernas', audience: 'masculino', durationMinutes: 20 })
+  })
+
+  it('não deixa adicionar um nome que já está na lista', () => {
+    renderForm(depilacao(), {})
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'axila' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+    expect(screen.getByText(/«Axila» já está na lista/)).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Zonas' })).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('avisa quando singular e plural são iguais e corrige com um toque', () => {
+    renderForm(depilacao({ variantKind: 'Zonas', variantKindPlural: 'Zonas' }), {})
+    expect(screen.getByText(/«Zonas» nos dois dá «1 zonas»/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Usar «Zona»' }))
+    expect((screen.getByLabelText(/nome no singular/) as HTMLInputElement).value).toBe('Zona')
+    expect(screen.queryByText(/nos dois dá/)).toBeNull()
+  })
+
+  it('público em conflito: aviso junto de «Para quem» e «Usar «Qualquer»» grava qualquer', async () => {
+    const upsertService = vi.fn(async () => depilacao())
+    const replaceServiceZones = vi.fn(async () => depilacao())
+    renderForm(depilacao({ audiencia: 'masculino' }), {
+      upsertService,
+      replaceServiceZones,
+    } as unknown as Partial<PanelApi>)
+    expect(screen.getByText(/2 zonas são só para feminino/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Usar «Qualquer»' }))
+    expect(screen.queryByText(/só para feminino/)).toBeNull()
+    const qualquer = within(screen.getByRole('radiogroup', { name: 'Para quem' })).getByRole('radio', {
+      name: 'Qualquer',
+    }) as HTMLInputElement
+    expect(qualquer.checked).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    expect((upsertService.mock.calls[0] as unknown[])[1]).toMatchObject({ audiencia: 'qualquer' })
+  })
+
+  it('«Como fica na agenda» soma as opções escolhidas, não a duração da linha', () => {
+    renderForm(depilacao(), {})
+    const hint = screen.getByRole('status', { name: 'Como fica na agenda' }).textContent ?? ''
+    expect(hint).toContain('Ocupa a soma das zonas escolhidas + 15 min de intervalo, uma vez')
+    expect(hint).toContain('Ex.: Axila + Pernas = 45 min')
+    expect(hint).not.toContain('75')
+
+    cleanup()
+    renderForm(depilacao({ variantSelection: 'uma' }), {})
+    const uma = screen.getByRole('status', { name: 'Como fica na agenda' }).textContent ?? ''
+    expect(uma).toContain('Ocupa o tempo da zona escolhida + 15 min de intervalo. Ex.: Axila = 25 min')
+    expect(screen.getByText('A cliente escolhe uma por visita.')).toBeTruthy()
+    expect(screen.queryByText(/não se mistura feminino com masculino/)).toBeNull()
+  })
+
+  it('recusa um sinônimo que já está noutro serviço antes de gravar', () => {
+    const snap = {
+      settings: { tenantId: 't', timezone: 'America/Sao_Paulo', updatedAt: 0 },
+      resources: [],
+      services: [
+        depilacao(),
+        svc({
+          id: 'svc_2',
+          name: 'Massagem',
+          variantKind: 'Tipo',
+          variantKindPlural: 'Tipos',
+          zones: [z('m1', 'Relaxante', 'ambos', { synonyms: ['pernas cansadas'] })],
+        }),
+      ],
+      weeklyWindows: [],
+      blocks: [],
+    } as unknown as ClinicConfigSnapshot
+    render(
+      <ServiceForm tenantId="t" entityId="svc_1" snap={snap} api={{} as PanelApi} generation={1} onSaved={async () => {}} />,
+    )
+    const field = screen.getAllByRole('textbox', { name: 'Também chamam de' })[0]!
+    fireEvent.change(field, { target: { value: 'Pernas cansadas' } })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(screen.getByText(/«Pernas cansadas» já está em Massagem › Relaxante/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Axila' }))
+    const inSheet = screen.getAllByRole('textbox', { name: 'Também chamam de' }).at(-1)!
+    fireEvent.change(inSheet, { target: { value: 'pernas' } })
+    fireEvent.keyDown(inSheet, { key: 'Enter' })
+    expect(screen.getByText(/«pernas» já está em Depilação › Pernas/)).toBeTruthy()
   })
 })

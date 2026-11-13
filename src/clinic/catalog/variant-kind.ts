@@ -29,6 +29,23 @@ export function suggestVariantKindPlural(singular: string): string {
   return `${word}s`
 }
 
+/**
+ * Singular provável a partir do plural (DEC-176): «Zonas» → «Zona»,
+ * «Opções» → «Opção». Só para sugerir quando os dois campos ficam iguais.
+ */
+export function suggestVariantKindSingular(plural: string): string {
+  const word = plural.trim()
+  if (!word) return ''
+  const lower = word.toLocaleLowerCase('pt-BR')
+  if (/ões$/.test(lower)) return `${word.slice(0, -3)}ão`
+  if (/ns$/.test(lower)) return `${word.slice(0, -2)}m`
+  if (/éis$/.test(lower)) return `${word.slice(0, -3)}el`
+  if (/[aeo]is$/.test(lower)) return `${word.slice(0, -2)}l`
+  if (/[rz]es$/.test(lower)) return word.slice(0, -2)
+  if (/s$/.test(lower)) return word.slice(0, -1)
+  return word
+}
+
 export function variantKindLabels(
   svc: VariantKindSource,
   fallback = 'Variante',

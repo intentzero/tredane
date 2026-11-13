@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestVariantKindPlural, variantKindLabels } from './variant-kind'
+import { suggestVariantKindPlural, suggestVariantKindSingular, variantKindLabels } from './variant-kind'
 
 describe('suggestVariantKindPlural', () => {
   it.each([
@@ -35,5 +35,19 @@ describe('variantKindLabels', () => {
     const l = variantKindLabels({})
     expect(l.singular).toBe('Variante')
     expect(l.count(3)).toBe('3 variantes')
+  })
+})
+
+describe('suggestVariantKindSingular (DEC-176)', () => {
+  it.each([
+    ['Zonas', 'Zona'],
+    ['Opções', 'Opção'],
+    ['Tipos', 'Tipo'],
+    ['Sabores', 'Sabor'],
+    ['Nuvens', 'Nuvem'],
+    ['Papéis', 'Papel'],
+    ['Canais', 'Canal'],
+  ])('%s → %s', (plural, singular) => {
+    expect(suggestVariantKindSingular(plural)).toBe(singular)
   })
 })

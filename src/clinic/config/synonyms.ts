@@ -88,6 +88,12 @@ export type CatalogNameClaim = {
   serviceId: string
   /** zoneId quando o nome é de variante; null = serviço. */
   zoneId: string | null
+  /**
+   * Nome canónico (dobrado) de quem reclama a palavra. Variantes do mesmo
+   * serviço com o mesmo nome (Axila feminino / Axila masculino, DEC-079) são
+   * a mesma opção na ficha e partilham sinónimos (DEC-176).
+   */
+  ownerFolded: string
 }
 
 /** Recolhe nomes e sinónimos do catálogo do tenant (para colisão). */
@@ -98,11 +104,13 @@ export function listCatalogNameClaims(db: ClinicDb, tenantId: string): CatalogNa
     tenantId,
   )
   for (const s of services) {
+    const ownerFolded = foldSynonym(s.name)
     claims.push({
-      folded: foldSynonym(s.name),
+      folded: ownerFolded,
       label: s.name,
       serviceId: s.id,
       zoneId: null,
+      ownerFolded,
     })
     for (const syn of parseSynonymsJson(s.synonyms_json)) {
       claims.push({
@@ -110,6 +118,7 @@ export function listCatalogNameClaims(db: ClinicDb, tenantId: string): CatalogNa
         label: syn,
         serviceId: s.id,
         zoneId: null,
+        ownerFolded,
       })
     }
   }
@@ -123,11 +132,13 @@ export function listCatalogNameClaims(db: ClinicDb, tenantId: string): CatalogNa
     tenantId,
   )
   for (const z of zones) {
+    const ownerFolded = foldSynonym(z.name)
     claims.push({
-      folded: foldSynonym(z.name),
+      folded: ownerFolded,
       label: z.name,
       serviceId: z.service_id,
       zoneId: z.id,
+      ownerFolded,
     })
     for (const syn of parseSynonymsJson(z.synonyms_json)) {
       claims.push({
@@ -135,6 +146,7 @@ export function listCatalogNameClaims(db: ClinicDb, tenantId: string): CatalogNa
         label: syn,
         serviceId: z.service_id,
         zoneId: z.id,
+        ownerFolded,
       })
     }
   }
@@ -163,6 +175,15 @@ export function assertSynonymsNoCollision(input: {
       if (c.folded !== key) return false
       // Mesmo serviço + mesma variante (ou serviço): é o próprio — ok se for o nome.
       if (c.serviceId === input.selfServiceId && c.zoneId === input.selfZoneId) return false
+      // DEC-176 — variante irmã (mesmo serviço, mesmo nome): a mesma opção, outro público.
+      if (
+        input.selfZoneId != null &&
+        c.zoneId != null &&
+        c.serviceId === input.selfServiceId &&
+        c.ownerFolded === selfFold
+      ) {
+        return false
+      }
       return true
     })
     if (hit) {
