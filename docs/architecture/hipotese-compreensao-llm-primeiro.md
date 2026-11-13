@@ -108,20 +108,20 @@ Escreve `.eval/shadow-replay.md` (relatório) e `.eval/shadow-replay-raw.json` (
 
 #### Primeira leitura (13/11/2026, Haiku 5.5 via AI Gateway, run 43492494643)
 
-**Indicativa, não conclusiva:** 59 frases fictícias escritas pela equipe, rótulos meus ainda não revistos por outra pessoa, um só modelo e uma só corrida.
+**Indicativa, não conclusiva:** 59 frases fictícias escritas pela equipe, um só modelo e uma só corrida. **Rótulos revistos por Paulo em 13/11/2026:** 58 de 59 confirmados e 1 alterado (C11, ver abaixo). Os números desta secção já usam os rótulos revistos.
 
 | Sistema | Frases perfeitas | Campos certos | Errados | Em falta | Inventados |
 | --- | --- | --- | --- | --- | --- |
-| `rule` / `today` (**`interpretTurn`**, proxy do léxico; ver limite abaixo) | 38/59 (64 %) | 72/95 (76 %) | 3 | 20 | 1 |
-| `strict` (léxico + modelo, citação literal) | 42/59 (71 %) | 77/95 (81 %) | 0 | 18 | 1 |
-| `relaxed` (só modelo, validação por id: H1) | 54/59 (92 %) | 94/95 (99 %) | 0 | 1 | 4 |
-| `hybrid` (léxico primeiro, modelo preenche) | 50/59 (85 %) | 91/95 (96 %) | 3 | 1 | 5 |
+| `rule` / `today` (**`interpretTurn`**, proxy do léxico; ver limite abaixo) | 39/59 (66 %) | 72/94 (77 %) | 3 | 19 | 1 |
+| `strict` (léxico + modelo, citação literal) | 43/59 (73 %) | 77/94 (82 %) | 0 | 17 | 1 |
+| `relaxed` (só modelo, validação por id: H1) | 53/59 (90 %) | 93/94 (99 %) | 0 | 1 | 5 |
+| `hybrid` (léxico primeiro, modelo preenche) | 49/59 (83 %) | 90/94 (96 %) | 3 | 1 | 6 |
 
 O que a medição mostra:
 
-- **O ganho existe e é grande onde se esperava:** frases coloquiais (5 → 10 de 12), erros de escrita (2 → 5 de 5) e respostas à pergunta pendente (4 → 11 de 11). `today` e `rule` coincidem: com o portão atual (`needsExtractor`), o extrator quase nunca corre.
-- **A citação literal explica quase tudo o que o modelo perde:** com ela (`strict`) o modelo só acrescenta 4 frases perfeitas; sem ela (`relaxed`), 16.
-- **O risco concentra-se num campo:** dos 4 campos inventados pelo modelo, 3 são `line: feminino` sem nenhuma evidência na frase (L11, C05, C08). O validador de hoje apanha-os porque exige a palavra «feminina». O contacto não tem sexo (DEC-079): a linha tem de continuar a exigir evidência literal mesmo que o resto passe a ser validado só por id. O quarto é `period` deduzido de «14h» (H08), discutível como erro.
+- **O ganho existe e é grande onde se esperava:** frases coloquiais (6 → 9 de 12), erros de escrita (2 → 5 de 5) e respostas à pergunta pendente (4 → 11 de 11). `today` e `rule` coincidem: com o portão atual (`needsExtractor`), o extrator quase nunca corre.
+- **A citação literal explica quase tudo o que o modelo perde:** com ela (`strict`) o modelo só acrescenta 4 frases perfeitas; sem ela (`relaxed`), 14.
+- **O risco concentra-se num campo:** dos 5 campos inventados pelo modelo, 3 são `line: feminino` sem nenhuma evidência na frase (L11, C05, C08); o Paulo estranhou-o na revisão («porque assumiste feminino?», C08). Os outros dois são um serviço escolhido onde se devia perguntar (C11) e um período deduzido de «14h» (H08, que a revisão manteve como inventado). O validador de hoje apanha-os porque exige a palavra «feminina». O contacto não tem sexo (DEC-079): a linha tem de continuar a exigir evidência literal mesmo que o resto passe a ser validado só por id. O quarto é `period` deduzido de «14h» (H08), discutível como erro.
 - **`hybrid` é pior do que `relaxed`:** quando o léxico lê e erra (por exemplo «axila e pernas» a incluir a axila masculina), o modelo não corrige porque só preenche campos vazios. Dar prioridade ao léxico traz de volta os seus erros.
 - **O `interpretTurn` tem defeitos próprios** (não necessariamente o funil real; ver limite abaixo): «a segunda opção» lido também como segunda-feira (P07), «massagem relaxante» sem serviço (L02), «sobrancelha» sem «Design de sobrancelha» (C02, C10, T04).
 - **Custo e latência baixos:** 59 chamadas, 38,5 mil tokens de entrada e 6,9 mil de saída, cerca de US$ 0,007 (≈ US$ 0,00012 por turno); latência p50 1,2 s e p95 1,8 s.
@@ -134,10 +134,10 @@ O que a medição mostra:
 
 | Sistema (48 frases) | Frases perfeitas | Campos certos | Errados | Em falta | Inventados |
 | --- | --- | --- | --- | --- | --- |
-| **Funil real** (quadro gravado) | 22 (46 %) | 42/82 (51 %) | 1 | 39 | 0 |
-| `interpretTurn` | 34 (71 %) | 66/82 (80 %) | 2 | 14 | 0 |
-| Modelo, validação por id | 43 (90 %) | 81/82 (99 %) | 0 | 1 | 4 |
-| Modelo, citação literal | 37 (77 %) | 70/82 (85 %) | 0 | 12 | 0 |
+| **Funil real** (quadro gravado) | 22 (46 %) | 42/81 (52 %) | 0 | 39 | 1 |
+| `interpretTurn` | 35 (73 %) | 66/81 (81 %) | 2 | 13 | 0 |
+| Modelo, validação por id | 42 (88 %) | 80/81 (99 %) | 0 | 1 | 5 |
+| Modelo, citação literal | 38 (79 %) | 70/81 (86 %) | 0 | 11 | 0 |
 
 **Como ler, sem exagerar:** o número do funil é um **limite inferior**, não uma taxa de erro. O quadro só guarda o que o funil decidiu gravar nesse turno: «umas 3 da tarde» sozinha não deixa nada, porque não há serviço em jogo; uma pergunta de preço («Quanto custa a massagem?») responde sem gravar o serviço; e algumas variantes e datas só entram depois de uma pergunta seguinte. Nesses casos «em falta» pode ser desenho e não falha de leitura, e não consegui separar uma coisa da outra sem rever cada caso. Por isso a comparação com o modelo, que devolve campos mesmo sem serviço, não é de igual para igual.
 
@@ -145,10 +145,21 @@ O que o resultado sustenta, apesar disso:
 
 - **Defeitos reais do funil** nas frases que nomeiam o serviço: «massagem relaxante» (L02) e «limpeza de pele profunda» (L11) não deixam **nada** no quadro, porque o nome de um serviço contém o de outro («Massagem», «Limpeza de pele»). É um padrão comum em catálogos reais.
 - **Erros de escrita e linguagem coloquial** não gravam nada: «masagem amanha as 14h» (T01), «ajeitar as sobrancelhas» (C10), «depilar o peito pro verão» (C12).
-- **Um serviço errado:** «limpeza bem completa, a mais demorada» fica em «Limpeza de pele» e não na profunda (C11; o rótulo é meu).
-- O modelo, validado por id, acerta quase todos os casos em que o funil falha (18 de 26), mas continua a ser **só medição**: nada disto autoriza ainda a mudar o funil.
+- **Um serviço escolhido onde se devia perguntar:** «limpeza bem completa, a mais demorada» fica em «Limpeza de pele» (C11). A revisão decidiu que o certo é **perguntar para confirmar**; o modelo, que escolhe a profunda, também conta como inventado.
+- O modelo, validado por id, acerta 20 dos 26 casos em que o funil falha (corrige a contagem «18 de 26» que tinha na versão anterior), mas continua a ser **só medição**: nada disto autoriza ainda a mudar o funil.
 
-Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: separar, no funil, o que é falha de leitura do que é desenho (campos que só se gravam mais tarde); rever os rótulos com outra pessoa; repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
+#### Revisão dos rótulos (Paulo, 13/11/2026)
+
+Dos 59 rótulos, 58 foram confirmados. Uma alteração: **C11** «limpeza bem completa, a mais demorada» deixa de ser «profunda» e passa a «perguntar para confirmar» (nenhum serviço lido). Decisões e observações que saíram da revisão e que **não são rótulos**, para quem desenhar o comportamento:
+
+- **L07** «Quanto custa a massagem?»: confirmado que uma pergunta de preço conta como serviço lido. O funil responde mas não grava o serviço.
+- **L04** «buço e axila feminina»: na clínica, o buço só existe para o público feminino; no catálogo do corpus está como «ambos».
+- **C08** «me vê um horário de manhãzinha na terça»: o modelo assume `feminino` sem evidência; a revisão estranhou-o, o que reforça a regra de exigir evidência literal para a linha.
+- **H09** «fim de tarde no sábado»: além de ler «tarde», o sistema devia propor o horário mais próximo do fim do expediente. É comportamento de produto, ainda sem decisão.
+- **N08** «qual o endereço de vocês?»: a clínica envia a localização; nenhum campo de marcação deve ser lido.
+- **C03, C07, C09, H04, H08:** rótulos confirmados como estão.
+
+Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: separar, no funil, o que é falha de leitura do que é desenho (campos que só se gravam mais tarde); repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
 
 **Configuração da chave:** o gateway só encontrou a chave guardada depois de o adaptador enviar `cf-aig-byok-alias` (variável opcional `AI_GATEWAY_BYOK_ALIAS`; sem ela nada muda). Sem esse cabeçalho o gateway procura o alias `default` e responde com o erro 2044.
 

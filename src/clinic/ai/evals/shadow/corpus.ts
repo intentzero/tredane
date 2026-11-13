@@ -75,7 +75,9 @@ export const REPLAY_CORPUS: ReplayPhrase[] = [
   { id: 'C08', tag: 'coloquial', text: 'me vê um horário de manhãzinha na terça', expect: { date: '2026-11-10', period: 'manha' } },
   { id: 'C09', tag: 'coloquial', text: 'queria tirar os pelos da axila, pode ser à noitinha?', expect: { service: 'svc-depilacao', variants: ['z-axila-f'], period: 'noite' }, ignore: ['line'] },
   { id: 'C10', tag: 'coloquial', text: 'quero ajeitar as sobrancelhas na sexta', expect: { service: 'svc-design', date: '2026-11-06' } },
-  { id: 'C11', tag: 'coloquial', text: 'preciso de uma limpeza bem completa, a mais demorada', expect: { service: 'svc-limpeza-profunda' } },
+  // Revisão (Paulo, 13/11/2026): «bem completa» não decide entre «Limpeza de pele» e a profunda;
+  // o certo é perguntar. Qualquer serviço escolhido sem confirmar conta como inventado.
+  { id: 'C11', tag: 'coloquial', text: 'preciso de uma limpeza bem completa, a mais demorada', expect: {} },
   { id: 'C12', tag: 'coloquial', text: 'queria depilar o peito pro verão', expect: { service: 'svc-depilacao', variants: ['z-peito-m'] }, ignore: ['line'] },
 
   // — Horas, datas e períodos em linguagem natural —
