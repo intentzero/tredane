@@ -6,11 +6,13 @@
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (staging).
  * A-53 / A-54: FAQ gate mid-zonas (DEC-177) — pergunta ≠ leftover.
+ * A-57 / A-58: DEC-178 acumulação Opções + Mais|Pronto.
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
  */
 import { getService, listZones, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
+import { VARIANT_LIST_BUTTON_LABEL } from '../../choice-offer'
 import { frictionTermHash } from '../../turn-friction'
 import type { DialogCase } from './runner'
 
@@ -237,7 +239,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 2,
     // Staging Paulo 09/11/2026: texto/toque da linha fazia sair a mesma frase duas vezes
     // (handoff + Opções). Catálogo cede ao autoBook; interactive reply não reentra no autodraft.
-    // Paulo 09/11 (mais tarde): `varias` = texto livre, sem lista Opções.
+    // DEC-178: `varias` = Opções + texto livre.
     turns: [
       { role: 'client', text: 'Quero depilação' },
       { role: 'client', text: 'Masculina' },
@@ -250,11 +252,28 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         { turn: 0, matches: [/feminina ou masculina/i] },
         {
           turn: 1,
-          matches: [/quais zonas/i, /Escreva uma ou várias/i],
-          excludes: [/Falar com a equipe/i, /Em Opções/i],
+          matches: [/quais zonas/i, /Toque em Opções|Escreva uma ou várias/i],
+          excludes: [/Falar com a equipe/i, /Pode ser mais de uma/i],
         },
       ],
       outboundExcludes: NO_LEAK,
+      assert: (s) => {
+        const last = s.db
+          .all<{ interactive_json: string | null }>(
+            `SELECT o.interactive_json AS interactive_json
+             FROM outbound_messages o
+             JOIN messages m ON m.id = o.message_id
+             WHERE o.tenant_id = ? AND m.conversation_id = ?
+             ORDER BY o.created_at DESC LIMIT 1`,
+            s.tenantId,
+            s.conversationId,
+          )
+          .at(0)
+        if (!(last?.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL)) {
+          return ['A-40: ask-tipo varias deve trazer lista Opções (DEC-178)']
+        }
+        return []
+      },
     },
   },
   {
@@ -516,6 +535,63 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 0, matches: [/quais zonas/i] }],
       outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
       outboundExcludes: [/Não encontrei/i, /nas opções/i],
+    },
+  },
+  {
+    id: 'A-57',
+    title: 'DEC-178: ask zonas em varias traz Opções (sem handoff)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero depilação feminina' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/quais zonas/i, /Toque em Opções/i],
+          excludes: [/Falar com a equipe/i, /Entendi:/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+      assert: (s) => {
+        const last = s.db
+          .all<{ interactive_json: string | null }>(
+            `SELECT o.interactive_json AS interactive_json
+             FROM outbound_messages o
+             JOIN messages m ON m.id = o.message_id
+             WHERE o.tenant_id = ? AND m.conversation_id = ?
+             ORDER BY o.created_at DESC LIMIT 1`,
+            s.tenantId,
+            s.conversationId,
+          )
+          .at(0)
+        const json = last?.interactive_json ?? ''
+        if (!json.includes(VARIANT_LIST_BUTTON_LABEL)) {
+          return ['A-57: ask varias deve trazer lista Opções (DEC-178)']
+        }
+        if (json.includes('"title":"Todas"') || json.includes('"Todas"')) {
+          return ['A-57: Opções em varias não inclui Todas (texto livre / DEC-178)']
+        }
+        return []
+      },
+    },
+  },
+  {
+    id: 'A-58',
+    title: 'DEC-178: texto livre «axila e pernas» continua a ecoar Entendi',
+    turnosIdeais: 2,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'axila e pernas' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i, /Toque em Opções/i] },
+        { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] },
+      ],
+      outboundExcludes: NO_LEAK,
     },
   },
 ]

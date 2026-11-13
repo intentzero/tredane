@@ -57,12 +57,12 @@ export type DialogueActId =
   | 'orientar_ajuda_humana'
 
 /**
- * Convite de texto livre na pergunta de variantes em modo `varias`
- * (Paulo 09/11/2026 — texto only; supersede a opção A que mantinha Opções + hint).
- * Sem lista Meta Opções; eco DEC-137 inalterado. Modo `uma` não usa este sufixo (DEC-145).
+ * Convite na pergunta de variantes em modo `varias`
+ * (DEC-178 — lista Opções + acumulação Mais|Pronto; texto livre + eco DEC-137 mantém-se).
+ * Modo `uma` não usa este sufixo (DEC-145).
  */
 export const MULTI_VARIANT_ASK_HINT =
-  'Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.'
+  'Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.'
 
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {

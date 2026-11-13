@@ -8,6 +8,7 @@ import {
   buildLineChoiceInteractive,
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
+  buildZoneAccumInteractive,
   buildZoneEchoInteractive,
 } from '../../clinic/ai/choice-offer'
 import { createDeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
@@ -72,8 +73,9 @@ describe('isM5FunnelChoiceInteractive', () => {
     ).toBe(true)
   })
 
-  it('não trata eco Sim/Corrigir como funil M5', () => {
+  it('não trata eco Sim/Corrigir nem Mais|Pronto como funil M5', () => {
     expect(isM5FunnelChoiceInteractive(buildZoneEchoInteractive('1').interactive)).toBe(false)
+    expect(isM5FunnelChoiceInteractive(buildZoneAccumInteractive('1').interactive)).toBe(false)
     expect(isM5FunnelChoiceInteractive(null)).toBe(false)
   })
 })

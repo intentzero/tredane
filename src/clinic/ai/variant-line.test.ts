@@ -53,7 +53,7 @@ describe('DEC-145: pergunta singular no modo uma', () => {
     })
     expect(text).toMatch(/\bqual tipo\b/i)
     expect(text).not.toMatch(/\bquais tipos?\b/i)
-    expect(text).not.toMatch(/Escreva uma ou várias/i)
+    expect(text).not.toMatch(/Toque em Opções|Escreva uma ou várias/i)
     expect(text).not.toMatch(/axila e pernas/i)
     expect(text).toBe(
       'Para massagem, qual tipo você quer? Temos liberação miofascial, massagem relaxante.',
@@ -87,10 +87,10 @@ describe('DEC-145: pergunta singular no modo uma', () => {
     })
     expect(text).toMatch(/\bquais zonas\b/i)
     expect(text).not.toMatch(/\bqual zona\b/i)
-    expect(text).toMatch(/Escreva uma ou várias/i)
+    expect(text).toMatch(/Toque em Opções|Escreva uma ou várias/i)
     expect(text).toMatch(/axila e pernas/i)
     expect(text).toMatch(/também pode dizer todas/i)
-    expect(text).not.toMatch(/Em Opções/i)
+    expect(text).not.toMatch(/Pode ser mais de uma/i)
     expect(text).toMatch(/liberação miofascial/)
     expect(text).not.toMatch(/Liberação miofascial/)
     expect(text).not.toMatch(/Para Depilação/)

@@ -147,7 +147,7 @@ describe('DEC-145 staging: Massagem modo uma', () => {
       expect(reply).toMatch(/\bqual tipo\b/i)
       expect(reply).not.toMatch(/\bquais tipos?\b/i)
       expect(reply).not.toMatch(/Pode ser mais de uma/i)
-      expect(reply).not.toMatch(/Escreva uma ou várias/i)
+      expect(reply).not.toMatch(/Toque em Opções|Escreva uma ou várias/i)
       expect(reply).not.toMatch(/axila e pernas/i)
 
       const kind = variantKindForAsk(s.svc)

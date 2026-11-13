@@ -3,7 +3,7 @@
  * A linha só entra por texto explícito (feminina/masculina/feminino/masculino) ou pela sessão da conversa.
  * Copy via catálogo M4 (#448): perguntar_linha / perguntar_variantes.
  * DEC-145: modo `uma` usa o singular do cadastro e redações sem o convite multi.
- * Modo `varias` (Paulo 09/11/2026): só texto livre (ex. axila e pernas / todas); sem Opções.
+ * Modo `varias` (DEC-178): Opções + Mais|Pronto; texto livre (ex. axila e pernas / todas) + eco DEC-137.
  */
 import { formatBRL } from '../../ai/prompt'
 import { allowsMultipleVariants } from '../catalog/variant-selection'

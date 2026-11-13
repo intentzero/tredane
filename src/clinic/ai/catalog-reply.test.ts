@@ -560,7 +560,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
           tenantId: boot.tenantId,
           conversationId: boot.conversation.id,
           direction: 'outbound',
-          body: 'Quais zonas? Temos Axila, Pernas. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.',
+          body: 'Quais zonas? Temos Axila, Pernas. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.',
           deliveryState: 'delivered',
           createdAt: boot.clock.nowMs(),
         },
