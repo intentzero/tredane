@@ -333,6 +333,23 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
     expect(got.zones.map((z) => z.id)).toEqual(['rel'])
   })
 
+  it.each([
+    'Quero agendar uma massagem relaxante para a próxima terça feora',
+    'Quero massagem relaxante na quarta fiera',
+    'quero relaxante sexta feria',
+  ])('P1 rsamp_fa7f138: typo de «feira» (incl. transposição) não vira leftover — «%s»', (text) => {
+    const got = resolveZoneMention(text, massagemZones, ignore)
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.zones.map((z) => z.id)).toEqual(['rel'])
+  })
+
+  it('P1 rsamp_fa7f138: transposição só perto de «feira» — «freia» e «fieras» seguem leftover', () => {
+    expect(resolveZoneMention('quero relaxante fieras', massagemZones, ignore).leftover).not.toBeNull()
+    expect(resolveZoneMention('quero relaxante freia', massagemZones, ignore).leftover).not.toBeNull()
+    expect(resolveZoneMention('quero relaxante cotovelo', massagemZones, ignore).leftover).toBe('cotovelo')
+  })
+
   it('zona desconhecida «cotovelo» continua unrecognized com leftover', () => {
     const got = resolveZoneMention('quero cotovelo', massagemZones, ignore)
     expect(got.unrecognized).toBe(true)
