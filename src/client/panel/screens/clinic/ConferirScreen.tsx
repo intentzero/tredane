@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { Button } from 'react-aria-components'
 import type { ClinicConfigReview, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
 import { Banner } from '../../states/Banner'
-import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { ErrorState } from '../../states/StatusScreens'
+import { ClinicSkeleton } from './ClinicSkeleton'
 import { friendlyError } from '../../copy/errors'
 
 type Props = {
@@ -59,7 +61,7 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
   const goHub = () =>
     navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
 
-  if (loading && !review) return <LoadingState label="A conferir serviços…" />
+  if (loading && !review) return <ClinicSkeleton shape="table" label="Carregando Conferir" />
   if (error && !review) {
     return (
       <ErrorState
@@ -77,15 +79,6 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
 
   return (
     <div className="clinic-stack">
-      <header className="clinic-page-head">
-        <Button className="panel-icon-btn" aria-label="Voltar" onPress={goHub}>
-          ‹
-        </Button>
-        <div className="clinic-page-head-copy">
-          <h1 className="panel-title">Conferir configuração</h1>
-          <span className="panel-subtitle">Só leitura · início da Clínica</span>
-        </div>
-      </header>
       {review.services.length === 0 ? (
         <Banner tone="warn" title="Nenhum serviço ativo">
           <p>Cadastre um serviço para conferir quem faz, onde e quando.</p>
@@ -108,54 +101,68 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
           </span>
         </div>
       )}
-      <ul className="clinic-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 12 }}>
-        {review.services.map((s) => (
-          <li key={s.serviceId} className="conferir-card" data-ready={s.ready ? 'true' : 'false'}>
-            <strong>{s.serviceName}</strong>
-            <span className="clinic-footnote">
-              Quem faz: {s.who.length > 0 ? s.who.join(', ') : 'ninguém'}
-            </span>
-            <span className="clinic-footnote">Onde: {s.whereLabel}</span>
-            {s.ready && s.nextSlotStartsAt != null ? (
-              <span className="clinic-footnote">
-                Quando: próximo horário {formatNext(s.nextSlotStartsAt, review.timezone)}
-              </span>
-            ) : (
-              <span className="clinic-footnote" role="status">
-                Motivo: {s.blockReason ?? 'Incompleto'}
-              </span>
-            )}
-            {(s.conversationPathFindings?.length ?? 0) > 0 ? (
-              <div
-                className="conferir-conversation-lint"
-                data-conversation-lint="true"
-                role="status"
-              >
-                <strong>Este serviço não consegue ser marcado pela conversa</strong>
-                <ul>
-                  {(s.conversationPathFindings ?? []).map((f) => (
-                    <li key={f.code}>{f.message}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <Button
-              className="panel-link conferir-open"
-              onPress={() =>
-                navigatePanel({
-                  kind: 'area',
-                  area: 'clinica',
-                  tenantId,
-                  section: s.fix.section,
-                  entityId: s.fix.entityId,
-                })
-              }
-            >
-              Abrir ficha
-            </Button>
-          </li>
-        ))}
-      </ul>
+      {review.services.length > 0 ? (
+        // DEC-174: tabela no desktop, linhas no celular; a linha inteira abre a ficha.
+        <div className="conferir-table">
+          <div className="conferir-table-head" aria-hidden="true">
+            <span>Serviço</span>
+            <span>Quem faz</span>
+            <span>Onde</span>
+            <span>Próximo horário</span>
+          </div>
+          <ul className="conferir-rows">
+            {review.services.map((s) => (
+              <li key={s.serviceId} className="conferir-item" data-ready={s.ready ? 'true' : 'false'}>
+                <Button
+                  className="conferir-row"
+                  aria-label={`Abrir ficha de ${s.serviceName}`}
+                  onPress={() =>
+                    navigatePanel({
+                      kind: 'area',
+                      area: 'clinica',
+                      tenantId,
+                      section: s.fix.section,
+                      entityId: s.fix.entityId,
+                    })
+                  }
+                >
+                  <strong className="conferir-cell conferir-name">{s.serviceName}</strong>
+                  <span className="conferir-cell" data-label="Quem faz">
+                    {s.who.length > 0 ? s.who.join(', ') : 'Ninguém'}
+                  </span>
+                  <span className="conferir-cell" data-label="Onde" data-muted={s.whereLabel === 'Sem espaço definido' ? 'true' : undefined}>
+                    {s.whereLabel}
+                  </span>
+                  {s.ready && s.nextSlotStartsAt != null ? (
+                    <span className="conferir-cell" data-label="Próximo horário">
+                      {formatNext(s.nextSlotStartsAt, review.timezone)}
+                    </span>
+                  ) : (
+                    <span className="conferir-cell conferir-reason" data-label="Motivo">
+                      {s.blockReason ?? 'Incompleto'}
+                    </span>
+                  )}
+                  <ChevronRight className="conferir-chevron" aria-hidden size={18} />
+                </Button>
+                {(s.conversationPathFindings?.length ?? 0) > 0 ? (
+                  <div
+                    className="conferir-conversation-lint"
+                    data-conversation-lint="true"
+                    role="status"
+                  >
+                    <strong>Este serviço não consegue ser marcado pela conversa</strong>
+                    <ul>
+                      {(s.conversationPathFindings ?? []).map((f) => (
+                        <li key={f.code}>{f.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   )
 }

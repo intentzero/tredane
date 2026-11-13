@@ -1,7 +1,6 @@
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
-import { ListSkeleton } from '../../states/ListSkeleton'
-import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { ErrorState } from '../../states/StatusScreens'
 import { useEffect, useState, type ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
@@ -24,11 +23,111 @@ import { RecebimentoScreen } from './pix/RecebimentoScreen'
 import { WhatsappDevSyncScreen } from './whatsapp/WhatsappDevSyncScreen'
 import { EquipeScreen } from './EquipeScreen'
 import { ClinicSubScreen } from './ClinicSubHeader'
+import { ClinicPageHeader } from './ClinicPageHeader'
+import { ClinicSkeleton, type ClinicSkeletonShape } from './ClinicSkeleton'
 
 type Props = {
   tenantId: string
   section: ClinicaSection
   entityId?: string
+}
+
+type PageMeta = {
+  title: string
+  description?: string
+  shape: ClinicSkeletonShape
+  /** Cabeçalho de página comum (título + frase). Equipe e o início têm o seu. */
+  header: boolean
+  /** No celular, cabeçalho único de 56 px (DEC-163). */
+  mobileSub: boolean
+  /** Coluna de 1040 px em vez de 760 px (índice e tabelas). */
+  wideColumn?: boolean
+}
+
+/** DEC-174: título, frase e forma do esqueleto de cada opção da Clínica. */
+function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
+  switch (section) {
+    case 'hub':
+      return { title: 'Clínica', shape: 'index', header: false, mobileSub: false, wideColumn: true }
+    case 'conferir':
+      return {
+        title: 'Conferir',
+        description: 'Quem faz, onde e o próximo horário de cada serviço. Só leitura; corrija na ficha.',
+        shape: 'table',
+        header: true,
+        mobileSub: true,
+        wideColumn: true,
+      }
+    case 'horarios':
+      return {
+        title: 'Horário',
+        description: 'Quando a clínica atende e os dias de exceção.',
+        shape: 'week',
+        header: true,
+        mobileSub: true,
+      }
+    case 'recursos':
+    case 'profissional':
+    case 'sala': {
+      const rooms = section === 'sala' || (section === 'recursos' && entityId === 'salas')
+      return rooms
+        ? {
+            title: 'Salas e equipamentos',
+            description: 'Onde os serviços acontecem.',
+            shape: 'list',
+            header: true,
+            mobileSub: section === 'recursos',
+          }
+        : {
+            title: 'Profissionais',
+            description: 'Quem atende na clínica.',
+            shape: 'list',
+            header: true,
+            mobileSub: section === 'recursos',
+          }
+    }
+    case 'servicos':
+    case 'servico':
+      return {
+        title: 'Serviços',
+        description: 'O que a clínica oferece, quanto dura e quanto custa.',
+        shape: 'table',
+        header: true,
+        mobileSub: section === 'servicos',
+      }
+    case 'assistente':
+      return {
+        title: 'Assistente e automações',
+        description: 'O que o assistente faz nas conversas e os limites das automações.',
+        shape: 'cards',
+        header: true,
+        mobileSub: true,
+      }
+    case 'whatsapp':
+    case 'whatsapp-trocar':
+    case 'whatsapp-historico':
+    case 'whatsapp-desconectar':
+      return {
+        title: 'WhatsApp',
+        description: 'O número por onde as clientes falam com a clínica.',
+        shape: 'connection',
+        header: section === 'whatsapp',
+        mobileSub: section === 'whatsapp',
+      }
+    case 'whatsapp-dev-sync':
+      return { title: 'WhatsApp de teste', shape: 'connection', header: false, mobileSub: false }
+    case 'recebimento':
+      return {
+        title: 'Recebimento de sinais',
+        description:
+          'O Pix do sinal cai na conta da clínica, pela Woovi. O Tredane cria a cobrança e não recebe nem repassa o dinheiro.',
+        shape: 'form',
+        header: true,
+        mobileSub: true,
+      }
+    case 'equipe':
+      return { title: 'Equipe', shape: 'list', header: false, mobileSub: true }
+  }
 }
 
 export function ClinicArea({ tenantId, section, entityId }: Props) {
@@ -38,48 +137,79 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const wide = useMediaQuery('(min-width: 1280px)')
   const clinicName = active.phase === 'ready' ? active.context.name : tenantId
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
-  const [viewerClerkUserId, setViewerClerkUserId] = useState<string | null>(null)
+  // null = ainda a perguntar; a Equipe espera por isto para não acrescentar «(você)» depois.
+  const [viewer, setViewer] = useState<{ id: string | null } | null>(null)
 
   useEffect(() => {
     if (!api || section !== 'equipe') return
     let cancelled = false
+    setViewer(null)
     void api
       .getMe({ generation, expectGeneration: () => generation })
       .then((me) => {
-        if (!cancelled) setViewerClerkUserId(me.clerkUserId)
+        if (!cancelled) setViewer({ id: me.clerkUserId })
       })
       .catch(() => {
-        if (!cancelled) setViewerClerkUserId(null)
+        if (!cancelled) setViewer({ id: null })
       })
     return () => {
       cancelled = true
     }
   }, [api, section, generation])
 
-  // DEC-163: no celular, cabeçalho único nas telas internas (listas e ajustes).
-  const sub = (title: string, node: ReactNode) =>
-    wide ? node : (
-      <ClinicSubScreen tenantId={tenantId} title={title}>
+  const meta = pageMeta(section, entityId)
+
+  // DEC-174: título e frase comuns; coluna centrada no desktop.
+  const page = (node: ReactNode, header = meta.header) => (
+    <div className={`clinic-page${meta.wideColumn ? ' clinic-page--wide' : ''}`}>
+      {header ? <ClinicPageHeader title={meta.title} description={meta.description} /> : null}
+      {node}
+    </div>
+  )
+
+  // DEC-174: no desktop toda opção abre dentro da moldura (navegação lateral), mesmo a carregar.
+  // No celular, cabeçalho único nas telas internas (DEC-163).
+  const frame = (node: ReactNode, panel: ReactNode = null) =>
+    wide ? (
+      <div className="clinic-wide">
+        <ClinicContext
+          tenantId={tenantId}
+          section={section}
+          entityId={entityId}
+          snap={snap ?? undefined}
+        />
+        <div className="clinic-work">{node}</div>
+        {panel}
+      </div>
+    ) : meta.mobileSub ? (
+      <ClinicSubScreen tenantId={tenantId} title={meta.title}>
         {node}
       </ClinicSubScreen>
+    ) : (
+      node
     )
 
+  const skeleton = (shape: ClinicSkeletonShape = meta.shape) =>
+    frame(page(<ClinicSkeleton shape={shape} label={`Carregando ${meta.title}`} />))
+
+  if (!api) return skeleton()
+
   if (section === 'equipe') {
-    if (!api) return <ListSkeleton label="Carregando equipe…" rows={5} />
-    return sub(
-      'Equipe',
-      <EquipeScreen
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-        viewerClerkUserId={viewerClerkUserId}
-      />,
+    return frame(
+      page(
+        <EquipeScreen
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          viewerClerkUserId={viewer?.id ?? null}
+          viewerPending={viewer === null}
+        />,
+      ),
     )
   }
 
   if (section === 'whatsapp-dev-sync') {
-    if (!api) return <LoadingState label="Carregando…" />
-    return <WhatsappDevSyncScreen tenantId={tenantId} api={api} generation={generation} />
+    return frame(page(<WhatsappDevSyncScreen tenantId={tenantId} api={api} generation={generation} />))
   }
 
   if (
@@ -88,7 +218,6 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     section === 'whatsapp-historico' ||
     section === 'whatsapp-desconectar'
   ) {
-    if (!api) return <LoadingState label="Carregando WhatsApp…" />
     const mode =
       section === 'whatsapp-trocar'
         ? 'trocar'
@@ -97,43 +226,43 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           : section === 'whatsapp-historico'
             ? 'historico'
             : 'main'
-    const screen = (
-      <WhatsappScreen
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-        mode={mode}
-        clinicName={clinicName}
-        isOwner={isOwner}
-      />
+    return frame(
+      page(
+        <WhatsappScreen
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          mode={mode}
+          clinicName={clinicName}
+          isOwner={isOwner}
+        />,
+      ),
     )
-    return mode === 'main' ? sub('WhatsApp', screen) : screen
   }
 
   if (section === 'recebimento') {
-    if (!api) return <LoadingState label="Carregando recebimento…" />
-    return sub(
-      'Recebimento de sinais',
-      <RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />,
-    )
+    return frame(page(<RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />))
   }
 
-  if (loading && !snap) {
-    return <ListSkeleton label="Carregando configuração da clínica…" rows={5} />
+  if (section === 'conferir') {
+    return frame(page(<ConferirScreen tenantId={tenantId} api={api} generation={generation} />))
   }
+
+  if (loading && !snap) return skeleton()
   if (error && !snap) {
-    return (
-      <ErrorState
-        title="Não foi possível carregar a clínica"
-        description={error}
-        actionLabel="Tentar de novo"
-        onAction={() => void reload()}
-      />
+    return frame(
+      page(
+        <ErrorState
+          title="Não foi possível carregar a clínica"
+          description={error}
+          actionLabel="Tentar de novo"
+          onAction={() => void reload()}
+        />,
+        false,
+      ),
     )
   }
-  if (!snap || !api) {
-    return <ListSkeleton label="Carregando configuração da clínica…" rows={5} />
-  }
+  if (!snap) return skeleton()
 
   // Desktop: a edição de serviço, profissional ou sala abre por cima da lista (DEC-069).
   let panel: ReactNode = null
@@ -168,10 +297,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     />
   ) : null
 
+  // Formulários no celular ocupam a tela inteira, com o seu próprio título.
+  let bare = false
   const body = (() => {
     switch (section) {
-      case 'conferir':
-        return <ConferirScreen tenantId={tenantId} api={api} generation={generation} />
       case 'hub':
         return (
           <ClinicHub
@@ -239,7 +368,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
-        if (!wide) return form
+        if (!wide) {
+          bare = true
+          return form
+        }
         overList('Serviço', 'servicos', form)
         return <ServicesList tenantId={tenantId} snap={snap} suggestions={termsCard} />
       }
@@ -264,7 +396,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
-        if (!wide) return form
+        if (!wide) {
+          bare = true
+          return form
+        }
         overList('Profissional', 'recursos', form)
         return <ResourcesList key="professional" tenantId={tenantId} snap={snap} tab="professional" />
       }
@@ -280,7 +415,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
-        if (!wide) return form
+        if (!wide) {
+          bare = true
+          return form
+        }
         overList('Sala', 'recursos', form, 'salas')
         return <ResourcesList key="room" tenantId={tenantId} snap={snap} tab="room" />
       }
@@ -294,24 +432,11 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
+      default:
+        return null
     }
   })()
 
-  if (!wide) {
-    const titles: Partial<Record<ClinicaSection, string>> = {
-      servicos: 'Serviços',
-      recursos: entityId === 'salas' ? 'Salas e equipamentos' : 'Profissionais',
-      horarios: 'Horário',
-      assistente: 'Assistente e automações',
-    }
-    const t = titles[section]
-    return t ? sub(t, body) : body
-  }
-  return (
-    <div className="clinic-wide">
-      <ClinicContext tenantId={tenantId} section={section} entityId={entityId} snap={snap} />
-      <div className="clinic-work">{body}</div>
-      {panel}
-    </div>
-  )
+  if (bare) return body
+  return frame(page(body), panel)
 }

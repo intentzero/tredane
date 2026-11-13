@@ -143,6 +143,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Equipe revista (Confirmado, DEC-171, Paulo, 12/11/2026):** cancelar convite pede confirmação; papéis em cor neutra e explicados num bloco; convites numa linha, com as ações no ⋮ no celular. Detalhe em [ux-ui](product/ux-ui.md).
 
+**Clínica normalizada (Confirmado, DEC-174, Paulo, 13/11/2026):** todas as opções da Clínica abrem na mesma moldura, com a coluna centrada, o mesmo cabeçalho e um esqueleto com a forma de cada tela enquanto carregam. Detalhe em [ux-ui](product/ux-ui.md).
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

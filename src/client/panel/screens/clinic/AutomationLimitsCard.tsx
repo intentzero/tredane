@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ClinicSkeletonLines } from './ClinicSkeleton'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { PanelApiError, type AbuseLimitsDto, type PanelApi } from '../../api'
 import { friendlyError } from '../../copy/errors'
@@ -156,7 +157,7 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         <h2 id="abuse-limits-t" className="panel-title-md">
           Limites das automações
         </h2>
-        <p className="panel-muted-sm">Carregando…</p>
+        <ClinicSkeletonLines label="Carregando limites das automações" lines={4} />
       </section>
     )
   }

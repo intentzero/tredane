@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Clock, MoreVertical, Plus } from 'lucide-react'
+import { ChevronRight, Clock, MoreVertical, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { PanelApiError, type ClinicConfigSnapshot, type PanelApi } from '../../api'
@@ -195,16 +195,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
 
   return (
     <div className="clinic-stack clinic-form hours-screen">
-      <div className="clinic-toolbar clinic-desktop-hide">
-        <Button
-          className="panel-btn panel-btn-ghost"
-          onPress={() => navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })}
-        >
-          <ChevronLeft aria-hidden size={18} strokeWidth={2} /> Clínica
-        </Button>
-      </div>
-      <h2 className="panel-title clinic-h2">Horário</h2>
-
+      {/* DEC-174: título e voltar vêm da moldura (cabeçalho de página / cabeçalho único). */}
       <section className="hours-summary" aria-label="Resumo do horário">
         <span className="hours-status" data-open={status.open}>
           <Clock aria-hidden size={14} strokeWidth={2.2} />

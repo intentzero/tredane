@@ -1508,7 +1508,8 @@ button.panel-auth-inline-link {
 .clinic-field input:not([type='checkbox']):not([type='radio']),
 .clinic-field select,
 .clinic-field textarea {
-  min-height: 48px;
+  /* DEC-174: campos na altura do token (36 px no desktop, 44 px no toque, DEC-168). */
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-sm);
@@ -11701,5 +11702,426 @@ button.panel-auth-inline-link {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+}
+
+/* ——— DEC-174 (Paulo, 13/11/2026): Clínica normalizada ———
+ * Moldura em todas as opções, coluna centrada, cabeçalho de página comum,
+ * esqueleto com a forma de cada tela e resposta no rodapé do cartão. */
+.clinic-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.clinic-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.clinic-page-header-copy {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.clinic-page-title {
+  margin: 0;
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.25;
+}
+
+.clinic-page-desc {
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
+}
+
+.clinic-page-header-action {
+  flex: none;
+}
+
+.clinic-page-header-action :is(.panel-btn-primary, .panel-btn-secondary) {
+  width: auto;
+}
+
+@media (max-width: 1279.98px) {
+  /* O cabeçalho único já mostra o título (DEC-163). */
+  .clinic-sub .clinic-page-title {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .clinic-work > .clinic-page {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+  }
+
+  .clinic-work > .clinic-page--wide {
+    max-width: 1040px;
+  }
+}
+
+/* Esqueleto com a forma da tela. */
+.clinic-skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.clinic-skeleton--inline .clinic-skeleton-body {
+  gap: var(--space-2);
+}
+
+.clinic-sk {
+  display: block;
+  background: var(--color-surface-sunken);
+  animation: panel-pulse 1.4s ease-in-out infinite;
+}
+
+.clinic-sk-banner {
+  height: 72px;
+  border-radius: var(--radius-lg);
+}
+
+.clinic-sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.clinic-sk-list {
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.clinic-sk-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: 0 var(--space-4);
+}
+
+.clinic-sk-row + .clinic-sk-row {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.clinic-sk-lines {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.clinic-sk-line {
+  height: 10px;
+  width: 80%;
+  border-radius: var(--radius-sm);
+}
+
+.clinic-sk-line--title {
+  height: 12px;
+  width: 50%;
+}
+
+.clinic-sk-line--short {
+  width: 30%;
+}
+
+.clinic-sk-line--label {
+  flex: none;
+  height: 9px;
+  width: 120px;
+}
+
+.clinic-sk-line--value {
+  flex: none;
+  width: 72px;
+}
+
+.clinic-sk-avatar {
+  flex: none;
+  width: var(--size-avatar-sm);
+  height: var(--size-avatar-sm);
+  border-radius: var(--radius-pill);
+}
+
+.clinic-sk-avatar--icon {
+  border-radius: var(--radius-md);
+}
+
+.clinic-sk-bar {
+  flex: 1;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+}
+
+.clinic-sk-bar--short {
+  flex: 0 0 30%;
+  background: var(--color-surface-sunken);
+}
+
+.clinic-sk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.clinic-sk-head .clinic-sk-line {
+  width: 40%;
+}
+
+.clinic-sk-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-sk-button {
+  flex: none;
+  align-self: flex-end;
+  width: 140px;
+  height: var(--size-control-default);
+  border-radius: var(--radius-button);
+}
+
+.clinic-sk-field {
+  display: block;
+  height: var(--size-control-default);
+  border: var(--size-border-width) solid var(--color-line-divider);
+  border-radius: var(--radius-sm);
+}
+
+.clinic-sk-field--tall {
+  height: 88px;
+}
+
+.clinic-sk-toggle {
+  flex: none;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-sk {
+    animation: none;
+  }
+}
+
+/* Cartão de ajuste: título, conteúdo e rodapé com a resposta junto do botão. */
+.clinic-card {
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.clinic-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.clinic-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.clinic-card-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.clinic-card-notice:empty {
+  display: none;
+}
+
+.clinic-card-notice[data-tone='ok'] {
+  color: var(--color-success-ink);
+}
+
+.clinic-card-notice[data-tone='error'] {
+  color: var(--color-danger-ink);
+}
+
+@media (min-width: 768px) {
+  .clinic-card-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-4);
+  }
+
+  .clinic-card-footer :is(.panel-btn-primary, .panel-btn-secondary, .panel-btn-danger) {
+    flex: none;
+    width: auto;
+  }
+}
+
+/* Ferramentas só de staging: recolhidas, no fim, com selo. */
+.clinic-staging-tag {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.whatsapp-dev-sync-section > :not(summary) {
+  margin-top: var(--space-2);
+}
+
+/* Conferir: linhas no celular, tabela a partir de 768 px; a linha inteira abre a ficha. */
+.conferir-table {
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.conferir-table-head {
+  display: none;
+}
+
+.conferir-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conferir-item + .conferir-item {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.conferir-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-3);
+  width: 100%;
+  min-height: var(--size-row-min);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conferir-row[data-hovered],
+.conferir-row[data-pressed] {
+  background: var(--color-surface-app);
+}
+
+.conferir-row[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: calc(-1 * var(--size-focus-ring-width));
+}
+
+.conferir-cell {
+  grid-column: 1;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.conferir-cell[data-label]::before {
+  content: attr(data-label) ': ';
+  color: var(--color-text-muted);
+}
+
+.conferir-name {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.conferir-cell[data-muted='true'] {
+  color: var(--color-text-muted);
+}
+
+.conferir-reason {
+  color: var(--color-warning-ink);
+}
+
+.conferir-chevron {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  color: var(--color-text-muted);
+}
+
+.conferir-item .conferir-conversation-lint {
+  margin: 0 var(--space-4) var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .conferir-table-head,
+  .conferir-row {
+    grid-template-columns:
+      minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) 18px;
+    gap: var(--space-4);
+  }
+
+  .conferir-table-head {
+    display: grid;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-surface-sunken);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .conferir-row {
+    align-items: center;
+    min-height: 52px;
+    padding-block: var(--space-2);
+  }
+
+  .conferir-cell,
+  .conferir-chevron {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .conferir-cell {
+    font-size: var(--font-size-body);
+    color: var(--color-text-primary);
+  }
+
+  .conferir-cell[data-label]::before {
+    content: none;
   }
 }

@@ -170,7 +170,6 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
           })
         }
       />
-      {suggestions ?? null}
       {snap.services.length > 5 ? (
         // DEC-163: com muitos serviços, buscar pelo nome é mais rápido que rolar.
         <SearchField
@@ -224,6 +223,8 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
           </li>
         ) : null}
       </ul>
+      {/* DEC-174: as sugestões chegam num segundo pedido; no fim, não empurram a lista. */}
+      {suggestions ?? null}
     </div>
   )
 }

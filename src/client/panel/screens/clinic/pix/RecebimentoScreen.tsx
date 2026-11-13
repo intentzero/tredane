@@ -1,15 +1,17 @@
 /**
  * M-33 — Recebimento de sinais (conta Woovi + prazo + política).
  * Só owner (área Clínica). Cobrança na conversa = Agendar / #38.
+ * DEC-174: estado em faixa, um cartão por decisão, resposta junto do botão.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
 import type { PanelApi, PixSnapshot } from '../../../api'
 import { PanelApiError } from '../../../api'
-import { navigatePanel } from '../../../routes'
-import { ErrorState, LoadingState } from '../../../states/StatusScreens'
+import { ErrorState } from '../../../states/StatusScreens'
 import { friendlyError } from '../../../copy/errors'
 import { Banner } from '../../../states/Banner'
+import { ClinicSkeleton } from '../ClinicSkeleton'
+import { BusyLabel, CardNotice, type CardNoticeValue } from '../CardFooter'
 
 type Props = {
   tenantId: string
@@ -17,30 +19,19 @@ type Props = {
   generation: number
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'connected':
-      return 'Conta conectada'
-    case 'revoked':
-      return 'Credencial revogada'
-    default:
-      return 'Sem conta conectada'
-  }
-}
+type Busy = null | 'connect' | 'disconnect' | 'save'
+type Notice = CardNoticeValue & { card: 'account' | 'policy' }
 
 export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   const [snap, setSnap] = useState<PixSnapshot | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [appId, setAppId] = useState('')
   const [deadlineHours, setDeadlineHours] = useState('2')
   const [policy, setPolicy] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [actionOk, setActionOk] = useState<string | null>(null)
+  const [busy, setBusy] = useState<Busy>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
 
   const reload = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const next = await api.getPix(tenantId, {
@@ -53,8 +44,6 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
       setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
-    } finally {
-      setLoading(false)
     }
   }, [api, tenantId, generation])
 
@@ -62,9 +51,6 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
     void reload()
   }, [reload])
 
-  if (loading && !snap) {
-    return <LoadingState label="Carregando recebimento de sinais…" />
-  }
   if (error && !snap) {
     return (
       <ErrorState
@@ -75,14 +61,20 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       />
     )
   }
-  if (!snap) return <LoadingState label="Carregando recebimento de sinais…" />
+  if (!snap) {
+    return <ClinicSkeleton shape="form" label="Carregando Recebimento de sinais" />
+  }
 
   const connected = snap.account.status === 'connected'
+  const revoked = snap.account.status === 'revoked'
 
   async function onConnect() {
-    setBusy(true)
-    setActionError(null)
-    setActionOk(null)
+    if (appId.trim().length < 8) {
+      setNotice({ card: 'account', tone: 'error', text: 'Cole o App ID completo da Woovi.' })
+      return
+    }
+    setBusy('connect')
+    setNotice(null)
     try {
       const account = await api.connectPix(tenantId, appId.trim(), {
         generation,
@@ -92,20 +84,25 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         prev ? { ...prev, account } : { account, signalSettings: snap!.signalSettings },
       )
       setAppId('')
-      setActionOk('Conta Woovi conectada. O dinheiro vai directo para a clínica.')
+      setNotice({
+        card: 'account',
+        tone: 'ok',
+        text: 'Conta Woovi conectada. O dinheiro vai direto para a clínica.',
+      })
     } catch (err) {
-      setActionError(
-        friendlyError(err, 'Não foi possível conectar a conta.'),
-      )
+      setNotice({
+        card: 'account',
+        tone: 'error',
+        text: friendlyError(err, 'Não foi possível conectar a conta.'),
+      })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   async function onDisconnect() {
-    setBusy(true)
-    setActionError(null)
-    setActionOk(null)
+    setBusy('disconnect')
+    setNotice(null)
     try {
       const result = await api.disconnectPix(tenantId, {
         generation,
@@ -116,22 +113,25 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
           ? { ...prev, account: result.account }
           : { account: result.account, signalSettings: snap!.signalSettings },
       )
-      setActionOk(
-        `Conta desconectada. ${result.chargesPreserved} cobrança(s) preservada(s) no histórico.`,
-      )
+      setNotice({
+        card: 'account',
+        tone: 'ok',
+        text: `Conta desconectada. ${result.chargesPreserved} cobrança(s) preservada(s) no histórico.`,
+      })
     } catch (err) {
-      setActionError(
-        friendlyError(err, 'Não foi possível desconectar.'),
-      )
+      setNotice({
+        card: 'account',
+        tone: 'error',
+        text: friendlyError(err, 'Não foi possível desconectar.'),
+      })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   async function onSaveSettings() {
-    setBusy(true)
-    setActionError(null)
-    setActionOk(null)
+    setBusy('save')
+    setNotice(null)
     const hours = Number(deadlineHours)
     const deadlineSeconds = Math.round(hours * 3600)
     try {
@@ -144,87 +144,95 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         { generation, expectGeneration: () => generation },
       )
       setSnap((prev) =>
-        prev
-          ? { ...prev, signalSettings }
-          : { account: snap!.account, signalSettings },
+        prev ? { ...prev, signalSettings } : { account: snap!.account, signalSettings },
       )
-      setActionOk('Prazo e política de cancelamento salvos.')
+      setNotice({ card: 'policy', tone: 'ok', text: 'Prazo e política salvos.' })
     } catch (err) {
-      setActionError(
-        friendlyError(err, 'Não foi possível salvar as definições.'),
-      )
+      setNotice({
+        card: 'policy',
+        tone: 'error',
+        text: friendlyError(err, 'Não foi possível salvar as definições.'),
+      })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
+  const accountNotice = notice?.card === 'account' ? notice : null
+  const policyNotice = notice?.card === 'policy' ? notice : null
+
   return (
     <div className="clinic-stack">
-      <div className="clinic-toolbar">
-        <Button
-          className="panel-btn panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
-          }
-        >
-          Voltar
-        </Button>
-      </div>
+      {connected ? (
+        <Banner tone="ok" title="Conta conectada">
+          <p>
+            Conta {snap.account.appIdHint} · versão da credencial {snap.account.credentialVersion} ·
+            ambiente {snap.account.environment}
+          </p>
+        </Banner>
+      ) : (
+        <Banner tone="warn" title={revoked ? 'Credencial revogada' : 'Sem conta conectada'}>
+          <p>
+            Serviços com sinal não conseguem enviar cobrança. A atendente ainda pode confirmar sem
+            sinal, com motivo.
+          </p>
+        </Banner>
+      )}
 
-      <Banner tone="info" title="Recebimento de sinais">
-        <p>
-          O Tredane cria a cobrança Pix na conta da clínica e{' '}
-          <strong>não</strong> recebe nem repassa o dinheiro. O provedor é a Woovi.
-        </p>
-      </Banner>
-
-      <section className="clinic-stack" aria-labelledby="pix-status">
-        <h3 id="pix-status">{statusLabel(snap.account.status)}</h3>
+      <section className="panel-card clinic-card" aria-labelledby="pix-account">
+        <h2 id="pix-account" className="panel-title-md">
+          Conta Woovi
+        </h2>
         {connected ? (
-          <>
-            <p className="clinic-footnote">
-              Conta {snap.account.appIdHint} · versão da credencial{' '}
-              {snap.account.credentialVersion} · ambiente {snap.account.environment}
-            </p>
+          <p className="clinic-footnote">
+            Para trocar de conta, desconecte esta e conecte a nova. As cobranças já feitas ficam no
+            histórico.
+          </p>
+        ) : (
+          <TextField className="clinic-field">
+            <Label>App ID da clínica</Label>
+            <Input
+              value={appId}
+              onChange={(e) => setAppId(e.target.value)}
+              autoComplete="off"
+              placeholder="Cole aqui"
+            />
+            <span className="clinic-footnote">
+              Não compartilhe com ninguém. Em testes, use um App ID de exemplo; o real só depois de o
+              suporte do Tredane liberar a conta.
+            </span>
+          </TextField>
+        )}
+        <div className="clinic-card-footer">
+          <CardNotice notice={accountNotice} />
+          {connected ? (
             <Button
-              className="panel-btn panel-btn-ghost"
-              isDisabled={busy}
+              className="panel-btn-danger"
+              isDisabled={busy !== null}
               onPress={() => void onDisconnect()}
             >
-              Desconectar conta
+              <BusyLabel busy={busy === 'disconnect'} busyText="Desconectando…">
+                Desconectar conta
+              </BusyLabel>
             </Button>
-          </>
-        ) : (
-          <>
-            <p className="clinic-footnote clinic-footnote-warn" role="status">
-              Sem conta conectada, serviços com sinal não permitem enviar cobrança. A
-              atendente ainda pode confirmar sem sinal (com motivo).
-            </p>
-            <TextField className="clinic-field">
-              <Label>App ID Woovi da clínica</Label>
-              <Input
-                value={appId}
-                onChange={(e) => setAppId(e.target.value)}
-                autoComplete="off"
-                placeholder="Cole o App ID (não compartilhe com ninguém)"
-              />
-            </TextField>
-            <p className="clinic-footnote">
-              Em testes, use um App ID de exemplo. O App ID real só deve ser usado depois que o suporte do Tredane confirmar que a conta está liberada.
-            </p>
+          ) : (
             <Button
-              className="panel-btn panel-btn-primary"
-              isDisabled={busy || appId.trim().length < 8}
+              className="panel-btn-primary"
+              isDisabled={busy !== null}
               onPress={() => void onConnect()}
             >
-              Conectar conta
+              <BusyLabel busy={busy === 'connect'} busyText="Conectando…">
+                Conectar conta
+              </BusyLabel>
             </Button>
-          </>
-        )}
+          )}
+        </div>
       </section>
 
-      <section className="clinic-stack" aria-labelledby="pix-policy">
-        <h3 id="pix-policy">Prazo e política de cancelamento</h3>
+      <section className="panel-card clinic-card" aria-labelledby="pix-policy">
+        <h2 id="pix-policy" className="panel-title-md">
+          Prazo e política de cancelamento
+        </h2>
         <TextField className="clinic-field">
           <Label>Prazo para pagar (horas)</Label>
           <Input
@@ -232,36 +240,33 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
             onChange={(e) => setDeadlineHours(e.target.value)}
             inputMode="decimal"
           />
+          <span className="clinic-footnote">
+            Padrão: 2 horas. Mínimo de 15 minutos e máximo de 48 horas.
+          </span>
         </TextField>
-        <p className="clinic-footnote">Padrão: 2 horas. Mínimo de 15 minutos e máximo de 48 horas.</p>
         <TextField className="clinic-field">
           <Label>Política de cancelamento do sinal</Label>
           <TextArea
             value={policy}
             onChange={(e) => setPolicy(e.target.value)}
             rows={4}
-            placeholder="Texto mostrado à cliente antes de pagar…"
+            placeholder="Ex.: o sinal é devolvido se a cliente cancelar com 24 horas de antecedência."
           />
+          <span className="clinic-footnote">A cliente vê este texto antes de pagar.</span>
         </TextField>
-        <Button
-          className="panel-btn panel-btn-primary"
-          isDisabled={busy}
-          onPress={() => void onSaveSettings()}
-        >
-          Salvar prazo e política
-        </Button>
+        <div className="clinic-card-footer">
+          <CardNotice notice={policyNotice} />
+          <Button
+            className="panel-btn-primary"
+            isDisabled={busy !== null}
+            onPress={() => void onSaveSettings()}
+          >
+            <BusyLabel busy={busy === 'save'} busyText="Salvando…">
+              Salvar prazo e política
+            </BusyLabel>
+          </Button>
+        </div>
       </section>
-
-      {actionError ? (
-        <p className="clinic-form-error" role="alert">
-          {actionError}
-        </p>
-      ) : null}
-      {actionOk ? (
-        <p className="clinic-footnote" role="status">
-          {actionOk}
-        </p>
-      ) : null}
     </div>
   )
 }

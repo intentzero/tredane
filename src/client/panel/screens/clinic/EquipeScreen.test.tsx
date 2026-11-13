@@ -145,8 +145,9 @@ describe('EquipeScreen — S1', () => {
     )
     const status = screen.getByRole('status')
     expect(status.getAttribute('aria-busy')).toBe('true')
-    expect(screen.getByText('Carregando equipe…').className).toContain('panel-sr-only')
-    expect(container.querySelectorAll('.panel-skeleton-row')).toHaveLength(5)
+    expect(screen.getByText('Carregando Equipe').className).toContain('panel-sr-only')
+    // DEC-174: esqueleto com a forma da lista, dentro da moldura (aparece após 300 ms).
+    expect(container.querySelector('.clinic-skeleton[data-shape="list"]')).toBeTruthy()
     expect(container.querySelector('.panel-spin')).toBeNull()
     resolveTeam(snap())
     await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
@@ -170,6 +171,35 @@ describe('EquipeScreen — S1', () => {
     expect(screen.getAllByText('Atendente').length).toBeGreaterThan(0)
     expect(screen.queryByText('user_owner')).toBeNull()
     expect(screen.queryByText(/recepcionista/i)).toBeNull()
+  })
+
+  it('DEC-174: sem nome no cadastro, o e-mail faz de nome e as iniciais saem dele', async () => {
+    const base = snap()
+    const api = mockApi({
+      ...base,
+      members: [base.members[0]!, { ...base.members[1]!, displayName: null, email: 'carla.souza@belapele.example' }],
+    })
+    const { container } = render(
+      <EquipeScreen tenantId="clinic-demo-a" api={api} generation={1} viewerClerkUserId="user_owner" />,
+    )
+    await waitFor(() => expect(screen.getByText('carla.souza@belapele.example')).toBeTruthy())
+    expect(screen.getByText('Ainda sem nome no cadastro')).toBeTruthy()
+    expect(screen.queryByText('Sem nome')).toBeNull()
+    const avatars = [...container.querySelectorAll('.equipe-avatar')].map((a) => a.textContent)
+    expect(avatars).toContain('CS')
+  })
+
+  it('DEC-174: espera saber quem vê antes de mostrar a lista', async () => {
+    const api = mockApi(snap())
+    const { rerender } = render(
+      <EquipeScreen tenantId="clinic-demo-a" api={api} generation={1} viewerClerkUserId={null} viewerPending />,
+    )
+    await waitFor(() => expect(api.getTeam).toHaveBeenCalled())
+    expect(screen.queryByText('Luciana Moraes')).toBeNull()
+    rerender(
+      <EquipeScreen tenantId="clinic-demo-a" api={api} generation={1} viewerClerkUserId="user_owner" />,
+    )
+    await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
   })
 
   it('desabilita reenviar durante o cooldown; cancelar pede confirmação (DEC-171)', async () => {
@@ -275,12 +305,16 @@ describe('EquipeScreen — S1', () => {
       expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy(),
     )
     const membros = container.querySelector('#equipe-membros-t')?.closest('section')
-    const cta = container.querySelector('.equipe-head .equipe-invite-cta')
+    const cta = container.querySelector('.clinic-page-header .equipe-invite-cta')
     expect(membros).toBeTruthy()
     expect(cta).toBeTruthy()
     const position = membros!.compareDocumentPosition(cta!)
     expect(position & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
-    expect(container.querySelector('.equipe-summary')?.textContent).toBe('2 membros')
+    // DEC-174: a contagem fica só no título da secção; o cabeçalho diz para que serve a tela.
+    expect(container.querySelector('.clinic-page-desc')?.textContent).toBe(
+      'Quem entra no painel desta clínica e o que pode fazer.',
+    )
+    expect(screen.getByRole('heading', { name: 'Membros · 2' })).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
     await user.type(screen.getByLabelText('E-mail'), 'nova@clinica.example')
@@ -715,7 +749,7 @@ describe('EquipeScreen — tempo real invitation.accepted', () => {
       />,
     )
     await waitFor(() => expect(screen.getByText('lainebsb@hotmail.com')).toBeTruthy())
-    expect(screen.getByText(/2 membros · 1 convite pendente/)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /Membros · 2/ })).toBeTruthy()
     expect(screen.getByRole('heading', { name: /Convites pendentes · 1/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancelar…' })).toBeTruthy()
     expect(screen.queryByText('Laine Silva')).toBeNull()
@@ -728,7 +762,6 @@ describe('EquipeScreen — tempo real invitation.accepted', () => {
     await waitFor(() => expect(screen.getByText('Laine Silva')).toBeTruthy())
     expect(screen.queryByRole('button', { name: 'Cancelar…' })).toBeNull()
     expect(screen.getByText('Nenhum convite pendente.')).toBeTruthy()
-    expect(screen.getByText('3 membros')).toBeTruthy()
     expect(screen.getByRole('heading', { name: /Membros · 3/ })).toBeTruthy()
     expect(screen.getByRole('heading', { name: /^Convites pendentes$/ })).toBeTruthy()
     expect(api.getTeam).toHaveBeenCalledTimes(2)

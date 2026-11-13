@@ -3,7 +3,7 @@
  * promover / despromover / remover (último owner protegido).
  * Aceite de convite noutra sessão invalida a lista via WS (DEC-038 / invitation.accepted).
  */
-import { ChevronLeft, Mail, MoreVertical, Plus } from 'lucide-react'
+import { Mail, MoreVertical, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
@@ -20,7 +20,6 @@ import {
 import type { PanelApi, TeamInvitation, TeamMemberLite, TeamSnapshot } from '../../api'
 import { PanelApiError } from '../../api'
 import { friendlyError } from '../../copy/errors'
-import { navigatePanel } from '../../routes'
 import {
   InboxRealtimeProvider,
   isTeamEvent,
@@ -28,7 +27,8 @@ import {
 } from '../../realtime/InboxRealtime'
 import { Badge } from '../../states/Badge'
 import { Banner } from '../../states/Banner'
-import { ListSkeleton } from '../../states/ListSkeleton'
+import { ClinicSkeleton } from './ClinicSkeleton'
+import { ClinicPageHeader } from './ClinicPageHeader'
 import { ErrorState } from '../../states/StatusScreens'
 import { ClinicSheet } from './ClinicSheet'
 import { useMediaQuery } from '../../ui/useMediaQuery'
@@ -38,6 +38,8 @@ type Props = {
   api: PanelApi
   generation: number
   viewerClerkUserId: string | null
+  /** DEC-174: enquanto não se sabe quem vê, a lista espera (o «(você)» não aparece depois). */
+  viewerPending?: boolean
 }
 
 type MemberAction = 'promote' | 'demote' | 'revoke'
@@ -53,13 +55,22 @@ function initials(name: string): string {
   return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase()
 }
 
+/** DEC-174: sem nome no cadastro, o e-mail faz de nome e as iniciais saem dele. */
+function memberInitials(m: TeamMemberLite): string {
+  const name = m.displayName?.trim()
+  if (name) return initials(name)
+  const local = m.email?.trim().split('@')[0] ?? ''
+  return initials(local.replace(/[._+-]+/g, ' '))
+}
+
 function memberDisplayName(m: TeamMemberLite, viewerId: string | null): string {
-  const base = m.displayName?.trim() || 'Sem nome'
+  const base = m.displayName?.trim() || m.email?.trim() || 'Sem nome'
   if (viewerId && m.clerkUserId === viewerId) return `${base} (você)`
   return base
 }
 
 function memberEmail(m: TeamMemberLite): string {
+  if (!m.displayName?.trim() && m.email?.trim()) return 'Ainda sem nome no cadastro'
   return m.email?.trim() || 'Sem e-mail'
 }
 
@@ -134,7 +145,13 @@ export function EquipeScreen(props: Props) {
   )
 }
 
-function EquipeScreenInner({ tenantId, api, generation, viewerClerkUserId }: Props) {
+function EquipeScreenInner({
+  tenantId,
+  api,
+  generation,
+  viewerClerkUserId,
+  viewerPending = false,
+}: Props) {
   const [snap, setSnap] = useState<TeamSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -337,8 +354,8 @@ function EquipeScreenInner({ tenantId, api, generation, viewerClerkUserId }: Pro
     }
   }
 
-  if (loading && !snap) {
-    return <ListSkeleton label="Carregando equipe…" rows={5} />
+  if ((loading && !snap) || (viewerPending && !error)) {
+    return <ClinicSkeleton shape="list" label="Carregando Equipe" />
   }
   if (error && !snap) {
     return (
@@ -350,7 +367,7 @@ function EquipeScreenInner({ tenantId, api, generation, viewerClerkUserId }: Pro
       />
     )
   }
-  if (!snap) return <ListSkeleton label="Carregando equipe…" rows={5} />
+  if (!snap) return <ClinicSkeleton shape="list" label="Carregando Equipe" />
 
   const confirmBusy =
     pendingAction != null && busyId === `${pendingAction.action}:${pendingAction.member.clerkUserId}`
@@ -363,47 +380,26 @@ function EquipeScreenInner({ tenantId, api, generation, viewerClerkUserId }: Pro
   const cancelBusy = cancelInvite != null && busyId === `cancel:${cancelInvite.id}`
   const memberCount = members.length
   const inviteCount = invitations.length
-  const summary = [
-    memberCount === 1 ? '1 membro' : `${memberCount} membros`,
-    inviteCount === 0
-      ? null
-      : inviteCount === 1
-        ? '1 convite pendente'
-        : `${inviteCount} convites pendentes`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
 
   return (
     <div className="clinic-stack equipe-screen">
-      <div className="clinic-toolbar clinic-desktop-hide">
-        <Button
-          className="panel-btn panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
-          }
-        >
-          <ChevronLeft aria-hidden size={18} strokeWidth={2} /> Clínica
-        </Button>
-      </div>
-
-      <div className="equipe-head">
-        <div className="equipe-head-copy">
-          <h2 className="panel-title clinic-h2">Equipe</h2>
-          <p className="equipe-summary">{summary}</p>
-        </div>
-        <Button
-          className="panel-btn panel-btn-primary equipe-invite-cta"
-          onPress={() => {
-            setActionError(null)
-            setInviteRole('attendant')
-            setInviteOpen(true)
-          }}
-        >
-          <Plus aria-hidden size={18} strokeWidth={2} />
-          Convidar pessoa
-        </Button>
-      </div>
+      <ClinicPageHeader
+        title="Equipe"
+        description="Quem entra no painel desta clínica e o que pode fazer."
+        action={
+          <Button
+            className="panel-btn panel-btn-primary equipe-invite-cta"
+            onPress={() => {
+              setActionError(null)
+              setInviteRole('attendant')
+              setInviteOpen(true)
+            }}
+          >
+            <Plus aria-hidden size={18} strokeWidth={2} />
+            Convidar pessoa
+          </Button>
+        }
+      />
 
       {actionError ? (
         <Banner tone="error" title="Não deu certo">
@@ -435,7 +431,7 @@ function EquipeScreenInner({ tenantId, api, generation, viewerClerkUserId }: Pro
                         className={`equipe-avatar${m.role === 'owner' ? ' equipe-avatar--owner' : ''}`}
                         aria-hidden
                       >
-                        {initials(m.displayName?.trim() || '?')}
+                        {memberInitials(m)}
                       </span>
                       <span className="equipe-copy">
                         <strong>{name}</strong>
