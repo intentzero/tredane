@@ -376,4 +376,23 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       },
     },
   },
+  {
+    id: 'A-53',
+    title: '«Posso falar com um atendente?» na pergunta das zonas → equipe (DEC-083)',
+    turnosIdeais: 2,
+    // rsamp_fa7f138 (staging 13/11/2026 13:16): pedido de atendente virava
+    // «Não encontrei falar nas opções» + lista de zonas em vez do handoff.
+    turns: [
+      { role: 'client', text: 'Quero agendar uma depilação masculina' },
+      { role: 'client', text: 'Posso falar com um atendente?' },
+    ],
+    expect: {
+      paused: true,
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/quais zonas/i] }],
+      outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
+      outboundExcludes: [/Não encontrei/i, /nas opções/i],
+    },
+  },
 ]
