@@ -42,6 +42,18 @@ describe('classifyCrossCuttingAct (P1 gate)', () => {
     if (act.kind === 'ask_info') expect(act.topic).toBe('duration')
   })
 
+  it('A íntima inclui anus? = ask_info explanation (DEC-177, antes do leftover)', () => {
+    const act = classifyCrossCuttingAct({ text: 'A íntima inclui anus?' })
+    expect(act.kind).toBe('ask_info')
+    if (act.kind === 'ask_info') expect(act.topic).toBe('explanation')
+  })
+
+  it('o que é íntima? = ask_info explanation', () => {
+    const act = classifyCrossCuttingAct({ text: 'o que é íntima?' })
+    expect(act.kind).toBe('ask_info')
+    if (act.kind === 'ask_info') expect(act.topic).toBe('explanation')
+  })
+
   it('escolha de variante = none (segue pending/filler)', () => {
     const act = classifyCrossCuttingAct({ text: 'Massagem relaxante' })
     expect(act.kind).toBe('none')

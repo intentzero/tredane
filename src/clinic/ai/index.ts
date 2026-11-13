@@ -103,6 +103,14 @@ export {
   type AskInfoPolicyAct,
 } from './ask-info-realize'
 export {
+  isCatalogClarificationAsk,
+  answerFaqFromCatalog,
+  handleFaqContinueButtonClick,
+  FAQ_MISSING_DETAIL_BODY,
+  FAQ_CONTINUE_BUTTON_ID,
+  type FaqCatalogAnswer,
+} from './faq-clarification'
+export {
   getAiDailyUsage,
   incrementAiDailyUsage,
   recordModelCallTowardDailyCap,

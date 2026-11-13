@@ -134,6 +134,7 @@ import {
   handleChoiceOfferClick,
   isChoiceOfferId,
 } from '../clinic/ai/choice-offer'
+import { handleFaqContinueButtonClick } from '../clinic/ai/faq-clarification'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
 import { parseFlowSessionJson } from '../whatsapp/flow/tokens'
@@ -1224,6 +1225,30 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
         if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
         return { handled: true, action: idle.action }
+      }
+    }
+    // DEC-177 — FAQ sem detalhe («Continuar» → reabre zonas; não marca).
+    if (input.conversationId) {
+      const faqContinue = handleFaqContinueButtonClick(
+        this.#db,
+        caller,
+        {
+          tenantId: caller.tenantId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+          services: clinicConfig.listServices(this.#db, caller.tenantId),
+          authorClerkUserId: 'system:ai-autodraft',
+          authorDisplayName: 'Assistente',
+        },
+        this.#clock,
+      )
+      if (faqContinue.handled) {
+        if (faqContinue.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, faqContinue.outbox, true)
+          await this.#drain(caller)
+        }
+        return { handled: true, action: 'faq_continue' as const }
       }
     }
     // T3 — pós-preço («Marcar outro» / «Terminar»).
