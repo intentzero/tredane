@@ -16,7 +16,7 @@ import {
   validateExtractorOutput,
   type ExtractorRaw,
 } from './llm-extractor'
-import { interpretTurn, type TurnInterpretation } from './nlu/interpret'
+import { interpretTurn, type TurnInterpretation, type TurnSlots } from './nlu/interpret'
 import { norm, parseTemporal, parseTimes } from './nlu/temporal'
 import type { BookingFramePending } from './schedule-session'
 import type { AiAssistDeps } from './types'
@@ -133,8 +133,8 @@ export function resolveShadowSlots(
   return { slots, rejected }
 }
 
-function ruleSlots(base: TurnInterpretation): ShadowSlots {
-  const s = base.slots
+/** Campos do interpretador determinístico (ou do validador estrito) no formato comparável. */
+export function toShadowSlots(s: TurnSlots): ShadowSlots {
   return {
     ...(s.serviceId ? { service: s.serviceId.value } : {}),
     ...(s.variantIds ? { variants: [...new Set(s.variantIds.value)].sort() } : {}),
@@ -168,7 +168,7 @@ export type ShadowComparison = {
 }
 
 export function compareInterpretations(base: TurnInterpretation, llm: ShadowSlots): ShadowComparison {
-  const rule = ruleSlots(base)
+  const rule = toShadowSlots(base.slots)
   const fields = {} as Record<ShadowField, ShadowVerdict>
   for (const f of SHADOW_FIELDS) fields[f] = verdict(rule[f], llm[f])
   const llmOnly = SHADOW_FIELDS.filter((f) => fields[f] === 'llm_only')

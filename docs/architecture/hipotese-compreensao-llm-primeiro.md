@@ -92,6 +92,20 @@ A validação da leitura do modelo na sombra é **relaxada**: o id tem de existi
 4. Ler os eventos nos Workers Logs (ainda não há script de agregação; o próximo passo é um, nos moldes de `scripts/flow-funnel.mjs`).
 5. Rotular uma amostra à mão: abrir a conversa no painel a partir do `conversationId` e marcar cada divergência como «modelo certo», «léxico certo» ou «ambos errados». O evento diz onde divergem, não quem tem razão.
 
+### 5.3b Reexecução sobre corpus fixo (sem tráfego)
+
+Corpus de 59 frases fictícias com a leitura correta rotulada à mão ([`evals/shadow/corpus.ts`](../../src/clinic/ai/evals/shadow/corpus.ts)), sobre o catálogo de referência e «hoje» = qui 05/11/2026. Compara cinco sistemas contra o rótulo: `rule` (léxico), `today` (o que produção faz), `strict` (léxico + modelo com citação literal), `relaxed` (só modelo, validação por id: H1) e `hybrid` (léxico primeiro, modelo preenche o vazio). Mede frases perfeitas, campos certos, errados, em falta e **inventados**.
+
+```bash
+# Sem chaves: valida a tubagem; os números do modelo não valem
+EVAL_SHADOW_REPLAY=dry npm run eval:shadow-replay
+
+# Com o modelo real (teto US$ 2; exporta as chaves no terminal, não no chat)
+EVAL_SHADOW_REPLAY=live CF_ACCOUNT_ID=… AI_GATEWAY_ID=… AI_GATEWAY_TOKEN=… npm run eval:shadow-replay
+```
+
+Escreve `.eval/shadow-replay.md` (relatório) e `.eval/shadow-replay-raw.json` (saída bruta do modelo, para reanalisar sem custo). A coluna `rule` é determinística e já vale sem chaves. Limite: as frases são escritas pela equipe e mais limpas do que as de clientes; os rótulos são meus e podem ter erros, por isso cada divergência deve ser revista antes de tirar conclusões.
+
 ### 5.4 De onde vêm as conversas
 
 O tráfego do staging é da equipe e escreve como o léxico espera, por isso **subestima** o ganho. Por ordem de esforço:

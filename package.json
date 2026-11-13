@@ -23,6 +23,7 @@
     "ops:load": "node scripts/ops-synthetic-load.mjs",
     "mvp:evidence": "node scripts/mvp-evidence-check.mjs",
     "test:dialogs": "vitest run src/clinic/ai/evals/dialogs",
+    "eval:shadow-replay": "vitest run src/clinic/ai/evals/shadow/replay.test.ts",
     "eval:scorecard": "EVAL_SCORECARD=1 vitest run src/clinic/ai/evals/dialogs/dialogs.test.ts",
     "eval:baseline": "EVAL_SCORECARD_RECORD=1 vitest run src/clinic/ai/evals/dialogs/dialogs.test.ts",
     "eval:l2": "vitest run src/clinic/ai/evals/l2/cli.test.ts",
