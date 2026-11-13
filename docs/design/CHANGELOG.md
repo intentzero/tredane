@@ -1,8 +1,8 @@
 # Histórico do design
 
-## 13/11/2026 — M-33 Recebimento: prazo em presets (**Proposto**)
+## 13/11/2026 — M-33 Recebimento: prazo em presets (**Confirmado**, DEC-179)
 
-- `mobile/Recebimento.dc.html`: cartão **Prazo e política de cancelamento** com presets **15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h** (2 h selecionado no estado inicial) e **Outro…** (número + unidade min|h; mín. 15 min, máx. 48 h; valor conceptual em minutos). Mantém textarea da política e **Salvar prazo e política**. Alinha a DEC-175 (faixa + dois cartões). Fecha como UI o Em aberto «prazo do Pix em opções»; **não** implementa no painel até o Paulo confirmar.
+- `mobile/Recebimento.dc.html`: cartão **Prazo e política de cancelamento** com presets **15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h** (2 h selecionado no estado inicial) e **Outro…** (número + unidade min|h; mín. 15 min, máx. 48 h; valor conceptual em minutos, `deadlineSeconds` no servidor). Mantém textarea da política e **Salvar prazo e política**. Alinha a DEC-175 (faixa + dois cartões). Fecha o Em aberto «prazo do Pix em opções» (**Confirmado** Paulo 13/11/2026 — mock #731). Painel: `RecebimentoScreen` + `deadlinePresets`.
 
 ## 12/11/2026 — DEC-176: ficha do serviço e «O que a IA reconhece»
 

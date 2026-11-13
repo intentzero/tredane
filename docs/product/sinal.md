@@ -19,7 +19,7 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 | Cancelamento depois do pagamento: a clínica escreve sua política; a equipe escolhe devolver ou reter, com motivo registrado; a política aparece para a cliente antes de pagar | **Confirmado** |
 | Provedor escolhido por avaliação na F0 | **Confirmado** o método (DEC-047); escolha **Confirmado: Woovi (OpenPix)** (DEC-049 / [ADR-0014](../adr/0014-pix-provider.md)); Mercado Pago permanece alternativa documentada |
 | Ao receber o pagamento, o Tredane confirma o compromisso **se o horário ainda estiver livre**, sem nova ação da equipe (regra do sistema, não da IA) | **Confirmado** (24/10/2026) |
-| Prazo padrão para pagar: **2 horas**; a responsável pode mudá-lo em Recebimento de sinais (M-33) | **Confirmado** (24/10/2026) |
+| Prazo padrão para pagar: **2 horas**; a responsável pode mudá-lo em Recebimento de sinais (M-33) por presets (**15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h**) + **Outro…** (min\|h; DEC-179) | **Confirmado** (24/10/2026; forma do ajuste Confirmada DEC-179, 13/11/2026) |
 | A atendente pode **Confirmar sem sinal** um serviço que exige sinal, informando o motivo; o histórico guarda quem fez e o motivo | **Confirmado** (24/10/2026) |
 
 ## Fluxo principal (JRN-16)

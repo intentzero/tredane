@@ -149,6 +149,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Clínica normalizada (Confirmado, DEC-175, Paulo, 13/11/2026):** todas as opções da Clínica abrem na mesma moldura, com a coluna centrada, o mesmo cabeçalho e um esqueleto com a forma de cada tela enquanto carregam. Detalhe em [ux-ui](product/ux-ui.md).
 
+**Prazo do Pix em presets (Confirmado, DEC-179, Paulo, 13/11/2026):** em Recebimento (M-33), presets 15 min–48 h + Outro… (min|h); servidor em `deadlineSeconds`. Fecha o Em aberto da DEC-175. Detalhe em [ux-ui](product/ux-ui.md) TEL-11.
+
 **Ficha do serviço revista (Confirmado, DEC-176, Paulo, 12/11/2026):** opções agrupadas pelo nome com sinônimos partilhados, modo e público em segmentos, a conta certa em «Como fica na agenda» e a vista «O que a IA reconhece». Detalhe em [ux-ui](product/ux-ui.md).
 
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
