@@ -2,18 +2,14 @@
 # Ver docs/architecture/hipotese-compreensao-llm-primeiro.md §5.3b.
 #
 # Só manual: cada corrida chama o modelo real (59 chamadas, teto US$ 2 no script).
-# Não corre em PR nem em push, e PRs de forks não recebem segredos de qualquer forma.
+# Não corre em PR nem em push. O disparo manual só aparece em Actions depois de este
+# ficheiro estar na branch padrão.
 # Exige no environment `staging`: AI_GATEWAY_ID, AI_GATEWAY_TOKEN e ANTHROPIC_API_KEY (BYOK;
 # CLOUDFLARE_ACCOUNT_ID já existe).
 name: Reexecução da sombra
 
 on:
   workflow_dispatch:
-  # TEMPORÁRIO: o disparo manual só existe depois de o ficheiro estar na main.
-  # Corre ao enviar este ficheiro ou o corpus/análise nesta branch; remover antes do merge.
-  push:
-    branches: [claude/tredane-conversational-analysis-4731fb]
-    paths: ['.github/workflows/shadow-replay.yml', 'src/clinic/ai/evals/shadow/**']
 
 permissions:
   contents: read
