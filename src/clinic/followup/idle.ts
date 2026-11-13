@@ -30,6 +30,7 @@ import {
   setConversationIdle,
 } from './idle-state'
 import { FOLLOWUP_ACTOR, FOLLOWUP_ACTOR_DISPLAY, THANKS_REPLY_BODY } from './post-booking'
+import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
 import {
   planIdleContinueResume,
   sendIdleContinueProposalReoffer,
@@ -370,7 +371,8 @@ function settleIdle(
     )
     outbox.push(...thanks.outbox)
   }
-  clearConversationIdle(db, tenantId, conversationId, clock.nowMs())
+  // Após outbound (que reagenda idle) e sem thanks: cancela idle + handoff DEC-155.
+  outbox.push(...suppressFollowupsAfterClientEnd(db, tenantId, conversationId, clock))
   return { closedOpportunityId, outbox }
 }
 

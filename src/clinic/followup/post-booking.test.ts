@@ -23,6 +23,19 @@ import {
   sendPostBookingFollowupOp,
 } from './post-booking'
 import { getBookingFrame, getScheduleSession, saveBookingFrame, saveScheduleSession } from '../ai/schedule-session'
+import { HANDOFF_TIMEOUT_MS } from '../constants'
+import {
+  HANDOFF_TIMEOUT_RESUME_TEXT,
+  notifyHumanHandoff,
+  readAiReplyPause,
+  readHandoffTimeoutAt,
+  sweepDueHandoffTimeouts,
+} from '../ai/human-handoff'
+import {
+  IDLE_PROMPT_AFTER_MS,
+  IDLE_PROMPT_BODY,
+  sweepDueIdleConversations,
+} from './idle'
 
 const TZ = 'America/Sao_Paulo'
 const STALE_SLOT = /nesse horário das 15:00|15:00 já não tenho vaga|às 15:00 já está ocupado|próximo com vaga/i
@@ -474,6 +487,108 @@ describe('DEC-086 post-booking follow-up', () => {
         'clinic-demo-a',
       )
       expect(n?.n).toBe(1)
+      expect(findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)?.stage).toBe(
+        'agendado',
+      )
+    } finally {
+      close()
+    }
+  })
+
+  it('Terminar cancela handoff DEC-155 e idle — sem «equipe não conseguiu» / «Ainda está aí?»', () => {
+    // Staging: Agendado + Terminar com pausa DEC-083 aberta → +30 min handoff-fail
+    // e +60 min idle. Confirmar funciona com IA pausada; Terminar tem de limpar.
+    const clock = createControllableClock(Date.UTC(2026, 10, 13, 12, 11))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:terminar-suppress',
+          waId: '5511987001999',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)!
+      db.run(
+        `UPDATE opportunities SET stage = 'agendado', updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        opp.id,
+      )
+
+      const handoff = notifyHumanHandoff(
+        db,
+        'clinic-demo-a',
+        {
+          conversationId,
+          reason: 'customer_requested',
+          clientRequestId: 'wa:fu:terminar-suppress:handoff',
+        },
+        clock,
+      )
+      expect(handoff.already).toBe(false)
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)?.at).not.toBeNull()
+      expect(readHandoffTimeoutAt(db, 'clinic-demo-a', conversationId)).toBe(
+        clock.nowMs() + HANDOFF_TIMEOUT_MS,
+      )
+
+      sendPostBookingFollowupOp(
+        db,
+        caller,
+        { conversationId, appointmentId: 'apt_fu_terminar' },
+        clock,
+      )
+
+      const click = handlePostBookingButtonClick(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          conversationId,
+          buttonId: postBookingButtonId('apt_fu_terminar', 'end'),
+          providerEventKey: 'wa:fu:terminar-suppress:end',
+        },
+        clock,
+      )
+      expect(click.handled).toBe(true)
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)).toBeNull()
+      expect(readHandoffTimeoutAt(db, 'clinic-demo-a', conversationId)).toBeNull()
+      const idleRow = db.get<{ due: number | null; phase: string | null }>(
+        `SELECT idle_due_at AS due, idle_phase AS phase FROM conversations WHERE id = ?`,
+        conversationId,
+      )
+      expect(idleRow?.due).toBeNull()
+      expect(idleRow?.phase).toBeNull()
+
+      clock.advance(HANDOFF_TIMEOUT_MS + 1)
+      expect(sweepDueHandoffTimeouts(db, 'clinic-demo-a', clock)).toHaveLength(0)
+      clock.advance(IDLE_PROMPT_AFTER_MS)
+      const idleSweep = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(idleSweep.every((item) => item.action !== 'prompted')).toBe(true)
+
+      const bodies = db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'`,
+          'clinic-demo-a',
+          conversationId,
+        )
+        .map((r) => r.body)
+      expect(bodies).not.toContain(HANDOFF_TIMEOUT_RESUME_TEXT)
+      expect(bodies).not.toContain(IDLE_PROMPT_BODY)
       expect(findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)?.stage).toBe(
         'agendado',
       )
