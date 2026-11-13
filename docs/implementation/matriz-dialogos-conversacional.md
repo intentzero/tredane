@@ -300,6 +300,10 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-09 | P0 | Preço a meio da pergunta de zonas | [Depilação feminino no quadro] C: «Quanto custa?» | Tabela `Nome — R$ … (N min)` das zonas da linha + re-pergunta leve. **Não** só «Quais zonas? Temos…». | INV-02 | 1 | ✅ L1 |
 | CC-10 | P0 | Preço a meio do ask-tipo (Massagem uma) | [Massagem no quadro, sem tipo] C: «Qual o valor das massagens?» | Tabela dos tipos com R$ + reabre «qual tipo» (stack ask_info park/resume no gate). **Não** repete só a lista de nomes nem perde o serviço. | INV-02, DEC-C1 | 1 | ✅ L1 |
 | CC-11 | P0 | Preço a meio da oferta de slots | [Massagem + Relaxante + lastOffer] C: «Qual o valor?» | Cota a variante com R$; mantém variante/`lastOffer`; reabre horário (`perguntar_horario`) via stack. **Não** re-pergunta tipo. | INV-02, DEC-C1 | 1 | ✅ L1 |
+| CC-15 | P0 | Nome contido noutro: «massagem relaxante» | [Massagem e Massagem relaxante no catálogo] C: «Quero massagem relaxante amanhã às 15h» | Proposta de **Massagem relaxante**; sem «Marcamos um serviço de cada vez». Antes: o resolver contava dois serviços. | EF-01, EE-01 | 1 | ✅ L1 |
+| CC-16 | P0 | Nome contido noutro: «limpeza de pele profunda» | [Limpeza de pele e Limpeza de pele profunda] C: «Quero limpeza de pele profunda na sexta às 14h» | Proposta de **Limpeza de pele profunda**; sem pedido de um serviço de cada vez. | EF-01, EE-01 | 1 | ✅ L1 |
+| CC-17 | P0 | Dois serviços distintos continuam a ser dois | C: «Quero massagem relaxante e depilação amanhã» | «Marcamos um serviço de cada vez»; sem proposta (a correção não pode abrir o composto). | INV-01 | 1 | ✅ L1 |
+| CC-18 | P0 | O nome curto continua a escolher o serviço curto | C: «Quero massagem amanhã às 15h» | Proposta de **Massagem**, não de Massagem relaxante. | EF-01 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

@@ -677,4 +677,53 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       outboundExcludes: NO_LEAK,
     },
   },
+  {
+    id: 'CC-15',
+    title: 'Nome de serviço contido noutro: «massagem relaxante» é um só serviço e marca',
+    turnosIdeais: 1,
+    // Staging/corpus: «Massagem» e «Massagem relaxante» no mesmo catálogo faziam o resolver
+    // contar dois serviços e responder «Marcamos um serviço de cada vez».
+    turns: [{ role: 'client', text: 'Quero massagem relaxante amanhã às 15h' }],
+    expect: {
+      proposal: true,
+      noAppointment: true,
+      outboundIncludes: ['Serviço: Massagem relaxante'],
+      outboundExcludes: [/de cada vez/i],
+    },
+  },
+  {
+    id: 'CC-16',
+    title: 'Nome de serviço contido noutro: «limpeza de pele profunda» é um só serviço e marca',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero limpeza de pele profunda na sexta às 14h' }],
+    expect: {
+      proposal: true,
+      noAppointment: true,
+      outboundIncludes: ['Serviço: Limpeza de pele profunda'],
+      outboundExcludes: [/de cada vez/i],
+    },
+  },
+  {
+    id: 'CC-17',
+    title: 'Dois serviços distintos no mesmo pedido continuam a pedir um de cada vez',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem relaxante e depilação amanhã' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundIncludes: ['um serviço de cada vez'],
+    },
+  },
+  {
+    id: 'CC-18',
+    title: 'O nome mais curto continua a escolher o serviço curto: «massagem» marca Massagem',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem amanhã às 15h' }],
+    expect: {
+      proposal: true,
+      noAppointment: true,
+      outboundIncludes: ['Serviço: Massagem\n'],
+      outboundExcludes: [/relaxante/i, /de cada vez/i],
+    },
+  },
 ]
