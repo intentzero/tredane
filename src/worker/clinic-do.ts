@@ -166,6 +166,7 @@ import {
 import { systemClock, type Clock } from '../db/clock'
 import {
   DoInvocationTimer,
+  canSkipAlarmSchedule,
   logDoStepTiming,
   syncDoStorage,
 } from './clinic-do-timing'
@@ -1888,7 +1889,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       setAlarm?: (t: number) => Promise<void>
     }
     if (typeof storage.setAlarm !== 'function') return
-    if (this.#scheduledAlarmAt != null && this.#scheduledAlarmAt <= at) return
+    // Cache só vale para um alarme ainda futuro: quando o alarme dispara o runtime
+    // apaga-o, e um valor passado aqui suprimia todos os setAlarm seguintes.
+    if (canSkipAlarmSchedule(this.#scheduledAlarmAt, at, this.#clock.nowMs())) return
     const startedMs = this.#clock.nowMs()
     let getMs = 0
     let setMs = 0
@@ -3614,6 +3617,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   async alarm(): Promise<void> {
+    // O alarme que está a disparar já não está agendado; esquecer o cache.
+    this.#scheduledAlarmAt = null
     return this.#withRpc('alarm', async (timer) => {
       this.#ensureReady()
       timer.markHandlerEntry(this.#clock)

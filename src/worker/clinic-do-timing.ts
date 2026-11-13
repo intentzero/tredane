@@ -92,3 +92,16 @@ export function logDoStepTiming(input: {
     }),
   )
 }
+
+/**
+ * `#scheduleAlarmNoLaterThan` pode saltar `setAlarm` só quando há um alarme
+ * ainda por disparar (`cachedAt > now`) que chega a tempo (`cachedAt <= at`).
+ * Um valor em cache já passado (alarme disparado) nunca conta.
+ */
+export function canSkipAlarmSchedule(
+  cachedAt: number | null,
+  at: number,
+  nowMs: number,
+): boolean {
+  return cachedAt != null && cachedAt > nowMs && cachedAt <= at
+}
