@@ -54,6 +54,21 @@ describe('isCatalogClarificationAsk (DEC-177)', () => {
     expect(isCatalogClarificationAsk('Intima')).toBe(false)
     expect(isCatalogClarificationAsk('todas')).toBe(false)
   })
+
+  it('P1 rsamp_fa7f138: pergunta de abrangência («é a perna inteira?») é clarificação', () => {
+    expect(isCatalogClarificationAsk('Pernas é a perna inteira?')).toBe(true)
+    expect(isCatalogClarificationAsk('Braços é o braço todo?')).toBe(true)
+    expect(isCatalogClarificationAsk('A axila é só a axila completa?')).toBe(true)
+  })
+
+  it('P1 rsamp_fa7f138: escolha de zona com «?» ou «e» conjunção não é clarificação', () => {
+    expect(isCatalogClarificationAsk('pernas e axila?')).toBe(false)
+    expect(isCatalogClarificationAsk('axila e pernas inteiras?')).toBe(false)
+    expect(isCatalogClarificationAsk('Pernas inteiras')).toBe(false)
+    expect(isCatalogClarificationAsk('Pernas é a perna inteira')).toBe(false)
+    expect(isCatalogClarificationAsk('Na terça?')).toBe(false)
+    expect(isCatalogClarificationAsk('todas?')).toBe(false)
+  })
 })
 
 describe('answerFaqFromCatalog (DEC-177)', () => {

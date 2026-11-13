@@ -904,7 +904,7 @@ function maskClockSpans(folded: string): string {
 }
 
 /**
- * Typos a 1 edição do sufixo «feira» («feora», «feria»).
+ * Typos a 1 edição do sufixo «feira» («feora», «feria», «fiera» por transposição).
  * Não é fuzzy de zona — só evita option-miss em fragmentos de «terça-feira».
  */
 function editDistanceAtMostOne(a: string, b: string): boolean {
@@ -921,6 +921,12 @@ function editDistanceAtMostOne(a: string, b: string): boolean {
     edits += 1
     if (edits > 1) return false
     if (a.length === b.length) {
+      // Transposição adjacente conta como 1 edição («fiera» ← «feira», P1 rsamp_fa7f138).
+      if (a[i + 1] === b[j] && a[i] === b[j + 1]) {
+        i += 2
+        j += 2
+        continue
+      }
       i += 1
       j += 1
     } else if (a.length > b.length) i += 1

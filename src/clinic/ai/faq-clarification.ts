@@ -42,10 +42,19 @@ export function foldFaqText(text: string): string {
  * True se o texto é pergunta/clarificação de cobertura ou significado
  * (ex.: «A íntima inclui anus?», «o que é íntima?»).
  */
+/**
+ * Pergunta de abrangência («Pernas é a perna inteira?», «Braços é o braço todo?»).
+ * Exige «é»/«são» acentuado (não confunde com a conjunção «e» em «axila e pernas»)
+ * e «?» no fim — P1 rsamp_fa7f138: «inteira» virava «Não encontrei inteira».
+ */
+const SCOPE_ASK =
+  /(?:^|\s)(?:é|são|seria|seriam)\s+(?:(?:a|o|as|os|só|so|apenas)\s+)*(?:[a-zà-ú]+\s+)?(?:inteir[ao]s?|tod[ao]s?|complet[ao]s?)\b/i
+
 export function isCatalogClarificationAsk(text: string): boolean {
   const t = text.trim()
   if (!t) return false
-  return CLARIFICATION_CUE.test(foldFaqText(t))
+  if (CLARIFICATION_CUE.test(foldFaqText(t))) return true
+  return /\?\s*$/.test(t) && SCOPE_ASK.test(t.toLowerCase())
 }
 
 function foldName(name: string): string {
