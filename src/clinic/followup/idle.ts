@@ -418,7 +418,11 @@ export type IdleButtonResult =
       resumeChoice?: IdleContinueChoiceResume
     }
 
-function applyIdleClientAction(
+/**
+ * Continuar / Terminar partilhado: idle DEC-087 e ack de revisão (TRE-29).
+ * Continuar → retoma oferta/proposta ou «Combinado!…»; Terminar → settleIdle.
+ */
+export function applyIdleClientAction(
   db: ClinicDb,
   input: {
     tenantId: string
@@ -433,6 +437,7 @@ function applyIdleClientAction(
   action: 'continue' | 'end'
   closedOpportunityId?: string | null
   outbox: OutboxRow[]
+  resumeChoice?: IdleContinueChoiceResume
 } {
   const caller = workerCaller(input.tenantId, FOLLOWUP_ACTOR)
   bindOrAssertTenant(db, caller, clock)

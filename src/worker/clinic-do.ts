@@ -160,6 +160,7 @@ import {
   sweepDueIdleConversations,
 } from '../clinic/followup/idle'
 import { runIdleContinueChoiceResume } from '../clinic/followup/idle-continue-resume'
+import { handleReviewFlagAckButtonClick } from '../clinic/followup/review-ack'
 import { nextOpenAppointmentEndAt, sweepEndedAppointments } from '../clinic/pipeline/appointment-stage'
 import {
   handlePostBookingButtonClick,
@@ -1182,6 +1183,49 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           outcome: choice.outcome,
           reason: choice.reason,
         }
+      }
+    }
+    // TRE-29 — ack «avaliar»/«feedback» («Continuar» / «Terminar»).
+    if (input.conversationId) {
+      const reviewAck = handleReviewFlagAckButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      )
+      if (reviewAck.handled) {
+        if (reviewAck.resumeChoice) {
+          const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
+            this.#db,
+            caller.tenantId,
+            this.#clock,
+          )
+          const capability = clinicAi.autoBookCapability() && !autoBookPaused
+          const resumed = await runIdleContinueChoiceResume(
+            this.#db,
+            caller,
+            {
+              tenantId: caller.tenantId,
+              conversationId: input.conversationId,
+              resume: reviewAck.resumeChoice,
+              providerEventKey: input.providerEventKey,
+              capability,
+            },
+            this.#clock,
+          )
+          reviewAck.outbox.push(...resumed)
+        }
+        if (reviewAck.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, reviewAck.outbox, true)
+          await this.#drain(caller)
+        }
+        const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
+        if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
+        return { handled: true, action: reviewAck.action }
       }
     }
     // DEC-087 — idle («Prosseguir» / «Terminar»).

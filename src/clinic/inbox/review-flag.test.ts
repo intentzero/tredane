@@ -21,9 +21,13 @@ import { insertMessage } from './messages'
 import {
   flagConversationForReview,
   isReviewFlagRequest,
+  parseReviewFlagAckButtonId,
   parseReviewFlagRequest,
   readReviewFlag,
+  REVIEW_FLAG_ACK_BUTTONS,
   REVIEW_FLAG_CLIENT_ACK,
+  reviewFlagAckButtonId,
+  reviewFlagAckInteractiveButtons,
 } from './review-flag'
 
 const NOW = Date.UTC(2026, 10, 10, 18, 0)
@@ -88,6 +92,22 @@ describe('DEC-157 review flag', () => {
     expect(REVIEW_FLAG_CLIENT_ACK).toBe(
       'Obrigado. Marquei esta conversa para a equipe revisar.',
     )
+    expect(REVIEW_FLAG_ACK_BUTTONS.continue.title).toBe('Continuar')
+    expect(REVIEW_FLAG_ACK_BUTTONS.end.title).toBe('Terminar')
+    expect(parseReviewFlagAckButtonId(reviewFlagAckButtonId('cnv_1', 'continue'))).toEqual({
+      conversationId: 'cnv_1',
+      action: 'continue',
+    })
+    expect(parseReviewFlagAckButtonId(reviewFlagAckButtonId('cnv_1', 'end'))).toEqual({
+      conversationId: 'cnv_1',
+      action: 'end',
+    })
+    expect(parseReviewFlagAckButtonId('fu:idle:cnv_1:continue')).toBeNull()
+    const buttons = reviewFlagAckInteractiveButtons('cnv_x')
+    expect(buttons).toEqual([
+      { id: 'fu:review:cnv_x:continue', title: 'Continuar' },
+      { id: 'fu:review:cnv_x:end', title: 'Terminar' },
+    ])
   })
 
   it('DEC-166: comentário opcional após avaliar/feedback; rejeita mid-texto', () => {
@@ -444,13 +464,21 @@ describe('DEC-157 review flag', () => {
         adapter: new SimulatedAiAdapter(),
       })
       expect(readReviewFlag(db, tenantId, cnv.id)?.source).toBe('client')
-      const ack = db.get<{ body: string }>(
-        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ?
-         AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+      const ack = db.get<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json AS interactive_json
+         FROM messages m
+         JOIN outbound_messages o ON o.message_id = m.id
+         WHERE m.tenant_id = ? AND m.conversation_id = ?
+           AND m.direction = 'outbound'
+         ORDER BY m.created_at DESC LIMIT 1`,
         tenantId,
         cnv.id,
       )
       expect(ack?.body).toBe(REVIEW_FLAG_CLIENT_ACK)
+      const interactive = JSON.parse(ack?.interactive_json ?? 'null') as {
+        buttons?: Array<{ id: string; title: string }>
+      }
+      expect(interactive.buttons).toEqual(reviewFlagAckInteractiveButtons(cnv.id))
       const stillPaused = db.get<{ at: number | null }>(
         `SELECT ai_reply_paused_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
         tenantId,
