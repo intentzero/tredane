@@ -83,7 +83,7 @@ describe('AvisosScreen — estado ativo', () => {
     pwa.getExistingPushSubscription.mockResolvedValue(fakeSub)
     render(<AvisosScreen tenantId="t1" clinicName="Clínica A" />)
     await screen.findByText('Guardar alterações')
-    fireEvent.click(screen.getByLabelText('Nova conversa'))
+    fireEvent.click(screen.getByLabelText('Avisos da clínica'))
     fireEvent.click(screen.getByText('Guardar alterações'))
     await waitFor(() =>
       expect(api.subscribePush).toHaveBeenCalledWith('t1', expect.objectContaining({ notifyNewConversation: false })),

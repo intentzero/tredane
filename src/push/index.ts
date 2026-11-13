@@ -39,10 +39,15 @@ export {
 } from './synthetic'
 export {
   assertSafePushPayload,
+  buildAppointmentConfirmedPayload,
+  buildNeedsPersonPayload,
   buildNewConversationPayload,
+  buildNewMessagePayload,
   createLivePushTransport,
   createPushTransport,
+  sanitizePushLabel,
 } from './send'
+export { isHumanAttendedConversation } from './human-attended'
 export {
   notifyNewConversation,
   notifyNewConversationAsync,
@@ -51,4 +56,8 @@ export {
   type NotifyNewConversationAsyncDeps,
 } from './notify'
 export { createPushRoutes, type PushRouteOptions } from './routes'
-export { maybeNotifyNewConversationPush } from './queue-hook'
+export {
+  maybeNotifyAppointmentConfirmedPush,
+  maybeNotifyNeedsPersonPush,
+  maybeNotifyNewConversationPush,
+} from './queue-hook'

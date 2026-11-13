@@ -1,5 +1,7 @@
 /**
- * Hook pós-ingest para push de nova conversa (#42).
+ * Hook pós-ingest / outbox para Web Push (#42).
+ * DEC-173: agendamento confirmado + handoff (DEC-156) + inbound só em fio
+ * assumido/handoff (atendente activo). Sem push genérico de toda mensagem.
  * Best-effort: falha não reentrega o webhook WhatsApp.
  */
 import type { Clock } from '../db/clock'
@@ -8,7 +10,12 @@ import { fromD1 } from '../db/admin/async-store'
 import type { WorkerBindings } from '../worker/bindings'
 import { notifyNewConversation, notifyNewConversationAsync } from './notify'
 import { resolveVapidConfig } from './vapid'
+import type { PushPayloadKind } from './types'
 
+/**
+ * DEC-173 — inbound: só `new_message` quando a conversa está com atendente
+ * activo (Assumir) ou em handoff (IA pausada). `new_conversation` não notifica.
+ */
 export async function maybeNotifyNewConversationPush(input: {
   env: WorkerBindings
   clock: Clock
@@ -18,6 +25,13 @@ export async function maybeNotifyNewConversationPush(input: {
   createdConversation: boolean
   /** Mensagem nova (não duplicada por wamid) numa conversa já existente. */
   newMessage?: boolean
+  /**
+   * True quando há responsável humano ou handoff (IA pausada).
+   * Sem isto, inbound da IA automática não gera push.
+   */
+  humanAttended?: boolean
+  /** Rótulo curto do contacto (agenda) — opcional no corpo. */
+  contactLabel?: string | null
   badgeCount?: number
   suppressUserIds?: readonly string[]
   log?: (entry: {
@@ -28,18 +42,41 @@ export async function maybeNotifyNewConversationPush(input: {
   receiptId?: string
 }): Promise<void> {
   if (!input.conversationId) return
-  const kind = input.createdConversation
-    ? 'new_conversation'
-    : input.newMessage
-      ? 'new_message'
-      : null
-  if (!kind) return
+  if (input.createdConversation && !input.newMessage) {
+    input.log?.({
+      level: 'info',
+      event: 'queue.push_inbound_skipped',
+      detail: {
+        receiptId: input.receiptId,
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        skippedKind: 'new_conversation',
+        reason: 'dec_173_no_generic_new_conversation',
+      },
+    })
+    return
+  }
+  if (!input.newMessage) return
+  if (!input.humanAttended) {
+    input.log?.({
+      level: 'info',
+      event: 'queue.push_inbound_skipped',
+      detail: {
+        receiptId: input.receiptId,
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        skippedKind: 'new_message',
+        reason: 'dec_173_not_human_attended',
+      },
+    })
+    return
+  }
   await deliverPushKind({
     ...input,
-    kind,
-    logEvent:
-      kind === 'new_message' ? 'queue.push_new_message' : 'queue.push_new_conversation',
-    failEvent: 'queue.push_new_conversation_failed',
+    kind: 'new_message',
+    contactLabel: input.contactLabel,
+    logEvent: 'queue.push_new_message',
+    failEvent: 'queue.push_new_message_failed',
   })
 }
 
@@ -71,13 +108,47 @@ export async function maybeNotifyNeedsPersonPush(input: {
   })
 }
 
+/** DEC-173 — push quando um compromisso fica confirmado (best-effort). */
+export async function maybeNotifyAppointmentConfirmedPush(input: {
+  env: WorkerBindings
+  clock: Clock
+  syncAdminDb?: AdminDb | null
+  tenantId: string
+  appointmentId: string
+  conversationId?: string | null
+  contactLabel?: string | null
+  serviceName?: string | null
+  badgeCount?: number
+  suppressUserIds?: readonly string[]
+  log?: (entry: {
+    level: 'info' | 'warn' | 'error'
+    event: string
+    detail: Record<string, unknown>
+  }) => void
+}): Promise<void> {
+  if (!input.appointmentId) return
+  await deliverPushKind({
+    ...input,
+    conversationId: input.conversationId?.trim() || input.appointmentId,
+    kind: 'appointment_confirmed',
+    appointmentId: input.appointmentId,
+    contactLabel: input.contactLabel,
+    serviceName: input.serviceName,
+    logEvent: 'queue.push_appointment_confirmed',
+    failEvent: 'queue.push_appointment_confirmed_failed',
+  })
+}
+
 async function deliverPushKind(input: {
   env: WorkerBindings
   clock: Clock
   syncAdminDb?: AdminDb | null
   tenantId: string
   conversationId: string
-  kind: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
+  kind: PushPayloadKind
+  appointmentId?: string
+  contactLabel?: string | null
+  serviceName?: string | null
   badgeCount?: number
   suppressUserIds?: readonly string[]
   logEvent: string
@@ -91,27 +162,25 @@ async function deliverPushKind(input: {
 }): Promise<void> {
   try {
     const vapid = resolveVapidConfig(input.env)
+    const notifyInput = {
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      kind: input.kind,
+      appointmentId: input.appointmentId,
+      contactLabel: input.contactLabel,
+      serviceName: input.serviceName,
+      badgeCount: input.badgeCount,
+      suppressUserIds: input.suppressUserIds,
+    }
     if (input.syncAdminDb) {
       await notifyNewConversation(
         { db: input.syncAdminDb, clock: input.clock, vapid },
-        {
-          tenantId: input.tenantId,
-          conversationId: input.conversationId,
-          kind: input.kind,
-          badgeCount: input.badgeCount,
-          suppressUserIds: input.suppressUserIds,
-        },
+        notifyInput,
       )
     } else {
       await notifyNewConversationAsync(
         { db: fromD1(input.env.DB), clock: input.clock, vapid },
-        {
-          tenantId: input.tenantId,
-          conversationId: input.conversationId,
-          kind: input.kind,
-          badgeCount: input.badgeCount,
-          suppressUserIds: input.suppressUserIds,
-        },
+        notifyInput,
       )
     }
     input.log?.({
@@ -121,6 +190,7 @@ async function deliverPushKind(input: {
         receiptId: input.receiptId,
         tenantId: input.tenantId,
         conversationId: input.conversationId,
+        appointmentId: input.appointmentId,
       },
     })
   } catch (pushErr) {

@@ -16,11 +16,13 @@ import {
 } from './subscriptions-async'
 import {
   assertSafePushPayload,
+  buildAppointmentConfirmedPayload,
   buildNeedsPersonPayload,
   buildNewConversationPayload,
   buildNewMessagePayload,
   createPushTransport,
 } from './send'
+import type { PushPayloadKind } from './types'
 import { resolveVapidConfig, type VapidConfig } from './vapid'
 import type { PushTransport, PushSendRecord } from './types'
 import type { SimulatedPushTransport } from './synthetic'
@@ -63,10 +65,13 @@ export async function notifyNewConversation(
     conversationId: string
     tenantName?: string
     /**
-     * Default: nova conversa.
-     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-156.
+     * Default legado: nova conversa (DEC-173 deixa de disparar no ingest).
+     * Activos: `needs_person` / escalate (DEC-156), `appointment_confirmed` (DEC-173).
      */
-    kind?: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
+    kind?: PushPayloadKind
+    appointmentId?: string
+    contactLabel?: string | null
+    serviceName?: string | null
     /** Badge do ícone (conversas com não lidas). */
     badgeCount?: number
     /** Utilizadores com a app aberta e visível — não recebem push. */
@@ -82,6 +87,9 @@ export async function notifyNewConversation(
     tenantId: input.tenantId,
     tenantName: input.tenantName ?? tenant.name,
     conversationId: input.conversationId,
+    appointmentId: input.appointmentId,
+    contactLabel: input.contactLabel,
+    serviceName: input.serviceName,
   })
   if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
     payload.badgeCount = Math.floor(input.badgeCount)
@@ -122,10 +130,13 @@ export async function notifyNewConversationAsync(
     conversationId: string
     tenantName?: string
     /**
-     * Default: nova conversa.
-     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-156.
+     * Default legado: nova conversa (DEC-173 deixa de disparar no ingest).
+     * Activos: `needs_person` / escalate (DEC-156), `appointment_confirmed` (DEC-173).
      */
-    kind?: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
+    kind?: PushPayloadKind
+    appointmentId?: string
+    contactLabel?: string | null
+    serviceName?: string | null
     /** Badge do ícone (conversas com não lidas). */
     badgeCount?: number
     /** Utilizadores com a app aberta e visível — não recebem push. */
@@ -151,6 +162,9 @@ export async function notifyNewConversationAsync(
     tenantId: input.tenantId,
     tenantName: tenantName!,
     conversationId: input.conversationId,
+    appointmentId: input.appointmentId,
+    contactLabel: input.contactLabel,
+    serviceName: input.serviceName,
   })
   if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
     payload.badgeCount = Math.floor(input.badgeCount)
@@ -199,18 +213,35 @@ function emptyResult(): NotifyNewConversationResult {
 }
 
 function buildPushPayloadForKind(
-  kind:
-    | 'new_conversation'
-    | 'new_message'
-    | 'needs_person'
-    | 'needs_person_escalate'
-    | undefined,
-  input: { tenantId: string; tenantName: string; conversationId: string },
+  kind: PushPayloadKind | undefined,
+  input: {
+    tenantId: string
+    tenantName: string
+    conversationId: string
+    appointmentId?: string
+    contactLabel?: string | null
+    serviceName?: string | null
+  },
 ) {
-  if (kind === 'new_message') return buildNewMessagePayload(input)
+  if (kind === 'new_message') {
+    return buildNewMessagePayload({
+      ...input,
+      contactLabel: input.contactLabel,
+    })
+  }
   if (kind === 'needs_person') return buildNeedsPersonPayload(input)
   if (kind === 'needs_person_escalate') {
     return buildNeedsPersonPayload({ ...input, escalate: true })
+  }
+  if (kind === 'appointment_confirmed') {
+    return buildAppointmentConfirmedPayload({
+      tenantId: input.tenantId,
+      tenantName: input.tenantName,
+      appointmentId: input.appointmentId || input.conversationId,
+      conversationId: input.conversationId,
+      contactLabel: input.contactLabel,
+      serviceName: input.serviceName,
+    })
   }
   return buildNewConversationPayload(input)
 }

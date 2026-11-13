@@ -1,21 +1,22 @@
-# F5 — PWA instalável e push de nova conversa
+# F5 — PWA instalável e push accionável
 
-**Estado:** implementação da issue [#42](https://github.com/intentzero/tredane/issues/42) (épico [#14](https://github.com/intentzero/tredane/issues/14)). DEC-039/040/041; Q-UX-01/05; JRN-01/07; M-14; UX-01–08. **Não** absorve preferências extras nem silêncio (Q-UX-05 Em aberto). Dados sintéticos / `PUSH_MODE=synthetic` até VAPID em staging/prod e aceite em aparelhos da clínica.
+**Estado:** implementação da issue [#42](https://github.com/intentzero/tredane/issues/42) (épico [#14](https://github.com/intentzero/tredane/issues/14)). DEC-039/040/041; **DEC-173** (recorte de eventos); DEC-156 (handoff); Q-UX-01/05; JRN-01/07; M-14; UX-01–08. **Não** absorve preferências extras nem silêncio fino (Q-UX-05 Em aberto). Dados sintéticos / `PUSH_MODE=synthetic` até VAPID em staging/prod e aceite em aparelhos da clínica.
 
 ## Decisões aplicadas (Confirmado)
 
 | DEC / REQ | Comportamento |
 | --- | --- |
 | DEC-039 | Painel mobile first; PWA sem app nativo no MVP |
-| DEC-040 | Push de **nova conversa**; texto sem conteúdo da mensagem («Nova conversa na {clínica}») |
+| DEC-040 | Push via PWA; texto **sem** conteúdo da mensagem WhatsApp |
+| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA |
 | DEC-156 | Push **Precisa de alguém** / reforço aos 5 min (`needs_person`, `needs_person_escalate`); dispara em `ai_pause` `source:handoff`; Assumir (`clearedAwaitingTeam`) fecha a notificação no cliente |
 | DEC-041 | Ícone provisório (azul primary); marca definitiva Em aberto |
 | DEC-026 / REQ-003 | Revogação remove assinaturas push do par user×tenant; deep link revalida Clerk + membership |
-| Q-UX-05 | Só «Nova conversa» é requisito Confirmado; restantes toggles M-14 ficam **Propostos** / desactivados na UI |
+| Q-UX-05 | Pacote DEC-173 Confirmado no toggle M-14; «só as minhas» / falha de envio ficam **Propostos** / desactivados na UI |
 
 ## Schema D1 (migração 12)
 
-`push_subscriptions` — endpoint único, tenant, `clerk_user_id`, keys Web Push, `notify_new_conversation`, timestamps.
+`push_subscriptions` — endpoint único, tenant, `clerk_user_id`, keys Web Push, `notify_new_conversation` (preferência do pacote DEC-173), timestamps.
 
 `ADMIN_SCHEMA_VERSION = 12`.
 
@@ -24,10 +25,11 @@
 1. Cliente regista `public/sw.js` (cache só de assets estáticos; **nunca** `/api/*`).
 2. Ecrã M-14 `/c/:tenantId/avisos` — instalação iPhone/Android + **Ativar avisos**.
 3. `PushManager.subscribe` + `POST /api/tenants/:id/push/subscriptions`.
-4. Ingest WhatsApp com `conversation.created` → `maybeNotifyNewConversationPush` (best-effort).
+4. Ingest WhatsApp: `maybeNotifyNewConversationPush` **só** se mensagem nova **e** `humanAttended` (Assumir humano ou IA pausada / handoff). Nova conversa genérica **não** notifica.
 5. Handoff (DEC-156): `conversation.ai_pause` `source:handoff` → `maybeNotifyNeedsPersonPush`; aos 5 min `needs_person_escalate` (renotify).
-6. Envio revalida membership activa; 404/410 apagam a assinatura.
-7. Logout / troca de clínica limpa caches do SW (UX-05).
+6. Agendamento confirmado: outbox `appointment.confirmed` → `maybeNotifyAppointmentConfirmedPush` (contacto/serviço no corpo quando houver rótulo).
+7. Envio revalida membership activa; 404/410 apagam a assinatura; app aberta/visível = suppress (sem push).
+8. Logout / troca de clínica limpa caches do SW (UX-05).
 
 ## APIs
 
@@ -54,6 +56,6 @@
 ## Em aberto / fora deste PR
 
 - Aceite Safari iPhone / Chrome Android da clínica (Q-UX-01)
-- Preferências atribuída / falha de envio / resposta / silêncio (Q-UX-05)
+- Preferência «só as minhas conversas» / falha de envio (Q-UX-05)
 - Identidade visual definitiva do ícone PWA
 - F6 retenção/expurgo (#43) — ver [f6-retention-purge.md](f6-retention-purge.md); observabilidade = #44

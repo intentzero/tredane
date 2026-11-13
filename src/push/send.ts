@@ -72,7 +72,7 @@ export function createPushTransport(
   return createLivePushTransport(vapid)
 }
 
-/** Texto Confirmado DEC-040 — sem conteúdo da mensagem. */
+/** Texto legado DEC-040 — já não disparado (DEC-173). Mantido para harness/testes. */
 export function buildNewConversationPayload(input: {
   tenantId: string
   tenantName: string
@@ -98,17 +98,29 @@ export function conversationPushTag(tenantId: string, conversationId: string): s
   return `conversation:${tenantId}:${conversationId}`
 }
 
-/** Nova mensagem numa conversa existente — mesmo formato, sem conteúdo. */
+export function appointmentPushTag(tenantId: string, appointmentId: string): string {
+  return `appointment:${tenantId}:${appointmentId}`
+}
+
+/**
+ * DEC-173 — inbound só em fio assumido/handoff.
+ * Contacto opcional no corpo (rótulo da agenda; sem telefone).
+ */
 export function buildNewMessagePayload(input: {
   tenantId: string
   tenantName: string
   conversationId: string
+  contactLabel?: string | null
 }): NewConversationPushPayload {
   const clinic = input.tenantName.trim() || 'clínica'
+  const contact = sanitizePushLabel(input.contactLabel)
+  const body = contact
+    ? `Nova mensagem — ${contact} na ${clinic}`
+    : `Nova mensagem na ${clinic}`
   return {
     kind: 'new_message',
     title: 'Nova mensagem',
-    body: `Nova mensagem na ${clinic}`,
+    body,
     tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
@@ -116,7 +128,7 @@ export function buildNewMessagePayload(input: {
   }
 }
 
-/** DEC-156 — cliente pediu equipe / handoff (sem PII). */
+/** DEC-156 — cliente pediu equipe / handoff (sem telefone nem corpo WhatsApp). */
 export function buildNeedsPersonPayload(input: {
   tenantId: string
   tenantName: string
@@ -138,12 +150,62 @@ export function buildNeedsPersonPayload(input: {
   return {
     kind: 'needs_person',
     title: 'Precisa de alguém',
-    body: `Equipe necessária na ${clinic}`,
+    body: `Chamada de atendente na ${clinic}`,
     tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
     conversationId: input.conversationId,
   }
+}
+
+/**
+ * DEC-173 — agendamento confirmado (botão Confirmar, Pix, painel).
+ * Contacto/serviço só como rótulos curtos já usados na agenda (sem telefone).
+ */
+export function buildAppointmentConfirmedPayload(input: {
+  tenantId: string
+  tenantName: string
+  appointmentId: string
+  conversationId?: string | null
+  contactLabel?: string | null
+  serviceName?: string | null
+}): NewConversationPushPayload {
+  const clinic = input.tenantName.trim() || 'clínica'
+  const contact = sanitizePushLabel(input.contactLabel)
+  const service = sanitizePushLabel(input.serviceName)
+  const detail = [contact, service].filter(Boolean).join(' · ')
+  const body = detail
+    ? `Agendamento confirmado — ${detail} na ${clinic}`
+    : `Agendamento confirmado na ${clinic}`
+  const conversationId = input.conversationId?.trim() || ''
+  const url = conversationId
+    ? `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(conversationId)}`
+    : `/c/${encodeURIComponent(input.tenantId)}/agenda/compromisso/${encodeURIComponent(input.appointmentId)}`
+  return {
+    kind: 'appointment_confirmed',
+    title: 'Agendamento confirmado',
+    body,
+    tag: appointmentPushTag(input.tenantId, input.appointmentId),
+    url,
+    tenantId: input.tenantId,
+    conversationId: conversationId || input.appointmentId,
+  }
+}
+
+/** Rótulo curto para o corpo do push — sem telefone / control chars. */
+export function sanitizePushLabel(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  let cleaned = ''
+  for (let i = 0; i < raw.length; i += 1) {
+    const code = raw.charCodeAt(i)
+    cleaned += code <= 0x1f || code === 0x7f ? ' ' : raw[i]!
+  }
+  let s = cleaned.replace(/\s+/g, ' ').trim()
+  if (!s) return null
+  // Recusa se parecer número de telefone (E.164 / nacional denso).
+  if (/^\+?\d[\d\s().-]{6,}$/.test(s)) return null
+  if (s.length > 48) s = `${s.slice(0, 45).trimEnd()}…`
+  return s
 }
 
 /** Rejeita payloads que incluam campos sensíveis (defesa em profundidade). */
@@ -153,6 +215,7 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
     'new_message',
     'needs_person',
     'needs_person_escalate',
+    'appointment_confirmed',
   ])
   if (!allowed.has(payload.kind)) {
     throw new Error('unsupported_push_kind')
@@ -164,12 +227,13 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
       throw new Error('push_payload_contains_sensitive_field')
     }
   }
-  // Corpo tipado: só o template sem trecho de mensagem.
+  // Corpo tipado: só o template sem trecho de mensagem WhatsApp.
   const prefixes: Record<NewConversationPushPayload['kind'], string> = {
     new_conversation: 'Nova conversa na ',
-    new_message: 'Nova mensagem na ',
-    needs_person: 'Equipe necessária na ',
+    new_message: 'Nova mensagem',
+    needs_person: 'Chamada de atendente na ',
     needs_person_escalate: 'Continua a aguardar a equipe na ',
+    appointment_confirmed: 'Agendamento confirmado',
   }
   if (!payload.body.startsWith(prefixes[payload.kind])) {
     throw new Error('push_body_unexpected')
