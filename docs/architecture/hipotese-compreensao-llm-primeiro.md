@@ -106,6 +106,30 @@ EVAL_SHADOW_REPLAY=live CF_ACCOUNT_ID=… AI_GATEWAY_ID=… AI_GATEWAY_TOKEN=…
 
 Escreve `.eval/shadow-replay.md` (relatório) e `.eval/shadow-replay-raw.json` (saída bruta do modelo, para reanalisar sem custo). A coluna `rule` é determinística e já vale sem chaves. Limite: as frases são escritas pela equipe e mais limpas do que as de clientes; os rótulos são meus e podem ter erros, por isso cada divergência deve ser revista antes de tirar conclusões.
 
+#### Primeira leitura (13/11/2026, Haiku 5.5 via AI Gateway, run 43492494643)
+
+**Indicativa, não conclusiva:** 59 frases fictícias escritas pela equipe, rótulos meus ainda não revistos por outra pessoa, um só modelo e uma só corrida.
+
+| Sistema | Frases perfeitas | Campos certos | Errados | Em falta | Inventados |
+| --- | --- | --- | --- | --- | --- |
+| `rule` / `today` (produção hoje) | 38/59 (64 %) | 72/95 (76 %) | 3 | 20 | 1 |
+| `strict` (léxico + modelo, citação literal) | 42/59 (71 %) | 77/95 (81 %) | 0 | 18 | 1 |
+| `relaxed` (só modelo, validação por id: H1) | 54/59 (92 %) | 94/95 (99 %) | 0 | 1 | 4 |
+| `hybrid` (léxico primeiro, modelo preenche) | 50/59 (85 %) | 91/95 (96 %) | 3 | 1 | 5 |
+
+O que a medição mostra:
+
+- **O ganho existe e é grande onde se esperava:** frases coloquiais (5 → 10 de 12), erros de escrita (2 → 5 de 5) e respostas à pergunta pendente (4 → 11 de 11). `today` e `rule` coincidem: o extrator quase nunca corre em produção.
+- **A citação literal explica quase tudo o que o modelo perde:** com ela (`strict`) o modelo só acrescenta 4 frases perfeitas; sem ela (`relaxed`), 16.
+- **O risco concentra-se num campo:** dos 4 campos inventados pelo modelo, 3 são `line: feminino` sem nenhuma evidência na frase (L11, C05, C08). O validador de hoje apanha-os porque exige a palavra «feminina». O contacto não tem sexo (DEC-079): a linha tem de continuar a exigir evidência literal mesmo que o resto passe a ser validado só por id. O quarto é `period` deduzido de «14h» (H08), discutível como erro.
+- **`hybrid` é pior do que `relaxed`:** quando o léxico lê e erra (por exemplo «axila e pernas» a incluir a axila masculina), o modelo não corrige porque só preenche campos vazios. Dar prioridade ao léxico traz de volta os seus erros.
+- **O léxico tem defeitos próprios**, independentes de H1: «a segunda opção» lido também como segunda-feira (P07), «massagem relaxante» sem serviço (L02), «sobrancelha» sem «Design de sobrancelha» (C02, C10, T04).
+- **Custo e latência baixos:** 59 chamadas, 38,5 mil tokens de entrada e 6,9 mil de saída, cerca de US$ 0,007 (≈ US$ 0,00012 por turno); latência p50 1,2 s e p95 1,8 s.
+
+Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: rever os rótulos com outra pessoa; repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
+
+**Configuração da chave:** o gateway só encontrou a chave guardada depois de o adaptador enviar `cf-aig-byok-alias` (variável opcional `AI_GATEWAY_BYOK_ALIAS`; sem ela nada muda). Sem esse cabeçalho o gateway procura o alias `default` e responde com o erro 2044.
+
 ### 5.4 De onde vêm as conversas
 
 O tráfego do staging é da equipe e escreve como o léxico espera, por isso **subestima** o ganho. Por ordem de esforço:
