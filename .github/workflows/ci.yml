@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
 
+# Cancel superseded runs: new pushes on the same PR (or a newer tip of main)
+# stop the previous job early so unfinished minutes are not spent on stale SHAs.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -13,11 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Full history so site/ path filtering can diff against the PR base / push before SHA.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      # Design checks use the stdlib only; pin 3.12 for a stable runner Python.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -35,8 +48,9 @@ jobs:
         run: npm run test:runtime
       - name: Design tokens and mocks
         run: npm run check:design
+      # `npm run build` re-runs `tsc --noEmit`; typecheck already covered that above.
       - name: Build Worker + assets
-        run: npm run build
+        run: npx vite build
       - name: Apply D1 migrations locally
         run: npm run db:migrate:local
       - name: Seed fictional development tenants
@@ -56,5 +70,29 @@ jobs:
               console.log(env + ': bloqueado como esperado enquanto não provisionado')
             }
           "
+      - name: Detect site/ changes
+        id: site
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          # Prefer building when the diff is unclear (force-push / first commit) over skipping.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="${BASE_SHA}...HEAD"
+          elif [ "$EVENT_NAME" = "push" ] && [[ "${BEFORE_SHA:-}" =~ ^[0-9a-f]{40}$ ]] && [[ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]]; then
+            range="${BEFORE_SHA}...HEAD"
+          else
+            echo "site=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$range" | grep -qE '^site/'; then
+            echo "site=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "site=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping site/ install+build — no changes under site/ in $range"
+          fi
       - name: Build landing page (site/)
+        if: steps.site.outputs.site == 'true'
         run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site

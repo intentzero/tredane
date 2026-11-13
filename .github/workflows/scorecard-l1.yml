@@ -37,12 +37,20 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      # Reuse L1 output for the same base tip across PRs/pushes (~6 min saved on cache hit).
+      - name: Restore base L1 cache
+        id: base_cache
+        uses: actions/cache@v4
+        with:
+          path: base-latest.json
+          key: scorecard-l1-base-${{ github.event.pull_request.base.sha }}
       - name: L1 on the base branch (what the PR is compared with)
         # A linha de base gravada fica atrás da main sempre que outros PRs acrescentam casos
         # sem a regravar; comparar com ela atribuía ao PR mudanças que não são dele.
         # Se esta corrida falhar, o scorecard volta a comparar com a linha de base gravada.
         # BASE_SHA (não o nome da branch) evita injecção no shell e fixa o tip da base do evento.
         id: base
+        if: steps.base_cache.outputs.cache-hit != 'true'
         continue-on-error: true
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -65,8 +73,8 @@ jobs:
       - name: Run L1 scorecard
         id: run
         env:
-          # Só compara com a corrida da base quando o artefacto existe; senão cai na linha gravada.
-          EVAL_BASELINE_PATH: ${{ steps.base.outputs.has_baseline == '1' && 'base-latest.json' || '' }}
+          # Cache hit ou corrida fresca da base: compara com esse artefacto; senão linha gravada.
+          EVAL_BASELINE_PATH: ${{ (steps.base_cache.outputs.cache-hit == 'true' || steps.base.outputs.has_baseline == '1') && 'base-latest.json' || '' }}
         # O resultado vai para o comentário; um gate falhado também chega aqui (e ao job verify).
         continue-on-error: true
         run: npm run eval:scorecard
