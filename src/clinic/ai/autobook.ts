@@ -146,6 +146,7 @@ import {
   offerNearestSlots,
   slotListRowCopy,
   slotOfferSameCivilDay,
+  slotOrderFromText,
   type DayPeriod,
   type OfferedSlot,
 } from './slot-offer'
@@ -1196,6 +1197,7 @@ export async function tryAiAutoBook(
             professionalId: preferred,
             date: frameAsk.date ?? null,
             period: frameAsk.period ?? null,
+            order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
           })
@@ -2269,6 +2271,7 @@ export async function tryAiAutoBook(
               professionalId: preferred,
               date: date ?? null,
               period: (period as DayPeriod | null) ?? null,
+              order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
             })
@@ -2592,6 +2595,7 @@ export async function tryAiAutoBook(
               professionalId: preferred,
               date: date ?? null,
               period: offerPeriod,
+              order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
             })

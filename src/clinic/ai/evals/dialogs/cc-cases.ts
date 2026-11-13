@@ -726,4 +726,49 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       outboundExcludes: [/relaxante/i, /de cada vez/i],
     },
   },
+  {
+    id: 'CC-19',
+    title: 'DEC-181: «fim da tarde» propõe os últimos horários da tarde',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem sexta no fim da tarde' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      // Tarde = 12:00–18:00; a agenda de sexta vai até às 18:00 e a massagem dura 50 min.
+      turns: [{ turn: 0, matches: [/\b17:\d\d\b/], excludes: [/\b13:00\b/, /\b13:30\b/] }],
+    },
+  },
+  {
+    id: 'CC-20',
+    title: 'DEC-181: sem cue de fim, «à tarde» continua a propor os mais cedo',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem sexta à tarde' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/\b13:00\b/], excludes: [/\b17:\d\d\b/] }],
+    },
+  },
+  {
+    id: 'CC-21',
+    title: 'DEC-181: «final da manhã» propõe os últimos horários da manhã',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem sexta no final da manhã' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/\b11:\d\d\b|\b10:30\b/], excludes: [/\b09:00\b/] }],
+    },
+  },
+  {
+    id: 'CC-22',
+    title: 'DEC-181: «fim do dia» sem período propõe os últimos horários do dia',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem sexta no fim do dia' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/\b17:\d\d\b/], excludes: [/\b09:00\b/] }],
+    },
+  },
 ]

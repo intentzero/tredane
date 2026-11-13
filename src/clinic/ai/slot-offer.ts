@@ -236,6 +236,19 @@ async function slotsOnDay(
  * Próximos 2–3 horários reais (CF-19 / A-02 / A-06 / A-12 / F-08).
  * Sem período: qualquer vaga. Com período: filtra. Com data: só esse dia (e, se vazio, dias seguintes).
  */
+/**
+ * DEC-181: «fim/final/finalzinho da tarde, da manhã ou do dia» pede os últimos horários.
+ * Sem cue, a ordem é a de sempre (mais cedo primeiro; «início da manhã» já era assim).
+ */
+export type SlotOrder = 'earliest' | 'latest'
+
+const LATEST_CUE = /\b(fim|final|finalzinho|finzinho)\s+(da|de|do)\s+(tarde|manha|dia)\b/
+
+export function slotOrderFromText(text: string): SlotOrder {
+  const folded = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return LATEST_CUE.test(folded) ? 'latest' : 'earliest'
+}
+
 export type OfferNearestSlotsResult = {
   slots: OfferedSlot[]
   replyText: string
@@ -258,6 +271,8 @@ export async function offerNearestSlots(input: {
   professionalId?: string
   date?: string | null
   period?: DayPeriod | null
+  /** DEC-181: `latest` oferece os últimos horários do período/dia. Omisso = `earliest`. */
+  order?: SlotOrder
   limit?: number
   /** Espaçamento mínimo entre ofertas no mesmo dia (minutos). */
   minGapMinutes?: number
@@ -277,6 +292,7 @@ export async function offerNearestSlots(input: {
     professionalId,
     date = null,
     period = null,
+    order = 'earliest',
     limit = 3,
     minGapMinutes = 30,
     conversationId = '',
@@ -309,6 +325,24 @@ export async function offerNearestSlots(input: {
       professionalId,
     )
     if (!schedulingAllowed && slots.length === 0) continue
+    if (order === 'latest') {
+      // DEC-181: do fim para o princípio, com o mesmo espaçamento; sai em ordem crescente.
+      const eligible = slots
+        .filter((slot) => slot.startsAt >= earliest)
+        .map((slot) => ({ slot, time: localHHMM(tz, slot.startsAt) }))
+        .filter(({ time }) => !period || inPeriodHHMM(period, time))
+      const chosen: OfferedSlot[] = []
+      let nextMinute: number | null = null
+      for (let i = eligible.length - 1; i >= 0 && picked.length + chosen.length < limit; i--) {
+        const { slot, time } = eligible[i]!
+        const minute = minutesOfHHMM(time)
+        if (nextMinute != null && nextMinute - minute < minGapMinutes) continue
+        nextMinute = minute
+        chosen.push({ date: day, time, startsAt: slot.startsAt })
+      }
+      picked.push(...chosen.reverse())
+      continue
+    }
     for (const slot of slots) {
       if (slot.startsAt < earliest) continue
       const time = localHHMM(tz, slot.startsAt)
