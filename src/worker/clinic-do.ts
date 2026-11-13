@@ -129,6 +129,7 @@ import {
 import {
   escalateChoiceClickDeliveryToTeam,
   hasChoiceClickBookingDelivery,
+  releaseChoiceClickEscalationAfterBooking,
 } from '../clinic/ai/interactive-click-guard'
 import {
   handleChoiceOfferClick,
@@ -1429,6 +1430,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         pixAdapter ? { pixAdapter } : {},
       )
       if (execution.outbox.length > 0) outboxes.push(...execution.outbox)
+      if (execution.status === 'booked') {
+        // P8: Confirmar desfaz a escalação «toque sem confirmação» (não o pedido de equipe).
+        outboxes.push(
+          ...releaseChoiceClickEscalationAfterBooking(
+            this.#db,
+            caller.tenantId,
+            input.conversationId,
+            this.#clock,
+          ),
+        )
+      }
       if (execution.status === 'pix_signal') {
         await this.#scheduleNextPixExpiry(caller)
       }

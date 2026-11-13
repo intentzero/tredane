@@ -160,7 +160,10 @@ export function createWhatsappWebhookRoutes(opts: WhatsappWebhookRouteOptions = 
           await c.env.INBOUND_EVENTS.send(fallback, {
             delaySeconds: INBOUND_INLINE_FALLBACK_DELAY_S,
           })
-          inline.push(fallback)
+          // P8 (rsamp_fa7f138): o processamento inline é a 1.ª tentativa, não a
+          // retentativa da fila. Com `inlineFallback: true` aqui, o DO tratava o
+          // toque inline como `queueFallbackResume` e escalava 1 s após a proposta.
+          inline.push({ ...message, inlineFallback: false })
           return
         }
         await c.env.INBOUND_EVENTS.send(message)
