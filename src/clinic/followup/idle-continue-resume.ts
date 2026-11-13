@@ -20,7 +20,7 @@ import {
   type ChoiceSlot,
 } from '../ai/choice-offer'
 import { isInteractiveReplyBody } from '../ai/autodraft'
-import { slotListRowCopy } from '../ai/slot-offer'
+import { slotListRowCopy, slotOfferSameCivilDay } from '../ai/slot-offer'
 import { zonesForAudienceLine, type AudienceLine } from '../ai/variant-line'
 import { getBookingFrame, saveBookingFrame } from '../ai/schedule-session'
 import { readCatalogVersion } from '../ai/turn-context'
@@ -120,11 +120,15 @@ function rebuildInteractiveFromPending(
   const catalogVersion = frame.catalogVersion || readCatalogVersion(db, tenantId)
   const slot = frame.pending.slot
   if (slot === 'horario') {
+    const boundDates = frame.pending.options
+      .map((o) => slotBindingFromChoice(o.key, o.label))
+      .filter((b): b is { date: string; time: string } => b != null)
+    const timeOnly = slotOfferSameCivilDay(boundDates)
     return buildSlotChoiceInteractive({
       catalogVersion,
       slots: frame.pending.options.map((o) => {
         const bound = slotBindingFromChoice(o.key, o.label)
-        const copy = bound ? slotListRowCopy(bound.date, bound.time) : null
+        const copy = bound ? slotListRowCopy(bound.date, bound.time, { timeOnly }) : null
         const description = copy?.description?.trim()
         return {
           key: o.key,

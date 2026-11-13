@@ -13,6 +13,7 @@ import {
   minutesOfHHMM,
   periodWordPt,
   slotListRowCopy,
+  slotOfferSameCivilDay,
 } from './slot-offer'
 import { sayAct } from './dialogue-acts'
 
@@ -99,7 +100,7 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     expect(unconstrained).not.toMatch(/segunda 09\/11/)
   })
 
-  it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
+  it('título multi-dia é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
     // Título ≤24: descrição vazia — Meta ecoa título+descrição no bubble;
     // iguais → «sexta 13/11 11:15» duplicado (bug slot-reply-duplicate).
     expect(slotListRowCopy('2026-11-03', '17:00')).toEqual({
@@ -135,6 +136,46 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
       expect(copy.title.length, date).toBeLessThanOrEqual(24)
       expect(copy.description, date).toBe('')
     }
+  })
+
+  it('same-day: títulos só HH:MM; multi-dia mantém dia+hora (Paulo 13/11/2026)', () => {
+    expect(slotOfferSameCivilDay([])).toBe(false)
+    expect(
+      slotOfferSameCivilDay([
+        { date: '2026-11-17' },
+        { date: '2026-11-17' },
+        { date: '2026-11-17' },
+      ]),
+    ).toBe(true)
+    expect(
+      slotOfferSameCivilDay([{ date: '2026-11-17' }, { date: '2026-11-18' }]),
+    ).toBe(false)
+
+    const sameDay = [
+      { date: '2026-11-17', time: '09:00' },
+      { date: '2026-11-17', time: '09:30' },
+      { date: '2026-11-17', time: '10:00' },
+    ]
+    const timeOnly = slotOfferSameCivilDay(sameDay)
+    expect(timeOnly).toBe(true)
+    expect(sameDay.map((s) => slotListRowCopy(s.date, s.time, { timeOnly }))).toEqual([
+      { title: '09:00', description: '' },
+      { title: '09:30', description: '' },
+      { title: '10:00', description: '' },
+    ])
+
+    const multiDay = [
+      { date: '2026-11-03', time: '17:00' },
+      { date: '2026-11-04', time: '17:00' },
+    ]
+    const multiOnly = slotOfferSameCivilDay(multiDay)
+    expect(multiOnly).toBe(false)
+    expect(multiDay.map((s) => slotListRowCopy(s.date, s.time, { timeOnly: multiOnly }))).toEqual(
+      [
+        { title: 'terça 03/11 17:00', description: '' },
+        { title: 'quarta 04/11 17:00', description: '' },
+      ],
+    )
   })
 
   it('periodFromHHMM classifica manhã/tarde/noite', () => {

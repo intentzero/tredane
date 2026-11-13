@@ -20,7 +20,7 @@ import {
   type ScheduleSession,
   type ScheduleSessionPatch,
 } from './schedule-session'
-import { slotListRowCopy } from './slot-offer'
+import { slotListRowCopy, slotOfferSameCivilDay } from './slot-offer'
 
 /** Placeholder substituído pelo id real da mensagem outbound no afterPersist. */
 export const OUTBOUND_MESSAGE_ID_PLACEHOLDER = '__outbound__'
@@ -328,10 +328,12 @@ export function offerFramePatch(input: {
   phase: 'ofertado' | 'remarcando'
   date?: string
 }): ScheduleSessionPatch {
+  // Same-day: títulos só HH:MM (dia já no corpo); multi-dia: weekday+DD/MM+hora.
+  const timeOnly = slotOfferSameCivilDay(input.slots)
   const options = input.slots.map((s) => ({
-    // Chave civil no id; rótulo = forma única à cliente (DEC-138 / #507).
+    // Chave civil no id; rótulo = forma única à cliente (DEC-138 / #507; Paulo 13/11/2026).
     key: `${s.date}T${s.time}`,
-    label: slotListRowCopy(s.date, s.time).title,
+    label: slotListRowCopy(s.date, s.time, { timeOnly }).title,
   }))
   const pending: BookingFramePending = {
     slot: 'horario',

@@ -188,6 +188,43 @@ describe('choice-offer ids', () => {
     expect(row.description).toBeUndefined()
   })
 
+  it('lista Horários same-day: títulos só HH:MM; multi-dia mantém dia+hora', () => {
+    const sameDay = buildSlotChoiceInteractive({
+      catalogVersion: '9',
+      slots: [
+        { key: '2026-11-17T09:00', label: slotListRowCopy('2026-11-17', '09:00', { timeOnly: true }).title },
+        { key: '2026-11-17T09:30', label: slotListRowCopy('2026-11-17', '09:30', { timeOnly: true }).title },
+        { key: '2026-11-17T10:00', label: slotListRowCopy('2026-11-17', '10:00', { timeOnly: true }).title },
+      ],
+    })
+    expect(sameDay.interactive.sections.flatMap((s) => s.rows).map((r) => r.title)).toEqual([
+      '09:00',
+      '09:30',
+      '10:00',
+    ])
+    expect(
+      sameDay.interactive.sections.flatMap((s) => s.rows).every((r) => !r.description),
+    ).toBe(true)
+    // Id civil continua a autorizar o slot (título HH:MM não basta).
+    expect(slotBindingFromChoice('2026-11-17T09:00', '09:00')).toEqual({
+      date: '2026-11-17',
+      time: '09:00',
+    })
+    expect(slotBindingFromChoice('09:00', '09:00')).toBeNull()
+
+    const multi = buildSlotChoiceInteractive({
+      catalogVersion: '9',
+      slots: [
+        { key: '2026-11-03T17:00', label: slotListRowCopy('2026-11-03', '17:00').title },
+        { key: '2026-11-04T17:00', label: slotListRowCopy('2026-11-04', '17:00').title },
+      ],
+    })
+    expect(multi.interactive.sections.flatMap((s) => s.rows).map((r) => r.title)).toEqual([
+      'terça 03/11 17:00',
+      'quarta 04/11 17:00',
+    ])
+  })
+
   it('lista Horários dedupe: description=title não vai no payload Meta', () => {
     const built = buildSlotChoiceInteractive({
       catalogVersion: '9',

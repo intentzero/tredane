@@ -286,7 +286,9 @@ describe('DEC-145 staging: Massagem modo uma', () => {
         const dayInteractive = lastInteractive(s)
         const rows = dayInteractive?.action?.sections?.flatMap((sec) => sec.rows ?? []) ?? []
         if (rows.length > 0) {
-          expect(rows.every((r) => /quarta|28\/10/i.test(r.title ?? ''))).toBe(true)
+          // Same-day offer: body already names «quarta 28/10»; list rows are HH:MM only.
+          expect(rows.every((r) => /^\d{2}:\d{2}$/.test(r.title ?? ''))).toBe(true)
+          expect(rows.every((r) => !/quarta|28\/10/i.test(r.title ?? ''))).toBe(true)
         }
       } finally {
         s.close()
