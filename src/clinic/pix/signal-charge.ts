@@ -47,7 +47,7 @@ import {
   updateSchedulingIntent,
   setIntentActiveCharge,
 } from './intents'
-import { getPixSignalSettings } from './signal-settings'
+import { effectiveSignalForCharge, getPixSignalSettings } from './signal-settings'
 import type {
   ConfirmWithoutSignalInput,
   ConfirmWithoutSignalResult,
@@ -308,26 +308,35 @@ export async function createSignalChargeAndSendOp(
         `serviço ${input.serviceId} não encontrado ou inactivo`,
       )
     }
-    if (!service.requiresSignal) {
+    const settingsEarly = getPixSignalSettings(db, meta.tenantId, clock)
+    const contactWaived = db.get<{ signal_waived: number | null }>(
+      `SELECT signal_waived FROM contacts WHERE tenant_id = ? AND id = ?`,
+      meta.tenantId,
+      contactId,
+    )?.signal_waived === 1
+    const effective = effectiveSignalForCharge(settingsEarly, contactWaived)
+    if (!effective.requiresSignal) {
       throw new ValidationError(
         'signal_not_required',
-        'Este serviço não exige sinal — use Confirmar',
+        contactWaived
+          ? 'Sinal dispensado nesta cliente — use Confirmar'
+          : 'Sinal desligado na clínica — use Confirmar',
       )
     }
     const visit = quoteVisit(db, meta.tenantId, service, input.zoneIds)
     const amount = computeSignalAmountCents(
       {
         requiresSignal: true,
-        kind: service.signalKind,
-        fixedCents: service.signalFixedCents,
-        percent: service.signalPercent,
+        kind: effective.kind,
+        fixedCents: effective.fixedCents,
+        percent: effective.percent,
       },
       visit.priceCents,
     )
     if (!amount.ok) {
       throw new ValidationError(amount.code, amount.message)
     }
-    if (!service.signalKind) {
+    if (!effective.kind) {
       throw new ValidationError('signal_incomplete', 'sinal sem tipo configurado')
     }
 
@@ -349,7 +358,7 @@ export async function createSignalChargeAndSendOp(
       }
     }
 
-    const settings = getPixSignalSettings(db, meta.tenantId, clock)
+    const settings = settingsEarly
     const clinicSettings = ensureClinicSettings(db, meta.tenantId, clock)
     const occMin = occupiedMinutes(visit.durationMinutes, service.bufferMinutes)
     const endsAt = input.startsAt + visit.durationMinutes * 60_000
@@ -400,9 +409,9 @@ export async function createSignalChargeAndSendOp(
         timezone: clinicSettings.timezone,
         cancellationPolicySnapshot: settings.cancellationPolicy,
         deadlineSecondsSnapshot: settings.deadlineSeconds,
-        signalKindSnapshot: service.signalKind,
-        signalFixedCentsSnapshot: service.signalFixedCents,
-        signalPercentSnapshot: service.signalPercent,
+        signalKindSnapshot: effective.kind,
+        signalFixedCentsSnapshot: effective.fixedCents,
+        signalPercentSnapshot: effective.percent,
         servicePriceCentsSnapshot: visit.priceCents,
         createdByClerkUserId: actorId,
         expiresAt,

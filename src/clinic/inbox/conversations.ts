@@ -509,6 +509,10 @@ export function getConversationWithContact(
       contact_blocked_at: number | null
       contact_blocked_by: string | null
       contact_blocked_reason: string | null
+      contact_signal_waived: number | null
+      contact_signal_waive_reason: string | null
+      contact_signal_waived_by: string | null
+      contact_signal_waived_at: number | null
       needs_person: number
       ai_drafting: number
     }
@@ -521,7 +525,11 @@ export function getConversationWithContact(
        ct.created_at AS contact_created_at,
        ct.blocked_at AS contact_blocked_at,
        ct.blocked_by_display_name AS contact_blocked_by,
-       ct.blocked_reason AS contact_blocked_reason
+       ct.blocked_reason AS contact_blocked_reason,
+       ct.signal_waived AS contact_signal_waived,
+       ct.signal_waive_reason AS contact_signal_waive_reason,
+       ct.signal_waived_by_display_name AS contact_signal_waived_by,
+       ct.signal_waived_at AS contact_signal_waived_at
      FROM conversations c
      INNER JOIN contacts ct
        ON ct.tenant_id = c.tenant_id AND ct.id = c.contact_id
@@ -540,6 +548,10 @@ export function getConversationWithContact(
       blocked_at: row.contact_blocked_at,
       blocked_by_display_name: row.contact_blocked_by,
       blocked_reason: row.contact_blocked_reason,
+      signal_waived: row.contact_signal_waived,
+      signal_waive_reason: row.contact_signal_waive_reason,
+      signal_waived_by_display_name: row.contact_signal_waived_by,
+      signal_waived_at: row.contact_signal_waived_at,
     }),
     needsPerson: row.needs_person === 1,
     aiDrafting: row.ai_drafting === 1,
@@ -592,8 +604,13 @@ export function loadContactSummary(
     blocked_at: number | null
     blocked_by_display_name: string | null
     blocked_reason: string | null
+    signal_waived: number | null
+    signal_waive_reason: string | null
+    signal_waived_by_display_name: string | null
+    signal_waived_at: number | null
   }>(
-    `SELECT id, wa_id, display_name, created_at, blocked_at, blocked_by_display_name, blocked_reason
+    `SELECT id, wa_id, display_name, created_at, blocked_at, blocked_by_display_name, blocked_reason,
+            signal_waived, signal_waive_reason, signal_waived_by_display_name, signal_waived_at
      FROM contacts
      WHERE tenant_id = ? AND id = ?`,
     tenantId,

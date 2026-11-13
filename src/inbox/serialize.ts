@@ -18,6 +18,10 @@ export function serializeContact(c: ContactSummary) {
     blockedAt: c.blockedAt,
     blockedByDisplayName: c.blockedByDisplayName,
     blockedReason: c.blockedReason,
+    signalWaived: c.signalWaived ?? false,
+    signalWaiveReason: c.signalWaiveReason ?? null,
+    signalWaivedByDisplayName: c.signalWaivedByDisplayName ?? null,
+    signalWaivedAt: c.signalWaivedAt ?? null,
   }
 }
 

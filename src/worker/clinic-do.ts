@@ -1996,6 +1996,23 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return result.value
   }
 
+  /** DEC-180 — isenção durável do sinal no Contato. */
+  async setInboxContactSignalWaive(
+    caller: ClinicCaller,
+    input: {
+      contactId: string
+      waived: boolean
+      reason?: string | null
+      actorClerkUserId: string
+      actorDisplayName: string
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const { setContactSignalWaiveOp } = await import('../clinic/pix/contact-signal-waive')
+    return setContactSignalWaiveOp(this.#db, caller, input, this.#clock)
+  }
+
   /**
    * Envio manual (#33). Devolve `inlineDispatch` para o Worker chamar a Meta
    * já no pedido (ctx.waitUntil); a mensagem de fila de `whatsapp.send` é

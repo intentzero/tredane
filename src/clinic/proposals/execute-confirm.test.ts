@@ -26,7 +26,7 @@ import { blockContactOp } from '../inbox'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { clinicInbox, clinicWhatsapp, workerCaller } from '../index'
-import { connectPixAccountOp } from '../pix'
+import { connectPixAccountOp, updatePixSignalSettingsOp } from '../pix'
 import { createWooviSandboxFixture } from '../../pix'
 import { insertOpportunity, getOpportunity } from '../pipeline/opportunities'
 import { confirmAppointmentOp } from '../scheduling/booking'
@@ -159,6 +159,20 @@ async function seedWithSignal(tenantId = 'clinic-demo-s5-pix') {
     },
     clock,
   )
+  // DEC-180: cobrança / confirmação com Pix lê o sinal global.
+  updatePixSignalSettingsOp(
+    db,
+    caller,
+    {
+      enabled: true,
+      amountKind: 'fixed',
+      fixedCents: 5_400,
+      deadlineSeconds: 7200,
+      policyKind: 'credit_next',
+      creditWindowHours: 24,
+    },
+    clock,
+  )
   const sandbox = await createWooviSandboxFixture()
   const appId = 'synth_s5_pix_app_001'
   sandbox.addValidAppId(appId)
@@ -246,7 +260,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(63)
+    expect(CLINIC_SCHEMA_VERSION).toBe(64)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')

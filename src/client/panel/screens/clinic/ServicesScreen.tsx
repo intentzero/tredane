@@ -324,18 +324,14 @@ export function ServiceForm({
   const [withVariants, setWithVariants] = useState((existing?.zones?.length ?? 0) > 0)
   const [explanation, setExplanation] = useState(existing?.clientExplanation ?? '')
   const [active, setActive] = useState(existing?.active ?? true)
-  const [requiresSignal, setRequiresSignal] = useState(existing?.requiresSignal ?? false)
-  const [signalKind, setSignalKind] = useState<'fixed' | 'percent'>(
-    existing?.signalKind === 'percent' ? 'percent' : 'fixed',
-  )
-  const [signalFixed, setSignalFixed] = useState(
-    existing?.signalFixedCents != null
-      ? formatPriceCents(existing.signalFixedCents)
-      : '',
-  )
-  const [signalPercent, setSignalPercent] = useState(
-    existing?.signalPercent != null ? String(existing.signalPercent) : '30',
-  )
+  // DEC-180: sinal é global em Recebimento — só leitura do espelho do serviço.
+  const requiresSignal = existing?.requiresSignal ?? false
+  const signalKind: 'fixed' | 'percent' =
+    existing?.signalKind === 'percent' ? 'percent' : 'fixed'
+  const signalFixed =
+    existing?.signalFixedCents != null ? formatPriceCents(existing.signalFixedCents) : ''
+  const signalPercent =
+    existing?.signalPercent != null ? String(existing.signalPercent) : '30'
   // Serviço novo: todas as profissionais ativas fazem, até a dona desmarcar.
   const [proIds, setProIds] = useState<string[]>(
     existing?.professionalIds ?? professionals.filter((p) => p.active).map((p) => p.id),
@@ -551,7 +547,7 @@ export function ServiceForm({
   const [spaceError, setSpaceError] = useState<string | null>(null)
   const [tempoOpen, setTempoOpen] = useState(false)
   const [openRule, setOpenRule] = useState<
-    null | 'intervalo' | 'sinal' | 'horas' | 'explicacao' | 'equipamento'
+    null | 'intervalo' | 'horas' | 'explicacao' | 'equipamento'
   >(null)
   const roomNames = roomIds
     .map((id) => rooms.find((r) => r.id === id)?.name)
@@ -568,7 +564,7 @@ export function ServiceForm({
   const hoursLabel =
     hoursOpenCount === 0 ? 'Qualquer dia com profissional livre' : `${hoursOpenCount} dia(s) com janela`
   const toggleRule = (
-    id: 'intervalo' | 'sinal' | 'horas' | 'explicacao' | 'equipamento',
+    id: 'intervalo' | 'horas' | 'explicacao' | 'equipamento',
   ) => setOpenRule((cur) => (cur === id ? null : id))
 
   async function save() {
@@ -601,16 +597,11 @@ export function ServiceForm({
       roomRequirement:
         space === 'none' ? { mode: 'none' } : { mode: 'rooms', resourceIds: roomIds },
       equipmentResourceId: equipmentId,
-      requiresSignal,
-      signalKind: requiresSignal ? signalKind : null,
-      signalFixedCents:
-        requiresSignal && signalKind === 'fixed'
-          ? parsePriceToCents(signalFixed)
-          : null,
-      signalPercent:
-        requiresSignal && signalKind === 'percent'
-          ? Number.parseInt(signalPercent, 10) || null
-          : null,
+      // DEC-180: sinal é global em Recebimento — preserva o espelho do serviço.
+      requiresSignal: existing?.requiresSignal ?? false,
+      signalKind: existing?.signalKind ?? null,
+      signalFixedCents: existing?.signalFixedCents ?? null,
+      signalPercent: existing?.signalPercent ?? null,
       weeklyWindows: fromWeekDraft(hoursDraft),
       tempoCeu,
       tempoTemperatura,
@@ -633,11 +624,6 @@ export function ServiceForm({
     }
     if (draftZones.some((z) => !z.name.trim())) {
       setFormError('Dê um nome a cada opção. O que você digitou continua aqui.')
-      setSaving(false)
-      return
-    }
-    if (requiresSignal && signalKind === 'percent' && signalBase == null) {
-      setFormError('Cadastre o preço antes do sinal percentual. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
@@ -1075,72 +1061,13 @@ export function ServiceForm({
             />
           ) : null}
         </RuleRow>
-        <RuleRow
-          label="Sinal Pix"
-          value={signalLabel}
-          onPress={() => toggleRule('sinal')}
-        >
-          {openRule === 'sinal' ? (
-            <fieldset className="clinic-fieldset">
-              <legend className="visually-hidden">Sinal por Pix</legend>
-              <ClinicCheck
-                className="clinic-check"
-                isSelected={requiresSignal}
-                onChange={setRequiresSignal}
-              >
-                Exige sinal
-              </ClinicCheck>
-              {requiresSignal ? (
-                <>
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Tipo"
-                    value={signalKind}
-                    onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
-                    options={[
-                      { id: 'fixed', label: 'Valor fixo (R$)' },
-                      {
-                        id: 'percent',
-                        label: 'Percentual do preço',
-                        hint: signalBase ? undefined : 'Cadastre o preço primeiro',
-                        disabled: !signalBase,
-                      },
-                    ]}
-                  />
-                  {signalKind === 'fixed' ? (
-                    <TextField className="clinic-field">
-                      <Label>Valor do sinal</Label>
-                      <Input
-                        value={signalFixed}
-                        onChange={(e) => setSignalFixed(e.target.value)}
-                        inputMode="decimal"
-                        placeholder="R$ 0,00"
-                      />
-                    </TextField>
-                  ) : (
-                    <TextField className="clinic-field">
-                      <Label>Percentual (1–100)</Label>
-                      <Input
-                        value={signalPercent}
-                        onChange={(e) => setSignalPercent(e.target.value)}
-                        inputMode="numeric"
-                      />
-                    </TextField>
-                  )}
-                  {signalKind === 'percent' && signalBase != null ? (
-                    <p className="clinic-hint-box">
-                      Resumo: sinal de{' '}
-                      {formatPriceCents(
-                        Math.trunc((signalBase * (Number.parseInt(signalPercent, 10) || 0)) / 100),
-                      )}{' '}
-                      ({signalPercent}% de {formatPriceCents(signalBase)}).
-                    </p>
-                  ) : null}
-                </>
-              ) : null}
-            </fieldset>
-          ) : null}
-        </RuleRow>
+        {/* DEC-180: valor/exigência do sinal passam a ser globais em Recebimento.
+            A UI por serviço some; o servidor ainda espelha requires_signal ao salvar Recebimento. */}
+        {requiresSignal ? (
+          <p className="clinic-footnote" role="note">
+            Sinal ativo nesta clínica ({signalLabel}). Valor e política: Clínica → Recebimento.
+          </p>
+        ) : null}
         <RuleRow
           label="Tempo"
           value={tempoSummary({

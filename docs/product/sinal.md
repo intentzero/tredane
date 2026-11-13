@@ -15,8 +15,10 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 | Meio de pagamento: **Pix**. Cartão e outros meios ficam fora do MVP | **Confirmado** |
 | O horário **não é reservado** enquanto o sinal não é pago | **Confirmado** |
 | Pago, mas o horário já foi ocupado: a cobrança fica **paga sem horário**, a equipe recebe alerta, oferece outro horário e, se a cliente recusar, a clínica devolve o Pix | **Confirmado** |
-| Valor definido **por serviço**: a responsável liga “exige sinal” e escolhe valor fixo ou percentual do preço | **Confirmado** |
-| Cancelamento depois do pagamento: a clínica escreve sua política; a equipe escolhe devolver ou reter, com motivo registrado; a política aparece para a cliente antes de pagar | **Confirmado** |
+| Valor definido **por serviço**: a responsável liga “exige sinal” e escolhe valor fixo ou percentual do preço | **Confirmado** (24/10/2026) → **revista pela DEC-180** (13/11/2026): valor **global** na clínica (R$ ou %), sem sinal por serviço neste desenho |
+| Cancelamento depois do pagamento: a clínica escreve sua política; a equipe escolhe devolver ou reter, com motivo registrado; a política aparece para a cliente antes de pagar | **Confirmado** (24/10/2026) → **revista pela DEC-180**: política estruturada (**Aplica no próximo horário** · **Não devolve** · **Outro…**); texto à cliente **gerado**; sem opção «Devolve»/estorno Pix na configuração (taxas do provedor). A equipe no cancelamento operacional ainda decide Devolver/Reter no compromisso (REQ-082) |
+| Interruptor global «Pedir sinal ao agendar» (owner); desligado esconde UI de sinal em serviços e Agendar | **Confirmado** (DEC-180) |
+| Isenção durável no Contato (owner + atendente), com motivo; faixa na conversa | **Confirmado** (DEC-180); distinto do «Confirmar sem sinal» pontual (AC-51) |
 | Provedor escolhido por avaliação na F0 | **Confirmado** o método (DEC-047); escolha **Confirmado: Woovi (OpenPix)** (DEC-049 / [ADR-0014](../adr/0014-pix-provider.md)); Mercado Pago permanece alternativa documentada |
 | Ao receber o pagamento, o Tredane confirma o compromisso **se o horário ainda estiver livre**, sem nova ação da equipe (regra do sistema, não da IA) | **Confirmado** (24/10/2026) |
 | Prazo padrão para pagar: **2 horas**; a responsável pode mudá-lo em Recebimento de sinais (M-33) por presets (**15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h**) + **Outro…** (min\|h; DEC-179) | **Confirmado** (24/10/2026; forma do ajuste Confirmada DEC-179, 13/11/2026) |

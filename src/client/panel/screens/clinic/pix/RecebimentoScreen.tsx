@@ -1,12 +1,20 @@
 /**
- * M-33 — Recebimento de sinais (conta Woovi + prazo + política).
- * Só owner (área Clínica). Cobrança na conversa = Agendar / #38.
- * DEC-175: estado em faixa, um cartão por decisão, resposta junto do botão.
- * DEC-179: prazo em presets + Outro… (min|h); API em deadlineSeconds.
+ * M-33 — Recebimento de sinais (conta Woovi + cartão unificado do sinal).
+ * Só owner (área Clínica). DEC-175 faixa + cartões; DEC-179 prazo presets;
+ * DEC-180 cartão «Sinal para reservar o horário» (mock A Confirmado).
  */
-import { useCallback, useEffect, useState } from 'react'
-import { Button, Input, Label, TextArea, TextField, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
-import type { PanelApi, PixSnapshot } from '../../../api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Input,
+  Label,
+  Switch,
+  TextArea,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+} from 'react-aria-components'
+import type { PanelApi, PixSnapshot, PixSignalSettings } from '../../../api'
 import { PanelApiError } from '../../../api'
 import { ErrorState } from '../../../states/StatusScreens'
 import { friendlyError } from '../../../copy/errors'
@@ -26,6 +34,7 @@ import {
   splitCustomDeadline,
   type DeadlineUnit,
 } from './deadlinePresets'
+import { buildSignalPolicyPreview } from '../../../../../clinic/pix/signal-policy-text'
 
 type Props = {
   tenantId: string
@@ -43,6 +52,11 @@ type DeadlineState = {
   unit: DeadlineUnit
 }
 
+type PolicyKind = PixSignalSettings['policyKind']
+type AmountKind = PixSignalSettings['amountKind']
+
+const CREDIT_WINDOWS = [12, 24, 48] as const
+
 function fromSeconds(deadlineSeconds: number): DeadlineState {
   const minutes = secondsToMinutes(deadlineSeconds)
   if (isDeadlinePreset(minutes)) {
@@ -57,14 +71,37 @@ function fromSeconds(deadlineSeconds: number): DeadlineState {
   }
 }
 
+function formatFixedInput(cents: number | null): string {
+  if (cents == null || !Number.isFinite(cents)) return '50,00'
+  const reais = Math.trunc(cents / 100)
+  const rest = Math.abs(cents % 100)
+    .toString()
+    .padStart(2, '0')
+  return `${reais},${rest}`
+}
+
+function parseFixedCents(raw: string): number | null {
+  const normalized = raw.trim().replace(/\./g, '').replace(',', '.')
+  if (!normalized) return null
+  const value = Number(normalized)
+  if (!Number.isFinite(value) || value <= 0) return null
+  return Math.round(value * 100)
+}
+
 export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   const [snap, setSnap] = useState<PixSnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [appId, setAppId] = useState('')
+  const [enabled, setEnabled] = useState(false)
+  const [amountKind, setAmountKind] = useState<AmountKind>('fixed')
+  const [fixedText, setFixedText] = useState('50,00')
+  const [percentText, setPercentText] = useState('30')
   const [deadline, setDeadline] = useState<DeadlineState>(() =>
     fromSeconds(DEFAULT_SIGNAL_DEADLINE_MINUTES * 60),
   )
-  const [policy, setPolicy] = useState('')
+  const [policyKind, setPolicyKind] = useState<PolicyKind>('credit_next')
+  const [creditWindow, setCreditWindow] = useState<12 | 24 | 48>(24)
+  const [customPolicy, setCustomPolicy] = useState('')
   const [busy, setBusy] = useState<Busy>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
 
@@ -76,8 +113,17 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         expectGeneration: () => generation,
       })
       setSnap(next)
-      setDeadline(fromSeconds(next.signalSettings.deadlineSeconds))
-      setPolicy(next.signalSettings.cancellationPolicy)
+      const s = next.signalSettings
+      setEnabled(s.enabled ?? false)
+      setAmountKind(s.amountKind ?? 'fixed')
+      setFixedText(formatFixedInput(s.fixedCents ?? 5000))
+      setPercentText(String(s.percent ?? 30))
+      setDeadline(fromSeconds(s.deadlineSeconds))
+      setPolicyKind(s.policyKind ?? 'credit_next')
+      setCreditWindow(
+        s.creditWindowHours === 12 || s.creditWindowHours === 48 ? s.creditWindowHours : 24,
+      )
+      setCustomPolicy(s.customPolicyText ?? '')
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
       setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
@@ -87,6 +133,32 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   useEffect(() => {
     void reload()
   }, [reload])
+
+  const customMinutes = deadline.custom
+    ? combineCustomDeadline(Number(deadline.amount), deadline.unit)
+    : deadline.minutes
+  const deadlineValid = customMinutes != null && isDeadlineMinutesValid(customMinutes)
+  const fixedCents = parseFixedCents(fixedText)
+  const percent = Number.parseInt(percentText, 10)
+  const amountValid =
+    amountKind === 'fixed'
+      ? fixedCents != null && fixedCents > 0
+      : Number.isInteger(percent) && percent >= 1 && percent <= 100
+  const customOk = policyKind !== 'custom' || customPolicy.trim().length > 0
+  const saveDisabled = busy !== null || !deadlineValid || (enabled && (!amountValid || !customOk))
+
+  const livePreview = useMemo(() => {
+    if (customMinutes == null) return null
+    return buildSignalPolicyPreview({
+      amountKind,
+      fixedCents: amountKind === 'fixed' ? fixedCents : null,
+      percent: amountKind === 'percent' && Number.isInteger(percent) ? percent : null,
+      deadlineSeconds: minutesToSeconds(customMinutes),
+      policyKind,
+      creditWindowHours: policyKind === 'credit_next' ? creditWindow : null,
+      customPolicyText: customPolicy,
+    })
+  }, [amountKind, fixedCents, percent, customMinutes, policyKind, creditWindow, customPolicy])
 
   if (error && !snap) {
     return (
@@ -167,11 +239,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   }
 
   function pickPreset(minutes: number) {
-    setDeadline((prev) => ({
-      ...prev,
-      minutes,
-      custom: false,
-    }))
+    setDeadline((prev) => ({ ...prev, minutes, custom: false }))
     setNotice(null)
   }
 
@@ -192,47 +260,34 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
 
   function setCustomAmount(raw: string) {
     setDeadline((prev) => {
-      const amount = raw
-      const combined = combineCustomDeadline(Number(amount), prev.unit)
-      return {
-        ...prev,
-        custom: true,
-        amount,
-        minutes: combined ?? prev.minutes,
-      }
+      const combined = combineCustomDeadline(Number(raw), prev.unit)
+      return { ...prev, custom: true, amount: raw, minutes: combined ?? prev.minutes }
     })
   }
 
   function setCustomUnit(unit: DeadlineUnit) {
     setDeadline((prev) => {
       const combined = combineCustomDeadline(Number(prev.amount), unit)
-      return {
-        ...prev,
-        custom: true,
-        unit,
-        minutes: combined ?? prev.minutes,
-      }
+      return { ...prev, custom: true, unit, minutes: combined ?? prev.minutes }
     })
   }
 
-  const customMinutes = deadline.custom
-    ? combineCustomDeadline(Number(deadline.amount), deadline.unit)
-    : deadline.minutes
-  const deadlineValid =
-    customMinutes != null && isDeadlineMinutesValid(customMinutes)
-  const saveDisabled = busy !== null || !deadlineValid
-
   async function onSaveSettings() {
-    if (!deadlineValid || customMinutes == null) return
+    if (saveDisabled || customMinutes == null) return
     setBusy('save')
     setNotice(null)
-    const deadlineSeconds = minutesToSeconds(customMinutes)
     try {
       const signalSettings = await api.updatePixSignalSettings(
         tenantId,
         {
-          deadlineSeconds,
-          cancellationPolicy: policy,
+          enabled,
+          amountKind,
+          fixedCents: amountKind === 'fixed' ? fixedCents : null,
+          percent: amountKind === 'percent' ? percent : null,
+          deadlineSeconds: minutesToSeconds(customMinutes),
+          policyKind,
+          creditWindowHours: policyKind === 'credit_next' ? creditWindow : null,
+          customPolicyText: policyKind === 'custom' ? customPolicy.trim() : '',
         },
         { generation, expectGeneration: () => generation },
       )
@@ -240,7 +295,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         prev ? { ...prev, signalSettings } : { account: snap!.account, signalSettings },
       )
       setDeadline(fromSeconds(signalSettings.deadlineSeconds))
-      setNotice({ card: 'policy', tone: 'ok', text: 'Prazo e política salvos.' })
+      setNotice({ card: 'policy', tone: 'ok', text: 'Regras do sinal salvas.' })
     } catch (err) {
       setNotice({
         card: 'policy',
@@ -261,15 +316,15 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       {connected ? (
         <Banner tone="ok" title="Conta conectada">
           <p>
-            Conta {snap.account.appIdHint} · versão da credencial {snap.account.credentialVersion} ·
-            ambiente {snap.account.environment}
+            Woovi · {snap.account.appIdHint} · versão {snap.account.credentialVersion}. Os sinais
+            caem na conta da clínica.
           </p>
         </Banner>
       ) : (
         <Banner tone="warn" title={revoked ? 'Credencial revogada' : 'Sem conta conectada'}>
           <p>
-            Serviços com sinal não conseguem enviar cobrança. A atendente ainda pode confirmar sem
-            sinal, com motivo.
+            Sem conta, não dá para enviar cobrança. A atendente ainda pode confirmar sem sinal, com
+            motivo, ou dispensar no Contato.
           </p>
         </Banner>
       )}
@@ -324,100 +379,252 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         </div>
       </section>
 
-      <section className="panel-card clinic-card" aria-labelledby="pix-policy">
-        <h2 id="pix-policy" className="panel-title-md">
-          Prazo e política de cancelamento
+      <section className="panel-card clinic-card" aria-labelledby="pix-sinal">
+        <h2 id="pix-sinal" className="panel-title-md">
+          Sinal para reservar o horário
         </h2>
+        <p className="clinic-footnote" style={{ marginTop: 0 }}>
+          O sinal é um Pix que a cliente paga para o horário deixar de ficar livre. Até pagar, o
+          horário continua disponível. Só a responsável altera estas regras.
+        </p>
 
-        <div className="clinic-deadline" role="group" aria-labelledby="pix-deadline-label">
-          <span id="pix-deadline-label" className="clinic-deadline-label">
-            Prazo para pagar
-          </span>
-          <div className="clinic-deadline-presets" role="group" aria-label="Presets de prazo">
-            {SIGNAL_DEADLINE_PRESETS_MINUTES.map((m) => {
-              const pressed = !otherPressed && deadline.minutes === m
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  className="clinic-deadline-chip"
-                  aria-pressed={pressed}
-                  onClick={() => pickPreset(m)}
-                >
-                  {formatDeadlinePresetLabel(m)}
-                </button>
-              )
-            })}
-            <button
-              type="button"
-              className="clinic-deadline-chip"
-              aria-pressed={otherPressed}
-              onClick={() => pickOther()}
-            >
-              Outro…
-            </button>
-          </div>
-          <span className="clinic-footnote">
-            Padrão: 2 h. Mínimo 15 min · máximo 48 h. Cobranças já enviadas mantêm o prazo original.
-          </span>
-        </div>
-
-        {otherPressed ? (
-          <div className="clinic-deadline-custom" aria-label="Prazo personalizado">
-            <span className="clinic-deadline-label">Prazo personalizado</span>
-            <div className="clinic-deadline-custom-row">
-              <TextField className="clinic-field clinic-deadline-amount">
-                <Label>Número</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  value={deadline.amount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  aria-describedby="pix-deadline-help"
-                />
-              </TextField>
-              <div className="clinic-deadline-unit">
-                <span className="clinic-deadline-label" id="pix-unit-label">
-                  Unidade
-                </span>
-                <ToggleButtonGroup
-                  className="panel-segmented"
-                  aria-labelledby="pix-unit-label"
-                  selectionMode="single"
-                  selectedKeys={new Set([deadline.unit])}
-                  onSelectionChange={(keys) => {
-                    const next = [...keys][0]
-                    if (next === 'min' || next === 'h') setCustomUnit(next)
-                  }}
-                >
-                  <ToggleButton id="min" className="panel-segmented-item">
-                    min
-                  </ToggleButton>
-                  <ToggleButton id="h" className="panel-segmented-item">
-                    h
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </div>
-            </div>
-            <span id="pix-deadline-help" className="clinic-footnote">
-              {deadlineValid
-                ? 'Exemplo: 90 min (= 1 h 30). Fora de 15 min–48 h o Salvar fica desabilitado.'
-                : 'Prazo fora de 15 min–48 h. Ajuste o número ou a unidade para salvar.'}
+        <div className="clinic-signal-toggle">
+          <div className="clinic-signal-toggle-copy">
+            <span className="clinic-deadline-label">Pedir sinal ao agendar</span>
+            <span className="clinic-footnote">
+              Desligado: some a UI de sinal nos serviços e no Agendar.
             </span>
           </div>
-        ) : null}
+          <Switch
+            className="clinic-switch"
+            isSelected={enabled}
+            onChange={setEnabled}
+            aria-label="Pedir sinal ao agendar"
+          >
+            <span className="clinic-switch-track" aria-hidden>
+              <span className="clinic-switch-thumb" />
+            </span>
+          </Switch>
+        </div>
 
-        <TextField className="clinic-field">
-          <Label>Política de cancelamento do sinal</Label>
-          <TextArea
-            value={policy}
-            onChange={(e) => setPolicy(e.target.value)}
-            rows={4}
-            placeholder="Ex.: o sinal é devolvido se a cliente cancelar com 24 horas de antecedência."
-          />
-          <span className="clinic-footnote">A cliente vê este texto antes de pagar.</span>
-        </TextField>
+        {enabled ? (
+          <>
+            <div className="clinic-deadline" role="group" aria-labelledby="pix-amount-label">
+              <span id="pix-amount-label" className="clinic-deadline-label">
+                Valor do sinal (toda a clínica)
+              </span>
+              <ToggleButtonGroup
+                className="panel-segmented"
+                aria-label="Tipo de valor"
+                selectionMode="single"
+                selectedKeys={new Set([amountKind])}
+                onSelectionChange={(keys) => {
+                  const next = [...keys][0]
+                  if (next === 'fixed' || next === 'percent') setAmountKind(next)
+                }}
+              >
+                <ToggleButton id="fixed" className="panel-segmented-item">
+                  Valor fixo (R$)
+                </ToggleButton>
+                <ToggleButton id="percent" className="panel-segmented-item">
+                  % do serviço
+                </ToggleButton>
+              </ToggleButtonGroup>
+              {amountKind === 'fixed' ? (
+                <TextField className="clinic-field clinic-signal-money">
+                  <Label>Valor em reais</Label>
+                  <div className="clinic-signal-money-row">
+                    <span aria-hidden>R$</span>
+                    <Input
+                      value={fixedText}
+                      onChange={(e) => setFixedText(e.target.value)}
+                      inputMode="decimal"
+                    />
+                  </div>
+                </TextField>
+              ) : (
+                <TextField className="clinic-field">
+                  <Label>Percentual (1–100)</Label>
+                  <Input
+                    value={percentText}
+                    onChange={(e) => setPercentText(e.target.value)}
+                    inputMode="numeric"
+                  />
+                </TextField>
+              )}
+              <span className="clinic-footnote">
+                Um valor global — não há sinal por serviço neste desenho. Em %, o sistema calcula
+                sobre o preço do serviço no Agendar.
+              </span>
+            </div>
+
+            <div className="clinic-deadline" role="group" aria-labelledby="pix-deadline-label">
+              <span id="pix-deadline-label" className="clinic-deadline-label">
+                Prazo para a cliente pagar o sinal
+              </span>
+              <div className="clinic-deadline-presets" role="group" aria-label="Presets de prazo">
+                {SIGNAL_DEADLINE_PRESETS_MINUTES.map((m) => {
+                  const pressed = !otherPressed && deadline.minutes === m
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      className="clinic-deadline-chip"
+                      aria-pressed={pressed}
+                      onClick={() => pickPreset(m)}
+                    >
+                      {formatDeadlinePresetLabel(m)}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  className="clinic-deadline-chip"
+                  aria-pressed={otherPressed}
+                  onClick={() => pickOther()}
+                >
+                  Outro…
+                </button>
+              </div>
+              <span className="clinic-footnote">
+                Padrão 2 h. Cobranças já enviadas mantêm o prazo original.
+              </span>
+            </div>
+
+            {otherPressed ? (
+              <div className="clinic-deadline-custom" aria-label="Prazo personalizado">
+                <span className="clinic-deadline-label">Prazo personalizado</span>
+                <div className="clinic-deadline-custom-row">
+                  <TextField className="clinic-field clinic-deadline-amount">
+                    <Label>Número</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      value={deadline.amount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                    />
+                  </TextField>
+                  <div className="clinic-deadline-unit">
+                    <span className="clinic-deadline-label" id="pix-unit-label">
+                      Unidade
+                    </span>
+                    <ToggleButtonGroup
+                      className="panel-segmented"
+                      aria-labelledby="pix-unit-label"
+                      selectionMode="single"
+                      selectedKeys={new Set([deadline.unit])}
+                      onSelectionChange={(keys) => {
+                        const next = [...keys][0]
+                        if (next === 'min' || next === 'h') setCustomUnit(next)
+                      }}
+                    >
+                      <ToggleButton id="min" className="panel-segmented-item">
+                        min
+                      </ToggleButton>
+                      <ToggleButton id="h" className="panel-segmented-item">
+                        h
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="clinic-deadline" role="group" aria-labelledby="pix-policy-label">
+              <span id="pix-policy-label" className="clinic-deadline-label">
+                Se cancelar ou remarcar depois de pagar
+              </span>
+              <div className="clinic-policy-chips" role="group" aria-label="Política">
+                <button
+                  type="button"
+                  className="clinic-policy-chip"
+                  aria-pressed={policyKind === 'credit_next'}
+                  onClick={() => setPolicyKind('credit_next')}
+                >
+                  <strong>Aplica no próximo horário</strong>
+                  <small>O valor fica como crédito — sem devolver Pix (taxas do provedor)</small>
+                </button>
+                <button
+                  type="button"
+                  className="clinic-policy-chip"
+                  aria-pressed={policyKind === 'keep'}
+                  onClick={() => setPolicyKind('keep')}
+                >
+                  <strong>Não devolve</strong>
+                  <small>O sinal fica com a clínica</small>
+                </button>
+                <button
+                  type="button"
+                  className="clinic-policy-chip"
+                  aria-pressed={policyKind === 'custom'}
+                  onClick={() => setPolicyKind('custom')}
+                >
+                  <strong>Outro…</strong>
+                  <small>Sobrescreve o texto gerado</small>
+                </button>
+              </div>
+
+              {policyKind === 'credit_next' ? (
+                <div className="clinic-credit-window">
+                  <span className="clinic-deadline-label">
+                    Janela para cancelar / remarcar com crédito
+                  </span>
+                  <div className="clinic-deadline-presets" role="group" aria-label="Janela">
+                    {CREDIT_WINDOWS.map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        className="clinic-deadline-chip"
+                        aria-pressed={creditWindow === h}
+                        onClick={() => setCreditWindow(h)}
+                      >
+                        {h} h antes
+                      </button>
+                    ))}
+                  </div>
+                  <span className="clinic-footnote">
+                    Só com «Aplica no próximo horário». Depois desta janela, o crédito não se aplica.
+                  </span>
+                </div>
+              ) : null}
+
+              {policyKind === 'custom' ? (
+                <TextField className="clinic-field">
+                  <Label>Texto que a cliente vê</Label>
+                  <TextArea
+                    value={customPolicy}
+                    onChange={(e) => setCustomPolicy(e.target.value)}
+                    rows={5}
+                    placeholder="Escreva a política de agendamento, remarcação e cancelamento…"
+                  />
+                </TextField>
+              ) : livePreview ? (
+                <div className="clinic-signal-preview" role="status" aria-live="polite">
+                  <span className="clinic-signal-preview-tag">Texto gerado · a cliente vê isto</span>
+                  <strong>Prévia automática (prazo · valor · política)</strong>
+                  <div className="clinic-signal-preview-block">
+                    <em>Agendamento</em>
+                    <p>{livePreview.booking}</p>
+                  </div>
+                  <div className="clinic-signal-preview-block">
+                    <em>Reagendamento</em>
+                    <p>{livePreview.reschedule}</p>
+                  </div>
+                  <div className="clinic-signal-preview-block">
+                    <em>Cancelamento</em>
+                    <p>{livePreview.cancel}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <p className="clinic-footnote">
+            As regras ficam guardadas. Ao ligar de novo, valor, prazo e política voltam a aparecer.
+          </p>
+        )}
+
         <div className="clinic-card-footer">
           <CardNotice notice={policyNotice} />
           <Button
@@ -426,10 +633,13 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
             onPress={() => void onSaveSettings()}
           >
             <BusyLabel busy={busy === 'save'} busyText="Salvando…">
-              Salvar prazo e política
+              Salvar regras do sinal
             </BusyLabel>
           </Button>
         </div>
+        <p className="clinic-footnote">
+          Atendentes não editam esta tela — só podem dispensar o sinal num Contato.
+        </p>
       </section>
     </div>
   )

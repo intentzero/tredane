@@ -31,6 +31,7 @@ import {
   createSignalChargeAndSendOp,
   listOpenPaymentAlertsOp,
   processPixPaymentOp,
+  updatePixSignalSettingsOp,
 } from './index'
 
 const TZ = 'America/Sao_Paulo'
@@ -68,6 +69,20 @@ async function seed(
       requiresSignal: true,
       signalKind: 'fixed',
       signalFixedCents: 5_400,
+    },
+    clock,
+  )
+  // DEC-180: cobrança lê o sinal global (serviço só espelha).
+  updatePixSignalSettingsOp(
+    db,
+    caller,
+    {
+      enabled: true,
+      amountKind: 'fixed',
+      fixedCents: 5_400,
+      deadlineSeconds: 7200,
+      policyKind: 'credit_next',
+      creditWindowHours: 24,
     },
     clock,
   )
@@ -454,6 +469,19 @@ describe('pix payment → atomic confirm (#39)', () => {
         requiresSignal: true,
         signalKind: 'fixed',
         signalFixedCents: 1_000,
+      },
+      clock,
+    )
+    updatePixSignalSettingsOp(
+      dbB,
+      callerB,
+      {
+        enabled: true,
+        amountKind: 'fixed',
+        fixedCents: 1_000,
+        deadlineSeconds: 7200,
+        policyKind: 'credit_next',
+        creditWindowHours: 24,
       },
       clock,
     )

@@ -13,7 +13,7 @@ import { createConversation } from '../clinic/inbox/conversations'
 import { insertMessage } from '../clinic/inbox/messages'
 import { seedSyntheticWhatsappTemplates } from '../clinic/inbox/templates'
 import { clinicWhatsapp, workerCaller } from '../clinic'
-import { connectPixAccountOp } from '../clinic/pix'
+import { connectPixAccountOp, updatePixSignalSettingsOp } from '../clinic/pix'
 import { bootClinicDb } from '../clinic/test-db'
 import type { ClinicDb } from '../clinic/store'
 
@@ -79,6 +79,20 @@ export async function seedOperationalClinic(opts: {
       requiresSignal: true,
       signalKind: 'fixed',
       signalFixedCents: 5_400,
+    },
+    clock,
+  )
+  // DEC-180: cobrança lê o sinal global (serviço só espelha).
+  updatePixSignalSettingsOp(
+    db,
+    caller,
+    {
+      enabled: true,
+      amountKind: 'fixed',
+      fixedCents: 5_400,
+      deadlineSeconds: 7200,
+      policyKind: 'credit_next',
+      creditWindowHours: 24,
     },
     clock,
   )

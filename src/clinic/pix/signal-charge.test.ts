@@ -25,6 +25,7 @@ import {
   confirmWithoutSignalOp,
   listConversationPixChargesOp,
   reconcileUncertainChargeOp,
+  updatePixSignalSettingsOp,
 } from './index'
 import { createWooviSandboxFixture } from '../../pix'
 
@@ -63,6 +64,20 @@ async function seedSignalClinic(
       requiresSignal: true,
       signalKind: 'fixed',
       signalFixedCents: 5_400,
+    },
+    clock,
+  )
+  // DEC-180: cobrança lê o sinal global (serviço só espelha).
+  updatePixSignalSettingsOp(
+    db,
+    caller,
+    {
+      enabled: true,
+      amountKind: 'fixed',
+      fixedCents: 5_400,
+      deadlineSeconds: 7200,
+      policyKind: 'credit_next',
+      creditWindowHours: 24,
     },
     clock,
   )

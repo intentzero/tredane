@@ -1554,6 +1554,244 @@ button.panel-auth-inline-link {
   height: var(--size-control-md);
 }
 
+/* DEC-180 — cartão unificado do sinal + isenção Contato */
+.clinic-signal-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--size-control-lg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.clinic-signal-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.clinic-signal-money-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+}
+
+.clinic-signal-money-row span {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-signal-money-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  height: calc(var(--size-control-md) - 2px);
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.clinic-policy-chips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-policy-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  text-align: left;
+  min-height: var(--size-control-lg);
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.clinic-policy-chip strong {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-policy-chip small {
+  font-size: var(--font-size-caption, 12px);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+}
+
+.clinic-policy-chip[aria-pressed='true'] {
+  border-width: 2px;
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+}
+
+.clinic-credit-window {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.clinic-signal-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--size-border-width) solid #b3d1d1;
+  background: var(--color-primary-tint);
+  font-size: var(--font-size-small);
+}
+
+.clinic-signal-preview-tag {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid #b3d1d1;
+  color: var(--color-primary-ink);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-signal-preview > strong {
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+}
+
+.clinic-signal-preview-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-signal-preview-block em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.clinic-signal-preview-block p {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.inbox-signal-waive-banner {
+  margin: var(--space-2) var(--space-3) 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  border: var(--size-border-width) solid #b3d1d1;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.inbox-signal-waive-banner strong {
+  display: block;
+  font-size: var(--font-size-small);
+  color: var(--color-primary-ink);
+}
+
+.inbox-signal-waive-banner span {
+  font-size: var(--font-size-caption, 12px);
+  color: var(--color-text-secondary);
+}
+
+.inbox-signal-waive-banner a,
+.inbox-signal-waive-banner button.inbox-signal-waive-link {
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ic-signal-waive {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+}
+
+.ic-signal-waive-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ic-signal-waive-head h3 {
+  margin: 0;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ic-signal-waive-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ic-signal-waive-pill {
+  min-height: 40px;
+  border-radius: 999px;
+  border: var(--size-border-width) solid var(--color-line-control);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.ic-signal-waive-pill[aria-pressed='true'] {
+  background: var(--color-text-primary);
+  color: #fff;
+  border-color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ic-signal-waived-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--space-2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+}
+
 .clinic-empty {
   padding: var(--space-4);
   color: var(--color-text-secondary);

@@ -57,7 +57,15 @@ export {
 export {
   getPixSignalSettings,
   updatePixSignalSettings,
+  effectiveSignalForCharge,
 } from './signal-settings'
+export {
+  buildSignalPolicyPreview,
+  formatDeadlineHuman,
+  type SignalPolicyKind,
+  type SignalPolicyPreview,
+  type SignalPolicyTextInput,
+} from './signal-policy-text'
 export {
   createSchedulingIntent,
   getSchedulingIntent,

@@ -51,8 +51,18 @@ export type PixAccountPublic = {
 
 export type PixSignalSettings = {
   tenantId: string
+  /** Pedir sinal ao agendar (DEC-180). */
+  enabled: boolean
+  amountKind: SignalKind
+  fixedCents: number | null
+  percent: number | null
   deadlineSeconds: number
+  policyKind: import('./signal-policy-text').SignalPolicyKind
+  creditWindowHours: 12 | 24 | 48 | null
+  customPolicyText: string
+  /** Texto à cliente (gerado ou Outro…) — snapshot em cobranças. */
   cancellationPolicy: string
+  preview: import('./signal-policy-text').SignalPolicyPreview
   updatedAt: number
 }
 
@@ -240,7 +250,15 @@ export type ConnectPixInput = {
 }
 
 export type UpdateSignalSettingsInput = {
+  enabled?: boolean
+  amountKind?: SignalKind
+  fixedCents?: number | null
+  percent?: number | null
   deadlineSeconds?: number
+  policyKind?: import('./signal-policy-text').SignalPolicyKind
+  creditWindowHours?: 12 | 24 | 48 | null
+  customPolicyText?: string
+  /** Compat DEC-047/179: se vier sozinho, trata-se como política «Outro…». */
   cancellationPolicy?: string
 }
 

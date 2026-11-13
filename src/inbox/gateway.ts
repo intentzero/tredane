@@ -54,6 +54,7 @@ export function createClinicDoInboxGateway(
     getReviewConversation: (caller, input) => stub.getReviewConversation(caller, input),
     blockContact: (caller, input) => stub.blockInboxContact(caller, input),
     unblockContact: (caller, input) => stub.unblockInboxContact(caller, input),
+    setContactSignalWaive: (caller, input) => stub.setInboxContactSignalWaive(caller, input),
     sendOutbound: (caller, input) => stub.sendInboxOutbound(caller, input),
     seedDemo: (caller, opts) => stub.seedInboxDemo(caller, opts),
   }
@@ -139,6 +140,16 @@ export type InboxGateway = {
   unblockContact(
     caller: ClinicCaller,
     input: UnblockContactInput,
+  ): Promise<{ contact: ConversationListItem['contact'] }>
+  setContactSignalWaive(
+    caller: ClinicCaller,
+    input: {
+      contactId: string
+      waived: boolean
+      reason?: string | null
+      actorClerkUserId: string
+      actorDisplayName: string
+    },
   ): Promise<{ contact: ConversationListItem['contact'] }>
   sendOutbound(
     caller: ClinicCaller,
@@ -288,6 +299,10 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
     },
     async unblockContact(caller, input) {
       return clinicInbox.unblockContactOp(db, caller, input, clock).value
+    },
+    async setContactSignalWaive(caller, input) {
+      const { setContactSignalWaiveOp } = await import('../clinic/pix/contact-signal-waive')
+      return setContactSignalWaiveOp(db, caller, input, clock)
     },
     async sendOutbound(caller, input) {
       const result = clinicInbox.sendOutboundMessageOp(db, caller, input, clock)

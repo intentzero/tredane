@@ -579,7 +579,17 @@ export function createPanelApi(getToken: TokenGetter) {
 
     async updatePixSignalSettings(
       tenantId: string,
-      body: { deadlineSeconds?: number; cancellationPolicy?: string },
+      body: {
+        enabled?: boolean
+        amountKind?: 'fixed' | 'percent'
+        fixedCents?: number | null
+        percent?: number | null
+        deadlineSeconds?: number
+        policyKind?: 'credit_next' | 'keep' | 'custom'
+        creditWindowHours?: 12 | 24 | 48 | null
+        customPolicyText?: string
+        cancellationPolicy?: string
+      },
       opts?: FetchOpts,
     ): Promise<PixSignalSettings> {
       const res = await authFetch(
@@ -1976,6 +1986,27 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { contact: InboxContact }
     },
 
+    /** DEC-180 — isenção durável do sinal no Contato. */
+    async setContactSignalWaive(
+      tenantId: string,
+      contactId: string,
+      body: { waived: boolean; reason?: string | null },
+      opts?: FetchOpts,
+    ): Promise<{ contact: InboxContact }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/contacts/${encodeURIComponent(contactId)}/signal-waive`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { contact: InboxContact }
+    },
+
     async sendInboxMessage(
       tenantId: string,
       conversationId: string,
@@ -2285,6 +2316,10 @@ export type InboxContact = {
   blockedAt?: number | null
   blockedByDisplayName?: string | null
   blockedReason?: string | null
+  signalWaived?: boolean
+  signalWaiveReason?: string | null
+  signalWaivedByDisplayName?: string | null
+  signalWaivedAt?: number | null
 }
 
 export type InboxConversation = {
@@ -2948,9 +2983,25 @@ export type PixAccountPublic = {
   canCreateCharge: boolean
 }
 
+export type PixSignalPolicyPreview = {
+  booking: string
+  reschedule: string
+  cancel: string
+  combined: string
+  generated: boolean
+}
+
 export type PixSignalSettings = {
+  enabled: boolean
+  amountKind: 'fixed' | 'percent'
+  fixedCents: number | null
+  percent: number | null
   deadlineSeconds: number
+  policyKind: 'credit_next' | 'keep' | 'custom'
+  creditWindowHours: 12 | 24 | 48 | null
+  customPolicyText: string
   cancellationPolicy: string
+  preview: PixSignalPolicyPreview
   updatedAt: number
 }
 

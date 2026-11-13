@@ -234,14 +234,28 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
       const principal = c.get('principal')
       requireClinicPermission(ctx, 'clinic.config.write')
       const body = (await c.req.json()) as {
+        enabled?: boolean
+        amountKind?: 'fixed' | 'percent'
+        fixedCents?: number | null
+        percent?: number | null
         deadlineSeconds?: number
+        policyKind?: 'credit_next' | 'keep' | 'custom'
+        creditWindowHours?: 12 | 24 | 48 | null
+        customPolicyText?: string
         cancellationPolicy?: string
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
       const settings = await gw.updateSignalSettings(
         workerCaller(ctx.tenantId, principal.clerkUserId),
         {
+          enabled: body.enabled,
+          amountKind: body.amountKind,
+          fixedCents: body.fixedCents,
+          percent: body.percent,
           deadlineSeconds: body.deadlineSeconds,
+          policyKind: body.policyKind,
+          creditWindowHours: body.creditWindowHours,
+          customPolicyText: body.customPolicyText,
           cancellationPolicy: body.cancellationPolicy,
         },
       )

@@ -628,6 +628,36 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
     },
   )
 
+  /** DEC-180 — dispensar / repor sinal no Contato (owner + atendente). */
+  app.patch(
+    '/api/tenants/:tenantId/inbox/contacts/:contactId/signal-waive',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.reply')
+        const tenantId = c.req.param('tenantId')
+        const contactId = c.req.param('contactId')
+        const body = (await c.req.json()) as { waived?: boolean; reason?: string | null }
+        if (typeof body.waived !== 'boolean') {
+          return c.json({ error: 'waived_required', message: 'waived (boolean) é obrigatório' }, 400)
+        }
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const result = await gw.setContactSignalWaive(workerCaller(tenantId, principal.clerkUserId), {
+          contactId,
+          waived: body.waived,
+          reason: body.reason,
+          actorClerkUserId: principal.clerkUserId,
+          actorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+        })
+        return c.json({ contact: serializeContact(result.contact) })
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
   app.post(
     '/api/tenants/:tenantId/inbox/conversations/:conversationId/messages',
     ...tenant,

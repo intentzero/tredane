@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { requestAgendarOpen } from './agendarFocus'
 import { consumeSummaryFocus } from './summaryFocus'
 import { AiWorking } from '../../ui/AiWorking'
-import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
+import { Button, Menu, MenuItem, MenuTrigger, Popover, Switch } from 'react-aria-components'
 import {
   PanelApiError,
   type AiSuggestion,
@@ -142,6 +142,18 @@ export function InboxContactScreen({
   const [blockError, setBlockError] = useState<string | null>(null)
   const [showPhone, setShowPhone] = useState(false)
   const [showPast, setShowPast] = useState(false)
+  const [signalWaivedDraft, setSignalWaivedDraft] = useState(false)
+  const [waiveChip, setWaiveChip] = useState<string | null>(null)
+  const [waiveBusy, setWaiveBusy] = useState(false)
+  const [waiveError, setWaiveError] = useState<string | null>(null)
+  const [waiveNotice, setWaiveNotice] = useState<string | null>(null)
+
+  const WAIVE_CHIPS = [
+    'Cliente frequente',
+    'Indicação da owner',
+    'Pacote / cortesia',
+    'Outro',
+  ] as const
 
   // A ficha reusa a mesma instância ao trocar de cliente (Clientes 2 colunas /
   // sidepane). Sem reset, «Mostrar telefone» e o resumo da IA vazavam.
@@ -155,6 +167,9 @@ export function InboxContactScreen({
     setDeleteError(null)
     setBlockOpen(false)
     setBlockError(null)
+    setWaiveChip(null)
+    setWaiveError(null)
+    setWaiveNotice(null)
   }, [contactId])
 
   useEffect(() => {
@@ -167,7 +182,11 @@ export function InboxContactScreen({
           generation,
           expectGeneration: () => generation,
         })
-        if (!cancelled) setData(res)
+        if (!cancelled) {
+          setData(res)
+          setSignalWaivedDraft(res.contact.signalWaived === true)
+          setWaiveChip(res.contact.signalWaiveReason ?? null)
+        }
       } catch (err) {
         if (!cancelled) {
           setError(friendlyError(err, 'Não foi possível abrir este contato.'))
@@ -263,6 +282,39 @@ export function InboxContactScreen({
       setBlockError('Não foi possível desbloquear agora. Tente de novo.')
     } finally {
       setBlockBusy(false)
+    }
+  }
+
+  async function handleSaveSignalWaive() {
+    if (signalWaivedDraft && !waiveChip?.trim()) {
+      setWaiveError('Escolha o motivo da isenção.')
+      return
+    }
+    setWaiveBusy(true)
+    setWaiveError(null)
+    setWaiveNotice(null)
+    try {
+      const res = await api.setContactSignalWaive(
+        tenantId,
+        contactId,
+        {
+          waived: signalWaivedDraft,
+          reason: signalWaivedDraft ? waiveChip : null,
+        },
+        { generation, expectGeneration: () => generation },
+      )
+      setData((prev) => (prev ? { ...prev, contact: { ...prev.contact, ...res.contact } } : prev))
+      setSignalWaivedDraft(res.contact.signalWaived === true)
+      setWaiveChip(res.contact.signalWaiveReason ?? null)
+      setWaiveNotice(
+        res.contact.signalWaived
+          ? 'Isenção salva. O Agendar confirma sem pedir Pix.'
+          : 'Isenção removida. Volta a valer o sinal da clínica.',
+      )
+    } catch (err) {
+      setWaiveError(friendlyError(err, 'Não foi possível salvar a isenção.'))
+    } finally {
+      setWaiveBusy(false)
     }
   }
 
@@ -379,6 +431,9 @@ export function InboxContactScreen({
             timeStyle: 'short',
           })}
         </span>
+        {data.contact.signalWaived ? (
+          <span className="ic-signal-waived-pill">Sinal dispensado</span>
+        ) : null}
       </div>
 
       {/* DEC-162 / Clientes: atalhos para agendar e abrir a conversa, sem passar pelo ⋮. */}
@@ -503,6 +558,89 @@ export function InboxContactScreen({
           </dd>
         </div>
       </dl>
+
+      {data.contact.blockedAt == null ? (
+        <section className="ic-signal-waive" aria-labelledby="c-sinal">
+          <div className="ic-signal-waive-head">
+            <div>
+              <h3 id="c-sinal">Dispensar sinal nesta cliente</h3>
+              <p className="clinic-footnote" style={{ margin: '6px 0 0' }}>
+                Com isto ligado, o Agendar confirma sem pedir Pix — mesmo com o sinal global ativo na
+                clínica.
+              </p>
+            </div>
+            <Switch
+              className="clinic-switch"
+              isSelected={signalWaivedDraft}
+              onChange={(v) => {
+                setSignalWaivedDraft(v)
+                setWaiveError(null)
+                setWaiveNotice(null)
+              }}
+              aria-label="Dispensar sinal"
+            >
+              <span className="clinic-switch-track" aria-hidden>
+                <span className="clinic-switch-thumb" />
+              </span>
+            </Switch>
+          </div>
+          {signalWaivedDraft ? (
+            <div>
+              <span className="clinic-deadline-label">Motivo (obrigatório · histórico)</span>
+              <div className="ic-signal-waive-pills" role="group" aria-label="Motivo">
+                {WAIVE_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    className="ic-signal-waive-pill"
+                    aria-pressed={waiveChip === chip}
+                    onClick={() => setWaiveChip(chip)}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+              {data.contact.signalWaived && data.contact.signalWaivedAt ? (
+                <p className="clinic-footnote">
+                  {data.contact.signalWaivedByDisplayName ?? 'Equipe'}
+                  {' · '}
+                  {new Date(data.contact.signalWaivedAt).toLocaleString('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })}
+                  . Não cancela cobranças já enviadas. Não altera as regras globais do Recebimento.
+                </p>
+              ) : (
+                <p className="clinic-footnote">
+                  Não cancela cobranças já enviadas. Não altera as regras globais do Recebimento.
+                </p>
+              )}
+            </div>
+          ) : null}
+          {waiveError ? (
+            <p className="inbox-notice" role="alert">
+              {waiveError}
+            </p>
+          ) : null}
+          {waiveNotice ? (
+            <p className="inbox-notice inbox-notice-ok" role="status">
+              {waiveNotice}
+            </p>
+          ) : null}
+          <Button
+            className="panel-btn-primary"
+            isDisabled={waiveBusy || (signalWaivedDraft && !waiveChip)}
+            onPress={() => void handleSaveSignalWaive()}
+          >
+            {waiveBusy ? 'Salvando…' : 'Salvar isenção'}
+          </Button>
+          <p className="clinic-footnote" style={{ margin: 0 }}>
+            {isOwner
+              ? 'Responsável: também as regras em Recebimento (valor, prazo, política gerada).'
+              : 'Atendente: só esta isenção. A responsável altera as regras em Recebimento.'}
+          </p>
+        </section>
+      ) : null}
 
       {summaryConversationId ? (
         <section className="ic-ai" aria-labelledby="resumo-ia">

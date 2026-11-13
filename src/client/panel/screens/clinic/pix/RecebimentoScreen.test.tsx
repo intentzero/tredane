@@ -5,10 +5,33 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi, PixSnapshot } from '../../../api'
 import '../../../../ui/panel.css'
 import { RecebimentoScreen } from './RecebimentoScreen'
+import { buildSignalPolicyPreview } from '../../../../../clinic/pix/signal-policy-text'
 
 afterEach(cleanup)
 
 function snapshot(over: Partial<PixSnapshot['signalSettings']> = {}): PixSnapshot {
+  const base = {
+    enabled: true,
+    amountKind: 'fixed' as const,
+    fixedCents: 5000,
+    percent: null,
+    deadlineSeconds: 7200,
+    policyKind: 'credit_next' as const,
+    creditWindowHours: 24 as const,
+    customPolicyText: '',
+    cancellationPolicy: '',
+    updatedAt: 1,
+  }
+  const merged = { ...base, ...over }
+  const preview = buildSignalPolicyPreview({
+    amountKind: merged.amountKind,
+    fixedCents: merged.fixedCents,
+    percent: merged.percent,
+    deadlineSeconds: merged.deadlineSeconds,
+    policyKind: merged.policyKind,
+    creditWindowHours: merged.creditWindowHours,
+    customPolicyText: merged.customPolicyText,
+  })
   return {
     account: {
       provider: 'woovi',
@@ -26,10 +49,9 @@ function snapshot(over: Partial<PixSnapshot['signalSettings']> = {}): PixSnapsho
       updatedAt: 1,
     },
     signalSettings: {
-      deadlineSeconds: 7200,
-      cancellationPolicy: 'Cancelamento com devolução até 24 h antes.',
-      updatedAt: 1,
-      ...over,
+      ...merged,
+      cancellationPolicy: merged.cancellationPolicy || preview.combined,
+      preview,
     },
   }
 }
@@ -37,15 +59,13 @@ function snapshot(over: Partial<PixSnapshot['signalSettings']> = {}): PixSnapsho
 function api(snap: PixSnapshot = snapshot()): PanelApi & {
   updatePixSignalSettings: ReturnType<typeof vi.fn>
 } {
-  const updatePixSignalSettings = vi.fn(
-    async (_t: string, body: { deadlineSeconds?: number; cancellationPolicy?: string }) => ({
+  const updatePixSignalSettings = vi.fn(async (_t: string, body: Record<string, unknown>) => {
+    const next = snapshot({
       ...snap.signalSettings,
-      deadlineSeconds: body.deadlineSeconds ?? snap.signalSettings.deadlineSeconds,
-      cancellationPolicy:
-        body.cancellationPolicy ?? snap.signalSettings.cancellationPolicy,
-      updatedAt: Date.now(),
-    }),
-  )
+      ...(body as Partial<PixSnapshot['signalSettings']>),
+    })
+    return next.signalSettings
+  })
   return {
     getPix: vi.fn(async () => snap),
     connectPix: vi.fn(),
@@ -54,88 +74,60 @@ function api(snap: PixSnapshot = snapshot()): PanelApi & {
   } as unknown as PanelApi & { updatePixSignalSettings: ReturnType<typeof vi.fn> }
 }
 
-describe('RecebimentoScreen — prazo presets (DEC-179)', () => {
-  it('mostra 2 h selecionado por padrão e salva em segundos', async () => {
+describe('RecebimentoScreen — cartão unificado (DEC-180)', () => {
+  it('mostra o cartão do sinal com 2 h e salva regras globais', async () => {
     const client = api()
     render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
 
-    const group = await screen.findByRole('group', { name: 'Presets de prazo' })
+    expect(await screen.findByRole('heading', { name: 'Sinal para reservar o horário' })).toBeTruthy()
+    const group = screen.getByRole('group', { name: 'Presets de prazo' })
     expect(within(group).getByRole('button', { name: '2 h' }).getAttribute('aria-pressed')).toBe(
       'true',
     )
-    expect(within(group).getByRole('button', { name: '15 min' }).getAttribute('aria-pressed')).toBe(
-      'false',
-    )
-    expect(screen.queryByLabelText('Prazo personalizado')).toBeNull()
+    expect(screen.getByText(/Prévia automática/)).toBeTruthy()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Salvar prazo e política' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
     await waitFor(() =>
       expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
         'clinic-demo-a',
-        expect.objectContaining({ deadlineSeconds: 7200 }),
+        expect.objectContaining({
+          enabled: true,
+          amountKind: 'fixed',
+          fixedCents: 5000,
+          deadlineSeconds: 7200,
+          policyKind: 'credit_next',
+          creditWindowHours: 24,
+        }),
         expect.anything(),
       ),
     )
   })
 
-  it('Outro… abre número + unidade e desabilita Salvar fora de 15 min–48 h', async () => {
+  it('prazo Outro… fora de 15 min–48 h desabilita Salvar', async () => {
     const client = api()
     render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
 
     await screen.findByRole('button', { name: '2 h' })
     await userEvent.click(screen.getByRole('button', { name: 'Outro…' }))
-
     const custom = screen.getByLabelText('Prazo personalizado')
-    expect(within(custom).getByDisplayValue('90')).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'min' }).getAttribute('data-selected')).toBe('true')
-
-    const save = screen.getByRole('button', { name: 'Salvar prazo e política' })
-    expect((save as HTMLButtonElement).disabled).toBe(false)
-
     await userEvent.clear(within(custom).getByLabelText('Número'))
     await userEvent.type(within(custom).getByLabelText('Número'), '5')
-    expect((save as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (screen.getByRole('button', { name: 'Salvar regras do sinal' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
+  })
 
-    await userEvent.clear(within(custom).getByLabelText('Número'))
-    await userEvent.type(within(custom).getByLabelText('Número'), '90')
-    expect((save as HTMLButtonElement).disabled).toBe(false)
-
-    await userEvent.click(save)
+  it('desligado esconde valor e política mas permite salvar', async () => {
+    const client = api(snapshot({ enabled: true }))
+    render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
+    await screen.findByRole('heading', { name: 'Sinal para reservar o horário' })
+    await userEvent.click(screen.getByRole('switch', { name: 'Pedir sinal ao agendar' }))
+    expect(screen.queryByText(/Valor do sinal/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
     await waitFor(() =>
       expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
         'clinic-demo-a',
-        expect.objectContaining({ deadlineSeconds: 5400 }),
-        expect.anything(),
-      ),
-    )
-  })
-
-  it('valor guardado fora dos presets abre Outro… com unidade correcta', async () => {
-    const client = api(snapshot({ deadlineSeconds: 5400 }))
-    render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
-
-    const group = await screen.findByRole('group', { name: 'Presets de prazo' })
-    expect(within(group).getByRole('button', { name: 'Outro…' }).getAttribute('aria-pressed')).toBe(
-      'true',
-    )
-    expect(within(group).getByRole('button', { name: '2 h' }).getAttribute('aria-pressed')).toBe(
-      'false',
-    )
-    expect(screen.getByDisplayValue('90')).toBeTruthy()
-  })
-
-  it('escolhe 30 min e envia 1800 segundos', async () => {
-    const client = api()
-    render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
-
-    await screen.findByRole('button', { name: '2 h' })
-    await userEvent.click(screen.getByRole('button', { name: '30 min' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Salvar prazo e política' }))
-
-    await waitFor(() =>
-      expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
-        'clinic-demo-a',
-        expect.objectContaining({ deadlineSeconds: 1800 }),
+        expect.objectContaining({ enabled: false }),
         expect.anything(),
       ),
     )
