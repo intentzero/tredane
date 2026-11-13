@@ -112,21 +112,23 @@ Escreve `.eval/shadow-replay.md` (relatório) e `.eval/shadow-replay-raw.json` (
 
 | Sistema | Frases perfeitas | Campos certos | Errados | Em falta | Inventados |
 | --- | --- | --- | --- | --- | --- |
-| `rule` / `today` (produção hoje) | 38/59 (64 %) | 72/95 (76 %) | 3 | 20 | 1 |
+| `rule` / `today` (**`interpretTurn`**, proxy do léxico; ver limite abaixo) | 38/59 (64 %) | 72/95 (76 %) | 3 | 20 | 1 |
 | `strict` (léxico + modelo, citação literal) | 42/59 (71 %) | 77/95 (81 %) | 0 | 18 | 1 |
 | `relaxed` (só modelo, validação por id: H1) | 54/59 (92 %) | 94/95 (99 %) | 0 | 1 | 4 |
 | `hybrid` (léxico primeiro, modelo preenche) | 50/59 (85 %) | 91/95 (96 %) | 3 | 1 | 5 |
 
 O que a medição mostra:
 
-- **O ganho existe e é grande onde se esperava:** frases coloquiais (5 → 10 de 12), erros de escrita (2 → 5 de 5) e respostas à pergunta pendente (4 → 11 de 11). `today` e `rule` coincidem: o extrator quase nunca corre em produção.
+- **O ganho existe e é grande onde se esperava:** frases coloquiais (5 → 10 de 12), erros de escrita (2 → 5 de 5) e respostas à pergunta pendente (4 → 11 de 11). `today` e `rule` coincidem: com o portão atual (`needsExtractor`), o extrator quase nunca corre.
 - **A citação literal explica quase tudo o que o modelo perde:** com ela (`strict`) o modelo só acrescenta 4 frases perfeitas; sem ela (`relaxed`), 16.
 - **O risco concentra-se num campo:** dos 4 campos inventados pelo modelo, 3 são `line: feminino` sem nenhuma evidência na frase (L11, C05, C08). O validador de hoje apanha-os porque exige a palavra «feminina». O contacto não tem sexo (DEC-079): a linha tem de continuar a exigir evidência literal mesmo que o resto passe a ser validado só por id. O quarto é `period` deduzido de «14h» (H08), discutível como erro.
 - **`hybrid` é pior do que `relaxed`:** quando o léxico lê e erra (por exemplo «axila e pernas» a incluir a axila masculina), o modelo não corrige porque só preenche campos vazios. Dar prioridade ao léxico traz de volta os seus erros.
-- **O léxico tem defeitos próprios**, independentes de H1: «a segunda opção» lido também como segunda-feira (P07), «massagem relaxante» sem serviço (L02), «sobrancelha» sem «Design de sobrancelha» (C02, C10, T04).
+- **O `interpretTurn` tem defeitos próprios** (não necessariamente o funil real; ver limite abaixo): «a segunda opção» lido também como segunda-feira (P07), «massagem relaxante» sem serviço (L02), «sobrancelha» sem «Design de sobrancelha» (C02, C10, T04).
 - **Custo e latência baixos:** 59 chamadas, 38,5 mil tokens de entrada e 6,9 mil de saída, cerca de US$ 0,007 (≈ US$ 0,00012 por turno); latência p50 1,2 s e p95 1,8 s.
 
-Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: rever os rótulos com outra pessoa; repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
+**Limite importante (correção de 13/11/2026):** a coluna `rule`/`today` mede o `interpretTurn`, que só é chamado pelo portão do extrator ([`llm-extractor.ts`](../../src/clinic/ai/llm-extractor.ts)) e pela sombra. O funil que decide a conversa em produção usa outras funções do [`autobook.ts`](../../src/clinic/ai/autobook.ts) (`extractServices`, `zonesNamedInText`, `extractDates`, `extractTimes`), com regras próprias. Por isso **«64 % hoje» não é a taxa do funil real**; é a de um léxico parecido. A comparação válida entre o modelo e o funil real ainda não foi feita (ver «Em aberto»). O que a medição sustenta sem esta ressalva é só: o modelo, validado por id, lê bem este corpus e o seu custo é baixo.
+
+Leitura para decidir (Proposto): H1 ganha força, mas a forma que a medição sustenta é «modelo primeiro, com validação por id e **evidência literal obrigatória só para a linha**», não a validação relaxada sem exceções. Antes de decidir faltam: medir o funil real (frame depois de um turno no harness L1) contra o mesmo corpus; rever os rótulos com outra pessoa; repetir com frases de pessoas de fora (DEC-143) e com o modelo de produção; medir variância (a corrida foi única, sem `pass^k`); e testar o mesmo corpus depois de corrigir os defeitos do léxico, para separar o ganho do modelo do ganho de consertar o léxico.
 
 **Configuração da chave:** o gateway só encontrou a chave guardada depois de o adaptador enviar `cf-aig-byok-alias` (variável opcional `AI_GATEWAY_BYOK_ALIAS`; sem ela nada muda). Sem esse cabeçalho o gateway procura o alias `default` e responde com o erro 2044.
 

@@ -2,9 +2,10 @@
  * Reexecução da sombra do interpretador sobre o corpus fixo (Proposto).
  *
  * Quatro sistemas contra a leitura rotulada:
- * - `rule`     léxico determinístico (`interpretTurn`);
- * - `today`    o que produção faz hoje: léxico, mais o extrator **só** se o
- *              léxico não leu nenhum campo, com citação literal obrigatória;
+ * - `rule`     `interpretTurn`. ATENÇÃO: só o portão do extrator o usa; o funil real
+ *              decide com outras funções de `autobook.ts`, por isso é um proxy;
+ * - `today`    `interpretTurn` mais o extrator **só** se não leu nenhum campo, com
+ *              citação literal obrigatória (o extrator tal como está ligado);
  * - `strict`   léxico + modelo com citação literal em todo turno;
  * - `relaxed`  só o modelo, com validação por id do catálogo (a hipótese H1);
  * - `hybrid`   léxico primeiro, o modelo preenche o que ficou vazio.
