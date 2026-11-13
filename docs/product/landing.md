@@ -91,6 +91,24 @@ Origem: perguntas do responsável pelo produto («header sticky?», «podemos ad
 - **Limites:** CSS mais um script de poucas linhas (`IntersectionObserver`), sem biblioteca. O CSS só esconde conteúdo depois que o script marca a página; sem script, ou com `prefers-reduced-motion`, tudo aparece pronto e parado.
 - **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; header, destaque do menu e as duas cenas conferidos em 1440px. axe e Lighthouse **não** foram rodados.
 
+## Composição nova e fundos com padrão (13/11/2026)
+
+Origem: pedido do responsável pelo produto («dá um upgrade na landing page», «o background está meio monótono e sem vida») e duas rodadas de `/design` ([canvas do upgrade](https://claude.ai/artifact/5iAMLUphLUFMVy2ppwpWJc), privado), com «Sim, implementa». **Confirmado** como visual do site. A mensagem, a copy e a ordem dos oito blocos de 05/11/2026 **não mudaram**; o header fixo, a entrada ao rolar e as duas cenas continuam como estavam.
+
+- **Abertura:** a conversa da Lívia fica à frente e a agenda atrás, nos dois tamanhos de tela, com um aviso «Lívia confirmou · sexta · 10:00 · Sala 1» (decorativo, repete o que as telas mostram) e anéis atrás dos celulares. **Substitui** as três telas lado a lado; a tela Conversas desce para «Feito para equipe».
+- **Como ajuda:** o primeiro cartão fica maior, em Petróleo, com uma mini conversa (pergunta, preço e três horários). Os outros dois ganham um detalhe cada: «Profissional, Sala, Intervalo» e «Júlia Santos · Precisa de alguém».
+- **Na prática:** número em círculo com trilho; o passo do Confirmar tem contorno Petróleo; a fala da cliente fica à esquerda e a resposta à direita, como na tela do aplicativo.
+- **Sinal Pix:** sequência ligada sobre creme, do pedido ao «Sinal pago» em verde (`success.ink` `#1F7A4D`, texto branco).
+- **Pode confiar:** as três garantias em cartões com ícone.
+- **Feito para equipe:** os quatro fatos em grade de duas colunas, com ícone, ao lado da tela Conversas.
+- **Piloto:** texto alinhado à esquerda, com a pessoa que acompanha ao lado do título.
+- **Motivos de fundo:** linhas de seda (abertura, em movimento; Pode confiar, paradas), anéis (abertura, Pix, Feito para equipe) e uma flor de oito pétalas em traço fino (Como ajuda e piloto). **Proposto** como parte da marca: só existem no site.
+- **Movimento:** dentro do limite de 05/11/2026 (abertura, Pix, Pode confiar e piloto; ciclos de 8 s ou mais; tudo para com `prefers-reduced-motion`). Novo: as linhas de seda da abertura (24 s) e uma segunda luz no piloto (24 s).
+- **Proposto:** os horários «sex 11:00» e «sáb 09:30» da mini conversa são ilustrativos e não vêm da história da Lívia; validar com o responsável ou trocar por horários da agenda de sexta.
+- **Mocks:** os `.dc.html` e previews de `docs/design/landing` continuam na v7 e **desatualizados**; a referência desta rodada é o canvas do upgrade e o próprio site.
+- **Em aberto (bloqueia a publicação):** os mesmos itens das seções anteriores; nenhum foi fechado nesta rodada.
+- **Medido em 13/11/2026:** `astro check` sem erros e `astro build` concluído; sem rolagem horizontal em 360px, 390px e 1440px; revisão visual em 1440px e 390px. axe e Lighthouse **não** foram rodados; o contraste dos textos novos foi escolhido para passar 4,5 : 1, mas não foi medido com ferramenta.
+
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.

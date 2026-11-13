@@ -21,17 +21,23 @@ const hasContact = isReal(contactEmail)
 const hasWhatsapp = isReal(whatsappUrl)
 // Sem WhatsApp configurado, os botões levam ao bloco do piloto.
 const ctaHref = hasWhatsapp ? whatsappUrl : '#piloto'
-// Telas do aplicativo na abertura. No celular aparecem só Conversas e Agenda.
+// Telas do aplicativo: a conversa e a agenda na abertura; Conversas em «Feito para equipe» (13/11/2026).
 const shots = [
  { src: shotConversas, alt: 'Tela Conversas do aplicativo: Júlia Santos no topo com «Precisa de alguém», Lívia Moraes agendada para sexta às 10:00 e marcada pela IA, Carla Dias com a IA e Bianca Lima com a atendente Ana.' },
  { src: shotConversa, alt: 'Tela da conversa com Lívia Moraes: pergunta de preço, resposta automática com valor e duração, pedido de sexta de manhã e proposta de sexta 06/11 às 10:00 confirmada pela cliente.' },
  { src: shotAgenda, alt: 'Tela da agenda de sexta, 6 de novembro: Lívia Moraes às 10:00 na Sala 1, marcada pela IA; intervalo de preparo; Sala 2 bloqueada para manutenção do aparelho; horário livre às 11:00.' },
 ]
+const [shotListAlt, shotChatAlt, shotAgendaAlt] = shots.map((s) => s.alt)
+// Motivos de fundo (13/11/2026): linhas de seda e flor de oito pétalas, sempre decorativos.
+const silkWarm = [560, 592, 624, 656].map((y) => `<path d="M-100 ${y} C 200 ${y - 140}, 420 ${y + 140}, 760 ${y - 20} S 1300 ${y - 200}, 1560 ${y - 60}"/>`).join('')
+const silkCool = [688, 720, 752].map((y) => `<path d="M-100 ${y} C 200 ${y - 124}, 420 ${y + 124}, 760 ${y - 20} S 1300 ${y - 184}, 1560 ${y - 60}"/>`).join('') + [150, 182].map((y) => `<path d="M-100 ${y} C 260 ${y - 110}, 520 ${y + 90}, 860 ${y - 40} S 1320 ${y - 130}, 1560 ${y - 30}"/>`).join('')
+const petal = 'M200 200 C 150 120, 150 60, 200 20 C 250 60, 250 120, 200 200Z'
+const flower = [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="${petal}" transform="rotate(${a} 200 200)"/>`).join('')
 // Garantias de atendimento, agora em três (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115).
 const trust = [
- { title: 'Fala o que você ensinou.', text: 'Preço, duração e explicação são os seus. O que ela não sabe, pergunta para a equipe.' },
- { title: 'Quem escolhe o horário é a cliente.', text: 'Só marca quando ela toca em Confirmar. Um «pode ser» escrito não marca.' },
- { title: 'Na hora certa, chama a sua equipe.', text: 'Assunto de saúde, remarcação ou «quero falar com alguém»: passa para uma pessoa.' },
+ { icon: 'book' as const, title: 'Fala o que você ensinou.', text: 'Preço, duração e explicação são os seus. O que ela não sabe, pergunta para a equipe.' },
+ { icon: 'pointer' as const, title: 'Quem escolhe o horário é a cliente.', text: 'Só marca quando ela toca em Confirmar. Um «pode ser» escrito não marca.' },
+ { icon: 'bell' as const, title: 'Na hora certa, chama a sua equipe.', text: 'Assunto de saúde, remarcação ou «quero falar com alguém»: passa para uma pessoa.' },
 ]
 const faq = [
  { q: 'Isso me ajuda a faturar mais?', a: 'A ideia é essa: cada cliente recebe o preço e os horários enquanto ainda está com vontade de marcar. E o sinal por Pix segura o horário nos serviços que você escolher.' },
@@ -67,6 +73,7 @@ const faq = [
 <main id="conteudo">
 <section id="topo" class="hero">
 <span class="aurora" aria-hidden="true"><i></i><i></i><i></i></span>
+<svg class="silk" aria-hidden="true" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-width="1.2"><g stroke="#F2B596" opacity=".3" set:html={silkWarm} /><g stroke="#9FD3D1" opacity=".26" set:html={silkCool} /></svg>
 <div class="wrap hero-grid">
 <div class="hero-copy">
 <p class="chip"><span class="dot"></span><span class="chip-long">Piloto aberto · clínicas de estética e depilação</span><span class="chip-short">Piloto aberto · estética e depilação</span></p>
@@ -79,11 +86,12 @@ const faq = [
 {hasWhatsapp && <p class="hero-note">Você fala com o atendimento do Tredane como uma cliente falaria. Quem constrói o produto responde quando você pedir.</p>}
 </div>
 
-<ul class="hero-shots plain" aria-label="Telas do aplicativo">
-{shots.map((s) => (
-<li class="hero-phone"><Image src={s.src} alt={s.alt} widths={[200, 400]} sizes="(max-width: 640px) 150px, 200px" width={200} height={414} format="webp" quality={80} loading="eager" decoding="async" /></li>
-))}
-</ul>
+<div class="hero-stage">
+<span class="rings" aria-hidden="true"></span>
+<div class="stage-phone front"><Image src={shotConversa} alt={shotChatAlt} widths={[270, 540]} sizes="(max-width: 640px) 190px, 270px" width={270} height={559} format="webp" quality={80} loading="eager" decoding="async" /></div>
+<div class="stage-phone back"><Image src={shotAgenda} alt={shotAgendaAlt} widths={[240, 480]} sizes="(max-width: 640px) 170px, 240px" width={240} height={497} format="webp" quality={80} loading="eager" decoding="async" /></div>
+<p class="hero-toast" aria-hidden="true"><span class="toast-ok"><Icon name="check" size={18} stroke={2.4} /></span><span><b>Lívia confirmou</b><small>sexta · 10:00 · Sala 1</small></span></p>
+</div>
 </div>
 <div class="wrap">
 <ul class="proof plain">
@@ -96,15 +104,19 @@ const faq = [
 </section>
 
 <section id="ajuda" class="section bg-cream glow-corner">
+<svg class="flower" aria-hidden="true" viewBox="0 0 400 400" fill="none" stroke-width="1.2" set:html={flower} />
 <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
 <div class="head reveal">
 <p class="eyebrow">Como o Tredane ajuda</p>
 <h2 class="h3s">Você cuida da clínica. A gente cuida da conversa.</h2>
 </div>
-<ul class="grid3 plain help-list">
-<li class="card help reveal"><span class="oi"><Icon name="message" size={22} /></span><h3>Cliente perguntou, cliente marcou.</h3><p>Ela pergunta o preço e já recebe a resposta, com os horários livres. Escolhe, confirma, pronto.</p></li>
-<li class="card help reveal"><span class="oi"><Icon name="calendar" size={22} /></span><h3>Cresce sem virar bagunça.</h3><p>Mais profissionais, mais salas, mais serviços. A agenda confere tudo antes de marcar.</p></li>
-<li class="card help reveal"><span class="oi warm"><Icon name="users" size={22} /></span><h3>Sua equipe cuidando de gente.</h3><p>A pergunta repetida fica com a parceira. A equipe fica com quem está na cadeira.</p></li>
+<ul class="plain help-list help-bento">
+<li class="help help-feature reveal">
+<div class="help-copy"><span class="oi"><Icon name="message" size={22} /></span><h3>Cliente perguntou, cliente marcou.</h3><p>Ela pergunta o preço e já recebe a resposta, com os horários livres. Escolhe, confirma, pronto.</p></div>
+<div class="mini-chat" aria-hidden="true"><span class="mc-in">Quanto fica axila e meia perna?</span><span class="mc-out">R$ [valor], cerca de 40 min. Quer ver os horários livres?</span><span class="mc-slots"><span>sex 10:00</span><span>sex 11:00</span><span>sáb 09:30</span></span></div>
+</li>
+<li class="card help reveal"><span class="oi"><Icon name="calendar" size={22} /></span><h3>Cresce sem virar bagunça.</h3><p>Mais profissionais, mais salas, mais serviços. A agenda confere tudo antes de marcar.</p><span class="help-tags" aria-hidden="true"><span><Icon name="check" size={14} stroke={2.6} />Profissional</span><span><Icon name="check" size={14} stroke={2.6} />Sala</span><span><Icon name="check" size={14} stroke={2.6} />Intervalo</span></span></li>
+<li class="card help reveal"><span class="oi warm"><Icon name="users" size={22} /></span><h3>Sua equipe cuidando de gente.</h3><p>A pergunta repetida fica com a parceira. A equipe fica com quem está na cadeira.</p><span class="help-person" aria-hidden="true"><span class="hp-av">JS</span><span><b>Júlia Santos</b><small>Precisa de alguém</small></span></span></li>
 </ul>
 </div>
 </section>
@@ -119,15 +131,16 @@ const faq = [
 <p class="lead">Uma cliente, do primeiro contato ao horário na sua agenda. Ninguém da equipe precisou digitar nada.</p>
 </div>
 <ol class="grid4 plain scene-pratica">
-<li class="reveal card story"><span class="story-t">1</span><h3>A Lívia chama no WhatsApp</h3><p>Quer saber o preço de axila e meia perna.</p><span class="bubble-in">Quanto fica axila e meia perna?</span></li>
-<li class="reveal card story"><span class="story-t">2</span><h3>Recebe o seu preço na hora</h3><p>Do jeitinho que você cadastrou. Sem preço cadastrado, a pergunta vai para a equipe.</p><span class="bubble-out">Na mesma visita: R$ [valor], cerca de 40 min.</span></li>
-<li class="reveal card story"><span class="story-t">3</span><h3>Escolhe e toca em Confirmar</h3><p>Só aparece horário que cabe de verdade: profissional, sala e intervalo.</p><span class="mini-proposal"><span><small>Proposta de horário</small><b>sexta 06/11 · 10:00</b></span><span class="mini-ok">Confirmar</span></span></li>
-<li class="reveal card story story-dark"><span class="story-t">4</span><h3>Sexta, 10h, na sua agenda</h3><p>Com a origem: foi a cliente que confirmou.</p><span class="mini-slot"><b>sex 10:00 · Sala 1</b><span>Lívia · Axila, Meia perna</span><span>Marcado pela IA</span></span></li>
+<li class="reveal card story"><span class="story-t"><b>1</b></span><h3>A Lívia chama no WhatsApp</h3><p>Quer saber o preço de axila e meia perna.</p><span class="bubble-in">Quanto fica axila e meia perna?</span></li>
+<li class="reveal card story"><span class="story-t"><b>2</b></span><h3>Recebe o seu preço na hora</h3><p>Do jeitinho que você cadastrou. Sem preço cadastrado, a pergunta vai para a equipe.</p><span class="bubble-out">Na mesma visita: R$ [valor], cerca de 40 min.</span></li>
+<li class="reveal card story story-key"><span class="story-t"><b>3</b></span><h3>Escolhe e toca em Confirmar</h3><p>Só aparece horário que cabe de verdade: profissional, sala e intervalo.</p><span class="mini-proposal"><span><small>Proposta de horário</small><b>sexta 06/11 · 10:00</b></span><span class="mini-ok">Confirmar</span></span></li>
+<li class="reveal card story story-dark"><span class="story-t"><b>4</b></span><h3>Sexta, 10h, na sua agenda</h3><p>Com a origem: foi a cliente que confirmou.</p><span class="mini-slot"><b>sex 10:00 · Sala 1</b><span>Lívia · Axila, Meia perna</span><span class="slot-tag">Marcado pela IA</span></span></li>
 </ol>
 </div>
 </section>
 
-<section id="pix" class="section bg-white">
+<section id="pix" class="section bg-white deco">
+<span class="rings-corner" aria-hidden="true"></span>
 <div class="wrap split">
 <div class="stack reveal">
 <p class="eyebrow">Sinal por Pix</p>
@@ -138,10 +151,14 @@ const faq = [
 <div><h3>Regras à vista</h3><p>A cliente lê a política de cancelamento antes de pagar.</p></div>
 </div>
 </div>
+<div class="pix-stage">
 <div class="pix scene-pix" role="img" aria-label="Ilustração: mensagem pedindo sinal de R$ [valor] por Pix para limpeza de pele na quinta às 14:00, com prazo de 2 horas; aguardando sinal e, depois, sinal pago com horário garantido.">
 <p class="card pix-msg">Para garantir sua limpeza de pele na <strong>quinta 12/11 às 14:00</strong>, o sinal é de R$ [valor] por Pix. Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</p>
+<span class="pix-link" aria-hidden="true"></span>
 <p class="card pix-status"><span><span class="dot"></span>Aguardando sinal · 1 h 52 min</span><span>conta da clínica</span></p>
-<p class="pix-paid"><Icon name="check" size={18} />Sinal pago · quinta 14:00 garantida</p>
+<span class="pix-link" aria-hidden="true"></span>
+<p class="pix-paid"><span class="pix-tick"><Icon name="check" size={16} stroke={2.8} /></span>Sinal pago · quinta 14:00 garantida</p>
+</div>
 </div>
 </div>
 </section>
@@ -150,13 +167,14 @@ const faq = [
 <div class="wrap">
 <div class="panel aurora-panel">
 <span class="aurora" aria-hidden="true"><i></i><i></i></span>
+<svg class="silk" aria-hidden="true" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-width="1.2"><g stroke="#9FD3D1" set:html={silkCool} /></svg>
 <div class="panel-top reveal">
 <div class="stack" style="gap: 16px;"><p class="eyebrow">Pode confiar</p><h2 class="h3s">Uma parceira que joga do seu lado.</h2></div>
 <p class="lead">Fala com as frases da clínica e nunca decide pela cliente. Se ela pergunta se fala com um robô, ouve a verdade. E a responsável pausa as marcações automáticas com um botão.</p>
 </div>
 <ul class="feats plain">
 {trust.map((f) => (
-<li class="reveal"><h3>{f.title}</h3><p>{f.text}</p></li>
+<li class="reveal"><span class="oi"><Icon name={f.icon} size={22} /></span><h3>{f.title}</h3><p>{f.text}</p></li>
 ))}
 </ul>
 </div>
@@ -164,18 +182,25 @@ const faq = [
 </section>
 
 <section id="equipe" class="section bg-cream">
-<div class="wrap" style="display: flex; flex-direction: column; gap: 40px;">
+<div class="wrap split team">
+<div class="stack">
 <div class="head reveal">
 <p class="eyebrow">Feito para equipe</p>
 <h2 class="h3s">Toda a equipe na mesma conversa e na mesma agenda.</h2>
 <p class="lead">Quem precisa de alguém aparece primeiro. Quem assume, as outras veem. E cada horário entra na sala certa.</p>
 </div>
 <ul class="facts plain">
-<li class="reveal"><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
-<li class="reveal"><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>
-<li class="reveal"><strong>Papéis claros.</strong> A responsável configura; as atendentes atendem.</li>
-<li class="reveal"><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação, por 30 minutos.</li>
+<li class="reveal"><Icon name="zap" size={22} /><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
+<li class="reveal"><Icon name="phone" size={22} /><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>
+<li class="reveal"><Icon name="users" size={22} /><strong>Papéis claros.</strong> A responsável configura; as atendentes atendem.</li>
+<li class="reveal"><Icon name="shield" size={22} /><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação, por 30 minutos.</li>
 </ul>
+</div>
+<div class="team-shot reveal">
+<span class="disc" aria-hidden="true"></span>
+<div class="stage-phone light"><Image src={shotConversas} alt={shotListAlt} widths={[280, 560]} sizes="280px" width={280} height={580} format="webp" quality={80} loading="lazy" decoding="async" /></div>
+<p class="fine">Tela do aplicativo, com dados fictícios.</p>
+</div>
 </div>
 </section>
 
@@ -183,21 +208,25 @@ const faq = [
 <div class="wrap">
 <div class="panel apricot">
 <span class="orb" aria-hidden="true"></span>
-<div class="head center panel-inner reveal" style="gap: 20px;">
+<span class="orb orb-2" aria-hidden="true"></span>
+<svg class="flower" aria-hidden="true" viewBox="0 0 400 400" fill="none" stroke-width="1.2" set:html={flower} />
+<div class="pilot-top panel-inner">
+<div class="pilot-copy reveal">
 <p class="eyebrow">Piloto aberto</p>
 <h2 class="h2">Sua clínica merece crescer. Vamos começar?</h2>
 <p class="lead">A gente conecta o WhatsApp, cadastra seus serviços com você e fica por perto nos primeiros passos.</p>
 {(hasWhatsapp || hasContact) ? (
-<div class="cta-row center">
+<div class="cta-row">
 {hasWhatsapp && <a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>}
 {hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-dark'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
 </div>
 ) : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
 <span class="fine">Condições do piloto: [A DEFINIR]</span>
 </div>
-<div class="pilot-person panel-inner reveal">
+<div class="pilot-person reveal">
 <span class="pilot-photo" aria-hidden="true">[foto]</span>
 <p><strong>[A DEFINIR: nome de quem acompanha o piloto]</strong><span>Fica com a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
+</div>
 </div>
 <div class="grid2 pilot-lists">
 <div class="pilot-box reveal"><h3>A clínica recebe</h3><ul><li>Ajuda para conectar o WhatsApp</li><li>Serviços, preços e agenda configurados junto com você</li><li>Contato direto com quem constrói o produto</li></ul></div>
