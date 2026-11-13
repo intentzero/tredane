@@ -220,18 +220,6 @@ svg { flex: none; }
 .pilot-person strong { color: #FFFFFF; font-weight: 600; }
 .pilot-pending { color: #E7EFEE; font-size: 15px; }
 
-/* Telas do aplicativo na abertura (capturas provisórias até haver as do app real; ver docs/product/landing.md) */
-.hero-grid:has(.hero-shots) .hero-copy { flex: 1 1 480px; }
-.hero-grid:has(.hero-shots) .h1 { font-size: clamp(42px, 5vw, 68px); }
-.hero-shots { flex: 1.15 1 520px; min-width: 0; max-width: 660px; margin-inline: auto; display: flex; justify-content: center; align-items: flex-start; gap: clamp(10px, 1.6vw, 16px); }
-.hero-phone { flex: 0 1 200px; min-width: 0; padding: 7px; border-radius: 30px; background: var(--night-line); box-shadow: 0 32px 64px -24px rgba(0, 0, 0, .7); }
-.hero-phone:nth-child(odd) { margin-top: 48px; }
-.hero-phone img { display: block; width: 100%; height: auto; border-radius: 24px; }
-@media (max-width: 640px) {
-  .hero-phone { flex-basis: 156px; }
-  .hero-phone:nth-child(2) { display: none; }
-  .hero-phone:nth-child(3) { margin-top: 0; }
-}
 
 /* Como ajuda */
 .help { padding: 28px; display: flex; flex-direction: column; gap: 12px; }
@@ -267,9 +255,6 @@ svg { flex: none; }
 .hero-link { text-decoration-color: rgba(255, 255, 255, .5); }
 .proof { border-top-color: rgba(255, 255, 255, .14); color: var(--on-petrol); }
 .hero .fine { color: #A9C9C6; }
-.hero-phone { background: rgba(16, 24, 23, .85); animation: bob 6s ease-in-out infinite; }
-.hero-phone:nth-child(2) { animation-delay: -2s; }
-.hero-phone:nth-child(3) { animation-delay: -4s; }
 
 /* Como ajuda: creme com brilho Damasco no canto */
 .bg-cream { background: var(--cream); }
@@ -284,13 +269,10 @@ svg { flex: none; }
 
 /* Sinal Pix: halo Damasco que respira */
 .bg-white { background: var(--card); }
-.pix { position: relative; padding-block: 24px; }
-.pix > * { position: relative; }
-.pix::before { content: ""; position: absolute; inset: 0 8%; border-radius: 50%; background: #F6C9AE; opacity: .55; filter: blur(60px); animation: breathe 9s ease-in-out infinite; }
 
 /* Pode confiar: painel Petróleo com eco da aurora */
 .panel.aurora-panel { background: linear-gradient(160deg, var(--aurora-1), var(--aurora-2)); color: #FFFFFF; }
-.panel.aurora-panel > :not(.aurora) { position: relative; }
+.panel.aurora-panel > :not(.aurora, .silk) { position: relative; }
 .panel.aurora-panel .aurora i:nth-child(1) { width: 560px; height: 560px; right: -160px; top: -200px; }
 .panel.aurora-panel .aurora i:nth-child(2) { width: 360px; height: 360px; left: 10%; right: auto; bottom: -220px; opacity: .25; }
 .panel.aurora-panel .eyebrow { color: var(--apricot-soft); }
@@ -317,7 +299,7 @@ svg { flex: none; }
 .panel.apricot a:focus-visible { outline-color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora i, .hero-phone, .pix::before, .panel.apricot .orb { animation: none; }
+  .aurora i, .panel.apricot .orb { animation: none; }
 }
 
 /* Revisão de 05/11/2026 (noite): header fixo «Petróleo translúcido» e animações com propósito.
@@ -341,7 +323,7 @@ html { scroll-padding-top: 88px; }
 .hero-copy > :nth-child(3) { animation-delay: .16s; }
 .hero-copy > :nth-child(4) { animation-delay: .24s; }
 .hero-copy > :nth-child(5) { animation-delay: .32s; }
-.hero-shots { animation: rise .8s .25s cubic-bezier(.2, .7, .2, 1) both; }
+.hero-stage { animation: rise .8s .25s cubic-bezier(.2, .7, .2, 1) both; }
 
 /* Entrada ao rolar */
 .js-ready .reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .6s cubic-bezier(.2, .7, .2, 1), box-shadow .2s ease; }
@@ -380,7 +362,7 @@ html { scroll-padding-top: 88px; }
 .faq .pm { transition: transform .2s ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-copy > *, .hero-shots { animation: none; }
+  .hero-copy > *, .hero-stage { animation: none; }
   .btn:hover { transform: none; }
   .topbar { transition: none; }
 }
@@ -391,3 +373,110 @@ html { scroll-padding-top: 88px; }
 .topbar .nav a:hover::after, .topbar .nav a:focus-visible::after { transform: scaleX(1); }
 .topbar .btn-apricot { font-weight: 600; letter-spacing: 0.005em; }
 @media (prefers-reduced-motion: reduce) { .topbar .nav a::after { transition: none; } }
+
+/* Revisão de 13/11/2026: composição nova e fundos com padrão (ver docs/product/landing.md).
+   Motivos: linhas de seda, anéis e flor de oito pétalas. Movimento lento só na abertura, no Pix,
+   em «Pode confiar» e no piloto; tudo para com prefers-reduced-motion. */
+@keyframes silk { 50% { transform: translateX(-48px); } }
+@keyframes drift { 50% { transform: translate(-70px, -50px) scale(1.15); } }
+
+/* Abertura: a conversa à frente, a agenda atrás e o aviso de confirmação */
+.hero-copy { flex: 1 1 480px; }
+.hero .h1 { font-size: clamp(42px, 5vw, 68px); }
+.silk { position: absolute; left: -5%; top: 0; width: 110%; height: 100%; pointer-events: none; animation: silk 24s ease-in-out infinite; }
+.hero-stage { flex: 1 1 420px; min-width: 0; max-width: 560px; margin-inline: auto; position: relative; display: flex; justify-content: center; align-items: flex-start; padding-bottom: 28px; }
+.stage-phone { position: relative; padding: 8px; border-radius: 38px; background: #0A2E2F; border: 1px solid rgba(255, 255, 255, .16); box-shadow: 0 40px 72px -28px rgba(0, 0, 0, .75); }
+.stage-phone img { display: block; width: 100%; height: auto; border-radius: 30px; }
+.hero-stage .front { z-index: 2; width: 54%; max-width: 270px; animation: bob 9s ease-in-out infinite; }
+.hero-stage .back { z-index: 1; width: 48%; max-width: 240px; margin: 64px 0 0 -6%; animation: bob 11s ease-in-out -4s infinite; }
+.hero-stage .rings { position: absolute; left: 50%; top: 46%; width: min(118%, 560px); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; border: 1px solid rgba(242, 181, 150, .34); box-shadow: 0 0 0 44px rgba(255, 255, 255, .035), 0 0 0 45px rgba(159, 211, 209, .22), 0 0 0 96px rgba(255, 255, 255, .025), 0 0 0 97px rgba(159, 211, 209, .12); }
+.hero-toast { position: absolute; z-index: 3; right: 2%; top: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: 16px; background: #FFFFFF; color: var(--ink); line-height: 1.25; box-shadow: 0 20px 40px -16px rgba(0, 0, 0, .6); animation: bob 8s ease-in-out -2s infinite; }
+.hero-toast > span:last-child { display: flex; flex-direction: column; }
+.hero-toast b { font-size: 13px; font-weight: 600; }
+.hero-toast small { font-size: 12px; color: var(--ink-2); }
+.toast-ok { width: 32px; height: 32px; flex: none; border-radius: 50%; background: #EAF5EF; color: #1F7A4D; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Como ajuda: um cartão em destaque com a conversa, dois menores com um detalhe cada */
+.flower { position: absolute; right: -60px; top: -40px; width: min(70%, 420px); height: auto; stroke: var(--apricot); opacity: .45; pointer-events: none; }
+.help-bento { display: flex; flex-wrap: wrap; gap: 16px; }
+.help-bento > li { flex: 1 1 280px; min-width: 0; border-radius: 28px; }
+.help-bento > .help-feature { flex: 2 1 460px; flex-direction: row; flex-wrap: wrap; gap: 24px 32px; padding: clamp(24px, 4vw, 36px); background: var(--petrol); color: #FFFFFF; }
+.help-copy { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.help-feature h3 { font-size: clamp(22px, 2.4vw, 28px); line-height: 1.12; letter-spacing: -0.03em; }
+.help-feature p { color: var(--on-petrol); }
+.help-feature .oi { background: rgba(255, 255, 255, .12); color: #F6C9B0; }
+.mini-chat { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 20px; background: #F3F2EE; color: var(--ink); font-size: 14px; line-height: 1.4; }
+.mc-in { align-self: flex-start; max-width: 86%; padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: #FFFFFF; }
+.mc-out { align-self: flex-end; max-width: 86%; padding: 10px 14px; border-radius: 18px 18px 6px 18px; background: #DDEDEB; }
+.mc-slots { align-self: flex-end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.mc-slots span { padding: 7px 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid #B3D1D1; color: var(--petrol-dark); font-weight: 600; font-size: 13px; }
+.help-tags { margin-top: auto; padding-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; font-weight: 500; }
+.help-tags span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #E7F1F1; color: var(--petrol-dark); }
+.help-person { margin-top: auto; padding-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 1.3; }
+.help-person > span:last-child { display: flex; flex-direction: column; }
+.help-person b { font-weight: 600; }
+.help-person small { font-size: 13px; font-weight: 500; color: #8A3A12; }
+.hp-av { width: 32px; height: 32px; flex: none; border-radius: 50%; background: #FBE3D6; color: #8A3A12; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
+
+/* Na prática: número em círculo com trilho; a cliente fala à esquerda, como na tela do aplicativo */
+.story-t { display: flex; align-items: center; gap: 12px; font-size: 15px; letter-spacing: 0; }
+.story-t b { width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--petrol); color: #FFFFFF; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.story-t::after { content: ""; flex: 1; height: 2px; border-radius: 2px; background: #B3D1D1; }
+.bg-dots .story.story-key { border-color: var(--petrol); }
+.story-dark { background: var(--aurora-3); border-color: var(--aurora-3); }
+.story-dark p { color: var(--on-petrol); }
+.story-dark .story-t b { background: var(--apricot); color: #2A1206; }
+.story-dark .story-t::after { background: rgba(255, 255, 255, .18); }
+.bubble-in { align-self: flex-start; border-radius: 18px 18px 18px 6px; }
+.bubble-out { align-self: flex-end; border-radius: 18px 18px 6px 18px; background: #DDEDEB; }
+.mini-proposal { background: #F3F8F8; border-color: #B3D1D1; }
+.mini-proposal small { color: var(--petrol-dark); }
+.mini-slot { align-items: flex-start; gap: 4px; padding: 14px; border-radius: 16px; font-size: 14px; color: var(--on-petrol); }
+.mini-slot b { font-size: 15px; }
+.slot-tag { margin-top: 4px; padding: 3px 9px; border-radius: 6px; background: var(--apricot); color: #2A1206; font-size: 12px; font-weight: 600; }
+
+/* Sinal Pix: sequência ligada, do pedido ao pago, sobre creme; halo que respira e anéis no canto */
+.deco { position: relative; overflow: hidden; }
+.deco > .wrap { position: relative; }
+.rings-corner { position: absolute; width: 380px; height: 380px; left: -200px; bottom: -200px; border-radius: 50%; border: 1px solid #F2D3C1; box-shadow: 0 0 0 40px rgba(251, 241, 233, .6), 0 0 0 41px #F2D3C1, 0 0 0 88px rgba(251, 241, 233, .35), 0 0 0 89px #F6E2D6; }
+.pix-stage { position: relative; max-width: 480px; width: 100%; margin-inline: auto; }
+.pix-stage::before { content: ""; position: absolute; inset: -14% -18%; border-radius: 50%; background: #F6C9AE; opacity: .6; filter: blur(70px); animation: breathe 10s ease-in-out infinite; }
+.pix { position: relative; gap: 0; max-width: none; padding: clamp(20px, 4vw, 32px); border-radius: 32px; background: var(--cream); }
+.pix-msg { border-color: #EFDFD3; border-radius: 20px 20px 20px 6px; box-shadow: 0 18px 36px -24px rgba(42, 18, 6, .35); }
+.pix-status { border-color: #EFDFD3; border-radius: 16px; padding: 14px 18px; }
+.pix-link { width: 2px; height: 24px; margin-left: 31px; background: #E3C9B8; }
+.pix-paid { gap: 12px; padding: 16px 18px; border-radius: 16px; background: #1F7A4D; font-size: 16px; font-weight: 600; box-shadow: 0 18px 36px -20px rgba(31, 122, 77, .7); }
+.pix-tick { width: 28px; height: 28px; flex: none; border-radius: 50%; background: rgba(255, 255, 255, .18); display: inline-flex; align-items: center; justify-content: center; }
+
+/* Pode confiar: garantias em cartões com ícone; linhas de seda paradas no painel */
+.panel.aurora-panel .silk { left: 0; width: 100%; opacity: .2; animation: none; }
+.panel.aurora-panel .feats { gap: 12px; }
+.panel.aurora-panel .feats li { display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 22px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14); }
+.panel.aurora-panel .feats h3 { margin: 4px 0 0; font-size: 20px; line-height: 1.2; letter-spacing: -0.02em; }
+.panel.aurora-panel .feats p { font-size: 15px; }
+.panel.aurora-panel .oi { background: rgba(242, 181, 150, .16); color: var(--apricot-soft); }
+
+/* Feito para equipe: fatos em grade ao lado da tela Conversas */
+.team .stack { gap: 32px; }
+.team .facts li { display: flex; flex-direction: column; gap: 6px; border: 1px solid #EFDFD3; }
+.team .facts svg { color: var(--petrol); }
+.team .facts strong { font-size: 16px; }
+@media (min-width: 980px) { .team { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } .team .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.team-shot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-block: 24px; }
+.team-shot > * { position: relative; }
+.team-shot .disc { position: absolute; left: 50%; top: 46%; width: min(100%, 400px); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: #F8DCCB; box-shadow: 0 0 0 36px rgba(248, 220, 203, .45), 0 0 0 37px #EDC5AE, 0 0 0 80px rgba(248, 220, 203, .2), 0 0 0 81px #F2D3C1; }
+.stage-phone.light { width: 100%; max-width: 280px; background: var(--ink); border-color: transparent; box-shadow: 0 40px 72px -32px rgba(42, 18, 6, .55); }
+#equipe { overflow: hidden; }
+
+/* Piloto: texto à esquerda com a pessoa ao lado; duas luzes e a flor no canto */
+.pilot-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 36px 64px; }
+.pilot-copy { flex: 3 1 420px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
+.pilot-top .pilot-person { flex: 2 1 300px; min-width: 0; max-width: none; margin: 0; padding: 20px; }
+.pilot-lists { max-width: none; }
+.panel.apricot .orb-2 { right: auto; top: auto; left: -180px; bottom: -260px; background: #FFFFFF; opacity: .55; animation: drift 24s ease-in-out infinite; }
+.panel.apricot .flower { right: -90px; top: -110px; width: min(60%, 380px); stroke: #2A1206; opacity: .16; }
+.panel.apricot .pilot-lists { position: relative; }
+
+@media (prefers-reduced-motion: reduce) {
+  .silk, .hero-stage .front, .hero-stage .back, .hero-toast, .pix-stage::before, .panel.apricot .orb-2 { animation: none; }
+}
