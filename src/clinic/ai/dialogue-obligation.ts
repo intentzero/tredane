@@ -16,6 +16,7 @@ export type DialogueObligationKind =
   | 'choose_variants'
   | 'choose_slot'
   | 'confirm_echo'
+  | 'accumulate_zones'
   | 'choose_audience'
   | 'choose_period'
   | 'choose_alter'
@@ -32,6 +33,7 @@ const SLOT_TO_KIND: Record<ChoiceSlot, DialogueObligationKind> = {
   variantes: 'choose_variants',
   horario: 'choose_slot',
   eco: 'confirm_echo',
+  acumular: 'accumulate_zones',
   audiencia: 'choose_audience',
   periodo: 'choose_period',
   alter: 'choose_alter',
@@ -52,6 +54,7 @@ export function isChoiceSlot(slot: string): slot is ChoiceSlot {
     slot === 'variantes' ||
     slot === 'horario' ||
     slot === 'eco' ||
+    slot === 'acumular' ||
     slot === 'audiencia' ||
     slot === 'periodo' ||
     slot === 'alter'
@@ -103,6 +106,7 @@ export function shouldEmitOptionMiss(input: {
 }): boolean {
   if (!input.unrecognizedLeftover || !input.attemptedOptionMatch) return false
   if (input.obligation?.kind === 'confirm_echo') return false
+  if (input.obligation?.kind === 'accumulate_zones') return false
   if (input.obligation?.kind === 'choose_audience') return false
   if (input.obligation?.kind === 'choose_slot') {
     return Boolean(input.timeInTurn)

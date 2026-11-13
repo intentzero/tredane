@@ -10,6 +10,7 @@ import {
   buildPeriodDayInteractive,
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
+  buildZoneAccumInteractive,
   buildZoneEchoInteractive,
   encodeChoiceId,
   handleChoiceOfferClick,
@@ -140,6 +141,11 @@ function rebuildInteractiveFromPending(
   }
   if (slot === 'linha') return buildLineChoiceInteractive(catalogVersion).interactive
   if (slot === 'eco') return buildZoneEchoInteractive(catalogVersion).interactive
+  if (slot === 'acumular') {
+    const onlyPronto =
+      frame.pending.options.length === 1 && frame.pending.options[0]?.key === 'pronto'
+    return buildZoneAccumInteractive(catalogVersion, { onlyPronto }).interactive
+  }
   if (slot === 'periodo') return buildPeriodDayInteractive(catalogVersion).interactive
   if (slot === 'variantes') {
     const services = listServices(db, tenantId).filter((s) => s.active)

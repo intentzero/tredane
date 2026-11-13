@@ -15,14 +15,19 @@ import {
   buildLineChoiceInteractive,
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
+  buildZoneAccumInteractive,
   encodeChoiceId,
   isChoiceOfferId,
   parseChoiceId,
   slotBindingFromChoice,
   toSendInteractive,
   validateChoiceAgainstFrame,
+  zoneAccumAckReply,
+  zoneAccumMaisBody,
   SLOT_LIST_BUTTON_LABEL,
   VARIANT_LIST_BUTTON_LABEL,
+  ZONE_ACCUM_MAIS_LABEL,
+  ZONE_ACCUM_PRONTO_LABEL,
 } from './choice-offer'
 import { extractDates } from './nlu/temporal'
 import { createDeferredBookingFrame, OUTBOUND_MESSAGE_ID_PLACEHOLDER } from './deferred-booking-frame'
@@ -103,6 +108,34 @@ describe('choice-offer ids', () => {
     expect(rows).toHaveLength(2)
     expect(rows.every((r) => r.title !== 'Todas')).toBe(true)
     expect(built.pending.options.every((o) => o.key !== 'todas')).toBe(true)
+  })
+
+  it('DEC-178: omitIds remove zonas já acumuladas', () => {
+    const built = buildVariantChoiceInteractive({
+      catalogVersion: '1',
+      zones: [
+        { id: 'a', name: 'Axila' },
+        { id: 'b', name: 'Pernas' },
+        { id: 'c', name: 'Buço' },
+      ],
+      includeTodas: false,
+      omitIds: ['a'],
+    })
+    const rows = built.interactive.sections.flatMap((s) => s.rows)
+    expect(rows.map((r) => r.title)).toEqual(['Pernas', 'Buço'])
+  })
+
+  it('DEC-178: Mais|Pronto e ack curto', () => {
+    const built = buildZoneAccumInteractive('1')
+    expect(built.interactive.mode).toBe('buttons')
+    expect(built.interactive.buttons.map((b) => b.title)).toEqual([
+      ZONE_ACCUM_MAIS_LABEL,
+      ZONE_ACCUM_PRONTO_LABEL,
+    ])
+    expect(built.pending.slot).toBe('acumular')
+    expect(zoneAccumAckReply([{ name: 'Axila' }, { name: 'Pernas' }])).toBe('axila, pernas')
+    expect(zoneAccumMaisBody([{ name: 'Axila' }])).toBe('já: axila')
+    expect(zoneAccumAckReply([])).toBe('Ok.')
   })
 
   it('horários → lista com CTA Horários', () => {

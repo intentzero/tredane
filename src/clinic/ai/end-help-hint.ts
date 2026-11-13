@@ -116,6 +116,7 @@ export function isOpenBookingAttempt(frame: BookingFrame | null | undefined): bo
     slot === 'variantes' ||
     slot === 'horario' ||
     slot === 'eco' ||
+    slot === 'acumular' ||
     slot === 'linha' ||
     slot === 'periodo'
   )

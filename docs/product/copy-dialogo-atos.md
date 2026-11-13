@@ -44,11 +44,11 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 ### perguntar_variantes
 
-1. `Quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
-2. `Quais {tipo} você quer? {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
-3. `Para {serviço}, quais {tipo}? {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
-4. `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
-5. `Para fechar às {hora}, quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
+1. `Quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
+2. `Quais {tipo} você quer? {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
+3. `Para {serviço}, quais {tipo}? {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
+4. `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
+5. `Para fechar às {hora}, quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
 
 **Nota (Paulo 09/11/2026 / DEC-135 revisto):** em modo `varias` a pergunta é **só texto** (sem lista Meta Opções); o sufixo convida a nomear uma ou várias zonas (ou «todas»), com eco DEC-137. A lista Opções fica para modo `uma`. Flow CheckboxGroup continua diferido. Supersede a opção A do mesmo dia (Opções + hint).
 
@@ -162,7 +162,7 @@ One-shot na **primeira** oferta de horários da sessão de booking (DEC-153 — 
 
 ### Redação nova num ato já aprovado
 
-- `perguntar_variantes` *(novo)*: `Para fechar às {hora}, quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.` — substitui o texto legado com «Pode ser mais de uma» / «me diga»; revisão Paulo 09/11/2026 (texto only em `varias`).
+- `perguntar_variantes` *(novo)*: `Para fechar às {hora}, quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.` — substitui o texto legado com «Pode ser mais de uma» / «me diga»; DEC-178 (13/11/2026): Opções + Mais|Pronto em `varias`.
 
 ### perguntar_dia
 

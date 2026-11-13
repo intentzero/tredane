@@ -123,6 +123,7 @@ export function deriveDropStep(frame: FrameHint | null | undefined): BookingSess
   if (frame.proposal) return 'proposal'
   if (frame.lastOffer || frame.pending?.slot === 'horario' || frame.time) return 'slot_offer'
   if (frame.pending?.slot === 'eco') return 'echo'
+  if (frame.pending?.slot === 'acumular') return 'variant_ask'
   if (frame.date || frame.period) return 'day_ask'
   if (frame.pending?.slot === 'variantes' || (frame.variantIds?.length ?? 0) > 0) {
     return 'variant_ask'

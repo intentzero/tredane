@@ -39,6 +39,7 @@ import {
   type BookingFrameLastOffer,
   type BookingFramePending,
 } from './schedule-session'
+import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { zonesForAudienceLine, type AudienceLine } from './variant-line'
 
 /** Prefixo estável dos ids opacos (Cloud API button/list row id, ≤200). */
@@ -49,6 +50,8 @@ export type ChoiceSlot =
   | 'variantes'
   | 'horario'
   | 'eco'
+  /** DEC-178: acumulação multi-zona Mais | Pronto (após toque em Opções). */
+  | 'acumular'
   | 'audiencia'
   /** T1 (Paulo 09/11/2026): Manhã | Tarde | Outro dia após período/dia vazio. */
   | 'periodo'
@@ -81,6 +84,12 @@ export const ZONE_ECHO_SIM_KEY = 'sim'
 export const ZONE_ECHO_CORRIGIR_KEY = 'corrigir'
 export const ZONE_ECHO_SIM_LABEL = 'Sim'
 export const ZONE_ECHO_CORRIGIR_LABEL = 'Corrigir'
+
+/** DEC-178 — acumulação por toque em Opções (modo `varias`). Pronto não marca (DEC-061). */
+export const ZONE_ACCUM_MAIS_KEY = 'mais'
+export const ZONE_ACCUM_PRONTO_KEY = 'pronto'
+export const ZONE_ACCUM_MAIS_LABEL = 'Mais'
+export const ZONE_ACCUM_PRONTO_LABEL = 'Pronto'
 
 /** T1 — período/dia vazio (Paulo 09/11/2026). Sem wait «Sim». */
 export const PERIOD_DAY_MANHA_KEY = 'manha'
@@ -169,6 +178,7 @@ export function parseChoiceId(
     slot !== 'variantes' &&
     slot !== 'horario' &&
     slot !== 'eco' &&
+    slot !== 'acumular' &&
     slot !== 'audiencia' &&
     slot !== 'periodo' &&
     slot !== 'alter'
@@ -237,6 +247,21 @@ export function zoneEchoReply(zones: readonly { name: string }[]): string {
   return `Entendi: ${joinZoneNamesPt(zones.map((zone) => zone.name))}. Certo?`
 }
 
+/**
+ * DEC-178. Confirmação curta após toque em zona — sem «Entendi: … Certo?».
+ * Só os nomes já acumulados (minúsculas / vírgulas).
+ */
+export function zoneAccumAckReply(zones: readonly { name: string }[]): string {
+  const joined = joinZoneNamesPt(zones.map((zone) => zone.name))
+  return joined || 'Ok.'
+}
+
+/** DEC-178. Corpo ao reabrir Opções (Mais): marca o já escolhido. */
+export function zoneAccumMaisBody(zones: readonly { name: string }[]): string {
+  const joined = joinZoneNamesPt(zones.map((zone) => zone.name))
+  return joined ? `já: ${joined}` : 'Quais zonas?'
+}
+
 export function buildZoneEchoInteractive(catalogVersion: string): {
   interactive: ChoiceInteractiveButtons
   pending: BookingFramePending
@@ -254,6 +279,32 @@ export function buildZoneEchoInteractive(catalogVersion: string): {
       })),
     },
     pending: pendingForChoiceOffer({ slot: 'eco', options }),
+  }
+}
+
+/** DEC-178 — Mais | Pronto após cada toque de zona em modo `varias`. */
+export function buildZoneAccumInteractive(
+  catalogVersion: string,
+  opts?: { onlyPronto?: boolean },
+): {
+  interactive: ChoiceInteractiveButtons
+  pending: BookingFramePending
+} {
+  const options = opts?.onlyPronto
+    ? [{ key: ZONE_ACCUM_PRONTO_KEY, label: ZONE_ACCUM_PRONTO_LABEL }]
+    : [
+        { key: ZONE_ACCUM_MAIS_KEY, label: ZONE_ACCUM_MAIS_LABEL },
+        { key: ZONE_ACCUM_PRONTO_KEY, label: ZONE_ACCUM_PRONTO_LABEL },
+      ]
+  return {
+    interactive: {
+      mode: 'buttons',
+      buttons: options.map((o) => ({
+        id: encodeChoiceId('acumular', catalogVersion, o.key),
+        title: clip(o.label, META_BUTTON_TITLE_MAX),
+      })),
+    },
+    pending: pendingForChoiceOffer({ slot: 'acumular', options }),
   }
 }
 
@@ -284,11 +335,16 @@ export function buildVariantChoiceInteractive(input: {
   zones: Array<{ id: string; name: string; label?: string }>
   /** DEC-145 — modo `uma` omite a linha «Todas». Default: incluir (varias). */
   includeTodas?: boolean
+  /** DEC-178 — ids já acumulados: omitidos da lista (corpo «já: …» no caller). */
+  omitIds?: readonly string[]
 }): { interactive: ChoiceInteractiveList; pending: BookingFramePending } {
-  const zoneOpts = input.zones.map((z) => ({
-    key: z.id,
-    label: (z.label ?? z.name).trim() || z.name,
-  }))
+  const omit = new Set((input.omitIds ?? []).filter(Boolean))
+  const zoneOpts = input.zones
+    .filter((z) => !omit.has(z.id))
+    .map((z) => ({
+      key: z.id,
+      label: (z.label ?? z.name).trim() || z.name,
+    }))
   const includeTodas = input.includeTodas !== false
   const capped =
     includeTodas && zoneOpts.length >= META_LIST_MAX_ROWS
@@ -457,6 +513,12 @@ function semanticTextForChoice(
     if (key === 'corrigir') return 'corrigir'
     return label
   }
+  if (slot === 'acumular') {
+    // DEC-178: Mais / Pronto — sem reinjectar nomes (conjunto já no quadro).
+    if (key === ZONE_ACCUM_MAIS_KEY) return 'mais'
+    if (key === ZONE_ACCUM_PRONTO_KEY) return 'pronto'
+    return label
+  }
   if (slot === 'periodo') {
     if (key === PERIOD_DAY_MANHA_KEY) return 'de manhã'
     if (key === PERIOD_DAY_TARDE_KEY) return 'de tarde'
@@ -480,7 +542,10 @@ function semanticTextForChoice(
   return key.match(/\d{2}:\d{2}/)?.[0] ?? label
 }
 
-/** Limpa pending/lastOffer na mesma TX do outbound (ADR-0015). Não faz flush antecipado. */
+/**
+ * Limpa pending/lastOffer consumidos na mesma TX do outbound (ADR-0015).
+ * Se o turno já anexou pending novo (eco, Opções, Mais|Pronto, Horários), preserva-o.
+ */
 function attachClearPendingOnSend(
   autoBook: AutoBookOutcome,
   db: ClinicDb,
@@ -489,6 +554,8 @@ function attachClearPendingOnSend(
 ): AutoBookOutcome {
   const frame = getBookingFrame(db, tenantId, conversationId)
   if (!frame?.serviceId) return autoBook
+  // Oferta nova deste turno (attachChoiceOfferToDeferred) — não apagar.
+  if (autoBook.deferredFrame?.pendingSlot) return autoBook
   const patch = {
     serviceId: frame.serviceId,
     pending: null,
@@ -830,16 +897,39 @@ export async function handleChoiceOfferClick(
     )
   }
 
-  // DEC-137: toque em Opções já é explícito (sem eco). Sim confirma o conjunto
-  // e só então pede Horários — não marca (DEC-061). Corrigir volta às zonas.
-  const zoneEcho =
-    validated.slot === 'variantes'
-      ? ('skip' as const)
-      : validated.slot === 'eco' && validated.key === 'sim'
-        ? ('confirm' as const)
-        : validated.slot === 'eco' && validated.key === 'corrigir'
-          ? ('correct' as const)
-          : undefined
+  // DEC-137: toque em Opções no modo `uma` é explícito (sem eco) → Horários.
+  // DEC-178: no modo `varias`, cada toque acumula e pede Mais|Pronto (sem eco longo).
+  // Sim (eco) / Pronto confirmam o conjunto e pedem Horários — não marcam (DEC-061).
+  // Corrigir volta às zonas.
+  const frameForMode = getBookingFrame(db, input.tenantId, input.conversationId)
+  const servicesForMode = listServices(db, input.tenantId).filter((s) => s.active)
+  const svcForMode = servicesForMode.find((s) => s.id === frameForMode?.serviceId)
+  const multiVarias = svcForMode != null && allowsMultipleVariants(svcForMode.variantSelection)
+
+  let zoneEcho: 'skip' | 'confirm' | 'correct' | undefined
+  let zoneAccum: 'pick' | 'mais' | 'pronto' | undefined
+  let pickedVariantId: string | undefined
+
+  if (validated.slot === 'variantes') {
+    if (multiVarias && validated.key !== TODAS_OPTION_KEY) {
+      zoneAccum = 'pick'
+      pickedVariantId = validated.key
+    } else if (multiVarias && validated.key === TODAS_OPTION_KEY) {
+      // «Todas» na lista (se existir) fecha o conjunto como toque explícito.
+      zoneEcho = 'skip'
+    } else {
+      zoneEcho = 'skip'
+    }
+  } else if (validated.slot === 'eco' && validated.key === 'sim') {
+    zoneEcho = 'confirm'
+  } else if (validated.slot === 'eco' && validated.key === 'corrigir') {
+    zoneEcho = 'correct'
+  } else if (validated.slot === 'acumular' && validated.key === ZONE_ACCUM_MAIS_KEY) {
+    zoneAccum = 'mais'
+  } else if (validated.slot === 'acumular' && validated.key === ZONE_ACCUM_PRONTO_KEY) {
+    zoneAccum = 'pronto'
+    zoneEcho = 'confirm'
+  }
 
   const boundSlot =
     validated.slot === 'horario'
@@ -855,10 +945,7 @@ export async function handleChoiceOfferClick(
     validated.label,
   )
   if (zoneEcho === 'correct') {
-    const frame = getBookingFrame(db, input.tenantId, input.conversationId)
-    const services = listServices(db, input.tenantId).filter((s) => s.active)
-    const svc = services.find((s) => s.id === frame?.serviceId)
-    turnText = svc?.name?.trim() || 'quero agendar'
+    turnText = svcForMode?.name?.trim() || 'quero agendar'
   }
 
   // T1 «Outro dia»: limpa date/period sticky antes de reofertar (sem wait «Sim»).
@@ -889,7 +976,9 @@ export async function handleChoiceOfferClick(
     turnTextOverride: turnText,
     confirmationMessageIdOverride: confirmationMessageId,
     ...(boundSlot ? { boundSlot } : {}),
-    zoneEcho,
+    ...(zoneEcho ? { zoneEcho } : {}),
+    ...(zoneAccum ? { zoneAccum } : {}),
+    ...(pickedVariantId ? { pickedVariantId } : {}),
   })
   const aiDurationMs = clock.nowMs() - aiStartedMs
 

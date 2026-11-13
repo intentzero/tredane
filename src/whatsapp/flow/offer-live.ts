@@ -71,6 +71,7 @@ export function isM5FunnelChoiceInteractive(
   const firstId = choice.buttons[0]?.id
   if (!firstId) return false
   const parsed = parseChoiceId(firstId)
+  // DEC-178 Mais|Pronto e DEC-137 Sim|Corrigir não são funil M5 a substituir pelo Flow.
   return parsed?.slot === 'linha'
 }
 
