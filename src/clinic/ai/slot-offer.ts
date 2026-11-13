@@ -260,6 +260,17 @@ export type OfferNearestSlotsResult = {
   periodDayChoice?: boolean
 }
 
+/**
+ * «Para massagem, … não tenho horário livre. Para massagem, tenho …»: tira o prefixo
+ * repetido da 2.ª frase («Tenho …»). Só remove o prefixo; o resto da frase aprovada fica.
+ */
+export function dropRepeatedSubject(text: string, subject: string): string {
+  const prefix = `Para ${subject}, `
+  if (!text.startsWith(prefix)) return text
+  const rest = text.slice(prefix.length)
+  return rest.charAt(0).toUpperCase() + rest.slice(1)
+}
+
 export async function offerNearestSlots(input: {
   db: ClinicDb
   tenantId: string
@@ -369,19 +380,27 @@ export async function offerNearestSlots(input: {
         period: null,
         _skipEmptyAdvance: true,
       })
-      if (advanced.slots.length > 0) {
-        return { ...advanced, clearPeriod: true }
-      }
       const período = periodWordPt(period)
       const fallback = `Para ${subject}, ${período} não tenho horário livre.`
+      const noPeriodReply = sayAct(
+        'sem_horario_periodo',
+        conversationId,
+        { assunto: subject, período },
+        fallback,
+      )
+      if (advanced.slots.length > 0) {
+        // O auto-avanço continua sem esperar um «Sim» (Paulo 09/11/2026), mas já não é mudo:
+        // a cliente pediu o período e tem de saber que não há, antes dos horários que lhe damos.
+        // Só junta as duas frases já aprovadas; não há copy nova (DEC-104).
+        return {
+          ...advanced,
+          replyText: `${noPeriodReply} ${dropRepeatedSubject(advanced.replyText, subject)}`,
+          clearPeriod: true,
+        }
+      }
       return {
         slots: [],
-        replyText: sayAct(
-          'sem_horario_periodo',
-          conversationId,
-          { assunto: subject, período },
-          fallback,
-        ),
+        replyText: noPeriodReply,
         clearPeriod: true,
         periodDayChoice: true,
       }
