@@ -10,11 +10,13 @@ import {
   PROPOSAL_SEND_CLIENT_REQUEST_PREFIX,
 } from '../constants'
 import {
+  replaceServiceZonesOp,
   setAiProfileOp,
   setWeeklyWindowsOp,
   upsertResourceOp,
   upsertServiceOp,
 } from '../config'
+import { BOOKED_DOUBT_FALLBACK } from './render'
 import { upsertContact } from '../contacts'
 import { queueCaller, workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
@@ -257,7 +259,11 @@ describe('S4: render determinístico', () => {
 
       const booked = renderProposalResultBody(proposal, 'booked')
       expect(booked).toMatch(/^Agendado:/)
-      expect(booked).toContain('Local: Rua das Flores, 100 — São Paulo')
+      // DEC-174: curto — weekday DD/MM + só início; sem ano/fim/«feira»/dúvida (follow-up segue).
+      expect(booked).toBe(
+        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Local: Rua das Flores, 100 — São Paulo.',
+      )
+      expect(booked).not.toMatch(/feira|novembro|2026|–\s*\d{2}:\d{2}|Qualquer dúvida/i)
       expect(booked).not.toContain('Sala Depilação')
       expect(booked).not.toMatch(/intervalo|buffer/i)
       expect(booked).not.toContain('America/Sao_Paulo')
@@ -280,6 +286,65 @@ describe('S4: render determinístico', () => {
       expect(bare.clinicLocationText).toBe('')
       expect(renderProposalInteractive(bare, s.db).body).not.toMatch(/^Local:/m)
       expect(renderProposalResultBody(bare, 'booked')).not.toMatch(/Local:/)
+      expect(renderProposalResultBody(bare, 'booked', { omitDoubtFallback: false })).toMatch(
+        new RegExp(`${BOOKED_DOUBT_FALLBACK.replace(/\./g, '\\.')}$`),
+      )
+    } finally {
+      s.close()
+    }
+  })
+
+  it('Agendado (DEC-174): variante no rótulo zoneLabel e forma curta', () => {
+    const s = seed()
+    try {
+      const svc = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 20_000,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'none' },
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [{ name: 'relaxante', durationMinutes: 60, priceCents: 20_000, audience: 'ambos' }],
+        s.clock,
+      )
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          serviceId: svc.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt,
+          zoneIds: [zones[0]!.id],
+        },
+        s.clock,
+      )
+      const snaps = [
+        {
+          name: 'relaxante',
+          audience: 'ambos' as const,
+          durationMinutes: 60,
+          priceCents: 20_000,
+        },
+      ]
+      const booked = renderProposalResultBody(proposal, 'booked', { zones: snaps })
+      expect(booked).toBe(
+        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Local: Rua das Flores, 100 — São Paulo.',
+      )
+      expect(booked).not.toContain(BOOKED_DOUBT_FALLBACK)
     } finally {
       s.close()
     }
@@ -524,7 +589,8 @@ describe('S4: botões e resultado', () => {
       )
       expect(result.status).toBe('queued')
       if (result.status !== 'queued') return
-      expect(result.body).toMatch(/^Agendado:/)
+      expect(result.body).toMatch(/^Agendado: Limpeza de pele · sexta 30\/10 às 12:00/)
+      expect(result.body).not.toMatch(/Qualquer dúvida/)
 
       // Força falha no Meta — aplicamos failed + reconcile (sem retry cego).
       clinicInbox.applyOutboundSendResultOp(
