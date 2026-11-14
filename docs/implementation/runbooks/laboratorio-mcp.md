@@ -1,6 +1,6 @@
 # Laboratório conversacional (MCP) — como usar
 
-**Estado:** Confirmado (DEC-182, Paulo, 14/11/2026). Fase 1 implementada; fase 2 (configurar a clínica) **Proposta**.
+**Estado:** Confirmado (DEC-182, Paulo, 14/11/2026). Fase 1 (conversar e ler) e fase 2 (configurar a clínica demo) implementadas.
 
 Um MCP com escrita, **separado** do Review MCP (que é só leitura, DEC-159), para um agente conversar com o sistema
 como se fosse uma cliente, sem WhatsApp, e ler o estado da clínica. Serve para testes conversacionais repetíveis e
@@ -45,7 +45,20 @@ Depois do deploy de staging, registar o MCP no cliente (URL `https://<staging>/a
 por conversa: usar `waId` diferentes). Um defeito confirmado vira um caso L1 em
 `src/clinic/ai/evals/dialogs/cc-cases.ts` antes da correção.
 
-## Fase 2 (Proposta, não implementada)
+## Configurar a clínica demo (fase 2)
 
-Configurar serviços, variantes, salas e atendentes pelas operações existentes do DO (as mesmas do painel), com o
-mesmo gate. Pix e cobrança ficam fora. Falta decidir: o conjunto mínimo de operações e um «repor seed» do tenant demo.
+Ferramentas `lab_config_*`, que chamam as mesmas operações do painel (mesma validação, auditoria com ator `lab:mcp` e
+eventos em tempo real). Lista fechada, sem apagar:
+
+| Ferramenta | O que faz |
+| --- | --- |
+| `lab_config_get` | Configuração completa e os ids (serviços, variantes, salas, profissionais, horários, bloqueios). Chamar antes de alterar. |
+| `lab_config_service` | Cria (sem `id`) ou atualiza um serviço, com variantes, sinónimos, audiência, sala e profissionais. Omitido na edição mantém. |
+| `lab_config_service_active` | Ativa ou desativa um serviço. |
+| `lab_config_resource` | Cria ou atualiza sala, profissional ou equipamento. |
+| `lab_config_resource_active` | Ativa ou desativa um recurso. |
+| `lab_config_windows` | Substitui as faixas semanais de um recurso. |
+| `lab_config_block` | Cria um bloqueio de agenda (`dryRun: true` só lista os compromissos afetados). |
+
+Fora desta fase: apagar serviços ou salas (desativar chega), Pix e cobrança, e «repor seed». Alterações ficam na
+clínica demo e persistem entre sessões: anotar o que se mudou e desfazer no fim do teste.
