@@ -143,7 +143,7 @@ describe('idle Prosseguir retoma contexto', () => {
         },
         s.clock,
       )
-      s.clock.advance(30 * 60 * 1000)
+      s.clock.advance(IDLE_PROMPT_AFTER_MS)
       armIdlePrompt(s)
 
       const click = handleIdleButtonClick(
@@ -224,7 +224,7 @@ describe('idle Prosseguir retoma contexto', () => {
         },
         s.clock,
       )
-      s.clock.advance(30 * 60 * 1000)
+      s.clock.advance(IDLE_PROMPT_AFTER_MS)
       armIdlePrompt(s)
 
       const click = handleIdleButtonClick(
@@ -329,7 +329,7 @@ describe('idle Prosseguir retoma contexto', () => {
         },
         s.clock,
       )
-      s.clock.advance(30 * 60 * 1000)
+      s.clock.advance(IDLE_PROMPT_AFTER_MS)
       armIdlePrompt(s)
       const text = handleIdleTextReply(
         s.db,

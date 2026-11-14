@@ -1,5 +1,5 @@
 /**
- * DEC-087 — idle 30 min + segundo prazo de mais 30 min.
+ * DEC-087 — idle 15 min + segundo prazo de mais 15 min.
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
