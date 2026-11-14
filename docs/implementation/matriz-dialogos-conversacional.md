@@ -311,6 +311,9 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-23 | P0 | Período sem vaga na semana, com dia | C: «Quero massagem sexta à noite» | Avisa «à noite não tenho horário livre» (frase `sem_horario_periodo`) e, na mesma mensagem, oferece os horários que existem. Antes: o período era descartado em silêncio. | EF-01, Q | 1 | ✅ L1 |
 | CC-24 | P0 | Período sem vaga na semana, sem dia | C: «Quero massagem à noite» | O mesmo aviso e a oferta, sem repetir «Para massagem,». | EF-01, Q | 1 | ✅ L1 |
 | CC-25 | P0 | Período com vaga: sem aviso | C: «Quero massagem sexta à tarde» | Oferta direta (13:00…), sem «não tenho horário livre». | EF-01 | 1 | ✅ L1 |
+| CC-26 | P0 | Dia pedido sem vaga (clínica fechada) | C: «Quero massagem domingo» | Avisa «… domingo não tenho horário livre» (frase `sem_horario_dia`) e oferece os horários de segunda. Antes: oferecia segunda sem dizer nada do domingo. | EF-01, Q | 1 | ✅ L1 |
+| CC-27 | P0 | Dia e período pedidos sem vaga | C: «Quero massagem domingo de manhã» | O mesmo aviso do dia e a oferta de segunda de manhã. | EF-01, Q | 1 | ✅ L1 |
+| CC-28 | P0 | Dia pedido com vaga: sem aviso | C: «Quero massagem sexta» | Oferta direta (09:00…), sem «não tenho horário livre». | EF-01 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

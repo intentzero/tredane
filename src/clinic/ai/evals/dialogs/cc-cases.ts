@@ -811,4 +811,39 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 0, matches: [/\b13:00\b/], excludes: [/não tenho horário livre/i] }],
     },
   },
+  {
+    id: 'CC-26',
+    title: 'Dia pedido sem vaga: «domingo» (clínica fechada) avisa antes de oferecer segunda',
+    turnosIdeais: 1,
+    // Staging 14/11/2026: «quero massagem amanhã de manhã» (domingo) recebia os horários de
+    // segunda sem uma palavra sobre o domingo. A frase `sem_horario_dia` já existe.
+    turns: [{ role: 'client', text: 'Quero massagem domingo' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/não tenho (horário|nada) livre/i, /segunda/i, /\b09:00\b/] }],
+    },
+  },
+  {
+    id: 'CC-27',
+    title: 'Dia e período pedidos sem vaga: «domingo de manhã» avisa do dia e oferece segunda',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem domingo de manhã' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/não tenho (horário|nada) livre/i, /segunda/i, /\b09:00\b/] }],
+    },
+  },
+  {
+    id: 'CC-28',
+    title: 'Dia pedido com vaga continua sem aviso: «sexta» oferece direto',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem sexta' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/\b09:00\b/], excludes: [/não tenho (horário|nada) livre/i] }],
+    },
+  },
 ]
