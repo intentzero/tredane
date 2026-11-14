@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useMediaQuery } from '../../ui/useMediaQuery'
+import { ShellSlot } from '../../shell/ShellSlot'
 import { Button, Input, Label, Radio, RadioGroup, Text, TextArea, TextField } from 'react-aria-components'
 import { PanelApiError, type PanelApi } from '../../api'
 import {
@@ -46,8 +48,33 @@ export function AiAssistCard({
   const [virtualGender, setVirtualGender] = useState<VirtualGender>(
     initialVirtualAttendantGender ?? '',
   )
+  const [baseline, setBaseline] = useState({
+    address: initialAddress ?? '',
+    gbUrl: initialGoogleBusinessUrl ?? '',
+    policy: initialReschedulePolicy ?? '',
+    virtualName: initialVirtualAttendantName ?? '',
+    virtualGender: (initialVirtualAttendantGender ?? '') as VirtualGender,
+  })
+  const wide = useMediaQuery('(min-width: 1280px)')
   const [profileBusy, setProfileBusy] = useState(false)
   const [profileNote, setProfileNote] = useState<string | null>(null)
+
+  const profileDirty =
+    address !== baseline.address ||
+    gbUrl !== baseline.gbUrl ||
+    policy !== baseline.policy ||
+    virtualName !== baseline.virtualName ||
+    virtualGender !== baseline.virtualGender
+
+  function discardProfile() {
+    setAddress(baseline.address)
+    setGbUrl(baseline.gbUrl)
+    setPolicy(baseline.policy)
+    setVirtualName(baseline.virtualName)
+    setVirtualGender(baseline.virtualGender)
+    setGbError(null)
+    setProfileNote(null)
+  }
 
   async function saveProfile() {
     setProfileNote(null)
@@ -70,6 +97,7 @@ export function AiAssistCard({
         },
         { generation, expectGeneration: () => generation },
       )
+      setBaseline({ address, gbUrl, policy, virtualName, virtualGender })
       setProfileNote('Salvo. A IA passa a usar estes dados nos rascunhos.')
     } catch (err) {
       if (err instanceof PanelApiError && err.status === 400) {
@@ -203,13 +231,42 @@ export function AiAssistCard({
               Escolha e depois toque em «Salvar dados para a IA».
             </Text>
           </RadioGroup>
-          <Button
-            className="panel-btn panel-btn-secondary"
-            onPress={() => void saveProfile()}
-            isDisabled={profileBusy}
-          >
-            {profileBusy ? 'Salvando…' : 'Salvar dados para a IA'}
-          </Button>
+          {wide ? (
+            // DEC-183: no desktop, «Salvar» e «Descartar» ficam no cabeçalho, sempre à vista.
+            <ShellSlot>
+              <div className="clinic-bar-ctx">
+                {profileDirty ? (
+                  <span className="clinic-bar-pill clinic-bar-pill--warn" role="status">
+                    Alterações por salvar
+                  </span>
+                ) : null}
+                <span className="clinic-bar-action clinic-bar-action--row">
+                  <Button
+                    className="panel-btn panel-btn-ghost"
+                    onPress={discardProfile}
+                    isDisabled={profileBusy || !profileDirty}
+                  >
+                    Descartar
+                  </Button>
+                  <Button
+                    className="panel-btn panel-btn-primary"
+                    onPress={() => void saveProfile()}
+                    isDisabled={profileBusy || !profileDirty}
+                  >
+                    {profileBusy ? 'Salvando…' : 'Salvar dados para a IA'}
+                  </Button>
+                </span>
+              </div>
+            </ShellSlot>
+          ) : (
+            <Button
+              className="panel-btn panel-btn-secondary"
+              onPress={() => void saveProfile()}
+              isDisabled={profileBusy}
+            >
+              {profileBusy ? 'Salvando…' : 'Salvar dados para a IA'}
+            </Button>
+          )}
           {profileNote ? (
             <p className="clinic-footnote" role="status">
               {profileNote}
