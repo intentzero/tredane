@@ -46,7 +46,10 @@ export type ReviewMcpOAuthProps = {
   scope: string[]
 }
 
-const SCOPES = [REVIEW_SAMPLES_SCOPE, 'offline_access'] as const
+/** DEC-182: escopo do MCP de laboratório (escrita só na clínica demo); recurso e audiência próprios. */
+export const LAB_MCP_SCOPE = 'lab:converse' as const
+
+const SCOPES = [REVIEW_SAMPLES_SCOPE, LAB_MCP_SCOPE, 'offline_access'] as const
 
 type OAuthMod = typeof import('@cloudflare/workers-oauth-provider')
 
@@ -60,6 +63,14 @@ export function reviewMcpResourceUrl(
 ): string {
   const base = (env?.APP_BASE_URL ?? new URL(requestUrl).origin).replace(/\/$/, '')
   return `${base}/api/mcp/review-central`
+}
+
+export function labMcpResourceUrl(
+  env: WorkerBindings | null | undefined,
+  requestUrl: string,
+): string {
+  const base = (env?.APP_BASE_URL ?? new URL(requestUrl).origin).replace(/\/$/, '')
+  return `${base}/api/mcp/lab`
 }
 
 export function reviewMcpIssuerUrl(
@@ -80,7 +91,7 @@ async function createReviewMcpAuthorizationServer(
   const { OAuthAuthorizationServer } = await loadOAuth()
   return new OAuthAuthorizationServer<WorkerBindings>({
     issuer: reviewMcpIssuerUrl(env, requestUrl),
-    resources: [reviewMcpResourceUrl(env, requestUrl)],
+    resources: [reviewMcpResourceUrl(env, requestUrl), labMcpResourceUrl(env, requestUrl)],
     scopesSupported: [...SCOPES],
     clientIdMetadataDocumentEnabled: true,
     clientRegistrationEndpoint: '/oauth/register',
@@ -96,6 +107,35 @@ export function resourceMetadataBody(env: WorkerBindings, requestUrl: string) {
     scopes_supported: [REVIEW_SAMPLES_SCOPE],
     bearer_methods_supported: ['header'],
   }
+}
+
+/** Metadados do recurso do laboratório (RFC 9728, URL com o caminho do recurso). */
+export function labResourceMetadataBody(env: WorkerBindings, requestUrl: string) {
+  return {
+    resource: labMcpResourceUrl(env, requestUrl),
+    authorization_servers: [reviewMcpIssuerUrl(env, requestUrl)],
+    scopes_supported: [LAB_MCP_SCOPE],
+    bearer_methods_supported: ['header'],
+  }
+}
+
+/** 401 do MCP de laboratório: só OAuth (sem fallback Bearer fixo). */
+export function unauthorizedLabMcpResponse(
+  env: WorkerBindings | null | undefined,
+  requestUrl: string,
+  message = 'Authentication required',
+): Response {
+  const metaUrl = `${reviewMcpIssuerUrl(env, requestUrl)}/.well-known/oauth-protected-resource/api/mcp/lab`
+  return new Response(
+    JSON.stringify({ error: 'unauthorized', message, oauth: oauthKvConfigured(env), scope: LAB_MCP_SCOPE }),
+    {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `Bearer realm="tredane-lab", resource_metadata="${metaUrl}"`,
+      },
+    },
+  )
 }
 
 export function unauthorizedMcpResponse(
@@ -150,6 +190,38 @@ export async function tryValidateReviewMcpOAuthToken(
     if (!clerkUserId) return null
     const scope = Array.isArray(validated.scope) ? validated.scope : []
     if (!scope.includes(REVIEW_SAMPLES_SCOPE)) return null
+    return { clerkUserId, scope }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * DEC-182: valida o access token OAuth do laboratório. Audiência = recurso do laboratório e
+ * escopo `lab:converse`; um token do Review MCP não serve (nem o contrário).
+ */
+export async function tryValidateLabMcpOAuthToken(
+  env: WorkerBindings,
+  request: Request,
+): Promise<ReviewMcpOAuthProps | null> {
+  if (!oauthKvConfigured(env)) return null
+  const auth = request.headers.get('Authorization')
+  if (!auth || !/^Bearer\s+\S+/i.test(auth)) return null
+  try {
+    const as = await createReviewMcpAuthorizationServer(env, request.url)
+    const token = auth.replace(/^Bearer\s+/i, '').trim()
+    const validated = await as.validateToken<ReviewMcpOAuthProps>(
+      labMcpResourceUrl(env, request.url),
+      token,
+      env,
+    )
+    if (!validated) return null
+    const props = validated.props ?? ({} as ReviewMcpOAuthProps)
+    const clerkUserId =
+      typeof props.clerkUserId === 'string' && props.clerkUserId ? props.clerkUserId : validated.userId
+    if (!clerkUserId) return null
+    const scope = Array.isArray(validated.scope) ? validated.scope : []
+    if (!scope.includes(LAB_MCP_SCOPE)) return null
     return { clerkUserId, scope }
   } catch {
     return null
@@ -311,9 +383,11 @@ export async function handleReviewMcpAuthorize(
             (SCOPES as readonly string[]).includes(s),
           )
         : [REVIEW_SAMPLES_SCOPE]
-    const ensured = scope.includes(REVIEW_SAMPLES_SCOPE)
-      ? scope
-      : [...scope, REVIEW_SAMPLES_SCOPE]
+    // Pedido só do laboratório: não acrescentar o escopo de revisão (audiências separadas).
+    const ensured =
+      scope.includes(REVIEW_SAMPLES_SCOPE) || scope.includes(LAB_MCP_SCOPE)
+        ? scope
+        : [...scope, REVIEW_SAMPLES_SCOPE]
     const { redirectTo } = await oauth.completeAuthorization({
       request: approved.request,
       userId: clerkUserId,

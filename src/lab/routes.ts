@@ -1,6 +1,6 @@
 /**
  * MCP de laboratório (DEC-182) — JSON-RPC stateless, só staging e só o tenant demo.
- * Auth: Bearer `LAB_TOKEN`. Separado do Review MCP (DEC-159), que é só leitura.
+ * Auth: OAuth MCP (consentimento de superadmin, escopo `lab:converse`, audiência própria). Separado do Review MCP (DEC-159), que é só leitura.
  */
 import { Hono } from 'hono'
 import { workerCaller } from '../clinic'
@@ -17,9 +17,15 @@ import {
   MCP_PROTOCOL_VERSION,
   type JsonRpcRequest,
 } from '../mcp/review-central/protocol'
+import {
+  labResourceMetadataBody,
+  tryValidateLabMcpOAuthToken,
+  unauthorizedLabMcpResponse,
+  type ReviewMcpOAuthProps,
+} from '../mcp/review-central/oauth'
 import type { WorkerBindings } from '../worker/bindings'
 import type { LabStateResult } from './turn'
-import { bearerMatches, isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
+import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
 
 const SERVER_INFO = { name: 'tredane-lab', version: '1.0.0' }
 
@@ -192,10 +198,10 @@ function str(v: unknown, max: number): string | null {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= max ? v : null
 }
 
-export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBindings) {
+export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBindings, actor = 'mcp') {
   const args: Args = rawArgs && typeof rawArgs === 'object' ? (rawArgs as Args) : {}
   const stub = env.CLINIC.get(env.CLINIC.idFromName(DEMO_CLINIC_TENANT_ID))
-  const caller = workerCaller(DEMO_CLINIC_TENANT_ID, 'lab:mcp')
+  const caller = workerCaller(DEMO_CLINIC_TENANT_ID, `lab:${actor}`)
   const waId = resolveLabWaId(args.waId)
   if ((name === 'lab_say' || name === 'lab_tap' || name === 'lab_state') && !waId) {
     return toolErrorResult('waId inválido: usar 5500 + 8 a 11 dígitos.')
@@ -251,7 +257,7 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
   }
 }
 
-async function handle(msg: JsonRpcRequest, env: WorkerBindings): Promise<Response> {
+async function handle(msg: JsonRpcRequest, env: WorkerBindings, actor: string): Promise<Response> {
   const id = msg.id === undefined ? null : msg.id
   if (msg.id === undefined && msg.method.startsWith('notifications/')) {
     return new Response(null, { status: 202 })
@@ -277,7 +283,7 @@ async function handle(msg: JsonRpcRequest, env: WorkerBindings): Promise<Respons
       if (!name) {
         return Response.json(jsonRpcError(id, JSON_RPC_INVALID_REQUEST, 'tools/call exige name'), { status: 400 })
       }
-      return Response.json(jsonRpcSuccess(id, await callLabTool(name, params.arguments, env)))
+      return Response.json(jsonRpcSuccess(id, await callLabTool(name, params.arguments, env, actor)))
     }
     default:
       return Response.json(
@@ -287,13 +293,21 @@ async function handle(msg: JsonRpcRequest, env: WorkerBindings): Promise<Respons
   }
 }
 
-export function createLabMcpRoutes() {
+export type LabMcpRouteOptions = {
+  /** Validação do token (testes). Padrão: access token OAuth do laboratório. */
+  validate?: (env: WorkerBindings, request: Request) => Promise<ReviewMcpOAuthProps | null>
+}
+
+export function createLabMcpRoutes(opts: LabMcpRouteOptions = {}) {
+  const validate = opts.validate ?? tryValidateLabMcpOAuthToken
   const app = new Hono<{ Bindings: WorkerBindings }>()
+  app.get('/.well-known/oauth-protected-resource/api/mcp/lab', (c) =>
+    isLabEnabled(c.env) ? c.json(labResourceMetadataBody(c.env, c.req.url)) : c.json({ error: 'not_found' }, 404),
+  )
   app.post('/api/mcp/lab', async (c) => {
     if (!isLabEnabled(c.env)) return c.json({ error: 'not_found' }, 404)
-    if (!bearerMatches(c.req.header('Authorization'), c.env.LAB_TOKEN!)) {
-      return c.json({ error: 'unauthorized' }, 401)
-    }
+    const principal = await validate(c.env, c.req.raw)
+    if (!principal) return unauthorizedLabMcpResponse(c.env, c.req.url)
     c.header('Cache-Control', 'no-store')
     let body: unknown
     try {
@@ -304,8 +318,10 @@ export function createLabMcpRoutes() {
     if (Array.isArray(body) || !isJsonRpcRequest(body)) {
       return c.json(jsonRpcError(null, JSON_RPC_INVALID_REQUEST, 'Pedido JSON-RPC inválido'), 400)
     }
-    return handle(body, c.env)
+    return handle(body, c.env, principal.clerkUserId)
   })
-  app.all('/api/mcp/lab', (c) => (isLabEnabled(c.env) ? c.json({ error: 'method_not_allowed' }, 405) : c.json({ error: 'not_found' }, 404)))
+  app.all('/api/mcp/lab', (c) =>
+    isLabEnabled(c.env) ? c.json({ error: 'method_not_allowed' }, 405) : c.json({ error: 'not_found' }, 404),
+  )
   return app
 }

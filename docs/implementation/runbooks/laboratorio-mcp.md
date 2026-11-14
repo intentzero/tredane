@@ -9,8 +9,11 @@ para reproduzir um defeito antes de o tratar (caso L1 primeiro; ver `metodologia
 ## Limites (não se contornam)
 
 - **Só staging** (`ENVIRONMENT=staging`) e **só a clínica demo** (`tenant_dec0de000000000000000001`). Sem tenant novo.
-- Gate triplo, como o seed demo: var `LAB_ENABLED=true` (já em `wrangler.jsonc`, staging), secret `LAB_TOKEN`
-  (≥ 32 caracteres) e `Authorization: Bearer <LAB_TOKEN>`. Sem secret a rota responde 404.
+- Gate: `ENVIRONMENT=staging`, `LAB_ENABLED=true` (já em `wrangler.jsonc`, staging) e `OAUTH_KV` configurado (o mesmo do
+  Review MCP). Fora disso a rota responde 404.
+- **Autenticação por OAuth MCP**, sem secret estático: consentimento só de superadmin (sessão Clerk), recurso
+  `/api/mcp/lab`, escopo `lab:converse`. Um token do Review MCP não abre o laboratório, nem o contrário. O ator
+  gravado na auditoria é `lab:<clerkUserId>`.
 - **Nada sai para a Meta.** O consumer já ignora o tenant demo; o resultado do envio é marcado como entregue de forma
   sintética para a proposta avançar. Números só `5500…` (inexistentes); outro prefixo é recusado.
 - **Orçamento:** teto diário de turnos (`LAB_MAX_TURNS_DAILY`, padrão 400), proxy do teto de US$ 10 dos testes L2.
@@ -20,12 +23,10 @@ para reproduzir um defeito antes de o tratar (caso L1 primeiro; ver `metodologia
 
 ## Ligar
 
-```bash
-npx wrangler secret put LAB_TOKEN --env staging   # colar um valor aleatório de 32+ caracteres
-```
-
-Depois do deploy de staging, registar o MCP no cliente (URL `https://<staging>/api/mcp/lab`, cabeçalho
-`Authorization: Bearer <LAB_TOKEN>`; JSON-RPC por POST, sem sessão). Nunca versionar o token.
+Nada a configurar além do deploy de staging (o `OAUTH_KV` já existe por causa do Review MCP). No cliente MCP, registar
+`https://<staging>/api/mcp/lab` como servidor remoto; o cliente descobre o OAuth sozinho
+(`/.well-known/oauth-protected-resource/api/mcp/lab`) e abre o consentimento. Entrar antes no painel com a conta
+superadmin. JSON-RPC por POST, sem sessão.
 
 ## Ferramentas (fase 1)
 

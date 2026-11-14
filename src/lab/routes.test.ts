@@ -2,20 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import type { WorkerBindings } from '../worker/bindings'
 import { createLabMcpRoutes } from './routes'
 
-const TOKEN = 'y'.repeat(32)
+const PRINCIPAL = { clerkUserId: 'user_super', scope: ['lab:converse'] }
 
 function envWith(stub: Record<string, unknown>, over: Partial<WorkerBindings> = {}): WorkerBindings {
   return {
     ENVIRONMENT: 'staging',
     LAB_ENABLED: 'true',
-    LAB_TOKEN: TOKEN,
+    OAUTH_KV: {},
     CLINIC: { idFromName: (n: string) => n, get: () => stub },
     ...over,
   } as unknown as WorkerBindings
 }
 
-async function post(env: WorkerBindings, body: unknown, token: string | null = TOKEN) {
-  const app = createLabMcpRoutes()
+async function post(env: WorkerBindings, body: unknown, token: string | null = 'good') {
+  const app = createLabMcpRoutes({
+    validate: async (_env, req) => (req.headers.get('Authorization') === 'Bearer good' ? PRINCIPAL : null),
+  })
   return app.request(
     '/api/mcp/lab',
     {
@@ -35,18 +37,20 @@ const call = (name: string, args: unknown = {}) => ({
 })
 
 describe('MCP de laboratório (DEC-182)', () => {
-  it('fechado fora de staging, sem flag ou sem secret: 404', async () => {
-    for (const over of [{ ENVIRONMENT: 'production' }, { LAB_ENABLED: 'false' }, { LAB_TOKEN: undefined }]) {
+  it('fechado fora de staging, sem flag ou sem OAuth MCP: 404', async () => {
+    for (const over of [{ ENVIRONMENT: 'production' }, { LAB_ENABLED: 'false' }, { OAUTH_KV: undefined }]) {
       const res = await post(envWith({}, over), call('lab_status'))
       expect(res.status).toBe(404)
     }
   })
 
-  it('sem Bearer correto: 401 e o DO nunca é chamado', async () => {
+  it('sem token OAuth válido: 401 com o desafio do recurso do laboratório e o DO nunca é chamado', async () => {
     const labTurn = vi.fn()
     const env = envWith({ labTurn })
     expect((await post(env, call('lab_say', { text: 'oi' }), null)).status).toBe(401)
-    expect((await post(env, call('lab_say', { text: 'oi' }), 'z'.repeat(32))).status).toBe(401)
+    const bad = await post(env, call('lab_say', { text: 'oi' }), 'outro')
+    expect(bad.status).toBe(401)
+    expect(bad.headers.get('WWW-Authenticate')).toContain('/.well-known/oauth-protected-resource/api/mcp/lab')
     expect(labTurn).not.toHaveBeenCalled()
   })
 
@@ -101,7 +105,7 @@ describe('MCP de laboratório (DEC-182)', () => {
     expect(body.result.content[0]!.text).toContain('Teto')
   })
 
-  it('configuração: cada ferramenta vira uma operação da lista fechada, com ator lab:mcp', async () => {
+  it('configuração: cada ferramenta vira uma operação da lista fechada, com o ator lab:<superadmin>', async () => {
     const labConfig = vi.fn().mockResolvedValue({ ok: true })
     const env = envWith({ labConfig })
     await post(env, call('lab_config_get'))
@@ -120,7 +124,7 @@ describe('MCP de laboratório (DEC-182)', () => {
       'service_active',
       'resource_active',
     ])
-    expect(labConfig.mock.calls[0]![0].actorId).toBe('lab:mcp')
+    expect(labConfig.mock.calls[0]![0].actorId).toBe('lab:user_super')
     expect(labConfig.mock.calls[1]![2]).toMatchObject({ name: 'Massagem', professionalIds: ['p1'] })
   })
 
@@ -130,5 +134,15 @@ describe('MCP de laboratório (DEC-182)', () => {
     const body = (await res.json()) as { result: { isError?: boolean } }
     expect(body.result.isError).toBe(true)
     expect(labConfig).not.toHaveBeenCalled()
+  })
+
+  it('metadados do recurso: audiência e escopo do laboratório', async () => {
+    const app = createLabMcpRoutes()
+    const res = await app.request('https://staging.example.com/.well-known/oauth-protected-resource/api/mcp/lab', {}, envWith({}))
+    const body = (await res.json()) as { resource: string; scopes_supported: string[] }
+    expect(body.resource).toBe('https://staging.example.com/api/mcp/lab')
+    expect(body.scopes_supported).toEqual(['lab:converse'])
+    const off = await app.request('/.well-known/oauth-protected-resource/api/mcp/lab', {}, envWith({}, { ENVIRONMENT: 'production' }))
+    expect(off.status).toBe(404)
   })
 })
