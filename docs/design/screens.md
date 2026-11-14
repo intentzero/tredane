@@ -110,6 +110,7 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 | Toda lista (M-01, M-05, M-06, M-13, M-20) | Carregando (esqueleto), vazio (texto da spec §4), erro com **Tentar de novo**, sem resultado de filtro |
 | M-02 | Mensagem recebida com anexo não disponível, falha de processamento, conversa encerrada, conversa de outra pessoa, composição de texto em edição |
 | M-04 | Sem horários livres, sem configuração (“A agenda desta clínica ainda não foi configurada”), erro de rede com resultado incerto (reler a agenda antes de tentar de novo), sucesso |
+| M-05 (aparência) | Desde DEC-184 (14/11/2026) o quadro usa elevação E1/E2, avatar, chip de data e ponto de etapa; o `.dc.html` e o PNG ainda mostram o desenho anterior |
 | M-05 | Cartão “Movendo…”, falha ao mover (volta à coluna e avisa), cartão atualizado por outra sessão (destaque 1,5 s) |
 | M-09 | Código incorreto/expirado, reenvio, e-mail sem convite (sem revelar se há conta) |
 | M-10 | Clínica sem acesso (removida do seletor), troca de clínica em andamento |

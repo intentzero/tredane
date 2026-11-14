@@ -1,4 +1,4 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.8.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.9.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
@@ -56,6 +56,9 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-pill: 999px;
+  --elevation-e1: 0 1px 2px rgba(20, 38, 37, 0.10), 0 1px 1px rgba(20, 38, 37, 0.06);
+  --elevation-e2: 0 4px 12px rgba(20, 38, 37, 0.14), 0 1px 3px rgba(20, 38, 37, 0.08);
+  --elevation-e3: 0 12px 32px rgba(20, 38, 37, 0.18);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -118,6 +121,9 @@
   --color-nav-active: #173133;
   --color-nav-icon: #98A2A1;
   --color-nav-icon-active: #E4E7E6;
+  --elevation-e1: 0 1px 2px rgba(0, 0, 0, 0.40), 0 1px 1px rgba(0, 0, 0, 0.28);
+  --elevation-e2: 0 4px 12px rgba(0, 0, 0, 0.50), 0 1px 3px rgba(0, 0, 0, 0.32);
+  --elevation-e3: 0 12px 32px rgba(0, 0, 0, 0.60);
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -160,6 +166,9 @@
     --color-nav-active: #173133;
     --color-nav-icon: #98A2A1;
     --color-nav-icon-active: #E4E7E6;
+    --elevation-e1: 0 1px 2px rgba(0, 0, 0, 0.40), 0 1px 1px rgba(0, 0, 0, 0.28);
+    --elevation-e2: 0 4px 12px rgba(0, 0, 0, 0.50), 0 1px 3px rgba(0, 0, 0, 0.32);
+    --elevation-e3: 0 12px 32px rgba(0, 0, 0, 0.60);
     color-scheme: dark;
   }
 }

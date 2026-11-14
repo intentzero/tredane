@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 14/11/2026 — Acompanhamento: elevação, avatar e chips (**Confirmado**, DEC-184) · tokens v0.9.0
+
+- **Tokens:** grupo novo `elevation` (`e1`, `e2`, `e3`) e `elevationDark`; `build_tokens.py` gera `--elevation-e1/e2/e3` no claro e no escuro. E3 valida o que o painel já usava; E1 e E2 são novos.
+- **Quadro:** cartão com E1 (E2 no hover real e no selecionado), borda a 60 %, avatar com iniciais, data da marcação em chip, «IA» em chip, ponto de etapa no título da coluna e coluna vazia tracejada. Celular: ponto na aba, avatar e E1.
+- `check_contrast.py`: 4 pares novos sobre `surface.sunken` (74 → 78). Mocks `.dc.html` e PNG ainda não refletem a mudança (canvas de revisão fora do repositório).
+
 ## 14/11/2026 — M-33 Recebimento: prazo 15/30, antecedência, janela Outro (**Confirmado**, DEC-182)
 
 - Cartão **Sinal para reservar o horário**: prazo só **15 min · 30 min** (padrão 30); **Antecedência mínima** Desligado · 30 minutos · 1 hora · Outro…; janela de crédito 12/24/48 h + Outro…. Outro…: Número (máx. 2 dígitos) + Unidade **dropdown** min|h na mesma linha. Mock Project store `recebimento-sinal-lead-time.html` / `media/sinal-lead-time/`. Painel: `RecebimentoScreen`, `deadlinePresets`, `panel.css`.
