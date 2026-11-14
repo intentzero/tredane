@@ -40,6 +40,28 @@ function input(inbound: string): AiGenerateInput {
 }
 
 describe('combos no contexto da IA (DEC-080)', () => {
+  it('lista explicação por variante quando cadastrada (espelho DEC-046)', () => {
+    const withExpl = input('o que é axila?')
+    withExpl.context.services[0]!.zones = [
+      {
+        name: 'Axila',
+        durationMinutes: 15,
+        priceCents: 5000,
+        audience: 'feminino',
+        clientExplanation: 'Inclui a dobra.',
+      },
+      {
+        name: 'Axila',
+        durationMinutes: 20,
+        priceCents: 6000,
+        audience: 'masculino',
+      },
+    ]
+    const text = buildUserContent(withExpl)
+    expect(text).toMatch(/Axila: 15 min;.*gênero: feminino; explicação: Inclui a dobra/)
+    expect(text).toMatch(/Axila: 20 min;.*gênero: masculino; explicação: \(não cadastrada\)/)
+  })
+
   it('lista o combo com as variantes e o preço, e diz que o valor final é do sistema', () => {
     const text = buildUserContent(input('quanto custa?'))
     expect(text).toContain('combo «Buço + axila»')

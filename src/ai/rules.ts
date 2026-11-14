@@ -81,7 +81,12 @@ export function analyzeContentRules(
       if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
     }
     if (procedureAsk) {
-      if (s.clientExplanation == null || s.clientExplanation.trim() === '') {
+      const zoneHasExplanation = (s.zones ?? []).some(
+        (z) => z.clientExplanation != null && z.clientExplanation.trim() !== '',
+      )
+      const serviceHasExplanation =
+        s.clientExplanation != null && s.clientExplanation.trim() !== ''
+      if (!serviceHasExplanation && !zoneHasExplanation) {
         if (!servicesWithoutExplanation.includes(s.name)) {
           servicesWithoutExplanation.push(s.name)
         }

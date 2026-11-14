@@ -45,6 +45,7 @@ type ZoneSql = {
   active: number
   sort_order: number
   synonyms_json?: string | null
+  client_explanation?: string | null
 }
 
 type SnapSql = {
@@ -57,6 +58,7 @@ type SnapSql = {
 }
 
 function mapZone(row: ZoneSql): ServiceZoneRow {
+  const explanation = row.client_explanation?.trim() || null
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -68,6 +70,7 @@ function mapZone(row: ZoneSql): ServiceZoneRow {
     active: row.active === 1,
     sortOrder: row.sort_order,
     synonyms: parseSynonymsJson(row.synonyms_json),
+    clientExplanation: explanation,
   }
 }
 
@@ -257,6 +260,12 @@ export function replaceZones(
       selfZoneId: id,
       claims: pendingClaims,
     })
+    const clientExplanation =
+      item.clientExplanation === undefined
+        ? (prior?.clientExplanation ?? null)
+        : item.clientExplanation === null
+          ? null
+          : item.clientExplanation.trim() || null
     const ownerFolded = foldSynonym(name)
     pendingClaims.push({
       folded: ownerFolded,
@@ -278,7 +287,7 @@ export function replaceZones(
       db.run(
         `UPDATE service_zones
          SET name = ?, duration_minutes = ?, price_cents = ?, audience = ?, active = ?,
-             sort_order = ?, synonyms_json = ?, updated_at = ?
+             sort_order = ?, synonyms_json = ?, client_explanation = ?, updated_at = ?
          WHERE tenant_id = ? AND id = ?`,
         name,
         durationMinutes,
@@ -287,6 +296,7 @@ export function replaceZones(
         active,
         index,
         serializeSynonyms(keptSynonyms),
+        clientExplanation,
         now,
         tenantId,
         id,
@@ -295,8 +305,8 @@ export function replaceZones(
       db.run(
         `INSERT INTO service_zones (
           id, tenant_id, service_id, name, duration_minutes, price_cents, audience, active,
-          sort_order, synonyms_json, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          sort_order, synonyms_json, client_explanation, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
         tenantId,
         service.id,
@@ -307,6 +317,7 @@ export function replaceZones(
         active,
         index,
         serializeSynonyms(keptSynonyms),
+        clientExplanation,
         now,
         now,
       )
@@ -322,6 +333,7 @@ export function replaceZones(
       active: active === 1,
       sortOrder: index,
       synonyms: keptSynonyms,
+      clientExplanation,
     })
   })
 

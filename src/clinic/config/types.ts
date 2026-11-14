@@ -92,6 +92,11 @@ export type ServiceZoneRow = {
   sortOrder: number
   /** DEC-110 — sinónimos da variante (interpretação). */
   synonyms: string[]
+  /**
+   * Espelho de DEC-046 no serviço: «Explicação para clientes» / «Explicação para a IA»
+   * por variante (género). null = não descrever esta variante.
+   */
+  clientExplanation: string | null
 }
 
 export type ServiceZoneInput = {
@@ -106,6 +111,10 @@ export type ServiceZoneInput = {
   active?: boolean
   /** DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui. */
   synonyms?: string[]
+  /**
+   * Espelho de DEC-046: omitido mantém; `null` ou string vazia limpa; texto grava.
+   */
+  clientExplanation?: string | null
 }
 
 /** Combo de variantes de um serviço (DEC-080). */

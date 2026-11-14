@@ -163,7 +163,11 @@ export function buildUserContent(input: AiGenerateInput): string {
           .map((z) => {
             const zp = z.priceCents == null ? 'sem preço' : formatBRL(z.priceCents)
             const gender = z.audience === 'feminino' || z.audience === 'masculino' ? z.audience : 'ambos'
-            return `  · ${u(z.name)}: ${z.durationMinutes} min; ${zp}; gênero: ${gender}`
+            const zExpl =
+              z.clientExplanation == null || z.clientExplanation.trim() === ''
+                ? 'explicação: (não cadastrada)'
+                : `explicação: ${u(z.clientExplanation.trim())}`
+            return `  · ${u(z.name)}: ${z.durationMinutes} min; ${zp}; gênero: ${gender}; ${zExpl}`
           })
           .join('\n')
         const comboLines = (s.combos ?? [])

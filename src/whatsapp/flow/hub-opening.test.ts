@@ -83,6 +83,7 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
       active: true,
       sortOrder: 0,
       synonyms: [] as string[],
+      clientExplanation: null as string | null,
     })
     // Como na clínica de teste do staging: sem sinónimos na ficha.
     const services = [

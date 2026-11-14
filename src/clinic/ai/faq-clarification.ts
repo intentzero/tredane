@@ -289,6 +289,20 @@ export function answerFaqFromCatalog(input: {
     }
   }
 
+  // Preferir a explicação da variante nomeada (espelho de DEC-046 por zona).
+  const zoneExplanation = subject?.clientExplanation?.trim() ?? ''
+  if (zoneExplanation) {
+    return {
+      kind: 'explanation',
+      replyText: sayAct(
+        'informar_explicacao',
+        input.conversationId,
+        { explicação: zoneExplanation },
+        zoneExplanation,
+      ),
+    }
+  }
+
   const explanation = input.service.clientExplanation?.trim() ?? ''
   if (explanation) {
     return {

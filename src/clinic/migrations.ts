@@ -331,6 +331,11 @@ import {
   MIGRATION_NAME as M66_NAME,
   STATEMENTS as M66_STATEMENTS,
 } from './migrations/0066_sinal_timing_lead_credit'
+import {
+  MIGRATION_ID as M67_ID,
+  MIGRATION_NAME as M67_NAME,
+  STATEMENTS as M67_STATEMENTS,
+} from './migrations/0067_zone_client_explanation'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -407,6 +412,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M64_ID, name: M64_NAME, statements: M64_STATEMENTS },
   { id: M65_ID, name: M65_NAME, statements: M65_STATEMENTS },
   { id: M66_ID, name: M66_NAME, statements: M66_STATEMENTS },
+  { id: M67_ID, name: M67_NAME, statements: M67_STATEMENTS },
 ]
 
 export type MigrationResult = {

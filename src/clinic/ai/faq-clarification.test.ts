@@ -17,6 +17,7 @@ const intima: ServiceZoneRow = {
   active: true,
   sortOrder: 0,
   synonyms: ['anus'],
+  clientExplanation: null,
 }
 
 const axila: ServiceZoneRow = {
@@ -30,6 +31,7 @@ const axila: ServiceZoneRow = {
   active: true,
   sortOrder: 1,
   synonyms: [],
+  clientExplanation: null,
 }
 
 const service = {
@@ -125,6 +127,27 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     expect(r.kind).toBe('explanation')
     if (r.kind === 'explanation') {
       expect(r.replyText).toMatch(/Retirada de pelos com cera/)
+    }
+  })
+
+  it('explicação da variante prevalece sobre a do serviço', () => {
+    const withZone = {
+      ...intima,
+      clientExplanation: 'Inclui virilha e ânus no feminino.',
+    }
+    const r = answerFaqFromCatalog({
+      text: 'o que é íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Retirada de pelos com cera em várias zonas.',
+      } as ServiceRow,
+      zones: [withZone, axila],
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/Inclui virilha e ânus/)
+      expect(r.replyText).not.toMatch(/várias zonas/)
     }
   })
 })

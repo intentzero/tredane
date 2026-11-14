@@ -617,6 +617,7 @@ describe('zonesNamedInText', () => {
     active: true,
     sortOrder: 0,
     synonyms: [] as string[],
+    clientExplanation: null as string | null,
   })
 
   it('o nome mais longo ganha e um nome curto não casa dentro dele', () => {
