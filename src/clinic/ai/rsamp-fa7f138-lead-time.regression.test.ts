@@ -97,7 +97,7 @@ function seed() {
 }
 
 describe('rsamp_fa7f138 — antecedência mínima na oferta', () => {
-  it('«Relaxante» às 10:41 não oferece 10:45 (default 30 min)', async () => {
+  it('«Relaxante» às 10:41 não oferece 10:45 (lead 30 min)', async () => {
     const s = seed()
     try {
       s.say('inbound', 'Quero agendar uma massagem')
