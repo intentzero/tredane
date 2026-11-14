@@ -202,6 +202,31 @@ function serviceNameHit(
   return null
 }
 
+/**
+ * Mesmo radical: prefixo comum ≥ 5 letras e ambas as palavras com ≥ 6 («relaxar» ~ «relaxante»,
+ * «drenar» ~ «drenagem»). O mínimo de 6 evita «massa» ~ «massagem».
+ *
+ * USO ESTREITO (DEC-110/141): o radical NÃO reconhece um verbo sozinho («quero depilar» sem
+ * sinónimo continua por entender, a dona grava o sinónimo). Só mete um serviço na disputa quando
+ * uma zona citada, sem nenhum serviço citado, ia decidir sozinha (staging 14/11/2026: «relaxar as
+ * costas» virava depilação só porque «Costas» é zona de Depilação).
+ */
+function sharesStem(a: string, b: string): boolean {
+  if (a === b || a.length < 6 || b.length < 6) return false
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1
+  return i >= 5
+}
+
+/**
+ * Algum outro serviço do catálogo tem uma palavra do nome com o mesmo radical de uma palavra do
+ * texto («relaxar» ~ «Massagem relaxante»)? Então a zona citada não decide o serviço sozinha.
+ */
+export function serviceNameStemHit(text: string, name: string): boolean {
+  const tokens = fold(text).split(/[^a-z0-9]+/).filter(Boolean)
+  return nameTokens(name).some((w) => tokens.some((t) => sharesStem(t, w)))
+}
+
 function variantNameHit(
   text: string,
   name: string,
@@ -457,7 +482,13 @@ export function resolveBookingObject(input: {
   const exactServiceHits = allExactHits.filter((s) => !shadowedServiceIds.has(s.id))
   if (exactServiceHits.length >= 2) return handoff('multiplos_servicos')
 
-  type Scored = { option: BookableOption; score: number; source: BookingMatchResult['source'] }
+  type Scored = {
+    option: BookableOption
+    score: number
+    source: BookingMatchResult['source']
+    /** Só a variante (zona) foi citada; nenhum nome de serviço. */
+    variantOnly?: boolean
+  }
   const scored: Scored[] = []
   const synonymsByService = new Map(services.map((s) => [s.id, s.synonyms ?? []]))
   const synonymsByVariant = new Map(
@@ -484,6 +515,7 @@ export function resolveBookingObject(input: {
       score += 15
       source = 'partial'
     }
+    let variantHit = false
     if (
       option.variantName &&
       variantNameHit(
@@ -493,6 +525,7 @@ export function resolveBookingObject(input: {
       )
     ) {
       score += 40
+      variantHit = true
       if (source === 'none') source = 'explicit'
     }
     if (duration != null && option.durationMinutes === duration) {
@@ -515,7 +548,29 @@ export function resolveBookingObject(input: {
       score += 8
       if (source === 'none') source = 'session'
     }
-    if (score > 0) scored.push({ option, score, source })
+    if (score > 0) scored.push({ option, score, source, variantOnly: variantHit && svcHit === null })
+  }
+
+  // Zona citada sem serviço citado + outro serviço com o mesmo radical no texto: põe esse serviço
+  // na disputa (um pouco abaixo da zona) para o funil perguntar em vez de assumir.
+  const variantOnlyServiceIds = new Set(
+    scored.filter((s) => s.variantOnly).map((s) => s.option.serviceId),
+  )
+  if (variantOnlyServiceIds.size > 0) {
+    const bestVariantOnly = Math.max(
+      ...scored.filter((s) => s.variantOnly).map((s) => s.score),
+    )
+    for (const option of options) {
+      if (shadowedServiceIds.has(option.serviceId) || variantOnlyServiceIds.has(option.serviceId)) continue
+      const stem =
+        serviceNameStemHit(text, option.serviceName) ||
+        (option.variantName ? serviceNameStemHit(text, option.variantName) : false)
+      if (!stem) continue
+      const boosted = bestVariantOnly - 5
+      const existing = scored.find((s) => s.option.key === option.key)
+      if (existing) existing.score = Math.max(existing.score, boosted)
+      else scored.push({ option, score: boosted, source: 'partial' })
+    }
   }
 
   // Deíctico: «esse» / «essa» com oferta anterior de uma opção.

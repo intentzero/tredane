@@ -25,6 +25,31 @@ const setAudience =
   }
 
 const ASK_LIST = /Feminino ou masculino\?/
+
+/** Acrescenta a zona «Costas» à Depilação (como a clínica de staging), mantendo as existentes e os ids. */
+function withCostasZone(s: DialogScenario): void {
+  const prior = listZones(s.db, s.tenantId, s.ids.depilacao)
+  if (prior.some((z) => z.name === 'Costas')) return
+  replaceServiceZonesOp(
+    s.db,
+    s.caller,
+    s.ids.depilacao,
+    [
+      ...prior.map((z) => ({
+        id: z.id,
+        name: z.name,
+        audience: z.audience,
+        durationMinutes: z.durationMinutes,
+        priceCents: z.priceCents,
+        active: z.active,
+        synonyms: z.synonyms,
+      })),
+      { name: 'Costas', audience: 'ambos' as const, durationMinutes: 30, priceCents: 9000 },
+    ],
+    s.clock,
+  )
+}
+
 const NO_LEAK = [/maps\.google|goo\.gl/i, /\{|\}/]
 
 export const CC_DIALOG_CASES: DialogCase[] = [
@@ -892,6 +917,40 @@ export const CC_DIALOG_CASES: DialogCase[] = [
           excludes: [/não entendi|nao entendi|Gioconda|perfil/i],
         },
       ],
+    },
+  },
+  {
+    id: 'CC-32',
+    title: '«Relaxar as costas» não vira depilação só porque «Costas» é uma zona: pergunta o serviço',
+    turnosIdeais: 1,
+    // Staging 14/11/2026: «queria relaxar as costas na segunda» recebia «Para depilação, prefere
+    // feminina ou masculina?». «relaxar» não pontuava para a massagem relaxante, por isso a zona
+    // «Costas» ganhava sozinha. Com o radical em comum os dois empatam e o funil pergunta.
+    prepare: withCostasZone,
+    turns: [{ role: 'client', text: 'Queria relaxar as costas na segunda' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          // As 3 redações de `perguntar_servico`: duas listam os serviços, uma não.
+          matches: [/Qual servi[cç]o/],
+          excludes: [/feminina ou masculina/i, /Feminino ou masculino/i, /Para depila/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'CC-33',
+    title: '«Costas» sozinha continua a ser a zona de depilação (sem regressão)',
+    turnosIdeais: 1,
+    prepare: withCostasZone,
+    turns: [{ role: 'client', text: 'Quero depilar as costas amanhã' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, excludes: [/Massagem relaxante/] }],
     },
   },
 ]
