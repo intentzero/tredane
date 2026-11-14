@@ -141,6 +141,36 @@ export function getPixSignalSettings(
   return rowToSettings(row)
 }
 
+/**
+ * Texto efectivo da política de sinal para contexto IA / CF-04 / propostas
+ * (DEC-180). Preferir a coluna persistida; só regenerar o preview quando o
+ * sinal está ligado e a coluna ficou vazia (drift). Sem inventar política
+ * default com o sinal desligado — isso tapava `reschedulePolicy` no CF-04 (E-06).
+ *
+ * Nota: `getPixSignalSettings().cancellationPolicy` regenera sempre que a
+ * coluna está vazia (útil na API/Recebimento); não usar esse fallback cego
+ * no caminho de atendimento.
+ */
+export function effectiveSignalCancellationPolicy(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): string {
+  ensureClinicSettings(db, tenantId, clock)
+  const row = db.get<{
+    signal_cancellation_policy: string | null
+    signal_enabled: number | null
+  }>(
+    `SELECT signal_cancellation_policy, signal_enabled
+     FROM clinic_settings WHERE id = 1 AND tenant_id = ?`,
+    tenantId,
+  )
+  const stored = (row?.signal_cancellation_policy ?? '').trim()
+  if (stored) return stored
+  if ((row?.signal_enabled ?? 0) !== 1) return ''
+  return getPixSignalSettings(db, tenantId, clock).cancellationPolicy.trim()
+}
+
 function validateAmount(
   amountKind: SignalKind,
   fixedCents: number | null,

@@ -45,6 +45,7 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
         active: true,
         sortOrder: 0,
         synonyms: [],
+        clientExplanation: null,
       },
     ],
     combos: [],

@@ -13,6 +13,7 @@ import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
+import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import type { ClinicDb } from '../store'
 import { TEMPO_REFUSED_PHRASE, TEMPO_UNCONFIRMED_PHRASE } from '../proposals/render'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
@@ -278,7 +279,8 @@ export async function buildClinicAiContext(
       openingHours: windows.length > 0 ? openingHours : [],
       tempoNote,
       reschedulePolicy: settings.reschedulePolicy || null,
-      cancellationPolicy: settings.signalCancellationPolicy || null,
+      // DEC-180: mesmo texto efectivo que Recebimento/cobrança (não a coluna legada só).
+      cancellationPolicy: effectiveSignalCancellationPolicy(db, tenantId, clock) || null,
       virtualAttendantName: settings.virtualAttendantName || null,
       virtualAttendantGender: settings.virtualAttendantGender,
     },

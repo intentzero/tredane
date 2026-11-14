@@ -19,6 +19,7 @@ import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { isClinicAiAssistEnabled } from '../config/settings'
 import { listServices } from '../config/services'
+import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import { handleIdleTextReply } from '../followup/idle'
 import { runIdleContinueChoiceResume } from '../followup/idle-continue-resume'
 import { needsAudienceLine } from './variant-line'
@@ -872,11 +873,12 @@ export async function runDueAutoDrafts(
       }
     }
     // CF-04 / E-06: pergunta condicional → política cadastrada, sem pausa.
+    // DEC-180: texto de sinal = mesmo efectivo que cobrança/Recebimento.
     const sensitiveHits = classifySensitive(turnText)
     if (hasPolicyQuestion(sensitiveHits)) {
       const settings = turn.settings
       const policy =
-        settings.signalCancellationPolicy.trim() ||
+        effectiveSignalCancellationPolicy(db, tenantId, clock) ||
         settings.reschedulePolicy.trim() ||
         ''
       if (policy) {

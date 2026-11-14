@@ -33,6 +33,7 @@ function zoneDrafts(svc: ClinicService): ZoneDraft[] {
     audience: z.audience,
     active: z.active,
     synonyms: z.synonyms ?? [],
+    explanation: z.clientExplanation ?? '',
   }))
 }
 

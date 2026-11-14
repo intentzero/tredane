@@ -57,6 +57,7 @@ export {
 export {
   getPixSignalSettings,
   updatePixSignalSettings,
+  effectiveSignalCancellationPolicy,
   effectiveSignalForCharge,
 } from './signal-settings'
 export {

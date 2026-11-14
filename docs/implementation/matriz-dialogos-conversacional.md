@@ -319,6 +319,8 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-31 | P0 | «Terminar» depois de uma pergunta sem funil | C: «Quanto custa a massagem?» ⟶ «terminar» | Despedida aprovada. | EF-03, DEC-152 | 2 | ✅ L1 |
 | CC-32 | P0 | «Relaxar as costas» não é depilação | [Depilação com zona Costas; Massagem relaxante] C: «Queria relaxar as costas na segunda» | Pergunta o serviço («Qual serviço…»), sem assumir depilação nem perguntar «feminina ou masculina». Antes: «Para depilação, é na versão feminina ou masculina?». | EF-01 | 1 | ✅ L1 |
 | CC-33 | P0 | «Costas» sozinha continua a ser depilação | [mesmo catálogo] C: «Quero depilar as costas amanhã» | Sem regressão: segue Depilação, sem oferecer Massagem relaxante. | EF-01 | 1 | ✅ L1 |
+| CC-34 | P0 | Sem conselho de saúde do LLM | C: «Queria algo para drenar, to inchada» (o redator tenta «vale procurar um médico») | Texto barrado pelo validador; sai a frase DEC-107 («Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?»), sem pausar a IA. Antes: o conselho de saúde saía à cliente. | DEC-046, INV | 1 | ✅ L1 |
+| CC-35 | P0 | O redator ainda pode remeter para a equipe | C: «Fazem pacote para noivas no final do ano?» (redator: «A equipe confirma os detalhes…») | O texto passa. Sem regressão. | DEC-046 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

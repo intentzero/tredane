@@ -827,4 +827,92 @@ describe('DEC-145 variantSelection round-trip', () => {
       close()
     }
   })
+
+  it('PUT zones grava e devolve clientExplanation por variante (espelho DEC-046)', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const pro = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Ana' }),
+        }),
+      )
+      const proId = ((await pro.json()) as { id: string }).id
+      const created = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Depilação',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            variantKind: 'Zona',
+            variantKindPlural: 'Zonas',
+            variantSelection: 'varias',
+          }),
+        }),
+      )
+      expect(created.status).toBe(201)
+      const svc = (await created.json()) as { id: string }
+
+      const zonesRes = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${svc.id}/zones`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            zones: [
+              {
+                name: 'Íntima',
+                durationMinutes: 20,
+                priceCents: 15000,
+                audience: 'feminino',
+                active: true,
+                clientExplanation: 'Inclui virilha e ânus.',
+              },
+              {
+                name: 'Íntima',
+                durationMinutes: 25,
+                priceCents: 18000,
+                audience: 'masculino',
+                active: true,
+                clientExplanation: null,
+              },
+            ],
+          }),
+        }),
+      )
+      expect(zonesRes.status).toBe(200)
+      const saved = (await zonesRes.json()) as {
+        zones: Array<{ audience: string; clientExplanation: string | null }>
+      }
+      expect(saved.zones).toMatchObject([
+        { audience: 'feminino', clientExplanation: 'Inclui virilha e ânus.' },
+        { audience: 'masculino', clientExplanation: null },
+      ])
+
+      const snap = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_owner_a'),
+      )
+      const body = (await snap.json()) as {
+        services: Array<{
+          id: string
+          zones: Array<{ audience: string; clientExplanation: string | null }>
+        }>
+      }
+      const fromSnap = body.services.find((s) => s.id === svc.id)!.zones
+      expect(fromSnap).toMatchObject([
+        { audience: 'feminino', clientExplanation: 'Inclui virilha e ânus.' },
+        { audience: 'masculino', clientExplanation: null },
+      ])
+    } finally {
+      close()
+    }
+  })
 })

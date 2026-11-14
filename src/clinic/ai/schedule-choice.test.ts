@@ -35,6 +35,7 @@ function zone(
     active: true,
     sortOrder: 0,
     synonyms: [],
+    clientExplanation: null,
   }
 }
 

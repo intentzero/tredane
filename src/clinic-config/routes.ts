@@ -386,6 +386,16 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           ...(z.synonyms === undefined
             ? {}
             : { synonyms: Array.isArray(z.synonyms) ? z.synonyms : [] }),
+          ...(z.clientExplanation === undefined
+            ? {}
+            : {
+                clientExplanation:
+                  z.clientExplanation === null
+                    ? null
+                    : typeof z.clientExplanation === 'string'
+                      ? z.clientExplanation
+                      : null,
+              }),
         }
       })
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)

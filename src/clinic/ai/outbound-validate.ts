@@ -19,6 +19,7 @@ export type OutboundRejection =
   | 'too_many_paragraphs'
   | 'too_many_questions'
   | 'factual_mismatch'
+  | 'health_advice'
 
 export type OutboundValidateOpts = {
   source?: OutboundSource
@@ -38,6 +39,14 @@ export type OutboundValidateOpts = {
 export type OutboundValidateResult =
   | { ok: true }
   | { ok: false; reason: OutboundRejection; detail?: string }
+
+/**
+ * DEC-046: pergunta de saúde segue para a profissional; o texto do LLM nunca dá orientação clínica
+ * nem manda procurar médico (staging 14/11/2026: «vale procurar um médico antes»). Só se aplica ao
+ * LLM: as frases aprovadas não passam por aqui como `llm`. Lista fechada, em português.
+ */
+export const HEALTH_ADVICE_RE =
+  /\b(m[eé]dic[oa]s?|diagn[oó]stic\w*|sintomas?|medicament\w*|rem[eé]dios?|receita\s+m[eé]dica|tratamento\s+m[eé]dico|pronto[\s-]socorro|urg[eê]ncia)\b/i
 
 const MARKDOWN_OR_JSON = /```|^\s*\{/m
 /** Conta «?» que não estejam em URLs simples. */
@@ -78,6 +87,10 @@ export function validateClientOutbound(
   }
   if (requireSingleQuestion && countQuestions(text) > 1) {
     return { ok: false, reason: 'too_many_questions', detail: String(countQuestions(text)) }
+  }
+
+  if (source === 'llm' && HEALTH_ADVICE_RE.test(text)) {
+    return { ok: false, reason: 'health_advice' }
   }
 
   const jargon = forbiddenClientTermsIn(text)

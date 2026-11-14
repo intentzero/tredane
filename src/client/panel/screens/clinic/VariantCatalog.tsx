@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Checkbox, Input, Label, NumberField, TextField } from 'react-aria-components'
+import { Button, Checkbox, Input, Label, NumberField, TextArea, TextField } from 'react-aria-components'
 import { ClinicSheet } from './ClinicSheet'
 import { ArrowDown, ArrowUp, Check, ChevronRight, TriangleAlert } from 'lucide-react'
 import {
@@ -30,6 +30,8 @@ export type ZoneDraft = {
   active: boolean
   /** DEC-110 — nomes populares da variante. */
   synonyms: string[]
+  /** Espelho de DEC-046 — explicação para a IA desta variante (género). */
+  explanation: string
 }
 
 const AUDIENCE_LABEL: Record<VariantAudience, string> = {
@@ -160,6 +162,7 @@ export function VariantCatalog({
             audience,
             active: true,
             synonyms: cur.synonyms,
+            explanation: '',
           },
         ].sort((a, b) => (a.audience === 'feminino' ? -1 : b.audience === 'feminino' ? 1 : 0)),
       }
@@ -255,6 +258,7 @@ export function VariantCatalog({
         audience: 'ambos',
         active: true,
         synonyms: [],
+        explanation: '',
       },
     ])
     setNewName('')
@@ -481,58 +485,78 @@ export function VariantCatalog({
                 const on = member?.active ?? false
                 const label = AUDIENCE_LABEL[audience]
                 return (
-                  <div key={member?.key ?? audience} className="vc-who-row" data-off={!on || undefined}>
-                    {audience === 'ambos' ? (
-                      <Checkbox
-                        className="vc-who-check"
-                        isSelected={on}
-                        onChange={(sel) => member && patchMember(member.key, { active: sel })}
+                  <div key={member?.key ?? audience} className="vc-who-block" data-off={!on || undefined}>
+                    <div className="vc-who-row">
+                      {audience === 'ambos' ? (
+                        <Checkbox
+                          className="vc-who-check"
+                          isSelected={on}
+                          onChange={(sel) => member && patchMember(member.key, { active: sel })}
+                        >
+                          <span className="vc-who-box" aria-hidden>
+                            <Check size={14} strokeWidth={3} />
+                          </span>
+                          {label}
+                        </Checkbox>
+                      ) : (
+                        <Checkbox
+                          className="vc-who-check"
+                          isSelected={on}
+                          onChange={(sel) => toggleAudience(audience, sel)}
+                        >
+                          <span className="vc-who-box" aria-hidden>
+                            <Check size={14} strokeWidth={3} />
+                          </span>
+                          {label}
+                        </Checkbox>
+                      )}
+                      <NumberField
+                        className="clinic-field"
+                        minValue={1}
+                        maxValue={24 * 60}
+                        step={1}
+                        formatOptions={{ maximumFractionDigits: 0 }}
+                        value={member?.durationMinutes ?? edit.members[0]?.durationMinutes ?? 15}
+                        isDisabled={!on || !member}
+                        onChange={(value) => {
+                          if (!member || !Number.isInteger(value) || value < 1 || value > 24 * 60) return
+                          patchMember(member.key, { durationMinutes: value })
+                        }}
                       >
-                        <span className="vc-who-box" aria-hidden>
-                          <Check size={14} strokeWidth={3} />
-                        </span>
-                        {label}
-                      </Checkbox>
-                    ) : (
-                      <Checkbox
-                        className="vc-who-check"
-                        isSelected={on}
-                        onChange={(sel) => toggleAudience(audience, sel)}
-                      >
-                        <span className="vc-who-box" aria-hidden>
-                          <Check size={14} strokeWidth={3} />
-                        </span>
-                        {label}
-                      </Checkbox>
-                    )}
-                    <NumberField
-                      className="clinic-field"
-                      minValue={1}
-                      maxValue={24 * 60}
-                      step={1}
-                      formatOptions={{ maximumFractionDigits: 0 }}
-                      value={member?.durationMinutes ?? edit.members[0]?.durationMinutes ?? 15}
-                      isDisabled={!on || !member}
-                      onChange={(value) => {
-                        if (!member || !Number.isInteger(value) || value < 1 || value > 24 * 60) return
-                        patchMember(member.key, { durationMinutes: value })
-                      }}
-                    >
-                      <Label>
-                        Minutos<span className="visually-hidden"> ({label})</span>
-                      </Label>
-                      <Input />
-                    </NumberField>
-                    <MoneyField
-                      label={
-                        <>
-                          Preço<span className="visually-hidden"> ({label})</span>
-                        </>
-                      }
-                      value={member?.price ?? ''}
-                      isDisabled={!on || !member}
-                      onChange={(price) => member && patchMember(member.key, { price })}
-                    />
+                        <Label>
+                          Minutos<span className="visually-hidden"> ({label})</span>
+                        </Label>
+                        <Input />
+                      </NumberField>
+                      <MoneyField
+                        label={
+                          <>
+                            Preço<span className="visually-hidden"> ({label})</span>
+                          </>
+                        }
+                        value={member?.price ?? ''}
+                        isDisabled={!on || !member}
+                        onChange={(price) => member && patchMember(member.key, { price })}
+                      />
+                    </div>
+                    {on && member ? (
+                      <TextField className="clinic-field vc-who-expl">
+                        <Label>
+                          Explicação para a IA
+                          {split ? <span className="visually-hidden"> ({label})</span> : null}
+                        </Label>
+                        <TextArea
+                          value={member.explanation}
+                          rows={3}
+                          disabled={!on}
+                          onChange={(e) => patchMember(member.key, { explanation: e.target.value })}
+                        />
+                        <p className="clinic-footnote">
+                          A IA usa só este texto para explicar esta opção. Não escreva promessas de
+                          resultado.
+                        </p>
+                      </TextField>
+                    ) : null}
                   </div>
                 )
               })}

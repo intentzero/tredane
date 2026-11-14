@@ -23,7 +23,7 @@ describe('sinónimos DEC-110 (#421)', () => {
   it('migração 50 sobe CLINIC_SCHEMA_VERSION e cria colunas', () => {
     const s = boot()
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(66)
+      expect(CLINIC_SCHEMA_VERSION).toBe(67)
       const cols = s.db
         .all<{ name: string }>(`PRAGMA table_info(services)`)
         .map((c) => c.name)
@@ -246,6 +246,89 @@ describe('sinónimos DEC-110 (#421)', () => {
   it('textCitesNameOrSynonym reconhece sinónimo sem ecoar o nome', () => {
     expect(textCitesNameOrSynonym('quero buço amanhã', 'Lábio superior', ['buço'])).toBe(true)
     expect(textCitesNameOrSynonym('quero axila', 'Lábio superior', ['buço'])).toBe(false)
+  })
+
+  it('replaceZones grava clientExplanation por variante (espelho DEC-046)', () => {
+    const { db, close } = bootClinicDb({ clock: systemClock })
+    const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
+    try {
+      const svc = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+        },
+        systemClock,
+      )
+      replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'Íntima',
+            durationMinutes: 20,
+            priceCents: 15_000,
+            audience: 'feminino',
+            clientExplanation: 'Inclui virilha e ânus.',
+          },
+          {
+            name: 'Íntima',
+            durationMinutes: 25,
+            priceCents: 18_000,
+            audience: 'masculino',
+            clientExplanation: null,
+          },
+        ],
+        systemClock,
+      )
+      const loaded = getService(db, 'clinic-demo-a', svc.id)!
+      expect(loaded.zones).toHaveLength(2)
+      expect(loaded.zones[0]).toMatchObject({
+        audience: 'feminino',
+        clientExplanation: 'Inclui virilha e ânus.',
+      })
+      expect(loaded.zones[1]).toMatchObject({
+        audience: 'masculino',
+        clientExplanation: null,
+      })
+
+      replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [
+          {
+            id: loaded.zones[0]!.id,
+            name: 'Íntima',
+            durationMinutes: 20,
+            priceCents: 15_000,
+            audience: 'feminino',
+            clientExplanation: '  ',
+          },
+          {
+            id: loaded.zones[1]!.id,
+            name: 'Íntima',
+            durationMinutes: 25,
+            priceCents: 18_000,
+            audience: 'masculino',
+            clientExplanation: 'Só a linha masculina.',
+          },
+        ],
+        systemClock,
+      )
+      const again = getService(db, 'clinic-demo-a', svc.id)!
+      expect(again.zones[0]!.clientExplanation).toBeNull()
+      expect(again.zones[1]!.clientExplanation).toBe('Só a linha masculina.')
+    } finally {
+      close()
+    }
   })
 
   it('replaceZones bumpa services.updated_at (cache do catálogo)', () => {
