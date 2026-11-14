@@ -1,3 +1,4 @@
+import { useMediaQuery } from '../../ui/useMediaQuery'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, SearchField, TextArea, TextField } from 'react-aria-components'
 import { Check, ChevronRight, MessageSquareText, Minus, Search, TriangleAlert } from 'lucide-react'
@@ -147,6 +148,20 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
   const [query, setQuery] = useState('')
   const inactiveCount = snap.services.filter((s) => !s.active).length
   const activeCount = snap.services.length - inactiveCount
+  const wide = useMediaQuery('(min-width: 1280px)')
+  // DEC-163: com muitos serviços, buscar pelo nome é mais rápido que rolar (DEC-183: no desktop, no cabeçalho).
+  const showSearch = snap.services.length > 5
+  const searchField = (
+    <SearchField
+      className="inbox-search clinic-search"
+      aria-label="Buscar serviço"
+      value={query}
+      onChange={setQuery}
+    >
+      <Search aria-hidden size={18} strokeWidth={2} className="inbox-search-icon" />
+      <Input className="inbox-search-input" placeholder="Buscar serviço" autoComplete="off" />
+    </SearchField>
+  )
   const needle = query.trim().toLocaleLowerCase('pt-BR')
   const items = (showInactive ? snap.services : snap.services.filter((s) => s.active)).filter(
     (s) => !needle || s.name.toLocaleLowerCase('pt-BR').includes(needle),
@@ -169,6 +184,7 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
         showInactive={showInactive}
         onShowInactive={setShowInactive}
         addLabel="Adicionar serviço"
+        search={showSearch ? searchField : undefined}
         onAdd={() =>
           navigatePanel({
             kind: 'area',
@@ -194,18 +210,7 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
       </Button>
         </li>
       </ul>
-      {snap.services.length > 5 ? (
-        // DEC-163: com muitos serviços, buscar pelo nome é mais rápido que rolar.
-        <SearchField
-          className="inbox-search clinic-search"
-          aria-label="Buscar serviço"
-          value={query}
-          onChange={setQuery}
-        >
-          <Search aria-hidden size={18} strokeWidth={2} className="inbox-search-icon" />
-          <Input className="inbox-search-input" placeholder="Buscar serviço" autoComplete="off" />
-        </SearchField>
-      ) : null}
+      {showSearch && !wide ? searchField : null}
       <ul className="clinic-nav-list clinic-service-list">
         {items.map((svc) => {
           const row = serviceRow(snap, svc)

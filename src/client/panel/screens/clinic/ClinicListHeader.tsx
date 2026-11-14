@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button, Switch } from 'react-aria-components'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ShellSlot } from '../../shell/ShellSlot'
@@ -12,6 +13,8 @@ type Props = {
   onShowInactive: (value: boolean) => void
   addLabel: string
   onAdd: () => void
+  /** Busca no desktop (DEC-183): fica no cabeçalho, entre a contagem e a ação. */
+  search?: ReactNode
 }
 
 /** Cabeçalho comum de Profissionais, Salas e Serviços: contagem, chave e ação principal. */
@@ -22,6 +25,7 @@ export function ClinicListHeader({
   onShowInactive,
   addLabel,
   onAdd,
+  search,
 }: Props) {
   const wide = useMediaQuery('(min-width: 1280px)')
   const header = (
@@ -35,6 +39,7 @@ export function ClinicListHeader({
           {switchLabel}
         </Switch>
       </div>
+      {wide && search ? <div className="clinic-list-search">{search}</div> : null}
       <Button className="panel-btn panel-btn-primary clinic-list-add" onPress={onAdd}>
         <Plus size={18} strokeWidth={2.2} aria-hidden />
         {addLabel}

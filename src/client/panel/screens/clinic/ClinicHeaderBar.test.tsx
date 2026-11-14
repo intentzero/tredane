@@ -81,4 +81,29 @@ describe('Clínica: título, contexto e ação no cabeçalho (DEC-183)', () => {
     expect(within(screen.getByTestId('slot')).queryByText('3 serviços ativos')).toBeNull()
     expect(screen.getByText('3 serviços ativos')).toBeTruthy()
   })
+
+  it('desktop: a busca da lista fica no cabeçalho, entre a contagem e a ação', () => {
+    viewport(true)
+    render(
+      <Shell>
+        <ClinicListHeader count="8 serviços ativos" switchLabel="Mostrar inativos" showInactive={false} onShowInactive={() => {}} addLabel="Adicionar serviço" onAdd={() => {}} search={<input aria-label="Buscar serviço" />} />
+      </Shell>,
+    )
+    const slot = screen.getByTestId('slot')
+    const count = within(slot).getByText('8 serviços ativos')
+    const search = within(slot).getByLabelText('Buscar serviço')
+    const add = within(slot).getByRole('button', { name: 'Adicionar serviço' })
+    expect(count.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(search.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('celular: o cabeçalho da lista não leva a busca (ela fica na linha própria)', () => {
+    viewport(false)
+    render(
+      <Shell>
+        <ClinicListHeader count="8 serviços ativos" switchLabel="Mostrar inativos" showInactive={false} onShowInactive={() => {}} addLabel="Adicionar serviço" onAdd={() => {}} search={<input aria-label="Buscar serviço" />} />
+      </Shell>,
+    )
+    expect(screen.queryByLabelText('Buscar serviço')).toBeNull()
+  })
 })
