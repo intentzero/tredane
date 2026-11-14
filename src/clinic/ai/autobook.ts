@@ -990,9 +990,11 @@ export async function tryAiAutoBook(
         frameSoft?.pending ||
         frameSoft?.lastOffer,
     )
-    const shouldAbandon = explicit
-      ? Boolean(openProposal || inFunnelSlots)
-      : inFunnelSlots && !openProposal
+    // A (abandono explícito, ex.: o «Terminar» que a própria IA ensina) responde sempre com a
+    // despedida, mesmo com o quadro vazio: antes só respondia com proposta ou passos no funil,
+    // e sem eles o redator de exceção improvisava («não entendi o que quis dizer com terminar»;
+    // staging 14/11/2026). B (despedida/agradecimento) continua a exigir funil sem proposta.
+    const shouldAbandon = explicit ? true : inFunnelSlots && !openProposal
     if (shouldAbandon) {
       deferred.clearSession()
       retireActiveProposal(db, tenantId, input.conversationId, clock)

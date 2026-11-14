@@ -315,6 +315,8 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-27 | P0 | Dia e período pedidos sem vaga | C: «Quero massagem domingo de manhã» | O mesmo aviso do dia e a oferta de segunda de manhã. | EF-01, Q | 1 | ✅ L1 |
 | CC-28 | P0 | Dia pedido com vaga: sem aviso | C: «Quero massagem sexta» | Oferta direta (09:00…), sem «não tenho horário livre». | EF-01 | 1 | ✅ L1 |
 | CC-29 | P0 | «às 9 e meia» é uma só hora | C: «Quero massagem terça às 9 e meia» | Proposta para terça 10/11 às 09:30. Antes: lia também «às 9» (09:00 e 09:30), ambíguo e descartado. | EF-01 | 1 | ✅ L1 |
+| CC-30 | P0 | «Terminar» sem nada em curso | C: «Terminar» (quadro vazio) | Despedida aprovada (`acolher_adiamento`); não o redator de exceção. Antes: «não entendi o que quis dizer com terminar». | EF-03, DEC-152 | 1 | ✅ L1 |
+| CC-31 | P0 | «Terminar» depois de uma pergunta sem funil | C: «Quanto custa a massagem?» ⟶ «terminar» | Despedida aprovada. | EF-03, DEC-152 | 2 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

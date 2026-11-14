@@ -855,4 +855,43 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     turns: [{ role: 'client', text: 'Quero massagem terça às 9 e meia' }],
     expect: { proposal: true, noAppointment: true, proposalAt: { date: '2026-11-10', time: '09:30' } },
   },
+  {
+    id: 'CC-30',
+    title: '«Terminar» sem nada em curso responde com a despedida, não com o redator de exceção',
+    turnosIdeais: 1,
+    // Staging 14/11/2026: com o quadro vazio, «Terminar» (o comando que a própria IA ensina)
+    // recebia «Não entendi bem o que você quis dizer com terminar» ou texto do perfil Google.
+    turns: [{ role: 'client', text: 'Terminar' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Sem problema\. Quando quiser|Tudo bem! Fico por aqui|Fica à vontade\. Qualquer coisa/],
+          excludes: [/não entendi|nao entendi|Gioconda|perfil/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'CC-31',
+    title: '«Terminar» depois de uma pergunta sem funil também fecha com a despedida',
+    turnosIdeais: 2,
+    turns: [
+      { role: 'client', text: 'Quanto custa a massagem?' },
+      { role: 'client', text: 'terminar' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 1,
+          matches: [/Sem problema\. Quando quiser|Tudo bem! Fico por aqui|Fica à vontade\. Qualquer coisa/],
+          excludes: [/não entendi|nao entendi|Gioconda|perfil/i],
+        },
+      ],
+    },
+  },
 ]
