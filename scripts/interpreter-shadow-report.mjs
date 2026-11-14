@@ -8,8 +8,8 @@
  *   cat sombra.ndjson | node scripts/interpreter-shadow-report.mjs
  *
  * Aceita qualquer texto em que os eventos apareçam: uma linha JSON por evento, a saída do
- * `wrangler tail --format json` (o evento vem como string dentro de `logs[].message`) ou
- * uma exportação dos Workers Logs. Só lê; não chama rede nem o modelo.
+ * `wrangler tail --format json` (objetos indentados em várias linhas; o evento vem como string
+ * dentro de `logs[].message`) ou uma exportação dos Workers Logs. Só lê; não chama rede nem o modelo.
  *
  * Privacidade: os eventos já não levam texto da conversa. O relatório mostra só contagens;
  * `--sample N` acrescenta ids internos (conversa e mensagem) de divergências, para abrir no
@@ -53,18 +53,55 @@ function walk(value, out, depth = 0) {
   }
 }
 
+/**
+ * Valores JSON de topo consecutivos num texto: uma linha por valor (NDJSON) ou, como no
+ * `wrangler tail --format json`, objetos indentados em várias linhas. Ignora o texto solto
+ * entre valores (cabeçalhos, avisos). Respeita strings e escapes ao contar chavetas.
+ */
+export function jsonValuesIn(text) {
+  const out = []
+  const src = String(text)
+  let i = 0
+  while (i < src.length) {
+    const ch = src[i]
+    if (ch !== '{' && ch !== '[') {
+      i += 1
+      continue
+    }
+    let depth = 0
+    let inStr = false
+    let esc = false
+    let j = i
+    for (; j < src.length; j++) {
+      const c = src[j]
+      if (inStr) {
+        if (esc) esc = false
+        else if (c === '\\') esc = true
+        else if (c === '"') inStr = false
+        continue
+      }
+      if (c === '"') inStr = true
+      else if (c === '{' || c === '[') depth += 1
+      else if (c === '}' || c === ']') {
+        depth -= 1
+        if (depth === 0) break
+      }
+    }
+    if (depth !== 0) break // valor truncado no fim (Ctrl-C a meio)
+    try {
+      out.push(JSON.parse(src.slice(i, j + 1)))
+      i = j + 1
+    } catch {
+      i += 1 // chaveta que não abre um JSON (texto solto): tenta a seguinte
+    }
+  }
+  return out
+}
+
 /** Extrai e deduplica (por conversa + mensagem) os eventos da sombra de um texto qualquer. */
 export function extractShadowEvents(text) {
   const found = []
-  for (const line of String(text).split('\n')) {
-    const t = line.trim()
-    if (!t) continue
-    try {
-      walk(JSON.parse(t), found)
-    } catch {
-      // linha que não é JSON (cabeçalhos do wrangler, avisos)
-    }
-  }
+  for (const value of jsonValuesIn(text)) walk(value, found)
   const seen = new Set()
   const out = []
   for (const e of found) {
