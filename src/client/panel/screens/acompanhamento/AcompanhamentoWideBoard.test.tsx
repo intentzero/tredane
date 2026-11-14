@@ -110,6 +110,55 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     })
   })
 
+  it('cartão: avatar com iniciais, ponto de etapa no título e coluna vazia com texto (DEC-184)', async () => {
+    mount()
+    const board = await screen.findByRole('group', { name: 'Quadro por etapa' })
+    const maria = within(board).getByRole('button', { name: 'Abrir Maria Souza' })
+    expect(maria.querySelector('.inbox-avatar')?.textContent).toBe('MS')
+    expect(maria.querySelector('.acomp-card-unassigned')?.textContent).toBe('Sem responsável')
+    const dots = Array.from(board.querySelectorAll('.acomp-col-dot')).map((d) => d.getAttribute('data-stage'))
+    expect(dots).toEqual(['novo_contato', 'em_atendimento', 'horario_proposto', 'agendado', 'concluido'])
+    const empty = within(board).getByRole('region', { name: 'Horário proposto, 0' })
+    expect(within(empty).getByText('Ninguém aqui').className).toContain('acomp-col-empty')
+  })
+
+  it('cartão: data da marcação em chip, «IA» em chip e «Parado» com texto (DEC-184)', async () => {
+    const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
+    DATA.agendado = [
+      card('d', 'Carla Mendes', 'agendado', {
+        assigneeClerkUserId: 'system:ai-autodraft',
+        assigneeDisplayName: 'IA',
+        linkedAppointmentId: 'ap1',
+        linkedAppointment: { id: 'ap1', startsAt: NOW + DAY, endsAt: NOW + DAY + 3_600_000, status: 'confirmed' } as never,
+      }),
+    ]
+    try {
+      mount()
+      const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
+      expect(carla.querySelector('.acomp-card-when')).not.toBeNull()
+      expect(carla.querySelector('.acomp-chip-ai')?.textContent).toBe('IA')
+      const fernanda = await screen.findByRole('button', { name: 'Abrir Fernanda Araújo' })
+      expect(within(fernanda).getByText('Parado')).toBeTruthy()
+    } finally {
+      DATA.agendado = previous
+    }
+  })
+
+  it('«IA» em chip só pelo id do responsável, não pelo texto do nome (DEC-184)', async () => {
+    const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
+    DATA.agendado = [
+      card('d', 'Carla Mendes', 'agendado', { assigneeClerkUserId: 'user_x', assigneeDisplayName: 'IA' }),
+    ]
+    try {
+      mount()
+      const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
+      expect(carla.querySelector('.acomp-chip-ai')).toBeNull()
+      expect(within(carla).getByText('IA')).toBeTruthy()
+    } finally {
+      DATA.agendado = previous
+    }
+  })
+
   it('«Perdidos» acrescenta a coluna Perdido', async () => {
     mount()
     const user = userEvent.setup()

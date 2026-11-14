@@ -1,3 +1,4 @@
+import { avatarTone, initials } from '../inbox/format'
 import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button, Tab, TabList, Tabs } from 'react-aria-components'
@@ -193,6 +194,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
           >
             {STAGE_ORDER.map((id) => (
               <Tab key={id} id={id} className="panel-chip">
+                <span className="acomp-col-dot" data-stage={id} aria-hidden />
                 {STAGE_TAB_LABELS[id]}
                 <span className="panel-chip-count">{countMap.get(id) ?? 0}</span>
               </Tab>
@@ -243,6 +245,12 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                 aria-label={`${name}. ${meta}`}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    className={`inbox-avatar inbox-avatar--sm inbox-avatar--${avatarTone(name)}`}
+                    aria-hidden
+                  >
+                    {initials(name)}
+                  </span>
                   <button
                     type="button"
                     className="panel-link acomp-card-name"

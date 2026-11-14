@@ -143,6 +143,13 @@
       "title": "M-82 Serviços: O que a IA reconhece (Confirmado DEC-176)",
       "is_interactive": false,
       "radius": 12
+    },
+    "AcompanhamentoQuadro.dc.html": {
+      "x": 1520,
+      "y": 11104,
+      "w": 1440,
+      "h": 760,
+      "title": "TEL-03 Acompanhamento: quadro com elevação (M-83)"
     }
   },
   "order": [
@@ -162,7 +169,8 @@
     "ConversasUrgenciaFicha.dc.html",
     "ClinicaServicosTabela.dc.html",
     "AgendaBarraCabecalho.dc.html",
-    "ServicosPalavras.dc.html"
+    "ServicosPalavras.dc.html",
+    "AcompanhamentoQuadro.dc.html"
   ],
   "notes": {
     "row1": {

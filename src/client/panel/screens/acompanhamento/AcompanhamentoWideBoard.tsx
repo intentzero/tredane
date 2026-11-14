@@ -1,4 +1,4 @@
-import { CircleAlert, Search } from 'lucide-react'
+import { CalendarDays, CircleAlert, CircleCheck, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
@@ -9,6 +9,8 @@ import { useOutsideClose } from '../../ui/useOutsideClose'
 import { ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { useInboxRealtime } from '../../realtime/InboxRealtime'
+import { isAiActorId } from '../../../../clinic/ai-actor'
+import { avatarTone, initials } from '../inbox/format'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
 import {
   STAGE_LABELS,
@@ -310,12 +312,16 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
               aria-label={`${STAGE_LABELS[stage]}, ${cards.length}`}
             >
               <h2 className="acomp-col-head">
+                <span className="acomp-col-dot" data-stage={stage} aria-hidden />
                 {STAGE_LABELS[stage]}
                 <span className="acomp-col-count">{cards.length}</span>
               </h2>
               <div className="acomp-col-list">
                 {cards.length === 0 ? (
-                  <p className="acomp-col-empty">Ninguém aqui</p>
+                  <p className="acomp-col-empty">
+                    <CircleCheck aria-hidden size={20} strokeWidth={1.8} />
+                    Ninguém aqui
+                  </p>
                 ) : (
                   cards.map((card) => {
                     const name = contactLabel(card.contact.displayName, card.contact.waId)
@@ -334,18 +340,39 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                         onClick={(e) => openCard(card, e.currentTarget)}
                       >
                         <span className="acomp-card-top">
+                          <span
+                            className={`inbox-avatar inbox-avatar--sm inbox-avatar--${avatarTone(name)}`}
+                            aria-hidden
+                          >
+                            {initials(name)}
+                          </span>
                           <span className="acomp-card-name">{name}</span>
                           <span className="acomp-card-time">{relativeTime(card.lastInteractionAt)}</span>
                         </span>
-                        <span className="acomp-card-line">
-                          {appointmentLine(
-                            card.linkedAppointment?.startsAt,
-                            card.missingAppointment,
-                            card.linkedAppointment?.changeReason,
-                          )}
-                        </span>
+                        {card.linkedAppointment?.startsAt != null &&
+                        !card.missingAppointment &&
+                        !card.linkedAppointment.changeReason ? (
+                          <span className="acomp-card-when">
+                            <CalendarDays aria-hidden size={13} strokeWidth={2.2} />
+                            {appointmentLine(card.linkedAppointment.startsAt, false)}
+                          </span>
+                        ) : (
+                          <span className="acomp-card-line">
+                            {appointmentLine(
+                              card.linkedAppointment?.startsAt,
+                              card.missingAppointment,
+                              card.linkedAppointment?.changeReason,
+                            )}
+                          </span>
+                        )}
                         <span className="acomp-card-foot">
-                          <span>{card.assigneeDisplayName ?? 'Sem responsável'}</span>
+                          {isAiActorId(card.assigneeClerkUserId) ? (
+                            <span className="acomp-chip-ai">IA</span>
+                          ) : card.assigneeDisplayName ? (
+                            <span>{card.assigneeDisplayName}</span>
+                          ) : (
+                            <span className="acomp-card-unassigned">Sem responsável</span>
+                          )}
                           {stalled ? (
                             <span className="acomp-card-late">
                               <CircleAlert aria-hidden size={13} strokeWidth={2.4} />

@@ -22,6 +22,7 @@ for k, v in t['font']['lineHeight'].items(): add('line-height-' + kebab(k), v)
 for group, items in t['color'].items():
     for k, v in items.items(): add('color-%s-%s' % (kebab(group), kebab(k)), v)
 for k, v in t['radius'].items(): add('radius-' + k, '%dpx' % v)
+for k, v in t.get('elevation', {}).items(): add('elevation-' + k, v)
 for k, v in t['space'].items(): add('space-' + k, '%dpx' % v)
 for k, v in t['size'].items():
     add('size-' + kebab(k), '%dpx' % v)
@@ -31,6 +32,7 @@ def dark_block(indent):
     lines = []
     for group, items in t['colorDark'].items():
         for k, v in items.items(): lines.append('%s--color-%s-%s: %s;' % (indent, kebab(group), kebab(k), v))
+    for k, v in t.get('elevationDark', {}).items(): lines.append('%s--elevation-%s: %s;' % (indent, k, v))
     return lines
 
 # Tema escuro (Proposto, DEC-092): data-theme explícito vence; sem ele, segue o sistema.

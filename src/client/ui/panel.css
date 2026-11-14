@@ -7981,7 +7981,15 @@ button.panel-auth-inline-link {
 }
 
 .acomp-col-empty {
-  margin: var(--space-2) var(--space-2) 0;
+  margin: var(--space-1) var(--space-1) 0;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 1.5px dashed var(--color-line-control);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
 }
@@ -7989,30 +7997,51 @@ button.panel-auth-inline-link {
 .acomp-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   width: 100%;
   padding: var(--space-3);
-  border: var(--size-border-width) solid var(--color-line-border);
-  border-radius: var(--radius-md);
+  border: var(--size-border-width) solid color-mix(in srgb, var(--color-line-border) 60%, transparent);
+  border-radius: var(--radius-lg);
   background: var(--color-surface-card);
+  box-shadow: var(--elevation-e1);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
 }
 
-.acomp-card:hover {
-  border-color: var(--color-line-control);
+/* DEC-184: elevação E2 só onde há hover real (nunca em toque). */
+@media (hover: hover) {
+  .acomp-card:hover {
+    box-shadow: var(--elevation-e2);
+    transform: translateY(-1px);
+  }
+
+  /* Hover não pode apagar o anel do cartão aberto (mesma especificidade que :hover). */
+  .acomp-card--open:hover {
+    box-shadow: 0 0 0 2px var(--color-primary-base), var(--elevation-e2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acomp-card {
+    transition: none;
+  }
+
+  .acomp-card:hover {
+    transform: none;
+  }
 }
 
 .acomp-card--open {
   border-color: var(--color-primary-base);
-  box-shadow: 0 0 0 2px var(--color-primary-base);
+  box-shadow: 0 0 0 2px var(--color-primary-base), var(--elevation-e2);
 }
 
 .acomp-card-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
 }
 
@@ -12976,6 +13005,79 @@ button.panel-auth-inline-link {
 }
 
 /* Abaixo de 1280 px o cabeçalho da sub-tela já diz «O que a IA reconhece». */
+
+/* ——— DEC-184 (Paulo, 14/11/2026): Acompanhamento com elevação, avatar e chips ——— */
+.acomp-col-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-muted);
+}
+
+.acomp-col-dot[data-stage='em_atendimento'] {
+  background: var(--color-primary-ink);
+}
+
+.acomp-col-dot[data-stage='horario_proposto'] {
+  background: var(--color-warning-ink);
+}
+
+.acomp-col-dot[data-stage='agendado'] {
+  background: var(--color-success-ink);
+}
+
+.acomp-col-dot[data-stage='concluido'] {
+  background: var(--color-line-control);
+}
+
+.acomp-col-dot[data-stage='perdido'] {
+  background: var(--color-danger-ink);
+}
+
+/* Aba selecionada inverte o chip; pontos desenhados para coluna clara falham WCAG 1.4.11. */
+.acomp-tabs .panel-chip[aria-selected='true'] .acomp-col-dot,
+.acomp-tabs .panel-chip[data-selected] .acomp-col-dot,
+.acomp-tabs .panel-chip[data-selected='true'] .acomp-col-dot {
+  background: var(--color-text-on-primary);
+}
+
+.acomp-card-time {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.acomp-card-when {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+}
+
+.acomp-chip-ai {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-ai-tint);
+  color: var(--color-ai-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.acomp-card-unassigned {
+  font-style: italic;
+}
+
+/* Celular: os cartões da lista pelo mesmo vocabulário (elevação E1). */
+.acomp-list .panel-card-lg {
+  box-shadow: var(--elevation-e1);
+}
 
 /* ——— DEC-183 (Paulo, 14/11/2026): Clínica no desktop, título, contexto e ação no cabeçalho ——— */
 @media (min-width: 1280px) {
