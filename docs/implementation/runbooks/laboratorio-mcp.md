@@ -28,6 +28,13 @@ Nada a configurar além do deploy de staging (o `OAUTH_KV` já existe por causa 
 (`/.well-known/oauth-protected-resource/api/mcp/lab`) e abre o consentimento. Entrar antes no painel com a conta
 superadmin. JSON-RPC por POST, sem sessão.
 
+**Paridade com o Review MCP (Cursor):** `initialize` e `ping` respondem **sem** token (só para o cliente ler
+`serverInfo` e montar o fluxo OAuth). `tools/list` e `tools/call` devolvem `401` com
+`WWW-Authenticate: Bearer … resource_metadata="…/.well-known/oauth-protected-resource/api/mcp/lab"`. Escopo a pedir:
+`lab:converse` (não reutilizar o token do Review). Descoberta canónica = path insertion RFC 9728; também existe a forma
+appendida `/api/mcp/lab/.well-known/oauth-protected-resource`. O documento raiz
+`/.well-known/oauth-protected-resource` continua a descrever **só** o Review (`review-central`) — não serve para o Lab.
+
 ## Ferramentas (fase 1)
 
 | Ferramenta | O que faz |

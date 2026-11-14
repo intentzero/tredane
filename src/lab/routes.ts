@@ -298,16 +298,27 @@ export type LabMcpRouteOptions = {
   validate?: (env: WorkerBindings, request: Request) => Promise<ReviewMcpOAuthProps | null>
 }
 
+/** Métodos MCP que o Review deixa abertos sem token — o Cursor precisa disto para montar o sign-in. */
+function labMethodAllowsUnauth(method: string): boolean {
+  return method === 'initialize' || method === 'ping' || method.startsWith('notifications/')
+}
+
 export function createLabMcpRoutes(opts: LabMcpRouteOptions = {}) {
   const validate = opts.validate ?? tryValidateLabMcpOAuthToken
   const app = new Hono<{ Bindings: WorkerBindings }>()
+  // RFC 9728 path insertion (canónico) + forma appendida (alguns clientes).
   app.get('/.well-known/oauth-protected-resource/api/mcp/lab', (c) =>
-    isLabEnabled(c.env) ? c.json(labResourceMetadataBody(c.env, c.req.url)) : c.json({ error: 'not_found' }, 404),
+    isLabEnabled(c.env)
+      ? c.json(labResourceMetadataBody(c.env, c.req.url))
+      : c.json({ error: 'not_found' }, 404),
+  )
+  app.get('/api/mcp/lab/.well-known/oauth-protected-resource', (c) =>
+    isLabEnabled(c.env)
+      ? c.json(labResourceMetadataBody(c.env, c.req.url))
+      : c.json({ error: 'not_found' }, 404),
   )
   app.post('/api/mcp/lab', async (c) => {
     if (!isLabEnabled(c.env)) return c.json({ error: 'not_found' }, 404)
-    const principal = await validate(c.env, c.req.raw)
-    if (!principal) return unauthorizedLabMcpResponse(c.env, c.req.url)
     c.header('Cache-Control', 'no-store')
     let body: unknown
     try {
@@ -318,10 +329,26 @@ export function createLabMcpRoutes(opts: LabMcpRouteOptions = {}) {
     if (Array.isArray(body) || !isJsonRpcRequest(body)) {
       return c.json(jsonRpcError(null, JSON_RPC_INVALID_REQUEST, 'Pedido JSON-RPC inválido'), 400)
     }
-    return handle(body, c.env, principal.clerkUserId)
+    // Igual ao Review MCP (DEC-159): initialize/ping sem auth; tools/* exigem OAuth.
+    // Auth no initialize inteiro fazia o Cursor falhar com «No sign-in link» (só o Lab; o Review funciona).
+    if (!labMethodAllowsUnauth(body.method)) {
+      const principal = await validate(c.env, c.req.raw)
+      if (!principal) return unauthorizedLabMcpResponse(c.env, c.req.url)
+      return handle(body, c.env, principal.clerkUserId)
+    }
+    return handle(body, c.env, 'anonymous')
   })
   app.all('/api/mcp/lab', (c) =>
-    isLabEnabled(c.env) ? c.json({ error: 'method_not_allowed' }, 405) : c.json({ error: 'not_found' }, 404),
+    isLabEnabled(c.env)
+      ? c.json(
+          {
+            error: 'method_not_allowed',
+            message: 'MCP lab é POST JSON-RPC stateless (sem SSE GET neste corte).',
+            oauth: true,
+          },
+          405,
+        )
+      : c.json({ error: 'not_found' }, 404),
   )
   return app
 }

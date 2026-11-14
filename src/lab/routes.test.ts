@@ -44,9 +44,36 @@ describe('MCP de laboratório (DEC-186)', () => {
     }
   })
 
-  it('sem token OAuth válido: 401 com o desafio do recurso do laboratório e o DO nunca é chamado', async () => {
+  it('initialize e ping abertos sem token (paridade com Review MCP / Cursor OAuth)', async () => {
+    const env = envWith({})
+    const init = await post(
+      env,
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'test', version: '0' },
+        },
+      },
+      null,
+    )
+    expect(init.status).toBe(200)
+    const initBody = (await init.json()) as { result?: { serverInfo?: { name?: string } } }
+    expect(initBody.result?.serverInfo?.name).toBe('tredane-lab')
+    expect((await post(env, { jsonrpc: '2.0', id: 2, method: 'ping' }, null)).status).toBe(200)
+  })
+
+  it('tools/list e tools/call sem token: 401 com o desafio do recurso; o DO nunca é chamado', async () => {
     const labTurn = vi.fn()
     const env = envWith({ labTurn })
+    const list = await post(env, { jsonrpc: '2.0', id: 1, method: 'tools/list' }, null)
+    expect(list.status).toBe(401)
+    expect(list.headers.get('WWW-Authenticate')).toContain(
+      '/.well-known/oauth-protected-resource/api/mcp/lab',
+    )
     expect((await post(env, call('lab_say', { text: 'oi' }), null)).status).toBe(401)
     const bad = await post(env, call('lab_say', { text: 'oi' }), 'outro')
     expect(bad.status).toBe(401)
@@ -136,13 +163,23 @@ describe('MCP de laboratório (DEC-186)', () => {
     expect(labConfig).not.toHaveBeenCalled()
   })
 
-  it('metadados do recurso: audiência e escopo do laboratório', async () => {
+  it('metadados do recurso: audiência e escopo do laboratório (path insertion + append)', async () => {
     const app = createLabMcpRoutes()
-    const res = await app.request('https://staging.example.com/.well-known/oauth-protected-resource/api/mcp/lab', {}, envWith({}))
-    const body = (await res.json()) as { resource: string; scopes_supported: string[] }
-    expect(body.resource).toBe('https://staging.example.com/api/mcp/lab')
-    expect(body.scopes_supported).toEqual(['lab:converse'])
-    const off = await app.request('/.well-known/oauth-protected-resource/api/mcp/lab', {}, envWith({}, { ENVIRONMENT: 'production' }))
+    const env = envWith({})
+    for (const path of [
+      'https://staging.example.com/.well-known/oauth-protected-resource/api/mcp/lab',
+      'https://staging.example.com/api/mcp/lab/.well-known/oauth-protected-resource',
+    ]) {
+      const res = await app.request(path, {}, env)
+      const body = (await res.json()) as { resource: string; scopes_supported: string[] }
+      expect(body.resource).toBe('https://staging.example.com/api/mcp/lab')
+      expect(body.scopes_supported).toEqual(['lab:converse'])
+    }
+    const off = await app.request(
+      '/.well-known/oauth-protected-resource/api/mcp/lab',
+      {},
+      envWith({}, { ENVIRONMENT: 'production' }),
+    )
     expect(off.status).toBe(404)
   })
 })
