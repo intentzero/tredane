@@ -32,7 +32,7 @@ Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só
 | Primeiro nome (`contactFirstName`) | Sim | **Confirmado** | Nunca telefone/`wa_id` |
 | Etapa da oportunidade (`stage`) | Sim | **Confirmado** | |
 | Catálogo: `name`, `durationMinutes`, `priceCents`, `clientExplanation` | Sim | **Confirmado** (+ DEC-046) | Nome/explicação também redigidos se contiverem telefone/token; sem IDs internos, salas ou profissionais |
-| `clinic.name`, `address`, `googleBusinessUrl`, políticas, `nowLabel`/`today`/`timezone`, `openingHours`, `tempoNote` (frase fixa DEC-077), persona | Sim (rascunho com `clock`) | **Confirmado** (DEC-118 e DEC-120 — factos que pergunta aberta exige) | |
+| `clinic.name`, `address`, `googleBusinessUrl`, políticas, `nowLabel`/`today`/`timezone`, `openingHours`, `tempoNote` (frase fixa DEC-077), persona | Sim (rascunho com `clock`) | **Confirmado** (DEC-118 e DEC-120 — factos que pergunta aberta exige) | `cancellationPolicy` = texto DEC-180 persistido (ou preview se sinal ligado e coluna vazia); sem inventar default com sinal desligado |
 | `clinic.freeSlots` | **Não** (DEC-118) | **Confirmado** — só em `agendaFacts` locais para o validador | Nunca no `lastInspection` / prompt |
 | `clinic.upcomingAppointments` (mesmo contacto) | **Não** (DEC-118) | **Confirmado** — só em `agendaFacts` locais | Idem |
 | Timestamp por mensagem | Não (ainda) | **Em aberto** (H2) | Backend usa `created_at` (ex.: autobook relativo) |
