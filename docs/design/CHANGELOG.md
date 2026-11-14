@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 14/11/2026 — WhatsApp conectado e Profissionais alinhados aos mocks M-23 e M-20
+
+- **WhatsApp conectado (M-23):** o estado passa de faixa com prosa a **cartão** com «Conectado», o nome da clínica e a lista Número · Nome exibido · Conectado em (data e por quem) · Última mensagem; nota «Os dados de acesso à conta da Meta ficam guardados com segurança e não aparecem aqui»; rótulo «Gerenciar» sobre as ações. A linha «Histórico da conexão» mantém-se (não está em M-23).
+- **Profissionais (M-20):** avatar com iniciais e a cor de Conversas em cada profissional.
+- A lista de modelos de mensagem já existia; só não aparece quando a conta não tem modelos (staging), e mostra então a frase de apoio.
+
 ## 14/11/2026 — Acompanhamento: elevação, avatar e chips (**Confirmado**, DEC-184) · tokens v0.9.0
 
 - **Tokens:** grupo novo `elevation` (`e1`, `e2`, `e3`) e `elevationDark`; `build_tokens.py` gera `--elevation-e1/e2/e3` no claro e no escuro. E3 valida o que o painel já usava; E1 e E2 são novos.
