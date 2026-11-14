@@ -2736,6 +2736,14 @@ export type PipelineOpportunity = {
   missingAppointment: boolean
   linkedAppointment: PipelineLinkedAppointment | null
   /** Reserva por bloco em aberto (activa ou vencida sem hora). */
+  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+marcação aberta. */
+  cardKind?: 'cycle' | 'open_attendance'
+  /** Chave no quadro (gémeo = `${id}:attendance`). */
+  boardKey?: string
+  /** Horários futuros confirmados do contacto (badge no Agendado). */
+  futureAppointmentCount?: number
+  /** Conversação com sessão/proposta/quadro de marcação activo. */
+  hasOpenAttendance?: boolean
 }
 
 export type PipelineStageHistory = {

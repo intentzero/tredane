@@ -46,6 +46,10 @@ export function serializeOpportunity(o: OpportunityRow | OpportunityListItem) {
       missingAppointment: o.missingAppointment,
       linkedAppointment: serializeLinkedAppointment(o.linkedAppointment),
       openHold: o.openHold ? serializeHold(o.openHold) : null,
+      cardKind: o.cardKind ?? 'cycle',
+      boardKey: o.boardKey ?? o.id,
+      futureAppointmentCount: o.futureAppointmentCount ?? 0,
+      hasOpenAttendance: o.hasOpenAttendance === true,
     }
   }
   return base

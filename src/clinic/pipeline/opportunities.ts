@@ -10,6 +10,14 @@ import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { loadContactSummary } from '../inbox/conversations'
 import type { ClinicDb, SqlValue } from '../store'
+import {
+  boardKeyFor,
+  countFutureConfirmedAppointmentsForContact,
+  hasOpenAttendance,
+  openAttendanceBoardStage,
+  shouldProjectOpenAttendance,
+  toOpenAttendanceCard,
+} from './board-cards'
 import { mapLinkedAppointment, mapOpportunity, mapStageHistory } from './rows'
 import type {
   LinkedAppointmentSummary,
@@ -114,6 +122,7 @@ export function loadLinkedAppointment(
 function toListItem(
   db: ClinicDb,
   opp: OpportunityRow,
+  clock: Clock,
 ): OpportunityListItem {
   const contact = loadContactSummary(db, opp.tenantId, opp.contactId)
   if (!contact) {
@@ -126,19 +135,84 @@ function toListItem(
   )
   const missingAppointment =
     opp.stage === 'agendado' && linkedAppointment === null
-  return {
+  const now = clock.nowMs()
+  const futureAppointmentCount = countFutureConfirmedAppointmentsForContact(
+    db,
+    opp.tenantId,
+    opp.contactId,
+    now,
+  )
+  const openAtt = hasOpenAttendance(db, opp.tenantId, opp.conversationId, clock)
+  const base: OpportunityListItem = {
     ...opp,
     contact,
     missingAppointment,
     linkedAppointment,
     openHold: loadOpenHoldForOpportunity(db, opp.tenantId, opp.id),
+    cardKind: 'cycle',
+    boardKey: boardKeyFor({ id: opp.id, cardKind: 'cycle' }),
+    futureAppointmentCount,
+    hasOpenAttendance: openAtt,
   }
+  return base
+}
+
+function loadOpenAgendado(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): OpportunityListItem[] {
+  const rows = db.all<OppSql>(
+    `SELECT * FROM opportunities
+     WHERE tenant_id = ? AND status = 'open' AND stage = 'agendado'
+     ORDER BY updated_at DESC, id DESC`,
+    tenantId,
+  )
+  return rows.map((r) => toListItem(db, mapOpportunity(r), clock))
+}
+
+/**
+ * DEC-187: com Agendado + horários futuros + atendimento aberto, projecta
+ * cartão gémeo em Em atendimento / Horário proposto. Ao confirmar a nova
+ * marcação o gémeo some (merge no Agendado).
+ */
+function expandBoardCards(
+  db: ClinicDb,
+  tenantId: string,
+  items: OpportunityListItem[],
+  input: ListOpportunitiesInput,
+  clock: Clock,
+): OpportunityListItem[] {
+  const wantAttendance =
+    !input.stage || input.stage === 'em_atendimento' || input.stage === 'horario_proposto'
+  if (!wantAttendance) return items
+
+  const agendadoSources =
+    input.stage === 'agendado' || !input.stage
+      ? items.filter((i) => i.stage === 'agendado')
+      : loadOpenAgendado(db, tenantId, clock)
+
+  const twins: OpportunityListItem[] = []
+  for (const cycle of agendadoSources) {
+    if (!shouldProjectOpenAttendance(cycle)) continue
+    const stage = openAttendanceBoardStage(db, tenantId, cycle.conversationId, clock)
+    if (input.stage && input.stage !== stage) continue
+    twins.push(toOpenAttendanceCard(cycle, stage))
+  }
+
+  if (twins.length === 0) return items
+  // Gémeos à frente na coluna de atendimento (actividade recente primeiro).
+  if (input.stage === 'em_atendimento' || input.stage === 'horario_proposto') {
+    return [...twins, ...items]
+  }
+  return [...items, ...twins]
 }
 
 export function listOpportunities(
   db: ClinicDb,
   tenantId: string,
   input: ListOpportunitiesInput = {},
+  clock: Clock = { nowMs: () => Date.now() },
 ): { items: OpportunityListItem[]; counts: StageCount[] } {
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 200)
   const params: SqlValue[] = [tenantId]
@@ -161,11 +235,21 @@ export function listOpportunities(
      LIMIT ?`,
     ...params,
   )
-  const items = rows.map((r) => toListItem(db, mapOpportunity(r)))
-  return { items, counts: countByStage(db, tenantId) }
+  const items = expandBoardCards(
+    db,
+    tenantId,
+    rows.map((r) => toListItem(db, mapOpportunity(r), clock)),
+    input,
+    clock,
+  )
+  return { items, counts: countByStage(db, tenantId, clock) }
 }
 
-export function countByStage(db: ClinicDb, tenantId: string): StageCount[] {
+export function countByStage(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock = { nowMs: () => Date.now() },
+): StageCount[] {
   const rows = db.all<{ stage: string; n: number }>(
     `SELECT stage, COUNT(*) AS n FROM opportunities
      WHERE tenant_id = ? AND status = 'open'
@@ -173,6 +257,12 @@ export function countByStage(db: ClinicDb, tenantId: string): StageCount[] {
     tenantId,
   )
   const map = new Map(rows.map((r) => [r.stage, r.n]))
+  // DEC-187: gémeos de atendimento entram nas contagens das colunas cedo.
+  for (const cycle of loadOpenAgendado(db, tenantId, clock)) {
+    if (!shouldProjectOpenAttendance(cycle)) continue
+    const stage = openAttendanceBoardStage(db, tenantId, cycle.conversationId, clock)
+    map.set(stage, (map.get(stage) ?? 0) + 1)
+  }
   return OPPORTUNITY_STAGES.map((stage) => ({
     stage,
     label: OPPORTUNITY_STAGE_LABELS[stage],
@@ -200,10 +290,11 @@ export function getOpportunityDetail(
   db: ClinicDb,
   tenantId: string,
   opportunityId: string,
+  clock: Clock = { nowMs: () => Date.now() },
 ): OpportunityDetail {
   const opp = requireOpportunity(db, tenantId, opportunityId)
   return {
-    ...toListItem(db, opp),
+    ...toListItem(db, opp, clock),
     history: listStageHistory(db, tenantId, opportunityId),
   }
 }

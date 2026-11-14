@@ -213,8 +213,18 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   if (!byStage) return <ListSkeleton label="Carregando acompanhamento…" />
 
   const all = stages.flatMap((s) => byStage[s] ?? [])
-  const total = all.filter((c) => c.stage !== 'concluido' && c.stage !== 'perdido').length
-  const proCount = (id: string) => all.filter((c) => c.linkedAppointment?.professionalId === id).length
+  // DEC-187: «contatos em andamento» = contactos distintos (gémeo não duplica o total).
+  const total = new Set(
+    all
+      .filter((c) => c.stage !== 'concluido' && c.stage !== 'perdido')
+      .map((c) => c.contactId),
+  ).size
+  const proCount = (id: string) =>
+    all.filter(
+      (c) =>
+        c.cardKind !== 'open_attendance' &&
+        c.linkedAppointment?.professionalId === id,
+    ).length
   const profNames = professionals.filter((p) => profFilter.includes(p.id)).map((p) => p.name)
   const counts: Record<Filter, number> = {
     all: all.length,
@@ -322,18 +332,21 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                 ) : (
                   cards.map((card) => {
                     const name = contactLabel(card.contact.displayName, card.contact.waId)
+                    const isAttendanceTwin = card.cardKind === 'open_attendance'
+                    const aptCount = card.futureAppointmentCount ?? 0
                     const stalled =
                       STALL_STAGES.includes(card.stage) &&
                       card.lastInteractionAt != null &&
                       now - card.lastInteractionAt > 2 * DAY
                     return (
                       <button
-                        key={card.id}
+                        key={card.boardKey ?? card.id}
                         type="button"
                         className={`acomp-card${openId === card.id ? ' acomp-card--open' : ''}`}
                         aria-label={`Abrir ${name}`}
                         aria-expanded={openId === card.id}
                         aria-controls="acomp-panel"
+                        data-card-kind={card.cardKind ?? 'cycle'}
                         onClick={(e) => openCard(card, e.currentTarget)}
                       >
                         <span className="acomp-card-top">
@@ -344,11 +357,22 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                             {initials(name)}
                           </span>
                           <span className="acomp-card-name">{name}</span>
+                          {!isAttendanceTwin && card.stage === 'agendado' && aptCount > 1 ? (
+                            <span
+                              className="acomp-apt-count"
+                              title={`${aptCount} horários confirmados`}
+                              aria-label={`${aptCount} horários confirmados`}
+                            >
+                              {aptCount}
+                            </span>
+                          ) : null}
                           <span className="acomp-card-time">{relativeTime(card.lastInteractionAt)}</span>
                         </span>
-                        {card.linkedAppointment?.startsAt != null &&
-                        !card.missingAppointment &&
-                        !card.linkedAppointment.changeReason ? (
+                        {isAttendanceTwin ? (
+                          <span className="acomp-card-line">Atendimento em curso</span>
+                        ) : card.linkedAppointment?.startsAt != null &&
+                          !card.missingAppointment &&
+                          !card.linkedAppointment.changeReason ? (
                           <span className="acomp-card-when">
                             <CalendarDays aria-hidden size={13} strokeWidth={2.2} />
                             {appointmentLine(card.linkedAppointment.startsAt, false)}

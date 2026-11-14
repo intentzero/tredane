@@ -34,3 +34,13 @@ export {
   listStageHistory,
   requireOpportunity,
 } from './opportunities'
+
+export {
+  boardKeyFor,
+  countFutureConfirmedAppointmentsForContact,
+  hasOpenAttendance,
+  openAttendanceBoardStage,
+  shouldProjectOpenAttendance,
+  toOpenAttendanceCard,
+  type BoardCardKind,
+} from './board-cards'

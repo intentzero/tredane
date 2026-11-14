@@ -138,7 +138,7 @@ export function listOpportunitiesOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
-  return listOpportunities(db, meta.tenantId, input)
+  return listOpportunities(db, meta.tenantId, input, clock)
 }
 
 export function getOpportunityOp(
@@ -150,7 +150,7 @@ export function getOpportunityOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
-  return getOpportunityDetail(db, meta.tenantId, opportunityId)
+  return getOpportunityDetail(db, meta.tenantId, opportunityId, clock)
 }
 
 /**
