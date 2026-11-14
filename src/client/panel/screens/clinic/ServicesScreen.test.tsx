@@ -676,12 +676,13 @@ describe('ServiceForm — combos de variantes (DEC-080)', () => {
     expect(screen.getByText(/economia R\$\s?15,00/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
+    // Máscara BR: dígitos = centavos → «6500» → R$ 65,00
     fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), { target: { value: '6500' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
 
     await waitFor(() => expect(replaceServiceCombos).toHaveBeenCalled())
     const sent = (replaceServiceCombos.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
-    expect(sent).toMatchObject([{ id: 'c1', name: 'Buço + axila', priceCents: 650000, zoneIds: ['z1', 'z2'] }])
+    expect(sent).toMatchObject([{ id: 'c1', name: 'Buço + axila', priceCents: 6_500, zoneIds: ['z1', 'z2'] }])
   })
 
   it('não deixa misturar masculino e feminino no mesmo combo', () => {
@@ -694,7 +695,10 @@ describe('ServiceForm — combos de variantes (DEC-080)', () => {
   it('avisa quando o combo não sai mais barato que a soma', () => {
     renderForm(base(), {})
     fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), { target: { value: '9000' } })
+    // Soma das variantes = R$ 100,00; «10000» → R$ 100,00 (sem economia)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), {
+      target: { value: '10000' },
+    })
     expect(screen.getByText(/não sai mais barato/)).toBeTruthy()
   })
 

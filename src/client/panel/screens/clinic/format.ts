@@ -29,12 +29,38 @@ export function parseTimeToMinutes(value: string): number | null {
   return h * 60 + m
 }
 
+/** Exibição com símbolo: «R$ 1.234,56» (listas, resumos). */
 export function formatPriceCents(cents: number | null): string {
   if (cents === null || cents === undefined) return ''
   return (cents / 100).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   })
+}
+
+/**
+ * Valor no campo de preço (sem «R$»): «1.234,56».
+ * O prefixo visual fica fora do input (MoneyField / Recebimento).
+ */
+export function formatPriceAmount(cents: number | null): string {
+  if (cents === null || cents === undefined || !Number.isFinite(cents)) return ''
+  const abs = Math.abs(Math.trunc(cents))
+  const reais = Math.trunc(abs / 100)
+  const rest = String(abs % 100).padStart(2, '0')
+  return `${reais.toLocaleString('pt-BR')},${rest}`
+}
+
+/** Teto alinhado ao sinal fixo (`src/pix/money.ts`): R$ 9.999.999,99. */
+const MAX_PRICE_INPUT_DIGITS = 9
+
+/**
+ * Máscara ao digitar: só dígitos contam como centavos (BR).
+ * «12000» → «120,00»; vazio se não há dígitos.
+ */
+export function maskPriceInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, MAX_PRICE_INPUT_DIGITS)
+  if (!digits) return ''
+  return formatPriceAmount(Number(digits))
 }
 
 export function parsePriceToCents(value: string): number | null {

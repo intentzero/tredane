@@ -24,9 +24,11 @@ import { setLeaveGuard } from '../../leaveGuard'
 import { navigatePanel } from '../../routes'
 import {
   bufferOptions,
+  formatPriceAmount,
   formatPriceCents,
   parsePriceToCents,
 } from './format'
+import { MoneyField } from './MoneyField'
 import { friendlyError } from '../../copy/errors'
 import { useClinicPanelCloseGuard } from './ClinicPanel'
 import { DeleteServiceDialog } from './ResourceLifecycleDialogs'
@@ -288,7 +290,7 @@ export function ServiceForm({
   )
   const [tempoCelsius, setTempoCelsius] = useState<number | null>(existing?.tempoCelsius ?? null)
   const [price, setPrice] = useState(
-    existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
+    existing?.priceCents != null ? formatPriceAmount(existing.priceCents) : '',
   )
   const [variantKind, setVariantKind] = useState(existing?.variantKind ?? '')
   const [variantKindPlural, setVariantKindPlural] = useState(
@@ -304,7 +306,7 @@ export function ServiceForm({
       id: z.id,
       name: z.name,
       durationMinutes: z.durationMinutes,
-      price: z.priceCents != null ? formatPriceCents(z.priceCents) : '',
+      price: z.priceCents != null ? formatPriceAmount(z.priceCents) : '',
       audience: z.audience === 'feminino' || z.audience === 'masculino' ? z.audience : 'ambos',
       active: z.active,
       synonyms: z.synonyms ?? [],
@@ -316,7 +318,7 @@ export function ServiceForm({
       key: c.id,
       id: c.id,
       name: c.name,
-      price: formatPriceCents(c.priceCents),
+      price: formatPriceAmount(c.priceCents),
       zoneKeys: c.zoneIds,
       active: c.active,
     })),
@@ -902,15 +904,11 @@ export function ServiceForm({
                 <Label>Duração (min)</Label>
                 <Input />
               </NumberField>
-              <TextField className="clinic-field">
-                <Label>Preço (opcional)</Label>
-                <Input
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="R$ 0,00"
-                />
-              </TextField>
+              <MoneyField
+                label="Preço (opcional)"
+                value={price}
+                onChange={setPrice}
+              />
             </div>
             <p className="clinic-footnote">
               Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.

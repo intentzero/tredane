@@ -8,6 +8,7 @@ import {
 } from '../../../../clinic/catalog/variant-kind'
 import { SynonymsField } from './SynonymsField'
 import { formatPriceCents, parsePriceToCents } from './format'
+import { MoneyField } from './MoneyField'
 import {
   foldWord,
   groupInactive,
@@ -359,15 +360,12 @@ export function VariantCatalog({
             <Label>Duração de todas (min)</Label>
             <Input />
           </NumberField>
-          <TextField className="clinic-field">
-            <Label>Preço de todas</Label>
-            <Input
-              value={bulkPrice}
-              inputMode="decimal"
-              placeholder="Sem preço"
-              onChange={(e) => setBulkPrice(e.target.value)}
-            />
-          </TextField>
+          <MoneyField
+            label="Preço de todas"
+            value={bulkPrice}
+            placeholder="Sem preço"
+            onChange={setBulkPrice}
+          />
           <div className="vc-actions">
             <Button className="panel-btn panel-btn-ghost" onPress={() => setBulkOpen(false)}>
               Cancelar
@@ -525,17 +523,16 @@ export function VariantCatalog({
                       </Label>
                       <Input />
                     </NumberField>
-                    <TextField className="clinic-field" isDisabled={!on || !member}>
-                      <Label>
-                        Preço<span className="visually-hidden"> ({label})</span>
-                      </Label>
-                      <Input
-                        value={member?.price ?? ''}
-                        placeholder="R$"
-                        inputMode="decimal"
-                        onChange={(e) => member && patchMember(member.key, { price: e.target.value })}
-                      />
-                    </TextField>
+                    <MoneyField
+                      label={
+                        <>
+                          Preço<span className="visually-hidden"> ({label})</span>
+                        </>
+                      }
+                      value={member?.price ?? ''}
+                      isDisabled={!on || !member}
+                      onChange={(price) => member && patchMember(member.key, { price })}
+                    />
                   </div>
                 )
               })}
