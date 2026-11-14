@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 14/11/2026 — Assistente alinhado ao mock M-74
+
+- Os controlos «Ativar sugestões de resposta», «Aplicar limites de proteção» e «Pausar novas marcações automáticas por botão» passam de caixa de seleção a **interruptor** (`.panel-switch`, o desenho de «Mostrar inativos»).
+- «Ativar sugestões» mostra «Salvo» por um instante depois de gravar; «Limites das automações» já mostrava «Limites salvos.».
+- Novo cartão só de leitura **«A cliente confirma o horário no WhatsApp»** (DEC-060, DEC-061), entre as sugestões e os limites.
+
 ## 14/11/2026 — Acompanhamento: elevação, avatar e chips (**Confirmado**, DEC-184) · tokens v0.9.0
 
 - **Tokens:** grupo novo `elevation` (`e1`, `e2`, `e3`) e `elevationDark`; `build_tokens.py` gera `--elevation-e1/e2/e3` no claro e no escuro. E3 valida o que o painel já usava; E1 e E2 são novos.

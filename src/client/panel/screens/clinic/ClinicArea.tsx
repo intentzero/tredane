@@ -4,6 +4,7 @@ import { ErrorState } from '../../states/StatusScreens'
 import { useEffect, useState, type ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
+import { ClientConfirmsCard } from './ClientConfirmsCard'
 import { ForecastPlaceCard } from './ForecastPlaceCard'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
 import { StagingResetCard } from './StagingResetCard'
@@ -378,6 +379,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
               initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
               initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
             />
+            <ClientConfirmsCard />
             {isOwner ? (
               <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
             ) : null}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ShellSlot } from '../../shell/ShellSlot'
 import { Button, Input, Label, Radio, RadioGroup, Text, TextArea, TextField } from 'react-aria-components'
@@ -111,6 +111,12 @@ export function AiAssistCard({
   }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // M-74: «Salvo» por um instante depois de o interruptor gravar.
+  const [saved, setSaved] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+  }, [])
 
   async function toggle(next: boolean) {
     setBusy(true)
@@ -121,6 +127,9 @@ export function AiAssistCard({
         expectGeneration: () => generation,
       })
       setEnabled(s.aiAssistEnabled === true)
+      setSaved(true)
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setSaved(false), 2000)
     } catch {
       setError('Não foi possível salvar. Tente de novo.')
     } finally {
@@ -140,10 +149,15 @@ export function AiAssistCard({
             A IA prepara um rascunho a cada mensagem. A equipe revisa antes de enviar.
           </span>
         </span>
+        {saved ? (
+          <span className="panel-saved-flash" role="status">
+            Salvo
+          </span>
+        ) : null}
         <input
           type="checkbox"
           role="switch"
-          className="panel-checkbox"
+          className="panel-switch"
           checked={enabled}
           disabled={busy}
           aria-checked={enabled}
