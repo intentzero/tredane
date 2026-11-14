@@ -1,27 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { bearerMatches, isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
+import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
 
-const TOKEN = 'x'.repeat(32)
-const ON = { ENVIRONMENT: 'staging', LAB_ENABLED: 'true', LAB_TOKEN: TOKEN }
+const ON = { ENVIRONMENT: 'staging', LAB_ENABLED: 'true', OAUTH_KV: {} as KVNamespace }
 
 describe('gate do laboratório (DEC-182)', () => {
-  it('só abre em staging, com a flag e com um secret de 32+ caracteres', () => {
+  it('só abre em staging, com a flag e com o OAuth MCP configurado', () => {
     expect(isLabEnabled(ON)).toBe(true)
     expect(isLabEnabled({ ...ON, ENVIRONMENT: 'production' })).toBe(false)
     expect(isLabEnabled({ ...ON, ENVIRONMENT: undefined })).toBe(false)
     expect(isLabEnabled({ ...ON, LAB_ENABLED: 'false' })).toBe(false)
     expect(isLabEnabled({ ...ON, LAB_ENABLED: undefined })).toBe(false)
-    expect(isLabEnabled({ ...ON, LAB_TOKEN: 'curto' })).toBe(false)
-    expect(isLabEnabled({ ...ON, LAB_TOKEN: undefined })).toBe(false)
+    expect(isLabEnabled({ ...ON, OAUTH_KV: undefined })).toBe(false)
     expect(isLabEnabled(undefined)).toBe(false)
-  })
-
-  it('o Bearer tem de coincidir exatamente', () => {
-    expect(bearerMatches(`Bearer ${TOKEN}`, TOKEN)).toBe(true)
-    expect(bearerMatches(`Bearer ${TOKEN}x`, TOKEN)).toBe(false)
-    expect(bearerMatches(TOKEN, TOKEN)).toBe(false)
-    expect(bearerMatches('', TOKEN)).toBe(false)
-    expect(bearerMatches(null, TOKEN)).toBe(false)
   })
 
   it('só aceita números fictícios 5500…', () => {
