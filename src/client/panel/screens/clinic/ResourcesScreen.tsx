@@ -9,6 +9,7 @@ import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '
 import { PanelApiError } from '../../api'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
+import { avatarTone, initials } from '../inbox/format'
 import {
   ProfessionalExtras,
   RoomExtras,
@@ -126,6 +127,12 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
                   })
                 }
               >
+                {pro ? (
+                  // M-20: avatar com iniciais nas pessoas (as mesmas cores de Conversas).
+                  <span className={`inbox-avatar inbox-avatar--${avatarTone(r.name)}`} aria-hidden>
+                    {initials(r.name)}
+                  </span>
+                ) : null}
                 <span className="clinic-nav-copy">
                   <strong>{r.name}</strong>
                   {pro ? (
