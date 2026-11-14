@@ -12965,3 +12965,45 @@ button.panel-auth-inline-link {
 }
 
 /* Abaixo de 1280 px o cabeçalho da sub-tela já diz «O que a IA reconhece». */
+
+/* ——— DEC-183 (Paulo, 14/11/2026): Clínica no desktop, título, contexto e ação no cabeçalho ——— */
+@media (min-width: 1280px) {
+  .panel-shell-slot:has(.clinic-bar-title) {
+    justify-content: flex-start;
+    align-items: center;
+    gap: var(--space-4);
+    padding-inline: var(--space-4);
+  }
+
+  .clinic-bar-title {
+    margin: 0;
+    flex: none;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  .clinic-bar-action {
+    margin-left: auto;
+    flex: none;
+  }
+
+  .clinic-bar-action :is(.panel-btn-primary, .panel-btn-secondary) {
+    width: auto;
+  }
+
+  .panel-shell-slot .clinic-list-header {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .panel-shell-slot .clinic-list-meta {
+    flex-wrap: nowrap;
+  }
+
+  .panel-shell-slot .clinic-list-count {
+    white-space: nowrap;
+  }
+}
