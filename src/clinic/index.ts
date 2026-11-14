@@ -11,6 +11,9 @@ export {
   ConflictError,
   NotFoundError,
   ValidationError,
+  readClinicError,
+  clinicErrorHttpStatus,
+  type ClinicErrorShape,
 } from './errors'
 export * as clinicConfig from './config'
 export * as clinicInbox from './inbox'

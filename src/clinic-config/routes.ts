@@ -12,9 +12,8 @@ import {
 } from '../auth/middleware'
 import { isAuthError } from '../auth/errors'
 import {
-  ClinicError,
-  ConflictError,
-  NotFoundError,
+  clinicErrorHttpStatus,
+  readClinicError,
   ValidationError,
   workerCaller,
 } from '../clinic'
@@ -55,27 +54,16 @@ function configErrorResponse(
   err: unknown,
 ): Response {
   if (isAuthError(err)) return authErrorResponse(c, err)
-  if (err instanceof ValidationError) {
-    return c.json(
-      { error: err.code, message: err.message, details: err.details ?? null },
-      400,
-    )
-  }
-  if (err instanceof NotFoundError) {
-    return c.json({ error: err.code, message: err.message }, 404)
-  }
-  if (err instanceof ConflictError) {
-    return c.json(
-      { error: err.code, message: err.message, details: err.details ?? null },
-      409,
-    )
-  }
-  if (err instanceof ClinicError) {
-    const status =
-      err.code === 'tenant_mismatch' || err.code === 'unauthorized_caller'
-        ? 403
-        : 400
-    return c.json({ error: err.code, message: err.message }, status)
+  const clinic = readClinicError(err)
+  if (clinic) {
+    const status = clinicErrorHttpStatus(clinic)
+    if (clinic.name === 'ValidationError' || clinic.name === 'ConflictError') {
+      return c.json(
+        { error: clinic.code, message: clinic.message, details: clinic.details ?? null },
+        status,
+      )
+    }
+    return c.json({ error: clinic.code, message: clinic.message }, status)
   }
   // Falha inesperada (ex.: cota do Durable Object): vai para o log, nunca para a resposta.
   console.error('clinic-config: erro inesperado', err)
