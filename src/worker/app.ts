@@ -1,6 +1,7 @@
 import { createClinicResetRoutes, type ClinicResetRouteOptions } from '../clinic-reset/routes'
 import { stripInternalHeaders } from '../realtime/protocol'
 import { createDemoSeedRoutes } from '../ops/demo-seed'
+import { createLabMcpRoutes } from '../lab/routes'
 import { isDeployedEnv, isHarnessPath } from '../security/env-gate'
 import { Hono } from 'hono'
 import { workerCaller } from '../clinic'
@@ -342,6 +343,7 @@ export function createApp(opts: CreateAppOptions = {}) {
   }
   app.route('/', createOpsRoutes(opsOpts))
   app.route('/', createDemoSeedRoutes())
+  app.route('/', createLabMcpRoutes())
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)
