@@ -320,6 +320,8 @@ export async function offerNearestSlots(input: {
     : [0, 1, 2, 3, 4, 5, 6].map((offset) => addCivilDays(today, offset))
   const picked: OfferedSlot[] = []
   const lastMinute = new Map<string, number>()
+  /** Dia pedido sem qualquer vaga bookable (ignora período). Evita `sem_horario_dia` falso. */
+  let requestedDayEmptyIgnoringPeriod = Boolean(date)
 
   for (const day of dates) {
     if (picked.length >= limit) break
@@ -335,6 +337,9 @@ export async function offerNearestSlots(input: {
       forecast,
       professionalId,
     )
+    if (date && day === date) {
+      requestedDayEmptyIgnoringPeriod = !slots.some((slot) => slot.startsAt >= earliest)
+    }
     if (!schedulingAllowed && slots.length === 0) continue
     if (order === 'latest') {
       // DEC-181: do fim para o princípio, com o mesmo espaçamento; sai em ordem crescente.
@@ -532,11 +537,21 @@ export async function offerNearestSlots(input: {
   // A validade de 24 h do lastOffer/pending (DEC-127) continua no backend.
   // Dia pedido sem vaga (ex.: «amanhã», domingo, clínica fechada): a oferta cai noutro dia e a
   // cliente tem de saber que o dia dela não serve (staging 14/11/2026). Junta a frase aprovada
-  // `sem_horario_dia` à oferta; sem copy nova (DEC-104).
+  // `sem_horario_dia` à oferta; sem copy nova (DEC-104). Sempre limpa date sticky (F-13).
+  // Com período: só avisa o dia se ele estiver vazio sem o filtro de período — senão
+  // «hoje de manhã» com tarde livre mentiria «hoje não tenho horário livre».
   if (date && !picked.some((slot) => slot.date === date)) {
+    if (!period || requestedDayEmptyIgnoringPeriod) {
+      return {
+        slots: picked,
+        replyText: `${noSlotsOnDayReply(date)} ${dropRepeatedSubject(body, subject)}`,
+        clearDate: true,
+      }
+    }
     return {
       slots: picked,
-      replyText: `${noSlotsOnDayReply(date)} ${dropRepeatedSubject(body, subject)}`,
+      replyText: body,
+      clearDate: true,
     }
   }
   return {
