@@ -131,7 +131,10 @@ import {
   answerFaqFromCatalog,
   faqMissingChoiceInteractive,
 } from './faq-clarification'
-import { answerClinicKnowledge } from './clinic-knowledge-reply'
+import {
+  answerClinicKnowledge,
+  looksLikeKnowledgeAsk,
+} from './clinic-knowledge-reply'
 import {
   parkFromFrame,
   shouldResumeSlotAsk,
@@ -1235,18 +1238,19 @@ export async function tryAiAutoBook(
 
   // DEC-185: FAQ institucional (modo A) mid-funnel — park → texto cadastrado → resume.
   // Depois de preço/duração/FAQ zona (DEC-177); só com match published.
-  // Não rouba respostas a escolhas discretas (linha / variantes / Mais|Pronto / eco Sim|Corrigir).
+  // Com pending de escolha discreta, só responde se parecer pergunta (não rouba «axila»).
   {
     const frameKnEarly = getBookingFrame(db, tenantId, input.conversationId)
     const pendingSlot = frameKnEarly?.pending?.slot
-    const blocksKnowledgeSteal =
+    const discretePending =
       pendingSlot === 'linha' ||
       pendingSlot === 'variantes' ||
       pendingSlot === 'acumular' ||
       pendingSlot === 'eco'
-    const knowledge = blocksKnowledgeSteal
-      ? null
-      : answerClinicKnowledge(db, tenantId, turnText)
+    const knowledge =
+      discretePending && !looksLikeKnowledgeAsk(turnText)
+        ? null
+        : answerClinicKnowledge(db, tenantId, turnText)
     if (knowledge) {
       const frameKn = frameKnEarly
       const svcKn = frameKn?.serviceId
@@ -1271,14 +1275,15 @@ export async function tryAiAutoBook(
             input.conversationId,
             { selectionMode: svcKn.variantSelection },
           )
-          replyText = `${knowledge.replyText}\n${ask}`
+          replyText = knowledge.replyText + '\n' + ask
         } else if (shouldResumeSlotAsk(parked)) {
-          replyText = `${knowledge.replyText}\n${sayAct(
+          const horarioAsk = sayAct(
             'perguntar_horario',
             input.conversationId,
-            {},
-            'Qual horário prefere?',
-          )}`
+            { serviço: svcKn.name },
+            `Qual horário fica melhor para ${svcKn.name}?`,
+          )
+          replyText = knowledge.replyText + '\n' + horarioAsk
         }
       }
       return finish({

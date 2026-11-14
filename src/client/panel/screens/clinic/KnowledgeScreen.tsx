@@ -6,6 +6,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
 import type { PanelApi } from '../../api'
+import { friendlyError } from '../../copy/errors'
 import { Banner } from '../../states/Banner'
 import { EmptyState } from '../../states/StatusScreens'
 
@@ -72,7 +73,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       setEntries(ents)
       if (!categoryId && cats[0]) setCategoryId(cats[0].id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível carregar o conhecimento')
+      setError(friendlyError(err, 'Não foi possível carregar o conhecimento'))
     } finally {
       setLoading(false)
     }
@@ -115,7 +116,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       setNewCategory('')
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não gravou a categoria')
+      setError(friendlyError(err, 'Não gravou a categoria'))
     } finally {
       setBusy(false)
     }
@@ -134,7 +135,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       setEditCategoryId(null)
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não renomeou a categoria')
+      setError(friendlyError(err, 'Não renomeou a categoria'))
     } finally {
       setBusy(false)
     }
@@ -151,7 +152,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       })
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não apagou a categoria')
+      setError(friendlyError(err, 'Não apagou a categoria'))
     } finally {
       setBusy(false)
     }
@@ -181,7 +182,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       resetForm()
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não gravou a entrada')
+      setError(friendlyError(err, 'Não gravou a entrada'))
     } finally {
       setBusy(false)
     }
@@ -198,7 +199,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       })
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não apagou a entrada')
+      setError(friendlyError(err, 'Não apagou a entrada'))
     } finally {
       setBusy(false)
     }
@@ -207,7 +208,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
   const published = entries.filter((e) => e.status === 'published').length
 
   if (loading && categories.length === 0 && entries.length === 0) {
-    return <p className="clinic-muted">A carregar conhecimento…</p>
+    return <p className="clinic-muted">Carregando conhecimento…</p>
   }
 
   return (
