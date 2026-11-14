@@ -145,14 +145,18 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
   })
 
   it('«IA» em chip só pelo id do responsável, não pelo texto do nome (DEC-184)', async () => {
+    const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
     DATA.agendado = [
       card('d', 'Carla Mendes', 'agendado', { assigneeClerkUserId: 'user_x', assigneeDisplayName: 'IA' }),
     ]
-    mount()
-    const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
-    expect(carla.querySelector('.acomp-chip-ai')).toBeNull()
-    expect(within(carla).getByText('IA')).toBeTruthy()
-    DATA.agendado = [card('d', 'Carla Mendes', 'agendado')]
+    try {
+      mount()
+      const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
+      expect(carla.querySelector('.acomp-chip-ai')).toBeNull()
+      expect(within(carla).getByText('IA')).toBeTruthy()
+    } finally {
+      DATA.agendado = previous
+    }
   })
 
   it('«Perdidos» acrescenta a coluna Perdido', async () => {
