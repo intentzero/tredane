@@ -997,4 +997,23 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 0, matches: [/equipe confirma os detalhes/i] }],
     },
   },
+  {
+    id: 'CC-36',
+    title: 'Período antes de «e meia»: «à tarde às 3 e meia» é 15:30',
+    turnosIdeais: 1,
+    // Follow-up #765: periods globais no parse de «e meia» (antes: 03:30).
+    turns: [{ role: 'client', text: 'Quero massagem terça à tarde às 3 e meia' }],
+    expect: { proposal: true, noAppointment: true, proposalAt: { date: '2026-11-10', time: '15:30' } },
+  },
+  {
+    id: 'CC-37',
+    title: '«às 3 e meia» sem período confirma a tarde (não trava 03:30)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem terça às 3 e meia' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/\b15:00\b/, /tarde/i], excludes: [/\b03:30\b/] }],
+    },
+  },
 ]
