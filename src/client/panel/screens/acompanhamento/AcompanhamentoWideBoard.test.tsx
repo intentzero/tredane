@@ -123,7 +123,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
   })
 
   it('cartão: data da marcação em chip, «IA» em chip e «Parado» com texto (DEC-184)', async () => {
-    const previous = DATA.agendado
+    const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
     DATA.agendado = [
       card('d', 'Carla Mendes', 'agendado', {
         assigneeClerkUserId: null,
