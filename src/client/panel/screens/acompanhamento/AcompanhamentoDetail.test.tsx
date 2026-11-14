@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi, PipelineOpportunityDetail } from '../../api'
+import type { InboxRealtimeSignal } from '../../realtime/InboxRealtime'
 
 const navigatePanel = vi.fn()
 vi.mock('../../routes', () => ({
@@ -13,11 +14,26 @@ vi.mock('../../clinicTimezone', () => ({
   getClinicTimezone: () => 'America/Sao_Paulo',
 }))
 
+let emitDetailSignal: ((signals: InboxRealtimeSignal[]) => void) | null = null
+let lastDetailDebounceMs: number | undefined
+vi.mock('../../realtime/InboxRealtime', async (orig) => {
+  const mod = await orig<typeof import('../../realtime/InboxRealtime')>()
+  return {
+    ...mod,
+    useInboxRealtime: (cb: (s: InboxRealtimeSignal[]) => void, debounceMs?: number) => {
+      emitDetailSignal = cb
+      lastDetailDebounceMs = debounceMs
+    },
+  }
+})
+
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
 
 afterEach(() => {
   cleanup()
   navigatePanel.mockClear()
+  emitDetailSignal = null
+  lastDetailDebounceMs = undefined
 })
 
 const TZ = 'America/Sao_Paulo'
@@ -141,5 +157,47 @@ describe('AcompanhamentoDetail — Ver na agenda', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy())
     expect(screen.queryByRole('button', { name: 'Ver na agenda' })).toBeNull()
     expect(TZ).toBe('America/Sao_Paulo')
+  })
+})
+
+describe('AcompanhamentoDetail — ao vivo', () => {
+  it('conversation.assigned refetch com keep e debounce 400ms', async () => {
+    let n = 0
+    const get = vi.fn(async () => {
+      n += 1
+      return {
+        opportunity: detail({
+          assigneeDisplayName: n === 1 ? null : 'Camila',
+          assigneeClerkUserId: n === 1 ? null : 'user_camila',
+        }),
+      }
+    })
+    const api = { getPipelineOpportunity: get } as unknown as PanelApi
+    render(
+      <AcompanhamentoDetail tenantId="t" opportunityId="opp_1" api={api} generation={1} />,
+    )
+    await screen.findByText('Sem responsável')
+    expect(lastDetailDebounceMs).toBe(400)
+
+    await act(async () => {
+      emitDetailSignal?.([
+        {
+          kind: 'event',
+          event: {
+            type: 'event',
+            seq: 1,
+            eventId: 'e1',
+            eventType: 'conversation.assigned',
+            entity: { type: 'conversation', id: 'cnv_1' },
+            occurredAt: Date.now(),
+            payload: { conversationId: 'cnv_1' },
+          },
+        },
+      ])
+    })
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    expect(screen.getByText('Camila')).toBeTruthy()
+    // keep:true → não mostra o loading de abertura de novo.
+    expect(screen.queryByText('Abrindo contato em andamento…')).toBeNull()
   })
 })

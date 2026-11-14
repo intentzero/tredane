@@ -6,6 +6,8 @@ import { InboxThread } from '../screens/inbox/InboxThread'
 import {
   eventDeletesConversation,
   InboxRealtimeProvider,
+  isAcompanhamentoEvent,
+  isInboxEvent,
   isScheduleEvent,
   isTeamEvent,
 } from './InboxRealtime'
@@ -131,6 +133,33 @@ describe('helpers contact.deleted / agenda', () => {
         payload: {},
       }),
     ).toBe(false)
+  })
+
+  it('isAcompanhamentoEvent cobre gaps do isInboxEvent (opportunity.* e appointment.*)', () => {
+    const base = {
+      type: 'event' as const,
+      seq: 1,
+      eventId: 'e',
+      entity: { type: 'opportunity' as const, id: 'opp_1' },
+      occurredAt: 1,
+      payload: {},
+    }
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'message.created' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'conversation.assigned' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'opportunity.created' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'opportunity.appointment_linked' })).toBe(
+      true,
+    )
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'appointment.confirmed' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'appointment.rescheduled' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'contact.deleted' })).toBe(true)
+    // Gaps vs inbox: appointment.* e opportunity.created não passam em isInboxEvent.
+    expect(isInboxEvent({ ...base, eventType: 'appointment.confirmed' })).toBe(false)
+    expect(isInboxEvent({ ...base, eventType: 'opportunity.created' })).toBe(false)
+    expect(isInboxEvent({ ...base, eventType: 'opportunity.stage_changed' })).toBe(true)
+    // Agenda-only / team ficam de fora.
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'schedule_hold.created' })).toBe(false)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'invitation.accepted' })).toBe(false)
   })
 })
 

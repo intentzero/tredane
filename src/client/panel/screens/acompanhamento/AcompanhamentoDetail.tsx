@@ -47,8 +47,8 @@ export function AcompanhamentoDetail({
   const [moveBusy, setMoveBusy] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
 
-  async function load() {
-    setLoading(true)
+  async function load(opts?: { keep?: boolean }) {
+    if (!opts?.keep) setLoading(true)
     setError(null)
     try {
       const res = await api.getPipelineOpportunity(tenantId, opportunityId, {
@@ -58,7 +58,7 @@ export function AcompanhamentoDetail({
       setData(res.opportunity)
     } catch (err) {
       setError(friendlyError(err, 'Não deu para concluir agora. Tente de novo.'))
-      setData(null)
+      if (!opts?.keep) setData(null)
     } finally {
       setLoading(false)
     }
@@ -79,13 +79,9 @@ export function AcompanhamentoDetail({
       setError('Este contato foi excluído. O acompanhamento já não está disponível.')
       return
     }
-    const touch = signals.some(
-      (s) =>
-        s.kind === 'resync' ||
-        (s.kind === 'event' && s.event.eventType === 'opportunity.stage_changed'),
-    )
-    if (touch) void load()
-  })
+    if (signals.length === 0) return
+    void load({ keep: true })
+  }, 400)
 
   async function handleMove(toStage: OpportunityStage) {
     if (!data) return

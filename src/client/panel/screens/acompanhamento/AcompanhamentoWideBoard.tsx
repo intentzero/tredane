@@ -72,7 +72,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     [showLost],
   )
 
-  async function load() {
+  async function load(opts?: { keep?: boolean }) {
     setError(null)
     try {
       const results = await Promise.all(
@@ -92,6 +92,8 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
       setByStage(next)
     } catch (err) {
       setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
+      // keep: true → não limpar o quadro (evita flash/skeleton em refetch ao vivo).
+      if (!opts?.keep) setByStage(null)
     }
   }
 
@@ -99,16 +101,11 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     void load()
   }, [tenantId, generation, stages])
 
+  // Debounce maior no wide (várias colunas): coalescer rajadas sem jitter.
   useInboxRealtime((signals) => {
-    const touch = signals.some(
-      (s) =>
-        s.kind === 'resync' ||
-        (s.kind === 'event' &&
-          (s.event.eventType === 'contact.deleted' ||
-            s.event.eventType === 'opportunity.stage_changed')),
-    )
-    if (touch) void load()
-  })
+    if (signals.length === 0) return
+    void load({ keep: true })
+  }, 400)
 
   useEffect(() => {
     let cancelled = false

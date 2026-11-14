@@ -46,6 +46,21 @@ export function isInboxEvent(event: RealtimeServerEvent): boolean {
   )
 }
 
+/**
+ * Eventos que invalidam o quadro Acompanhar (cartões: última atividade, responsável, horário).
+ * Mais amplo que `isInboxEvent`: inclui `opportunity.*` (created / appointment_linked) e
+ * `appointment.*` (confirmado / cancelado / remarcado) sem canal dedicado.
+ */
+export function isAcompanhamentoEvent(event: RealtimeServerEvent): boolean {
+  return (
+    event.eventType.startsWith('message.') ||
+    event.eventType.startsWith('conversation.') ||
+    event.eventType.startsWith('opportunity.') ||
+    event.eventType.startsWith('appointment.') ||
+    event.eventType.startsWith('contact.')
+  )
+}
+
 /** Eventos que mudam a grade de horários do Agendar (DEC-057). */
 export function isScheduleEvent(event: RealtimeServerEvent): boolean {
   return (
