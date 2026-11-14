@@ -4,7 +4,7 @@
 
 - **Tokens:** grupo novo `elevation` (`e1`, `e2`, `e3`) e `elevationDark`; `build_tokens.py` gera `--elevation-e1/e2/e3` no claro e no escuro. E3 valida o que o painel já usava; E1 e E2 são novos.
 - **Quadro:** cartão com E1 (E2 no hover real e no selecionado), borda a 60 %, avatar com iniciais, data da marcação em chip, «IA» em chip, ponto de etapa no título da coluna e coluna vazia tracejada. Celular: ponto na aba, avatar e E1.
-- `check_contrast.py`: 4 pares novos sobre `surface.sunken` (74 → 78). Mocks `.dc.html` e PNG ainda não refletem a mudança (canvas de revisão fora do repositório).
+- `check_contrast.py`: 4 pares novos sobre `surface.sunken` (74 → 78). Mocks: `mobile/Pipeline.dc.html` (M-05) atualizado (ponto na aba, avatar, E1) e `desktop/AcompanhamentoQuadro.dc.html` novo (M-83); previews PNG só dos dois (os demais não mudaram).
 
 ## 14/11/2026 — M-33 Recebimento: prazo 15/30, antecedência, janela Outro (**Confirmado**, DEC-182)
 
