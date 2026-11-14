@@ -19,11 +19,11 @@ Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — 
 
 - **Inputs:** `target` (`staging` | `production`, default `staging`), `ref` (branch/tag/SHA, default `main`), e `apply_d1_migrations` (boolean, default `false` — só afecta **production**).
 - **Job `resolve`:** resolve `ref` para um SHA. Para `production` recusa se (a) o workflow não foi disparado a partir de `main`, ou (b) o SHA não está contido em `origin/main`.
-- **Job `deploy-staging`** (environment `staging`): checkout do SHA → Node 22 → `npm ci` → `typecheck` → `lint` → `npm test` → `test:runtime` → **`db:migrate:remote` (D1)** → **`db:smoke:admin-schema`** → `npm run deploy -- staging`.
-- **Job `deploy-production`** (environment `production`, gate de aprovação pelo required reviewer): igual aos testes, depois `npm run deploy -- production`. Migrate + smoke D1 **só** se `apply_d1_migrations=true` (opt-in + approval do environment); default = skip com aviso no log.
+- **Job `deploy-staging`** (environment `staging`): checkout do SHA → Node 22 → `npm ci` → `typecheck` / `lint` / `npm test` / `test:runtime` (**omitidos** se o SHA já tem CI `verify` com o passo «Unit and SQL tests» em success — ver [`scripts/ci-deploy-tests-already-green.mjs`](../scripts/ci-deploy-tests-already-green.mjs); lite/docs-only verify não conta) → **`db:migrate:remote` (D1)** → **`db:smoke:admin-schema`** → `npm run deploy -- staging`.
+- **Job `deploy-production`** (environment `production`, gate de aprovação pelo required reviewer): igual aos testes (com o mesmo skip), depois `npm run deploy -- production`. Migrate + smoke D1 **só** se `apply_d1_migrations=true` (opt-in + approval do environment); default = skip com aviso no log.
 - `npm run deploy -- <target>` é o caminho existente ([`scripts/deploy.mjs`](../scripts/deploy.mjs)): `npm run build` com `CLOUDFLARE_ENV=<target>` → confirma que o Worker gerado é `tredane-dev-<target>` → `check-env-placeholders.mjs <target>` → `npx wrangler deploy --env <target>`.
 - O **Version ID** publicado vai para o job summary (via `WRANGLER_OUTPUT_FILE_PATH`, com fallback para a linha `Current Version ID` do log).
-- `permissions: contents: read`; `concurrency` por target (`deploy-staging` / `deploy-production`), sem cancelar deploys em curso.
+- `permissions: contents: read`, `actions: read` (para consultar runs do CI); `concurrency` por target (`deploy-staging` / `deploy-production`), sem cancelar deploys em curso.
 
 ### Ordem staging (Confirmado — Paulo, 03/11/2026)
 

@@ -15,47 +15,190 @@ permissions:
   contents: read
 
 jobs:
+  # Single job name `verify` stays the merge gate (required check). Path-based
+  # skips happen inside steps so the check always reports success/failure and
+  # never stays "missing" on docs/design/site-only PRs.
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      # Full history so site/ path filtering can diff against the PR base / push before SHA.
+      # Full history so path filtering can diff against the PR base / push before SHA.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Detect verify scope
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          # Prefer full verify when the diff is unclear (force-push / first commit).
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="${BASE_SHA}...HEAD"
+          elif [ "$EVENT_NAME" = "push" ] && [[ "${BEFORE_SHA:-}" =~ ^[0-9a-f]{40}$ ]] && [[ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]]; then
+            range="${BEFORE_SHA}...HEAD"
+          else
+            echo "Unclear diff range — full verify"
+            {
+              echo "full=true"
+              echo "design=true"
+              echo "site=true"
+              echo "d1=true"
+              echo "scorecard=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Lite allowlist: docs (except eval fixtures), site/, and a few root docs.
+          # Anything else (src/, db/, scripts/, package.json, wrangler, CI, …) → full.
+          is_lite() {
+            case "$1" in
+              docs/implementation/avaliacao/*) return 1 ;;
+              docs/*) return 0 ;;
+              site/*) return 0 ;;
+              README.md|AGENTS.md|.editorconfig|.gitignore) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          full=false
+          design=false
+          site=false
+          d1=false
+          scorecard=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              docs/design/*) design=true ;;
+              site/*) site=true ;;
+              db/*) d1=true ;;
+              src/clinic/ai/*|src/whatsapp/flow/*|src/clinic/proposals/*|docs/implementation/avaliacao/*) scorecard=true ;;
+            esac
+            if ! is_lite "$f"; then
+              full=true
+            fi
+          done < <(git diff --name-only "$range")
+
+          # Local D1 migrate/seed: always on main (when full); on PRs only if db/** changed.
+          if [ "$EVENT_NAME" = "push" ] && [ "$EVENT_REF" = "refs/heads/main" ] && [ "$full" = true ]; then
+            d1=true
+          fi
+
+          {
+            echo "full=$full"
+            echo "design=$design"
+            echo "site=$site"
+            echo "d1=$d1"
+            echo "scorecard=$scorecard"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "scope: full=$full design=$design site=$site d1=$d1 scorecard=$scorecard range=$range"
+          git diff --name-only "$range" | sed 's/^/  - /' || true
+
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.site == 'true'
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
             package-lock.json
             site/package-lock.json
+
       # Design checks use the stdlib only; pin 3.12 for a stable runner Python.
       - uses: actions/setup-python@v5
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.design == 'true'
         with:
           python-version: '3.12'
+
       - name: Install dependencies
+        if: steps.scope.outputs.full == 'true'
         run: npm ci --no-audit --no-fund
+
+      # Warm tip-of-base L1 for DEC-146 comparison (same key as scorecard-l1.yml).
+      - name: Restore base L1 cache
+        if: steps.scope.outputs.full == 'true' && github.event_name == 'pull_request'
+        id: base_cache
+        uses: actions/cache@v4
+        with:
+          path: base-latest.json
+          key: scorecard-l1-base-${{ github.event.pull_request.base.sha }}
+
       - name: Typecheck
+        if: steps.scope.outputs.full == 'true'
         run: npm run typecheck
+
       - name: Lint
+        if: steps.scope.outputs.full == 'true'
         run: npm run lint
+
+      # EVAL_SCORECARD=1 writes .eval/l1-*.json during the same Vitest run (no second L1).
+      # Scorecard workflow reuses the artifact instead of re-running dialogs (~6 min).
       - name: Unit and SQL tests
+        if: steps.scope.outputs.full == 'true'
+        env:
+          EVAL_SCORECARD: '1'
+          EVAL_BASELINE_PATH: ${{ steps.base_cache.outputs.cache-hit == 'true' && 'base-latest.json' || '' }}
         run: npm test
+
+      - name: Upload L1 scorecard artifact
+        if: steps.scope.outputs.full == 'true' && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: l1-scorecard
+          path: |
+            .eval/l1-latest.json
+            .eval/l1-comparison.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Push to main warms the tip cache so the next PR can compare without a base worktree.
+      - name: Save main tip as base L1 cache
+        if: steps.scope.outputs.full == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('.eval/l1-latest.json') != ''
+        run: cp .eval/l1-latest.json base-latest.json
+      - uses: actions/cache/save@v4
+        if: steps.scope.outputs.full == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('base-latest.json') != ''
+        with:
+          path: base-latest.json
+          key: scorecard-l1-base-${{ github.sha }}
+
       - name: SEG-IA S9 evidence (synthetic; no pilot)
+        if: steps.scope.outputs.full == 'true'
         run: npm run seg-ia:evidence
+
       - name: Cloudflare runtime harness
+        if: steps.scope.outputs.full == 'true'
         run: npm run test:runtime
+
       - name: Design tokens and mocks
-        run: npm run check:design
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.design == 'true'
+        run: |
+          python3 docs/design/tools/check_contrast.py
+          python3 docs/design/tools/check_mocks.py
+          python3 docs/design/tools/check_css_vars.py
+
       # `npm run build` re-runs `tsc --noEmit`; typecheck already covered that above.
       - name: Build Worker + assets
+        if: steps.scope.outputs.full == 'true'
         run: npx vite build
+
       - name: Apply D1 migrations locally
+        if: steps.scope.outputs.full == 'true' && steps.scope.outputs.d1 == 'true'
         run: npm run db:migrate:local
+
       - name: Seed fictional development tenants
+        if: steps.scope.outputs.full == 'true' && steps.scope.outputs.d1 == 'true'
         run: npm run db:seed:local
+
+      - name: Skip D1 migrate/seed (PR without db/**)
+        if: steps.scope.outputs.full == 'true' && steps.scope.outputs.d1 != 'true'
+        run: echo "Skipped db:migrate:local / db:seed:local — PR did not touch db/** (still runs on main)."
+
       - name: Env placeholder guard
+        if: steps.scope.outputs.full == 'true'
         run: |
           npm run check:env -- development
           # F0: staging/prod ainda usam placeholders; o guard deve recusar até o provisionamento (#44).
@@ -70,29 +213,23 @@ jobs:
               console.log(env + ': bloqueado como esperado enquanto não provisionado')
             }
           "
-      - name: Detect site/ changes
-        id: site
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
+
+      - name: Build landing page (site/)
+        if: steps.scope.outputs.site == 'true'
+        run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site
+
+      - name: Lite verify smoke
+        if: steps.scope.outputs.full != 'true'
         run: |
           set -euo pipefail
-          # Prefer building when the diff is unclear (force-push / first commit) over skipping.
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            range="${BASE_SHA}...HEAD"
-          elif [ "$EVENT_NAME" = "push" ] && [[ "${BEFORE_SHA:-}" =~ ^[0-9a-f]{40}$ ]] && [[ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]]; then
-            range="${BEFORE_SHA}...HEAD"
-          else
-            echo "site=true" >> "$GITHUB_OUTPUT"
-            exit 0
+          echo "Lite CI path — skipped Unit/SQL tests, migrate/seed, runtime, SEG-IA, Worker build, env guard."
+          echo "full=${{ steps.scope.outputs.full }} design=${{ steps.scope.outputs.design }} site=${{ steps.scope.outputs.site }} d1=${{ steps.scope.outputs.d1 }}"
+          if [ "${{ steps.scope.outputs.design }}" = "true" ]; then
+            echo "Ran: design token/mock checks"
           fi
-          if git diff --name-only "$range" | grep -qE '^site/'; then
-            echo "site=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "site=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping site/ install+build — no changes under site/ in $range"
+          if [ "${{ steps.scope.outputs.site }}" = "true" ]; then
+            echo "Ran: site/ install+build"
           fi
-      - name: Build landing page (site/)
-        if: steps.site.outputs.site == 'true'
-        run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site
+          if [ "${{ steps.scope.outputs.design }}" != "true" ] && [ "${{ steps.scope.outputs.site }}" != "true" ]; then
+            echo "Docs/meta-only PR — smoke only (job verify still reports success for required checks)."
+          fi
