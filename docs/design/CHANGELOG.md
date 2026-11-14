@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 14/11/2026 — Assistente alinhado ao mock M-74
+
+- Os controlos «Ativar sugestões de resposta», «Aplicar limites de proteção» e «Pausar novas marcações automáticas por botão» passam de caixa de seleção a **interruptor** (`.panel-switch`, o desenho de «Mostrar inativos»).
+- «Ativar sugestões» mostra «Salvo» por um instante depois de gravar; «Limites das automações» já mostrava «Limites salvos.».
+- Novo cartão só de leitura **«A cliente confirma o horário no WhatsApp»** (DEC-060, DEC-061), entre as sugestões e os limites.
+
 ## 14/11/2026 — WhatsApp conectado e Profissionais alinhados aos mocks M-23 e M-20
 
 - **WhatsApp conectado (M-23):** o estado passa de faixa com prosa a **cartão** com «Conectado», o nome da clínica e a lista Número · Nome exibido · Conectado em (data e por quem) · Última mensagem; nota «Os dados de acesso à conta da Meta ficam guardados com segurança e não aparecem aqui»; rótulo «Gerenciar» sobre as ações. A linha «Histórico da conexão» mantém-se (não está em M-23).

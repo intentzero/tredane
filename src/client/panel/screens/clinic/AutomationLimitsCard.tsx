@@ -190,7 +190,7 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         <input
           type="checkbox"
           role="switch"
-          className="panel-checkbox"
+          className="panel-switch"
           checked={enabled}
           disabled={busy}
           aria-checked={enabled}
@@ -214,7 +214,7 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         <input
           type="checkbox"
           role="switch"
-          className="panel-checkbox"
+          className="panel-switch"
           checked={autoBookPaused}
           disabled={busy}
           aria-checked={autoBookPaused}
