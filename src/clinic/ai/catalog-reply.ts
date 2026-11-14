@@ -21,6 +21,7 @@ import {
   catalogMissHint,
   catalogServiceList,
   resolveBookingObject,
+  serviceNameStemHit,
 } from './booking-object'
 import {
   mixedAudienceReply,
@@ -88,7 +89,17 @@ function serviceFromNamedZones(services: ServiceRow[], source: string): ServiceR
     )
     return named.length > 0
   })
-  return hits.length === 1 ? hits[0] : undefined
+  if (hits.length !== 1) return undefined
+  // «relaxar as costas»: «Costas» é zona de Depilação, mas «relaxar» aponta para «Massagem relaxante».
+  // Com evidência de outro serviço a zona não decide sozinha: deixa o resolvedor perguntar.
+  const other = services.some(
+    (service) =>
+      service.id !== hits[0]!.id &&
+      service.active &&
+      (serviceNameStemHit(source, service.name) ||
+        service.zones.some((zone) => zone.active && serviceNameStemHit(source, zone.name))),
+  )
+  return other ? undefined : hits[0]
 }
 
 function namedServices(services: ServiceRow[], text: string): ServiceRow[] {

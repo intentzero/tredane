@@ -317,6 +317,8 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-29 | P0 | «às 9 e meia» é uma só hora | C: «Quero massagem terça às 9 e meia» | Proposta para terça 10/11 às 09:30. Antes: lia também «às 9» (09:00 e 09:30), ambíguo e descartado. | EF-01 | 1 | ✅ L1 |
 | CC-30 | P0 | «Terminar» sem nada em curso | C: «Terminar» (quadro vazio) | Despedida aprovada (`acolher_adiamento`); não o redator de exceção. Antes: «não entendi o que quis dizer com terminar». | EF-03, DEC-152 | 1 | ✅ L1 |
 | CC-31 | P0 | «Terminar» depois de uma pergunta sem funil | C: «Quanto custa a massagem?» ⟶ «terminar» | Despedida aprovada. | EF-03, DEC-152 | 2 | ✅ L1 |
+| CC-32 | P0 | «Relaxar as costas» não é depilação | [Depilação com zona Costas; Massagem relaxante] C: «Queria relaxar as costas na segunda» | Pergunta o serviço («Qual serviço…»), sem assumir depilação nem perguntar «feminina ou masculina». Antes: «Para depilação, é na versão feminina ou masculina?». | EF-01 | 1 | ✅ L1 |
+| CC-33 | P0 | «Costas» sozinha continua a ser depilação | [mesmo catálogo] C: «Quero depilar as costas amanhã» | Sem regressão: segue Depilação, sem oferecer Massagem relaxante. | EF-01 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 
