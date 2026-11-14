@@ -90,9 +90,11 @@ describe('Clínica: título, contexto e ação no cabeçalho (DEC-183)', () => {
       </Shell>,
     )
     const slot = screen.getByTestId('slot')
-    const text = slot.textContent ?? ''
-    expect(within(slot).getByLabelText('Buscar serviço')).toBeTruthy()
-    expect(text.indexOf('8 serviços ativos')).toBeLessThan(text.indexOf('Adicionar serviço'))
+    const count = within(slot).getByText('8 serviços ativos')
+    const search = within(slot).getByLabelText('Buscar serviço')
+    const add = within(slot).getByRole('button', { name: 'Adicionar serviço' })
+    expect(count.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(search.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('celular: o cabeçalho da lista não leva a busca (ela fica na linha própria)', () => {
