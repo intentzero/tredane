@@ -2,7 +2,7 @@
  * TEL-09 WhatsApp — M-19 / M-23 / M-24 / M-25 / M-26 (#31 / DEC-009 / REQ-051).
  * Embedded Signup: synthetic (fixtures) em META_MODE≠live; live = FB SDK v4.
  */
-import { ChevronLeft, History, Repeat, Unplug } from 'lucide-react'
+import { Check, ChevronLeft, History, Repeat, Unplug } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import type { PanelApi, WhatsappConnection, WhatsappSignupPurpose } from '../../../api'
@@ -491,17 +491,34 @@ export function WhatsappScreen({
   // connected
   return (
     <div className="clinic-stack whatsapp-stack">
-      <Banner tone="ok" title="Conectado">
-        <p>
-          <strong>{formatPhone(conn.displayPhone)}</strong>
-          {conn.displayName ? ` · ${conn.displayName}` : ''}
-        </p>
-        <p className="clinic-footnote">
-          Conectado {connectedByLabel(conn.connectedByClerkUserId, viewerId)} em{' '}
-          {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
-          {conn.lastInboundAt ? formatWhen(conn.lastInboundAt) : 'nenhuma ainda'}.
-        </p>
-      </Banner>
+      {/* M-23: cartão de estado com nome da clínica e lista de dados (não prosa numa faixa). */}
+      <section aria-labelledby="wa-st" className="panel-card clinic-card whatsapp-status-card">
+        <div className="whatsapp-status-head">
+          <span className="whatsapp-status-pill">
+            <Check aria-hidden size={14} strokeWidth={2.6} />
+            Conectado
+          </span>
+          <h2 id="wa-st" className="panel-title-md">
+            {conn.displayName || clinicName}
+          </h2>
+        </div>
+        <dl className="whatsapp-facts">
+          <dt>Número</dt>
+          <dd>{formatPhone(conn.displayPhone)}</dd>
+          {conn.displayName ? (
+            <>
+              <dt>Nome exibido</dt>
+              <dd>{conn.displayName}</dd>
+            </>
+          ) : null}
+          <dt>Conectado em</dt>
+          <dd>
+            {formatWhen(conn.connectedAt)}, {connectedByLabel(conn.connectedByClerkUserId, viewerId)}
+          </dd>
+          <dt>Última mensagem</dt>
+          <dd>{conn.lastInboundAt ? `recebida ${formatWhen(conn.lastInboundAt)}` : 'nenhuma ainda'}</dd>
+        </dl>
+      </section>
 
       <section aria-labelledby="wa-tpl" className="panel-card clinic-card">
         <div className="clinic-card-head">
@@ -533,6 +550,11 @@ export function WhatsappScreen({
         )}
       </section>
 
+      <p className="whatsapp-secure-note">
+        Os dados de acesso à conta da Meta ficam guardados com segurança e não aparecem aqui.
+      </p>
+
+      <h2 className="panel-legend whatsapp-manage-label">Gerenciar</h2>
       <ul className="clinic-nav-list">
         <li>
           <NavRow

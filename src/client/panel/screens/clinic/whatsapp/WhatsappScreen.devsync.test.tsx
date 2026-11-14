@@ -87,10 +87,21 @@ describe('WhatsappScreen main — dev-sync de staging', () => {
     renderMain(api)
     await screen.findByText('Conectado')
     const text = document.body.textContent ?? ''
-    expect(text).toContain('Conectado pela equipe do Tredane')
+    expect(text).toContain('Conectado em')
+    expect(text).toContain('pela equipe do Tredane')
     expect(text).not.toContain('system:')
     expect(text).not.toContain('ops_manual')
     expect(text).not.toContain('pnid_')
+  })
+
+  it('M-23: estado em cartão com lista de dados, nota de segurança e «Gerenciar»', async () => {
+    const api = mockApi({ status: 200, body: okBody })
+    renderMain(api)
+    await screen.findByText('Conectado')
+    const facts = Array.from(document.querySelectorAll('.whatsapp-facts dt')).map((n) => n.textContent)
+    expect(facts).toEqual(expect.arrayContaining(['Número', 'Conectado em', 'Última mensagem']))
+    expect(document.body.textContent).toContain('ficam guardados com segurança e não aparecem aqui')
+    expect(screen.getByRole('heading', { name: 'Gerenciar' })).toBeTruthy()
   })
 
   it('dono em staging vê o botão, chama a mesma API e mostra o resultado inline', async () => {
