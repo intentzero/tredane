@@ -3,7 +3,7 @@
  * serviço, sem misturar masculino e feminino, com preço próprio. Só a responsável grava (DEC-042).
  */
 import type { Clock } from '../../db/clock'
-import { COMBO_MIN_ZONES, COMBO_NAME_MAX } from '../catalog/combo'
+import { COMBO_MIN_ZONES, COMBO_NAME_MAX, suggestComboName } from '../catalog/combo'
 import { ValidationError } from '../errors'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
@@ -87,11 +87,16 @@ export function replaceCombos(
   const kept = new Set<string>()
 
   input.forEach((item) => {
-    const name = item.name.trim()
+    const ids = [...new Set(item.zoneIds)]
+    const chosen = ids.map((id) => zones.get(id))
+    const suggested = suggestComboName(
+      chosen.map((z) => z?.name ?? '').filter(Boolean),
+    )
+    const name = item.name.trim() || suggested
     if (!name || name.length > COMBO_NAME_MAX) {
       throw new ValidationError(
         'invalid_combo_name',
-        `o nome do combo é obrigatório e tem no máximo ${COMBO_NAME_MAX} caracteres`,
+        `o nome do combo tem no máximo ${COMBO_NAME_MAX} caracteres; vazio, sugere-se a partir das variantes`,
       )
     }
     const key = name.toLocaleLowerCase('pt-BR')
@@ -104,7 +109,6 @@ export function replaceCombos(
         name,
       })
     }
-    const ids = [...new Set(item.zoneIds)]
     if (ids.length !== item.zoneIds.length) {
       throw new ValidationError('combo_zone_repeated', 'cada variante só entra uma vez no combo', { name })
     }
@@ -113,7 +117,6 @@ export function replaceCombos(
         name,
       })
     }
-    const chosen = ids.map((id) => zones.get(id))
     if (chosen.some((z) => !z)) {
       throw new ValidationError(
         'combo_zone_not_on_service',
@@ -143,9 +146,11 @@ export function replaceCombos(
   )
 
   for (const [index, item] of input.entries()) {
-    const name = item.name.trim()
-    const active = item.active === false ? 0 : 1
     const ids = [...new Set(item.zoneIds)]
+    const name =
+      item.name.trim() ||
+      suggestComboName(ids.map((id) => zones.get(id)?.name ?? '').filter(Boolean))
+    const active = item.active === false ? 0 : 1
     let id = item.id
     if (id) {
       db.run(

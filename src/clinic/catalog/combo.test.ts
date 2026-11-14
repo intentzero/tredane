@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { bestCombo, priceVisit, type ComboDef, type ComboZone } from './combo'
+import {
+  bestCombo,
+  defaultComboGender,
+  deriveComboGender,
+  priceVisit,
+  suggestComboName,
+  zoneFitsComboGender,
+  type ComboDef,
+  type ComboZone,
+} from './combo'
 
 const z = (id: string, priceCents: number | null, active = true): ComboZone => ({
   id,
@@ -61,5 +70,27 @@ describe('combos de variantes (DEC-080)', () => {
   it('sem preço somável, o total fica nulo', () => {
     const p = priceVisit([axila, z('buco', null)], [])
     expect(p).toEqual({ priceCents: null, listPriceCents: null, applied: null })
+  })
+
+  it('sugere o nome a partir das zonas (junção « + »)', () => {
+    expect(suggestComboName(['Buço', 'Axila'])).toBe('Buço + Axila')
+    expect(suggestComboName(['', '  '])).toBe('')
+    expect(suggestComboName(['A'.repeat(40), 'B'.repeat(40)]).length).toBe(60)
+  })
+
+  it('filtro de género: Feminino/Masculino incluem Todos; Ambos só ambos', () => {
+    expect(zoneFitsComboGender('feminino', 'feminino')).toBe(true)
+    expect(zoneFitsComboGender('ambos', 'feminino')).toBe(true)
+    expect(zoneFitsComboGender('masculino', 'feminino')).toBe(false)
+    expect(zoneFitsComboGender('ambos', 'ambos')).toBe(true)
+    expect(zoneFitsComboGender('feminino', 'ambos')).toBe(false)
+  })
+
+  it('default e derive do género do combo', () => {
+    expect(defaultComboGender([{ audience: 'masculino' }, { audience: 'feminino' }])).toBe('feminino')
+    expect(defaultComboGender([{ audience: 'masculino' }])).toBe('masculino')
+    expect(defaultComboGender([{ audience: 'ambos' }])).toBe('ambos')
+    expect(deriveComboGender([{ audience: 'ambos' }, { audience: 'feminino' }])).toBe('feminino')
+    expect(deriveComboGender([{ audience: 'ambos' }])).toBe('ambos')
   })
 })

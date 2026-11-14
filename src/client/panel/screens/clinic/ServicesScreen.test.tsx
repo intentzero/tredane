@@ -685,31 +685,63 @@ describe('ServiceForm — combos de variantes (DEC-080)', () => {
     expect(sent).toMatchObject([{ id: 'c1', name: 'Buço + axila', priceCents: 6_500, zoneIds: ['z1', 'z2'] }])
   })
 
-  it('não deixa misturar masculino e feminino no mesmo combo', () => {
+  it('filtra chips por «Para quem» e tira zonas incompatíveis ao trocar', () => {
     renderForm(base(), {})
     fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
-    const peitoral = screen.getByRole('button', { name: 'Peitoral' }) as HTMLButtonElement
-    expect(peitoral.disabled).toBe(true)
+    const comboGender = screen.getByText('Mostra zonas femininas e «Todos». Masculino fica de fora.').closest(
+      '[role="radiogroup"]',
+    ) as HTMLElement
+    expect(comboGender).toBeTruthy()
+    expect(within(comboGender).getByRole('radio', { name: 'Feminino' })).toBeTruthy()
+    const chips = screen.getByRole('group', { name: /O que entra no combo/ })
+    expect(within(chips).queryByRole('button', { name: /^Peitoral/ })).toBeNull()
+    expect(within(chips).getByRole('button', { name: /^Buço/ })).toBeTruthy()
+    expect(within(chips).getByRole('button', { name: /Axila/ })).toBeTruthy()
+
+    fireEvent.click(within(comboGender).getByRole('radio', { name: 'Masculino' }))
+    expect(screen.getByText(/Saíram as zonas que não servem neste género/)).toBeTruthy()
+    const chipsAfter = screen.getByRole('group', { name: /O que entra no combo/ })
+    expect(within(chipsAfter).queryByRole('button', { name: /^Buço/ })).toBeNull()
+    expect(within(chipsAfter).getByRole('button', { name: /^Peitoral/ })).toBeTruthy()
+    expect(within(chipsAfter).getByRole('button', { name: /Axila/ })).toBeTruthy()
   })
 
   it('avisa quando o combo não sai mais barato que a soma', () => {
     renderForm(base(), {})
     fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
-    // Soma das variantes = R$ 100,00; «10000» → R$ 100,00 (sem economia)
+    // Soma das variantes = R$ 85,00; «8500» → R$ 85,00 (sem economia)
     fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), {
-      target: { value: '10000' },
+      target: { value: '8500' },
     })
     expect(screen.getByText(/não sai mais barato/)).toBeTruthy()
   })
 
-  it('combo sem nome ou preço não grava', async () => {
+  it('combo sem preço não grava; nome vazio sugere as zonas ao salvar', async () => {
     const upsertService = vi.fn()
     renderForm(base(), { upsertService } as unknown as Partial<PanelApi>)
     fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nome do combo' }), { target: { value: '' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(upsertService).not.toHaveBeenCalled()
-    expect(screen.getByText(/Dê nome e preço a cada combo/)).toBeTruthy()
+    expect(screen.getByText(/Defina o preço de cada combo/)).toBeTruthy()
+  })
+
+  it('nome vazio no Pronto/salvar usa sugestão das zonas', async () => {
+    const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
+    const replaceServiceZones = vi.fn(async () => base())
+    const replaceServiceCombos = vi.fn(async () => base())
+    renderForm(base(), { upsertService, replaceServiceZones, replaceServiceCombos } as unknown as Partial<PanelApi>)
+
+    fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome do combo' }), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
+    // zoneKeys = [Axila, Buço] → «Axila + Buço»
+    expect(screen.getByRole('button', { name: /Axila \+ Buço/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(replaceServiceCombos).toHaveBeenCalled())
+    const sent = (replaceServiceCombos.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
+    expect(sent[0]?.name).toBe('Axila + Buço')
   })
 })
 
