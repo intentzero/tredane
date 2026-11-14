@@ -1,5 +1,7 @@
 import { Plus } from 'lucide-react'
 import { Button, Switch } from 'react-aria-components'
+import { useMediaQuery } from '../../ui/useMediaQuery'
+import { ShellSlot } from '../../shell/ShellSlot'
 
 type Props = {
   /** «2 profissionais ativas». */
@@ -21,7 +23,8 @@ export function ClinicListHeader({
   addLabel,
   onAdd,
 }: Props) {
-  return (
+  const wide = useMediaQuery('(min-width: 1280px)')
+  const header = (
     <div className="clinic-list-header">
       <div className="clinic-list-meta">
         <p className="clinic-list-count">{count}</p>
@@ -38,4 +41,6 @@ export function ClinicListHeader({
       </Button>
     </div>
   )
+  // DEC-183: no desktop, contagem, chave e ação sobem para o cabeçalho do shell, ao lado do título.
+  return wide ? <ShellSlot>{header}</ShellSlot> : header
 }

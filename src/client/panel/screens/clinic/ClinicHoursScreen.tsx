@@ -25,6 +25,7 @@ import { DayEditor } from './DayEditor'
 import { BLOCK_REASON_LABELS, dayLabel, formatMinutes } from './format'
 import { MonthCalendar, type CalendarEntry } from './MonthCalendar'
 import { WeekGrid, type GridPerson } from './WeekGrid'
+import { ShellSlot } from '../../shell/ShellSlot'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 
 type Props = {
@@ -196,21 +197,41 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
   return (
     <div className="clinic-stack clinic-form hours-screen">
       {/* DEC-175: título e voltar vêm da moldura (cabeçalho de página / cabeçalho único). */}
-      <section className="hours-summary" aria-label="Resumo do horário">
-        <span className="hours-status" data-open={status.open}>
-          <Clock aria-hidden size={14} strokeWidth={2.2} />
-          {status.open && status.closesAt != null
-            ? `Aberta agora · fecha às ${formatMinutes(status.closesAt)}`
-            : 'Fechada agora'}
-        </span>
-        <p className="hours-summary-week">{describeWeek(saved)}</p>
-        {nextClosure ? (
-          <p className="hours-summary-closure">
-            <strong>Fechada {formatPeriod(nextClosure.startsAt, nextClosure.endsAt, tz)}</strong> ·{' '}
-            {BLOCK_REASON_LABELS[nextClosure.reason] ?? nextClosure.reason}
-          </p>
-        ) : null}
-      </section>
+      {wide ? (
+        // DEC-183: no desktop, o estado e o horário em vigor ocupam o cabeçalho.
+        <ShellSlot>
+          <div className="clinic-bar-ctx">
+            <span className="hours-status" data-open={status.open}>
+              <Clock aria-hidden size={14} strokeWidth={2.2} />
+              {status.open && status.closesAt != null
+                ? `Aberta agora · fecha às ${formatMinutes(status.closesAt)}`
+                : 'Fechada agora'}
+            </span>
+            <span className="clinic-bar-text">{describeWeek(saved)}</span>
+          </div>
+        </ShellSlot>
+      ) : null}
+      {wide && !nextClosure ? null : (
+        <section className="hours-summary" aria-label="Resumo do horário">
+          {wide ? null : (
+            <>
+              <span className="hours-status" data-open={status.open}>
+                <Clock aria-hidden size={14} strokeWidth={2.2} />
+                {status.open && status.closesAt != null
+                  ? `Aberta agora · fecha às ${formatMinutes(status.closesAt)}`
+                  : 'Fechada agora'}
+              </span>
+              <p className="hours-summary-week">{describeWeek(saved)}</p>
+            </>
+          )}
+          {nextClosure ? (
+            <p className="hours-summary-closure">
+              <strong>Fechada {formatPeriod(nextClosure.startsAt, nextClosure.endsAt, tz)}</strong> ·{' '}
+              {BLOCK_REASON_LABELS[nextClosure.reason] ?? nextClosure.reason}
+            </p>
+          ) : null}
+        </section>
+      )}
 
       {noClinicHours && commonWeek && !dirty ? (
         <section className="hours-fallback" aria-labelledby="hours-fallback-t">
