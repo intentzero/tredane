@@ -1,6 +1,9 @@
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
-import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
+import {
+  InboxRealtimeProvider,
+  isAcompanhamentoEvent,
+} from '../../realtime/InboxRealtime'
 import { LoadingState } from '../../states/StatusScreens'
 import type { AcompanhamentoSection } from '../../routes'
 import { AcompanhamentoBoard } from './AcompanhamentoBoard'
@@ -27,9 +30,14 @@ export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) 
     return <LoadingState label="Preparando sessão…" />
   }
 
-  // WS partilhado: contact.deleted remove cartões sem hard reload (AC-52).
+  // WS da clínica: cartões ao vivo (mensagem/IA/compromisso) + contact.deleted (AC-52).
   return (
-    <InboxRealtimeProvider tenantId={tenantId} api={api} generation={generation}>
+    <InboxRealtimeProvider
+      tenantId={tenantId}
+      api={api}
+      generation={generation}
+      acceptEvent={isAcompanhamentoEvent}
+    >
       {wide ? (
         <AcompanhamentoWideBoard
           tenantId={tenantId}

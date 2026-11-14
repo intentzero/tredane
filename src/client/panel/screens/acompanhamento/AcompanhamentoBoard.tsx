@@ -95,17 +95,11 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
     void load()
   }, [tenantId, generation, stage])
 
-  // Exclusão de contacto (ou resync): tirar cartões com identidade do contacto.
+  // Qualquer sinal aceite (mensagem/IA/etapa/compromisso/exclusão): refetch sem flash.
   useInboxRealtime((signals) => {
-    const touch = signals.some(
-      (s) =>
-        s.kind === 'resync' ||
-        (s.kind === 'event' &&
-          (s.event.eventType === 'contact.deleted' ||
-            s.event.eventType === 'opportunity.stage_changed')),
-    )
-    if (touch) void load({ keep: true })
-  })
+    if (signals.length === 0) return
+    void load({ keep: true })
+  }, 400)
 
   async function seedDemo() {
     setSeeding(true)

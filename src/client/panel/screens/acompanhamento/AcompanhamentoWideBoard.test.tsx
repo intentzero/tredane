@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
+import type { InboxRealtimeSignal } from '../../realtime/InboxRealtime'
 import { AcompanhamentoWideBoard } from './AcompanhamentoWideBoard'
 
 const navigatePanel = vi.fn()
@@ -10,6 +11,19 @@ vi.mock('../../routes', async (orig) => ({
   ...(await orig<typeof import('../../routes')>()),
   navigatePanel: (...a: unknown[]) => navigatePanel(...a),
 }))
+
+let emitWideSignal: ((signals: InboxRealtimeSignal[]) => void) | null = null
+let lastWideDebounceMs: number | undefined
+vi.mock('../../realtime/InboxRealtime', async (orig) => {
+  const mod = await orig<typeof import('../../realtime/InboxRealtime')>()
+  return {
+    ...mod,
+    useInboxRealtime: (cb: (s: InboxRealtimeSignal[]) => void, debounceMs?: number) => {
+      emitWideSignal = cb
+      lastWideDebounceMs = debounceMs
+    },
+  }
+})
 
 const DAY = 86_400_000
 const NOW = Date.now()
@@ -72,7 +86,11 @@ function mount(openId?: string, api = makeApi()) {
 }
 
 describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
-  beforeEach(() => navigatePanel.mockReset())
+  beforeEach(() => {
+    navigatePanel.mockReset()
+    emitWideSignal = null
+    lastWideDebounceMs = undefined
+  })
   afterEach(cleanup)
 
   it('mostra uma coluna por etapa com a contagem; «Perdido» fica de fora', async () => {
@@ -308,5 +326,66 @@ describe('AcompanhamentoWideBoard — filtro «Profissional» (#254)', () => {
     mount(undefined, broken)
     await screen.findByText('Maria Souza')
     expect(screen.queryByRole('group', { name: 'Filtrar por profissional' })).toBeNull()
+  })
+})
+
+describe('AcompanhamentoWideBoard — cartões ao vivo', () => {
+  beforeEach(() => {
+    emitWideSignal = null
+    lastWideDebounceMs = undefined
+  })
+  afterEach(cleanup)
+
+  it('appointment.rescheduled refetch com keep e debounce 400ms (sem skeleton)', async () => {
+    let n = 0
+    const list = vi.fn(async (_t: string, q: { stage: string }) => {
+      n += 1
+      const base = DATA[q.stage] ?? []
+      if (q.stage !== 'agendado') return { opportunities: base, counts: [] }
+      return {
+        opportunities: [
+          card('d', 'Carla Mendes', 'agendado', {
+            linkedAppointmentId: 'ap1',
+            linkedAppointment: {
+              id: 'ap1',
+              startsAt: n <= 5 ? NOW + DAY : NOW + 2 * DAY,
+              endsAt: (n <= 5 ? NOW + DAY : NOW + 2 * DAY) + 3_600_000,
+              status: 'confirmed',
+            } as never,
+          }),
+        ],
+        counts: [],
+      }
+    })
+    const api = {
+      getMe: async () => ({ clerkUserId: 'user_eu' }),
+      listPipelineOpportunities: list,
+    } as unknown as PanelApi
+
+    mount(undefined, api)
+    await screen.findByText('Carla Mendes')
+    expect(lastWideDebounceMs).toBe(400)
+    const callsBefore = list.mock.calls.length
+
+    await act(async () => {
+      emitWideSignal?.([
+        {
+          kind: 'event',
+          event: {
+            type: 'event',
+            seq: 1,
+            eventId: 'e1',
+            eventType: 'appointment.rescheduled',
+            entity: { type: 'appointment', id: 'ap1' },
+            occurredAt: Date.now(),
+            payload: { opportunityId: 'd', conversationId: 'cnv_d' },
+          },
+        },
+      ])
+    })
+    await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(callsBefore))
+    // keep:true → o quadro não volta ao skeleton.
+    expect(screen.getByRole('group', { name: 'Quadro por etapa' })).toBeTruthy()
+    expect(screen.getByText('Carla Mendes')).toBeTruthy()
   })
 })
