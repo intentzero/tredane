@@ -53,6 +53,20 @@ describe('extractShadowEvents', () => {
     expect(found[0].event).toBe('ai.interpreter_shadow')
   })
 
+  it('lê o JSON indentado em várias linhas que o wrangler tail realmente imprime', () => {
+    const record = { wallTime: 4, cpuTime: 1, truncated: false, outcome: 'ok', logs: [{ level: 'info', message: [JSON.stringify(event())], timestamp: 1 }] }
+    const pretty = JSON.stringify(record, null, 4)
+    expect(pretty.split('\n').length).toBeGreaterThan(5)
+    const text = `Successfully created tail\n${pretty}\n${JSON.stringify({ ...record, logs: [{ level: 'info', message: [JSON.stringify(event({ messageId: 'msg_9' }))] }] }, null, 4)}\n`
+    expect(extractShadowEvents(text)).toHaveLength(2)
+  })
+
+  it('aguenta chavetas e aspas dentro de strings e um registo truncado no fim', () => {
+    const tricky = { logs: [{ message: ['texto com } e { e \\" aspas'] }] }
+    const text = `${JSON.stringify(tricky, null, 2)}\n${JSON.stringify(event())}\n{"logs":[{"message":["cortado`
+    expect(extractShadowEvents(text)).toHaveLength(1)
+  })
+
   it('ignora outros eventos e linhas que não são JSON, e deduplica', () => {
     const other = { logs: [{ message: [JSON.stringify({ event: 'ai.turn_decided', route: 'model' })] }] }
     const text = ['cabeçalho qualquer', JSON.stringify(other), JSON.stringify(event()), JSON.stringify(event())].join('\n')
