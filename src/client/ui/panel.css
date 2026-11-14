@@ -13270,6 +13270,8 @@ button.panel-auth-inline-link {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   color: var(--color-success-ink);
+}
+
 /* M-23: WhatsApp conectado como cartão com lista de dados. */
 .whatsapp-status-head {
   display: flex;
