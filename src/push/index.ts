@@ -39,6 +39,7 @@ export {
 } from './synthetic'
 export {
   assertSafePushPayload,
+  buildAppointmentConfirmedBody,
   buildAppointmentConfirmedPayload,
   buildNeedsPersonPayload,
   buildNewConversationPayload,
@@ -47,6 +48,7 @@ export {
   createPushTransport,
   handoffReasonPushLabel,
   HANDOFF_REASON_PUSH_LABELS,
+  PUSH_BODY_MAX,
   PUSH_CONTACT_FALLBACK,
   resolvePushContactLabel,
   sanitizePushLabel,

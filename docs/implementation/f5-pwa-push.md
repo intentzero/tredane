@@ -7,8 +7,8 @@
 | DEC / REQ | Comportamento |
 | --- | --- |
 | DEC-039 | Painel mobile first; PWA sem app nativo no MVP |
-| DEC-040 | Push via PWA; texto **sem** conteúdo da mensagem WhatsApp nem telefone. **Copy (Paulo, 13/11/2026):** título = tipo; corpo = `{contacto} · {clínica}` (fallback «Cliente») |
-| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA. `new_message` = «Mensagem de {contacto} · {clínica}» |
+| DEC-040 | Push via PWA; texto **sem** conteúdo da mensagem WhatsApp nem telefone. **Copy (Paulo, 13/11/2026):** título = tipo; corpo = `{contacto} · {clínica}` (fallback «Cliente»). **Agendamento confirmado (Paulo, 14/11/2026):** corpo sem eco do título — `{contacto} · {serviço}[ · variante] · {weekday} {DD/MM} às {HH:MM} com {profissional}` (quando = DEC-174); clínica só se couber |
+| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA. `new_message` = «Mensagem de {contacto} · {clínica}». Agendamento: copy 14/11 (dia/hora/pro) |
 | DEC-156 | Push **Precisa de alguém** / reforço aos 5 min (`needs_person`, `needs_person_escalate`); corpo `{contacto} · {clínica}` [· motivo curto] / escalate «· há 5 min»; dispara em `ai_pause` `source:handoff`; Assumir (`clearedAwaitingTeam`) fecha a notificação no cliente |
 | DEC-041 | Ícone provisório (azul primary); marca definitiva Em aberto |
 | DEC-026 / REQ-003 | Revogação remove assinaturas push do par user×tenant; deep link revalida Clerk + membership |
@@ -27,7 +27,7 @@
 3. `PushManager.subscribe` + `POST /api/tenants/:id/push/subscriptions`.
 4. Ingest WhatsApp: `maybeNotifyNewConversationPush` **só** se mensagem nova **e** `humanAttended` (Assumir humano ou IA pausada / handoff). Nova conversa genérica **não** notifica.
 5. Handoff (DEC-156): `conversation.ai_pause` `source:handoff` → `maybeNotifyNeedsPersonPush`; aos 5 min `needs_person_escalate` (renotify).
-6. Agendamento confirmado: outbox `appointment.confirmed` → `maybeNotifyAppointmentConfirmedPush` (contacto/serviço no corpo quando houver rótulo).
+6. Agendamento confirmado: outbox `appointment.confirmed` → `maybeNotifyAppointmentConfirmedPush` (contacto · serviço[ · variante] · weekday DD/MM às HH:MM com profissional; clínica se couber).
 7. Envio revalida membership activa; 404/410 apagam a assinatura; app aberta/visível = suppress (sem push).
 8. Logout / troca de clínica limpa caches do SW (UX-05).
 

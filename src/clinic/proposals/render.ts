@@ -9,14 +9,14 @@ import type { ClinicDb } from '../store'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
 import type { ZoneSnapshot } from '../config/types'
-import { dayTextPt } from '../ai/slot-offer'
-import { formatClinicTime } from '../ai/schedule-context'
-import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { formatBookedWhenAt } from '../scheduling/format-booked-when'
 import {
   HUMAN_HANDOFF_BUTTON_TITLE,
   isHumanTeamOfferAllowed,
 } from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
+
+export { formatBookedWhenAt } from '../scheduling/format-booked-when'
 
 /** Limite Cloud API para título de botão reply. */
 export const PROPOSAL_BUTTON_TITLE_MAX = 20
@@ -116,22 +116,9 @@ function formatSlotRange(proposal: AppointmentProposalRow): string {
   }
 }
 
-/**
- * Quando curto para Agendado (DEC-174): `terça 17/11 às 10:00`.
- * Sem ano, sem hora de fim, sem «em …-feira», sem IANA — mesma forma que a lista Horários.
- */
+/** Quando curto para Agendado WhatsApp (DEC-174) — delega a {@link formatBookedWhenAt}. */
 export function formatBookedWhen(proposal: AppointmentProposalRow): string {
-  try {
-    const civil = clinicCivilDateFromUtc(proposal.timezone, proposal.startsAt)
-    const hhmm = formatClinicTime(proposal.timezone, proposal.startsAt)
-    const match = hhmm.match(/(\d{1,2})\D(\d{2})/)
-    const time = match
-      ? `${match[1]!.padStart(2, '0')}:${match[2]}`
-      : hhmm
-    return `${dayTextPt(civil)} às ${time}`
-  } catch {
-    return new Date(proposal.startsAt).toISOString()
-  }
+  return formatBookedWhenAt(proposal.timezone, proposal.startsAt)
 }
 
 /** Fallback curto só quando o follow-up «Posso ajudar…» não segue (DEC-174). */
