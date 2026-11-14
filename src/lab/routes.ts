@@ -1,5 +1,5 @@
 /**
- * MCP de laboratório (DEC-182) — JSON-RPC stateless, só staging e só o tenant demo.
+ * MCP de laboratório (DEC-186) — JSON-RPC stateless, só staging e só o tenant demo.
  * Auth: OAuth MCP (consentimento de superadmin, escopo `lab:converse`, audiência própria). Separado do Review MCP (DEC-159), que é só leitura.
  */
 import { Hono } from 'hono'
@@ -270,7 +270,7 @@ async function handle(msg: JsonRpcRequest, env: WorkerBindings, actor: string): 
           capabilities: { tools: { listChanged: false } },
           serverInfo: SERVER_INFO,
           instructions:
-            'Laboratório conversacional (DEC-182): só staging, só a clínica demo, nada sai para a Meta. Comece por lab_status; converse com lab_say e lab_tap; leia lab_state. Ver docs/implementation/runbooks/laboratorio-mcp.md.',
+            'Laboratório conversacional (DEC-186): só staging, só a clínica demo, nada sai para a Meta. Comece por lab_status; converse com lab_say e lab_tap; leia lab_state. Ver docs/implementation/runbooks/laboratorio-mcp.md.',
         }),
       )
     case 'ping':

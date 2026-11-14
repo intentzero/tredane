@@ -46,7 +46,7 @@ export type ReviewMcpOAuthProps = {
   scope: string[]
 }
 
-/** DEC-182: escopo do MCP de laboratório (escrita só na clínica demo); recurso e audiência próprios. */
+/** DEC-186: escopo do MCP de laboratório (escrita só na clínica demo); recurso e audiência próprios. */
 export const LAB_MCP_SCOPE = 'lab:converse' as const
 
 const SCOPES = [REVIEW_SAMPLES_SCOPE, LAB_MCP_SCOPE, 'offline_access'] as const
@@ -197,7 +197,7 @@ export async function tryValidateReviewMcpOAuthToken(
 }
 
 /**
- * DEC-182: valida o access token OAuth do laboratório. Audiência = recurso do laboratório e
+ * DEC-186: valida o access token OAuth do laboratório. Audiência = recurso do laboratório e
  * escopo `lab:converse`; um token do Review MCP não serve (nem o contrário).
  */
 export async function tryValidateLabMcpOAuthToken(

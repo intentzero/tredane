@@ -1,6 +1,6 @@
 # Laboratório conversacional (MCP) — como usar
 
-**Estado:** Confirmado (DEC-182, Paulo, 14/11/2026). Fase 1 (conversar e ler) e fase 2 (configurar a clínica demo) implementadas.
+**Estado:** Confirmado (DEC-186, Paulo, 14/11/2026). Fase 1 (conversar e ler) e fase 2 (configurar a clínica demo) implementadas.
 
 Um MCP com escrita, **separado** do Review MCP (que é só leitura, DEC-159), para um agente conversar com o sistema
 como se fosse uma cliente, sem WhatsApp, e ler o estado da clínica. Serve para testes conversacionais repetíveis e

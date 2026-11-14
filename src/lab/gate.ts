@@ -1,5 +1,5 @@
 /**
- * Gate do MCP de laboratório (DEC-182). Só staging, com a flag e com o OAuth MCP configurado (OAUTH_KV).
+ * Gate do MCP de laboratório (DEC-186). Só staging, com a flag e com o OAuth MCP configurado (OAUTH_KV).
  * Fora disso a rota responde 404 e o DO recusa os métodos `lab*`.
  */
 import type { WorkerBindings } from '../worker/bindings'

@@ -32,7 +32,7 @@ function setup() {
 
 const budget = (used = 0, cap = 5) => ({ used, cap, commit: vi.fn().mockResolvedValue(undefined) })
 
-describe('turno do laboratório (DEC-182)', () => {
+describe('turno do laboratório (DEC-186)', () => {
   it('texto: ingere, força a IA já (sem esperar o debounce) e devolve as mensagens do turno', async () => {
     const { db, hooks, close } = setup()
     try {

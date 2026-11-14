@@ -1,7 +1,7 @@
 # Laboratório conversacional: plano de execução para um agente
 
 **Estado:** Proposto (14/11/2026). Escrito para um agente que não viu a conversa de origem. Pré-requisito: ler
-`laboratorio-mcp.md` (ferramentas e limites, DEC-182) e `sombra-interpretador-relatorio.md`.
+`laboratorio-mcp.md` (ferramentas e limites, DEC-186) e `sombra-interpretador-relatorio.md`.
 
 ## Regras que o agente não pode quebrar
 
