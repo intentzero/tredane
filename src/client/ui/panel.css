@@ -13268,3 +13268,11 @@ button.panel-auth-inline-link {
 .whatsapp-manage-label {
   margin: var(--space-2) 0 calc(-1 * var(--space-2));
 }
+
+@media (min-width: 1280px) {
+  .panel-shell-slot .clinic-list-search {
+    flex: 1 1 220px;
+    min-width: 160px;
+    max-width: 340px;
+  }
+}

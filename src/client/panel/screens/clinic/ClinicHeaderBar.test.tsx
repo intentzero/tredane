@@ -81,4 +81,27 @@ describe('Clínica: título, contexto e ação no cabeçalho (DEC-183)', () => {
     expect(within(screen.getByTestId('slot')).queryByText('3 serviços ativos')).toBeNull()
     expect(screen.getByText('3 serviços ativos')).toBeTruthy()
   })
+
+  it('desktop: a busca da lista fica no cabeçalho, entre a contagem e a ação', () => {
+    viewport(true)
+    render(
+      <Shell>
+        <ClinicListHeader count="8 serviços ativos" switchLabel="Mostrar inativos" showInactive={false} onShowInactive={() => {}} addLabel="Adicionar serviço" onAdd={() => {}} search={<input aria-label="Buscar serviço" />} />
+      </Shell>,
+    )
+    const slot = screen.getByTestId('slot')
+    const text = slot.textContent ?? ''
+    expect(within(slot).getByLabelText('Buscar serviço')).toBeTruthy()
+    expect(text.indexOf('8 serviços ativos')).toBeLessThan(text.indexOf('Adicionar serviço'))
+  })
+
+  it('celular: o cabeçalho da lista não leva a busca (ela fica na linha própria)', () => {
+    viewport(false)
+    render(
+      <Shell>
+        <ClinicListHeader count="8 serviços ativos" switchLabel="Mostrar inativos" showInactive={false} onShowInactive={() => {}} addLabel="Adicionar serviço" onAdd={() => {}} search={<input aria-label="Buscar serviço" />} />
+      </Shell>,
+    )
+    expect(screen.queryByLabelText('Buscar serviço')).toBeNull()
+  })
 })
