@@ -1573,32 +1573,50 @@ button.panel-auth-inline-link {
   min-width: 0;
 }
 
+/* Prefixo R$ + valor: serviço (Preço) e sinal em Recebimento. */
+.clinic-money-row,
 .clinic-signal-money-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  height: var(--size-control-md);
+  height: var(--size-control-default);
+  min-height: var(--size-control-default);
+  box-sizing: border-box;
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-card);
 }
 
+.clinic-money-row span,
 .clinic-signal-money-row span {
   color: var(--color-text-muted);
   font-weight: var(--font-weight-semibold);
+  flex: none;
 }
 
-.clinic-signal-money-row input {
+.clinic-money-row input,
+.clinic-signal-money-row input,
+.clinic-field .clinic-money-row input:not([type='checkbox']):not([type='radio']),
+.clinic-field .clinic-signal-money-row input:not([type='checkbox']):not([type='radio']) {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
   border: 0;
-  height: calc(var(--size-control-md) - 2px);
+  border-radius: 0;
   background: transparent;
   font: inherit;
+  font-size: var(--font-size-body);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
   outline: none;
+}
+
+.clinic-field[data-disabled] .clinic-money-row,
+.clinic-field[data-disabled] .clinic-signal-money-row {
+  opacity: 0.55;
 }
 
 .clinic-policy-chips {

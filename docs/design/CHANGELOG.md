@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 14/11/2026 — Preço do serviço: prefixo R$ + máscara BR
+
+- Pedido do Paulo (14/11/2026): no bloco «Para quem, tempo e preço» (e nos outros campos Preço do serviço), prefixo **R$** e máscara com decimais ao digitar (`R$ 120,00`). Painel: `MoneyField` + `maskPriceInput`. Mock M-81 `mobile/ServicoEditarOpcao` alinhado (prefixo fora do input).
+
 ## 13/11/2026 — M-33 Recebimento: prazo em presets (**Confirmado**, DEC-179)
 
 - `mobile/Recebimento.dc.html`: cartão **Prazo e política de cancelamento** com presets **15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h** (2 h selecionado no estado inicial) e **Outro…** (número + unidade min|h; mín. 15 min, máx. 48 h; valor conceptual em minutos, `deadlineSeconds` no servidor). Mantém textarea da política e **Salvar prazo e política**. Alinha a DEC-175 (faixa + dois cartões). Fecha o Em aberto «prazo do Pix em opções» (**Confirmado** Paulo 13/11/2026 — mock #731). Painel: `RecebimentoScreen` + `deadlinePresets`.

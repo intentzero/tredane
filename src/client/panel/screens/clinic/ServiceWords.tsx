@@ -4,7 +4,7 @@ import { Search, TriangleAlert } from 'lucide-react'
 import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import type { ClinicConfigSnapshot, ClinicService } from '../../api'
 import { navigatePanel } from '../../routes'
-import { formatPriceCents } from './format'
+import { formatPriceAmount } from './format'
 import type { ZoneDraft } from './VariantCatalog'
 import {
   collisionsOf,
@@ -29,7 +29,7 @@ function zoneDrafts(svc: ClinicService): ZoneDraft[] {
     id: z.id,
     name: z.name,
     durationMinutes: z.durationMinutes,
-    price: z.priceCents != null ? formatPriceCents(z.priceCents) : '',
+    price: z.priceCents != null ? formatPriceAmount(z.priceCents) : '',
     audience: z.audience,
     active: z.active,
     synonyms: z.synonyms ?? [],

@@ -5,6 +5,7 @@ import { COMBO_MIN_ZONES } from '../../../../clinic/catalog/combo'
 import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import { ClinicCheck } from './ClinicCheck'
 import { formatPriceCents, parsePriceToCents } from './format'
+import { MoneyField } from './MoneyField'
 import type { ZoneDraft } from './VariantCatalog'
 
 export type ComboDraft = {
@@ -119,15 +120,11 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
                           onChange={(e) => patch(combo.key, { name: e.target.value })}
                         />
                       </TextField>
-                      <TextField className="clinic-field">
-                        <Label>Preço do combo</Label>
-                        <Input
-                          value={combo.price}
-                          inputMode="decimal"
-                          placeholder="R$ 0,00"
-                          onChange={(e) => patch(combo.key, { price: e.target.value })}
-                        />
-                      </TextField>
+                      <MoneyField
+                        label="Preço do combo"
+                        value={combo.price}
+                        onChange={(price) => patch(combo.key, { price })}
+                      />
                     </div>
                     <div className="vc-audience" role="group" aria-label={`O que entra no combo (${combo.zoneKeys.length})`}>
                       <span>O que entra ({combo.zoneKeys.length})</span>
