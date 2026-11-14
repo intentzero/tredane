@@ -13166,3 +13166,55 @@ button.panel-auth-inline-link {
     width: auto;
   }
 }
+
+/* DEC-185 — Conhecimento da clínica */
+.clinic-knowledge-entry {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+}
+.clinic-knowledge-q {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+}
+.clinic-knowledge-a {
+  margin: var(--space-2) 0 0;
+  white-space: pre-wrap;
+}
+.clinic-plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.clinic-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.clinic-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+.clinic-inline-choice {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+.clinic-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+.acomp-knowledge-hint {
+  margin: 0 0 var(--space-3);
+}

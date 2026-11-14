@@ -130,7 +130,22 @@ export {
   listUnmatchedTermsOp,
   acceptUnmatchedTermOp,
   dismissUnmatchedTermOp,
+  listKnowledgeCategoriesOp,
+  listKnowledgeEntriesOp,
+  upsertKnowledgeCategoryOp,
+  deleteKnowledgeCategoryOp,
+  upsertKnowledgeEntryOp,
+  deleteKnowledgeEntryOp,
 } from './operations'
+export {
+  matchPublishedKnowledge,
+  KNOWLEDGE_MAX_PUBLISHED,
+  KNOWLEDGE_MAX_ANSWER_CHARS,
+  KNOWLEDGE_SIGNAL_SOURCE_KEY,
+  type KnowledgeCategory,
+  type KnowledgeEntry,
+  type KnowledgeEntryStatus,
+} from './knowledge'
 export {
   recordUnmatchedTerm,
   probableServiceFor,

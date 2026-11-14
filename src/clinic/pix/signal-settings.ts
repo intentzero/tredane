@@ -8,6 +8,7 @@ import { DEFAULT_BOOKING_LEAD_MINUTES } from '../constants'
 import { ValidationError } from '../errors'
 import type { ClinicDb } from '../store'
 import { ensureClinicSettings } from '../config/settings'
+import { syncSignalPolicyKnowledgeEntry } from '../config/knowledge'
 import {
   buildSignalPolicyPreview,
   type SignalPolicyKind,
@@ -419,6 +420,19 @@ export function updatePixSignalSettings(
         tenantId,
       )
     }
+  }
+
+  // DEC-185: política de sinal também como entrada FAQ (além do wiring DEC-180).
+  try {
+    syncSignalPolicyKnowledgeEntry(
+      db,
+      tenantId,
+      { policyText: policy, enabled },
+      'system:signal-policy',
+      clock,
+    )
+  } catch {
+    // Schema antigo em testes unitários sem migração 67: não quebra Recebimento.
   }
 
   return getPixSignalSettings(db, tenantId, clock)

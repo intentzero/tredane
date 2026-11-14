@@ -39,6 +39,7 @@ export type ClinicaSection =
   | 'whatsapp-desconectar'
   | 'whatsapp-dev-sync'
   | 'recebimento'
+  | 'conhecimento'
   | 'assistente'
   | 'equipe'
 
@@ -172,6 +173,7 @@ function parseClinicaRest(rest: string | undefined): {
     return { section: 'whatsapp' }
   }
   if (head === 'recebimento') return { section: 'recebimento' }
+  if (head === 'conhecimento') return { section: 'conhecimento' }
   if (head === 'assistente') return { section: 'assistente' }
   if (head === 'equipe') return { section: 'equipe' }
   return { section: 'hub' }
@@ -395,6 +397,8 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/whatsapp/dev-sync`
         case 'recebimento':
           return `${base}/recebimento`
+        case 'conhecimento':
+          return `${base}/conhecimento`
         case 'assistente':
           return `${base}/assistente`
         case 'equipe':

@@ -1,4 +1,4 @@
-import { Clock, DoorOpen, ListChecks, MessageCircle, Sparkles, TriangleAlert, Users, Wallet } from 'lucide-react'
+import { BookOpen, Clock, DoorOpen, ListChecks, MessageCircle, Sparkles, TriangleAlert, Users, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import type { ClinicConfigSnapshot } from '../../api'
@@ -152,6 +152,17 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
           onPress={go('recebimento')}
         />
       </li>
+      {showAssistant ? (
+        <li>
+          <NavRow
+            icon={BookOpen}
+            title="Conhecimento da clínica"
+            detail="FAQ que a assistente responde com o texto aprovado"
+            state="neutral"
+            onPress={go('conhecimento')}
+          />
+        </li>
+      ) : null}
       <li>
         <NavRow
           icon={Users}

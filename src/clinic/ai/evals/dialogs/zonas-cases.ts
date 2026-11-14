@@ -8,11 +8,16 @@
  * A-53 / A-54: FAQ gate mid-zonas (DEC-177) — pergunta ≠ leftover.
  * A-57 / A-58: DEC-178 acumulação Opções + Mais|Pronto.
  * A-59: pedido de atendente na ask de zonas (DEC-083; #725 — id único, não colidir com A-53 FAQ).
+ * A-60: FAQ institucional mid-funnel (DEC-185) — park/resume com texto cadastrado.
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
  */
 import { getService, listZones, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
+import {
+  upsertKnowledgeCategory,
+  upsertKnowledgeEntry,
+} from '../../../config/knowledge'
 import { VARIANT_LIST_BUTTON_LABEL } from '../../choice-offer'
 import { frictionTermHash } from '../../turn-friction'
 import type { DialogCase } from './runner'
@@ -592,6 +597,44 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       turns: [
         { turn: 0, matches: [/quais zonas/i, /Toque em Opções/i] },
         { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-60',
+    title: 'FAQ institucional mid-zonas: texto cadastrado + retoma (DEC-185)',
+    turnosIdeais: 2,
+    prepare: (s) => {
+      const cat = upsertKnowledgeCategory(s.db, s.tenantId, { name: 'Acesso' }, s.clock)
+      upsertKnowledgeEntry(
+        s.db,
+        s.tenantId,
+        {
+          categoryId: cat.id,
+          question: 'Tem estacionamento?',
+          answer: 'Sim, há vagas na rua em frente à clínica.',
+          matchCues: ['estacionamento'],
+          status: 'published',
+        },
+        'owner_eval',
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'Vocês têm estacionamento?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/vagas na rua em frente/i, /quais zonas/i],
+          excludes: [/Não encontrei estacionamento/i, /Entendi:.*estacionamento/i],
+        },
       ],
       outboundExcludes: NO_LEAK,
     },

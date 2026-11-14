@@ -1,7 +1,7 @@
 # Estratégia de conhecimento da clínica e avaliação de RAG
 
-**Estado:** Proposto — discovery de produto e arquitetura; **não é ADR, decisão aprovada nem autorização para implementação.**  
-**Data:** 29/10/2026  
+**Estado:** Fase A (Q&A estruturado, sem RAG) **autorizada** pela [DEC-185](decisions.md) (Paulo, 14/11/2026). Este documento permanece a estratégia; a DEC é a fonte de verdade do recorte Confirmado (modo A, ≤15 published, ≤500 chars, park/resume, categorias CRUD). RAG/FTS5/Vectorize continuam **Fora** deste passo.  
+**Data:** 29/10/2026; actualizado 14/11/2026  
 **Repositório:** `intentzero/tredane`  
 **Escopo:** conhecimento institucional por clínica para sugestões de IA no WhatsApp, com recuperação verificável e isolamento multi-tenant.
 

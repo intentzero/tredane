@@ -21,6 +21,7 @@ import { ServiceWords } from './ServiceWords'
 import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 import { RecebimentoScreen } from './pix/RecebimentoScreen'
+import { KnowledgeScreen } from './KnowledgeScreen'
 import { WhatsappDevSyncScreen } from './whatsapp/WhatsappDevSyncScreen'
 import { EquipeScreen } from './EquipeScreen'
 import { ClinicSubScreen } from './ClinicSubHeader'
@@ -131,6 +132,15 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
         description:
           'O Pix do sinal cai na conta da clínica, pela Woovi. O Tredane cria a cobrança e não recebe nem repassa o dinheiro.',
         shape: 'form',
+        header: true,
+        mobileSub: true,
+      }
+    case 'conhecimento':
+      return {
+        title: 'Conhecimento da clínica',
+        description:
+          'Perguntas e respostas que a assistente envia com o texto que você aprovou (estacionamento, pagamento, visita…).',
+        shape: 'list',
         header: true,
         mobileSub: true,
       }
@@ -259,6 +269,22 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
 
   if (section === 'recebimento') {
     return frame(page(<RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />))
+  }
+
+  if (section === 'conhecimento') {
+    if (!isOwner) {
+      return frame(
+        page(
+          <ErrorState
+            title="Só a responsável edita o conhecimento"
+            description="Perguntas e respostas da clínica são configuração da owner."
+          />,
+        ),
+      )
+    }
+    return frame(
+      page(<KnowledgeScreen tenantId={tenantId} api={api} generation={generation} />),
+    )
   }
 
   if (section === 'conferir') {

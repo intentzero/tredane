@@ -5,6 +5,8 @@
  *   handoff (fora — autodraft) → restart → exit A/B → reject C
  *   → ask_info (preço|duração|explicação FAQ DEC-177)
  *   → confusão (DEC-151, classificada; realização noutro sítio)
+ * Conhecimento institucional (DEC-185) casa no autobook/autodraft com o DO
+ * (precisa de match published); não entra neste classificador puro.
  *
  * Classificação aqui; realização de `ask_info` mid-funnel em `ask-info-realize`
  * (stack park/resume) via `tryAiAutoBook`. Política vive no acto; `sayAct` só redige.
