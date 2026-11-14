@@ -6,6 +6,7 @@
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * todos os serviços com audiência «qualquer», salvo o que o caso mudar em `prepare`.
  */
+import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import { listServices, listZones, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
@@ -23,6 +24,18 @@ const setAudience =
       )
     }
   }
+
+/** Redator de exceção que devolve sempre o mesmo texto (como o `FixedJsonAdapter` do p0-cases). */
+class FixedExceptionAdapter extends SimulatedAiAdapter {
+  constructor(private readonly mensagem: string) {
+    super()
+  }
+  override async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
+    const r = await super.generate(input)
+    if (!r.ok || input.profile !== 'exception') return r
+    return { ...r, text: JSON.stringify({ mensagem: this.mensagem, notas: '' }) }
+  }
+}
 
 const ASK_LIST = /Feminino ou masculino\?/
 
@@ -951,6 +964,37 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       noAppointment: true,
       turns: [{ turn: 0, excludes: [/Massagem relaxante/] }],
+    },
+  },
+  {
+    id: 'CC-34',
+    title: 'Redator de exceção nunca dá conselho de saúde: «vale procurar um médico» é barrado',
+    turnosIdeais: 1,
+    // Staging 14/11/2026: «queria algo para drenar, tô inchada» recebeu «Se o inchaço for forte… vale
+    // procurar um médico antes». A DEC-046 manda a pergunta de saúde para a profissional; o validador
+    // de saída não tinha nenhuma regra de saúde. Barrada, sai a frase DEC-107 (sem pausar a IA).
+    adapter: new FixedExceptionAdapter(
+      'Se o inchaço for forte ou te incomodar muito, vale procurar um médico antes.',
+    ),
+    turns: [{ role: 'client', text: 'Queria algo para drenar, to inchada' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      notPaused: true,
+      outboundExcludes: [/m[eé]dic/i],
+      turns: [{ turn: 0, matches: [/outro jeito|falar com a equipe|n[aã]o consegui/i] }],
+    },
+  },
+  {
+    id: 'CC-35',
+    title: 'Redator de exceção continua a poder remeter para a equipe (sem regressão)',
+    turnosIdeais: 1,
+    adapter: new FixedExceptionAdapter('A equipe confirma os detalhes na segunda-feira, a partir das 09:00.'),
+    turns: [{ role: 'client', text: 'Fazem pacote para noivas no final do ano?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/equipe confirma os detalhes/i] }],
     },
   },
 ]
