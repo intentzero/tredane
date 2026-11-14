@@ -264,7 +264,13 @@ export function parseTimes(
   for (const m of folded.matchAll(/\b([01]?\d|2[0-3])\s+e\s+(?:([0-5]\d)|meia)\b/g)) {
     note(m)
     const min = m[0].includes('meia') ? 30 : Number(m[2])
-    add(Number(m[1]), min)
+    let h = Number(m[1])
+    // «3 e meia da tarde» = 15:30; o período dito conta como em «3 da tarde» (staging 14/11/2026).
+    const per = /^\s+da\s+(manha|tarde|noite)\b/.exec(folded.slice(m.index! + m[0].length))?.[1]
+    if (per === 'tarde' && h >= 1 && h <= 7) h += 12
+    else if (per === 'noite' && h >= 1 && h <= 11) h += 12
+    else if (per === 'manha' && h === 12) h = 0
+    add(h, min)
   }
 
   for (const m of folded.matchAll(/\b(?:as\s+)?([1-9]|1[0-2])\s+da\s+(manha|tarde|noite)\b/g)) {
@@ -303,7 +309,10 @@ export function parseTimes(
     else add(hour, 0)
   }
 
-  for (const m of folded.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) {
+  // O fim exclui «às 8 e meia» / «às 9 e 15»: esse trecho já foi lido acima com os minutos.
+  for (const m of folded.matchAll(
+    /\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])(?!\s+e\s+(?:[0-5]\d|meia)\b)/g,
+  )) {
     bareHour(Number(m[1]), m)
   }
 
@@ -318,6 +327,8 @@ export function parseTimes(
       add(hour, minutes)
       continue
     }
+    // «o das 8 e meia»: os minutos já foram lidos acima.
+    if (/^\s+e\s+(?:[0-5]\d|meia)\b/.test(folded.slice(m.index! + m[0].length))) continue
     bareHour(hour, m)
   }
 
