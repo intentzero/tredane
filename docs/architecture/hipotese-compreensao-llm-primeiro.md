@@ -178,6 +178,28 @@ node scripts/interpreter-shadow-report.mjs sombra.ndjson --sample 20
 
 Mostra, por campo, quantas vezes léxico e modelo concordam, só o modelo leu, só o léxico leu ou se contradizem; o que a citação literal recusaria; cobertura do léxico; latência e custo da sombra. `--json` dá o resumo estruturado e `--sample N` lista até N conversas/mensagens (ids internos, não texto) de cada tipo de divergência, para abrir no painel e rotular à mão. **Sem rótulo, o relatório não diz quem tem razão**: é a lista do que rever, não uma taxa de acerto. Para um histórico em vez de uma sessão de `tail`, exportar os Workers Logs do Worker de staging e passar o ficheiro ao script (aceita JSON por linha, a saída do `tail` ou uma exportação).
 
+### 5.3d Relatório da sombra no Review MCP (TEMPORÁRIO)
+
+**Estado:** Proposto; pedido do Paulo (14/11/2026) para correr a análise pelo MCP que já existe. **Temporário:** existe só até a hipótese H1 estar decidida.
+
+Com a sombra ligada, o Durable Object grava cada evento num registo mínimo no **D1 central** (`interpreter_shadow_events`: ids e veredictos por campo, **sem texto da conversa**, TTL de 7 dias, escrita fail-soft). O [Review MCP](../product/decisions.md) (DEC-159, só superadmin) ganha a ferramenta `get_interpreter_shadow_report`, que devolve o mesmo resumo do script:
+
+- `sinceHours` (1 a 168, por defeito 24), `tenantId` opcional, `sample` (0 a 50) para listar ids internos de divergências, a rotular no painel.
+- O resumo agrega por campo (`agree`, `llm_only`, `rule_only`, `differ`, `none`), o que a citação literal recusaria, cobertura do léxico, latência e custo.
+- Continua a valer o aviso: sem rótulo humano, `llm_only` e `differ` são a lista do que rever, não uma taxa de acerto.
+
+**Isolamento e privacidade:** a ferramenta é cross-tenant como as outras do Review MCP (DEC-159) e revalida o superadmin em cada chamada. A tabela é apagada por tenant no purge de tenant (`env-orchestrator`). Não dá ao Worker nenhuma credencial nova.
+
+**Lista de remoção** (quando a H1 estiver decidida; tudo está marcado «TEMPORÁRIO»):
+
+0. Apagar o runbook `docs/implementation/runbooks/sombra-interpretador-relatorio.md`, a sua linha no `AGENTS.md` e a frase sobre a ferramenta nas `instructions` do `initialize` (`src/mcp/review-central/routes.ts`).
+
+1. Apagar `src/shadow-report/` (armazenamento, resumo e testes).
+2. Em `src/mcp/review-central/tools.ts`: a ferramenta `SHADOW_REPORT_TOOL`, o `case 'get_interpreter_shadow_report'`, o campo `shadowEvents` do `ReviewCentralStore` e as duas linhas das fábricas; repor a lista de três ferramentas em `http.test.ts`.
+3. Em `src/worker/clinic-do.ts`: o *sink* em `#aiAssistDepsWithFlow` e o import; em `src/clinic/ai/types.ts` o campo `interpreterShadowSink`; em `interpreter-shadow.ts` o `await deps.interpreterShadowSink?.(event)`; o teste do *sink*.
+4. Em `src/retention/env-orchestrator.ts`: o `DELETE` de `interpreter_shadow_events`.
+5. Uma migração **nova** `0024_drop_interpreter_shadow_events.sql` com `DROP TABLE`; **não** editar nem apagar a `0023`. Remover a linha de `test-db.ts` só depois dessa migração.
+
 ### 5.4 De onde vêm as conversas
 
 O tráfego do staging é da equipe e escreve como o léxico espera, por isso **subestima** o ganho. Por ordem de esforço:

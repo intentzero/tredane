@@ -283,6 +283,73 @@ describe('runInterpreterShadow', () => {
   })
 })
 
+describe('interpreterShadowSink (destino do evento)', () => {
+  it('recebe o evento depois do log e um sink que falha não afeta nada', async () => {
+    const s = seed()
+    const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    try {
+      const svc = s.services[0]!
+      const adapter = new FixedExtractAdapter(() => ({ acts: ['marcar'], serviceId: svc.id }))
+      const seen: InterpreterShadowEvent[] = []
+      const ev = await runInterpreterShadow(
+        { mode: 'synthetic', adapter, interpreterShadowSink: (e) => void seen.push(e) },
+        task(s.services, s.proId, 'quero massagem'),
+      )
+      expect(seen).toEqual([ev])
+
+      const boom = await runInterpreterShadow(
+        {
+          mode: 'synthetic',
+          adapter,
+          interpreterShadowSink: () => {
+            throw new Error('d1 em baixo')
+          },
+        },
+        task(s.services, s.proId, 'quero massagem'),
+      )
+      expect(boom.status).toBe('ok')
+    } finally {
+      spy.mockRestore()
+      s.close()
+    }
+  })
+
+  it('não espera o sink assíncrono (fire-and-forget no orçamento do alarme)', async () => {
+    const s = seed()
+    const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    try {
+      const svc = s.services[0]!
+      const adapter = new FixedExtractAdapter(() => ({ acts: ['marcar'], serviceId: svc.id }))
+      let resolveSink!: () => void
+      const sinkDone = new Promise<void>((r) => {
+        resolveSink = r
+      })
+      let started = false
+      const startedAt = Date.now()
+      const ev = await runInterpreterShadow(
+        {
+          mode: 'synthetic',
+          adapter,
+          interpreterShadowSink: () => {
+            started = true
+            return sinkDone
+          },
+        },
+        task(s.services, s.proId, 'quero massagem'),
+      )
+      // Devolve sem esperar o D1; o sink já arrancou.
+      expect(started).toBe(true)
+      expect(Date.now() - startedAt).toBeLessThan(200)
+      expect(ev.status).toBe('ok')
+      resolveSink()
+      await sinkDone
+    } finally {
+      spy.mockRestore()
+      s.close()
+    }
+  })
+})
+
 describe('sombra no turno real (runDueAutoDrafts)', () => {
   async function runTurn(shadow: boolean, text = 'quero massagem amanhã depois do almoço') {
     const s = seed()
