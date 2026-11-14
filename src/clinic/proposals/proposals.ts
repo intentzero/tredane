@@ -24,6 +24,7 @@ import {
 import { getResource } from '../config/resources'
 import { ensureClinicSettings } from '../config/settings'
 import { getService } from '../config/services'
+import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import {
   quoteVisit,
   readZoneSnapshots,
@@ -523,7 +524,7 @@ function resolveFacts(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const signalConditions =
     input.signalConditionsText?.trim() ||
-    (service.requiresSignal ? settings.signalCancellationPolicy || '' : '')
+    (service.requiresSignal ? effectiveSignalCancellationPolicy(db, tenantId, clock) : '')
 
   const replacesAppointmentId: string | null = input.replacesAppointmentId?.trim() || null
   if (replacesAppointmentId) {

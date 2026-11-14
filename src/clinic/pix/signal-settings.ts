@@ -141,6 +141,20 @@ export function getPixSignalSettings(
   return rowToSettings(row)
 }
 
+/**
+ * Texto efectivo da política de sinal (DEC-180) — o mesmo que Recebimento,
+ * cobrança Pix e Agendar usam (`cancellationPolicy` com fallback ao preview
+ * gerado). Não usar a coluna crua `signal_cancellation_policy` de
+ * `ClinicSettingsRow` no contexto IA (DEC-120) nem na resposta CF-04.
+ */
+export function effectiveSignalCancellationPolicy(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): string {
+  return getPixSignalSettings(db, tenantId, clock).cancellationPolicy.trim()
+}
+
 function validateAmount(
   amountKind: SignalKind,
   fixedCents: number | null,
