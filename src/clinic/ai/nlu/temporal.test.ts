@@ -197,6 +197,29 @@ describe('parseTemporal (#408)', () => {
     }
   })
 
+  it('«às N e meia» / «e NN» dá uma só hora, com o período dito (staging 14/11/2026)', () => {
+    // Antes: «às 8 e meia» lia também «às 8» e devolvia 08:00 e 08:30 (ambíguo → descartado).
+    const cases: Array<[string, string[]]> = [
+      ['às 8 e meia da manhã na terça tem?', ['08:30']],
+      ['as 8 e meia', ['08:30']],
+      ['das 8 e meia', ['08:30']],
+      ['o das 8 e meia', ['08:30']],
+      ['tem às 10 e meia?', ['10:30']],
+      ['às 9 e 15', ['09:15']],
+      // O período dito conta (antes: «às 3 e meia da tarde» dava 03:30).
+      ['às 3 e meia da tarde', ['15:30']],
+      ['às 7 e meia da noite', ['19:30']],
+      ['às 12 e meia da manhã', ['00:30']],
+      // Sem regressão: hora redonda e «N e NN» soltos.
+      ['às 8', ['08:00']],
+      ['15 e 30', ['15:30']],
+      ['9 e meia', ['09:30']],
+    ]
+    for (const [text, expected] of cases) {
+      expect(extractTimes(text), text).toEqual(new Set(expected))
+    }
+  })
+
   it('extractDates/extractTimes wrappers', () => {
     expect(extractDates('sábado dia 7', TODAY)).toEqual(new Set(['2026-11-07']))
     expect(extractDates('31/11', TODAY)).toEqual(new Set())

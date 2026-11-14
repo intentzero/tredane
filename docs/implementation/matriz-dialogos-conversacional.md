@@ -314,6 +314,7 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-26 | P0 | Dia pedido sem vaga (clínica fechada) | C: «Quero massagem domingo» | Avisa «… domingo não tenho horário livre» (frase `sem_horario_dia`) e oferece os horários de segunda. Antes: oferecia segunda sem dizer nada do domingo. | EF-01, Q | 1 | ✅ L1 |
 | CC-27 | P0 | Dia e período pedidos sem vaga | C: «Quero massagem domingo de manhã» | O mesmo aviso do dia e a oferta de segunda de manhã. | EF-01, Q | 1 | ✅ L1 |
 | CC-28 | P0 | Dia pedido com vaga: sem aviso | C: «Quero massagem sexta» | Oferta direta (09:00…), sem «não tenho horário livre». | EF-01 | 1 | ✅ L1 |
+| CC-29 | P0 | «às 9 e meia» é uma só hora | C: «Quero massagem terça às 9 e meia» | Proposta para terça 10/11 às 09:30. Antes: lia também «às 9» (09:00 e 09:30), ambíguo e descartado. | EF-01 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

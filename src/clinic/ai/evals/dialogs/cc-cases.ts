@@ -846,4 +846,13 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 0, matches: [/\b09:00\b/], excludes: [/não tenho (horário|nada) livre/i] }],
     },
   },
+  {
+    id: 'CC-29',
+    title: '«às 9 e meia» é 09:30 e não «09:00 ou 09:30»: o pedido completo vira proposta',
+    turnosIdeais: 1,
+    // Staging 14/11/2026: «às 8 e meia da manhã na terça» lia também «às 8» e devolvia duas
+    // horas; ambíguas, eram descartadas e a cliente recebia «não consegui entender».
+    turns: [{ role: 'client', text: 'Quero massagem terça às 9 e meia' }],
+    expect: { proposal: true, noAppointment: true, proposalAt: { date: '2026-11-10', time: '09:30' } },
+  },
 ]
