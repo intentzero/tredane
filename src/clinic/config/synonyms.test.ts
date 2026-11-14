@@ -192,6 +192,106 @@ describe('sinónimos DEC-110 (#421)', () => {
     }
   })
 
+  it('«peito e abdômen» aceita sinónimos peito/abdominal/barriga; colide com zona Peito', () => {
+    const s = boot()
+    try {
+      const svc = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+        },
+        systemClock,
+      )
+      const alone = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [
+          {
+            name: 'Peito e abdômen',
+            durationMinutes: 40,
+            priceCents: 12_000,
+            audience: 'masculino',
+            synonyms: ['abdominal', 'peito', 'barriga'],
+          },
+        ],
+        systemClock,
+      )
+      expect(alone[0]!.synonyms).toEqual(['abdominal', 'peito', 'barriga'])
+      expect(zonesNamedInText('quero abdominal', alone).map((z) => z.name)).toEqual([
+        'Peito e abdômen',
+      ])
+
+      // Catálogo com zona «Peito»: sinónimo «peito» na composta é colisão (staging Paulo).
+      const withPeito = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [
+          {
+            name: 'Peito',
+            durationMinutes: 20,
+            priceCents: 8_000,
+            audience: 'masculino',
+          },
+          {
+            id: alone[0]!.id,
+            name: 'Peito e abdômen',
+            durationMinutes: 40,
+            priceCents: 12_000,
+            audience: 'masculino',
+            synonyms: ['abdominal', 'barriga'],
+          },
+        ],
+        systemClock,
+      )
+      expect(withPeito).toHaveLength(2)
+      const peito = withPeito.find((z) => z.name === 'Peito')!
+      const composta = withPeito.find((z) => z.name === 'Peito e abdômen')!
+
+      let err: unknown
+      try {
+        replaceServiceZonesOp(
+          s.db,
+          s.caller,
+          svc.id,
+          [
+            {
+              id: peito.id,
+              name: 'Peito',
+              durationMinutes: 20,
+              priceCents: 8_000,
+              audience: 'masculino',
+            },
+            {
+              id: composta.id,
+              name: 'Peito e abdômen',
+              durationMinutes: 40,
+              priceCents: 12_000,
+              audience: 'masculino',
+              synonyms: ['abdominal', 'peito', 'barriga'],
+            },
+          ],
+          systemClock,
+        )
+      } catch (e) {
+        err = e
+      }
+      expect(err).toBeInstanceOf(ValidationError)
+      expect((err as ValidationError).code).toBe('synonym_collision')
+      expect((err as ValidationError).message).toMatch(/peito/i)
+    } finally {
+      s.close()
+    }
+  })
+
   it('DEC-176: variantes com o mesmo nome partilham sinónimos; outra variante não', () => {
     const s = boot()
     try {
