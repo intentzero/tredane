@@ -210,6 +210,9 @@ describe('parseTemporal (#408)', () => {
       ['às 3 e meia da tarde', ['15:30']],
       ['às 7 e meia da noite', ['19:30']],
       ['às 12 e meia da manhã', ['00:30']],
+      // Período antes do relógio («à tarde às 3 e meia») — periods globais, não só trailing.
+      ['à tarde às 3 e meia', ['15:30']],
+      ['à noite às 7 e meia', ['19:30']],
       // Sem regressão: hora redonda e «N e NN» soltos.
       ['às 8', ['08:00']],
       ['15 e 30', ['15:30']],
@@ -218,6 +221,10 @@ describe('parseTemporal (#408)', () => {
     for (const [text, expected] of cases) {
       expect(extractTimes(text), text).toEqual(new Set(expected))
     }
+    // 1–7 sem período: ambíguo (não trava 03:30); igual a «às 3».
+    const amb = parseTemporal('às 3 e meia', TODAY)
+    expect(amb.times).toEqual([])
+    expect(amb.ambiguousAfternoonHour).toBe(3)
   })
 
   it('extractDates/extractTimes wrappers', () => {

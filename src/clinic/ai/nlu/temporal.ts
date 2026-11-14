@@ -261,16 +261,47 @@ export function parseTimes(
     add(12, 0)
   }
 
+  let ambiguousAfternoonHour: number | null = null
+  const hasPeriodWord = periods.length > 0
+
+  /**
+   * Aplica manhã/tarde/noite a uma hora 1–12 (trailing `da …` ou `periods` globais).
+   * Sem período e 1–7: ambíguo (não trava 03:30). Espelha a intenção de `bareHour` para «e meia».
+   */
+  const applyDayPeriod = (
+    hour: number,
+    trailing: string | undefined,
+  ): { hour: number; ambiguous: boolean } => {
+    const per =
+      trailing ??
+      (periods.includes('tarde')
+        ? 'tarde'
+        : periods.includes('noite')
+          ? 'noite'
+          : periods.includes('manha')
+            ? 'manha'
+            : undefined)
+    if (per === 'tarde' && hour >= 1 && hour <= 7) return { hour: hour + 12, ambiguous: false }
+    if (per === 'noite' && hour >= 1 && hour <= 11) return { hour: hour + 12, ambiguous: false }
+    if (per === 'manha' && hour === 12) return { hour: 0, ambiguous: false }
+    if (!per && hour >= 1 && hour <= 7) return { hour, ambiguous: true }
+    return { hour, ambiguous: false }
+  }
+
   for (const m of folded.matchAll(/\b([01]?\d|2[0-3])\s+e\s+(?:([0-5]\d)|meia)\b/g)) {
     note(m)
     const min = m[0].includes('meia') ? 30 : Number(m[2])
-    let h = Number(m[1])
-    // «3 e meia da tarde» = 15:30; o período dito conta como em «3 da tarde» (staging 14/11/2026).
-    const per = /^\s+da\s+(manha|tarde|noite)\b/.exec(folded.slice(m.index! + m[0].length))?.[1]
-    if (per === 'tarde' && h >= 1 && h <= 7) h += 12
-    else if (per === 'noite' && h >= 1 && h <= 11) h += 12
-    else if (per === 'manha' && h === 12) h = 0
-    add(h, min)
+    const raw = Number(m[1])
+    // «3 e meia da tarde» / «à tarde às 3 e meia»; 1–7 sem período fica ambíguo (não 03:30).
+    const trailing = /^\s+da\s+(manha|tarde|noite)\b/.exec(
+      folded.slice(m.index! + m[0].length),
+    )?.[1]
+    const { hour, ambiguous } = applyDayPeriod(raw, trailing)
+    if (ambiguous) {
+      ambiguousAfternoonHour = raw
+      continue
+    }
+    add(hour, min)
   }
 
   for (const m of folded.matchAll(/\b(?:as\s+)?([1-9]|1[0-2])\s+da\s+(manha|tarde|noite)\b/g)) {
@@ -295,8 +326,6 @@ export function parseTimes(
     add(Number(m[1]), Number(m[2] ?? m[3] ?? 0))
   }
 
-  let ambiguousAfternoonHour: number | null = null
-  const hasPeriodWord = periods.length > 0
   const bareHour = (hour: number, m: RegExpMatchArray) => {
     note(m)
     const after = folded.slice(m.index! + m[0].length, m.index! + m[0].length + 16)

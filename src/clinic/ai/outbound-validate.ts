@@ -46,7 +46,7 @@ export type OutboundValidateResult =
  * LLM: as frases aprovadas não passam por aqui como `llm`. Lista fechada, em português.
  */
 export const HEALTH_ADVICE_RE =
-  /\b(m[eé]dic[oa]s?|diagn[oó]stic\w*|sintomas?|medicament\w*|rem[eé]dios?|receita\s+m[eé]dica|tratamento\s+m[eé]dico|pronto[\s-]socorro|urg[eê]ncia)\b/i
+  /\b(m[eé]dic[oa]s?|diagn[oó]stic\w*|sintomas?|medicament\w*|rem[eé]dios?|receita\s+m[eé]dica|tratamento\s+m[eé]dico|pronto[\s-]socorro)\b/i
 
 const MARKDOWN_OR_JSON = /```|^\s*\{/m
 /** Conta «?» que não estejam em URLs simples. */

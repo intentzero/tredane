@@ -46,4 +46,22 @@ describe('radical em comum, só quando uma zona compete', () => {
   it('palavras curtas não criam radical («massa» ~ «massagem»)', () => {
     expect(run('massa pras costas').services).not.toContain('svc-massagem')
   })
+
+  it('verbo de funil «marcar» não empata com serviço «Marcação…»', () => {
+    const base = CATALOG.find((s) => s.id === 'svc-depilacao')!
+    const withMarcacao: ServiceRow[] = [
+      ...CATALOG,
+      {
+        ...base,
+        id: 'svc-marcacao',
+        name: 'Marcação express',
+        zones: [],
+        synonyms: [],
+      },
+    ]
+    const r = resolveBookingObject({ text: 'quero marcar as costas', services: withMarcacao })
+    const services = [...new Set(r.candidates.map((c) => c.serviceId))]
+    expect(services).not.toContain('svc-marcacao')
+    expect(r.serviceId ?? services[0]).toBe('svc-depilacao')
+  })
 })
