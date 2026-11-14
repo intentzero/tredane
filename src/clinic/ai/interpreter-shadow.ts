@@ -314,10 +314,17 @@ export async function runInterpreterShadow(
   }
 
   console.info(JSON.stringify(event))
-  try {
-    await deps.interpreterShadowSink?.(event)
-  } catch {
-    // Medição temporária: o destino do evento nunca afeta o atendimento.
+  // Fire-and-forget: não await o sink no caminho do alarme — a latência do D1
+  // não pode consumir AUTODRAFT_ALARM_BUDGET_MS das sombras seguintes.
+  // O sink não deve lançar (insertInterpreterShadowEvent é fail-soft); ainda
+  // engolimos rejeições/throws síncronos para a medição nunca afetar o atendimento.
+  const sink = deps.interpreterShadowSink
+  if (sink) {
+    try {
+      void Promise.resolve(sink(event)).catch(() => {})
+    } catch {
+      // throw síncrono do sink
+    }
   }
   return event
 }

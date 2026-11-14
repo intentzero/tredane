@@ -16,7 +16,11 @@ import {
 } from '../../review-samples'
 import type { AdminDb } from '../../db/admin/store'
 import { asyncFromSync, fromD1 } from '../../db/admin/async-store'
-import { listInterpreterShadowEvents, type ShadowEventRow } from '../../shadow-report/store'
+import {
+  listInterpreterShadowEvents,
+  SHADOW_REPORT_ROW_LIMIT,
+  type ShadowEventRow,
+} from '../../shadow-report/store'
 import { summariseShadowRows } from '../../shadow-report/summary'
 import {
   JSON_RPC_APPLICATION_ERROR,
@@ -131,6 +135,7 @@ export type ReviewCentralStore = {
   shadowEvents?: (opts: {
     sinceMs: number
     tenantId?: string | null
+    limit?: number
   }) => Promise<ShadowEventRow[]>
 }
 
@@ -336,11 +341,18 @@ export async function callReviewCentralMcpTool(
         const sample = Math.min(Math.max(optionalFiniteNumber(args, 'sample') ?? 0, 0), 50)
         const tenantId = optionalString(args, 'tenantId')
         const sinceMs = nowMs - sinceHours * 3_600_000
-        const rows = await deps.store.shadowEvents({ sinceMs, tenantId: tenantId ?? null })
+        // Pedir limit+1: truncated só quando há mais linhas do que o teto do resumo.
+        const rowsPlus = await deps.store.shadowEvents({
+          sinceMs,
+          tenantId: tenantId ?? null,
+          limit: SHADOW_REPORT_ROW_LIMIT + 1,
+        })
+        const truncated = rowsPlus.length > SHADOW_REPORT_ROW_LIMIT
+        const rows = truncated ? rowsPlus.slice(0, SHADOW_REPORT_ROW_LIMIT) : rowsPlus
         return toolTextResult({
           temporary: true,
           window: { sinceHours, fromMs: sinceMs, toMs: nowMs, tenantId: tenantId ?? null },
-          truncated: rows.length >= 5000,
+          truncated,
           summary: summariseShadowRows(rows, { sample }),
           note: 'Sem rótulo humano, llm_only e differ não dizem quem tem razão: é a lista do que rever.',
         })

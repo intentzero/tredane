@@ -38,6 +38,9 @@ export type ShadowEventRow = {
 
 const json = (v: unknown): string | null => (v == null ? null : JSON.stringify(v))
 
+/** Teto do relatório MCP; o list pede limit+1 para detectar truncagem. */
+export const SHADOW_REPORT_ROW_LIMIT = 5000
+
 /** Grava um evento (idempotente por turno) e apaga os expirados. Nunca lança. */
 export async function insertInterpreterShadowEvent(
   db: AsyncAdminDb,
@@ -78,8 +81,20 @@ export async function insertInterpreterShadowEvent(
       e.outputTokens,
     )
     await db.run(`DELETE FROM interpreter_shadow_events WHERE expires_at < ?`, nowMs)
-  } catch {
-    // Medição temporária: nunca afeta o atendimento.
+  } catch (err) {
+    // Medição temporária: nunca afeta o atendimento. Avisa uma vez para migração em falta
+    // não parecer MCP vazio em silêncio (só ids já presentes no evento; sem PII extra).
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'ai.interpreter_shadow_sink_failed',
+        tenantId: e.tenantId,
+        conversationId: e.conversationId,
+        messageId: e.messageId,
+        status: e.status,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
   }
 }
 
@@ -87,7 +102,8 @@ export async function listInterpreterShadowEvents(
   db: AsyncAdminDb,
   opts: { sinceMs: number; tenantId?: string | null; limit?: number },
 ): Promise<ShadowEventRow[]> {
-  const limit = Math.min(Math.max(opts.limit ?? 5000, 1), 5000)
+  // Aceita até SHADOW_REPORT_ROW_LIMIT+1 para o caller detectar truncagem com exactidão.
+  const limit = Math.min(Math.max(opts.limit ?? SHADOW_REPORT_ROW_LIMIT, 1), SHADOW_REPORT_ROW_LIMIT + 1)
   if (opts.tenantId) {
     return db.all<ShadowEventRow>(
       `SELECT * FROM interpreter_shadow_events

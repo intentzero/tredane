@@ -2,7 +2,7 @@
  * TEMPORÁRIO: armazenamento, resumo e ferramenta MCP do relatório da sombra do interpretador.
  * Remover com a funcionalidade (hipotese-compreensao-llm-primeiro.md §5.3d).
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { asyncFromSync } from '../db/admin/async-store'
 import { bootAdminDb } from '../db/test-db'
 import { createApp } from '../worker/app'
@@ -13,7 +13,12 @@ import {
   type AuthServices,
 } from '../auth'
 import type { InterpreterShadowEvent } from '../clinic/ai/interpreter-shadow'
-import { insertInterpreterShadowEvent, listInterpreterShadowEvents, SHADOW_EVENT_TTL_MS } from './store'
+import {
+  insertInterpreterShadowEvent,
+  listInterpreterShadowEvents,
+  SHADOW_EVENT_TTL_MS,
+  SHADOW_REPORT_ROW_LIMIT,
+} from './store'
 import { summariseShadowRows } from './summary'
 
 const NOW = 1_700_000_000_000
@@ -82,9 +87,29 @@ describe('armazenamento da sombra (D1 central, temporário)', () => {
     }
   })
 
-  it('falha de escrita nunca lança', async () => {
-    const broken = { run: async () => { throw new Error('d1 em baixo') }, get: async () => undefined, all: async () => [] }
-    await expect(insertInterpreterShadowEvent(broken as never, event(), NOW)).resolves.toBeUndefined()
+  it('falha de escrita nunca lança e avisa uma vez (sem silêncio)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const broken = { run: async () => { throw new Error('d1 em baixo') }, get: async () => undefined, all: async () => [] }
+      await expect(insertInterpreterShadowEvent(broken as never, event(), NOW)).resolves.toBeUndefined()
+      expect(warn).toHaveBeenCalledTimes(1)
+      const line = String(warn.mock.calls[0]![0])
+      const parsed = JSON.parse(line) as {
+        event: string
+        tenantId: string
+        conversationId: string
+        messageId: string
+        error: string
+      }
+      expect(parsed.event).toBe('ai.interpreter_shadow_sink_failed')
+      expect(parsed.tenantId).toBe('ten_a')
+      expect(parsed.conversationId).toBe('cnv_1')
+      expect(parsed.messageId).toBe('msg_1')
+      expect(parsed.error).toMatch(/d1 em baixo/)
+      expect(line).not.toMatch(/body|text|phone|Massagem/i)
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
 
@@ -173,6 +198,34 @@ describe('get_interpreter_shadow_report (MCP, só superadmin)', () => {
       expect(body.window.sinceHours).toBe(168)
       expect(body.window.tenantId).toBe('ten_b')
       expect(body.summary.total).toBe(1)
+    } finally {
+      admin.close()
+    }
+  })
+
+  it('marca truncated só quando há mais de 5000 linhas (pede limit+1)', async () => {
+    const { admin, call } = appWithStore()
+    try {
+      const db = asyncFromSync(admin.db)
+      for (let i = 0; i < SHADOW_REPORT_ROW_LIMIT; i++) {
+        await insertInterpreterShadowEvent(db, event({ messageId: `m_${i}` }), NOW)
+      }
+      const exact = await call('user_synth_superadmin', {})
+      const exactBody = JSON.parse(exact.json.result!.content[0]!.text) as {
+        truncated: boolean
+        summary: { total: number }
+      }
+      expect(exactBody.truncated).toBe(false)
+      expect(exactBody.summary.total).toBe(SHADOW_REPORT_ROW_LIMIT)
+
+      await insertInterpreterShadowEvent(db, event({ messageId: 'm_over' }), NOW)
+      const over = await call('user_synth_superadmin', {})
+      const overBody = JSON.parse(over.json.result!.content[0]!.text) as {
+        truncated: boolean
+        summary: { total: number }
+      }
+      expect(overBody.truncated).toBe(true)
+      expect(overBody.summary.total).toBe(SHADOW_REPORT_ROW_LIMIT)
     } finally {
       admin.close()
     }
