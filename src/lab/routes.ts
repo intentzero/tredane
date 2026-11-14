@@ -81,6 +81,109 @@ export const LAB_TOOLS = [
     },
     annotations: { readOnlyHint: true },
   },
+  {
+    name: 'lab_config_get',
+    description:
+      'Configuração completa da clínica demo (serviços com variantes, salas, profissionais, horários, bloqueios). Só leitura; usar antes de alterar e para obter os ids.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'lab_config_service',
+    description:
+      'Cria (sem id) ou atualiza um serviço da clínica demo. Aceita os mesmos campos do painel (name, durationMinutes, bufferMinutes, professionalIds, roomRequirement, audiencia, priceCents, variantKind/variantKindPlural, variantSelection, synonyms, weeklyWindows, tempo…). Omitido na edição mantém. A validação é a do painel: um erro diz o que falta.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+        durationMinutes: { type: 'integer' },
+        bufferMinutes: { type: 'integer' },
+        professionalIds: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['name', 'durationMinutes', 'bufferMinutes', 'professionalIds'],
+      additionalProperties: true,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: 'lab_config_service_active',
+    description: 'Ativa ou desativa um serviço (não há apagar no laboratório).',
+    inputSchema: {
+      type: 'object',
+      properties: { serviceId: { type: 'string' }, active: { type: 'boolean' } },
+      required: ['serviceId', 'active'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: 'lab_config_resource',
+    description:
+      'Cria (sem id) ou atualiza uma sala, profissional ou equipamento (kind, name, capacity, attendanceMode, sameSexInSlot, hoursMode, homeRoomId…). Mesma validação do painel.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, kind: { type: 'string' }, name: { type: 'string' } },
+      required: ['kind', 'name'],
+      additionalProperties: true,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: 'lab_config_resource_active',
+    description: 'Ativa ou desativa uma sala, profissional ou equipamento.',
+    inputSchema: {
+      type: 'object',
+      properties: { resourceId: { type: 'string' }, active: { type: 'boolean' } },
+      required: ['resourceId', 'active'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: 'lab_config_windows',
+    description:
+      'Substitui as faixas semanais de um recurso (ou da clínica inteira, com o id de escopo da clínica). dayOfWeek e minutos desde a meia-noite.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        resourceId: { type: 'string' },
+        windows: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              dayOfWeek: { type: 'integer' },
+              startMinute: { type: 'integer' },
+              endMinute: { type: 'integer' },
+            },
+            required: ['dayOfWeek', 'startMinute', 'endMinute'],
+          },
+        },
+      },
+      required: ['resourceId', 'windows'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: 'lab_config_block',
+    description:
+      'Cria um bloqueio de agenda num recurso (resourceId, startsAt, endsAt em ms, reason, note). Com dryRun: true só lista os compromissos afetados.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        resourceId: { type: 'string' },
+        startsAt: { type: 'integer' },
+        endsAt: { type: 'integer' },
+        reason: { type: 'string' },
+        dryRun: { type: 'boolean' },
+      },
+      required: ['resourceId', 'startsAt', 'endsAt', 'reason'],
+      additionalProperties: true,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
 ] as const
 
 type Args = Record<string, unknown>
@@ -92,9 +195,9 @@ function str(v: unknown, max: number): string | null {
 export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBindings) {
   const args: Args = rawArgs && typeof rawArgs === 'object' ? (rawArgs as Args) : {}
   const stub = env.CLINIC.get(env.CLINIC.idFromName(DEMO_CLINIC_TENANT_ID))
-  const caller = workerCaller(DEMO_CLINIC_TENANT_ID)
+  const caller = workerCaller(DEMO_CLINIC_TENANT_ID, 'lab:mcp')
   const waId = resolveLabWaId(args.waId)
-  if (name !== 'lab_status' && !waId) {
+  if ((name === 'lab_say' || name === 'lab_tap' || name === 'lab_state') && !waId) {
     return toolErrorResult('waId inválido: usar 5500 + 8 a 11 dígitos.')
   }
   try {
@@ -128,6 +231,17 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
         const limit = typeof args.messageLimit === 'number' ? args.messageLimit : undefined
         return toolTextResult(await stub.labState(caller, { waId: waId!, messageLimit: limit }))
       }
+      case 'lab_config_get':
+        return toolTextResult(await stub.labConfig(caller, 'get', {}))
+      case 'lab_config_service':
+      case 'lab_config_resource':
+      case 'lab_config_windows':
+      case 'lab_config_block':
+        return toolTextResult(await stub.labConfig(caller, name.slice('lab_config_'.length), args))
+      case 'lab_config_service_active':
+        return toolTextResult(await stub.labConfig(caller, 'service_active', args))
+      case 'lab_config_resource_active':
+        return toolTextResult(await stub.labConfig(caller, 'resource_active', args))
       default:
         return toolErrorResult(`Ferramenta desconhecida: ${name}`)
     }

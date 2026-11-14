@@ -2320,6 +2320,39 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return readLabState(this.#db, caller.tenantId, input, { used, cap: labMaxTurnsDaily(this.env) })
   }
 
+  /**
+   * DEC-182 fase 2 — configuração da clínica demo pelo laboratório. Lista fechada de
+   * operações que reutilizam os métodos do painel (validação, auditoria e eventos iguais).
+   * Sem apagar serviços ou salas: desativar chega para ajustar um teste.
+   */
+  async labConfig(caller: ClinicCaller, op: string, payload: Record<string, unknown>): Promise<unknown> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    this.#assertLabAllowed(caller)
+    switch (op) {
+      case 'get':
+        return this.getConfigSnapshot(caller)
+      case 'readiness':
+        return this.getConfigReadiness(caller)
+      case 'service':
+        return this.upsertClinicService(caller, payload as unknown as UpsertServiceInput)
+      case 'service_active':
+        return this.setClinicServiceActive(caller, String(payload.serviceId ?? ''), payload.active === true)
+      case 'resource':
+        return this.upsertClinicResource(caller, payload as unknown as UpsertResourceInput)
+      case 'resource_active':
+        return this.setClinicResourceActive(caller, String(payload.resourceId ?? ''), payload.active === true)
+      case 'windows':
+        return this.setClinicWeeklyWindows(caller, payload as unknown as SetWeeklyWindowsInput)
+      case 'block':
+        return this.createClinicBlock(caller, payload as unknown as CreateBlockInput)
+      case 'unmatched_terms':
+        return this.listClinicUnmatchedTerms(caller)
+      default:
+        throw new ValidationError('lab_config_op_unknown', `Operação desconhecida: ${op}`)
+    }
+  }
+
   #assertLabAllowed(caller: ClinicCaller): void {
     if (!isDemoTenantId(caller.tenantId) || this.env.ENVIRONMENT !== 'staging') {
       throw new TenantMismatchError('laboratório só para a clínica demo em staging')
