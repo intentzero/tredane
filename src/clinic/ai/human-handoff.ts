@@ -5,6 +5,7 @@
  * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
  * fora do expediente → sem oferta/dica de equipe; pedido explícito → horário, IA activa.
  */
+import { AI_ACTOR_ID, AI_ACTOR_NAME } from '../ai-actor'
 import type { Clock } from '../../db/clock'
 import { HANDOFF_TIMEOUT_MS } from '../constants'
 import { workerCaller } from '../envelopes'
@@ -84,7 +85,7 @@ function withUnderstoodFrame(
   return frame ? `${detail} ${frame}` : detail
 }
 
-const AI_ASSIGNEE = 'system:ai-autodraft'
+const AI_ASSIGNEE = AI_ACTOR_ID
 
 export const HUMAN_HANDOFF_TEXT = 'Vou pedir para a equipe continuar daqui.'
 /** Prefixo comum DEC-083 / DEC-113 — «já dito» aceita as duas variantes. */
@@ -441,20 +442,20 @@ export function resumeAiReply(
     tenantId,
     conversationId,
     assigneeClerkUserId: AI_ASSIGNEE,
-    assigneeDisplayName: 'IA',
+    assigneeDisplayName: AI_ACTOR_NAME,
     updatedAt: now,
   })
   syncOpenOpportunityAssignee(db, {
     tenantId,
     conversationId,
     assigneeClerkUserId: AI_ASSIGNEE,
-    assigneeDisplayName: 'IA',
+    assigneeDisplayName: AI_ACTOR_NAME,
     updatedAt: now,
   })
   return [
     pauseEvent(db, tenantId, conversationId, false, clock, {
       assigneeClerkUserId: AI_ASSIGNEE,
-      assigneeDisplayName: 'IA',
+      assigneeDisplayName: AI_ACTOR_NAME,
       source,
       handoffTimeoutAt: null,
     }),

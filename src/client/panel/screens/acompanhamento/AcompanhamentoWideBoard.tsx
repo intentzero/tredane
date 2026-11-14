@@ -9,6 +9,7 @@ import { useOutsideClose } from '../../ui/useOutsideClose'
 import { ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { useInboxRealtime } from '../../realtime/InboxRealtime'
+import { isAiActorId } from '../../../../clinic/ai-actor'
 import { avatarTone, initials } from '../inbox/format'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
 import {
@@ -365,7 +366,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                           </span>
                         )}
                         <span className="acomp-card-foot">
-                          {card.assigneeDisplayName === 'IA' ? (
+                          {isAiActorId(card.assigneeClerkUserId) ? (
                             <span className="acomp-chip-ai">IA</span>
                           ) : card.assigneeDisplayName ? (
                             <span>{card.assigneeDisplayName}</span>

@@ -12,6 +12,7 @@
  *   (DEC-083). Modelo falhou / saída rejeitada / falha do redator de exceção →
  *   frase DEC-107 + alerta à equipe, sem pausar a IA (#404 / #489).
  */
+import { AI_ACTOR_ID, AI_ACTOR_NAME } from '../ai-actor'
 import { AI_TIMEOUT_MS, detectStrongInjectionSignals } from '../../ai'
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
@@ -132,8 +133,8 @@ function withDeferredFrame(
   return { ...input, afterPersist: deferred.toAfterPersist(clock) }
 }
 
-export const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
-const AUTODRAFT_ACTOR_NAME = 'IA'
+export const AUTODRAFT_ACTOR_ID = AI_ACTOR_ID
+const AUTODRAFT_ACTOR_NAME = AI_ACTOR_NAME
 
 /**
  * Depois deste prazo um job deixado em `generating` é órfão: o alarme anterior

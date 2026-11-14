@@ -126,7 +126,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
     DATA.agendado = [
       card('d', 'Carla Mendes', 'agendado', {
-        assigneeClerkUserId: null,
+        assigneeClerkUserId: 'system:ai-autodraft',
         assigneeDisplayName: 'IA',
         linkedAppointmentId: 'ap1',
         linkedAppointment: { id: 'ap1', startsAt: NOW + DAY, endsAt: NOW + DAY + 3_600_000, status: 'confirmed' } as never,
@@ -142,6 +142,17 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     } finally {
       DATA.agendado = previous
     }
+  })
+
+  it('«IA» em chip só pelo id do responsável, não pelo texto do nome (DEC-184)', async () => {
+    DATA.agendado = [
+      card('d', 'Carla Mendes', 'agendado', { assigneeClerkUserId: 'user_x', assigneeDisplayName: 'IA' }),
+    ]
+    mount()
+    const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
+    expect(carla.querySelector('.acomp-chip-ai')).toBeNull()
+    expect(within(carla).getByText('IA')).toBeTruthy()
+    DATA.agendado = [card('d', 'Carla Mendes', 'agendado')]
   })
 
   it('«Perdidos» acrescenta a coluna Perdido', async () => {
