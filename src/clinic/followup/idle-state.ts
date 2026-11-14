@@ -7,10 +7,10 @@ import { assertClinicSchemaReady } from '../migrations'
 import { findOpenOpportunityForConversation } from '../pipeline'
 import type { ClinicDb } from '../store'
 
-/** Confirmado: 30 minutos sem progresso útil. */
-export const IDLE_PROMPT_AFTER_MS = 30 * 60_000
-/** Confirmado (DEC-087): mais 30 minutos sem resposta à pergunta de idle. */
-export const IDLE_CLOSE_AFTER_MS = 30 * 60_000
+/** Confirmado (DEC-087, Paulo 14/11/2026): 15 minutos sem progresso útil. */
+export const IDLE_PROMPT_AFTER_MS = 15 * 60_000
+/** Confirmado (DEC-087, Paulo 14/11/2026): mais 15 minutos sem resposta à pergunta de idle. */
+export const IDLE_CLOSE_AFTER_MS = 15 * 60_000
 
 export type IdlePhase = 'prompt' | 'close'
 
@@ -86,7 +86,7 @@ export function setConversationIdle(
 }
 
 /**
- * Após inbound/outbound útil: reinicia o prazo de prompt (+30 min) se elegível.
+ * Após inbound/outbound útil: reinicia o prazo de prompt (+15 min) se elegível.
  */
 export function rescheduleConversationIdle(
   db: ClinicDb,

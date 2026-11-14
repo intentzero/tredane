@@ -4031,7 +4031,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       timer.addPhase('alarm_alerts', this.#clock.nowMs() - phase)
       phase = this.#clock.nowMs()
       try {
-      // DEC-087: idle 30 min + segundo prazo de mais 30 min.
+      // DEC-087: idle 15 min + segundo prazo de mais 15 min.
       const idleItems = sweepDueIdleConversations(
         this.#db,
         meta.tenantId,

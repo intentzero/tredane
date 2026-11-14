@@ -1,8 +1,8 @@
 # Épico — Follow-up conversacional e atendente virtual (DEC-086 a DEC-089)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 31/10/2026, America/Sao_Paulo; idle refinado no mesmo dia para **30 minutos**). Este documento é o épico. Issue: [#354](https://github.com/intentzero/tredane/issues/354).
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 31/10/2026, America/Sao_Paulo; idle **15 + 15 min** Confirmado Paulo 14/11/2026 America/Sao_Paulo). Este documento é o épico. Issue: [#354](https://github.com/intentzero/tredane/issues/354).
 
-**Decisões:** [DEC-086](../product/decisions.md) (pós-agendamento), [DEC-087](../product/decisions.md) (idle 30 min), [DEC-088](../product/decisions.md) (prefixo humano), [DEC-089](../product/decisions.md) (atendente virtual). Mantém DEC-061 (só botão versionado marca), DEC-042 (só a responsável configura), DEC-011 (contexto e retenção da IA), DEC-083 (pausa humana) e a ausência de sexo na ficha do contacto.
+**Decisões:** [DEC-086](../product/decisions.md) (pós-agendamento), [DEC-087](../product/decisions.md) (idle 15+15 min), [DEC-088](../product/decisions.md) (prefixo humano), [DEC-089](../product/decisions.md) (atendente virtual). Mantém DEC-061 (só botão versionado marca), DEC-042 (só a responsável configura), DEC-011 (contexto e retenção da IA), DEC-083 (pausa humana) e a ausência de sexo na ficha do contacto.
 
 **Onde vive o dado:** SQLite do Durable Object da clínica (DEC-038). Nada disto vai para o D1 central. Exemplos só com nomes fictícios (Ana, Carla, clínica Aurora). Sem dados reais de paciente.
 
@@ -21,12 +21,12 @@ Conferido no código da `main` (schema da clínica na versão 44). As fatias aba
 | Marcação só pelo botão versionado; texto livre não marca. | DEC-061; `handleProposalButtonClick`, `executeProposalConfirmOp` | Não reabrir marcação por texto. O follow-up pós-agendamento é **depois** do sucesso do botão. |
 | Etapa terminal **Concluído** (`concluido`) fecha o ciclo; **Perdido** também. | `OPPORTUNITY_STAGES`, `TERMINAL_OPPORTUNITY_STAGES`; migração `0005_pipeline` | **Revisão DEC-086 (31/10/2026):** «Não, obrigado» não move a etapa. Concluído é o fim do horário confirmado, sem outro horário futuro (DEC-094), ou a falta Não compareceu (DEC-092). Não inventar outra etapa de ganho. |
 | Botões WhatsApp interactivos (proposta, «Falar com a equipe»). | `sendOutboundMessageOp` com `interactive`; `button_reply` no webhook | Reutilizar o mesmo canal de botões versionados / ids estáveis. |
-| Alarme do Durable Object: Pix, comunicação pendente (5 min), outbound stuck, autodraft. | `ClinicDurableObject.alarm` | Estender o alarme (ou o mesmo padrão) para idle 30 min + segundo prazo; não criar Workflow só para isto se o alarme bastar. |
+| Alarme do Durable Object: Pix, comunicação pendente (5 min), outbound stuck, autodraft. | `ClinicDurableObject.alarm` | Estender o alarme (ou o mesmo padrão) para idle 15 min + segundo prazo 15 min; não criar Workflow só para isto se o alarme bastar. |
 | `clinic_settings` com fuso, Pix, abuse limits, Tempo, IA opt-in; escrita só owner. | migrações `0003`…`0030`; `AutomationLimitsCard` | Acrescentar nome/género do atendente virtual na mesma tabela e no hub owner. |
 | Assumir conversa, outbound humano com `authorDisplayName`, pausa da IA (DEC-083). | `assignConversationOp`, `sendOutboundMessageOp`, `human-handoff` | Prefixo `[Nome]` no texto enviado ao WhatsApp quando a conversa está com humano; não no painel como etiqueta separada. |
 | Contacto sem sexo. | `contacts` (migração `0001`) | Não gravar sexo da cliente por inferência. |
 
-**O que falta, por fatia:** S1 docs; S2 campos e UI do atendente virtual; S3 prefixo humano; S4 pós-agendamento; S5 idle 30 min + fecho.
+**O que falta, por fatia:** S1 docs; S2 campos e UI do atendente virtual; S3 prefixo humano; S4 pós-agendamento; S5 idle 15+15 min + fecho.
 
 ---
 
@@ -41,13 +41,13 @@ Depois de a marcação ficar confirmada pelo botão da proposta (DEC-061), o sis
 
 DEC-061 inalterado: texto livre nunca marca.
 
-### 2. Conversas em aberto — idle 30 min (DEC-087)
+### 2. Conversas em aberto — idle 15+15 min (DEC-087)
 
 **Critério único de «sem progresso útil»:** tempo decorrido desde a **última mensagem inbound ou outbound da conversa**, a que for mais recente. Mensagens `system` do painel **não** reiniciam o relógio. O alarme usa este instante único.
 
-Após **30 minutos** Confirmados sem progresso útil, perguntar se quer **prosseguir** ou **terminar** o atendimento (botões).
+Após **15 minutos** Confirmados sem progresso útil, perguntar se quer **prosseguir** ou **terminar** o atendimento (botões).
 
-**Sem resposta:** segundo prazo **Confirmado = mais 30 minutos** a contar do envio da pergunta de idle (Paulo, 31/10/2026, «ok»). O destino é o do **Terminar** (DEC-087): com horário futuro confirmado a etapa não muda; sem horário, **Perdido**. A frase que fechava em **Concluído** deixa de valer.
+**Sem resposta:** segundo prazo **Confirmado = mais 15 minutos** a contar do envio da pergunta de idle (Paulo, 14/11/2026, America/Sao_Paulo; substitui 30+30 de 31/10/2026). O destino é o do **Terminar** (DEC-087): com horário futuro confirmado a etapa não muda; sem horário, **Perdido**. A frase que fechava em **Concluído** deixa de valer.
 
 **Excepções (Confirmado no desenho da implementação):** conversa com atendente humano activo (DEC-083 / Assumir) **não** recebe o prompt de idle automático enquanto a pessoa estiver responsável; nova mensagem inbound ou outbound cancela o prazo corrente e reinicia a contagem.
 
@@ -77,7 +77,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 | S2 | `clinic_settings` nome+género + API owner + UI hub | código |
 | S3 | Prefixo `[Nome]` no outbound humano | código |
 | S4 | Follow-up pós-agendamento + botões + `concluido` | código |
-| S5 | Idle 30 min + pergunta + fecho no segundo prazo (alarme DO) | código |
+| S5 | Idle 15+15 min + pergunta + fecho no segundo prazo (alarme DO) | código |
 
 ---
 
@@ -87,7 +87,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 **Critérios de aceite.**
 
-- [ ] `docs/product/decisions.md` tem DEC-086…089 com idle **30 min** e segundo prazo **Confirmados**.
+- [ ] `docs/product/decisions.md` tem DEC-086…089 com idle **15+15 min** e segundo prazo **Confirmados**.
 - [ ] A etapa de fecho documentada é `concluido` / Concluído.
 - [ ] Issue/épico GitHub aponta para este ficheiro.
 - [ ] `docs/MVP.md` resume as quatro regras sem duplicar o detalhe.
@@ -120,9 +120,9 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 ---
 
-## S5 — Idle 30 min + fecho
+## S5 — Idle 15+15 min + fecho
 
-**Comportamento.** Em cada inbound/outbound de mensagem da conversa, agenda (ou reagenda) o alarme do DO para `last_message_at + 30 min` nas conversas elegíveis (ciclo aberto, sem responsável humano activo). No alarme: se ainda idle, envia pergunta prosseguir/terminar e agenda o segundo prazo (+30 min, Confirmado). **Terminar** e esse silêncio: com horário futuro confirmado agradece e permanece em `agendado`; sem horário futuro agradece e vai para `perdido` (DEC-087).
+**Comportamento.** Em cada inbound/outbound de mensagem da conversa, agenda (ou reagenda) o alarme do DO para `last_message_at + 15 min` nas conversas elegíveis (ciclo aberto, sem responsável humano activo). No alarme: se ainda idle, envia pergunta prosseguir/terminar e agenda o segundo prazo (+15 min, Confirmado Paulo 14/11/2026). **Terminar** e esse silêncio: com horário futuro confirmado agradece e permanece em `agendado`; sem horário futuro agradece e vai para `perdido` (DEC-087).
 
 **Aceite:** AC-72; REQ-098.
 

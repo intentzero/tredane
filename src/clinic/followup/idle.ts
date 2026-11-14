@@ -1,5 +1,5 @@
 /**
- * DEC-087 — idle 30 min em conversas em aberto + segundo prazo de mais 30 min.
+ * DEC-087 — idle 15 min em conversas em aberto + segundo prazo de mais 15 min.
  * Mensagens system não reiniciam o relógio; humano activo (Assumir) isenta o prompt.
  */
 import type { Clock } from '../../db/clock'
