@@ -73,6 +73,40 @@ export function labMcpResourceUrl(
   return `${base}/api/mcp/lab`
 }
 
+/**
+ * Cursor (desktop + cloud agents) omits RFC 8707 `resource` on /authorize even when the
+ * AS has multiple protected resources. workers-oauth-provider then redirects to the
+ * callback with `error=invalid_target` («resource parameter is required…») and Cursor
+ * shows «Declined». Infer the sole resource from an unambiguous scope when `resource`
+ * is missing — Lab (`lab:converse`) vs Review (`review_samples:read`).
+ */
+export function authorizeRequestWithInferredResource(
+  request: Request,
+  env: WorkerBindings | null | undefined,
+): Request {
+  const url = new URL(request.url)
+  if (url.searchParams.get('resource')) return request
+
+  const scopes = (url.searchParams.get('scope') ?? '')
+    .split(/[\s+]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const meaningful = scopes.filter((s) => s !== 'offline_access')
+  const wantsLab = meaningful.includes(LAB_MCP_SCOPE)
+  const wantsReview = meaningful.includes(REVIEW_SAMPLES_SCOPE)
+
+  let resource: string | null = null
+  if (wantsLab && !wantsReview) {
+    resource = labMcpResourceUrl(env, request.url)
+  } else if (wantsReview && !wantsLab) {
+    resource = reviewMcpResourceUrl(env, request.url)
+  }
+  if (!resource) return request
+
+  url.searchParams.set('resource', resource)
+  return new Request(url.toString(), request)
+}
+
 export function reviewMcpIssuerUrl(
   env: WorkerBindings | null | undefined,
   requestUrl: string,
@@ -332,11 +366,14 @@ export async function handleReviewMcpAuthorize(
 
   try {
     if (request.method === 'GET') {
-      const authRequest = await oauth.parseAuthRequest(request)
+      // Inject resource before parseAuthRequest — Cursor omits it; multi-resource AS would
+      // otherwise 302 error=invalid_target → Declined (see authorizeRequestWithInferredResource).
+      const authorizeGet = authorizeRequestWithInferredResource(request, env)
+      const authRequest = await oauth.parseAuthRequest(authorizeGet)
       try {
         await authenticateHumanWithOptionalSuperadmin(
           services,
-          authorizeSessionRequest(request, env),
+          authorizeSessionRequest(authorizeGet, env),
           { verifySuperadmin: true },
         )
       } catch (err) {
@@ -346,8 +383,10 @@ export async function handleReviewMcpAuthorize(
           : 'Entre no painel como superadmin (sessão Clerk) e volte a abrir este URL.'
         // Sem redirect automático ao Clerk (forceRedirect do painel não volta ao /authorize).
         // HTML com link explícito evita o stall do browser OAuth em texto «Sessão ausente».
+        // 200 (not 401): some OAuth browsers treat authorize 401 as hard failure / Declined
+        // before rendering the login HTML; the page itself still requires a session to continue.
         return new Response(authorizeLoginRequiredHtml(loginUrl, msg), {
-          status: 401,
+          status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
         })
       }

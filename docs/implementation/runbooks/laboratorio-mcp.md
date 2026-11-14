@@ -36,6 +36,12 @@ também existe a forma appendida `/api/mcp/lab/.well-known/oauth-protected-resou
 `/.well-known/oauth-protected-resource` continua a descrever **só** o Review (`review-central`) — não serve para o Lab.
 O AS aceita o redirect `cursor://anysphere.cursor-mcp/oauth/callback` (`allowPrivateUseRedirectUris`); sem isso o
 Cursor Desktop regista o cliente mas falha em `/authorize` com «Invalid redirect URI» / «Declined».
+O AS tem **dois** recursos (Review + Lab): o Cursor omite o parâmetro RFC 8707 `resource` no `/authorize`;
+sem inferência, o provider devolve `error=invalid_target` no callback («resource parameter is required…») e o
+Cursor mostra «Declined». O `/authorize` injeta o recurso a partir do `scope` quando este é inequívoco
+(`lab:converse` → Lab; `review_samples:read` → Review). Cloud Agents usam
+`https://www.cursor.com/agents/mcp/oauth/callback` (já aceite no DCR); o desktop usa `cursor://` — ambos
+precisam da mesma inferência de `resource`.
 
 ## Ferramentas (fase 1)
 
