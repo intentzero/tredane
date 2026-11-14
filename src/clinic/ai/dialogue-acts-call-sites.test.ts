@@ -127,6 +127,9 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Pode continuar — diga o serviço ou a opção que prefere\.$/,
   /^DEC-177: FAQ missing catalog detail; Continuar\/equipe; no leftover\.$/,
   /^DEC-177: FAQ \$\{faq\.kind\} from catalog facts \(pending kept\)\.$/,
+  // DEC-185 — FAQ institucional modo A (park/resume; fallback alinhado)
+  /^Qual horário fica melhor para \$\{svcKn\.name\}\?$/,
+  /^DEC-185: clinic knowledge \$\{knowledge\.entry\.id\} \(mode A; pending kept\)\.$/,
   /^Continuar$/,
   // ask-info-realize fallbacks (acto decide; sayAct redige)
   /^\$\{zone\.name\} custa \$\{preço\} e dura \$\{duração\} min\.$/,

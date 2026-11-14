@@ -105,6 +105,12 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     listUnmatchedTerms: (caller) => stub.listClinicUnmatchedTerms(caller),
     acceptUnmatchedTerm: (caller, input) => stub.acceptClinicUnmatchedTerm(caller, input),
     dismissUnmatchedTerm: (caller, id) => stub.dismissClinicUnmatchedTerm(caller, id),
+    listKnowledgeCategories: (caller) => stub.listClinicKnowledgeCategories(caller),
+    listKnowledgeEntries: (caller, opts) => stub.listClinicKnowledgeEntries(caller, opts),
+    upsertKnowledgeCategory: (caller, input) => stub.upsertClinicKnowledgeCategory(caller, input),
+    deleteKnowledgeCategory: (caller, id) => stub.deleteClinicKnowledgeCategory(caller, id),
+    upsertKnowledgeEntry: (caller, input) => stub.upsertClinicKnowledgeEntry(caller, input),
+    deleteKnowledgeEntry: (caller, id) => stub.deleteClinicKnowledgeEntry(caller, id),
     upsertResource: (caller, input) => stub.upsertClinicResource(caller, input),
     setResourceActive: (caller, resourceId, active) =>
       stub.setClinicResourceActive(caller, resourceId, active),
@@ -545,6 +551,135 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         const out = await gw.dismissUnmatchedTerm(
           callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
           c.req.param('termId'),
+        )
+        return c.json(out)
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  // DEC-185: FAQ / conhecimento institucional — só owner (clinic.config.write).
+  app.get('/api/tenants/:tenantId/config/knowledge/categories', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const items = await gw.listKnowledgeCategories(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json({ items })
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/knowledge/categories', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{ id?: unknown; name?: unknown; sortOrder?: unknown }>()
+      if (typeof body?.name !== 'string') {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.upsertKnowledgeCategory(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          ...(typeof body.id === 'string' ? { id: body.id } : {}),
+          name: body.name,
+          ...(typeof body.sortOrder === 'number' ? { sortOrder: body.sortOrder } : {}),
+        },
+      )
+      return c.json(row)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.delete(
+    '/api/tenants/:tenantId/config/knowledge/categories/:categoryId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.deleteKnowledgeCategory(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('categoryId'),
+        )
+        return c.json(out)
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.get('/api/tenants/:tenantId/config/knowledge/entries', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const statusRaw = c.req.query('status')
+      const status =
+        statusRaw === 'draft' || statusRaw === 'published' ? statusRaw : undefined
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const items = await gw.listKnowledgeEntries(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        status ? { status } : undefined,
+      )
+      return c.json({ items })
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/knowledge/entries', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{
+        id?: unknown
+        categoryId?: unknown
+        question?: unknown
+        answer?: unknown
+        matchCues?: unknown
+        status?: unknown
+      }>()
+      if (typeof body?.categoryId !== 'string' || typeof body?.question !== 'string' || typeof body?.answer !== 'string') {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.upsertKnowledgeEntry(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          ...(typeof body.id === 'string' ? { id: body.id } : {}),
+          categoryId: body.categoryId,
+          question: body.question,
+          answer: body.answer,
+          ...(body.matchCues === undefined ? {} : { matchCues: body.matchCues }),
+          ...(body.status === 'draft' || body.status === 'published'
+            ? { status: body.status }
+            : {}),
+        },
+      )
+      return c.json(row)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.delete(
+    '/api/tenants/:tenantId/config/knowledge/entries/:entryId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.deleteKnowledgeEntry(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('entryId'),
         )
         return c.json(out)
       } catch (err) {

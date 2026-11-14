@@ -22,6 +22,18 @@ import {
   listUnmatchedTermSuggestions,
   type UnmatchedTermSuggestion,
 } from './unmatched-terms'
+import {
+  deleteKnowledgeCategory,
+  deleteKnowledgeEntry,
+  listKnowledgeCategories,
+  listKnowledgeEntries,
+  upsertKnowledgeCategory,
+  upsertKnowledgeEntry,
+  type KnowledgeCategory,
+  type KnowledgeEntry,
+  type KnowledgeEntryStatus,
+  type UpsertKnowledgeEntryInput,
+} from './knowledge'
 import { NotFoundError } from '../errors'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
@@ -620,5 +632,129 @@ export function dismissUnmatchedTermOp(
       clock,
     )
     return { ok: true as const, id }
+  })
+}
+
+/** DEC-185: FAQ / conhecimento — listagens (owner). */
+export function listKnowledgeCategoriesOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+): KnowledgeCategory[] {
+  const meta = prepare(db, caller, clock)
+  return listKnowledgeCategories(db, meta.tenantId)
+}
+
+export function listKnowledgeEntriesOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+  opts?: { status?: KnowledgeEntryStatus },
+): KnowledgeEntry[] {
+  const meta = prepare(db, caller, clock)
+  return listKnowledgeEntries(db, meta.tenantId, opts)
+}
+
+export function upsertKnowledgeCategoryOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: { id?: string; name: string; sortOrder?: number },
+  clock: Clock,
+): KnowledgeCategory {
+  const meta = prepare(db, caller, clock)
+  const actor = caller.actorId ?? caller.kind
+  return db.transactionSync(() => {
+    const row = upsertKnowledgeCategory(db, meta.tenantId, input, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor,
+        action: input.id ? 'config.knowledge_category_updated' : 'config.knowledge_category_created',
+        objectType: 'knowledge_category',
+        objectId: row.id,
+        detail: { name: row.name },
+      },
+      clock,
+    )
+    return row
+  })
+}
+
+export function deleteKnowledgeCategoryOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  id: string,
+  clock: Clock,
+): { ok: true; id: string } {
+  const meta = prepare(db, caller, clock)
+  const actor = caller.actorId ?? caller.kind
+  return db.transactionSync(() => {
+    const out = deleteKnowledgeCategory(db, meta.tenantId, id)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor,
+        action: 'config.knowledge_category_deleted',
+        objectType: 'knowledge_category',
+        objectId: id,
+        detail: {},
+      },
+      clock,
+    )
+    return out
+  })
+}
+
+export function upsertKnowledgeEntryOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: UpsertKnowledgeEntryInput,
+  clock: Clock,
+): KnowledgeEntry {
+  const meta = prepare(db, caller, clock)
+  const actor = caller.actorId ?? caller.kind
+  return db.transactionSync(() => {
+    const row = upsertKnowledgeEntry(db, meta.tenantId, input, actor, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor,
+        action: input.id ? 'config.knowledge_entry_updated' : 'config.knowledge_entry_created',
+        objectType: 'knowledge_entry',
+        objectId: row.id,
+        detail: { status: row.status, categoryId: row.categoryId },
+      },
+      clock,
+    )
+    return row
+  })
+}
+
+export function deleteKnowledgeEntryOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  id: string,
+  clock: Clock,
+): { ok: true; id: string } {
+  const meta = prepare(db, caller, clock)
+  const actor = caller.actorId ?? caller.kind
+  return db.transactionSync(() => {
+    const out = deleteKnowledgeEntry(db, meta.tenantId, id)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor,
+        action: 'config.knowledge_entry_deleted',
+        objectType: 'knowledge_entry',
+        objectId: id,
+        detail: {},
+      },
+      clock,
+    )
+    return out
   })
 }

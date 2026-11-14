@@ -84,6 +84,29 @@ export type ClinicConfigGateway = {
     input: { id: string; serviceId: string },
   ): Promise<ServiceRow>
   dismissUnmatchedTerm(caller: ClinicCaller, id: string): Promise<{ ok: true; id: string }>
+  /** DEC-185: FAQ / conhecimento institucional. */
+  listKnowledgeCategories(caller: ClinicCaller): Promise<clinicConfig.KnowledgeCategory[]>
+  listKnowledgeEntries(
+    caller: ClinicCaller,
+    opts?: { status?: 'draft' | 'published' },
+  ): Promise<clinicConfig.KnowledgeEntry[]>
+  upsertKnowledgeCategory(
+    caller: ClinicCaller,
+    input: { id?: string; name: string; sortOrder?: number },
+  ): Promise<clinicConfig.KnowledgeCategory>
+  deleteKnowledgeCategory(caller: ClinicCaller, id: string): Promise<{ ok: true; id: string }>
+  upsertKnowledgeEntry(
+    caller: ClinicCaller,
+    input: {
+      id?: string
+      categoryId: string
+      question: string
+      answer: string
+      matchCues?: unknown
+      status?: 'draft' | 'published'
+    },
+  ): Promise<clinicConfig.KnowledgeEntry>
+  deleteKnowledgeEntry(caller: ClinicCaller, id: string): Promise<{ ok: true; id: string }>
   upsertResource(
     caller: ClinicCaller,
     input: UpsertResourceInput,
@@ -188,6 +211,24 @@ export function createMemoryClinicConfigGateway(
     },
     async dismissUnmatchedTerm(caller, id) {
       return clinicConfig.dismissUnmatchedTermOp(db, caller, id, clock)
+    },
+    async listKnowledgeCategories(caller) {
+      return clinicConfig.listKnowledgeCategoriesOp(db, caller, clock)
+    },
+    async listKnowledgeEntries(caller, opts) {
+      return clinicConfig.listKnowledgeEntriesOp(db, caller, clock, opts)
+    },
+    async upsertKnowledgeCategory(caller, input) {
+      return clinicConfig.upsertKnowledgeCategoryOp(db, caller, input, clock)
+    },
+    async deleteKnowledgeCategory(caller, id) {
+      return clinicConfig.deleteKnowledgeCategoryOp(db, caller, id, clock)
+    },
+    async upsertKnowledgeEntry(caller, input) {
+      return clinicConfig.upsertKnowledgeEntryOp(db, caller, input, clock)
+    },
+    async deleteKnowledgeEntry(caller, id) {
+      return clinicConfig.deleteKnowledgeEntryOp(db, caller, id, clock)
     },
     async upsertResource(caller, input) {
       return clinicConfig.upsertResourceOp(db, caller, input, clock)

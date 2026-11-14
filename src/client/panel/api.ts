@@ -835,6 +835,115 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { ok: true; id: string }
     },
 
+    /** DEC-185: FAQ / conhecimento institucional (só owner). */
+    async listKnowledgeCategories(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<KnowledgeCategoryDto[]> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/knowledge/categories`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { items: KnowledgeCategoryDto[] }
+      assertGeneration(opts)
+      return body.items
+    },
+
+    async listKnowledgeEntries(
+      tenantId: string,
+      opts?: FetchOpts & { status?: 'draft' | 'published' },
+    ): Promise<KnowledgeEntryDto[]> {
+      const q = opts?.status ? `?status=${encodeURIComponent(opts.status)}` : ''
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/knowledge/entries${q}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { items: KnowledgeEntryDto[] }
+      assertGeneration(opts)
+      return body.items
+    },
+
+    async upsertKnowledgeCategory(
+      tenantId: string,
+      input: { id?: string; name: string; sortOrder?: number },
+      opts?: FetchOpts,
+    ): Promise<KnowledgeCategoryDto> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/knowledge/categories`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as KnowledgeCategoryDto
+    },
+
+    async deleteKnowledgeCategory(
+      tenantId: string,
+      categoryId: string,
+      opts?: FetchOpts,
+    ): Promise<{ ok: true; id: string }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/knowledge/categories/${encodeURIComponent(categoryId)}`,
+        { method: 'DELETE' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { ok: true; id: string }
+    },
+
+    async upsertKnowledgeEntry(
+      tenantId: string,
+      input: {
+        id?: string
+        categoryId: string
+        question: string
+        answer: string
+        matchCues?: string[]
+        status?: 'draft' | 'published'
+      },
+      opts?: FetchOpts,
+    ): Promise<KnowledgeEntryDto> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/knowledge/entries`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as KnowledgeEntryDto
+    },
+
+    async deleteKnowledgeEntry(
+      tenantId: string,
+      entryId: string,
+      opts?: FetchOpts,
+    ): Promise<{ ok: true; id: string }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/knowledge/entries/${encodeURIComponent(entryId)}`,
+        { method: 'DELETE' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { ok: true; id: string }
+    },
+
     async deleteResource(
       tenantId: string,
       resourceId: string,
@@ -2877,6 +2986,31 @@ export type UnmatchedTermSuggestion = {
   firstSeenAt: number
   lastSeenAt: number
   suggestedServiceId: string | null
+}
+
+/** DEC-185: categoria FAQ / conhecimento institucional. */
+export type KnowledgeCategoryDto = {
+  id: string
+  name: string
+  sortOrder: number
+  createdAt: number
+  updatedAt: number
+}
+
+/** DEC-185: entrada Q&A publicada ou rascunho. */
+export type KnowledgeEntryDto = {
+  id: string
+  categoryId: string
+  categoryName: string
+  question: string
+  answer: string
+  matchCues: string[]
+  status: 'draft' | 'published'
+  sourceKey: string | null
+  version: number
+  createdAt: number
+  updatedAt: number
+  publishedAt: number | null
 }
 
 /** Resposta de GET /config/review (DEC-085; DEC-112 avisos de conversa). */

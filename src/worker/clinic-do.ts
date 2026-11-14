@@ -3198,6 +3198,79 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicConfig.dismissUnmatchedTermOp(this.#db, caller, id, this.#clock)
   }
 
+  /** DEC-185: FAQ / conhecimento institucional (owner). */
+  async listClinicKnowledgeCategories(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.listKnowledgeCategoriesOp(this.#db, caller, this.#clock)
+  }
+
+  async listClinicKnowledgeEntries(
+    caller: ClinicCaller,
+    opts?: { status?: 'draft' | 'published' },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.listKnowledgeEntriesOp(this.#db, caller, this.#clock, opts)
+  }
+
+  async upsertClinicKnowledgeCategory(
+    caller: ClinicCaller,
+    input: { id?: string; name: string; sortOrder?: number },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.upsertKnowledgeCategoryOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(
+      caller,
+      input.id ? 'config.knowledge_category_updated' : 'config.knowledge_category_created',
+      'knowledge_category',
+      row.id,
+      { name: row.name },
+    )
+    return row
+  }
+
+  async deleteClinicKnowledgeCategory(caller: ClinicCaller, id: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const out = clinicConfig.deleteKnowledgeCategoryOp(this.#db, caller, id, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.knowledge_category_deleted', 'knowledge_category', id, {})
+    return out
+  }
+
+  async upsertClinicKnowledgeEntry(
+    caller: ClinicCaller,
+    input: {
+      id?: string
+      categoryId: string
+      question: string
+      answer: string
+      matchCues?: unknown
+      status?: 'draft' | 'published'
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.upsertKnowledgeEntryOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(
+      caller,
+      input.id ? 'config.knowledge_entry_updated' : 'config.knowledge_entry_created',
+      'knowledge_entry',
+      row.id,
+      { status: row.status, categoryId: row.categoryId },
+    )
+    return row
+  }
+
+  async deleteClinicKnowledgeEntry(caller: ClinicCaller, id: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const out = clinicConfig.deleteKnowledgeEntryOp(this.#db, caller, id, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.knowledge_entry_deleted', 'knowledge_entry', id, {})
+    return out
+  }
+
   async upsertClinicResource(caller: ClinicCaller, input: UpsertResourceInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

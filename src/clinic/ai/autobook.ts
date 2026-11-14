@@ -132,6 +132,10 @@ import {
   faqMissingChoiceInteractive,
 } from './faq-clarification'
 import {
+  answerClinicKnowledge,
+  looksLikeKnowledgeAsk,
+} from './clinic-knowledge-reply'
+import {
   parkFromFrame,
   shouldResumeSlotAsk,
   shouldResumeVariantAsk,
@@ -1230,6 +1234,67 @@ export async function tryAiAutoBook(
       }
     }
     // Sem serviço aberto: cede aos fillers / catalog frio (não leftover).
+  }
+
+  // DEC-185: FAQ institucional (modo A) mid-funnel — park → texto cadastrado → resume.
+  // Depois de preço/duração/FAQ zona (DEC-177); só com match published.
+  // Com pending de escolha discreta, só responde se parecer pergunta (não rouba «axila»).
+  {
+    const frameKnEarly = getBookingFrame(db, tenantId, input.conversationId)
+    const pendingSlot = frameKnEarly?.pending?.slot
+    const discretePending =
+      pendingSlot === 'linha' ||
+      pendingSlot === 'variantes' ||
+      pendingSlot === 'acumular' ||
+      pendingSlot === 'eco'
+    const knowledge =
+      discretePending && !looksLikeKnowledgeAsk(turnText)
+        ? null
+        : answerClinicKnowledge(db, tenantId, turnText)
+    if (knowledge) {
+      const frameKn = frameKnEarly
+      const svcKn = frameKn?.serviceId
+        ? services.find((s) => s.id === frameKn.serviceId)
+        : null
+      let replyText = knowledge.replyText
+      if (svcKn && frameKn) {
+        runBookingUpdate({ type: 'ask_info', topic: 'explicacao' })
+        const parked = parkFromFrame(frameKn, 'ask_info', 'explanation')
+        if (shouldResumeVariantAsk(parked)) {
+          const activeKn = svcKn.zones.filter((z) => z.active)
+          const lineKn = heldAudienceLine(frameKn) ?? frameKn.line ?? null
+          const poolKn =
+            needsAudienceLine(activeKn) && lineKn
+              ? zonesForAudienceLine(activeKn, lineKn)
+              : activeKn
+          const pool = poolKn.length > 0 ? poolKn : activeKn
+          const ask = variantListQuestion(
+            svcKn.name,
+            variantKindForAsk(svcKn),
+            pool,
+            input.conversationId,
+            { selectionMode: svcKn.variantSelection },
+          )
+          replyText = knowledge.replyText + '\n' + ask
+        } else if (shouldResumeSlotAsk(parked)) {
+          const horarioAsk = sayAct(
+            'perguntar_horario',
+            input.conversationId,
+            { serviço: svcKn.name },
+            `Qual horário fica melhor para ${svcKn.name}?`,
+          )
+          replyText = knowledge.replyText + '\n' + horarioAsk
+        }
+      }
+      return finish({
+        ...none('needs_info', {
+          confirmationMessageId: confirmation.id,
+          ...(svcKn ? { serviceId: svcKn.id } : {}),
+        }),
+        replyText,
+        notes: `DEC-185: clinic knowledge ${knowledge.entry.id} (mode A; pending kept).`,
+      })
+    }
   }
 
   // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).

@@ -79,6 +79,9 @@ export const OPERATIONAL_RESET_KEPT_TABLES: readonly string[] = [
   'realtime_events',
   'access_denials',
   'f0_probe',
+  // DEC-185 — FAQ / conhecimento institucional (config da clínica)
+  'clinic_knowledge_categories',
+  'clinic_knowledge_entries',
 ]
 
 export type OperationalResetResult = {

@@ -256,6 +256,11 @@ export function AcompanhamentoDetail({
         </div>
       ) : null}
 
+      <p className="clinic-muted acomp-knowledge-hint">
+        Respostas do conhecimento da clínica (FAQ) aparecem no fio da conversa como mensagem da
+        IA — a equipe acompanha ali.
+      </p>
+
       <div className="acomp-links">
         <Button
           className="panel-btn-secondary"
