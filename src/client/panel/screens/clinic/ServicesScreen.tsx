@@ -39,7 +39,13 @@ import { WeekEditor } from './WeekEditor'
 import { RuleRow } from './RuleRow'
 import { SynonymsField } from './SynonymsField'
 import { TempoSheet, tempoSummary } from './TempoSheet'
-import { claimedElsewhere, groupZones, serviceClaims } from './variantGroups'
+import {
+  claimedElsewhere,
+  firstSynonymCollision,
+  groupSynonyms,
+  groupZones,
+  serviceClaims,
+} from './variantGroups'
 
 /** Preço que o sinal percentual enxerga: a linha, ou a soma das variantes em uso. */
 function signalBaseCents(withVariants: boolean, price: string, zones: ZoneDraft[]): number | null {
@@ -636,6 +642,29 @@ export function ServiceForm({
       setFormError('Dê um nome a cada opção. O que você digitou continua aqui.')
       setSaving(false)
       return
+    }
+    // Mesma regra que assertSynonymsNoCollision — bloquear antes do PUT zones.
+    const serviceClash = firstSynonymCollision(synonyms, `${selfId}:`, allClaims)
+    if (serviceClash) {
+      setFormError(
+        `«${serviceClash.word}» já está em ${serviceClash.other}. Deixe a palavra num sítio só. O que você digitou continua aqui.`,
+      )
+      setSaving(false)
+      return
+    }
+    for (const group of groupZones(draftZones)) {
+      const clash = firstSynonymCollision(
+        groupSynonyms(group),
+        `${selfId}:${group.key}`,
+        allClaims,
+      )
+      if (clash) {
+        setFormError(
+          `«${clash.word}» em «${group.name}» já está em ${clash.other}. Deixe a palavra num sítio só. O que você digitou continua aqui.`,
+        )
+        setSaving(false)
+        return
+      }
     }
     const hadZones = (existing?.zones?.length ?? 0) > 0
     const zoneBody: ServiceZoneInput[] = draftZones.map((z) => ({

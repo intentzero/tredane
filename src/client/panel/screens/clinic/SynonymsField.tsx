@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { X } from 'lucide-react'
+import { foldWord } from './variantGroups'
 
 type Props = {
   label?: string
@@ -19,6 +20,7 @@ type Props = {
   /**
    * DEC-176 — onde mais a palavra já está («Massagem › Relaxante»), ou null.
    * O servidor recusa a mesma palavra em dois sítios; aqui avisa-se antes.
+   * Usa a mesma dobra que `foldSynonym` / `assertSynonymsNoCollision` (acentos).
    */
   takenBy?: (word: string) => string | null
 }
@@ -45,8 +47,9 @@ export function SynonymsField({
       setError('Cada palavra tem entre 2 e 40 caracteres.')
       return
     }
-    const key = text.toLocaleLowerCase('pt-BR')
-    if (value.some((v) => v.toLocaleLowerCase('pt-BR') === key)) {
+    // Igual a normalizeSynonymList: acentos não contam («Abdômen» = «abdomen»).
+    const key = foldWord(text)
+    if (value.some((v) => foldWord(v) === key)) {
       setError('Esta palavra já está na lista.')
       return
     }

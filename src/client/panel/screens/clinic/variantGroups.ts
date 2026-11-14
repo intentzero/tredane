@@ -12,7 +12,7 @@ import type { VariantAudience, ZoneDraft } from './VariantCatalog'
 export function foldWord(text: string): string {
   return text
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
 }
@@ -124,8 +124,8 @@ export function serviceClaims(svc: ServiceLike): WordClaim[] {
 
 /**
  * Onde mais a palavra já está, para avisar antes de gravar. Igual à regra do
- * servidor: sinônimo não repete nome nem sinônimo de outro dono; o próprio
- * nome do dono não conta.
+ * servidor (`assertSynonymsNoCollision`): sinônimo não repete nome nem
+ * sinônimo de outro dono; o próprio nome do dono não conta; acentos dobram.
  */
 export function claimedElsewhere(
   word: string,
@@ -136,6 +136,22 @@ export function claimedElsewhere(
   if (!key) return null
   const hit = claims.find((c) => c.folded === key && c.ownerKey !== ownerKey)
   return hit ? hit.owner : null
+}
+
+/**
+ * Primeiro sinônimo do rascunho que colide com outro dono (serviço ou opção).
+ * Para bloquear Salvar / Aplicar sem depender do 400 do PUT zones.
+ */
+export function firstSynonymCollision(
+  synonyms: readonly string[],
+  ownerKey: string,
+  claims: readonly WordClaim[],
+): { word: string; other: string } | null {
+  for (const word of synonyms) {
+    const other = claimedElsewhere(word, ownerKey, claims)
+    if (other) return { word, other }
+  }
+  return null
 }
 
 /** Palavra que aparece em dois donos (pelo menos um como sinônimo). */
