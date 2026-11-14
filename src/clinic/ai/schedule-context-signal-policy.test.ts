@@ -56,7 +56,7 @@ describe('buildClinicAiContext — política de sinal DEC-180', () => {
     }
   })
 
-  it('com coluna legada vazia, cai no preview gerado (mesmo que getPixSignalSettings)', async () => {
+  it('com sinal ligado e coluna vazia, regenera o preview (drift)', async () => {
     const clock = createControllableClock(CLOCK)
     const { db, close } = bootClinicDb({ clock })
     const tenantId = 'clinic-demo-a'
@@ -102,6 +102,28 @@ describe('buildClinicAiContext — política de sinal DEC-180', () => {
       expect(clinic.cancellationPolicy).toBe(expected)
       expect(clinic.cancellationPolicy).toContain('20% do serviço')
       expect(clinic.cancellationPolicy).toContain('fica com a clínica')
+    } finally {
+      close()
+    }
+  })
+
+  it('sinal desligado e coluna vazia: não inventa política default no contexto', async () => {
+    const clock = createControllableClock(CLOCK)
+    const { db, close } = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-a'
+    try {
+      ensureClinicSettings(db, tenantId, clock)
+      expect(ensureClinicSettings(db, tenantId, clock).signalCancellationPolicy).toBe('')
+      const contact = upsertContact(
+        db,
+        { tenantId, waId: '5511999000096', displayName: 'Duda' },
+        clock,
+      )
+      const { clinic } = await buildClinicAiContext(db, tenantId, clock, {
+        contactId: contact.id,
+        recentTexts: ['Tem multa se desmarcar?'],
+      })
+      expect(clinic.cancellationPolicy).toBeNull()
     } finally {
       close()
     }
