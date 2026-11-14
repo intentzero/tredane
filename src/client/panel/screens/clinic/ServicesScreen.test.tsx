@@ -1066,4 +1066,84 @@ describe('ServiceForm — opções agrupadas e palavras (DEC-176)', () => {
     fireEvent.keyDown(inSheet, { key: 'Enter' })
     expect(screen.getByText(/«pernas» já está em Depilação › Pernas/)).toBeTruthy()
   })
+
+  it('«peito» vs zona «Peito»: bloqueia o add com erro inline e não chama o PUT', async () => {
+    const replaceServiceZones = vi.fn(async () => depilacao())
+    const upsertService = vi.fn(async () => depilacao())
+    renderForm(
+      depilacao({
+        zones: [
+          z('z_combo', 'peito e abdômen', 'ambos', {
+            synonyms: ['abdominal', 'barriga'],
+            durationMinutes: 25,
+            priceCents: 15_000,
+          }),
+          z('z_peito', 'Peito', 'ambos', { durationMinutes: 10, priceCents: 5_000 }),
+        ],
+      }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Editar peito e abdômen' }))
+    const inSheet = screen.getAllByRole('textbox', { name: 'Também chamam de' }).at(-1)!
+    fireEvent.change(inSheet, { target: { value: 'peito' } })
+    fireEvent.keyDown(inSheet, { key: 'Enter' })
+    expect(screen.getByRole('alert').textContent).toMatch(
+      /«peito» já está em Depilação › Peito/,
+    )
+    // A palavra não entrou na lista; Aplicar / Salvar não disparam o PUT.
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    expect(replaceServiceZones).toHaveBeenCalled()
+    const sent = (replaceServiceZones.mock.calls[0] as unknown[])[2] as Array<{
+      name: string
+      synonyms: string[]
+    }>
+    const combo = sent.find((row) => row.name === 'peito e abdômen')
+    expect(combo?.synonyms).toEqual(['abdominal', 'barriga'])
+    expect(combo?.synonyms).not.toContain('peito')
+  })
+
+  it('acentos: «Abdômen» não entra se a lista já tem «abdomen»', () => {
+    renderForm(
+      depilacao({
+        zones: [
+          z('z1', 'peito e abdômen', 'ambos', { synonyms: ['abdomen'] }),
+          z('z2', 'Peito', 'ambos'),
+        ],
+      }),
+      {},
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Editar peito e abdômen' }))
+    const inSheet = screen.getAllByRole('textbox', { name: 'Também chamam de' }).at(-1)!
+    fireEvent.change(inSheet, { target: { value: 'Abdômen' } })
+    fireEvent.keyDown(inSheet, { key: 'Enter' })
+    expect(screen.getByRole('alert').textContent).toMatch(/já está na lista/)
+  })
+
+  it('Salvar bloqueia sinônimo já colidente no rascunho sem chamar o PUT zones', async () => {
+    const replaceServiceZones = vi.fn(async () => depilacao())
+    const upsertService = vi.fn(async () => depilacao())
+    // Rascunho já traz a colisão (ex.: veio de estado antigo); o add pode ter falhado
+    // noutro sítio, mas o Salvar não pode depender só do 400.
+    renderForm(
+      depilacao({
+        zones: [
+          z('z_combo', 'peito e abdômen', 'ambos', {
+            synonyms: ['abdominal', 'peito', 'barriga'],
+          }),
+          z('z_peito', 'Peito', 'ambos'),
+        ],
+      }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toMatch(
+        /«peito» em «peito e abdômen» já está em Depilação › Peito/,
+      ),
+    )
+    expect(replaceServiceZones).not.toHaveBeenCalled()
+    expect(upsertService).not.toHaveBeenCalled()
+  })
 })

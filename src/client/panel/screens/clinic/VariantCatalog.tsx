@@ -196,6 +196,18 @@ export function VariantCatalog({
       patchEdit({ error: `Já existe «${clash.name}» nesta lista. Abra essa linha para mudar.` })
       return
     }
+    // Mesma dobra do servidor: «peito» vs zona «Peito» não passa só no Salvar.
+    if (takenBy) {
+      for (const syn of edit.synonyms) {
+        const other = takenBy(edit.groupKey, syn)
+        if (other) {
+          patchEdit({
+            error: `«${syn}» já está em ${other}. Deixe a palavra num sítio só.`,
+          })
+          return
+        }
+      }
+    }
     const members = edit.members.map((m) => ({ ...m, name, synonyms: edit.synonyms }))
     const original = new Set(edit.originalKeys)
     onZones((prev) => {
