@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 14/11/2026 — M-33 Recebimento: prazo 15/30, antecedência, janela Outro (**Confirmado**, DEC-182)
+
+- Cartão **Sinal para reservar o horário**: prazo só **15 min · 30 min** (padrão 30); **Antecedência mínima** Desligado · 30 minutos · 1 hora · Outro…; janela de crédito 12/24/48 h + Outro…. Outro…: Número (máx. 2 dígitos) + Unidade **dropdown** min|h na mesma linha. Mock Project store `recebimento-sinal-lead-time.html` / `media/sinal-lead-time/`. Painel: `RecebimentoScreen`, `deadlinePresets`, `panel.css`.
+
 ## 14/11/2026 — Preço do serviço: prefixo R$ + máscara BR
 
 - Pedido do Paulo (14/11/2026): no bloco «Para quem, tempo e preço» (e nos outros campos Preço do serviço), prefixo **R$** e máscara com decimais ao digitar (`R$ 120,00`). Painel: `MoneyField` + `maskPriceInput`. Mock M-81 `mobile/ServicoEditarOpcao` alinhado (prefixo fora do input).

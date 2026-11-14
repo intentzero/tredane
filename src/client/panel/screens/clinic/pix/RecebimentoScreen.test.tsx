@@ -15,9 +15,11 @@ function snapshot(over: Partial<PixSnapshot['signalSettings']> = {}): PixSnapsho
     amountKind: 'fixed' as const,
     fixedCents: 5000,
     percent: null,
-    deadlineSeconds: 7200,
+    deadlineSeconds: 1800,
     policyKind: 'credit_next' as const,
-    creditWindowHours: 24 as const,
+    creditWindowMinutes: 24 * 60,
+    creditWindowHours: 24,
+    bookingLeadMinutes: 0,
     customPolicyText: '',
     cancellationPolicy: '',
     updatedAt: 1,
@@ -29,7 +31,7 @@ function snapshot(over: Partial<PixSnapshot['signalSettings']> = {}): PixSnapsho
     percent: merged.percent,
     deadlineSeconds: merged.deadlineSeconds,
     policyKind: merged.policyKind,
-    creditWindowHours: merged.creditWindowHours,
+    creditWindowMinutes: merged.creditWindowMinutes,
     customPolicyText: merged.customPolicyText,
   })
   return {
@@ -74,17 +76,26 @@ function api(snap: PixSnapshot = snapshot()): PanelApi & {
   } as unknown as PanelApi & { updatePixSignalSettings: ReturnType<typeof vi.fn> }
 }
 
-describe('RecebimentoScreen — cartão unificado (DEC-180)', () => {
-  it('mostra o cartão do sinal com 2 h e salva regras globais', async () => {
+describe('RecebimentoScreen — cartão unificado (DEC-180 / DEC-182)', () => {
+  it('mostra prazo 30 min, antecedência Desligado e salva regras', async () => {
     const client = api()
     render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
 
     expect(await screen.findByRole('heading', { name: 'Sinal para reservar o horário' })).toBeTruthy()
     const group = screen.getByRole('group', { name: 'Presets de prazo' })
-    expect(within(group).getByRole('button', { name: '2 h' }).getAttribute('aria-pressed')).toBe(
+    expect(within(group).getByRole('button', { name: '30 min' }).getAttribute('aria-pressed')).toBe(
       'true',
     )
+    expect(within(group).queryByRole('button', { name: '2 h' })).toBeNull()
+    expect(within(group).queryByRole('button', { name: 'Outro…' })).toBeNull()
+
+    const lead = screen.getByRole('group', { name: 'Antecedência mínima' })
+    expect(within(lead).getByRole('button', { name: 'Desligado' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+
     expect(screen.getByText(/Prévia automática/)).toBeTruthy()
+    expect(screen.getByText(/em até 30/)).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
     await waitFor(() =>
@@ -94,27 +105,67 @@ describe('RecebimentoScreen — cartão unificado (DEC-180)', () => {
           enabled: true,
           amountKind: 'fixed',
           fixedCents: 5000,
-          deadlineSeconds: 7200,
+          deadlineSeconds: 1800,
           policyKind: 'credit_next',
-          creditWindowHours: 24,
+          creditWindowMinutes: 1440,
+          bookingLeadMinutes: 0,
         }),
         expect.anything(),
       ),
     )
   })
 
-  it('prazo Outro… fora de 15 min–48 h desabilita Salvar', async () => {
+  it('antecedência Outro… com dropdown e máx. 2 dígitos', async () => {
     const client = api()
     render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
+    await screen.findByRole('button', { name: '30 min' })
 
-    await screen.findByRole('button', { name: '2 h' })
-    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }))
-    const custom = screen.getByLabelText('Prazo personalizado')
-    await userEvent.clear(within(custom).getByLabelText('Número'))
-    await userEvent.type(within(custom).getByLabelText('Número'), '5')
-    expect(
-      (screen.getByRole('button', { name: 'Salvar regras do sinal' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    const lead = screen.getByRole('group', { name: 'Antecedência mínima' })
+    await userEvent.click(within(lead).getByRole('button', { name: 'Outro…' }))
+    const custom = screen.getByLabelText('Antecedência personalizada')
+    const num = within(custom).getByLabelText('Número') as HTMLInputElement
+    expect(num.maxLength).toBe(2)
+    await userEvent.clear(num)
+    await userEvent.type(num, '123')
+    expect(num.value).toBe('12')
+
+    const unit = within(custom).getByLabelText('Unidade')
+    expect(unit.tagName).toBe('SELECT')
+    await userEvent.selectOptions(unit, 'h')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
+    await waitFor(() =>
+      expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        expect.objectContaining({ bookingLeadMinutes: 12 * 60 }),
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('janela Outro… grava minutos e reflecte na prévia', async () => {
+    const client = api()
+    render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
+    await screen.findByRole('button', { name: '24 h antes' })
+
+    const win = screen.getByRole('group', { name: 'Janela' })
+    await userEvent.click(within(win).getByRole('button', { name: 'Outro…' }))
+    const custom = screen.getByLabelText('Janela personalizada')
+    const num = within(custom).getByLabelText('Número') as HTMLInputElement
+    await userEvent.clear(num)
+    await userEvent.type(num, '36')
+    await userEvent.selectOptions(within(custom).getByLabelText('Unidade'), 'h')
+
+    expect(screen.getAllByText(/pelo menos 36/).length).toBeGreaterThanOrEqual(2)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
+    await waitFor(() =>
+      expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        expect.objectContaining({ creditWindowMinutes: 36 * 60 }),
+        expect.anything(),
+      ),
+    )
   })
 
   it('desligado esconde valor e política mas permite salvar', async () => {
@@ -131,5 +182,32 @@ describe('RecebimentoScreen — cartão unificado (DEC-180)', () => {
         expect.anything(),
       ),
     )
+    const body = client.updatePixSignalSettings.mock.calls.at(-1)?.[1] as Record<string, unknown>
+    expect(body).not.toHaveProperty('fixedCents')
+    expect(body).not.toHaveProperty('amountKind')
+  })
+
+  it('Não devolve preserva janela Outro… (não manda creditWindowMinutes)', async () => {
+    const client = api()
+    render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
+    await screen.findByRole('button', { name: '24 h antes' })
+    const win = screen.getByRole('group', { name: 'Janela' })
+    await userEvent.click(within(win).getByRole('button', { name: 'Outro…' }))
+    const custom = screen.getByLabelText('Janela personalizada')
+    const num = within(custom).getByLabelText('Número') as HTMLInputElement
+    await userEvent.clear(num)
+    await userEvent.type(num, '36')
+    await userEvent.selectOptions(within(custom).getByLabelText('Unidade'), 'h')
+    await userEvent.click(screen.getByRole('button', { name: /Não devolve/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
+    await waitFor(() =>
+      expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        expect.objectContaining({ policyKind: 'keep' }),
+        expect.anything(),
+      ),
+    )
+    const body = client.updatePixSignalSettings.mock.calls.at(-1)?.[1] as Record<string, unknown>
+    expect(body).not.toHaveProperty('creditWindowMinutes')
   })
 })

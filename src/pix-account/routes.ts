@@ -240,7 +240,9 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
         percent?: number | null
         deadlineSeconds?: number
         policyKind?: 'credit_next' | 'keep' | 'custom'
-        creditWindowHours?: 12 | 24 | 48 | null
+        creditWindowMinutes?: number | null
+        creditWindowHours?: number | null
+        bookingLeadMinutes?: number
         customPolicyText?: string
         cancellationPolicy?: string
       }
@@ -254,7 +256,9 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
           percent: body.percent,
           deadlineSeconds: body.deadlineSeconds,
           policyKind: body.policyKind,
+          creditWindowMinutes: body.creditWindowMinutes,
           creditWindowHours: body.creditWindowHours,
+          bookingLeadMinutes: body.bookingLeadMinutes,
           customPolicyText: body.customPolicyText,
           cancellationPolicy: body.cancellationPolicy,
         },

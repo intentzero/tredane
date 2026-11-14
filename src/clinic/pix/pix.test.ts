@@ -249,29 +249,51 @@ describe('Clinic Pix account + signal config (#37)', () => {
         db,
         owner,
         {
-          deadlineSeconds: 3600,
+          deadlineSeconds: 1800,
           cancellationPolicy: 'Em cancelamento, a clínica pode devolver ou reter o sinal.',
         },
         clock,
       )
-      expect(settings.deadlineSeconds).toBe(3600)
+      expect(settings.deadlineSeconds).toBe(1800)
       expect(settings.cancellationPolicy).toContain('devolver')
 
-      // DEC-179: UI em minutos; servidor guarda segundos (15 min … 48 h).
+      // DEC-182: só 15 min ou 30 min.
       expect(
         updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 15 * 60 }, clock)
           .deadlineSeconds,
       ).toBe(900)
       expect(
-        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 48 * 60 * 60 }, clock)
+        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 30 * 60 }, clock)
           .deadlineSeconds,
-      ).toBe(172_800)
+      ).toBe(1800)
       expect(() =>
         updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 14 * 60 }, clock),
       ).toThrow(ValidationError)
       expect(() =>
-        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 48 * 60 * 60 + 60 }, clock),
+        updatePixSignalSettingsOp(db, owner, { deadlineSeconds: 60 * 60 }, clock),
       ).toThrow(ValidationError)
+
+      // DEC-182: Outro… na janela sobrevive a Não devolve → Aplica de novo.
+      updatePixSignalSettingsOp(
+        db,
+        owner,
+        {
+          enabled: true,
+          amountKind: 'fixed',
+          fixedCents: 5000,
+          policyKind: 'credit_next',
+          creditWindowMinutes: 36 * 60,
+        },
+        clock,
+      )
+      updatePixSignalSettingsOp(db, owner, { policyKind: 'keep' }, clock)
+      const restored = updatePixSignalSettingsOp(
+        db,
+        owner,
+        { policyKind: 'credit_next' },
+        clock,
+      )
+      expect(restored.creditWindowMinutes).toBe(36 * 60)
     } finally {
       close()
     }

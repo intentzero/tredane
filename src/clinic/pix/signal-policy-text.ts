@@ -1,5 +1,5 @@
 /**
- * DEC-180 — texto à cliente gerado a partir das regras do sinal (Recebimento).
+ * DEC-180 / DEC-182 — texto à cliente gerado a partir das regras do sinal (Recebimento).
  * «Outro…» sobrescreve; sem estorno Pix («Devolve» fora do desenho).
  */
 
@@ -13,8 +13,8 @@ export type SignalPolicyTextInput = {
   percent: number | null
   deadlineSeconds: number
   policyKind: SignalPolicyKind
-  /** Só com credit_next: 12 | 24 | 48. */
-  creditWindowHours: number | null
+  /** Só com credit_next: minutos (presets 720/1440/2880 ou custom). */
+  creditWindowMinutes: number | null
   customPolicyText?: string | null
 }
 
@@ -57,9 +57,9 @@ function amountPhrase(input: SignalPolicyTextInput): string {
   return 'o valor configurado'
 }
 
-function windowPhrase(hours: number | null): string {
-  const h = hours === 12 || hours === 48 ? hours : 24
-  return `${h}\u00a0h`
+function windowPhrase(minutes: number | null): string {
+  const m = minutes != null && minutes > 0 ? minutes : 24 * 60
+  return formatDeadlineHuman(m * 60)
 }
 
 /**
@@ -98,7 +98,7 @@ export function buildSignalPolicyPreview(input: SignalPolicyTextInput): SignalPo
   }
 
   // credit_next
-  const win = windowPhrase(input.creditWindowHours)
+  const win = windowPhrase(input.creditWindowMinutes)
   const reschedule =
     `Se remarcar com pelo menos ${win} de antecedência, o sinal já pago vale para o novo horário. ` +
     `Não há devolução por Pix.`

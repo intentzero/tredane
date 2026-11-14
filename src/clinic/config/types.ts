@@ -248,7 +248,7 @@ export type AppointmentRow = {
 export type ClinicSettingsRow = {
   tenantId: string
   timezone: string
-  /** Prazo padrão do sinal em segundos (DEC-047: 7200). */
+  /** Prazo padrão do sinal em segundos (DEC-182: 1800; antes DEC-047: 7200). */
   signalDeadlineSeconds: number
   /** Política de cancelamento do sinal (texto da clínica). */
   signalCancellationPolicy: string

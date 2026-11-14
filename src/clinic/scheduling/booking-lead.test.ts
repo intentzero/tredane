@@ -3,17 +3,21 @@ import { createControllableClock } from '../../db/clock'
 import { workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { ensureClinicSettings } from '../config/settings'
 import { zonedCivilToUtc } from './timezone'
 import { queryAvailabilityOp } from './index'
 
 const TZ = 'America/Sao_Paulo'
 
 describe('bookingLeadMinutes', () => {
-  it('default 30 min corta slots antes de agora+30', () => {
+  it('com 30 min corta slots antes de agora+30', () => {
     const at = zonedCivilToUtc(TZ, 2026, 11, 12, 10, 41)
     const clock = createControllableClock(at)
     const boot = bootClinicDb({ clock })
     const caller = workerCaller('clinic-demo-lead', 'user_synth_owner_a')
+    ensureClinicSettings(boot.db, caller.tenantId, clock)
+    // DEC-182: padrão de produto é Desligado (0); este caso fixa 30 min.
+    boot.db.run(`UPDATE clinic_settings SET booking_lead_minutes = 30 WHERE id = 1`)
     const room = upsertResourceOp(boot.db, caller, { kind: 'room', name: 'Sala' }, clock)
     const pro = upsertResourceOp(boot.db, caller, { kind: 'professional', name: 'P', homeRoomId: room.id }, clock)
     const week = [4].map((d) => ({ dayOfWeek: d, startMinute: 540, endMinute: 1080 }))

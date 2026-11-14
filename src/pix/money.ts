@@ -100,9 +100,12 @@ export function assertValidSignalConfig(
   return result.code
 }
 
-/** Prazo padrão Confirmado (DEC-047): 2 horas. */
-export const DEFAULT_SIGNAL_DEADLINE_SECONDS = 2 * 60 * 60
+/** Prazo padrão Confirmado (DEC-182; revê DEC-047/179): 30 minutos. */
+export const DEFAULT_SIGNAL_DEADLINE_SECONDS = 30 * 60
 
-/** Limites ajustáveis pela owner (M-33). */
+/** Limites ajustáveis pela owner (M-33 / DEC-182): só 15 min ou 30 min. */
 export const MIN_SIGNAL_DEADLINE_SECONDS = 15 * 60
-export const MAX_SIGNAL_DEADLINE_SECONDS = 48 * 60 * 60
+export const MAX_SIGNAL_DEADLINE_SECONDS = 30 * 60
+
+/** Valores permitidos de prazo (segundos). */
+export const SIGNAL_DEADLINE_ALLOWED_SECONDS = [15 * 60, 30 * 60] as const

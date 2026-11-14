@@ -1,10 +1,10 @@
 import type { Clock } from '../../db/clock'
 import {
   DEFAULT_SIGNAL_DEADLINE_SECONDS,
-  MAX_SIGNAL_DEADLINE_SECONDS,
-  MIN_SIGNAL_DEADLINE_SECONDS,
+  SIGNAL_DEADLINE_ALLOWED_SECONDS,
   type SignalKind,
 } from '../../pix/money'
+import { DEFAULT_BOOKING_LEAD_MINUTES } from '../constants'
 import { ValidationError } from '../errors'
 import type { ClinicDb } from '../store'
 import { ensureClinicSettings } from '../config/settings'
@@ -15,7 +15,9 @@ import {
 import type { PixSignalSettings, UpdateSignalSettingsInput } from './types'
 
 const MAX_FIXED_CENTS = 10_000_000
-const CREDIT_WINDOWS = new Set([12, 24, 48])
+/** Custom Outro…: número máx. 2 dígitos → até 99 h. */
+const MAX_CREDIT_WINDOW_MINUTES = 99 * 60
+const MAX_BOOKING_LEAD_MINUTES = 99 * 60
 
 type SettingsSignalSql = {
   tenant_id: string
@@ -27,7 +29,9 @@ type SettingsSignalSql = {
   signal_percent: number | null
   signal_policy_kind: string | null
   signal_credit_window_hours: number | null
+  signal_credit_window_minutes: number | null
   signal_custom_policy_text: string | null
+  booking_lead_minutes: number | null
   updated_at: number
 }
 
@@ -40,24 +44,40 @@ function mapPolicyKind(raw: string | null | undefined): SignalPolicyKind {
   return 'credit_next'
 }
 
-function mapCreditWindow(raw: number | null | undefined): 12 | 24 | 48 {
-  if (raw === 12 || raw === 48) return raw
-  return 24
+function resolveCreditWindowMinutes(
+  minutes: number | null | undefined,
+  hours: number | null | undefined,
+): number {
+  if (minutes != null && Number.isInteger(minutes) && minutes > 0) return minutes
+  if (hours != null && Number.isInteger(hours) && hours > 0) return hours * 60
+  return 24 * 60
+}
+
+function hoursCompat(minutes: number): number | null {
+  return minutes > 0 && minutes % 60 === 0 ? minutes / 60 : null
 }
 
 function rowToSettings(row: SettingsSignalSql): PixSignalSettings {
   const amountKind = mapAmountKind(row.signal_amount_kind)
   const policyKind = mapPolicyKind(row.signal_policy_kind)
-  const creditWindowHours =
-    policyKind === 'credit_next' ? mapCreditWindow(row.signal_credit_window_hours) : null
+  // Sempre devolve a janela guardada (para o formulário round-trip Outro…),
+  // mesmo com política ≠ credit_next. A prévia só a usa com credit_next.
+  const creditWindowMinutes = resolveCreditWindowMinutes(
+    row.signal_credit_window_minutes,
+    row.signal_credit_window_hours,
+  )
   const customPolicyText = row.signal_custom_policy_text ?? ''
+  const bookingLeadMinutes =
+    row.booking_lead_minutes != null && Number.isFinite(row.booking_lead_minutes)
+      ? Math.max(0, Math.trunc(row.booking_lead_minutes))
+      : DEFAULT_BOOKING_LEAD_MINUTES
   const preview = buildSignalPolicyPreview({
     amountKind,
     fixedCents: row.signal_fixed_cents,
     percent: row.signal_percent,
     deadlineSeconds: row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     policyKind,
-    creditWindowHours,
+    creditWindowMinutes: policyKind === 'credit_next' ? creditWindowMinutes : null,
     customPolicyText,
   })
   return {
@@ -68,7 +88,9 @@ function rowToSettings(row: SettingsSignalSql): PixSignalSettings {
     percent: amountKind === 'percent' ? (row.signal_percent ?? null) : null,
     deadlineSeconds: row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     policyKind,
-    creditWindowHours,
+    creditWindowMinutes,
+    creditWindowHours: hoursCompat(creditWindowMinutes),
+    bookingLeadMinutes,
     customPolicyText: policyKind === 'custom' ? customPolicyText : '',
     cancellationPolicy: row.signal_cancellation_policy || preview.combined,
     preview,
@@ -85,8 +107,8 @@ export function getPixSignalSettings(
   const row = db.get<SettingsSignalSql>(
     `SELECT tenant_id, signal_deadline_seconds, signal_cancellation_policy,
             signal_enabled, signal_amount_kind, signal_fixed_cents, signal_percent,
-            signal_policy_kind, signal_credit_window_hours, signal_custom_policy_text,
-            updated_at
+            signal_policy_kind, signal_credit_window_hours, signal_credit_window_minutes,
+            signal_custom_policy_text, booking_lead_minutes, updated_at
      FROM clinic_settings WHERE id = 1 AND tenant_id = ?`,
     tenantId,
   )
@@ -97,7 +119,7 @@ export function getPixSignalSettings(
       percent: null,
       deadlineSeconds: DEFAULT_SIGNAL_DEADLINE_SECONDS,
       policyKind: 'credit_next',
-      creditWindowHours: 24,
+      creditWindowMinutes: 24 * 60,
     })
     return {
       tenantId,
@@ -107,7 +129,9 @@ export function getPixSignalSettings(
       percent: null,
       deadlineSeconds: DEFAULT_SIGNAL_DEADLINE_SECONDS,
       policyKind: 'credit_next',
+      creditWindowMinutes: 24 * 60,
       creditWindowHours: 24,
+      bookingLeadMinutes: DEFAULT_BOOKING_LEAD_MINUTES,
       customPolicyText: '',
       cancellationPolicy: preview.combined,
       preview,
@@ -146,6 +170,10 @@ function validateAmount(
   }
 }
 
+function isAllowedDeadline(seconds: number): boolean {
+  return (SIGNAL_DEADLINE_ALLOWED_SECONDS as readonly number[]).includes(seconds)
+}
+
 export function updatePixSignalSettings(
   db: ClinicDb,
   tenantId: string,
@@ -161,7 +189,8 @@ export function updatePixSignalSettings(
   let percent = current.percent
   let deadline = current.deadlineSeconds
   let policyKind = current.policyKind
-  let creditWindowHours = current.creditWindowHours ?? 24
+  let creditWindowMinutes = current.creditWindowMinutes ?? 24 * 60
+  let bookingLeadMinutes = current.bookingLeadMinutes
   let customPolicyText = current.customPolicyText
 
   if (input.enabled !== undefined) enabled = input.enabled === true
@@ -176,14 +205,10 @@ export function updatePixSignalSettings(
   if (input.percent !== undefined) percent = input.percent
 
   if (input.deadlineSeconds !== undefined) {
-    if (
-      !Number.isInteger(input.deadlineSeconds)
-      || input.deadlineSeconds < MIN_SIGNAL_DEADLINE_SECONDS
-      || input.deadlineSeconds > MAX_SIGNAL_DEADLINE_SECONDS
-    ) {
+    if (!Number.isInteger(input.deadlineSeconds) || !isAllowedDeadline(input.deadlineSeconds)) {
       throw new ValidationError(
         'invalid_signal_deadline',
-        `prazo deve ser inteiro entre ${MIN_SIGNAL_DEADLINE_SECONDS} e ${MAX_SIGNAL_DEADLINE_SECONDS} segundos`,
+        'prazo deve ser 15 min ou 30 min',
         { deadlineSeconds: input.deadlineSeconds },
       )
     }
@@ -201,15 +226,47 @@ export function updatePixSignalSettings(
     policyKind = input.policyKind
   }
 
-  if (input.creditWindowHours !== undefined && input.creditWindowHours !== null) {
-    if (!CREDIT_WINDOWS.has(input.creditWindowHours)) {
+  if (input.creditWindowMinutes !== undefined && input.creditWindowMinutes !== null) {
+    if (
+      !Number.isInteger(input.creditWindowMinutes)
+      || input.creditWindowMinutes < 1
+      || input.creditWindowMinutes > MAX_CREDIT_WINDOW_MINUTES
+    ) {
       throw new ValidationError(
         'invalid_signal_credit_window',
-        'janela deve ser 12, 24 ou 48 horas',
+        'janela deve ser entre 1 min e 99 h',
+        { creditWindowMinutes: input.creditWindowMinutes },
+      )
+    }
+    creditWindowMinutes = input.creditWindowMinutes
+  } else if (input.creditWindowHours !== undefined && input.creditWindowHours !== null) {
+    if (
+      !Number.isInteger(input.creditWindowHours)
+      || input.creditWindowHours < 1
+      || input.creditWindowHours > 99
+    ) {
+      throw new ValidationError(
+        'invalid_signal_credit_window',
+        'janela deve ser entre 1 e 99 horas',
         { creditWindowHours: input.creditWindowHours },
       )
     }
-    creditWindowHours = input.creditWindowHours as 12 | 24 | 48
+    creditWindowMinutes = input.creditWindowHours * 60
+  }
+
+  if (input.bookingLeadMinutes !== undefined) {
+    if (
+      !Number.isInteger(input.bookingLeadMinutes)
+      || input.bookingLeadMinutes < 0
+      || input.bookingLeadMinutes > MAX_BOOKING_LEAD_MINUTES
+    ) {
+      throw new ValidationError(
+        'invalid_booking_lead',
+        'antecedência deve ser 0 (Desligado) até 99 h',
+        { bookingLeadMinutes: input.bookingLeadMinutes },
+      )
+    }
+    bookingLeadMinutes = input.bookingLeadMinutes
   }
 
   if (input.customPolicyText !== undefined) {
@@ -238,9 +295,9 @@ export function updatePixSignalSettings(
     )
   }
 
-  if (policyKind !== 'credit_next') {
-    creditWindowHours = creditWindowHours || 24
-  }
+  // Preserva a janela custom (Outro…) ao mudar para Não devolve / Outro…;
+  // não forçar 24 h no UPDATE.
+  const storedWindowMinutes = creditWindowMinutes > 0 ? creditWindowMinutes : 24 * 60
 
   const preview = buildSignalPolicyPreview({
     amountKind,
@@ -248,7 +305,7 @@ export function updatePixSignalSettings(
     percent: amountKind === 'percent' ? percent : null,
     deadlineSeconds: deadline,
     policyKind,
-    creditWindowHours: policyKind === 'credit_next' ? creditWindowHours : null,
+    creditWindowMinutes: policyKind === 'credit_next' ? storedWindowMinutes : null,
     customPolicyText,
   })
 
@@ -262,6 +319,9 @@ export function updatePixSignalSettings(
   }
 
   const now = clock.nowMs()
+  const storedWindowHours =
+    hoursCompat(storedWindowMinutes) ?? Math.max(1, Math.round(storedWindowMinutes / 60))
+
   db.run(
     `UPDATE clinic_settings
      SET signal_enabled = ?,
@@ -271,8 +331,10 @@ export function updatePixSignalSettings(
          signal_deadline_seconds = ?,
          signal_policy_kind = ?,
          signal_credit_window_hours = ?,
+         signal_credit_window_minutes = ?,
          signal_custom_policy_text = ?,
          signal_cancellation_policy = ?,
+         booking_lead_minutes = ?,
          updated_at = ?
      WHERE id = 1 AND tenant_id = ?`,
     enabled ? 1 : 0,
@@ -281,9 +343,11 @@ export function updatePixSignalSettings(
     amountKind === 'percent' ? percent : null,
     deadline,
     policyKind,
-    policyKind === 'credit_next' ? creditWindowHours : 24,
+    storedWindowHours,
+    storedWindowMinutes,
     policyKind === 'custom' ? customPolicyText : '',
     policy,
+    bookingLeadMinutes,
     now,
     tenantId,
   )

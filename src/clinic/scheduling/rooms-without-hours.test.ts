@@ -402,10 +402,10 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
         { serviceId: s.svc.id, date: '2026-11-05' },
         s.clock,
       )
-      // Agora 11:50; antecedência default 30 min → 1.ª vaga 12:30 (grade 15).
+      // Agora 11:50; DEC-182 antecedência default Desligado (0) → 1.ª vaga 12:00 (grade 15).
       const starts = avail.slots.map((x) => x.startsAt)
       expect(starts.length).toBeGreaterThan(0)
-      expect(Math.min(...starts)).toBe(thu(12, 30))
+      expect(Math.min(...starts)).toBe(thu(12, 0))
       expect(Math.max(...starts)).toBe(thu(15, 45))
       expect(getReadinessOp(s.db, s.caller, s.clock).agendaConfigured).toBe(true)
       expect(avail.slots.every((x) => x.roomResourceId === s.room.id)).toBe(true)

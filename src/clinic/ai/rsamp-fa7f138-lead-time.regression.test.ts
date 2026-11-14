@@ -1,6 +1,7 @@
 /**
  * Regressão rsamp_fa7f138 — oferta «hoje às 10:45» com relógio ~10:41 (4 min de antecedência).
- * Com booking_lead_minutes=30 (default), o primeiro slot do dia não pode ser 10:45.
+ * Com booking_lead_minutes=30, o primeiro slot do dia não pode ser 10:45.
+ * (DEC-182: o padrão de produto passou a Desligado/0; este caso fixa 30.)
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -74,6 +75,7 @@ function seed() {
   setWeeklyWindowsOp(db, caller, { resourceId: pro.id, windows: week }, clock)
   setWeeklyWindowsOp(db, caller, { resourceId: room.id, windows: week }, clock)
   setClinicAiAssistEnabled(db, tenantId, true, clock)
+  db.run(`UPDATE clinic_settings SET booking_lead_minutes = 30 WHERE id = 1`)
   const contact = upsertContact(db, { tenantId, waId: '5511900000094', displayName: 'Cliente' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
   const say = (direction: 'inbound' | 'outbound', body: string) => {
@@ -95,7 +97,7 @@ function seed() {
 }
 
 describe('rsamp_fa7f138 — antecedência mínima na oferta', () => {
-  it('«Relaxante» às 10:41 não oferece 10:45 (default 30 min)', async () => {
+  it('«Relaxante» às 10:41 não oferece 10:45 (lead 30 min)', async () => {
     const s = seed()
     try {
       s.say('inbound', 'Quero agendar uma massagem')

@@ -586,7 +586,9 @@ export function createPanelApi(getToken: TokenGetter) {
         percent?: number | null
         deadlineSeconds?: number
         policyKind?: 'credit_next' | 'keep' | 'custom'
-        creditWindowHours?: 12 | 24 | 48 | null
+        creditWindowMinutes?: number | null
+        creditWindowHours?: number | null
+        bookingLeadMinutes?: number
         customPolicyText?: string
         cancellationPolicy?: string
       },
@@ -2998,7 +3000,12 @@ export type PixSignalSettings = {
   percent: number | null
   deadlineSeconds: number
   policyKind: 'credit_next' | 'keep' | 'custom'
-  creditWindowHours: 12 | 24 | 48 | null
+  /** Janela de crédito em minutos (DEC-182). */
+  creditWindowMinutes: number | null
+  /** Compat: horas inteiras se a janela for múltiplo de 60. */
+  creditWindowHours: number | null
+  /** Antecedência mínima do agendamento (0 = Desligado). */
+  bookingLeadMinutes: number
   customPolicyText: string
   cancellationPolicy: string
   preview: PixSignalPolicyPreview
