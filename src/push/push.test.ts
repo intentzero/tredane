@@ -56,7 +56,7 @@ describe('push / PWA (#42)', () => {
       conversationId: 'cnv_dot',
       contactLabel: 'Ana',
     })
-    expect(msg.body).toBe('Mensagem de Ana · A B')
+    expect(msg.body).toBe('Ana · A B')
     assertSafePushPayload(msg)
   })
 

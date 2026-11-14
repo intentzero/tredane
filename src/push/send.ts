@@ -151,7 +151,8 @@ export function appointmentPushTag(tenantId: string, appointmentId: string): str
 
 /**
  * DEC-173 — inbound só em fio assumido/handoff.
- * Corpo: `Mensagem de {contacto} · {clínica}` (sem telefone nem texto WhatsApp).
+ * Corpo: `{contacto} · {clínica}` (sem eco do título; sem telefone nem texto WhatsApp).
+ * Copy Confirmada Paulo 14/11/2026: drop «Mensagem de».
  */
 export function buildNewMessagePayload(input: {
   tenantId: string
@@ -164,7 +165,7 @@ export function buildNewMessagePayload(input: {
   return {
     kind: 'new_message',
     title: 'Nova mensagem',
-    body: `Mensagem de ${contact} · ${clinic}`,
+    body: `${contact} · ${clinic}`,
     tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
@@ -351,7 +352,7 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
       break
     }
     case 'new_message': {
-      if (!/^Mensagem de [^·]+ · [^·]+$/.test(body)) {
+      if (!/^[^·]+ · [^·]+$/.test(body)) {
         throw new Error('push_body_unexpected')
       }
       break

@@ -298,7 +298,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
 
         <p className="panel-card panel-muted-sm">
           Em {clinicName}, o aviso pode mostrar o nome do contato e da clínica
-          («Mensagem de Ana · {clinicName}»), sem o texto da mensagem WhatsApp.
+          («Ana · {clinicName}»), sem o texto da mensagem WhatsApp.
           Não notifica cada mensagem da IA automática — só quando a equipe
           precisa agir.
         </p>

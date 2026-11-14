@@ -25,7 +25,7 @@ describe('push nova mensagem em conversa existente', () => {
     const conv = buildNewConversationPayload(input)
     expect(msg.kind).toBe('new_message')
     expect(msg.title).toBe('Nova mensagem')
-    expect(msg.body).toBe('Mensagem de Ana · Clínica Aurora')
+    expect(msg.body).toBe('Ana · Clínica Aurora')
     expect(msg.url).toBe('/c/clinic-demo-a/conversas/cnv_1')
     expect(msg.tag).toBe('conversation:clinic-demo-a:cnv_1')
     expect(conv.tag).toBe(msg.tag)
