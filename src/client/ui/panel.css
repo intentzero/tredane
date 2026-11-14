@@ -1547,7 +1547,7 @@ button.panel-auth-inline-link {
 
 .clinic-credit-window .clinic-deadline-custom {
   background: var(--color-surface-card);
-  border: var(--size-border-width) solid var(--color-line-subtle, var(--color-line-control));
+  border: var(--size-border-width) solid var(--color-line-control);
 }
 
 .clinic-deadline-custom-row {
