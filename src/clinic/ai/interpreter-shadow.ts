@@ -314,5 +314,10 @@ export async function runInterpreterShadow(
   }
 
   console.info(JSON.stringify(event))
+  try {
+    await deps.interpreterShadowSink?.(event)
+  } catch {
+    // Medição temporária: o destino do evento nunca afeta o atendimento.
+  }
   return event
 }

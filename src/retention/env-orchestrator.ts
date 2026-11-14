@@ -430,6 +430,15 @@ async function runEnvStep(
       } catch {
         /* tabela pode não existir em schemas antigos */
       }
+      // TEMPORÁRIO (sombra do interpretador): eventos do tenant no D1 central.
+      try {
+        await db
+          .prepare(`DELETE FROM interpreter_shadow_events WHERE tenant_id = ?`)
+          .bind(tenantId)
+          .run()
+      } catch {
+        /* tabela pode não existir em schemas antigos */
+      }
       const detail = {
         memberships: memberships.meta.changes ?? 0,
         invites: invites.meta.changes ?? 0,

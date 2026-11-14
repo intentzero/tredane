@@ -234,6 +234,7 @@ describe('HTTP — MCP review-central (DEC-159)', () => {
         'list_review_samples',
         'get_review_sample',
         'propose_review_diagnosis',
+        'get_interpreter_shadow_report', // TEMPORÁRIO: remover com a sombra (hipotese §5.3d)
       ])
     } finally {
       close()

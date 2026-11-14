@@ -102,4 +102,9 @@ export type AiAssistDeps = {
    * alterar o atendimento. Desligada por omissão (`AI_INTERPRETER_SHADOW=on`).
    */
   interpreterShadow?: boolean
+  /**
+   * TEMPORÁRIO: recebe cada evento da sombra (o DO grava-o no D1 central para o Review MCP).
+   * Nunca deve lançar; erros são engolidos por quem chama.
+   */
+  interpreterShadowSink?: (event: import('./interpreter-shadow').InterpreterShadowEvent) => Promise<void> | void
 }

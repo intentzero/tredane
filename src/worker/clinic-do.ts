@@ -177,6 +177,7 @@ import {
 } from './clinic-do-timing'
 import type { SqlInvocationStats } from '../clinic'
 import { fromD1 } from '../db/admin/async-store'
+import { insertInterpreterShadowEvent } from '../shadow-report/store'
 import {
   appendRealtimeEvent,
   closeAllSockets,
@@ -4234,8 +4235,18 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     base: ReturnType<typeof clinicAi.toAiAssistDeps>,
   ): ReturnType<typeof clinicAi.toAiAssistDeps> {
     const prepare = this.#prepareBookingFlowOffer()
-    if (!prepare) return base
-    return { ...base, prepareBookingFlowOffer: prepare }
+    let out = base
+    if (prepare) out = { ...out, prepareBookingFlowOffer: prepare }
+    // TEMPORÁRIO: a sombra do interpretador grava os eventos no D1 central (Review MCP).
+    const d1 = (this.env as WorkerBindings).DB
+    if (base.interpreterShadow && d1) {
+      out = {
+        ...out,
+        interpreterShadowSink: (event) =>
+          insertInterpreterShadowEvent(fromD1(d1), event, this.#clock.nowMs()),
+      }
+    }
+    return out
   }
 
   async runAutoDrafts(caller: ClinicCaller): Promise<clinicAi.AutoDraftOutcome[]> {
