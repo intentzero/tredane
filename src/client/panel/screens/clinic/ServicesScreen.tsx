@@ -5,6 +5,7 @@ import {
   suggestVariantKindPlural,
   variantKindLabels,
 } from '../../../../clinic/catalog/variant-kind'
+import { deriveComboGender, suggestComboName } from '../../../../clinic/catalog/combo'
 import { ComboCatalog, type ComboDraft } from './ComboCatalog'
 import { VariantCatalog, type ZoneDraft } from './VariantCatalog'
 import { Badge } from '../../states/Badge'
@@ -116,6 +117,7 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
       price: c.price,
       zoneKeys: c.zoneKeys,
       active: c.active,
+      gender: c.gender,
     })),
     synonyms: input.synonyms,
     explanation: input.explanation,
@@ -314,14 +316,18 @@ export function ServiceForm({
   )
   const [synonyms, setSynonyms] = useState<string[]>(() => existing?.synonyms ?? [])
   const [combos, setCombos] = useState<ComboDraft[]>(() =>
-    (existing?.combos ?? []).map((c) => ({
-      key: c.id,
-      id: c.id,
-      name: c.name,
-      price: formatPriceAmount(c.priceCents),
-      zoneKeys: c.zoneIds,
-      active: c.active,
-    })),
+    (existing?.combos ?? []).map((c) => {
+      const members = (existing?.zones ?? []).filter((z) => c.zoneIds.includes(z.id))
+      return {
+        key: c.id,
+        id: c.id,
+        name: c.name,
+        price: formatPriceAmount(c.priceCents),
+        zoneKeys: c.zoneIds,
+        active: c.active,
+        gender: deriveComboGender(members),
+      }
+    }),
   )
   const [withVariants, setWithVariants] = useState((existing?.zones?.length ?? 0) > 0)
   const [explanation, setExplanation] = useState(existing?.clientExplanation ?? '')
@@ -641,7 +647,14 @@ export function ServiceForm({
     }))
     const zoneKeys = new Set(draftZones.map((z) => z.key))
     const draftCombos = withVariants
-      ? combos.map((c) => ({ ...c, zoneKeys: c.zoneKeys.filter((key) => zoneKeys.has(key)) }))
+      ? combos.map((c) => {
+          const kept = c.zoneKeys.filter((key) => zoneKeys.has(key))
+          const zoneNames = kept
+            .map((key) => draftZones.find((z) => z.key === key)?.name)
+            .filter((n): n is string => Boolean(n?.trim()))
+          const name = c.name.trim() || suggestComboName(zoneNames)
+          return { ...c, zoneKeys: kept, name }
+        })
       : []
     const small = draftCombos.find((c) => c.zoneKeys.length < 2)
     if (small) {
@@ -652,7 +665,7 @@ export function ServiceForm({
       return
     }
     if (draftCombos.some((c) => !c.name.trim() || (parsePriceToCents(c.price) ?? 0) <= 0)) {
-      setFormError('Dê nome e preço a cada combo. O que você digitou continua aqui.')
+      setFormError('Defina o preço de cada combo (o nome vazio usa as zonas). O que você digitou continua aqui.')
       setSaving(false)
       return
     }

@@ -1,7 +1,21 @@
 import { useState } from 'react'
-import { Button, Input, Label, TextField, ToggleButton } from 'react-aria-components'
+import {
+  Button,
+  Input,
+  Label,
+  Radio,
+  RadioGroup,
+  TextField,
+  ToggleButton,
+} from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
-import { COMBO_MIN_ZONES } from '../../../../clinic/catalog/combo'
+import {
+  COMBO_MIN_ZONES,
+  defaultComboGender,
+  suggestComboName,
+  zoneFitsComboGender,
+  type ComboGenderFilter,
+} from '../../../../clinic/catalog/combo'
 import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import { ClinicCheck } from './ClinicCheck'
 import { formatPriceCents, parsePriceToCents } from './format'
@@ -16,6 +30,8 @@ export type ComboDraft = {
   /** Chaves dos rascunhos de variante (`ZoneDraft.key`). */
   zoneKeys: string[]
   active: boolean
+  /** Filtro «Para quem» (só UI; o servidor continua a validar M≠F). */
+  gender: ComboGenderFilter
 }
 
 type Props = {
@@ -31,6 +47,20 @@ type Facts = {
   priceCents: number | null
   saveCents: number | null
   warn: string | null
+}
+
+const GENDER_HELP: Record<ComboGenderFilter, string> = {
+  feminino: 'Mostra zonas femininas e «Todos». Masculino fica de fora.',
+  masculino: 'Mostra zonas masculinas e «Todos». Feminino fica de fora.',
+  ambos: 'Só zonas «Todos» — o combo serve os dois públicos.',
+}
+
+const GENDER_DROP_TOAST = 'Saíram as zonas que não servem neste género.'
+
+function comboZoneNames(combo: ComboDraft, zones: ZoneDraft[]): string[] {
+  return combo.zoneKeys
+    .map((key) => zones.find((z) => z.key === key)?.name)
+    .filter((n): n is string => Boolean(n?.trim()))
 }
 
 function factsOf(combo: ComboDraft, zones: ZoneDraft[], lower: string, pluralLower: string): Facts {
@@ -55,6 +85,7 @@ function factsOf(combo: ComboDraft, zones: ZoneDraft[], lower: string, pluralLow
 /** Combos de variantes (DEC-080): conjuntos com preço próprio, aplicados sozinhos na visita. */
 export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Props) {
   const [openKey, setOpenKey] = useState<string | null>(null)
+  const [genderToastKey, setGenderToastKey] = useState<string | null>(null)
   const labels = variantKindLabels({ variantKind: singular, variantKindPlural: plural })
   const lower = labels.singular.toLocaleLowerCase('pt-BR')
   const pluralLower = labels.plural.toLocaleLowerCase('pt-BR')
@@ -66,8 +97,39 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
 
   function add() {
     const key = crypto.randomUUID()
-    onCombos((prev) => [...prev, { key, name: '', price: '', zoneKeys: [], active: true }])
+    onCombos((prev) => [
+      ...prev,
+      {
+        key,
+        name: '',
+        price: '',
+        zoneKeys: [],
+        active: true,
+        gender: defaultComboGender(usable),
+      },
+    ])
     setOpenKey(key)
+    setGenderToastKey(null)
+  }
+
+  function setGender(combo: ComboDraft, gender: ComboGenderFilter) {
+    if (gender === combo.gender) return
+    const kept = combo.zoneKeys.filter((key) => {
+      const z = zones.find((row) => row.key === key)
+      return z ? zoneFitsComboGender(z.audience, gender) : false
+    })
+    const dropped = kept.length !== combo.zoneKeys.length
+    patch(combo.key, { gender, zoneKeys: kept })
+    setGenderToastKey(dropped ? combo.key : null)
+  }
+
+  function finish(combo: ComboDraft) {
+    const name = combo.name.trim() || suggestComboName(comboZoneNames(combo, zones))
+    if (name !== combo.name) {
+      onCombos((prev) => prev.map((row) => (row.key === combo.key ? { ...row, name } : row)))
+    }
+    setOpenKey(null)
+    setGenderToastKey(null)
   }
 
   return (
@@ -92,16 +154,8 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
           {combos.map((combo) => {
             const open = openKey === combo.key
             const facts = factsOf(combo, zones, lower, pluralLower)
-            const names = combo.zoneKeys
-              .map((key) => zones.find((z) => z.key === key)?.name)
-              .filter(Boolean)
-              .join(' + ')
-            const hasMasculine = combo.zoneKeys.some(
-              (key) => zones.find((z) => z.key === key)?.audience === 'masculino',
-            )
-            const hasFeminine = combo.zoneKeys.some(
-              (key) => zones.find((z) => z.key === key)?.audience === 'feminino',
-            )
+            const names = comboZoneNames(combo, zones).join(' + ')
+            const visible = usable.filter((z) => zoneFitsComboGender(z.audience, combo.gender))
             return (
               <li
                 key={combo.key}
@@ -116,7 +170,7 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
                         <Label>Nome do combo</Label>
                         <Input
                           value={combo.name}
-                          placeholder="Ex.: Verão"
+                          placeholder={names ? `Sugestão: ${names}` : 'Opcional — ex.: Verão'}
                           onChange={(e) => patch(combo.key, { name: e.target.value })}
                         />
                       </TextField>
@@ -126,21 +180,50 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
                         onChange={(price) => patch(combo.key, { price })}
                       />
                     </div>
-                    <div className="vc-audience" role="group" aria-label={`O que entra no combo (${combo.zoneKeys.length})`}>
+                    <RadioGroup
+                      className="vc-combo-gender"
+                      orientation="horizontal"
+                      value={combo.gender}
+                      onChange={(v) => {
+                        if (v === 'feminino' || v === 'masculino' || v === 'ambos') {
+                          setGender(combo, v)
+                        }
+                      }}
+                    >
+                      <Label className="vc-label">Para quem</Label>
+                      <div className="vc-seg">
+                        <Radio value="feminino" className="vc-seg-item">
+                          Feminino
+                        </Radio>
+                        <Radio value="masculino" className="vc-seg-item">
+                          Masculino
+                        </Radio>
+                        <Radio value="ambos" className="vc-seg-item">
+                          Ambos
+                        </Radio>
+                      </div>
+                      <p className="clinic-footnote">{GENDER_HELP[combo.gender]}</p>
+                    </RadioGroup>
+                    {genderToastKey === combo.key ? (
+                      <p className="clinic-warn" role="status">
+                        {GENDER_DROP_TOAST}
+                      </p>
+                    ) : null}
+                    <div
+                      className="vc-audience"
+                      role="group"
+                      aria-label={`O que entra no combo (${combo.zoneKeys.length})`}
+                    >
                       <span>O que entra ({combo.zoneKeys.length})</span>
                       <div className="vc-chips">
-                        {usable.map((z) => {
+                        {visible.map((z) => {
                           const on = combo.zoneKeys.includes(z.key)
-                          const blocked =
-                            !on &&
-                            ((hasMasculine && z.audience === 'feminino') ||
-                              (hasFeminine && z.audience === 'masculino'))
+                          const showTodos = z.audience === 'ambos' && combo.gender !== 'ambos'
                           return (
                             <ToggleButton
                               key={z.key}
                               className="vc-chip"
                               isSelected={on}
-                              isDisabled={blocked}
                               onChange={(selected) =>
                                 patch(combo.key, {
                                   zoneKeys: selected
@@ -150,11 +233,11 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
                               }
                             >
                               {z.name}
+                              {showTodos ? <span className="vc-chip-mini">Todos</span> : null}
                             </ToggleButton>
                           )
                         })}
                       </div>
-                      <span className="clinic-footnote">Feminino e masculino não entram no mesmo combo.</span>
                     </div>
                     <dl className="vc-sums">
                       <div>
@@ -193,11 +276,12 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
                         onPress={() => {
                           onCombos((prev) => prev.filter((row) => row.key !== combo.key))
                           setOpenKey(null)
+                          setGenderToastKey(null)
                         }}
                       >
                         Remover
                       </Button>
-                      <Button className="panel-btn panel-btn-secondary" onPress={() => setOpenKey(null)}>
+                      <Button className="panel-btn panel-btn-secondary" onPress={() => finish(combo)}>
                         Pronto
                       </Button>
                     </div>
@@ -205,7 +289,7 @@ export function ComboCatalog({ singular, plural, zones, combos, onCombos }: Prop
                 ) : (
                   <Button className="vc-row" onPress={() => setOpenKey(combo.key)}>
                     <span className="vc-row-copy">
-                      <strong>{combo.name || 'Sem nome'}</strong>
+                      <strong>{combo.name || names || 'Sem nome'}</strong>
                       <span className="vc-row-meta">
                         <span>{names || 'Nada escolhido'}</span>
                         {!combo.active ? <span>Fora de uso</span> : null}

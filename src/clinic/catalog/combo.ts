@@ -6,7 +6,50 @@
 export const COMBO_NAME_MAX = 60
 export const COMBO_MIN_ZONES = 2
 
+/** Filtro «Para quem» no configurador de combo (Option A, Paulo 14/11/2026). */
+export type ComboGenderFilter = 'feminino' | 'masculino' | 'ambos'
+
 export type ComboZone = { id: string; priceCents: number | null; active: boolean }
+
+/**
+ * Nome sugerido a partir das zonas escolhidas (mesma junção da linha colapsada).
+ * Só se usa quando o campo está vazio; não sobrescreve nome preenchido.
+ */
+export function suggestComboName(zoneNames: readonly string[]): string {
+  const joined = zoneNames
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .join(' + ')
+  if (!joined) return ''
+  return joined.length <= COMBO_NAME_MAX ? joined : joined.slice(0, COMBO_NAME_MAX)
+}
+
+/** Zona visível/compatível com o filtro de género do combo. */
+export function zoneFitsComboGender(
+  audience: 'feminino' | 'masculino' | 'ambos',
+  gender: ComboGenderFilter,
+): boolean {
+  if (gender === 'ambos') return audience === 'ambos'
+  return audience === gender || audience === 'ambos'
+}
+
+/** Default ao criar combo: Feminino se houver; senão Masculino; senão Ambos. */
+export function defaultComboGender(
+  zones: readonly { audience: 'feminino' | 'masculino' | 'ambos' }[],
+): ComboGenderFilter {
+  if (zones.some((z) => z.audience === 'feminino')) return 'feminino'
+  if (zones.some((z) => z.audience === 'masculino')) return 'masculino'
+  return 'ambos'
+}
+
+/** Infere o filtro a partir das zonas já no combo (edição / reload). */
+export function deriveComboGender(
+  members: readonly { audience: 'feminino' | 'masculino' | 'ambos' }[],
+): ComboGenderFilter {
+  if (members.some((z) => z.audience === 'feminino')) return 'feminino'
+  if (members.some((z) => z.audience === 'masculino')) return 'masculino'
+  return 'ambos'
+}
 
 export type ComboDef = {
   id: string

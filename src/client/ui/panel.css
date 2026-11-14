@@ -9294,9 +9294,16 @@ button.panel-auth-inline-link {
   gap: var(--space-2);
 }
 
+.vc-combo-gender {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .vc-chip {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: var(--size-control-sm);
   padding: 0 var(--space-4);
   border: var(--size-border-width) solid var(--color-line-control);
@@ -9306,6 +9313,20 @@ button.panel-auth-inline-link {
   font: inherit;
   font-size: var(--font-size-small);
   cursor: pointer;
+}
+
+.vc-chip-mini {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.vc-chip[data-selected] .vc-chip-mini {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 .vc-chip[data-selected] {
