@@ -387,9 +387,11 @@ function closeIdleConversation(
   clock: Clock,
 ): { closedOpportunityId: string | null; outbox: OutboxRow[] } {
   const meta = bindOrAssertTenant(db, caller, clock)
-  const future = conversationHasFutureConfirmed(db, meta.tenantId, conversationId, clock.nowMs())
+  // DEC-087: mesmo destino do Terminar — sempre agradece (mesmo com horário futuro;
+  // a etapa só permanece Agendado nesses casos). `thanks: !future` omitia o adeus
+  // no fecho automático e parecia que o segundo prazo nunca corria (staging Paulo).
   const settled = settleIdle(db, caller, meta.tenantId, conversationId, clock, {
-    thanks: !future,
+    thanks: true,
     note: 'Idle: sem resposta (fecho automático)',
     clientRequestId: `followup.idle.close:${conversationId}:${clock.nowMs()}`,
   })

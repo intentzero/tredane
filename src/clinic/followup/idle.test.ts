@@ -142,6 +142,91 @@ describe('DEC-087 idle follow-up', () => {
     }
   })
 
+  it('fecho automático com horário futuro agradece e permanece Agendado (DEC-087)', () => {
+    const clock = createControllableClock(Date.UTC(2026, 10, 14, 13, 43))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:future-close',
+          waId: '5511987001777',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      const contactId = ingested.contact!.id
+      ensureOpenOpportunity(
+        db,
+        { tenantId: 'clinic-demo-a', contactId, conversationId },
+        clock,
+      )
+      const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)!
+      db.run(
+        `UPDATE opportunities SET stage = 'agendado', updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        opp.id,
+      )
+      // Compromisso futuro na mesma conversa (ciclo anterior / Marcar outro).
+      const startsAt = clock.nowMs() + 7 * 24 * 60 * 60_000
+      db.run(
+        `INSERT INTO appointments (
+           id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
+           created_at, contact_id, conversation_id, confirmed_by
+         ) VALUES (?, ?, 'svc_fake', 'pro_fake', ?, ?, 'confirmed', ?, ?, ?, ?)`,
+        'apt_idle_future',
+        'clinic-demo-a',
+        startsAt,
+        startsAt + 40 * 60_000,
+        clock.nowMs(),
+        contactId,
+        conversationId,
+        'user_synth_attendant_a',
+      )
+
+      rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
+        progressAt: clock.nowMs(),
+      })
+      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(
+        db.get<{ phase: string | null }>(
+          `SELECT idle_phase AS phase FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.phase,
+      ).toBe('close')
+
+      clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(closed.some((s) => s.action === 'closed')).toBe(true)
+      const still = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)
+      expect(still?.stage).toBe('agendado')
+      expect(still?.status).toBe('open')
+      const thanks = db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        conversationId,
+      )
+      expect(isTerminarFarewellBody(thanks?.body ?? '', 'America/Sao_Paulo', clock.nowMs())).toBe(
+        true,
+      )
+      expect(thanks?.body).not.toBe(IDLE_PROMPT_BODY)
+      const suppressed = db.get<{ at: number | null }>(
+        `SELECT idle_suppressed_at AS at FROM conversations WHERE id = ?`,
+        conversationId,
+      )?.at
+      expect(suppressed).not.toBeNull()
+    } finally {
+      close()
+    }
+  })
+
   it('segundo prazo sem resposta fecha; system não reinicia; humano isenta', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 14))
     const { db, close } = bootClinicDb({ clock })
