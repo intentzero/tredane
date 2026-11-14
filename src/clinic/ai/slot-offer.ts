@@ -372,6 +372,16 @@ export async function offerNearestSlots(input: {
     if (!names.includes(zone.name)) names.push(zone.name)
   }
   const subject = joinNames(names) || serviceNameInProse(service.name)
+  /** Frase aprovada `sem_horario_dia` para o dia pedido («Para {assunto}, amanhã não tenho horário livre.»). */
+  const noSlotsOnDayReply = (requested: string): string => {
+    const dia = dayWithPrepPt(requested, today)
+    return sayAct(
+      'sem_horario_dia',
+      conversationId,
+      { assunto: subject, dia },
+      `Para ${subject}, ${dia} não tenho horário livre.`,
+    )
+  }
   if (picked.length === 0) {
     // Silencioso 2 (Paulo 09/11/2026): período/dia vazio → auto-avançar sem wait «Sim».
     if (!_skipEmptyAdvance && period) {
@@ -415,6 +425,8 @@ export async function offerNearestSlots(input: {
       if (advanced.slots.length > 0) {
         return {
           ...advanced,
+          // O dia pedido não serve: diz-se antes de oferecer o que há (mesma frase aprovada).
+          replyText: `${noSlotsOnDayReply(date)} ${dropRepeatedSubject(advanced.replyText, subject)}`,
           clearDate: true,
           clearPeriod: Boolean(period) || Boolean(advanced.clearPeriod),
         }
@@ -518,6 +530,15 @@ export async function offerNearestSlots(input: {
   )
   // Paulo 06/11/2026: sem rodapé «vale por 24 horas» — a lista fica só com as horas.
   // A validade de 24 h do lastOffer/pending (DEC-127) continua no backend.
+  // Dia pedido sem vaga (ex.: «amanhã», domingo, clínica fechada): a oferta cai noutro dia e a
+  // cliente tem de saber que o dia dela não serve (staging 14/11/2026). Junta a frase aprovada
+  // `sem_horario_dia` à oferta; sem copy nova (DEC-104).
+  if (date && !picked.some((slot) => slot.date === date)) {
+    return {
+      slots: picked,
+      replyText: `${noSlotsOnDayReply(date)} ${dropRepeatedSubject(body, subject)}`,
+    }
+  }
   return {
     slots: picked,
     replyText: body,
