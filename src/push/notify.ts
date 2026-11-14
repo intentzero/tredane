@@ -72,6 +72,9 @@ export async function notifyNewConversation(
     appointmentId?: string
     contactLabel?: string | null
     serviceName?: string | null
+    startsAt?: number | null
+    timezone?: string | null
+    professionalName?: string | null
     /** Motivo de handoff (`ai_reply_pause_reason`) — só para needs_person. */
     handoffReason?: string | null
     /** Badge do ícone (conversas com não lidas). */
@@ -92,6 +95,9 @@ export async function notifyNewConversation(
     appointmentId: input.appointmentId,
     contactLabel: input.contactLabel,
     serviceName: input.serviceName,
+    startsAt: input.startsAt,
+    timezone: input.timezone,
+    professionalName: input.professionalName,
     handoffReason: input.handoffReason,
   })
   if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
@@ -140,6 +146,9 @@ export async function notifyNewConversationAsync(
     appointmentId?: string
     contactLabel?: string | null
     serviceName?: string | null
+    startsAt?: number | null
+    timezone?: string | null
+    professionalName?: string | null
     /** Motivo de handoff (`ai_reply_pause_reason`) — só para needs_person. */
     handoffReason?: string | null
     /** Badge do ícone (conversas com não lidas). */
@@ -170,6 +179,9 @@ export async function notifyNewConversationAsync(
     appointmentId: input.appointmentId,
     contactLabel: input.contactLabel,
     serviceName: input.serviceName,
+    startsAt: input.startsAt,
+    timezone: input.timezone,
+    professionalName: input.professionalName,
     handoffReason: input.handoffReason,
   })
   if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
@@ -227,6 +239,9 @@ function buildPushPayloadForKind(
     appointmentId?: string
     contactLabel?: string | null
     serviceName?: string | null
+    startsAt?: number | null
+    timezone?: string | null
+    professionalName?: string | null
     handoffReason?: string | null
   },
 ) {
@@ -258,6 +273,9 @@ function buildPushPayloadForKind(
       conversationId: input.conversationId,
       contactLabel: input.contactLabel,
       serviceName: input.serviceName,
+      startsAt: input.startsAt,
+      timezone: input.timezone,
+      professionalName: input.professionalName,
     })
   }
   return buildNewConversationPayload(input)

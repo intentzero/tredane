@@ -124,6 +124,9 @@ export async function maybeNotifyAppointmentConfirmedPush(input: {
   conversationId?: string | null
   contactLabel?: string | null
   serviceName?: string | null
+  startsAt?: number | null
+  timezone?: string | null
+  professionalName?: string | null
   badgeCount?: number
   suppressUserIds?: readonly string[]
   log?: (entry: {
@@ -140,6 +143,9 @@ export async function maybeNotifyAppointmentConfirmedPush(input: {
     appointmentId: input.appointmentId,
     contactLabel: input.contactLabel,
     serviceName: input.serviceName,
+    startsAt: input.startsAt,
+    timezone: input.timezone,
+    professionalName: input.professionalName,
     logEvent: 'queue.push_appointment_confirmed',
     failEvent: 'queue.push_appointment_confirmed_failed',
   })
@@ -155,6 +161,9 @@ async function deliverPushKind(input: {
   appointmentId?: string
   contactLabel?: string | null
   serviceName?: string | null
+  startsAt?: number | null
+  timezone?: string | null
+  professionalName?: string | null
   handoffReason?: string | null
   badgeCount?: number
   suppressUserIds?: readonly string[]
@@ -176,6 +185,9 @@ async function deliverPushKind(input: {
       appointmentId: input.appointmentId,
       contactLabel: input.contactLabel,
       serviceName: input.serviceName,
+      startsAt: input.startsAt,
+      timezone: input.timezone,
+      professionalName: input.professionalName,
       handoffReason: input.handoffReason,
       badgeCount: input.badgeCount,
       suppressUserIds: input.suppressUserIds,

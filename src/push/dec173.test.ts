@@ -17,7 +17,9 @@ import type { WorkerBindings } from '../worker/bindings'
 const clock = createControllableClock(1_700_000_000_000)
 
 describe('DEC-173 push gates', () => {
-  it('appointment_confirmed payload com contacto/serviço e sem telefone', () => {
+  it('appointment_confirmed payload expressivo sem eco do título', () => {
+    // sexta 30/10/2026 12:00 America/Sao_Paulo = 15:00 UTC
+    const startsAt = Date.UTC(2026, 9, 30, 15, 0, 0)
     const payload = buildAppointmentConfirmedPayload({
       tenantId: 'clinic-demo-a',
       tenantName: 'Clínica Aurora',
@@ -25,13 +27,53 @@ describe('DEC-173 push gates', () => {
       conversationId: 'cnv_1',
       contactLabel: 'Ana Silva',
       serviceName: 'Depilação',
+      startsAt,
+      timezone: 'America/Sao_Paulo',
+      professionalName: 'Dra. Paula Reis',
     })
     expect(payload.kind).toBe('appointment_confirmed')
     expect(payload.title).toBe('Agendamento confirmado')
-    expect(payload.body).toBe('Agendamento confirmado — Ana Silva · Depilação na Clínica Aurora')
+    expect(payload.body).toBe(
+      'Ana Silva · Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis · Clínica Aurora',
+    )
+    expect(payload.body).not.toMatch(/^Agendamento confirmado/)
     expect(payload.url).toContain('/conversas/cnv_1')
     expect(payload.tag).toBe('appointment:clinic-demo-a:apt_1')
     assertSafePushPayload(payload)
+  })
+
+  it('appointment_confirmed prioriza dia/hora/pro e parte variante do zoneLabel', () => {
+    const startsAt = Date.UTC(2026, 9, 30, 15, 0, 0)
+    const rich = buildAppointmentConfirmedPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Teste Paulo (staging)',
+      appointmentId: 'apt_2',
+      contactLabel: 'Gislaine Santos',
+      serviceName: 'Massagem · relaxante',
+      startsAt,
+      timezone: 'America/Sao_Paulo',
+      professionalName: 'Ana',
+    })
+    expect(rich.body).toBe(
+      'Gislaine Santos · Massagem · relaxante · sexta 30/10 às 12:00 com Ana · Clínica Teste Paulo (staging)',
+    )
+    assertSafePushPayload(rich)
+
+    const longClinic = 'Clínica ' + 'X'.repeat(120)
+    const trimmed = buildAppointmentConfirmedPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: longClinic,
+      appointmentId: 'apt_3',
+      contactLabel: 'Gislaine Santos',
+      serviceName: 'Massagem · relaxante',
+      startsAt,
+      timezone: 'America/Sao_Paulo',
+      professionalName: 'Ana Costa Silva',
+    })
+    expect(trimmed.body).toContain('às 12:00 com Ana Costa Silva')
+    expect(trimmed.body).not.toContain(longClinic)
+    expect(trimmed.body.length).toBeLessThanOrEqual(160)
+    assertSafePushPayload(trimmed)
   })
 
   it('new_message com contacto e needs_person com copy rica', () => {
@@ -129,7 +171,9 @@ describe('DEC-173 push gates', () => {
         },
       )
       expect(sent[1]?.kind).toBe('appointment_confirmed')
-      expect(sent[1]?.body).toContain('Massagem')
+      expect(sent[1]?.title).toBe('Agendamento confirmado')
+      expect(sent[1]?.body).toMatch(/^Ana · Massagem · Clínica Aurora/)
+      expect(sent[1]?.body).not.toMatch(/^Agendamento confirmado/)
     } finally {
       close()
     }

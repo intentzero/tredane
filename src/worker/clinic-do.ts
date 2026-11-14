@@ -1786,8 +1786,18 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     },
   ): Promise<void> {
     try {
+      const aptRow = this.#db.get<{
+        contact_label: string | null
+        service_id: string | null
+        professional_id: string | null
+        starts_at: number | null
+      }>(
+        `SELECT contact_label, service_id, professional_id, starts_at
+         FROM appointments WHERE tenant_id = ? AND id = ?`,
+        tenantId,
+        apt.appointmentId,
+      )
       let contactLabel: string | null = null
-      let serviceName: string | null = null
       if (apt.contactId) {
         contactLabel =
           this.#db.get<{ label: string | null }>(
@@ -1796,32 +1806,40 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             tenantId,
             apt.contactId,
           )?.label ?? null
-        if (!contactLabel) {
-          contactLabel =
-            this.#db.get<{ label: string | null }>(
-              `SELECT contact_label AS label FROM appointments
-               WHERE tenant_id = ? AND id = ?`,
-              tenantId,
-              apt.appointmentId,
-            )?.label ?? null
-        }
-      } else {
-        contactLabel =
-          this.#db.get<{ label: string | null }>(
-            `SELECT contact_label AS label FROM appointments
-             WHERE tenant_id = ? AND id = ?`,
+      }
+      if (!contactLabel) {
+        contactLabel = aptRow?.contact_label ?? null
+      }
+
+      const serviceId = apt.serviceId ?? aptRow?.service_id ?? null
+      let serviceName: string | null = null
+      if (serviceId) {
+        const baseName =
+          clinicConfig.getService(this.#db, tenantId, serviceId)?.name ?? null
+        if (baseName) {
+          const zones = clinicConfig.readZoneSnapshots(
+            this.#db,
             tenantId,
+            'appointment',
             apt.appointmentId,
-          )?.label ?? null
+          )
+          serviceName = clinicConfig.zoneLabel(baseName, zones)
+        }
       }
-      if (apt.serviceId) {
-        serviceName =
-          this.#db.get<{ name: string | null }>(
-            `SELECT name FROM services WHERE tenant_id = ? AND id = ?`,
-            tenantId,
-            apt.serviceId,
-          )?.name ?? null
-      }
+
+      const professionalId = aptRow?.professional_id ?? null
+      const professionalName = professionalId
+        ? clinicConfig.getResource(this.#db, tenantId, professionalId, this.#clock)
+            ?.name ?? null
+        : null
+      const timezone = clinicConfig.ensureClinicSettings(
+        this.#db,
+        tenantId,
+        this.#clock,
+      ).timezone
+      const startsAt =
+        typeof aptRow?.starts_at === 'number' ? aptRow.starts_at : null
+
       const { maybeNotifyAppointmentConfirmedPush } = await import('../push/queue-hook')
       await maybeNotifyAppointmentConfirmedPush({
         env: this.env as WorkerBindings,
@@ -1831,6 +1849,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         conversationId: apt.conversationId,
         contactLabel,
         serviceName,
+        startsAt,
+        timezone,
+        professionalName,
         badgeCount: countUnreadConversations(this.#db, tenantId),
         suppressUserIds: this.#activeViewerUserIds(),
         log: (entry) => {

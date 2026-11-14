@@ -2,6 +2,7 @@
  * Envio Web Push (#42) — live via @block65/webcrypto-web-push; synthetic em CI.
  */
 import { buildPushPayload } from '@block65/webcrypto-web-push'
+import { formatBookedWhenAt } from '../clinic/scheduling/format-booked-when'
 import type { VapidConfig } from './vapid'
 import { createSimulatedPushTransport, type SimulatedPushTransport } from './synthetic'
 import type {
@@ -10,6 +11,9 @@ import type {
   PushTransport,
   PushTransportResult,
 } from './types'
+
+/** Limite do corpo (assertSafePushPayload + centro de notificações). */
+export const PUSH_BODY_MAX = 160
 
 export function createLivePushTransport(vapid: VapidConfig): PushTransport {
   return {
@@ -210,8 +214,16 @@ export function buildNeedsPersonPayload(input: {
 }
 
 /**
- * DEC-173 — agendamento confirmado (botão Confirmar, Pix, painel).
- * Contacto/serviço só como rótulos curtos já usados na agenda (sem telefone).
+ * DEC-173 / DEC-040 (revisão Paulo 14/11/2026) — agendamento confirmado
+ * (botão Confirmar, Pix, painel).
+ *
+ * Título = tipo (sem eco no corpo). Corpo:
+ * `{contacto} · {serviço}[ · variante] · {weekday} {DD/MM} às {HH:MM} com {profissional}`
+ * (forma do quando = DEC-174). Clínica só se couber ≤ {@link PUSH_BODY_MAX};
+ * prioridade: dia/hora/pro > clínica. Sem telefone/waId/preview.
+ *
+ * `serviceName` pode já vir com variante via `zoneLabel` (`Massagem · relaxante`);
+ * cada segmento entre « · » é sanitizado à parte.
  */
 export function buildAppointmentConfirmedPayload(input: {
   tenantId: string
@@ -219,15 +231,15 @@ export function buildAppointmentConfirmedPayload(input: {
   appointmentId: string
   conversationId?: string | null
   contactLabel?: string | null
+  /** Nome do serviço, opcionalmente com variante (`zoneLabel`). */
   serviceName?: string | null
+  /** Início UTC do compromisso (ms). */
+  startsAt?: number | null
+  /** IANA da clínica — só para formatar; nunca no texto. */
+  timezone?: string | null
+  professionalName?: string | null
 }): NewConversationPushPayload {
-  const clinic = clinicLabel(input.tenantName)
-  const contact = sanitizePushLabel(input.contactLabel)
-  const service = sanitizePushLabel(input.serviceName)
-  const detail = [contact, service].filter(Boolean).join(' · ')
-  const body = detail
-    ? `Agendamento confirmado — ${detail} na ${clinic}`
-    : `Agendamento confirmado na ${clinic}`
+  const body = buildAppointmentConfirmedBody(input)
   const conversationId = input.conversationId?.trim() || ''
   const url = conversationId
     ? `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(conversationId)}`
@@ -241,6 +253,53 @@ export function buildAppointmentConfirmedPayload(input: {
     tenantId: input.tenantId,
     conversationId: conversationId || input.appointmentId,
   }
+}
+
+/** Monta o corpo do push de agendamento confirmado (testável à parte). */
+export function buildAppointmentConfirmedBody(input: {
+  tenantName: string
+  contactLabel?: string | null
+  serviceName?: string | null
+  startsAt?: number | null
+  timezone?: string | null
+  professionalName?: string | null
+}): string {
+  const contact = resolvePushContactLabel(input.contactLabel)
+  const serviceParts = splitPushLabelSegments(input.serviceName)
+  const when =
+    typeof input.startsAt === 'number' &&
+    Number.isFinite(input.startsAt) &&
+    input.timezone?.trim()
+      ? formatBookedWhenAt(input.timezone.trim(), input.startsAt)
+      : null
+  const professional = sanitizePushLabel(input.professionalName)
+
+  const head = [contact, ...serviceParts, when].filter(Boolean) as string[]
+  let body = head.join(' · ')
+  if (professional) {
+    body = body ? `${body} com ${professional}` : `com ${professional}`
+  }
+  if (!body) body = resolvePushContactLabel(null)
+
+  const clinic = clinicLabel(input.tenantName)
+  const withClinic = `${body} · ${clinic}`
+  if (withClinic.length <= PUSH_BODY_MAX) {
+    return withClinic
+  }
+  if (body.length <= PUSH_BODY_MAX) {
+    return body
+  }
+  // Último recurso: cortar com reticências (sanitização já limita rótulos).
+  return `${body.slice(0, PUSH_BODY_MAX - 1).trimEnd()}…`
+}
+
+/** Parte um rótulo que possa trazer « · » (ex. zoneLabel) em segmentos seguros. */
+function splitPushLabelSegments(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return []
+  return raw
+    .split(/\s*·\s*/)
+    .map((part) => sanitizePushLabel(part))
+    .filter((part): part is string => Boolean(part))
 }
 
 /** Rótulo curto para o corpo do push — sem telefone / control chars / separador. */
@@ -281,11 +340,11 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
     }
   }
   const body = payload.body
-  if (!body || /\r|\n/.test(body) || body.length > 160) {
+  if (!body || /\r|\n/.test(body) || body.length > PUSH_BODY_MAX) {
     throw new Error('push_body_unexpected')
   }
-  // Templates Confirmados (13/11/2026): título = tipo; corpo = segmentos com « · ».
-  // Sem preview de mensagem WhatsApp — rejeita corpos que não casem o formato.
+  // Templates Confirmados (13/11/2026; agendamento 14/11/2026): título = tipo;
+  // corpo = segmentos com « · ». Sem preview WhatsApp.
   switch (payload.kind) {
     case 'new_conversation': {
       if (!/^[^·]+ · [^·]+$/.test(body)) throw new Error('push_body_unexpected')
@@ -323,7 +382,11 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
       break
     }
     case 'appointment_confirmed': {
-      if (!body.startsWith('Agendamento confirmado')) {
+      // Sem eco do título; contacto · … (serviço / quando / clínica).
+      if (body.startsWith('Agendamento confirmado')) {
+        throw new Error('push_body_unexpected')
+      }
+      if (!/^[^·]+ · .+/.test(body)) {
         throw new Error('push_body_unexpected')
       }
       break
