@@ -8017,6 +8017,11 @@ button.panel-auth-inline-link {
     box-shadow: var(--elevation-e2);
     transform: translateY(-1px);
   }
+
+  /* Hover não pode apagar o anel do cartão aberto (mesma especificidade que :hover). */
+  .acomp-card--open:hover {
+    box-shadow: 0 0 0 2px var(--color-primary-base), var(--elevation-e2);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -13017,6 +13022,13 @@ button.panel-auth-inline-link {
 
 .acomp-col-dot[data-stage='perdido'] {
   background: var(--color-danger-ink);
+}
+
+/* Aba selecionada inverte o chip; pontos desenhados para coluna clara falham WCAG 1.4.11. */
+.acomp-tabs .panel-chip[aria-selected='true'] .acomp-col-dot,
+.acomp-tabs .panel-chip[data-selected] .acomp-col-dot,
+.acomp-tabs .panel-chip[data-selected='true'] .acomp-col-dot {
+  background: var(--color-text-on-primary);
 }
 
 .acomp-card-time {

@@ -123,6 +123,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
   })
 
   it('cartão: data da marcação em chip, «IA» em chip e «Parado» com texto (DEC-184)', async () => {
+    const previous = DATA.agendado
     DATA.agendado = [
       card('d', 'Carla Mendes', 'agendado', {
         assigneeClerkUserId: null,
@@ -131,13 +132,16 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
         linkedAppointment: { id: 'ap1', startsAt: NOW + DAY, endsAt: NOW + DAY + 3_600_000, status: 'confirmed' } as never,
       }),
     ]
-    mount()
-    const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
-    expect(carla.querySelector('.acomp-card-when')).not.toBeNull()
-    expect(carla.querySelector('.acomp-chip-ai')?.textContent).toBe('IA')
-    const fernanda = await screen.findByRole('button', { name: 'Abrir Fernanda Araújo' })
-    expect(within(fernanda).getByText('Parado')).toBeTruthy()
-    DATA.agendado = [card('d', 'Carla Mendes', 'agendado')]
+    try {
+      mount()
+      const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
+      expect(carla.querySelector('.acomp-card-when')).not.toBeNull()
+      expect(carla.querySelector('.acomp-chip-ai')?.textContent).toBe('IA')
+      const fernanda = await screen.findByRole('button', { name: 'Abrir Fernanda Araújo' })
+      expect(within(fernanda).getByText('Parado')).toBeTruthy()
+    } finally {
+      DATA.agendado = previous
+    }
   })
 
   it('«Perdidos» acrescenta a coluna Perdido', async () => {
