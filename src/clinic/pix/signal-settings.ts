@@ -60,10 +60,12 @@ function hoursCompat(minutes: number): number | null {
 function rowToSettings(row: SettingsSignalSql): PixSignalSettings {
   const amountKind = mapAmountKind(row.signal_amount_kind)
   const policyKind = mapPolicyKind(row.signal_policy_kind)
-  const creditWindowMinutes =
-    policyKind === 'credit_next'
-      ? resolveCreditWindowMinutes(row.signal_credit_window_minutes, row.signal_credit_window_hours)
-      : null
+  // Sempre devolve a janela guardada (para o formulário round-trip Outro…),
+  // mesmo com política ≠ credit_next. A prévia só a usa com credit_next.
+  const creditWindowMinutes = resolveCreditWindowMinutes(
+    row.signal_credit_window_minutes,
+    row.signal_credit_window_hours,
+  )
   const customPolicyText = row.signal_custom_policy_text ?? ''
   const bookingLeadMinutes =
     row.booking_lead_minutes != null && Number.isFinite(row.booking_lead_minutes)
@@ -75,7 +77,7 @@ function rowToSettings(row: SettingsSignalSql): PixSignalSettings {
     percent: row.signal_percent,
     deadlineSeconds: row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     policyKind,
-    creditWindowMinutes,
+    creditWindowMinutes: policyKind === 'credit_next' ? creditWindowMinutes : null,
     customPolicyText,
   })
   return {
@@ -87,8 +89,7 @@ function rowToSettings(row: SettingsSignalSql): PixSignalSettings {
     deadlineSeconds: row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     policyKind,
     creditWindowMinutes,
-    creditWindowHours:
-      creditWindowMinutes != null ? hoursCompat(creditWindowMinutes) : null,
+    creditWindowHours: hoursCompat(creditWindowMinutes),
     bookingLeadMinutes,
     customPolicyText: policyKind === 'custom' ? customPolicyText : '',
     cancellationPolicy: row.signal_cancellation_policy || preview.combined,
@@ -294,9 +295,9 @@ export function updatePixSignalSettings(
     )
   }
 
-  if (policyKind !== 'credit_next') {
-    creditWindowMinutes = creditWindowMinutes || 24 * 60
-  }
+  // Preserva a janela custom (Outro…) ao mudar para Não devolve / Outro…;
+  // não forçar 24 h no UPDATE.
+  const storedWindowMinutes = creditWindowMinutes > 0 ? creditWindowMinutes : 24 * 60
 
   const preview = buildSignalPolicyPreview({
     amountKind,
@@ -304,7 +305,7 @@ export function updatePixSignalSettings(
     percent: amountKind === 'percent' ? percent : null,
     deadlineSeconds: deadline,
     policyKind,
-    creditWindowMinutes: policyKind === 'credit_next' ? creditWindowMinutes : null,
+    creditWindowMinutes: policyKind === 'credit_next' ? storedWindowMinutes : null,
     customPolicyText,
   })
 
@@ -318,8 +319,8 @@ export function updatePixSignalSettings(
   }
 
   const now = clock.nowMs()
-  const storedWindowMinutes = policyKind === 'credit_next' ? creditWindowMinutes : 24 * 60
-  const storedWindowHours = hoursCompat(storedWindowMinutes) ?? Math.max(1, Math.round(storedWindowMinutes / 60))
+  const storedWindowHours =
+    hoursCompat(storedWindowMinutes) ?? Math.max(1, Math.round(storedWindowMinutes / 60))
 
   db.run(
     `UPDATE clinic_settings

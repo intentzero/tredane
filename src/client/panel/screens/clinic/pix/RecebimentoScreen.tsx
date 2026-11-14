@@ -412,23 +412,31 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   }
 
   async function onSaveSettings() {
-    if (saveDisabled || leadMinutes == null || creditMinutes == null) return
+    if (saveDisabled || leadMinutes == null) return
+    if (policyKind === 'credit_next' && creditMinutes == null) return
     setBusy('save')
     setNotice(null)
     try {
+      // Com sinal desligado, não manda amount (evita gravar null/NaN do formulário escondido).
+      // Com política ≠ credit_next, omite creditWindowMinutes para preservar Outro… no servidor.
+      const body: Parameters<PanelApi['updatePixSignalSettings']>[1] = {
+        enabled,
+        deadlineSeconds: minutesToSeconds(deadlineMinutes),
+        policyKind,
+        bookingLeadMinutes: leadMinutes,
+        customPolicyText: policyKind === 'custom' ? customPolicy.trim() : '',
+      }
+      if (enabled) {
+        body.amountKind = amountKind
+        body.fixedCents = amountKind === 'fixed' ? fixedCents : null
+        body.percent = amountKind === 'percent' ? percent : null
+      }
+      if (policyKind === 'credit_next' && creditMinutes != null) {
+        body.creditWindowMinutes = creditMinutes
+      }
       const signalSettings = await api.updatePixSignalSettings(
         tenantId,
-        {
-          enabled,
-          amountKind,
-          fixedCents: amountKind === 'fixed' ? fixedCents : null,
-          percent: amountKind === 'percent' ? percent : null,
-          deadlineSeconds: minutesToSeconds(deadlineMinutes),
-          policyKind,
-          creditWindowMinutes: policyKind === 'credit_next' ? creditMinutes : null,
-          bookingLeadMinutes: leadMinutes,
-          customPolicyText: policyKind === 'custom' ? customPolicy.trim() : '',
-        },
+        body,
         { generation, expectGeneration: () => generation },
       )
       setSnap((prev) =>

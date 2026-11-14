@@ -182,5 +182,32 @@ describe('RecebimentoScreen — cartão unificado (DEC-180 / DEC-182)', () => {
         expect.anything(),
       ),
     )
+    const body = client.updatePixSignalSettings.mock.calls.at(-1)?.[1] as Record<string, unknown>
+    expect(body).not.toHaveProperty('fixedCents')
+    expect(body).not.toHaveProperty('amountKind')
+  })
+
+  it('Não devolve preserva janela Outro… (não manda creditWindowMinutes)', async () => {
+    const client = api()
+    render(<RecebimentoScreen tenantId="clinic-demo-a" api={client} generation={1} />)
+    await screen.findByRole('button', { name: '24 h antes' })
+    const win = screen.getByRole('group', { name: 'Janela' })
+    await userEvent.click(within(win).getByRole('button', { name: 'Outro…' }))
+    const custom = screen.getByLabelText('Janela personalizada')
+    const num = within(custom).getByLabelText('Número') as HTMLInputElement
+    await userEvent.clear(num)
+    await userEvent.type(num, '36')
+    await userEvent.selectOptions(within(custom).getByLabelText('Unidade'), 'h')
+    await userEvent.click(screen.getByRole('button', { name: /Não devolve/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar regras do sinal' }))
+    await waitFor(() =>
+      expect(client.updatePixSignalSettings).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        expect.objectContaining({ policyKind: 'keep' }),
+        expect.anything(),
+      ),
+    )
+    const body = client.updatePixSignalSettings.mock.calls.at(-1)?.[1] as Record<string, unknown>
+    expect(body).not.toHaveProperty('creditWindowMinutes')
   })
 })
