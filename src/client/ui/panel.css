@@ -13174,7 +13174,7 @@ button.panel-auth-inline-link {
   justify-content: space-between;
   align-items: flex-start;
   padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+  border-bottom: var(--size-border-width) solid var(--color-line-border);
 }
 .clinic-knowledge-q {
   margin: 0 0 var(--space-1);
