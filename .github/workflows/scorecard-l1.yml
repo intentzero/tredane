@@ -1,6 +1,8 @@
 # Scorecard L1 num comentário do PR (metodologia de avaliação conversacional, DEC-146).
 # Só informa: não bloqueia o merge. As invariantes continuam a bloquear pelo job `verify` (DEC-108).
-# Corre apenas em PRs que tocam no atendimento conversacional.
+#
+# Preferência: reutilizar o artefacto `l1-scorecard` do job CI verify (mesmo Vitest com
+# EVAL_SCORECARD=1) para não pagar um segundo L1 (~6 min). Fallback: corre eval:scorecard.
 name: Scorecard L1
 
 on:
@@ -12,10 +14,12 @@ on:
       - 'docs/implementation/avaliacao/**'
       - 'scripts/scorecard-comment.mjs'
       - '.github/workflows/scorecard-l1.yml'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
   pull-requests: write
+  actions: read
 
 concurrency:
   group: scorecard-l1-${{ github.event.pull_request.number }}
@@ -31,26 +35,63 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Try CI artifact before npm ci — on hit we only need Node stdlib for the comment script.
+      - name: Download L1 artifact from CI verify
+        id: art
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p .eval
+          echo "reused=false" >> "$GITHUB_OUTPUT"
+          run_id="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$HEAD_SHA&per_page=10" \
+            --jq '[.workflow_runs[] | select(.conclusion=="success")][0].id // [.workflow_runs[] | select(.status=="completed")][0].id // empty')"
+          if [ -z "$run_id" ]; then
+            echo "No completed CI run for $HEAD_SHA yet — will run eval:scorecard locally if needed."
+            exit 0
+          fi
+          echo "Trying artifact from CI run $run_id"
+          if gh run download "$run_id" -n l1-scorecard -D .eval --repo "$REPO" 2>/tmp/l1-art.err; then
+            if [ -f .eval/l1-latest.json ]; then
+              echo "reused=true" >> "$GITHUB_OUTPUT"
+              echo "Reused l1-scorecard from CI run $run_id"
+            else
+              echo "Artifact downloaded but l1-latest.json missing"
+            fi
+          else
+            echo "No l1-scorecard artifact (CI may still be running or lite verify):"
+            cat /tmp/l1-art.err || true
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.art.outputs.reused != 'true'
         with:
           node-version: '22'
           cache: npm
+
       - name: Install dependencies
+        if: steps.art.outputs.reused != 'true'
         run: npm ci --no-audit --no-fund
+
       # Reuse L1 output for the same base tip across PRs/pushes (~6 min saved on cache hit).
       - name: Restore base L1 cache
         id: base_cache
+        if: steps.art.outputs.reused != 'true'
         uses: actions/cache@v4
         with:
           path: base-latest.json
           key: scorecard-l1-base-${{ github.event.pull_request.base.sha }}
+
       - name: L1 on the base branch (what the PR is compared with)
         # A linha de base gravada fica atrás da main sempre que outros PRs acrescentam casos
         # sem a regravar; comparar com ela atribuía ao PR mudanças que não são dele.
         # Se esta corrida falhar, o scorecard volta a comparar com a linha de base gravada.
         # BASE_SHA (não o nome da branch) evita injecção no shell e fixa o tip da base do evento.
         id: base
-        if: steps.base_cache.outputs.cache-hit != 'true'
+        if: steps.art.outputs.reused != 'true' && steps.base_cache.outputs.cache-hit != 'true'
         continue-on-error: true
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -70,22 +111,27 @@ jobs:
           else
             echo "has_baseline=0" >> "$GITHUB_OUTPUT"
           fi
+
       - name: Run L1 scorecard
         id: run
+        if: steps.art.outputs.reused != 'true'
         env:
           # Cache hit ou corrida fresca da base: compara com esse artefacto; senão linha gravada.
           EVAL_BASELINE_PATH: ${{ (steps.base_cache.outputs.cache-hit == 'true' || steps.base.outputs.has_baseline == '1') && 'base-latest.json' || '' }}
         # O resultado vai para o comentário; um gate falhado também chega aqui (e ao job verify).
         continue-on-error: true
         run: npm run eval:scorecard
+
       - name: Changed files
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: git diff --name-only "${BASE_SHA}...HEAD" > changed-files.txt
+
       - name: Build comment
         env:
-          SCORECARD_RUN_FAILED: ${{ steps.run.outcome == 'failure' && '1' || '0' }}
+          SCORECARD_RUN_FAILED: ${{ steps.art.outputs.reused == 'true' && '0' || (steps.run.outcome == 'failure' && '1' || '0') }}
         run: node scripts/scorecard-comment.mjs changed-files.txt scorecard-comment.md
+
       - name: Create or update the PR comment
         env:
           GH_TOKEN: ${{ github.token }}

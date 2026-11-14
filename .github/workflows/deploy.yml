@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: deploy-${{ inputs.target }}
@@ -38,6 +39,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
+      skip_tests: ${{ steps.prior.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +69,21 @@ jobs:
             fi
             echo "Guard OK: $sha está contido em origin/main."
           fi
+      - name: Skip re-verify if SHA already green on CI
+        id: prior
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Script lives on the checked-out ref; older SHAs fall back to re-running tests.
+          if [ -f scripts/ci-deploy-tests-already-green.mjs ]; then
+            node scripts/ci-deploy-tests-already-green.mjs
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "scripts/ci-deploy-tests-already-green.mjs absent on this SHA — will re-run tests"
+          fi
 
   deploy-staging:
     name: Deploy staging
@@ -87,13 +104,20 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Typecheck
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm run typecheck
       - name: Lint
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm run lint
       - name: Unit and SQL tests
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm test
       - name: Cloudflare runtime harness
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm run test:runtime
+      - name: Reuse CI verify (skipped typecheck/lint/test/runtime)
+        if: needs.resolve.outputs.skip_tests == 'true'
+        run: echo "SHA ${{ needs.resolve.outputs.sha }} already had CI verify with Unit and SQL tests success — not re-running."
       - name: D1 migrations apply (staging)
         env:
           # Preferir token com D1:Edit; senão o de deploy (tem de incluir D1:Edit).
@@ -182,13 +206,20 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Typecheck
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm run typecheck
       - name: Lint
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm run lint
       - name: Unit and SQL tests
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm test
       - name: Cloudflare runtime harness
+        if: needs.resolve.outputs.skip_tests != 'true'
         run: npm run test:runtime
+      - name: Reuse CI verify (skipped typecheck/lint/test/runtime)
+        if: needs.resolve.outputs.skip_tests == 'true'
+        run: echo "SHA ${{ needs.resolve.outputs.sha }} already had CI verify with Unit and SQL tests success — not re-running."
       - name: D1 migrations apply (production — opt-in)
         if: inputs.apply_d1_migrations
         env:
