@@ -61,6 +61,55 @@ export function clearConversationIdle(
   )
 }
 
+/** Terminar / fecho idle: não rearmar até nova intenção de marcação. */
+export function isIdleSuppressed(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const row = db.get<{ at: number | null }>(
+    `SELECT idle_suppressed_at AS at FROM conversations
+     WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    conversationId,
+  )
+  return row?.at != null
+}
+
+export function setIdleSuppressed(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  at: number,
+): void {
+  db.run(
+    `UPDATE conversations
+     SET idle_suppressed_at = ?, updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    at,
+    at,
+    tenantId,
+    conversationId,
+  )
+}
+
+/** Marcar outro / sessão de marcação / Prosseguir: volta a permitir idle. */
+export function clearIdleSuppressed(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  updatedAt: number,
+): void {
+  db.run(
+    `UPDATE conversations
+     SET idle_suppressed_at = NULL, updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    updatedAt,
+    tenantId,
+    conversationId,
+  )
+}
+
 export function setConversationIdle(
   db: ClinicDb,
   tenantId: string,
@@ -87,6 +136,7 @@ export function setConversationIdle(
 
 /**
  * Após inbound/outbound útil: reinicia o prazo de prompt (+15 min) se elegível.
+ * Após Terminar (`idle_suppressed_at`), small talk não rearma — Paulo 14/11/2026.
  */
 export function rescheduleConversationIdle(
   db: ClinicDb,
@@ -98,7 +148,11 @@ export function rescheduleConversationIdle(
   assertClinicSchemaReady(db)
   const now = clock.nowMs()
   const opp = findOpenOpportunityForConversation(db, tenantId, conversationId)
-  if (!opp || conversationHasActiveHuman(db, tenantId, conversationId)) {
+  if (
+    !opp ||
+    conversationHasActiveHuman(db, tenantId, conversationId) ||
+    isIdleSuppressed(db, tenantId, conversationId)
+  ) {
     clearConversationIdle(db, tenantId, conversationId, now)
     return null
   }

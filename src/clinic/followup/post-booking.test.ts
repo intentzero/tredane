@@ -32,7 +32,7 @@ import {
   readHandoffTimeoutAt,
   sweepDueHandoffTimeouts,
 } from '../ai/human-handoff'
-import { assignConversationOp } from '../inbox/operations'
+import { assignConversationOp, sendOutboundMessageOp } from '../inbox/operations'
 import {
   IDLE_PROMPT_AFTER_MS,
   IDLE_PROMPT_BODY,
@@ -618,6 +618,118 @@ describe('DEC-086 post-booking follow-up', () => {
         )
         .map((r) => r.body)
       expect(bodiesAfterStale).not.toContain(HANDOFF_TIMEOUT_RESUME_TEXT)
+    } finally {
+      close()
+    }
+  })
+
+  it('após Terminar, «Gratidão!» + resposta não rearma «Ainda está aí?» (Paulo 14/11)', () => {
+    // Staging: Terminar → farewell → Gratidão! → De nada → ~15 min → nudge. Bug.
+    const clock = createControllableClock(Date.UTC(2026, 10, 14, 12, 0))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:gratidao-idle',
+          waId: '5511987002001',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)!
+      db.run(
+        `UPDATE opportunities SET stage = 'agendado', updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        opp.id,
+      )
+
+      sendPostBookingFollowupOp(
+        db,
+        caller,
+        { conversationId, appointmentId: 'apt_fu_gratidao' },
+        clock,
+      )
+      const click = handlePostBookingButtonClick(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          conversationId,
+          buttonId: postBookingButtonId('apt_fu_gratidao', 'end'),
+          providerEventKey: 'wa:fu:gratidao-idle:end',
+        },
+        clock,
+      )
+      expect(click.handled).toBe(true)
+      expect(
+        db.get<{ at: number | null }>(
+          `SELECT idle_suppressed_at AS at FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.at,
+      ).not.toBeNull()
+      expect(
+        db.get<{ due: number | null }>(
+          `SELECT idle_due_at AS due FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.due,
+      ).toBeNull()
+
+      clock.advance(60_000)
+      ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:gratidao-idle:thanks',
+          waId: '5511987002001',
+          body: 'Gratidão!',
+        },
+        clock,
+      )
+      sendOutboundMessageOp(
+        db,
+        workerCaller('clinic-demo-a', 'system:ai-autodraft'),
+        {
+          conversationId,
+          body: 'De nada! Se precisar, é só chamar.',
+          clientRequestId: 'wa:fu:gratidao-idle:reply',
+          authorClerkUserId: 'system:ai-autodraft',
+          authorDisplayName: 'IA',
+        },
+        clock,
+      )
+
+      expect(
+        db.get<{ due: number | null }>(
+          `SELECT idle_due_at AS due FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.due,
+      ).toBeNull()
+
+      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      const sweep = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(sweep.every((item) => item.action !== 'prompted')).toBe(true)
+      const bodies = db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'`,
+          'clinic-demo-a',
+          conversationId,
+        )
+        .map((r) => r.body)
+      expect(bodies).not.toContain(IDLE_PROMPT_BODY)
     } finally {
       close()
     }
