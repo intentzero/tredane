@@ -1,5 +1,5 @@
 /**
- * Turno e estado do laboratório (DEC-182). Corre dentro do DO da clínica demo; as
+ * Turno e estado do laboratório (DEC-186). Corre dentro do DO da clínica demo; as
  * ações com efeitos (ingerir, correr a IA, tocar, marcar envio) entram por `LabHooks`,
  * para o módulo ser testável sem o Durable Object.
  *

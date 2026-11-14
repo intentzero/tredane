@@ -3,7 +3,7 @@ import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
 
 const ON = { ENVIRONMENT: 'staging', LAB_ENABLED: 'true', OAUTH_KV: {} as KVNamespace }
 
-describe('gate do laboratório (DEC-182)', () => {
+describe('gate do laboratório (DEC-186)', () => {
   it('só abre em staging, com a flag e com o OAuth MCP configurado', () => {
     expect(isLabEnabled(ON)).toBe(true)
     expect(isLabEnabled({ ...ON, ENVIRONMENT: 'production' })).toBe(false)

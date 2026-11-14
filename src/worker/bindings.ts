@@ -75,9 +75,9 @@ export type WorkerBindings = {
   DEMO_SEED_ENABLED?: string
   /** wrangler secret (staging) — bearer do seed da clínica demo; nunca versionar. */
   DEMO_SEED_TOKEN?: string
-  /** STAGING-ONLY (DEC-182): `true` habilita o MCP de laboratório (exige ENVIRONMENT=staging + OAUTH_KV; auth OAuth de superadmin). */
+  /** STAGING-ONLY (DEC-186): `true` habilita o MCP de laboratório (exige ENVIRONMENT=staging + OAUTH_KV; auth OAuth de superadmin). */
   LAB_ENABLED?: string
-  /** Teto diário de turnos do laboratório (padrão 400; proxy do orçamento de LLM, DEC-182). */
+  /** Teto diário de turnos do laboratório (padrão 400; proxy do orçamento de LLM, DEC-186). */
   LAB_MAX_TURNS_DAILY?: string
   /** Segredo HMAC para tokens efémeros de download de anexos (#34). */
   ATTACHMENT_TOKEN_SECRET?: string

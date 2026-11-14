@@ -36,7 +36,7 @@ const call = (name: string, args: unknown = {}) => ({
   params: { name, arguments: args },
 })
 
-describe('MCP de laboratório (DEC-182)', () => {
+describe('MCP de laboratório (DEC-186)', () => {
   it('fechado fora de staging, sem flag ou sem OAuth MCP: 404', async () => {
     for (const over of [{ ENVIRONMENT: 'production' }, { LAB_ENABLED: 'false' }, { OAUTH_KV: undefined }]) {
       const res = await post(envWith({}, over), call('lab_status'))

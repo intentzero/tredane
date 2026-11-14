@@ -128,7 +128,7 @@
         // STAGING-ONLY (Paulo, 2026-10-27): seed da clínica demo fictícia (POST /api/ops/demo-clinic/seed,
         // bearer = secret DEMO_SEED_TOKEN). Nunca definir em production.
         "DEMO_SEED_ENABLED": "true",
-        // STAGING-ONLY (Paulo, 2026-11-14, DEC-182): MCP de laboratório (POST /api/mcp/lab, só tenant demo,
+        // STAGING-ONLY (Paulo, 2026-11-14, DEC-186): MCP de laboratório (POST /api/mcp/lab, só tenant demo,
         // OAuth de superadmin, o mesmo do Review MCP; sem OAUTH_KV fica fechado). Nunca definir em production.
         "LAB_ENABLED": "true",
         // STAGING-ONLY (Paulo, 2026-10-27): Web Push real. Exige secrets VAPID_PUBLIC_KEY,

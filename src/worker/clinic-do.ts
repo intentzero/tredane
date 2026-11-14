@@ -2252,7 +2252,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
-   * DEC-182 — turno do laboratório: a cliente fictícia fala (texto) ou toca (botão/lista)
+   * DEC-186 — turno do laboratório: a cliente fictícia fala (texto) ou toca (botão/lista)
    * sem passar pelo WhatsApp. Só tenant demo em staging; nada sai para a Meta.
    */
   async labTurn(caller: ClinicCaller, input: LabTurnInput): Promise<LabTurnResult> {
@@ -2308,7 +2308,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
   }
 
-  /** DEC-182 — instantâneo do estado da clínica demo para o laboratório (só leitura). */
+  /** DEC-186 — instantâneo do estado da clínica demo para o laboratório (só leitura). */
   async labState(
     caller: ClinicCaller,
     input: { waId: string; messageLimit?: number },
@@ -2321,7 +2321,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
-   * DEC-182 fase 2 — configuração da clínica demo pelo laboratório. Lista fechada de
+   * DEC-186 fase 2 — configuração da clínica demo pelo laboratório. Lista fechada de
    * operações que reutilizam os métodos do painel (validação, auditoria e eventos iguais).
    * Sem apagar serviços ou salas: desativar chega para ajustar um teste.
    */
