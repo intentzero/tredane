@@ -40,6 +40,18 @@
   outline-offset: var(--size-focus-ring-offset);
 }
 
+/* Campos de texto: anel por dentro da borda. O anel externo (offset +2px)
+ * era cortado por qualquer ancestral com overflow hidden/auto (quadro do
+ * Acompanhamento, listas, painéis laterais). Por dentro nunca é cortado. */
+.panel-root input:not([type='checkbox'], [type='radio'], [type='range']):focus-visible,
+.panel-root textarea:focus-visible,
+.panel-root select:focus-visible,
+.panel-root .panel-select-trigger:focus-visible,
+.panel-root .hold-select-trigger:focus-visible,
+.panel-root .panel-choice-trigger:focus-visible {
+  outline-offset: calc(var(--size-focus-ring-width) * -1);
+}
+
 /* Skip link — visível só no foco de teclado (WCAG 2.4.1). */
 .panel-skip-link {
   position: absolute;
@@ -5224,7 +5236,7 @@ button.panel-auth-inline-link {
 
 .panel-choice-trigger:focus-visible {
   outline: var(--size-focus-ring-width) solid var(--color-primary-base);
-  outline-offset: 2px;
+  outline-offset: calc(var(--size-focus-ring-width) * -1);
 }
 
 .panel-choice-value {
