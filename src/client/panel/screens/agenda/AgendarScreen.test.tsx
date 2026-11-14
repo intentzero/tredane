@@ -65,9 +65,11 @@ function makeApi(opts: { emptyFirstDay?: boolean; service?: Record<string, unkno
         amountKind: 'fixed',
         fixedCents: 9000,
         percent: null,
-        deadlineSeconds: 7200,
+        deadlineSeconds: 1800,
         policyKind: 'credit_next',
+        creditWindowMinutes: 24 * 60,
         creditWindowHours: 24,
+        bookingLeadMinutes: 0,
         customPolicyText: '',
         cancellationPolicy: '',
         preview: {

@@ -1,7 +1,7 @@
 /**
  * M-33 — Recebimento de sinais (conta Woovi + cartão unificado do sinal).
- * Só owner (área Clínica). DEC-175 faixa + cartões; DEC-179 prazo presets;
- * DEC-180 cartão «Sinal para reservar o horário» (mock A Confirmado).
+ * Só owner (área Clínica). DEC-175 faixa + cartões; DEC-180 cartão unificado;
+ * DEC-182 prazo 15/30, antecedência mínima, janela com Outro… (min|h dropdown).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
@@ -22,14 +22,22 @@ import { Banner } from '../../../states/Banner'
 import { ClinicSkeleton } from '../ClinicSkeleton'
 import { BusyLabel, CardNotice, type CardNoticeValue } from '../CardFooter'
 import {
+  BOOKING_LEAD_PRESETS_MINUTES,
+  CREDIT_WINDOW_PRESETS_MINUTES,
   DEFAULT_SIGNAL_DEADLINE_MINUTES,
-  OTHER_DEADLINE_SEED_MINUTES,
+  OTHER_CREDIT_WINDOW_SEED_MINUTES,
+  OTHER_LEAD_SEED_MINUTES,
   SIGNAL_DEADLINE_PRESETS_MINUTES,
   combineCustomDeadline,
   formatDeadlinePresetLabel,
+  isBookingLeadPreset,
+  isCreditWindowPreset,
+  isCustomDurationValid,
   isDeadlineMinutesValid,
   isDeadlinePreset,
   minutesToSeconds,
+  normalizeDeadlineMinutes,
+  sanitizeCustomAmountInput,
   secondsToMinutes,
   splitCustomDeadline,
   type DeadlineUnit,
@@ -45,7 +53,7 @@ type Props = {
 type Busy = null | 'connect' | 'disconnect' | 'save'
 type Notice = CardNoticeValue & { card: 'account' | 'policy' }
 
-type DeadlineState = {
+type CustomDurationState = {
   minutes: number
   custom: boolean
   amount: string
@@ -55,20 +63,27 @@ type DeadlineState = {
 type PolicyKind = PixSignalSettings['policyKind']
 type AmountKind = PixSignalSettings['amountKind']
 
-const CREDIT_WINDOWS = [12, 24, 48] as const
-
-function fromSeconds(deadlineSeconds: number): DeadlineState {
-  const minutes = secondsToMinutes(deadlineSeconds)
-  if (isDeadlinePreset(minutes)) {
-    return { minutes, custom: false, amount: String(OTHER_DEADLINE_SEED_MINUTES), unit: 'min' }
+function fromMinutes(
+  minutes: number,
+  isPreset: (m: number) => boolean,
+  otherSeed: number,
+): CustomDurationState {
+  if (isPreset(minutes)) {
+    const seed = splitCustomDeadline(otherSeed)
+    return { minutes, custom: false, amount: String(seed.amount), unit: seed.unit }
   }
-  const split = splitCustomDeadline(minutes)
+  const split = splitCustomDeadline(minutes > 0 ? minutes : otherSeed)
   return {
-    minutes,
+    minutes: minutes > 0 ? minutes : otherSeed,
     custom: true,
     amount: String(split.amount),
     unit: split.unit,
   }
+}
+
+function fromDeadlineSeconds(deadlineSeconds: number): CustomDurationState {
+  const normalized = normalizeDeadlineMinutes(secondsToMinutes(deadlineSeconds))
+  return fromMinutes(normalized, isDeadlinePreset, DEFAULT_SIGNAL_DEADLINE_MINUTES)
 }
 
 function formatFixedInput(cents: number | null): string {
@@ -88,6 +103,68 @@ function parseFixedCents(raw: string): number | null {
   return Math.round(value * 100)
 }
 
+function leadLabel(minutes: number): string {
+  if (minutes === 0) return 'Desligado'
+  if (minutes === 30) return '30 minutos'
+  if (minutes === 60) return '1 hora'
+  return formatDeadlinePresetLabel(minutes)
+}
+
+function creditWindowLabel(minutes: number): string {
+  if (minutes % 60 === 0) return `${minutes / 60} h antes`
+  return `${minutes} min antes`
+}
+
+function CustomDurationFields({
+  label,
+  hint,
+  state,
+  onAmount,
+  onUnit,
+  ariaLabel,
+}: {
+  label: string
+  hint: string
+  state: CustomDurationState
+  onAmount: (raw: string) => void
+  onUnit: (unit: DeadlineUnit) => void
+  ariaLabel: string
+}) {
+  return (
+    <div className="clinic-deadline-custom" aria-label={ariaLabel}>
+      <span className="clinic-deadline-label">{label}</span>
+      <div className="clinic-deadline-custom-row clinic-deadline-custom-row--inline">
+        <TextField className="clinic-field clinic-deadline-amount clinic-deadline-amount--compact">
+          <Label>Número</Label>
+          <Input
+            type="text"
+            inputMode="numeric"
+            maxLength={2}
+            value={state.amount}
+            onChange={(e) => onAmount(sanitizeCustomAmountInput(e.target.value))}
+            aria-label="Número"
+          />
+        </TextField>
+        <label className="clinic-deadline-unit-select">
+          <span className="clinic-deadline-label">Unidade</span>
+          <select
+            aria-label="Unidade"
+            value={state.unit}
+            onChange={(e) => {
+              const next = e.target.value
+              if (next === 'min' || next === 'h') onUnit(next)
+            }}
+          >
+            <option value="min">min</option>
+            <option value="h">h</option>
+          </select>
+        </label>
+      </div>
+      <span className="clinic-footnote">{hint}</span>
+    </div>
+  )
+}
+
 export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   const [snap, setSnap] = useState<PixSnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -96,11 +173,16 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   const [amountKind, setAmountKind] = useState<AmountKind>('fixed')
   const [fixedText, setFixedText] = useState('50,00')
   const [percentText, setPercentText] = useState('30')
-  const [deadline, setDeadline] = useState<DeadlineState>(() =>
-    fromSeconds(DEFAULT_SIGNAL_DEADLINE_MINUTES * 60),
+  const [deadline, setDeadline] = useState<CustomDurationState>(() =>
+    fromDeadlineSeconds(DEFAULT_SIGNAL_DEADLINE_MINUTES * 60),
+  )
+  const [lead, setLead] = useState<CustomDurationState>(() =>
+    fromMinutes(0, isBookingLeadPreset, OTHER_LEAD_SEED_MINUTES),
   )
   const [policyKind, setPolicyKind] = useState<PolicyKind>('credit_next')
-  const [creditWindow, setCreditWindow] = useState<12 | 24 | 48>(24)
+  const [creditWindow, setCreditWindow] = useState<CustomDurationState>(() =>
+    fromMinutes(24 * 60, isCreditWindowPreset, OTHER_CREDIT_WINDOW_SEED_MINUTES),
+  )
   const [customPolicy, setCustomPolicy] = useState('')
   const [busy, setBusy] = useState<Busy>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -118,10 +200,16 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       setAmountKind(s.amountKind ?? 'fixed')
       setFixedText(formatFixedInput(s.fixedCents ?? 5000))
       setPercentText(String(s.percent ?? 30))
-      setDeadline(fromSeconds(s.deadlineSeconds))
+      setDeadline(fromDeadlineSeconds(s.deadlineSeconds))
+      setLead(
+        fromMinutes(s.bookingLeadMinutes ?? 0, isBookingLeadPreset, OTHER_LEAD_SEED_MINUTES),
+      )
       setPolicyKind(s.policyKind ?? 'credit_next')
+      const windowMins =
+        s.creditWindowMinutes
+        ?? (s.creditWindowHours != null ? s.creditWindowHours * 60 : 24 * 60)
       setCreditWindow(
-        s.creditWindowHours === 12 || s.creditWindowHours === 48 ? s.creditWindowHours : 24,
+        fromMinutes(windowMins, isCreditWindowPreset, OTHER_CREDIT_WINDOW_SEED_MINUTES),
       )
       setCustomPolicy(s.customPolicyText ?? '')
     } catch (err) {
@@ -134,10 +222,18 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
     void reload()
   }, [reload])
 
-  const customMinutes = deadline.custom
-    ? combineCustomDeadline(Number(deadline.amount), deadline.unit)
-    : deadline.minutes
-  const deadlineValid = customMinutes != null && isDeadlineMinutesValid(customMinutes)
+  const deadlineMinutes = deadline.minutes
+  const leadMinutes = lead.custom
+    ? combineCustomDeadline(Number(lead.amount), lead.unit)
+    : lead.minutes
+  const creditMinutes = creditWindow.custom
+    ? combineCustomDeadline(Number(creditWindow.amount), creditWindow.unit)
+    : creditWindow.minutes
+
+  const deadlineValid = isDeadlineMinutesValid(deadlineMinutes)
+  const leadValid = leadMinutes === 0 || isCustomDurationValid(leadMinutes)
+  const creditValid =
+    policyKind !== 'credit_next' || isCustomDurationValid(creditMinutes)
   const fixedCents = parseFixedCents(fixedText)
   const percent = Number.parseInt(percentText, 10)
   const amountValid =
@@ -145,20 +241,34 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       ? fixedCents != null && fixedCents > 0
       : Number.isInteger(percent) && percent >= 1 && percent <= 100
   const customOk = policyKind !== 'custom' || customPolicy.trim().length > 0
-  const saveDisabled = busy !== null || !deadlineValid || (enabled && (!amountValid || !customOk))
+  const saveDisabled =
+    busy !== null
+    || !deadlineValid
+    || !leadValid
+    || !creditValid
+    || (enabled && (!amountValid || !customOk))
 
   const livePreview = useMemo(() => {
-    if (customMinutes == null) return null
+    if (!deadlineValid) return null
     return buildSignalPolicyPreview({
       amountKind,
       fixedCents: amountKind === 'fixed' ? fixedCents : null,
       percent: amountKind === 'percent' && Number.isInteger(percent) ? percent : null,
-      deadlineSeconds: minutesToSeconds(customMinutes),
+      deadlineSeconds: minutesToSeconds(deadlineMinutes),
       policyKind,
-      creditWindowHours: policyKind === 'credit_next' ? creditWindow : null,
+      creditWindowMinutes: policyKind === 'credit_next' ? creditMinutes : null,
       customPolicyText: customPolicy,
     })
-  }, [amountKind, fixedCents, percent, customMinutes, policyKind, creditWindow, customPolicy])
+  }, [
+    amountKind,
+    fixedCents,
+    percent,
+    deadlineValid,
+    deadlineMinutes,
+    policyKind,
+    creditMinutes,
+    customPolicy,
+  ])
 
   if (error && !snap) {
     return (
@@ -238,42 +348,71 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
     }
   }
 
-  function pickPreset(minutes: number) {
+  function pickDeadline(minutes: number) {
     setDeadline((prev) => ({ ...prev, minutes, custom: false }))
     setNotice(null)
   }
 
-  function pickOther() {
-    setDeadline((prev) => {
+  function pickLeadPreset(minutes: number) {
+    setLead((prev) => ({ ...prev, minutes, custom: false }))
+    setNotice(null)
+  }
+
+  function pickLeadOther() {
+    setLead((prev) => {
       if (prev.custom) return prev
-      const seed = OTHER_DEADLINE_SEED_MINUTES
+      const seed = OTHER_LEAD_SEED_MINUTES
       const split = splitCustomDeadline(seed)
-      return {
-        minutes: seed,
-        custom: true,
-        amount: String(split.amount),
-        unit: split.unit,
-      }
+      return { minutes: seed, custom: true, amount: String(split.amount), unit: split.unit }
     })
     setNotice(null)
   }
 
-  function setCustomAmount(raw: string) {
-    setDeadline((prev) => {
+  function setLeadAmount(raw: string) {
+    setLead((prev) => {
       const combined = combineCustomDeadline(Number(raw), prev.unit)
       return { ...prev, custom: true, amount: raw, minutes: combined ?? prev.minutes }
     })
   }
 
-  function setCustomUnit(unit: DeadlineUnit) {
-    setDeadline((prev) => {
+  function setLeadUnit(unit: DeadlineUnit) {
+    setLead((prev) => {
+      const combined = combineCustomDeadline(Number(prev.amount), unit)
+      return { ...prev, custom: true, unit, minutes: combined ?? prev.minutes }
+    })
+  }
+
+  function pickCreditPreset(minutes: number) {
+    setCreditWindow((prev) => ({ ...prev, minutes, custom: false }))
+    setNotice(null)
+  }
+
+  function pickCreditOther() {
+    setCreditWindow((prev) => {
+      if (prev.custom) return prev
+      const seed = OTHER_CREDIT_WINDOW_SEED_MINUTES
+      const split = splitCustomDeadline(seed)
+      return { minutes: seed, custom: true, amount: String(split.amount), unit: split.unit }
+    })
+    setNotice(null)
+  }
+
+  function setCreditAmount(raw: string) {
+    setCreditWindow((prev) => {
+      const combined = combineCustomDeadline(Number(raw), prev.unit)
+      return { ...prev, custom: true, amount: raw, minutes: combined ?? prev.minutes }
+    })
+  }
+
+  function setCreditUnit(unit: DeadlineUnit) {
+    setCreditWindow((prev) => {
       const combined = combineCustomDeadline(Number(prev.amount), unit)
       return { ...prev, custom: true, unit, minutes: combined ?? prev.minutes }
     })
   }
 
   async function onSaveSettings() {
-    if (saveDisabled || customMinutes == null) return
+    if (saveDisabled || leadMinutes == null || creditMinutes == null) return
     setBusy('save')
     setNotice(null)
     try {
@@ -284,9 +423,10 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
           amountKind,
           fixedCents: amountKind === 'fixed' ? fixedCents : null,
           percent: amountKind === 'percent' ? percent : null,
-          deadlineSeconds: minutesToSeconds(customMinutes),
+          deadlineSeconds: minutesToSeconds(deadlineMinutes),
           policyKind,
-          creditWindowHours: policyKind === 'credit_next' ? creditWindow : null,
+          creditWindowMinutes: policyKind === 'credit_next' ? creditMinutes : null,
+          bookingLeadMinutes: leadMinutes,
           customPolicyText: policyKind === 'custom' ? customPolicy.trim() : '',
         },
         { generation, expectGeneration: () => generation },
@@ -294,7 +434,22 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       setSnap((prev) =>
         prev ? { ...prev, signalSettings } : { account: snap!.account, signalSettings },
       )
-      setDeadline(fromSeconds(signalSettings.deadlineSeconds))
+      setDeadline(fromDeadlineSeconds(signalSettings.deadlineSeconds))
+      setLead(
+        fromMinutes(
+          signalSettings.bookingLeadMinutes ?? 0,
+          isBookingLeadPreset,
+          OTHER_LEAD_SEED_MINUTES,
+        ),
+      )
+      const savedWindow =
+        signalSettings.creditWindowMinutes
+        ?? (signalSettings.creditWindowHours != null
+          ? signalSettings.creditWindowHours * 60
+          : 24 * 60)
+      setCreditWindow(
+        fromMinutes(savedWindow, isCreditWindowPreset, OTHER_CREDIT_WINDOW_SEED_MINUTES),
+      )
       setNotice({ card: 'policy', tone: 'ok', text: 'Regras do sinal salvas.' })
     } catch (err) {
       setNotice({
@@ -309,7 +464,9 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
 
   const accountNotice = notice?.card === 'account' ? notice : null
   const policyNotice = notice?.card === 'policy' ? notice : null
-  const otherPressed = deadline.custom || !isDeadlinePreset(deadline.minutes)
+  const leadOtherPressed = lead.custom || !isBookingLeadPreset(lead.minutes)
+  const creditOtherPressed =
+    creditWindow.custom || !isCreditWindowPreset(creditWindow.minutes)
 
   return (
     <div className="clinic-stack">
@@ -462,74 +619,75 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
               <span id="pix-deadline-label" className="clinic-deadline-label">
                 Prazo para a cliente pagar o sinal
               </span>
-              <div className="clinic-deadline-presets" role="group" aria-label="Presets de prazo">
+              <div
+                className="clinic-deadline-presets clinic-deadline-presets--2"
+                role="group"
+                aria-label="Presets de prazo"
+              >
                 {SIGNAL_DEADLINE_PRESETS_MINUTES.map((m) => {
-                  const pressed = !otherPressed && deadline.minutes === m
+                  const pressed = deadlineMinutes === m
                   return (
                     <button
                       key={m}
                       type="button"
                       className="clinic-deadline-chip"
                       aria-pressed={pressed}
-                      onClick={() => pickPreset(m)}
+                      onClick={() => pickDeadline(m)}
                     >
                       {formatDeadlinePresetLabel(m)}
+                    </button>
+                  )
+                })}
+              </div>
+              <span className="clinic-footnote">
+                Padrão 30 min. Cobranças já enviadas mantêm o prazo original.
+              </span>
+            </div>
+
+            <div className="clinic-deadline" role="group" aria-labelledby="pix-lead-label">
+              <span id="pix-lead-label" className="clinic-deadline-label">
+                Antecedência mínima do agendamento
+              </span>
+              <div className="clinic-deadline-presets clinic-deadline-presets--wrap" role="group" aria-label="Antecedência mínima">
+                {BOOKING_LEAD_PRESETS_MINUTES.map((m) => {
+                  const pressed = !leadOtherPressed && lead.minutes === m
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      className="clinic-deadline-chip"
+                      aria-pressed={pressed}
+                      onClick={() => pickLeadPreset(m)}
+                    >
+                      {leadLabel(m)}
                     </button>
                   )
                 })}
                 <button
                   type="button"
                   className="clinic-deadline-chip"
-                  aria-pressed={otherPressed}
-                  onClick={() => pickOther()}
+                  aria-pressed={leadOtherPressed}
+                  onClick={() => pickLeadOther()}
                 >
                   Outro…
                 </button>
               </div>
-              <span className="clinic-footnote">
-                Padrão 2 h. Cobranças já enviadas mantêm o prazo original.
-              </span>
+              {leadOtherPressed ? (
+                <CustomDurationFields
+                  label="Antecedência personalizada"
+                  hint="Exemplo: 2 h. A oferta e o Agendar só mostram horários com pelo menos esta margem."
+                  state={lead}
+                  onAmount={setLeadAmount}
+                  onUnit={setLeadUnit}
+                  ariaLabel="Antecedência personalizada"
+                />
+              ) : (
+                <span className="clinic-footnote">
+                  Desligado: a cliente pode marcar o horário mais próximo disponível. Com valor, a
+                  oferta e o Agendar só mostram horários a partir desta margem.
+                </span>
+              )}
             </div>
-
-            {otherPressed ? (
-              <div className="clinic-deadline-custom" aria-label="Prazo personalizado">
-                <span className="clinic-deadline-label">Prazo personalizado</span>
-                <div className="clinic-deadline-custom-row">
-                  <TextField className="clinic-field clinic-deadline-amount">
-                    <Label>Número</Label>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      value={deadline.amount}
-                      onChange={(e) => setCustomAmount(e.target.value)}
-                    />
-                  </TextField>
-                  <div className="clinic-deadline-unit">
-                    <span className="clinic-deadline-label" id="pix-unit-label">
-                      Unidade
-                    </span>
-                    <ToggleButtonGroup
-                      className="panel-segmented"
-                      aria-labelledby="pix-unit-label"
-                      selectionMode="single"
-                      selectedKeys={new Set([deadline.unit])}
-                      onSelectionChange={(keys) => {
-                        const next = [...keys][0]
-                        if (next === 'min' || next === 'h') setCustomUnit(next)
-                      }}
-                    >
-                      <ToggleButton id="min" className="panel-segmented-item">
-                        min
-                      </ToggleButton>
-                      <ToggleButton id="h" className="panel-segmented-item">
-                        h
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-                  </div>
-                </div>
-              </div>
-            ) : null}
 
             <div className="clinic-deadline" role="group" aria-labelledby="pix-policy-label">
               <span id="pix-policy-label" className="clinic-deadline-label">
@@ -570,22 +728,46 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
                   <span className="clinic-deadline-label">
                     Janela para cancelar / remarcar com crédito
                   </span>
-                  <div className="clinic-deadline-presets" role="group" aria-label="Janela">
-                    {CREDIT_WINDOWS.map((h) => (
+                  <div
+                    className="clinic-deadline-presets clinic-deadline-presets--wrap"
+                    role="group"
+                    aria-label="Janela"
+                  >
+                    {CREDIT_WINDOW_PRESETS_MINUTES.map((m) => (
                       <button
-                        key={h}
+                        key={m}
                         type="button"
                         className="clinic-deadline-chip"
-                        aria-pressed={creditWindow === h}
-                        onClick={() => setCreditWindow(h)}
+                        aria-pressed={!creditOtherPressed && creditWindow.minutes === m}
+                        onClick={() => pickCreditPreset(m)}
                       >
-                        {h} h antes
+                        {creditWindowLabel(m)}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      className="clinic-deadline-chip"
+                      aria-pressed={creditOtherPressed}
+                      onClick={() => pickCreditOther()}
+                    >
+                      Outro…
+                    </button>
                   </div>
-                  <span className="clinic-footnote">
-                    Só com «Aplica no próximo horário». Depois desta janela, o crédito não se aplica.
-                  </span>
+                  {creditOtherPressed ? (
+                    <CustomDurationFields
+                      label="Janela personalizada"
+                      hint="Exemplo: 36 h antes. Só com «Aplica no próximo horário»."
+                      state={creditWindow}
+                      onAmount={setCreditAmount}
+                      onUnit={setCreditUnit}
+                      ariaLabel="Janela personalizada"
+                    />
+                  ) : (
+                    <span className="clinic-footnote">
+                      Só com «Aplica no próximo horário». Aviso depois desta janela: crédito não se
+                      aplica.
+                    </span>
+                  )}
                 </div>
               ) : null}
 

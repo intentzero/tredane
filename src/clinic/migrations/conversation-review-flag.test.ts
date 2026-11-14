@@ -7,7 +7,7 @@ describe('0060_conversation_review_flag', () => {
   it('id e nome da migração no catálogo', () => {
     expect(MIGRATION_ID).toBe(60)
     expect(MIGRATION_NAME).toBe('0060_conversation_review_flag')
-    expect(CLINIC_SCHEMA_VERSION).toBe(65)
+    expect(CLINIC_SCHEMA_VERSION).toBe(66)
     expect(CLINIC_MIGRATIONS.some((m) => m.id === 60 && m.name === MIGRATION_NAME)).toBe(true)
   })
 })

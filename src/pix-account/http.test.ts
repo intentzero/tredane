@@ -98,7 +98,7 @@ describe('HTTP — conta Pix (#37)', () => {
         auth('user_synth_attendant_a', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deadlineSeconds: 3600 }),
+          body: JSON.stringify({ deadlineSeconds: 1800 }),
         }),
       )
       expect(policyDenied.status).toBe(403)
@@ -109,7 +109,7 @@ describe('HTTP — conta Pix (#37)', () => {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            deadlineSeconds: 3600,
+            deadlineSeconds: 1800,
             cancellationPolicy: 'Política fictícia de cancelamento do sinal.',
           }),
         }),
@@ -126,7 +126,7 @@ describe('HTTP — conta Pix (#37)', () => {
         signalSettings: { deadlineSeconds: number }
       }
       expect(snap.account.canCreateCharge).toBe(true)
-      expect(snap.signalSettings.deadlineSeconds).toBe(3600)
+      expect(snap.signalSettings.deadlineSeconds).toBe(1800)
     } finally {
       close()
     }

@@ -21,7 +21,9 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 | Isenção durável no Contato (owner + atendente), com motivo; faixa na conversa | **Confirmado** (DEC-180); distinto do «Confirmar sem sinal» pontual (AC-51) |
 | Provedor escolhido por avaliação na F0 | **Confirmado** o método (DEC-047); escolha **Confirmado: Woovi (OpenPix)** (DEC-049 / [ADR-0014](../adr/0014-pix-provider.md)); Mercado Pago permanece alternativa documentada |
 | Ao receber o pagamento, o Tredane confirma o compromisso **se o horário ainda estiver livre**, sem nova ação da equipe (regra do sistema, não da IA) | **Confirmado** (24/10/2026) |
-| Prazo padrão para pagar: **2 horas**; a responsável pode mudá-lo em Recebimento de sinais (M-33) por presets (**15 min · 30 min · 1 h · 2 h · 6 h · 24 h · 48 h**) + **Outro…** (min\|h; DEC-179) | **Confirmado** (24/10/2026; forma do ajuste Confirmada DEC-179, 13/11/2026) |
+| Prazo padrão para pagar: **30 min** (DEC-182; antes 2 h na DEC-047 / presets largos na DEC-179); a responsável escolhe só **15 min** ou **30 min** em Recebimento (M-33) | **Confirmado** (24/10/2026; forma revista DEC-182, 14/11/2026) |
+| Antecedência mínima do agendamento: **Desligado** · 30 min · 1 h · Outro… (min\|h); padrão Desligado; corta oferta e Agendar | **Confirmado** (DEC-182, 14/11/2026) |
+| Janela para cancelar/remarcar com crédito: **12 / 24 / 48 h** + **Outro…** (min\|h); padrão 24 h; texto gerado reflecte o valor | **Confirmado** (DEC-180 + DEC-182); **aplicação automática da janela no cancelamento operacional** ainda é gap de backend |
 | A atendente pode **Confirmar sem sinal** um serviço que exige sinal, informando o motivo; o histórico guarda quem fez e o motivo | **Confirmado** (24/10/2026) |
 
 ## Fluxo principal (JRN-16)
@@ -36,7 +38,7 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 
 ## Alternativas e erros
 
-- **Prazo vencido sem pagamento:** a cobrança passa a **Expirada** e não aceita mais pagamento; a etapa volta a Horário proposto. Um novo envio cria nova cobrança. Prazo padrão de 2 horas, ajustável pela responsável.
+- **Prazo vencido sem pagamento:** a cobrança passa a **Expirada** e não aceita mais pagamento; a etapa volta a Horário proposto. Um novo envio cria nova cobrança. Prazo padrão de 30 min (15 ou 30), ajustável pela responsável (DEC-182).
 - **Cancelar a cobrança antes do pagamento:** a atendente cancela; a cobrança fica **Cancelada** no provedor e na conversa.
 - **Pago sem horário:** alerta para a equipe, com **Escolher outro horário** e **Devolver sinal**.
 - **Cancelamento depois de pago:** o diálogo de cancelamento (motivo obrigatório, DEC-008) pergunta **Devolver** ou **Reter sinal**, mostrando a política da clínica.

@@ -103,7 +103,7 @@ async function seed(
       enabled: true,
       amountKind: 'fixed',
       fixedCents: 5_400,
-      deadlineSeconds: 7200,
+      deadlineSeconds: 1800,
       policyKind: 'custom',
       customPolicyText: 'Sinal devolvido se remarcar com 24h; senão retido.',
     },
@@ -406,10 +406,10 @@ describe('pix exceptions (#40)', () => {
       { adapter },
     )
     expect(created.charge.status).toBe('awaiting_payment')
-    expect(created.charge.deadlineSecondsSnapshot).toBe(7200)
+    expect(created.charge.deadlineSecondsSnapshot).toBe(1800)
 
     // Avança além do prazo.
-    clock.advance(7200 * 1000 + 1000)
+    clock.advance(1800 * 1000 + 1000)
     const expired = await expireDueChargesOp(db, seeded.caller, clock, {
       adapter,
     })

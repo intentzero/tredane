@@ -58,7 +58,18 @@ export type PixSignalSettings = {
   percent: number | null
   deadlineSeconds: number
   policyKind: import('./signal-policy-text').SignalPolicyKind
-  creditWindowHours: 12 | 24 | 48 | null
+  /**
+   * Janela de crédito em minutos (DEC-182). Presets 12/24/48 h = 720/1440/2880.
+   * Null quando a política não é credit_next.
+   */
+  creditWindowMinutes: number | null
+  /**
+   * Compat: horas inteiras quando a janela é múltiplo de 60; senão null.
+   * Preferir creditWindowMinutes.
+   */
+  creditWindowHours: number | null
+  /** Antecedência mínima do agendamento (minutos; 0 = Desligado). DEC-182. */
+  bookingLeadMinutes: number
   customPolicyText: string
   /** Texto à cliente (gerado ou Outro…) — snapshot em cobranças. */
   cancellationPolicy: string
@@ -256,7 +267,12 @@ export type UpdateSignalSettingsInput = {
   percent?: number | null
   deadlineSeconds?: number
   policyKind?: import('./signal-policy-text').SignalPolicyKind
-  creditWindowHours?: 12 | 24 | 48 | null
+  /** Janela de crédito em minutos (DEC-182). */
+  creditWindowMinutes?: number | null
+  /** Compat: se vier sem creditWindowMinutes, converte horas → minutos. */
+  creditWindowHours?: number | null
+  /** Antecedência mínima (0 = Desligado). */
+  bookingLeadMinutes?: number
   customPolicyText?: string
   /** Compat DEC-047/179: se vier sozinho, trata-se como política «Outro…». */
   cancellationPolicy?: string

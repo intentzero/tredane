@@ -167,8 +167,9 @@ async function seedWithSignal(tenantId = 'clinic-demo-s5-pix') {
       enabled: true,
       amountKind: 'fixed',
       fixedCents: 5_400,
-      deadlineSeconds: 7200,
+      deadlineSeconds: 1800,
       policyKind: 'credit_next',
+      creditWindowMinutes: 24 * 60,
       creditWindowHours: 24,
     },
     clock,
@@ -260,7 +261,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(65)
+    expect(CLINIC_SCHEMA_VERSION).toBe(66)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')

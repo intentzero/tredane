@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174 / #175 / abuse UI / #421). */
-export const CLINIC_SCHEMA_VERSION = 65
+export const CLINIC_SCHEMA_VERSION = 66
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -405,8 +405,11 @@ export type InboxFilter = (typeof INBOX_FILTERS)[number]
 /** Fuso padrão da clínica (DEC-008). */
 export const DEFAULT_CLINIC_TIMEZONE = 'America/Sao_Paulo'
 
-/** Antecedência mínima para ofertas automáticas e consulta de vagas (minutos). */
-export const DEFAULT_BOOKING_LEAD_MINUTES = 30
+/**
+ * Antecedência mínima para ofertas automáticas e consulta de vagas (minutos).
+ * DEC-182: padrão Desligado (0). Clínicas já migradas podem ter 30 até a owner alterar.
+ */
+export const DEFAULT_BOOKING_LEAD_MINUTES = 0
 
 /** Grade de agenda: início, duração e intervalo em múltiplos de 15 min (DEC-008). */
 export const SCHEDULE_GRID_MINUTES = 15

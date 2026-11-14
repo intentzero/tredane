@@ -118,11 +118,13 @@ export function ensureClinicSettings(
   const now = clock.nowMs()
   db.run(
     `INSERT INTO clinic_settings (
-      id, tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, updated_at
-    ) VALUES (1, ?, ?, ?, '', ?)`,
+      id, tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy,
+      booking_lead_minutes, updated_at
+    ) VALUES (1, ?, ?, ?, '', ?, ?)`,
     tenantId,
     DEFAULT_CLINIC_TIMEZONE,
     DEFAULT_SIGNAL_DEADLINE_SECONDS,
+    DEFAULT_BOOKING_LEAD_MINUTES,
     now,
   )
   return {
