@@ -83,7 +83,7 @@ describe('DEC-173 push gates', () => {
       conversationId: 'cnv_1',
       contactLabel: 'Ana',
     })
-    expect(msg.body).toBe('Mensagem de Ana · Clínica Aurora')
+    expect(msg.body).toBe('Ana · Clínica Aurora')
     assertSafePushPayload(msg)
     const handoff = buildNeedsPersonPayload({
       tenantId: 'clinic-demo-a',

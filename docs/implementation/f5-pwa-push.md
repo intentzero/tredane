@@ -8,7 +8,7 @@
 | --- | --- |
 | DEC-039 | Painel mobile first; PWA sem app nativo no MVP |
 | DEC-040 | Push via PWA; texto **sem** conteúdo da mensagem WhatsApp nem telefone. **Copy (Paulo, 13/11/2026):** título = tipo; corpo = `{contacto} · {clínica}` (fallback «Cliente»). **Agendamento confirmado (Paulo, 14/11/2026):** corpo sem eco do título — `{contacto} · {serviço}[ · variante] · {weekday} {DD/MM} às {HH:MM} com {profissional}` (quando = DEC-174); clínica só se couber |
-| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA. `new_message` = «Mensagem de {contacto} · {clínica}». Agendamento: copy 14/11 (dia/hora/pro) |
+| DEC-173 | **Só** eventos accionáveis: agendamento confirmado; chamada de atendente (DEC-156); inbound **só** em fio assumido ou em handoff. Sem push de «nova conversa» / inbound do funil IA. `new_message` = «{contacto} · {clínica}» (Paulo 14/11/2026: sem eco «Mensagem de»). Agendamento: copy 14/11 (dia/hora/pro) |
 | DEC-156 | Push **Precisa de alguém** / reforço aos 5 min (`needs_person`, `needs_person_escalate`); corpo `{contacto} · {clínica}` [· motivo curto] / escalate «· há 5 min»; dispara em `ai_pause` `source:handoff`; Assumir (`clearedAwaitingTeam`) fecha a notificação no cliente |
 | DEC-041 | Ícone provisório (azul primary); marca definitiva Em aberto |
 | DEC-026 / REQ-003 | Revogação remove assinaturas push do par user×tenant; deep link revalida Clerk + membership |
