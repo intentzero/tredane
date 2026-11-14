@@ -71,9 +71,9 @@ describe('MCP de laboratório (DEC-186)', () => {
     const env = envWith({ labTurn })
     const list = await post(env, { jsonrpc: '2.0', id: 1, method: 'tools/list' }, null)
     expect(list.status).toBe(401)
-    expect(list.headers.get('WWW-Authenticate')).toContain(
-      '/.well-known/oauth-protected-resource/api/mcp/lab',
-    )
+    const wa = list.headers.get('WWW-Authenticate') ?? ''
+    expect(wa).toContain('/.well-known/oauth-protected-resource/api/mcp/lab')
+    expect(wa).toContain('scope="lab:converse"')
     expect((await post(env, call('lab_say', { text: 'oi' }), null)).status).toBe(401)
     const bad = await post(env, call('lab_say', { text: 'oi' }), 'outro')
     expect(bad.status).toBe(401)

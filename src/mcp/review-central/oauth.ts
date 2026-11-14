@@ -84,18 +84,32 @@ export function oauthKvConfigured(env: WorkerBindings | null | undefined): boole
   return Boolean(env?.OAUTH_KV)
 }
 
-async function createReviewMcpAuthorizationServer(
+/** Opções do AS partilhadas (Review + Lab). Exportadas para o teste do redirect Cursor. */
+export function mcpOAuthAuthorizationServerOptions(
   env: WorkerBindings,
   requestUrl: string,
 ) {
-  const { OAuthAuthorizationServer } = await loadOAuth()
-  return new OAuthAuthorizationServer<WorkerBindings>({
+  return {
     issuer: reviewMcpIssuerUrl(env, requestUrl),
     resources: [reviewMcpResourceUrl(env, requestUrl), labMcpResourceUrl(env, requestUrl)],
     scopesSupported: [...SCOPES],
     clientIdMetadataDocumentEnabled: true,
     clientRegistrationEndpoint: '/oauth/register',
-  })
+    // Cursor Desktop MCP OAuth uses cursor://… as redirect_uri. DCR accepts it next to
+    // https/loopback, but /authorize refuses private-use schemes unless this is true —
+    // without it Cursor shows «Declined» for tredane-staging-lab (and any cursor:// client).
+    allowPrivateUseRedirectUris: true as const,
+  }
+}
+
+async function createReviewMcpAuthorizationServer(
+  env: WorkerBindings,
+  requestUrl: string,
+) {
+  const { OAuthAuthorizationServer } = await loadOAuth()
+  return new OAuthAuthorizationServer<WorkerBindings>(
+    mcpOAuthAuthorizationServerOptions(env, requestUrl),
+  )
 }
 
 export function resourceMetadataBody(env: WorkerBindings, requestUrl: string) {
@@ -132,7 +146,7 @@ export function unauthorizedLabMcpResponse(
       status: 401,
       headers: {
         'Content-Type': 'application/json',
-        'WWW-Authenticate': `Bearer realm="tredane-lab", resource_metadata="${metaUrl}"`,
+        'WWW-Authenticate': `Bearer realm="tredane-lab", resource_metadata="${metaUrl}", scope="${LAB_MCP_SCOPE}"`,
       },
     },
   )
