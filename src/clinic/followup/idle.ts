@@ -22,6 +22,7 @@ import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import {
   clearConversationIdle,
+  clearIdleSuppressed,
   conversationHasActiveHuman,
   IDLE_CLOSE_AFTER_MS,
   IDLE_PROMPT_AFTER_MS,
@@ -358,6 +359,8 @@ function settleIdle(
       closedOpportunityId = opp.id
     }
   }
+  // Suppress antes do adeus: outbound do farewell não rearma idle (Paulo 14/11).
+  outbox.push(...suppressFollowupsAfterClientEnd(db, tenantId, conversationId, clock))
   if (input.thanks) {
     const timezone = ensureClinicSettings(db, tenantId, clock).timezone
     const thanks = sendOutboundMessageOp(
@@ -374,8 +377,6 @@ function settleIdle(
     )
     outbox.push(...thanks.outbox)
   }
-  // Após outbound (que reagenda idle) e sem thanks: cancela idle + handoff DEC-155.
-  outbox.push(...suppressFollowupsAfterClientEnd(db, tenantId, conversationId, clock))
   return { closedOpportunityId, outbox }
 }
 
@@ -535,6 +536,8 @@ export function applyIdleClientAction(
     usedGenericReply = true
   }
 
+  // Prosseguir: volta a permitir idle nesta conversa.
+  clearIdleSuppressed(db, input.tenantId, input.conversationId, clock.nowMs())
   rescheduleConversationIdle(db, input.tenantId, input.conversationId, clock, {
     progressAt: clock.nowMs(),
   })

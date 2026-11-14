@@ -6,6 +6,7 @@
  */
 import { createHash } from 'node:crypto'
 import type { Clock } from '../../db/clock'
+import { clearIdleSuppressed } from '../followup/idle-state'
 import { newId } from '../ids'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
@@ -293,6 +294,8 @@ export function openBookingSessionIfNeeded(
   }
 
   const now = clock.nowMs()
+  // Nova sessão de marcação: idle DEC-087 volta a poder armar após Terminar.
+  clearIdleSuppressed(db, tenantId, conversationId, now)
   const sessionId = newId('bss')
   const openReason = inferOpenReason(frame, opts?.openReason)
   const serviceId = frame.serviceId

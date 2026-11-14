@@ -99,6 +99,12 @@ describe('suppressFollowupsAfterClientEnd', () => {
       )
       expect(row?.due).toBeNull()
       expect(row?.assignee).toBe(AI)
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT idle_suppressed_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).not.toBeNull()
       expect(s.clock.nowMs() + HANDOFF_TIMEOUT_MS).toBeGreaterThan(s.clock.nowMs())
     } finally {
       s.close()

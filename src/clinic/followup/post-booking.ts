@@ -23,6 +23,7 @@ import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
+import { clearIdleSuppressed } from './idle-state'
 import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
 import { pickTerminarFarewell } from './terminar-farewell'
 
@@ -226,6 +227,15 @@ export function handlePostBookingButtonClick(
   const outbox: OutboxRow[] = []
 
   if (parsed.action === 'end') {
+    // Suppress antes do adeus: outbound não rearma idle (Paulo 14/11).
+    outbox.push(
+      ...suppressFollowupsAfterClientEnd(
+        db,
+        input.tenantId,
+        input.conversationId,
+        clock,
+      ),
+    )
     const timezone = ensureClinicSettings(db, input.tenantId, clock).timezone
     const replyText = pickTerminarFarewell({
       timezone,
@@ -270,16 +280,6 @@ export function handlePostBookingButtonClick(
       clock,
     )
     outbox.push(...thanks.outbox)
-    // Depois do outbound: sendOutboundMessageOp reagenda idle; e se a IA
-    // estava pausada (Confirmar funciona com pausa), cancela DEC-155.
-    outbox.push(
-      ...suppressFollowupsAfterClientEnd(
-        db,
-        input.tenantId,
-        input.conversationId,
-        clock,
-      ),
-    )
 
     writeOperationalAudit(
       db,
@@ -300,6 +300,8 @@ export function handlePostBookingButtonClick(
     return { handled: true, action: 'end', closedOpportunityId: null, outbox }
   }
 
+  // Marcar outro = nova intenção → idle volta a poder armar.
+  clearIdleSuppressed(db, input.tenantId, input.conversationId, clock.nowMs())
   // T3 + DEC-142 / B2: limpa o serviço e lista o catálogo.
   const frame = getBookingFrame(db, input.tenantId, input.conversationId)
   const action = planCatalogConsult({
@@ -385,6 +387,14 @@ export function handlePriceFollowupButtonClick(
   const key = input.providerEventKey ?? 'x'
 
   if (action === 'end') {
+    outbox.push(
+      ...suppressFollowupsAfterClientEnd(
+        db,
+        input.tenantId,
+        input.conversationId,
+        clock,
+      ),
+    )
     const timezone = ensureClinicSettings(db, input.tenantId, clock).timezone
     const replyText = pickTerminarFarewell({
       timezone,
@@ -410,17 +420,10 @@ export function handlePriceFollowupButtonClick(
       clock,
     )
     outbox.push(...sent.outbox)
-    outbox.push(
-      ...suppressFollowupsAfterClientEnd(
-        db,
-        input.tenantId,
-        input.conversationId,
-        clock,
-      ),
-    )
     return { handled: true, action: 'end', outbox }
   }
 
+  clearIdleSuppressed(db, input.tenantId, input.conversationId, clock.nowMs())
   const frame = getBookingFrame(db, input.tenantId, input.conversationId)
   const planned = planCatalogConsult({
     text: 'quero outro agendamento',
