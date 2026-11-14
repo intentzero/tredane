@@ -432,7 +432,7 @@ export function updatePixSignalSettings(
       clock,
     )
   } catch {
-    // Schema antigo em testes unitários sem migração 67: não quebra Recebimento.
+    // Schema antigo em testes unitários sem migração 68: não quebra Recebimento.
   }
 
   return getPixSignalSettings(db, tenantId, clock)

@@ -7,6 +7,7 @@ import {
   KNOWLEDGE_MAX_PUBLISHED,
   KNOWLEDGE_SIGNAL_SOURCE_KEY,
   deleteKnowledgeCategory,
+  deleteKnowledgeEntry,
   listKnowledgeEntries,
   matchPublishedKnowledge,
   syncSignalPolicyKnowledgeEntry,
@@ -155,6 +156,7 @@ describe('clinic knowledge (DEC-185)', () => {
       ).toHaveLength(1)
       const hit = matchPublishedKnowledge(db, tenantId, 'Como funciona o sinal?')
       expect(hit?.answer).toContain('actualizado')
+      expect(() => deleteKnowledgeEntry(db, tenantId, row!.id)).toThrow(/Recebimento/)
     } finally {
       close()
     }

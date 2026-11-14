@@ -1235,10 +1235,20 @@ export async function tryAiAutoBook(
 
   // DEC-185: FAQ institucional (modo A) mid-funnel — park → texto cadastrado → resume.
   // Depois de preço/duração/FAQ zona (DEC-177); só com match published.
+  // Não rouba respostas a escolhas discretas (linha / variantes / Mais|Pronto / eco Sim|Corrigir).
   {
-    const knowledge = answerClinicKnowledge(db, tenantId, turnText)
+    const frameKnEarly = getBookingFrame(db, tenantId, input.conversationId)
+    const pendingSlot = frameKnEarly?.pending?.slot
+    const blocksKnowledgeSteal =
+      pendingSlot === 'linha' ||
+      pendingSlot === 'variantes' ||
+      pendingSlot === 'acumular' ||
+      pendingSlot === 'eco'
+    const knowledge = blocksKnowledgeSteal
+      ? null
+      : answerClinicKnowledge(db, tenantId, turnText)
     if (knowledge) {
-      const frameKn = getBookingFrame(db, tenantId, input.conversationId)
+      const frameKn = frameKnEarly
       const svcKn = frameKn?.serviceId
         ? services.find((s) => s.id === frameKn.serviceId)
         : null

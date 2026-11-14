@@ -434,6 +434,13 @@ export function deleteKnowledgeEntry(
 ): { ok: true; id: string } {
   const existing = getEntryRow(db, tenantId, id)
   if (!existing) throw new NotFoundError('entry_not_found', 'entrada não encontrada')
+  // DEC-185 §6: a entrada da política de sinal é gerida pelo sync DEC-180 — não apagar à mão.
+  if (existing.source_key === KNOWLEDGE_SIGNAL_SOURCE_KEY) {
+    throw new ValidationError(
+      'signal_policy_locked',
+      'a política de sinal sincroniza-se em Recebimento; não se apaga aqui',
+    )
+  }
   db.run(`DELETE FROM clinic_knowledge_entries WHERE tenant_id = ? AND id = ?`, tenantId, id)
   return { ok: true, id }
 }
