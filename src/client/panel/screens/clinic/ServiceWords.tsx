@@ -95,7 +95,6 @@ export function ServiceWords({ tenantId, snap, suggestions }: Props) {
     <div className="clinic-stack words">
       <header className="words-head">
         <div className="words-head-copy">
-          <h2 className="clinic-section-title words-title">O que a IA reconhece</h2>
           <p className="clinic-footnote">
             Cada linha é um nome do catálogo e as palavras que a cliente pode usar para ele. A resposta
             usa sempre o nome do catálogo.

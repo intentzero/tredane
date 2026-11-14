@@ -12847,8 +12847,3 @@ button.panel-auth-inline-link {
 }
 
 /* Abaixo de 1280 px o cabeçalho da sub-tela já diz «O que a IA reconhece». */
-@media (max-width: 1279px) {
-  .words-title {
-    display: none;
-  }
-}
