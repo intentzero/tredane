@@ -12690,21 +12690,32 @@ button.panel-auth-inline-link {
   gap: var(--space-2);
 }
 
+.vc-who-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
 .vc-who-row {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-2);
   align-items: end;
-  padding-top: var(--space-2);
-  border-top: var(--size-border-width) solid var(--color-line-divider);
 }
 
 .vc-who-row .clinic-field {
   min-width: 0;
 }
 
-.vc-who-row[data-off] .clinic-field {
+.vc-who-block[data-off] .clinic-field {
   opacity: 0.55;
+}
+
+.vc-who-expl textarea {
+  min-height: 4.5rem;
+  resize: vertical;
 }
 
 .vc-who-check {

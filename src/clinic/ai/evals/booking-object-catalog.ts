@@ -5,10 +5,14 @@
 import type { ServiceRow, ServiceZoneRow } from '../../config/types'
 
 function zone(
-  partial: Omit<ServiceZoneRow, 'tenantId' | 'active' | 'sortOrder' | 'synonyms'> & {
+  partial: Omit<
+    ServiceZoneRow,
+    'tenantId' | 'active' | 'sortOrder' | 'synonyms' | 'clientExplanation'
+  > & {
     active?: boolean
     sortOrder?: number
     synonyms?: string[]
+    clientExplanation?: string | null
   },
 ): ServiceZoneRow {
   return {
@@ -16,6 +20,7 @@ function zone(
     active: partial.active ?? true,
     sortOrder: partial.sortOrder ?? 0,
     synonyms: partial.synonyms ?? [],
+    clientExplanation: partial.clientExplanation ?? null,
     ...partial,
   }
 }

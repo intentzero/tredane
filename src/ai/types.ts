@@ -44,6 +44,8 @@ export type AiCatalogService = {
     durationMinutes: number
     priceCents: number | null
     audience?: 'feminino' | 'masculino' | 'ambos' | null
+    /** Espelho de DEC-046 por variante; null/ausente = não descrever esta variante. */
+    clientExplanation?: string | null
   }[]
   /** DEC-008 — minutos de intervalo depois do atendimento. */
   bufferMinutes?: number

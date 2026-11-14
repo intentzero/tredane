@@ -940,6 +940,33 @@ describe('ServiceForm — opções agrupadas e palavras (DEC-176)', () => {
     ])
   })
 
+  it('explicação para a IA grava por variante (Feminino/Masculino)', async () => {
+    const upsertService = vi.fn(async () => depilacao())
+    const replaceServiceZones = vi.fn(async () => depilacao())
+    renderForm(
+      depilacao({
+        zones: [
+          z('z1', 'Axila', 'feminino', { synonyms: ['sovaco'] }),
+          z('z2', 'Axila', 'masculino', { priceCents: 6_000, synonyms: ['sovaco'] }),
+        ],
+      }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Axila' }))
+    const explFields = screen.getAllByRole('textbox', { name: /Explicação para a IA/ })
+    expect(explFields).toHaveLength(2)
+    fireEvent.change(explFields[0]!, { target: { value: 'Inclui a dobra feminina.' } })
+    fireEvent.change(explFields[1]!, { target: { value: 'Linha masculina completa.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(replaceServiceZones).toHaveBeenCalled())
+    const sent = (replaceServiceZones.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
+    expect(sent).toMatchObject([
+      { id: 'z1', audience: 'feminino', clientExplanation: 'Inclui a dobra feminina.' },
+      { id: 'z2', audience: 'masculino', clientExplanation: 'Linha masculina completa.' },
+    ])
+  })
+
   it('desmarcar um público gravado deixa a variante inativa; marcar cria a que falta', async () => {
     const upsertService = vi.fn(async () => depilacao())
     const replaceServiceZones = vi.fn(async () => depilacao())

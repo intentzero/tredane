@@ -15,6 +15,7 @@ const zones = [
     active: true,
     sortOrder: 0,
     synonyms: [] as string[],
+    clientExplanation: null as string | null,
   },
   {
     id: 'z_rel',
@@ -27,6 +28,7 @@ const zones = [
     active: true,
     sortOrder: 1,
     synonyms: [] as string[],
+    clientExplanation: null as string | null,
   },
 ]
 
