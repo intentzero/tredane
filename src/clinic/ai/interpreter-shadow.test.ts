@@ -21,6 +21,7 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './autodraft'
 import { rpcDepsFromEnv } from './deps'
+import { setDialogueVariantForTests } from './dialogue-acts'
 import {
   compareInterpretations,
   interpreterShadowEnabled,
@@ -283,7 +284,7 @@ describe('runInterpreterShadow', () => {
 })
 
 describe('sombra no turno real (runDueAutoDrafts)', () => {
-  async function runTurn(shadow: boolean) {
+  async function runTurn(shadow: boolean, text = 'quero massagem amanhã depois do almoço') {
     const s = seed()
     const events: InterpreterShadowEvent[] = []
     const spy = vi.spyOn(console, 'info').mockImplementation((line: unknown) => {
@@ -309,7 +310,7 @@ describe('sombra no turno real (runDueAutoDrafts)', () => {
           tenantId: s.tenantId,
           conversationId: s.cnv.id,
           direction: 'inbound',
-          body: 'quero massagem amanhã depois do almoço',
+          body: text,
           deliveryState: 'received',
           createdAt: s.clock.nowMs(),
         },
@@ -346,6 +347,29 @@ describe('sombra no turno real (runDueAutoDrafts)', () => {
       s.close()
     }
   }
+
+  it('mede também os turnos que o funil responde antes do extrator (preço do catálogo)', async () => {
+    // «Quanto custa…» é respondido por um ramo determinístico (catálogo) que faz `continue`
+    // antes do bloco do extrator: a sombra tem de o ver na mesma e não mudar a resposta.
+    const text = 'quanto custa a massagem?'
+    // A redação das frases aprovadas depende de um hash da conversa (id aleatório por corrida).
+    setDialogueVariantForTests(0)
+    let off: Awaited<ReturnType<typeof runTurn>>
+    let on: Awaited<ReturnType<typeof runTurn>>
+    try {
+      off = await runTurn(false, text)
+      on = await runTurn(true, text)
+    } finally {
+      setDialogueVariantForTests(null)
+    }
+    expect(on.events).toHaveLength(1)
+    expect(on.events[0]!.status).toBe('ok')
+    expect(on.events[0]!.mainModelCalled).toBe(false)
+    expect(on.extractCalls).toBe(1)
+    expect(on.replies).toEqual(off.replies)
+    expect(on.outbound).toEqual(off.outbound)
+    expect(on.usage).toBe(off.usage)
+  })
 
   it('desligada: nenhuma chamada extra e nenhum evento', async () => {
     const off = await runTurn(false)

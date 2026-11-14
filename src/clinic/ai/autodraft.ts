@@ -609,6 +609,30 @@ export async function runDueAutoDrafts(
       clock,
     )
     const turnText = turn.turnText
+    // Sombra do interpretador (Proposto): colhe o turno logo que o contexto é lido, ANTES dos
+    // ramos determinísticos abaixo (catálogo, hub, pergunta de tipo, preço…) que respondem e
+    // fazem `continue`. Colhida mais à frente, só via os turnos que chegam ao extrator e perdia
+    // a maioria. Só mede; a saída do extrator do caminho real junta-se depois, se houver.
+    const shadowTask: InterpreterShadowTask | null =
+      deps.interpreterShadow && turnText.trim() && !isInteractiveReplyBody(turnText)
+        ? {
+            tenantId,
+            conversationId: job.conversationId,
+            messageId: job.messageId,
+            turnText,
+            today: clinicCivilDateFromUtc(turn.settings.timezone || 'America/Sao_Paulo', clock.nowMs()),
+            services: turn.catalog.services,
+            professionals: [
+              ...new Map(
+                [...turn.catalog.professionalsByService.values()].flat().map((p) => [p.id, p]),
+              ).values(),
+            ],
+            pending: getBookingFrame(db, tenantId, job.conversationId)?.pending ?? null,
+            mainRaw: null,
+            mainModelCalled: false,
+          }
+        : null
+    if (shadowTask) shadowTasks.push(shadowTask)
     // DEC-087: texto livre «Terminar» / «Prosseguir» após o prompt idle — mesmo
     // settleIdle do botão (#620). Ingest já pode ter reiniciado idle_phase.
     {
@@ -1244,37 +1268,13 @@ export async function runDueAutoDrafts(
     let liveTurn = turn
 
     try {
-      // Fotografia para a sombra antes de o extrator ou o motor mexerem no quadro.
-      const shadowTurn = liveTurn
-      const shadowPending = deps.interpreterShadow
-        ? (getBookingFrame(db, tenantId, job.conversationId)?.pending ?? null)
-        : null
       const extractorStarted = clock.nowMs()
       const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
       opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
-      if (
-        deps.interpreterShadow &&
-        shadowTurn.turnText.trim() &&
-        !isInteractiveReplyBody(shadowTurn.turnText)
-      ) {
-        const pros = new Map(
-          [...shadowTurn.catalog.professionalsByService.values()].flat().map((p) => [p.id, p]),
-        )
-        shadowTasks.push({
-          tenantId,
-          conversationId: job.conversationId,
-          messageId: job.messageId,
-          turnText: shadowTurn.turnText,
-          today: clinicCivilDateFromUtc(
-            shadowTurn.settings.timezone || 'America/Sao_Paulo',
-            clock.nowMs(),
-          ),
-          services: shadowTurn.catalog.services,
-          professionals: [...pros.values()],
-          pending: shadowPending,
-          mainRaw: extracted.raw ?? null,
-          mainModelCalled: extracted.modelCalled,
-        })
+      if (shadowTask) {
+        // A sombra reutiliza a saída do extrator do caminho real em vez de chamar outra vez.
+        shadowTask.mainRaw = extracted.raw ?? null
+        shadowTask.mainModelCalled = extracted.modelCalled
       }
       if (extracted.modelCalled) {
         modelCalled = true
