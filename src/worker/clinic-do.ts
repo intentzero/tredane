@@ -10,6 +10,8 @@ import {
 } from '../clinic/constants'
 import { isDevelopmentEnv } from '../security/env-gate'
 import { isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
+import { labMaxTurnsDaily } from '../lab/gate'
+import { labDay, readLabState, runLabTurn, type LabStateResult, type LabTurnInput, type LabTurnResult } from '../lab/turn'
 import type { ProposalButtonClickInput } from '../clinic/proposals'
 import { DurableObject } from 'cloudflare:workers'
 import {
@@ -2247,6 +2249,81 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       throw new TenantMismatchError('seed demo só para a clínica demo')
     }
     return seedDemoClinicOp(this.#db, caller, this.#clock, opts)
+  }
+
+  /**
+   * DEC-182 — turno do laboratório: a cliente fictícia fala (texto) ou toca (botão/lista)
+   * sem passar pelo WhatsApp. Só tenant demo em staging; nada sai para a Meta.
+   */
+  async labTurn(caller: ClinicCaller, input: LabTurnInput): Promise<LabTurnResult> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    this.#assertLabAllowed(caller)
+    const key = `lab:turns:${labDay(this.#clock.nowMs())}`
+    const used = (await this.ctx.storage.get<number>(key)) ?? 0
+    return runLabTurn(
+      this.#db,
+      caller.tenantId,
+      input,
+      {
+        nowMs: () => this.#clock.nowMs(),
+        newId: () => crypto.randomUUID(),
+        ingest: async (i) => {
+          const r = await this.ingestMessage(
+            caller,
+            { providerEventKey: i.providerEventKey, waId: i.waId, displayName: i.displayName, body: i.body },
+            i.quiet ? { drain: false, fanout: false } : {},
+          )
+          return { conversationId: r.conversationId, contactId: r.contactId }
+        },
+        click: (i) =>
+          this.handleProposalButtonClick(caller, {
+            tenantId: caller.tenantId,
+            contactId: i.contactId,
+            conversationId: i.conversationId,
+            buttonId: i.buttonId,
+            buttonTitle: i.buttonTitle,
+            providerEventKey: i.providerEventKey,
+          }),
+        runAutoDrafts: async () =>
+          (await this.#runAutoDraftsWork(caller, null)).map((o) => ({
+            status: o.status,
+            conversationId: o.conversationId,
+          })),
+        settleOutbound: async (row) => {
+          await this.applyOutboundSendResult(caller, {
+            outboundId: row.outboundId,
+            outboxEventId: row.outboxEventId,
+            idempotencyKey: row.idempotencyKey,
+            outcome: 'succeeded',
+            providerMessageId: `lab.${row.outboxEventId}`,
+          })
+        },
+      },
+      {
+        used,
+        cap: labMaxTurnsDaily(this.env),
+        commit: (n) => this.ctx.storage.put(key, n),
+      },
+    )
+  }
+
+  /** DEC-182 — instantâneo do estado da clínica demo para o laboratório (só leitura). */
+  async labState(
+    caller: ClinicCaller,
+    input: { waId: string; messageLimit?: number },
+  ): Promise<LabStateResult> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    this.#assertLabAllowed(caller)
+    const used = (await this.ctx.storage.get<number>(`lab:turns:${labDay(this.#clock.nowMs())}`)) ?? 0
+    return readLabState(this.#db, caller.tenantId, input, { used, cap: labMaxTurnsDaily(this.env) })
+  }
+
+  #assertLabAllowed(caller: ClinicCaller): void {
+    if (!isDemoTenantId(caller.tenantId) || this.env.ENVIRONMENT !== 'staging') {
+      throw new TenantMismatchError('laboratório só para a clínica demo em staging')
+    }
   }
 
   async seedInboxDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {
