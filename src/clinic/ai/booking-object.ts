@@ -219,11 +219,43 @@ function sharesStem(a: string, b: string): boolean {
 }
 
 /**
+ * Tokens do texto que não entram no radical: verbos de funil e dias/períodos.
+ * Senão «marcar as costas» ~ «Marcação…» / «segunda» ~ «segundo» abriam disputa falsa.
+ */
+const STEM_TEXT_SKIP = new Set([
+  'marcar',
+  'agendar',
+  'quero',
+  'gostaria',
+  'fazer',
+  'preciso',
+  'horario',
+  'disponivel',
+  'disponiveis',
+  'vaga',
+  'vagas',
+  'segunda',
+  'terca',
+  'quarta',
+  'quinta',
+  'sexta',
+  'sabado',
+  'domingo',
+  'manha',
+  'tarde',
+  'noite',
+  'amanha',
+  'hoje',
+])
+
+/**
  * Algum outro serviço do catálogo tem uma palavra do nome com o mesmo radical de uma palavra do
  * texto («relaxar» ~ «Massagem relaxante»)? Então a zona citada não decide o serviço sozinha.
  */
 export function serviceNameStemHit(text: string, name: string): boolean {
-  const tokens = fold(text).split(/[^a-z0-9]+/).filter(Boolean)
+  const tokens = fold(text)
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t && !STEM_TEXT_SKIP.has(t))
   return nameTokens(name).some((w) => tokens.some((t) => sharesStem(t, w)))
 }
 

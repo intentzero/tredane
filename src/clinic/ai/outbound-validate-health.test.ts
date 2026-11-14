@@ -16,6 +16,9 @@ describe('validateClientOutbound — conselho de saúde (LLM)', () => {
     'A equipe confirma os detalhes na segunda-feira, a partir das 09:00.',
     'Para drenagem linfática, o valor é R$ 200,00 e a duração, 60 min.',
     'A profissional confirma contigo antes da sessão.',
+    // «urgência» sozinha não é conselho clínico (pronto-socorro já barra o caso médico).
+    'Se for urgência, a equipe confirma na segunda.',
+    'Sem urgência — posso ver horários na próxima semana?',
   ])('deixa passar «%s»', (text) => {
     expect(validateClientOutbound(text, { source: 'llm' }).ok).toBe(true)
   })
