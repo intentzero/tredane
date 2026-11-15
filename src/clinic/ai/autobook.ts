@@ -1593,7 +1593,6 @@ export async function tryAiAutoBook(
       const keepDate =
         det.date ??
         [...extractDates(turnText, clinicCivilDateFromUtc(tz, confirmation.created_at))][0] ??
-        session?.date ??
         frame?.date ??
         null
       const keepTime = det.time ?? null
