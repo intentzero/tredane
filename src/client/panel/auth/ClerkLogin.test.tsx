@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { writePendingInviteToken } from './session'
+import {
+  writePendingInviteToken,
+  writePendingOAuthAuthorize,
+} from './session'
 
 const signInProps: Array<Record<string, unknown>> = []
 let clerkLoaded = true
@@ -76,6 +79,7 @@ vi.mock('../ui/Brand', () => ({
 describe('ClerkLogin / ClerkSignUp — convite', () => {
   beforeEach(() => {
     sessionStorage.clear()
+    window.history.replaceState(null, '', '/entrar')
     signInProps.length = 0
     clerkLoaded = true
     clerkSignedIn = false
@@ -121,6 +125,28 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     const { ClerkLogin } = await import('./ClerkLogin')
     render(<ClerkLogin />)
     expect(signInProps[0]?.signUpUrl).toBe('/cadastro')
+    expect(signInProps[0]?.forceRedirectUrl).toBe('/invite/accept')
+  })
+
+  it('OAuth MCP: return_to=/authorize define forceRedirect (não /clinicas)', async () => {
+    window.history.replaceState(
+      null,
+      '',
+      '/entrar?return_to=%2Fauthorize%3Fclient_id%3Dlab1%26scope%3Dlab%3Aconverse',
+    )
+    const { ClerkLogin } = await import('./ClerkLogin')
+    render(<ClerkLogin />)
+    expect(signInProps[0]?.forceRedirectUrl).toBe(
+      '/authorize?client_id=lab1&scope=lab:converse',
+    )
+    expect(signInProps[0]?.signUpUrl).toBeUndefined()
+  })
+
+  it('OAuth MCP: convite tem prioridade sobre return_to', async () => {
+    writePendingInviteToken('tok_teste_nao_logar')
+    writePendingOAuthAuthorize('/authorize?client_id=lab1')
+    const { ClerkLogin } = await import('./ClerkLogin')
+    render(<ClerkLogin />)
     expect(signInProps[0]?.forceRedirectUrl).toBe('/invite/accept')
   })
 

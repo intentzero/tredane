@@ -3,7 +3,10 @@ import { AuthProvider, useAuthSession } from './auth/AuthContext'
 import { AuthModeGate, LoginScreen, SignUpScreen } from './auth/ClerkBridge'
 import {
   captureInviteTokenFromLocation,
+  captureOAuthReturnFromLocation,
+  clearPendingOAuthAuthorize,
   readPendingInviteToken,
+  readPendingOAuthAuthorize,
 } from './auth/session'
 import { AcceptInviteScreen } from './screens/AcceptInviteScreen'
 import { ClinicSelector } from './screens/ClinicSelector'
@@ -66,18 +69,30 @@ function PanelRouter() {
       }
     }
 
+    // OAuth MCP: captura return_to=/authorize?… enquanto ainda em /entrar (Clerk path routing).
+    if (route.kind === 'entrar' || route.kind === 'cadastro') {
+      captureOAuthReturnFromLocation()
+    }
+
     if (!signedIn && route.kind !== 'entrar' && route.kind !== 'cadastro') {
       navigatePanel({ kind: 'entrar' }, true)
       return
     }
 
     // Após login/cadastro (Clerk forceRedirect / synthetic), retoma o aceite se houver token.
+    // OAuth: retoma /authorize (navegação completa) antes de /clinicas — senão Declined.
     if (
       signedIn
       && (route.kind === 'entrar' || route.kind === 'cadastro' || route.kind === 'clinicas')
     ) {
       if (readPendingInviteToken()) {
         navigatePanel({ kind: 'invite-accept' }, true)
+        return
+      }
+      const oauthReturn = readPendingOAuthAuthorize()
+      if (oauthReturn) {
+        clearPendingOAuthAuthorize()
+        window.location.assign(oauthReturn)
         return
       }
       if (route.kind === 'entrar' || route.kind === 'cadastro') {

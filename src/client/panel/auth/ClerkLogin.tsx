@@ -1,6 +1,9 @@
 import { SignIn } from '@clerk/react'
 import { BrandHorizontal } from '../ui/Brand'
-import { readPendingInviteToken } from './session'
+import {
+  captureOAuthReturnFromLocation,
+  readPendingInviteToken,
+} from './session'
 import { clerkAuthAppearance } from './clerkAppearance'
 
 /**
@@ -12,10 +15,16 @@ import { clerkAuthAppearance } from './clerkAppearance'
  * `signUpUrl` só aponta para `/cadastro` com convite pendente (DEC-021):
  * sem isso o SignIn ficava em loop em si mesmo e bloqueava conta nova
  * («Não foi possível encontrar o usuário»).
+ *
+ * OAuth MCP: `/entrar?return_to=/authorize?…` (página de login do AS) define
+ * forceRedirect de volta ao consentimento — sem isto cai em /clinicas (Declined).
  */
 export function ClerkLogin() {
   const hasInvite = Boolean(readPendingInviteToken())
-  const afterLogin = hasInvite ? '/invite/accept' : '/clinicas'
+  const oauthReturn = captureOAuthReturnFromLocation()
+  const afterLogin = hasInvite
+    ? '/invite/accept'
+    : (oauthReturn ?? '/clinicas')
   return (
     <div className="panel-auth" lang="pt-BR">
       <div className="panel-auth-atmosphere" aria-hidden="true" />

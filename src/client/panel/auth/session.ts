@@ -4,6 +4,11 @@ const SYNTH_USER_KEY = 'tredane.synthUserId'
 const ACTIVE_TENANT_KEY = 'tredane.activeTenantId'
 /** Token de aceite pós-login. Nunca logar nem mostrar o valor completo. */
 const PENDING_INVITE_TOKEN_KEY = 'tredane.pendingInviteToken'
+/**
+ * Retorno OAuth MCP (`/authorize?…`) após login Clerk.
+ * Sem isto, forceRedirect do painel manda para /clinicas e o Cursor fica Declined.
+ */
+const PENDING_OAUTH_AUTHORIZE_KEY = 'tredane.pendingOauthAuthorize'
 
 export function readSynthUserId(): string | null {
   try {
@@ -112,6 +117,69 @@ export function writePendingInviteToken(token: string | null): void {
 
 export function clearPendingInviteToken(): void {
   writePendingInviteToken(null)
+}
+
+/**
+ * Só caminhos relativos `/authorize` ou `/authorize?…` (mesmo origin).
+ * Recusa open redirects (`//`, esquemas, outros paths).
+ */
+export function sanitizeOAuthAuthorizeReturn(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null
+  const trimmed = raw.trim()
+  if (trimmed.length === 0 || trimmed.length > 4096) return null
+  if (trimmed.startsWith('//') || trimmed.includes('://')) return null
+  if (/[\r\n\0]/.test(trimmed)) return null
+  if (trimmed !== '/authorize' && !trimmed.startsWith('/authorize?')) return null
+  return trimmed
+}
+
+export function readPendingOAuthAuthorize(): string | null {
+  try {
+    return sanitizeOAuthAuthorizeReturn(
+      sessionStorage.getItem(PENDING_OAUTH_AUTHORIZE_KEY),
+    )
+  } catch {
+    return null
+  }
+}
+
+export function writePendingOAuthAuthorize(pathWithQuery: string | null): void {
+  try {
+    const safe = sanitizeOAuthAuthorizeReturn(pathWithQuery)
+    if (safe) sessionStorage.setItem(PENDING_OAUTH_AUTHORIZE_KEY, safe)
+    else sessionStorage.removeItem(PENDING_OAUTH_AUTHORIZE_KEY)
+  } catch {
+    /* private mode */
+  }
+}
+
+export function clearPendingOAuthAuthorize(): void {
+  writePendingOAuthAuthorize(null)
+}
+
+/**
+ * Lê `?return_to=` de `/entrar` (link da página de login do /authorize),
+ * guarda na sessão e devolve o caminho seguro. Convite continua a ter prioridade
+ * no redirect pós-login.
+ */
+export function captureOAuthReturnFromLocation(
+  pathname = typeof window !== 'undefined' ? window.location.pathname : '',
+  search = typeof window !== 'undefined' ? window.location.search : '',
+): string | null {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  if (path !== '/entrar' && !path.startsWith('/entrar/')) {
+    return readPendingOAuthAuthorize()
+  }
+
+  const q = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const fromUrl = sanitizeOAuthAuthorizeReturn(q.get('return_to'))
+  if (fromUrl) {
+    writePendingOAuthAuthorize(fromUrl)
+    return fromUrl
+  }
+  return readPendingOAuthAuthorize()
 }
 
 /**

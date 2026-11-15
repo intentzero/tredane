@@ -43,6 +43,11 @@ Cursor mostra «Declined». O `/authorize` injeta o recurso a partir do `scope` 
 `https://www.cursor.com/agents/mcp/oauth/callback` (já aceite no DCR); o desktop usa `cursor://` — ambos
 precisam da mesma inferência de `resource`.
 
+**Login no meio do OAuth:** se `/authorize` não tem sessão Clerk, a página aponta para
+`/entrar?return_to=/authorize?…`. Depois do login o painel retoma esse `/authorize` (consentimento →
+callback `cursor://` ou agents). Sem `return_to`, o `forceRedirect` do painel ia para `/clinicas`
+(«Escolha a clínica») e o Cursor ficava Declined.
+
 ## Ferramentas (fase 1)
 
 | Ferramenta | O que faz |
