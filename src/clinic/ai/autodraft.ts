@@ -1624,18 +1624,33 @@ export async function runDueAutoDrafts(
           const frameNow =
             autoBook?.deferredFrame?.peekFrame(db, tenantId, job.conversationId) ??
             getBookingFrame(db, tenantId, job.conversationId)
-          const replaced = await maybeReplaceM5WithFlow({
-            choice: autoBook?.interactive ?? null,
-            replyBody: draftText,
-            prepare: deps.prepareBookingFlowOffer,
-            tenantId,
-            conversationId: job.conversationId,
-            catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, tenantId),
-            session: sessionFromBookingFrame(frameNow),
-            deferred: autoBook?.deferredFrame,
-          })
-          interactive = replaced.interactive
-          body = replaced.body
+          try {
+            const replaced = await maybeReplaceM5WithFlow({
+              choice: autoBook?.interactive ?? null,
+              replyBody: draftText,
+              prepare: deps.prepareBookingFlowOffer,
+              tenantId,
+              conversationId: job.conversationId,
+              catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, tenantId),
+              session: sessionFromBookingFrame(frameNow),
+              deferred: autoBook?.deferredFrame,
+            })
+            interactive = replaced.interactive
+            body = replaced.body
+          } catch (err) {
+            // Lab H1: mid-funnel «prefiro peeling» com Horários abertos — prepare Flow
+            // pode falhar e o catch externo engolia o turno (silêncio, aiOutcomes []).
+            // Mantém a lista M5 determinística.
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'ai.flow_replace_failed',
+                tenantId,
+                conversationId: job.conversationId,
+                error: err instanceof Error ? err.message : 'unknown',
+              }),
+            )
+          }
         }
         const sent = sendOutboundMessageOp(
           db,

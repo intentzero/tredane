@@ -124,6 +124,30 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
     },
   )
 
+
+  it('Lab path: confirm ask → sim → Horários → prefiro massagem (não silêncio)', async () => {
+    const s = bootDialogScenario()
+    try {
+      // Hit parcial «peeling» → «É peeling químico?» (espelha drenagem no Lab).
+      const ask = await say(s, 'Quero peeling amanhã')
+      expect(ask.join('\n')).toMatch(/peeling/i)
+      const slots = await say(s, 'sim')
+      expect(slots.join('\n')).toMatch(/hor[aá]rio|serve/i)
+      const out = await say(s, 'na verdade prefiro massagem')
+      expect(out.length, `silêncio Lab: out=${JSON.stringify(out)}`).toBeGreaterThan(0)
+      const after = s.db.get<{ name: string }>(
+        `SELECT v.name AS name
+         FROM schedule_sessions ss JOIN services v
+           ON v.tenant_id = ss.tenant_id AND v.id = ss.service_id
+         WHERE ss.conversation_id = ?`,
+        s.conversationId,
+      )
+      expect(after?.name).toMatch(/massagem/i)
+    } finally {
+      s.close()
+    }
+  })
+
   it('mid-funnel com Horários abertos: «prefiro peeling» responde (não silêncio)', async () => {
     const s = bootDialogScenario()
     try {
