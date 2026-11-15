@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "createdAt": "2026-11-15T17:37-03:00",
+  "environment": "staging",
+  "tenantId": "tenant_dec0de000000000000000001",
+  "mcp": "user-tredane-staging-lab",
+  "howToRun": [
+    "Chamar lab_status primeiro e confirmar que sobra teto (o conjunto completo usa ~85 turnos).",
+    "Cada cenario usa um waId proprio. Para repetir num dia em que os waIds ja tem historico, somar um sufixo de corrida (ex.: 550000000101 -> 5500000001012) para comecar conversa limpa; os cenarios 'remarcacao' e 'cancelamento' dependem do agendamento criado no proprio cenario.",
+    "Passo 'say' = lab_say(text, waId, displayName no 1o passo). Passo 'tap' = lab_tap usando o id devolvido em tappable cuja linha/botao tem o 'title' indicado (os ids mudam a cada corrida; procurar por title). 'tapRowIndex' = tocar na linha N (0-based) da lista de Horarios.",
+    "Correr os cenarios SEQUENCIALMENTE: chamadas lab_say em paralelo misturaram o 'tappable' entre waIds na corrida de 15/11.",
+    "Se lab_say/lab_tap devolver 'Durable Object ... reset', chamar lab_state e registar o erro; nao repetir o mesmo passo mais de 1 vez.",
+    "No fim de cada cenario chamar lab_state(waId) e verificar 'expect'.",
+    "Atencao ao dia/hora: a corrida de base foi num DOMINGO (fora de horario). Os cenarios de atendente devem ser corridos tambem em horario de equipe (seg-sex 09-19, sab 09-13)."
+  ],
+  "metrics": ["booked (lab_state: appointment confirmed para o contato)", "clientTurns (says + taps)", "aiQuestions", "handoffRecognizedFirstTry", "loops (mesma mensagem da IA 2x seguidas)", "doErrors"],
+  "scenarios": [
+    {
+      "id": "S01-caminho-feliz",
+      "waId": "550000000101", "displayName": "Fernanda",
+      "steps": [
+        {"say": "oi boa tarde, queria marcar uma limpeza de pele pra quinta feira a tarde"},
+        {"tap": {"kind": "list", "title": "15:15", "fallbackTapRowIndex": 0}},
+        {"tap": {"kind": "button", "title": "Confirmar"}}
+      ],
+      "expect": {"booked": true, "maxClientTurns": 3},
+      "baseline20261115": {"booked": true, "clientTurns": 3, "aiQuestions": 1}
+    },
+    {
+      "id": "S02-pedido-vago",
+      "waId": "550000000102", "displayName": "Juliana",
+      "steps": [
+        {"say": "oii queria marcar algo pra semana que vem"},
+        {"say": "ah nao sei bem.. oq vc indica pra pele? ta meio manchada"},
+        {"say": "pode ser essa avaliaçao entao"},
+        {"say": "tem mais tarde? tipo dps das 4"},
+        {"say": "16h30 tem?"},
+        {"say": "17 e meia ent"},
+        {"say": "isso pode confirmar"},
+        {"say": "ok aguardo entao obg"}
+      ],
+      "expect": {"booked": true, "noFalsePromise": "nao dizer que a equipe vai confirmar se nao houver tarefa criada", "suggestsAvaliacao": true},
+      "baseline20261115": {"booked": false, "clientTurns": 8, "aiQuestions": 6, "notes": "texto 'isso pode confirmar' nao marca; promessa falsa de confirmacao pela equipe"}
+    },
+    {
+      "id": "S03a-atendente-meio-do-fluxo",
+      "waId": "550000000103", "displayName": "Camila",
+      "steps": [
+        {"say": "boa tarde quero fazer depilaçao"},
+        {"tap": {"kind": "button", "title": "Feminina"}},
+        {"say": "quero falar com alguem"},
+        {"say": "ah ta bom entao.. axila e perna"},
+        {"tap": {"kind": "button", "title": "Sim"}},
+        {"tapRowIndex": 0, "kind": "list"},
+        {"tap": {"kind": "button", "title": "Confirmar"}}
+      ],
+      "expect": {"booked": true, "handoffRecognizedFirstTry": true, "handoffRegistered": "conversa sinalizada/atribuida a equipe ou recado registado"},
+      "baseline20261115": {"booked": false, "clientTurns": 6, "doErrors": 3, "notes": "tap 'Sim' em axila+pernas -> 'Durable Object exceeded its CPU time limit' 3/3"}
+    },
+    {
+      "id": "S03b-atendente-frases",
+      "note": "Cada frase num waId novo, como primeira mensagem.",
+      "variants": [
+        {"waId": "5500000001031", "displayName": "Rosana", "say": "tem uma pessoa ai?", "baselineRecognized": false},
+        {"waId": "5500000001032", "displayName": "Bruna", "say": "atendente", "baselineRecognized": true},
+        {"waId": "5500000001033", "displayName": "Patricia", "say": "humano", "baselineRecognized": true},
+        {"waId": "5500000001034", "displayName": "Sandra", "say": "boa tarde, nao to entendendo nada desse robo", "then": "quero sim, me passa pra alguem da clinica", "baselineRecognized": false},
+        {"waId": "5500000001035", "displayName": "Kelly", "say": "quero falar com uma pessoa de verdade, nao com robo", "baselineRecognized": true},
+        {"waId": "5500000001036", "displayName": "Silvia", "say": "qual o telefone de vcs? prefiro ligar", "baselineRecognized": false}
+      ],
+      "expect": {"handoffRecognizedFirstTry": true, "handoffRegistered": true, "clearNextStep": "dizer quando a equipe responde E que o pedido ficou registado; oferecer botao para continuar a marcar"}
+    },
+    {
+      "id": "S04-preco-a-meio",
+      "waId": "550000000104", "displayName": "Aline",
+      "steps": [
+        {"say": "oi queria agendar uma drenagem linfatica pra terça"},
+        {"say": "qnto custa?"},
+        {"say": "mas qual o valor da drenagem? antes de marcar"},
+        {"say": "vc nao responde o q eu pergunto ne"},
+        {"tap": {"kind": "list", "title": "15:15", "fallbackTapRowIndex": 0}},
+        {"tap": {"kind": "button", "title": "Confirmar"}}
+      ],
+      "expect": {"booked": true, "priceAnsweredAt": "passo 2", "noRepeatedMessage": true},
+      "baseline20261115": {"booked": true, "clientTurns": 6, "aiQuestions": 4, "loops": 3, "notes": "mesma mensagem de horarios 4x; preco so no cartao da proposta"}
+    },
+    {
+      "id": "S05a-remarcacao-mudando-data",
+      "dependsOn": "S04-preco-a-meio (mesmo waId, agendamento de terca)",
+      "waId": "550000000104",
+      "steps": [
+        {"say": "oi, preciso remarcar minha drenagem de terca"},
+        {"say": "nao, terca nao vou poder. sexta de manha tem?"},
+        {"say": "sim, sexta dia 20"},
+        {"say": "e sexta 13h?"},
+        {"say": "quarta entao"},
+        {"say": "affs esquece. tem como falar com alguem?"}
+      ],
+      "control": {"waId": "5500000001051", "displayName": "Teste Disp", "say": "tem drenagem linfatica sexta dia 20?", "note": "mostra que ha vagas na sexta"},
+      "expect": {"rescheduled": true},
+      "baseline20261115": {"rescheduled": false, "clientTurns": 6, "notes": "'Na sexta 20/11 nao tenho horario livre' com vagas reais (controlo mostrou 12:30, 13:00, 15:15)"}
+    },
+    {
+      "id": "S05b-remarcacao-direta",
+      "waId": "550000000105", "displayName": "Priscila",
+      "steps": [
+        {"say": "quero marcar microagulhamento na segunda"},
+        {"tapRowIndex": 2, "kind": "list"},
+        {"tap": {"kind": "button", "title": "Confirmar"}},
+        {"say": "opa, na vdd vou precisar remarcar pra sexta, pode ser?"},
+        {"say": "meio dia"},
+        {"tap": {"kind": "button", "title": "Confirmar"}}
+      ],
+      "expect": {"booked": true, "rescheduled": true, "confirmationSaysRemarcado": true},
+      "baseline20261115": {"rescheduled": true, "clientTurns": 6, "notes": "funciona; texto final diz 'Agendado' e nao 'Remarcado de ... para ...'"}
+    },
+    {
+      "id": "S06-mudanca-de-ideia",
+      "waId": "550000000106", "displayName": "Larissa",
+      "steps": [
+        {"say": "oi queria marcar um peeling quimico"},
+        {"say": "ah pensando bem prefiro fazer limpeza de pele"},
+        {"say": "amanha 12:30"},
+        {"say": "12h30 de amanha ue, vc q falou"},
+        {"say": "segunda dia 16 as 12:30"},
+        {"say": "qualquer um q tiver"},
+        {"say": "a primeira"},
+        {"tap": {"kind": "button", "title": "Alterar detalhes"}},
+        {"say": "o horario, queria mais pro fim da tarde"},
+        {"say": "quarta 15:15 entao"},
+        {"tap": {"kind": "button", "title": "Confirmar"}}
+      ],
+      "expect": {"booked": true, "maxClientTurns": 6, "noRepeatedMessage": true},
+      "baseline20261115": {"booked": true, "clientTurns": 11, "aiQuestions": 8, "doErrors": 3, "loops": 2}
+    },
+    {
+      "id": "S07a-texto-livre",
+      "waId": "550000000107", "displayName": "Daiane",
+      "steps": [
+        {"say": "oi td bem? vcs fazem depilaçao de axila?"},
+        {"say": "sou mulher kkk"},
+        {"say": "feminina"},
+        {"say": "so axila, ja falei"},
+        {"say": "isso"},
+        {"say": "o das 11 e 15"},
+        {"say": "fechado, confirmo"},
+        {"say": "confirmar"},
+        {"tap": {"kind": "button", "title": "Confirmar"}}
+      ],
+      "expect": {"bookedBeforeStep": 8, "noReaskOfGivenInfo": true},
+      "baseline20261115": {"booked": "so com toque", "clientTurns": 9, "aiQuestions": 6}
+    },
+    {
+      "id": "S07b-confirmacao-por-texto",
+      "waId": "550000000111", "displayName": "Bia",
+      "steps": [
+        {"say": "drenagem quarta as 15h15 tem?"},
+        {"say": "13h"},
+        {"say": "sim"},
+        {"say": "ok 👍"}
+      ],
+      "expect": {"booked": true},
+      "baseline20261115": {"booked": false, "clientTurns": 4, "notes": "'sim' -> fallback; 'ok 👍' -> pede para tocar em Confirmar"}
+    },
+    {
+      "id": "S08a-saude",
+      "waId": "550000000108", "displayName": "Marcia",
+      "steps": [
+        {"say": "boa tarde to com uma dor nas costas faz 3 dias, o q eu faço?"},
+        {"say": "ah ta.. e vcs tem massagem? a drenagem ajuda nisso?"}
+      ],
+      "expect": {"noHealthAdvice": true, "safetyLine": true, "repliesToStep2": true},
+      "baseline20261115": {"booked": false, "clientTurns": 2, "notes": "handoff + silencio total no passo 2"}
+    },
+    {
+      "id": "S08b-fora-do-assunto-pagamento",
+      "waId": "5500000001081", "displayName": "Tati",
+      "steps": [
+        {"say": "vcs aceitam cartao? da pra parcelar o preenchimento?"},
+        {"say": "mas e o parcelamento??"}
+      ],
+      "expect": {"questionAnsweredOrRegistered": true, "noRepeatedMessage": true},
+      "baseline20261115": {"booked": false, "clientTurns": 2, "loops": 1}
+    },
+    {
+      "id": "S09a-idosa-botox",
+      "waId": "550000000109", "displayName": "Lurdes",
+      "steps": [
+        {"say": "Boa tarde minha filha. Aqui é a dona Lurdes amiga da Cida. Eu queria ver aquele negocio pra ruga da testa"},
+        {"say": "o botox. Queria marcar pra quinta depois do almoço"}
+      ],
+      "expect": {"mapsToService": "Toxina botulínica (3 regiões)", "booked": true},
+      "baseline20261115": {"booked": false, "clientTurns": 2, "notes": "handoff imediato e silencio"}
+    },
+    {
+      "id": "S09b-idosa-pouco-digital",
+      "waId": "5500000001091", "displayName": "Dona Zilda",
+      "steps": [
+        {"say": "boa tarde. minha neta disse q posso marcar por aqui a limpeza de pele. como faz"},
+        {"say": "alo??"},
+        {"say": "nao sei mexer nessas coisa. pode ser na terça"},
+        {"say": "meio dia e meia ta bom sim"},
+        {"say": "12 e 30 ue"},
+        {"say": "sim pode marcar. obrigada minha filha deus te abençoe"}
+      ],
+      "expect": {"booked": true, "repliesToFirstMessage": true},
+      "baseline20261115": {"booked": false, "clientTurns": 6, "doErrors": 2, "notes": "1a mensagem sem resposta (DO reset); 'meio dia e meia'=12:00; agradecimento -> handoff"}
+    },
+    {
+      "id": "S10-audio-localizacao",
+      "waId": "550000000110", "displayName": "Renata",
+      "steps": [
+        {"say": "oi onde fica a clinica? manda a localizaçao"},
+        {"say": "te mandei um audio explicando, escuta ai"}
+      ],
+      "limitations": "lab_say so envia texto: nao da para simular audio real nem pin de localizacao recebido.",
+      "expect": {"addressOrRegistered": true},
+      "baseline20261115": {"notes": "clinicAddress vazio na config demo; promete que a equipe passa 'em seguida' num domingo sem registar"}
+    },
+    {
+      "id": "S11-cancelamento",
+      "dependsOn": "S01-caminho-feliz",
+      "waId": "550000000101",
+      "steps": [
+        {"say": "oi, vou ter q cancelar a limpeza de quinta, surgiu um imprevisto"}
+      ],
+      "expect": {"offersReschedule": true},
+      "baseline20261115": {"notes": "handoff, sem oferta de remarcar"}
+    },
+    {
+      "id": "S12-dia-persiste-faq-zonas",
+      "waId": "550000000112",
+      "displayName": "PauloTerça",
+      "note": "Regressão cnv_3fa91176 / rsamp_fa7f138 (15/11/2026): dia pedido sobrevive a FAQ/preço/zonas.",
+      "steps": [
+        {"say": "depilação masculina na próxima terça"},
+        {"say": "a depilação íntima inclui tudo?"},
+        {"say": "quanto custa a íntima?"},
+        {"say": "Quero todas"},
+        {"tap": {"kind": "button", "title": "Sim"}}
+      ],
+      "expect": {
+        "requestedDayInFrame": "lab_state booking frame date = terça pedida após passo FAQ",
+        "offersSlotsOnRequestedDay": "última resposta lista horários no dia pedido (terça), não só sexta",
+        "noInventedClientTime": "sem «Nesse horário das HH:MM» se a cliente não disse hora"
+      }
+    },
+    {
+      "id": "S13-sem-hora-inventada",
+      "waId": "5500000001121",
+      "displayName": "JoãoTerça",
+      "note": "Padrão 14/11 «depilação para a próxima terça» sem nunca apresentar lista de horários.",
+      "steps": [
+        {"say": "depilação para a próxima terça"},
+        {"say": "masculina"},
+        {"say": "Quero todas"},
+        {"tap": {"kind": "button", "title": "Sim"}}
+      ],
+      "expect": {
+        "slotListShown": true,
+        "noInventedClientTime": "sem «Nesse horário das HH:MM» sem hora dita"
+      }
+    },
+    {
+      "id": "S14-duracao-total-nao-cabe-dia",
+      "waId": "5500000001122",
+      "displayName": "TodasZonas",
+      "note": "Duração total (7 zonas masculinas) deve caber no dia pedido ou explicar indisponibilidade com alternativa; correr em horário de equipe.",
+      "steps": [
+        {"say": "depilação masculina na próxima terça"},
+        {"say": "Quero todas"},
+        {"tap": {"kind": "button", "title": "Sim"}}
+      ],
+      "expect": {
+        "usesTotalDuration": "proposta/lista reflecte soma das zonas (não só 15 min de uma zona)",
+        "noInventedClientTime": "sem hora inventada",
+        "requestedDayOrClearAlternative": "mantém terça na oferta ou diz que o dia não serve antes de outro dia"
+      }
+    }
+  ]
+}
