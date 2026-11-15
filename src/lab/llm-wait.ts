@@ -14,6 +14,11 @@ export type LabLlmStub = {
   claimLlmJob: ClinicDurableObject['claimLlmJob']
   applyLlmResult: ClinicDurableObject['applyLlmResult']
   failLlmJob: ClinicDurableObject['failLlmJob']
+  /** Retoma autodraft após extract (RPC separado; tipo largo por serialização DO). */
+  runAutoDrafts: (
+    caller: ClinicCaller,
+    opts?: { conversationId?: string; limit?: number },
+  ) => Promise<unknown>
 }
 
 async function sleep(ms: number): Promise<void> {

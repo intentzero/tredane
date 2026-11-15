@@ -84,6 +84,16 @@ export async function buildAiContextPayload(
     forecast?: ForecastAdapter
     /** #411 TurnContext — evita releituras no mesmo job. */
     turn?: import('./turn-context').TurnContext
+    /**
+     * DEC-188: snapshot LLM no DO — salta queries só de `_debugExcluded`
+     * (attachments count + outras conversas) para poupar CPU no isolate.
+     */
+    skipDebugExcluded?: boolean
+    /**
+     * DEC-188 redact: `hours` evita queryAvailability × N no DO (Lab CPU).
+     * Defeito `full` quando há `clock` (suggestReply / booking).
+     */
+    agendaMode?: 'full' | 'hours'
   } = {},
 ): Promise<{
   payload: AiContextPayload
@@ -212,6 +222,7 @@ export async function buildAiContextPayload(
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),
       forecast: opts.forecast,
+      agendaMode: opts.agendaMode ?? 'full',
       ...(opts.turn
         ? {
             turn: {
@@ -226,22 +237,26 @@ export async function buildAiContextPayload(
     agendaFacts = built.agendaFacts
   }
 
-  const attRow = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM attachments
-     WHERE tenant_id = ? AND conversation_id = ?`,
-    tenantId,
-    conversationId,
-  )
-  const attachmentCount = attRow?.n ?? 0
+  let attachmentCount = 0
+  let otherRows: { id: string }[] = []
+  if (!opts.skipDebugExcluded) {
+    const attRow = db.get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM attachments
+       WHERE tenant_id = ? AND conversation_id = ?`,
+      tenantId,
+      conversationId,
+    )
+    attachmentCount = attRow?.n ?? 0
 
-  // Outras conversas do mesmo tenant (não entram no payload)
-  const otherRows = db.all<{ id: string }>(
-    `SELECT id FROM conversations
-     WHERE tenant_id = ? AND id != ?
-     LIMIT 50`,
-    tenantId,
-    conversationId,
-  )
+    // Outras conversas do mesmo tenant (não entram no payload)
+    otherRows = db.all<{ id: string }>(
+      `SELECT id FROM conversations
+       WHERE tenant_id = ? AND id != ?
+       LIMIT 50`,
+      tenantId,
+      conversationId,
+    )
+  }
 
   return {
     payload,

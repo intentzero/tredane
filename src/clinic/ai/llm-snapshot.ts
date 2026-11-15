@@ -121,6 +121,9 @@ export async function buildRedactSnapshot(
     clock,
     clinicName: deps.clinicName ?? null,
     forecast: deps.forecast,
+    skipDebugExcluded: true,
+    // Sem freeSlots/queryAvailability — isso estourava CPU do DO no Lab (ca03).
+    agendaMode: 'hours',
     ...(input.turn ? { turn: input.turn } : {}),
   })
   return {
