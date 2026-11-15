@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import type { WorkerBindings } from '../worker/bindings'
 import { createLabMcpRoutes } from './routes'
 
@@ -106,7 +107,8 @@ describe('MCP de laboratório (DEC-186)', () => {
     const env = { ...envWith({}), CLINIC: { idFromName: (n: string) => n, get } } as unknown as WorkerBindings
     const res = await post(env, call('lab_say', { text: 'Quero massagem amanhã' }))
     expect(res.status).toBe(200)
-    expect(get).toHaveBeenCalledWith('tenant_dec0de000000000000000001')
+    // idFromName recebe a geração DO da demo (`:do-vN`); o tenantId lógico continua sem sufixo.
+    expect(get).toHaveBeenCalledWith(clinicDurableObjectName('tenant_dec0de000000000000000001'))
     const [caller, input] = labTurn.mock.calls[0]!
     expect(caller.tenantId).toBe('tenant_dec0de000000000000000001')
     expect(input).toMatchObject({ waId: '550000000001', text: 'Quero massagem amanhã' })
