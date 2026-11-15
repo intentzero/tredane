@@ -1390,7 +1390,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: {
       notPaused: true,
       outboundIncludes: ['24h'],
-      outboundExcludes: ['Não entendi', 'Quer ver as opções'],
+      outboundExcludes: [/Não entendi/i, /Quer ver as op[cç][oõ]es/i],
     },
   },
   {
