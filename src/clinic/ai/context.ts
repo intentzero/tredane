@@ -172,6 +172,7 @@ export async function buildAiContextPayload(
           priceCents: z.priceCents,
           audience: z.audience,
           clientExplanation: sanitizeCatalogField(z.clientExplanation),
+          clientExplanationAudience: sanitizeCatalogField(z.clientExplanationAudience ?? null),
         })),
       }
     },
@@ -310,6 +311,12 @@ export function assertContextMinimized(payload: AiContextPayload): void {
     }
     for (const zone of svc.zones ?? []) {
       if (zone.clientExplanation && /\+?\d[\d\s().-]{8,}\d/.test(zone.clientExplanation)) {
+        throw new Error('ai_context_catalog_contains_phone')
+      }
+      if (
+        zone.clientExplanationAudience &&
+        /\+?\d[\d\s().-]{8,}\d/.test(zone.clientExplanationAudience)
+      ) {
         throw new Error('ai_context_catalog_contains_phone')
       }
     }

@@ -118,6 +118,7 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
       active: z.active,
       synonyms: z.synonyms,
       explanation: z.explanation,
+      explanationAudience: z.explanationAudience,
     })),
     combos: input.combos.map((c) => ({
       id: c.id ?? null,
@@ -325,6 +326,7 @@ export function ServiceForm({
       active: z.active,
       synonyms: z.synonyms ?? [],
       explanation: z.clientExplanation ?? '',
+      explanationAudience: z.clientExplanationAudience ?? '',
     })),
   )
   const [synonyms, setSynonyms] = useState<string[]>(() => existing?.synonyms ?? [])
@@ -681,6 +683,7 @@ export function ServiceForm({
       active: z.active,
       synonyms: z.synonyms,
       clientExplanation: z.explanation.trim() || null,
+      clientExplanationAudience: z.explanationAudience.trim() || null,
     }))
     const zoneKeys = new Set(draftZones.map((z) => z.key))
     const draftCombos = withVariants

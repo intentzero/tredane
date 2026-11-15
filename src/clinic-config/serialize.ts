@@ -95,6 +95,7 @@ export function serializeService(row: ServiceRow) {
       sortOrder: z.sortOrder,
       synonyms: z.synonyms,
       clientExplanation: z.clientExplanation,
+      clientExplanationAudience: z.clientExplanationAudience ?? null,
     })),
     combos: row.combos.map((k) => ({
       id: k.id,

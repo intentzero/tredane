@@ -2840,8 +2840,10 @@ export type ClinicServiceZone = {
   sortOrder: number
   /** DEC-110 — sinónimos da variante. */
   synonyms?: string[]
-  /** Espelho de DEC-046 — explicação para a IA por variante. */
+  /** DEC-189 — explicação comum do nome (partilhada pelos géneros). */
   clientExplanation?: string | null
+  /** DEC-189 — override opcional só deste género. */
+  clientExplanationAudience?: string | null
 }
 
 export type ClinicServiceCombo = {
@@ -2870,8 +2872,10 @@ export type ServiceZoneInput = {
   active?: boolean
   /** DEC-110 — omitido mantém; array substitui. */
   synonyms?: string[]
-  /** Espelho de DEC-046 — omitido mantém; null/vazio limpa. */
+  /** DEC-189 — texto comum: omitido mantém; null/vazio limpa. */
   clientExplanation?: string | null
+  /** DEC-189 — override por género: omitido mantém; null/vazio limpa. */
+  clientExplanationAudience?: string | null
 }
 
 export type ClinicResource = {
