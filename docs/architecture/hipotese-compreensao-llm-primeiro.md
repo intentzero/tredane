@@ -1,6 +1,6 @@
 # Hipótese: compreensão por LLM primeiro, política explícita — e o experimento que a testa
 
-**Estado:** **Proposto** (análise de engenharia, 13/11/2026, pedida pelo Paulo: menos carga cognitiva, conversa mais natural, maior taxa de agendamentos concluídos). **Não é decisão de produto** e não altera nenhuma DEC. O que existe de código é só a medição (secção 5). Complementa o [núcleo determinístico](nucleo-deterministico-conversacional.md) e o [modelo híbrido](conversational-hybrid-model.md); não os substitui. Todos os exemplos são fictícios.
+**Estado:** **Proposto** no conjunto (análise de engenharia, 13/11/2026). **Fatia H1 só-serviço Confirmada** pela **DEC-190** (Paulo, 15/11/2026): aplicar `service` do modelo com id validado no catálogo quando o léxico deixou esse campo vazio — sem H1 completo nem relaxar `line`. O resto (H2–H4, LLM-first global) continua Proposto. Complementa o [núcleo determinístico](nucleo-deterministico-conversacional.md) e o [modelo híbrido](conversational-hybrid-model.md). Todos os exemplos são fictícios.
 
 **Para quem lê isto:** um agente ou pessoa que vai mexer em `src/clinic/ai/` e precisa de saber o que se está a testar, o que **não** se pode assumir já decidido e como o experimento funciona.
 
@@ -17,12 +17,12 @@ O princípio da arquitetura (a IA interpreta, o backend decide, só o botão mar
 ## 2. Como funciona hoje (verificado no código, 13/11/2026)
 
 1. `interpretTurn` ([`nlu/interpret.ts`](../../src/clinic/ai/nlu/interpret.ts)) lê o turno com regex e léxico e devolve atos, campos e uma `coverage`.
-2. `runRestrictedExtractor` ([`llm-extractor.ts`](../../src/clinic/ai/llm-extractor.ts)) só chama o modelo se `needsExtractor` for verdadeiro, e isso exige `!hasSlots`: **se o léxico leu qualquer campo, o modelo não corre**.
-3. Quando corre, `validateExtractorOutput` só aceita um campo se estiver **citado literalmente** na frase: nome ou sinónimo do serviço ou da variante, a palavra «manhã/tarde/noite», uma data que o parser determinístico já resolvia, uma hora que o parser já lia.
-4. O orquestrador ([`autodraft.ts`](../../src/clinic/ai/autodraft.ts)) só usa `modelCalled` e `applied` do resultado. Os atos devolvidos pelo modelo são descartados.
+2. `runRestrictedExtractor` ([`llm-extractor.ts`](../../src/clinic/ai/llm-extractor.ts)) chama o modelo se `needsExtractor`: cobertura baixa / `desconhecido` **ou** (DEC-190) lacuna de serviço com intenção de marcar mesmo quando há data/hora.
+3. Quando corre, `validateExtractorOutput` aceita a maioria dos campos só com **citação literal**; **excepção DEC-190:** `serviceId` com léxico vazio e sinal de marcação aceita id activo no catálogo (como a sombra relaxada). `line` / variantes / período mantêm evidência.
+4. O orquestrador ([`autodraft.ts`](../../src/clinic/ai/autodraft.ts)) usa `modelCalled` e `applied`; `catalogReply` cede o clarify de serviço quando o extract pode preencher.
 5. A política do turno vive em `tryAiAutoBook` ([`autobook.ts`](../../src/clinic/ai/autobook.ts), cerca de 3.000 linhas); `runBookingTurn` só delega.
 
-Consequência: «relaxar as costas amanhã» não vira Massagem sem um sinónimo cadastrado; «depois do almoço» não vira tarde. O modelo teria lido ambos, mas o desenho atual não o deixa.
+Consequência (após DEC-190): «relaxar as costas amanhã» pode gravar Massagem no quadro via extrator (id validado + eco/funil); «depois do almoço» → período ainda depende de léxico/PR-D. H1 completo (LLM-first em todo texto) continua Proposto.
 
 ## 3. Evidência do problema
 
@@ -44,14 +44,14 @@ Cada parte é independente e só avança com decisão própria.
 
 | # | Mudança proposta | Decisões que toca | Risco |
 | --- | --- | --- | --- |
-| H1 | LLM primeiro em todo texto livre; regex só para toques e respostas à pergunta pendente. Validação passa de «citado literalmente» para «o id existe no catálogo e a cliente vê o que foi entendido antes de qualquer efeito». | Revê a leitura de 06/11 da DEC-137 («o extrator só preenche campo vazio com evidência na frase»); toca DEC-104 e DEC-109. | Leitura errada custa um turno de correção, nunca uma marcação: a rede de segurança (DEC-061, validador de saída) não muda. |
+| H1 | LLM primeiro em todo texto livre; regex só para toques e respostas à pergunta pendente. Validação passa de «citado literalmente» para «o id existe no catálogo e a cliente vê o que foi entendido antes de qualquer efeito». | Revê a leitura de 06/11 da DEC-137; toca DEC-104 e DEC-109. **Fatia serviço: Confirmado (DEC-190).** Resto Proposto. | Leitura errada custa um turno de correção, nunca uma marcação: a rede de segurança (DEC-061, validador de saída) não muda. |
 | H2 | Política do turno como redutor explícito: comandos → `applyBookingUpdate` → próxima obrigação calculada do quadro, do grafo e da agenda → realização. É terminar a DEC-C4. | DEC-C1, C3, C4 (Propostas em progresso). | Refactor grande de `tryAiAutoBook`; exige testes por propriedade. |
 | H3 | Eco só quando há dúvida (leitura não literal). Com hora conhecida, a proposta já mostra tudo e tem «Alterar detalhes». | Revê a DEC-137. | Menos fricção, mas menos correção precoce. |
 | H4 | Sinónimos deixam de ser pré-requisito e passam a dicas opcionais; a owner sai da manutenção do léxico. | Toca DEC-110, 141 e 176. | O léxico continua útil como primeira passagem barata. |
 
 O que **não** muda em nenhuma das partes: só o botão Confirmar marca (DEC-061); o LLM não escolhe zona, hora nem marcação (DEC-104, DEC-138); preço e horário vêm do backend e passam pelo validador; o handoff humano (DEC-083, 113, 155).
 
-**Não implementes H1 a H4 como se estivessem decididas.** Mudanças que afetem o que a cliente recebe precisam de DEC do Paulo e, no mesmo PR, de casos L1 (gatilho 8 da metodologia).
+**Não implementes H1 completo nem H2–H4 como se estivessem decididas.** A fatia Confirmada é só DEC-190 (`service` quando léxico `none`). Outras mudanças que afetem o que a cliente recebe precisam de DEC do Paulo e, no mesmo PR, de casos L1 (gatilho 8 da metodologia).
 
 ## 5. O experimento: sombra do interpretador LLM
 
@@ -246,7 +246,7 @@ Resultam da mesma análise. Nenhuma está decidida nem implementada.
 | Enviar todos os turnos de texto ao modelo com dados reais | Paulo + jurídico (GATE-04/06) | Medição na clínica piloto |
 | Script de agregação dos eventos | Engenharia | Leitura eficiente |
 | Quem rotula a amostra | Paulo ou delegado | Critério da secção 5.5 |
-| Aprovar H1 (e rever a DEC-137) depois de ver os números | Paulo | Qualquer mudança no que a cliente recebe |
+| Aprovar H1 completo (e rever a DEC-137) depois de ver os números | Paulo | Resto do H1 / H2–H4; **fatia serviço já DEC-190** |
 
 Quando houver decisão, atualizar primeiro [`decisions.md`](../product/decisions.md), depois este documento e os documentos que o apontam; resumir em [`MVP.md`](../MVP.md) só se o recorte mudar.
 

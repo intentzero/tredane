@@ -26,6 +26,10 @@ A reserva por período («Por período») continua com a duração do bloco e se
 
 O preço da visita é a soma só quando todas as zonas escolhidas têm preço. Senão a visita não tem preço citável. Sinal fixo: o valor do serviço, uma vez. Sinal em porcentagem: porcentagem da soma; sem soma, o envio fica indisponível e o motivo aparece. Uma cobrança por visita. O texto lista as zonas e o total. O horário não fica reservado antes do pagamento. «Pago sem horário» oferece outro horário para o mesmo conjunto e o mesmo bloco. A cobrança guarda a cópia das zonas e do preço usado.
 
+## Explicação para a IA (DEC-189)
+
+**Confirmado** (Paulo, 15/11/2026). Cada **nome** de variante tem uma explicação **comum** para a IA (partilhada pelos géneros), no mesmo espírito dos sinónimos do grupo (DEC-176). Opcionalmente, cada género pode ter um **override**. A FAQ (DEC-177) e o prompt usam o override se existir; senão o comum; sem nenhum, missing — não usam a prosa do serviço.
+
 ## IA e proposta
 
 O contexto lista o serviço e cada zona ativa: nome, duração, preço ou «sem preço». A explicação é a do serviço, uma vez. Se a cliente cita só o serviço, a sugestão pergunta as zonas e não diz valor. Qualquer outro número que não seja a soma do backend não vale.

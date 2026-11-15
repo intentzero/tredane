@@ -173,6 +173,31 @@ describe('resolveShadowSlots (validação relaxada)', () => {
       s.close()
     }
   })
+
+  it('recusa line inventada sem género na frase (DEC-079 / Lab Bloco D FAQ)', () => {
+    const s = seed()
+    try {
+      const opts = {
+        today: TODAY,
+        services: s.services,
+        professionals: [],
+        pending: null,
+        turnText: 'vocês têm estacionamento perto da clínica?',
+      }
+      const invented = resolveShadowSlots({ acts: ['desconhecido'], line: 'feminino' }, opts)
+      expect(invented.slots.line).toBeUndefined()
+      expect(invented.rejected).toContain('line')
+
+      const evidenced = resolveShadowSlots(
+        { acts: ['marcar'], line: 'feminino' },
+        { ...opts, turnText: 'quero depilação feminina' },
+      )
+      expect(evidenced.slots.line).toBe('feminino')
+      expect(evidenced.rejected).not.toContain('line')
+    } finally {
+      s.close()
+    }
+  })
 })
 
 describe('compareInterpretations', () => {
@@ -225,7 +250,9 @@ describe('runInterpreterShadow', () => {
       expect(ev.fields?.service).toBe('llm_only')
       expect(ev.fields?.date).toBe('agree')
       expect(ev.llmOnly).toEqual(['service'])
-      expect(ev.strictDiscarded).toContain('serviceId')
+      // DEC-190: serviço com id no catálogo + marcar já não cai no strictDiscarded
+      // (a fatia H1 promove a validação relaxada a apply). Line inventada continua fora.
+      expect(ev.strictDiscarded ?? []).not.toContain('serviceId')
       expect(ev.relaxedRejected).toEqual([])
 
       const line = String(spy.mock.calls.at(-1)![0])

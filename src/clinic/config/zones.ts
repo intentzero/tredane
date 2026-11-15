@@ -46,6 +46,7 @@ type ZoneSql = {
   sort_order: number
   synonyms_json?: string | null
   client_explanation?: string | null
+  client_explanation_audience?: string | null
 }
 
 type SnapSql = {
@@ -59,6 +60,7 @@ type SnapSql = {
 
 function mapZone(row: ZoneSql): ServiceZoneRow {
   const explanation = row.client_explanation?.trim() || null
+  const explanationAudience = row.client_explanation_audience?.trim() || null
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -71,7 +73,21 @@ function mapZone(row: ZoneSql): ServiceZoneRow {
     sortOrder: row.sort_order,
     synonyms: parseSynonymsJson(row.synonyms_json),
     clientExplanation: explanation,
+    clientExplanationAudience: explanationAudience,
   }
+}
+
+/**
+ * Texto que a IA / FAQ usa para esta variante (DEC-189):
+ * override por género, senão explicação comum do nome.
+ */
+export function effectiveZoneClientExplanation(zone: {
+  clientExplanation: string | null
+  clientExplanationAudience?: string | null
+}): string | null {
+  const byAudience = zone.clientExplanationAudience?.trim() || null
+  if (byAudience) return byAudience
+  return zone.clientExplanation?.trim() || null
 }
 
 export function listZones(db: ClinicDb, tenantId: string, serviceId: string): ServiceZoneRow[] {
@@ -266,6 +282,12 @@ export function replaceZones(
         : item.clientExplanation === null
           ? null
           : item.clientExplanation.trim() || null
+    const clientExplanationAudience =
+      item.clientExplanationAudience === undefined
+        ? (prior?.clientExplanationAudience ?? null)
+        : item.clientExplanationAudience === null
+          ? null
+          : item.clientExplanationAudience.trim() || null
     const ownerFolded = foldSynonym(name)
     pendingClaims.push({
       folded: ownerFolded,
@@ -287,7 +309,8 @@ export function replaceZones(
       db.run(
         `UPDATE service_zones
          SET name = ?, duration_minutes = ?, price_cents = ?, audience = ?, active = ?,
-             sort_order = ?, synonyms_json = ?, client_explanation = ?, updated_at = ?
+             sort_order = ?, synonyms_json = ?, client_explanation = ?,
+             client_explanation_audience = ?, updated_at = ?
          WHERE tenant_id = ? AND id = ?`,
         name,
         durationMinutes,
@@ -297,6 +320,7 @@ export function replaceZones(
         index,
         serializeSynonyms(keptSynonyms),
         clientExplanation,
+        clientExplanationAudience,
         now,
         tenantId,
         id,
@@ -305,8 +329,9 @@ export function replaceZones(
       db.run(
         `INSERT INTO service_zones (
           id, tenant_id, service_id, name, duration_minutes, price_cents, audience, active,
-          sort_order, synonyms_json, client_explanation, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          sort_order, synonyms_json, client_explanation, client_explanation_audience,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
         tenantId,
         service.id,
@@ -318,6 +343,7 @@ export function replaceZones(
         index,
         serializeSynonyms(keptSynonyms),
         clientExplanation,
+        clientExplanationAudience,
         now,
         now,
       )
@@ -334,6 +360,7 @@ export function replaceZones(
       sortOrder: index,
       synonyms: keptSynonyms,
       clientExplanation,
+      clientExplanationAudience,
     })
   })
 

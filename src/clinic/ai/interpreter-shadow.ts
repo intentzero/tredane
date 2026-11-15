@@ -63,6 +63,10 @@ export type ShadowSlots = {
  * Validação **relaxada**: o id tem de existir e estar activo no catálogo; data e
  * hora têm de resolver no parser determinístico. Não exige citação literal do
  * nome na frase — é essa a diferença para `validateExtractorOutput`.
+ *
+ * Excepção DEC-079 / Lab Bloco D: `line` **não** é relaxada — sem
+ * feminina/masculina (etc.) na frase, rejeita. Inventar audiência em FAQ nunca
+ * é ganho H1 (contacto sem sexo).
  */
 export function resolveShadowSlots(
   raw: ExtractorRaw,
@@ -71,6 +75,8 @@ export function resolveShadowSlots(
     services: ServiceRow[]
     professionals: Array<{ id: string; name: string }>
     pending: BookingFramePending | null
+    /** Frase do turno — obrigatória para aceitar `line` com evidência de género. */
+    turnText?: string
   },
 ): { slots: ShadowSlots; rejected: string[] } {
   const slots: ShadowSlots = {}
@@ -97,8 +103,14 @@ export function resolveShadowSlots(
     slots.service = variantService.get(slots.variants[0]!)
   }
 
-  if (raw.line === 'feminino' || raw.line === 'masculino') slots.line = raw.line
-  else if (raw.line != null) rejected.push('line')
+  if (raw.line === 'feminino' || raw.line === 'masculino') {
+    const folded = norm(opts.turnText ?? '')
+    const word = raw.line === 'feminino' ? /\bfemin(?:ina|ino)\b/ : /\bmasculin(?:a|o)\b/
+    if (word.test(folded)) slots.line = raw.line
+    else rejected.push('line')
+  } else if (raw.line != null) {
+    rejected.push('line')
+  }
 
   if (raw.professionalId) {
     if (opts.professionals.some((p) => p.id === raw.professionalId)) {

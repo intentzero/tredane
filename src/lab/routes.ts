@@ -127,7 +127,7 @@ export const LAB_TOOLS = [
   {
     name: 'lab_config_zones',
     description:
-      'Substitui as variantes/zonas de um serviço da clínica demo (mesmo PUT do painel: name, audience, durationMinutes, priceCents, synonyms, clientExplanation…). Lista completa; omitir um campo numa zona existente mantém o valor.',
+      'Substitui as variantes/zonas de um serviço da clínica demo (mesmo PUT do painel: name, audience, durationMinutes, priceCents, synonyms, clientExplanation comum, clientExplanationAudience opcional…). Lista completa; omitir um campo numa zona existente mantém o valor.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -145,6 +145,7 @@ export const LAB_TOOLS = [
               active: { type: 'boolean' },
               synonyms: { type: 'array', items: { type: 'string' } },
               clientExplanation: { type: ['string', 'null'] },
+              clientExplanationAudience: { type: ['string', 'null'] },
             },
             required: ['name', 'audience'],
             additionalProperties: true,
