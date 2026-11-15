@@ -7,7 +7,7 @@ import { extractTimes, norm } from '../ai/nlu/temporal'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
 import { sendOutboundMessageOp } from '../inbox/operations'
-import type { SendOutboundInteractiveInput } from '../inbox/types'
+import type { ChoiceInteractiveButtons } from '../ai/choice-offer'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
@@ -47,7 +47,7 @@ export function isProposalAffirmativeText(text: string): boolean {
   return true
 }
 
-export function shouldReofferProposalOnAffirmText(input: {
+export type ReofferProposalOnAffirmInput = {
   open: AppointmentProposalRow | null | undefined
   turnText: string
   swap?: unknown
@@ -56,7 +56,11 @@ export function shouldReofferProposalOnAffirmText(input: {
   turnDate?: string | null
   turnTime?: string | null
   tz: string
-}): input is { open: AppointmentProposalRow } {
+}
+
+export function shouldReofferProposalOnAffirmText(
+  input: ReofferProposalOnAffirmInput,
+): input is ReofferProposalOnAffirmInput & { open: AppointmentProposalRow } {
   const open = input.open
   if (!open || open.state !== 'enviada' || open.confirmSuspended) return false
   if (input.swap || input.zoneEcho === 'correct' || input.zoneEcho === 'confirm') return false
@@ -83,7 +87,7 @@ export type SendProposalConfirmNudgeResult =
   | {
       status: 'queued'
       lead: string
-      interactive: SendOutboundInteractiveInput
+      interactive: ChoiceInteractiveButtons
       outbox: OutboxRow[]
       duplicate: boolean
     }
@@ -138,10 +142,11 @@ export function sendProposalConfirmNudgeOp(
     clock,
   )
 
+  const buttons = interactive.buttons.map((b) => ({ id: b.id, title: b.title }))
   return {
     status: 'queued',
     lead: PROPOSAL_CONFIRM_NUDGE_LEAD,
-    interactive: { buttons: interactive.buttons.map((b) => ({ id: b.id, title: b.title })) },
+    interactive: { mode: 'buttons', buttons },
     outbox: sent.outbox,
     duplicate: sent.value.duplicate,
   }

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
-import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
