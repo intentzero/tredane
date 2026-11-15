@@ -1586,9 +1586,18 @@ export async function tryAiAutoBook(
   // proposta aberta. CF-23 só cobre troca com proposta; sem isto o sticky
   // reofere slots do serviço antigo (ou o turno cai no LLM). Mantém o dia
   // sticky se o turno não trouxer dia novo — reoferta Horários do serviço novo.
+  // Hit parcial («peeling» ⊂ «Peeling químico»): extractServices pode vir vazio
+  // se o resolver marcar weakOnly; cai então na palavra longa do nome.
   if (!swap && !RESCHEDULE.test(norm(turnText))) {
     const stickyId = session?.serviceId ?? frame?.serviceId ?? null
-    const namedTurn = extractServices(turnText, services)
+    let namedTurn = extractServices(turnText, services)
+    if (namedTurn.length !== 1) {
+      const tokens = new Set(norm(turnText).split(/[^a-z0-9]+/).filter(Boolean))
+      const partial = services.filter((s) =>
+        significantWords(s.name).some((w) => w.length >= 5 && tokens.has(w)),
+      )
+      if (partial.length === 1) namedTurn = partial
+    }
     if (stickyId && namedTurn.length === 1 && namedTurn[0]!.id !== stickyId) {
       const keepDate =
         det.date ??
