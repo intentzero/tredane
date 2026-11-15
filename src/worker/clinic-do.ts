@@ -4607,14 +4607,27 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         })
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'unknown'
       console.warn(
         JSON.stringify({
           level: 'warn',
           event: 'ai.autodraft_error',
           tenantId: caller.tenantId,
-          error: err instanceof Error ? err.message : 'unknown',
+          error: message,
         }),
       )
+      // Lab H1: não devolver [] — o MCP via aiOutcomes vazios como silêncio opaco.
+      if (outcomes.length === 0) {
+        outcomes = [
+          {
+            status: 'failed',
+            conversationId: '',
+            messageId: '',
+            suggestion: null,
+            reason: `autodraft_error:${message}`.slice(0, 200),
+          },
+        ]
+      }
     }
     const next = clinicAi.nextAutoDraftDueAt(this.#db, caller.tenantId)
     if (next != null) await this.#scheduleAlarmNoLaterThan(next)
