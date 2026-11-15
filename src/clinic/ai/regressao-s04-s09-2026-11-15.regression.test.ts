@@ -27,7 +27,7 @@ import {
 } from './turn-misunderstanding'
 import { realizeAskInfo } from './ask-info-realize'
 import { extractTimes, parseTemporal } from './nlu/temporal'
-import { saveBookingFrame } from './schedule-session'
+import { getBookingFrame, saveBookingFrame } from './schedule-session'
 import { loadTurnContext } from './turn-context'
 
 const TZ = 'America/Sao_Paulo'
@@ -182,22 +182,7 @@ describe('(b) incompreensões consecutivas e sem repetição', () => {
       topic: 'price',
       service: { ...drenagem, zones, active: true } as never,
       zones,
-      frame: {
-        phase: 'ofertado',
-        serviceId: drenagem.id,
-        line: null,
-        variantIds: [],
-        professionalPref: null,
-        date: '2026-11-17',
-        period: null,
-        time: null,
-        pending: null,
-        lastOffer: null,
-        proposal: null,
-        rescheduleAppointmentId: null,
-        catalogVersion: 'v1',
-        provenance: {},
-      },
+      frame: getBookingFrame(db, tenantId, cnv.id),
       sameFunnel: true,
     })
     expect(quote?.replyText ?? '').toMatch(/160,00|R\$\s*160/)
