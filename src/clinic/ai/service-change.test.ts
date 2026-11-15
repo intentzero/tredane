@@ -124,6 +124,32 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
     },
   )
 
+  it('mid-funnel sem proposta: «na verdade prefiro peeling» troca o serviço sticky', async () => {
+    const s = bootDialogScenario()
+    try {
+      await say(s, 'Quero limpeza de pele amanhã')
+      const before = s.db.get<{ service_id: string | null }>(
+        `SELECT service_id FROM schedule_sessions WHERE conversation_id = ?`,
+        s.conversationId,
+      )
+      expect(before?.service_id).toBeTruthy()
+      const out = await say(s, 'na verdade prefiro massagem')
+      const after = s.db.get<{ service_id: string; name: string }>(
+        `SELECT ss.service_id AS service_id, v.name AS name
+         FROM schedule_sessions ss JOIN services v
+           ON v.tenant_id = ss.tenant_id AND v.id = ss.service_id
+         WHERE ss.conversation_id = ?`,
+        s.conversationId,
+      )
+      expect(after?.name).toMatch(/massagem/i)
+      expect(after?.service_id).not.toBe(before?.service_id)
+      expect(out.join('\n')).toMatch(/massagem/i)
+      expect(out.join('\n')).not.toMatch(/limpeza/i)
+    } finally {
+      s.close()
+    }
+  })
+
   it('sem vaga no horário da proposta antiga, oferece alternativas do serviço novo', async () => {
     const s = bootDialogScenario()
     try {

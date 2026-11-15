@@ -112,7 +112,9 @@ export const RESTART_BOOKING_RE =
  */
 export const EXPLICIT_ABANDON_RE = new RegExp(
   [
-    String.raw`\bdeixa\s+(?:estar|pra\s+l[aá]|para\s+l[aá]|assim)\b`,
+    // `(?!\w)` e não `\b` no fim: em JS sem flag `u`, `á` não é `\w`, por isso
+    // `\b` após «lá» falha no fim da string («deixa pra lá» → LLM → CPU DO no Lab).
+    String.raw`\bdeixa\s+(?:estar|pra\s+l[aá]|para\s+l[aá]|assim)(?!\w)`,
     String.raw`^(?:ok[,.\s!]*)?deixa[.!?\s]*$`,
     String.raw`\bpor\s+agora\s+n[aã]o\b`,
     // Bare «não quero» / mais|agora|agendar|marcar; ou «não quero, obrigada».

@@ -148,6 +148,19 @@ describe('classifySensitive (#409)', () => {
       labels: ['saude'],
       pause: true,
     },
+    // #752 / Lab: «dor» e «inchada» (antes só `\bdói\b` → LLM → CPU DO).
+    {
+      id: 'H-04',
+      text: 'tenho dor nas costas, serve a massagem?',
+      labels: ['saude'],
+      pause: true,
+    },
+    {
+      id: 'H-05',
+      text: 'Queria algo para drenar, to inchada',
+      labels: ['saude'],
+      pause: true,
+    },
     // Injeção forte
     {
       id: 'I-forte-ignore',
@@ -206,6 +219,19 @@ describe('classifySensitive (#409)', () => {
     {
       id: 'D-01',
       text: 'Deixa estar, obrigado',
+      labels: ['desistir'],
+      pause: false,
+    },
+    // Lab H1: «lá» com acento — `\b` após `á` falhava sem flag `u`.
+    {
+      id: 'D-01b',
+      text: 'deixa pra lá',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-01c',
+      text: 'Deixa pra lá.',
       labels: ['desistir'],
       pause: false,
     },

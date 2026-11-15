@@ -968,15 +968,27 @@ export const CC_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'CC-34',
-    title: 'Redator de exceção nunca dá conselho de saúde: «vale procurar um médico» é barrado',
+    title: '«tô inchada» → handoff DEC-046 (saúde), sem conselho clínico do modelo',
     turnosIdeais: 1,
-    // Staging 14/11/2026: «queria algo para drenar, tô inchada» recebeu «Se o inchaço for forte… vale
-    // procurar um médico antes». A DEC-046 manda a pergunta de saúde para a profissional; o validador
-    // de saída não tinha nenhuma regra de saúde. Barrada, sai a frase DEC-107 (sem pausar a IA).
+    // Staging 14/11/2026: a frase ia ao redator e inventava «vale procurar um médico».
+    // Lab #752: HEALTH_RE passa a casar «inchad» / «dor» → pausa off_purpose sem LLM.
+    turns: [{ role: 'client', text: 'Queria algo para drenar, to inchada' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundExcludes: [/m[eé]dic/i],
+      turns: [{ turn: 0, matches: [/equipe continuar/i] }],
+    },
+  },
+  {
+    id: 'CC-34b',
+    title: 'Validador de saída ainda barra conselho clínico se o LLM o inventar',
+    turnosIdeais: 1,
+    // Rede de segurança: inbound sem léxico de saúde, redator devolve «médico» → DEC-107.
     adapter: new FixedExceptionAdapter(
       'Se o inchaço for forte ou te incomodar muito, vale procurar um médico antes.',
     ),
-    turns: [{ role: 'client', text: 'Queria algo para drenar, to inchada' }],
+    turns: [{ role: 'client', text: 'Fazem pacote para noivas no final do ano?' }],
     expect: {
       proposal: false,
       noAppointment: true,

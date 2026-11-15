@@ -286,7 +286,11 @@ function detectCorrection(
   nextServiceId: string | null,
 ): boolean {
   if (!session?.serviceId) return false
-  if (/\b(na verdade|melhor|troca|trocar|muda|mudar|quero\s+outra|em\s+vez)\b/i.test(text)) {
+  if (
+    /\b(na verdade|quero dizer|prefiro|melhor|troca|trocar|muda|mudar|quero\s+outra|em\s+vez)\b/i.test(
+      text,
+    )
+  ) {
     return true
   }
   return Boolean(nextServiceId && nextServiceId !== session.serviceId)

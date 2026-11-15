@@ -5,7 +5,7 @@
 
 /** Saúde / clínica — união antiga HEALTH ∪ CLINICAL_RE. */
 export const HEALTH_RE =
-  /\b(gr[aá]vid|gestante|contraindica|\bd[oó]i\b|medicamento|rem[eé]dio|diagn[oó]stico|doen[cç]a|alergia|press[aã]o\s+alta|diabetes|posso\s+fazer\s+.*gr[aá]vid)/i
+  /\b(gr[aá]vid|gestante|contraindica|\bd[oó]i\b|dor(?:es)?\b|inchad|medicamento|rem[eé]dio|diagn[oó]stico|doen[cç]a|alergia|press[aã]o\s+alta|diabetes|posso\s+fazer\s+.*gr[aá]vid)/i
 
 /** Ofensa — união handoff ∪ rules. */
 export const OFFENSE_RE =
