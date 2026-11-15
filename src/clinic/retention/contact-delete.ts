@@ -114,6 +114,11 @@ export function deleteContactOp(
         meta.tenantId,
         conversationId,
       )
+      db.run(
+        `DELETE FROM llm_jobs WHERE tenant_id = ? AND conversation_id = ?`,
+        meta.tenantId,
+        conversationId,
+      )
     }
 
     // S4 H7 + S3 propostas: remover pendentes e autorização do contacto.
