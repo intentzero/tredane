@@ -83,12 +83,15 @@ describe('shedDueAlarmBacklog', () => {
         future.id,
       )
 
+      const due0 = dueIds[0]!
+      const due1 = dueIds[1]!
+      const due2 = dueIds[2] ?? future.id
       boot.db.run(
         `INSERT INTO ai_autodraft_jobs
            (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
          VALUES (?, ?, 'msg0', ?, 'queued', ?, ?)`,
         TENANT,
-        dueIds[0],
+        due0,
         NOW - 1,
         NOW - 1_000,
         NOW - 1_000,
@@ -98,7 +101,7 @@ describe('shedDueAlarmBacklog', () => {
            (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
          VALUES (?, ?, 'msg1', ?, 'generating', ?, ?)`,
         TENANT,
-        dueIds[1],
+        due1,
         NOW + 999,
         NOW - 1_000,
         NOW - 1_000,
@@ -108,7 +111,7 @@ describe('shedDueAlarmBacklog', () => {
            (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
          VALUES (?, ?, 'msg2', ?, 'queued', ?, ?)`,
         TENANT,
-        dueIds[2] ?? future.id,
+        due2,
         NOW + 60_000,
         NOW - 1_000,
         NOW - 1_000,
