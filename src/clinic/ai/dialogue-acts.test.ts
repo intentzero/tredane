@@ -76,6 +76,7 @@ describe('#414 dialogue acts', () => {
       ['sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' }],
       ['sem_horario_dia', { assunto: 'Massagem', dia: 'na sexta (06/11)' }],
       ['sem_horario_dia', { assunto: 'Massagem', dia: 'amanhã' }],
+      ['sem_horario_visita_longa', { dia: 'terça (17/11)', n: '7', outro_dia: 'quarta (18/11)' }],
       ['sem_horario_semana', { assunto: 'Massagem' }],
       ['sem_vaga_sem_alternativa', { hora: '16:00' }],
       ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],

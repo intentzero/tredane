@@ -207,6 +207,14 @@ Substitui: `Às {hora} da tarde seria {hora24}. É esse horário?` (dava «Às 1
 
 Substitui: `Para {assunto}, em {dia} não tenho horário livre…` (dava «em sexta 06/11»); agora o fluxo passa `{dia}` já com a preposição («na sexta (06/11)», «amanhã»). Sem wait «Sim» (T1, Paulo 09/11/2026).
 
+### sem_horario_visita_longa
+
+1. *(novo)* `Na {dia} não cabem as {n} zonas; quer dividir em 2 visitas ou ver {outro_dia}?`
+2. *(novo)* `Na {dia} não cabe tudo de uma vez ({n} zonas). Quer dividir em 2 visitas ou ver {outro_dia}?`
+3. *(novo)* `{dia} não tem bloco livre para as {n} zonas juntas; prefere 2 visitas ou {outro_dia}?`
+
+Quando o dia pedido não tem bloco contínuo para a soma das zonas, mas ainda cabe parte do atendimento — antes de saltar só para outro dia.
+
 ### sem_horario_semana
 
 1. *(atual)* `Para {assunto}, no momento não tenho horário livre.`

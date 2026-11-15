@@ -274,7 +274,8 @@
       "expect": {
         "usesTotalDuration": "proposta/lista reflecte soma das zonas (não só 15 min de uma zona)",
         "noInventedClientTime": "sem hora inventada",
-        "requestedDayOrClearAlternative": "mantém terça na oferta ou diz que o dia não serve antes de outro dia"
+        "splitOrOtherDayCopy": "se terça não cabe tudo: «não cabem as N zonas» + dividir em 2 visitas ou outro dia antes de pular só para sexta",
+        "requestedDayOrClearAlternative": "mantém terça na oferta ou explica ausência de bloco contínuo antes de outro dia"
       }
     }
   ]
