@@ -3,6 +3,7 @@ import { insertSyntheticAppointment } from '../config/appointments'
 import { setWeeklyWindows } from '../config/availability'
 import { listResources, upsertResource } from '../config/resources'
 import { listServices, upsertService } from '../config/services'
+import { setClinicAiAssistEnabled } from '../config/settings'
 import type { ResourceRow, ServiceRow } from '../config/types'
 import { upsertContact } from '../contacts'
 import type { OpportunityStage } from '../constants'
@@ -528,6 +529,10 @@ export function seedDemoClinicOp(
       }
       opportunitiesCreated += 1
     }
+
+    // Lab MCP (DEC-186): a demo em staging precisa da IA ligada; sem isto lab_say
+    // grava o inbound e não responde (enqueueAutoDraft devolve null).
+    setClinicAiAssistEnabled(db, tenantId, true, clock)
 
     return {
       tenantId,

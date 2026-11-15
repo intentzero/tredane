@@ -80,6 +80,7 @@ eventos em tempo real). Lista fechada, sem apagar:
 | `lab_config_resource_active` | Ativa ou desativa um recurso. |
 | `lab_config_windows` | Substitui as faixas semanais de um recurso. |
 | `lab_config_block` | Cria um bloqueio de agenda (`dryRun: true` só lista os compromissos afetados). |
+| `lab_config_ai_assist` | Liga ou desliga a IA assistiva (mesmo opt-in do painel). Sem isto, `lab_say` grava o inbound e não responde. O seed da demo liga a IA por defeito. |
 
 Fora desta fase: apagar serviços ou salas (desativar chega), Pix e cobrança, e «repor seed». Alterações ficam na
 clínica demo e persistem entre sessões: anotar o que se mudou e desfazer no fim do teste.

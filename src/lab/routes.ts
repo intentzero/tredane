@@ -190,6 +190,18 @@ export const LAB_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
+  {
+    name: 'lab_config_ai_assist',
+    description:
+      'Liga ou desliga a IA assistiva da clínica demo (mesmo opt-in do painel). Sem isto ligado, lab_say grava o inbound mas não responde.',
+    inputSchema: {
+      type: 'object',
+      properties: { enabled: { type: 'boolean' } },
+      required: ['enabled'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
 ] as const
 
 type Args = Record<string, unknown>
@@ -248,6 +260,11 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
         return toolTextResult(await stub.labConfig(caller, 'service_active', args))
       case 'lab_config_resource_active':
         return toolTextResult(await stub.labConfig(caller, 'resource_active', args))
+      case 'lab_config_ai_assist':
+        if (typeof args.enabled !== 'boolean') {
+          return toolErrorResult('enabled (boolean) obrigatório.')
+        }
+        return toolTextResult(await stub.labConfig(caller, 'ai_assist', { enabled: args.enabled }))
       default:
         return toolErrorResult(`Ferramenta desconhecida: ${name}`)
     }

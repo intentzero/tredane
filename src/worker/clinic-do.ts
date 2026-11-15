@@ -2346,6 +2346,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         return this.setClinicWeeklyWindows(caller, payload as unknown as SetWeeklyWindowsInput)
       case 'block':
         return this.createClinicBlock(caller, payload as unknown as CreateBlockInput)
+      case 'ai_assist':
+        return this.setClinicAiAssistEnabled(caller, payload.enabled === true)
       case 'unmatched_terms':
         return this.listClinicUnmatchedTerms(caller)
       default:

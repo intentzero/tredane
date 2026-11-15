@@ -20,6 +20,9 @@ agente começa por `lab_status`. Se o OAuth falhar, relatar o erro exato e parar
 
 ## Passo 1 — teste de fumo
 
+Pré-requisito: `lab_config_get` com `settings.aiAssistEnabled: true` (senão `lab_say` só grava inbound). Se estiver
+falso: `lab_config_ai_assist` com `enabled: true` (o seed da demo também liga a IA).
+
 `lab_status` → `lab_say "Quero massagem amanhã"` → `lab_state`. Esperado: resposta da IA em segundos, mensagens
 novas em `messages`, nenhuma exceção. Registar o que veio.
 
