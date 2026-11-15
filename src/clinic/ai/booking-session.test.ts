@@ -301,7 +301,7 @@ describe('DEC-148 booking_session T1', () => {
     boot.close()
   })
 
-  it('handoff fecha com outcome handoff', () => {
+  it('pedido de equipe (customer_requested) mantém sessão aberta para retomar o passo', () => {
     const clock = createControllableClock(NOW)
     const boot = bootClinicDb({ clock })
     const { db } = boot
@@ -335,6 +335,49 @@ describe('DEC-148 booking_session T1', () => {
       {
         conversationId: cnv.id,
         reason: 'customer_requested',
+        clientRequestId: 'cr_handoff_148',
+        silent: true,
+      },
+      clock,
+    )
+    expect(getOpenBookingSession(db, tenantId, cnv.id)).not.toBeNull()
+    boot.close()
+  })
+
+  it('handoff fecha com outcome handoff', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const { db } = boot
+    const tenantId = 'clinic-demo-a'
+    workerCaller(tenantId, 'user_synth_owner_a')
+    setClinicAiAssistEnabled(db, tenantId, true, clock)
+    const contact = upsertContact(
+      db,
+      { tenantId, waId: '5511900000150', displayName: 'Carla Ficticia' },
+      clock,
+    )
+    const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+    saveBookingFrame(
+      db,
+      tenantId,
+      cnv.id,
+      {
+        serviceId: 'svc_y',
+        phase: 'ofertado',
+        line: 'feminino',
+        lastOffer: { slots: [{ startsAt: NOW + 3600_000, professionalId: 'pro' }], messageId: 'm1' },
+        catalogVersion: '1',
+      },
+      clock,
+    )
+    expect(getOpenBookingSession(db, tenantId, cnv.id)).not.toBeNull()
+
+    notifyHumanHandoff(
+      db,
+      tenantId,
+      {
+        conversationId: cnv.id,
+        reason: 'off_purpose',
         clientRequestId: 'cr_handoff_148',
         silent: true,
       },

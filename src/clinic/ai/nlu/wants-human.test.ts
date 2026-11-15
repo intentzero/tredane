@@ -6,6 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { classifySensitive, wantsHumanPause, wantsHumanText } from './sensitive'
 
 const POSITIVE = [
+  'tem uma pessoa ai?',
+  'boa tarde, nao to entendendo nada desse robo',
+  'qual o telefone de vcs? prefiro ligar',
   'Posso falar com um atendente?',
   'posso falar com um atendente',
   'Quero falar com um atendente',
