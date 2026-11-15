@@ -22,6 +22,7 @@ Inventário campo a campo e divergência H2: [ai-context-minimization.md](../sec
 - `ai_suggestions` — texto, modelo, avisos, métricas sem PII, decisão humana (+ origin / notas / reply_to em 0019)
 - `ai_commands` — idempotência; **S8:** `result_json` mínimo (`suggestionId`), sem prompts/contexto
 - `ai_autodraft_jobs` / `ai_daily_usage` — rascunho automático e cap diário (0019); apagados no delete/purge (S8)
+- `llm_jobs` — DEC-188 (#784): snapshot + claim/apply/fail do extrator/redator fora do Clinic DO (fila `tredane-llm-*`); `suggestReply` do painel continua no DO
 - `outbound_messages.ai_suggestion_id` / `ai_origin_note` — origem interna após Enviar
 
 `CLINIC_SCHEMA_VERSION` segue `src/clinic/constants.ts` (não fixar número neste doc).

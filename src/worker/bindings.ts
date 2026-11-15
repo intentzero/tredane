@@ -8,6 +8,11 @@ export type WorkerBindings = {
   ATTACHMENTS: R2Bucket
   INBOUND_EVENTS: Queue
   /**
+   * DEC-188 — fila dedicada Claude autodraft (extrator/redator).
+   * Não reutiliza INBOUND_EVENTS. Omisso em testes unitários sem binding.
+   */
+  LLM_JOBS?: Queue
+  /**
    * DEC-159 — KV do Workers OAuth Provider (MCP review-central).
    * Sem este binding, o MCP aceita só Bearer Clerk de superadmin.
    */
@@ -93,6 +98,11 @@ export type WorkerBindings = {
    * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
    */
   AI_MODE?: string
+  /**
+   * DEC-188: Claude autodraft fora do Clinic DO.
+   * `off` (omisso) | `demo` (só tenant demo) | `on` (todos os tenants do env).
+   */
+  LLM_OUT_OF_DO?: string
   /**
    * `on` liga a sombra do interpretador LLM (Proposto): uma chamada extra ao
    * extrator por turno de texto livre, só para medir. Omisso = desligada.

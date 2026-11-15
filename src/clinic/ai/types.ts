@@ -107,4 +107,11 @@ export type AiAssistDeps = {
    * Nunca deve lançar; erros são engolidos por quem chama.
    */
   interpreterShadowSink?: (event: import('./interpreter-shadow').InterpreterShadowEvent) => Promise<void> | void
+  /**
+   * DEC-188: Claude autodraft fora do DO — enfileira em vez de `adapter.generate`
+   * no extrator/redator. `suggestReply` do painel ignora isto.
+   */
+  llmOutOfDo?: boolean
+  /** Publica na fila `tredane-llm-*`. Obrigatório quando `llmOutOfDo` está ligado. */
+  enqueueLlmJob?: (msg: import('./llm-queue-types').LlmQueueMessage) => Promise<void>
 }

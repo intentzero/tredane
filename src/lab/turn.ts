@@ -42,6 +42,8 @@ export type LabTurnResult = {
   click?: unknown
   turnsUsedToday: number
   turnsCapToday: number
+  /** Início do turno (ms) — Lab usa para recolher mensagens após wait LLM (DEC-188). */
+  startedAt: number
 }
 
 export type LabHooks = {
@@ -219,6 +221,77 @@ export async function runLabTurn(
     ...(click !== undefined ? { click } : {}),
     turnsUsedToday: budget.used + 1,
     turnsCapToday: budget.cap,
+    startedAt: startMs,
+  }
+}
+
+/**
+ * Depois do wait LLM no Worker: marca envios como entregues e devolve mensagens do turno.
+ */
+export async function collectLabTurnAfterLlm(
+  db: ClinicDb,
+  tenantId: string,
+  input: { conversationId: string; sinceMs: number },
+  hooks: Pick<LabHooks, 'settleOutbound' | 'nowMs'>,
+  budget: { used: number; cap: number },
+): Promise<LabTurnResult> {
+  const sends = db.all<OutboxSql>(
+    `SELECT id, idempotency_key, payload_json FROM outbox_events
+     WHERE tenant_id = ? AND type = 'whatsapp.send' AND occurred_at >= ?
+     ORDER BY occurred_at, id`,
+    tenantId,
+    input.sinceMs,
+  )
+  const optionsByMessage = new Map<string, LabOutboundOptions>()
+  let tappable: LabOutboundOptions | null = null
+  for (const row of sends) {
+    const payload = parse(row.payload_json)
+    const outboundId = typeof payload.outboundId === 'string' ? payload.outboundId : ''
+    const messageId = typeof payload.messageId === 'string' ? payload.messageId : ''
+    const buttons = payload.interactiveButtons ?? null
+    const list = payload.interactiveList ?? null
+    if (buttons || list) {
+      const opts = { buttons, list }
+      if (messageId) optionsByMessage.set(messageId, opts)
+      tappable = opts
+    }
+    if (outboundId) {
+      try {
+        await hooks.settleOutbound({
+          outboxEventId: row.id,
+          idempotencyKey: row.idempotency_key,
+          outboundId,
+        })
+      } catch {
+        /* já resolvido */
+      }
+    }
+  }
+  const messages: LabMessage[] = db
+    .all<MsgSql>(
+      `SELECT id, direction, body, delivery_state, created_at FROM messages
+       WHERE tenant_id = ? AND conversation_id = ? AND created_at >= ?
+       ORDER BY created_at, id`,
+      tenantId,
+      input.conversationId,
+      input.sinceMs,
+    )
+    .map((m) => ({
+      id: m.id,
+      direction: m.direction,
+      body: m.body,
+      deliveryState: m.delivery_state,
+      createdAt: m.created_at,
+      ...(optionsByMessage.has(m.id) ? { options: optionsByMessage.get(m.id)! } : {}),
+    }))
+  return {
+    conversationId: input.conversationId,
+    messages,
+    tappable,
+    aiOutcomes: [],
+    turnsUsedToday: budget.used,
+    turnsCapToday: budget.cap,
+    startedAt: input.sinceMs,
   }
 }
 
