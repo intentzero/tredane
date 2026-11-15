@@ -33,6 +33,7 @@ import {
   hasStopRequest,
   wantsHumanPause,
 } from './nlu/sensitive'
+import { MISUNDERSTANDING_ESCALATION_TEXT } from './misunderstanding-streak'
 import { endBookingSession } from './booking-session'
 import { sayAct } from './dialogue-acts'
 import { formatOpeningHours } from './schedule-context'
@@ -101,6 +102,12 @@ export const HANDOFF_TIMEOUT_RESUME_TEXT =
 export const AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK =
   'Fora do horário da equipe agora. Posso continuar te ajudando por aqui.'
 
+/** Registo + continuidade — baseline P3 (15/11/2026). */
+export const AFTER_HOURS_HUMAN_REGISTERED_PREFIX = 'Deixei seu pedido para a equipe'
+
+export const HANDOFF_PAUSED_ACK_TEXT =
+  'Recebi sua mensagem. A equipe já foi avisada. Posso continuar te ajudando por aqui com o agendamento enquanto você espera.'
+
 /** DEC-115 — transparência (neutra; persona com nome → ok Paulo). */
 export const AI_TRANSPARENCY_TEXT =
   'Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'
@@ -165,6 +172,72 @@ export function humanTeamOfferButtons(
  * Pedido explícito de equipe fora do expediente (DEC-155): horário + IA activa.
  * Prefere a próxima abertura (como DEC-113); senão lista o expediente.
  */
+/** Botões no pedido de equipe (inclui fora do expediente — registo sem pausar a IA). */
+export function humanHelpRequestButtons(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): Array<{ id: string; title: string }> {
+  void db
+  void tenantId
+  void clock
+  return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+}
+
+export function registerHumanHelpRequest(
+  db: ClinicDb,
+  tenantId: string,
+  input: {
+    conversationId: string
+    detailText: string
+    messageId?: string | null
+  },
+  clock: Clock,
+): void {
+  const conv = db.get<{ contact_id: string }>(
+    `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    input.conversationId,
+  )
+  if (!conv) return
+  const now = clock.nowMs()
+  const open = db.get<{ id: string }>(
+    `SELECT id FROM pending_communications
+     WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'
+     LIMIT 1`,
+    tenantId,
+    input.conversationId,
+  )
+  if (!open) {
+    const detail = withUnderstoodFrame(db, tenantId, input.conversationId, input.detailText)
+    openPendingCommunication(
+      db,
+      {
+        tenantId,
+        conversationId: input.conversationId,
+        contactId: conv.contact_id,
+        proposalId: null,
+        kind: 'alter_awaiting_team',
+        detailText: detail,
+        messageId: input.messageId ?? null,
+      },
+      clock,
+    )
+  } else {
+    db.run(
+      `UPDATE pending_communications
+       SET status = 'alerted', alerted_at = COALESCE(alerted_at, ?), updated_at = ?,
+           message_id = COALESCE(message_id, ?)
+       WHERE tenant_id = ? AND id = ?`,
+      now,
+      now,
+      input.messageId ?? null,
+      tenantId,
+      open.id,
+    )
+  }
+}
+
 export function afterHoursHumanRequestBody(
   db: ClinicDb,
   tenantId: string,
@@ -173,7 +246,7 @@ export function afterHoursHumanRequestBody(
 ): string {
   const opening = nextClinicOpening(db, tenantId, clock)
   if (opening) {
-    return `A equipe atende a partir de ${opening.dayLabel} às ${opening.time}. Posso continuar te ajudando por aqui.`
+    return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}. A equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo. Posso continuar te ajudando por aqui.`
   }
   const resources = listResources(db, tenantId, clock)
   const pros = new Set(resources.filter((r) => r.kind === 'professional').map((r) => r.id))
@@ -204,10 +277,16 @@ export function afterHoursHumanRequestBody(
 export function replyAfterHoursHumanRequest(
   db: ClinicDb,
   tenantId: string,
-  input: { conversationId: string; clientRequestId: string },
+  input: { conversationId: string; clientRequestId: string; messageId?: string | null },
   clock: Clock,
 ): { outbox: OutboxRow[] } {
+  registerHumanHelpRequest(db, tenantId, {
+    conversationId: input.conversationId,
+    detailText: 'A cliente pediu atendimento humano.',
+    messageId: input.messageId ?? null,
+  }, clock)
   const outbox: OutboxRow[] = []
+  const buttons = humanHelpRequestButtons(db, tenantId, clock)
   try {
     const result = sendOutboundMessageOp(
       db,
@@ -215,6 +294,7 @@ export function replyAfterHoursHumanRequest(
       {
         conversationId: input.conversationId,
         body: afterHoursHumanRequestBody(db, tenantId, clock, input.conversationId),
+        interactive: buttons.length > 0 ? { buttons } : undefined,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
         authorDisplayName: 'IA',
@@ -222,6 +302,90 @@ export function replyAfterHoursHumanRequest(
       clock,
     )
     outbox.push(...result.outbox)
+  } catch (err) {
+    if (!(err instanceof ClinicError)) throw err
+  }
+  return { outbox }
+}
+
+/** Pausas automáticas que podem retomar com intenção clara de marcar (baseline P4). */
+export function inboundWarrantsHandoffResume(
+  text: string,
+  reason: AiReplyPauseReason,
+): boolean {
+  const body = text.trim()
+  if (!body) return false
+  if (reason === 'customer_requested' || reason === 'human_only') return false
+  if (reason !== 'off_purpose') return false
+  return /\b(quero|queria|gostaria|marcar|agendar|remarcar|botox|hor[aá]rio|vaga)\b/i.test(body)
+}
+
+/** Evita silêncio após handoff quando a cliente escreve de novo. */
+export function shouldAcknowledgeWhileHandoffPaused(reason: AiReplyPauseReason): boolean {
+  return reason === 'off_purpose' || reason === 'customer_requested'
+}
+
+export function replyMisunderstandingEscalation(
+  db: ClinicDb,
+  tenantId: string,
+  input: { conversationId: string; clientRequestId: string; messageId?: string | null },
+  clock: Clock,
+): { outbox: OutboxRow[] } {
+  registerHumanHelpRequest(db, tenantId, {
+    conversationId: input.conversationId,
+    detailText: 'A IA não entendeu a cliente duas vezes seguidas. Pedido de equipe registrado.',
+    messageId: input.messageId ?? null,
+  }, clock)
+  const buttons = humanHelpRequestButtons(db, tenantId, clock)
+  const outbox: OutboxRow[] = []
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      workerCaller(tenantId, AI_ASSIGNEE),
+      {
+        conversationId: input.conversationId,
+        body: MISUNDERSTANDING_ESCALATION_TEXT,
+        interactive: buttons.length > 0 ? { buttons } : undefined,
+        clientRequestId: input.clientRequestId,
+        authorClerkUserId: AI_ASSIGNEE,
+        authorDisplayName: 'IA',
+      },
+      clock,
+    )
+    outbox.push(...sent.outbox)
+  } catch (err) {
+    if (!(err instanceof ClinicError)) throw err
+  }
+  return { outbox }
+}
+
+export function replyWhileHandoffPaused(
+  db: ClinicDb,
+  tenantId: string,
+  input: { conversationId: string; clientRequestId: string },
+  clock: Clock,
+): { outbox: OutboxRow[] } {
+  const outbox: OutboxRow[] = []
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      workerCaller(tenantId, AI_ASSIGNEE),
+      {
+        conversationId: input.conversationId,
+        body: HANDOFF_PAUSED_ACK_TEXT,
+        interactive: (() => {
+          const buttons = humanTeamOfferButtons(db, tenantId, clock)
+          return buttons.length > 0 ? { buttons } : humanHelpRequestButtons(db, tenantId, clock).length
+            ? { buttons: humanHelpRequestButtons(db, tenantId, clock) }
+            : undefined
+        })(),
+        clientRequestId: input.clientRequestId,
+        authorClerkUserId: AI_ASSIGNEE,
+        authorDisplayName: 'IA',
+      },
+      clock,
+    )
+    outbox.push(...sent.outbox)
   } catch (err) {
     if (!(err instanceof ClinicError)) throw err
   }
@@ -606,15 +770,18 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
-  // DEC-148 / T1: handoff (DEC-083) fecha a sessão de marcação com outcome handoff.
   const frame = getBookingFrame(db, tenantId, input.conversationId)
-  const sessionEnd = endBookingSession(
-    db,
-    tenantId,
-    input.conversationId,
-    { outcome: 'handoff', frame },
-    clock,
-  )
+  // Pedido explícito de equipe: mantém o quadro para retomar o passo (baseline P3).
+  const sessionEnd =
+    input.reason === 'customer_requested'
+      ? { outbox: undefined as OutboxRow | undefined }
+      : endBookingSession(
+          db,
+          tenantId,
+          input.conversationId,
+          { outcome: 'handoff', frame },
+          clock,
+        )
   // Pausa: cancela rascunho em curso para o spinner da lista sumir no refetch.
   // SQL directo (evita import circular com autodraft.ts).
   db.run(

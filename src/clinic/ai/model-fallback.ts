@@ -9,7 +9,13 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import type { OutboxRow } from '../outbox'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import type { ClinicDb } from '../store'
-import { humanTeamOfferButtons } from './human-handoff'
+import { humanTeamOfferButtons, replyMisunderstandingEscalation } from './human-handoff'
+import {
+  readMisunderstandingStreak,
+  resetMisunderstandingStreak,
+  setMisunderstandingStreak,
+  shouldEscalateAfterMisunderstanding,
+} from './misunderstanding-streak'
 
 const AI_ASSIGNEE = 'system:ai-autodraft'
 
@@ -95,6 +101,22 @@ export function notifyModelFallback(
     )
   }
 
+  const nextStreak = readMisunderstandingStreak(db, tenantId, input.conversationId) + 1
+  if (shouldEscalateAfterMisunderstanding(nextStreak)) {
+    const esc = replyMisunderstandingEscalation(
+      db,
+      tenantId,
+      {
+        conversationId: input.conversationId,
+        clientRequestId: `ai-misunderstanding-esc:${input.messageId}`,
+        messageId: input.messageId,
+      },
+      clock,
+    )
+    resetMisunderstandingStreak(db, tenantId, input.conversationId, clock)
+    return { sent: esc.outbox.length > 0, already: false, outbox: esc.outbox }
+  }
+
   const outbox: OutboxRow[] = []
   let sent = false
   try {
@@ -119,5 +141,6 @@ export function notifyModelFallback(
   } catch (err) {
     if (!(err instanceof ClinicError)) throw err
   }
+  setMisunderstandingStreak(db, tenantId, input.conversationId, nextStreak, clock)
   return { sent, already: false, outbox }
 }
