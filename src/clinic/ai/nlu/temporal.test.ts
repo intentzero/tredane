@@ -171,6 +171,19 @@ describe('parseTemporal (#408)', () => {
       periods: ['manha'],
       times: [],
     },
+    {
+      id: 'regressao-dps-das-4',
+      text: 'tem mais tarde? tipo dps das 4',
+      periods: ['tarde'],
+      times: [],
+    },
+    {
+      id: 'regressao-12h30-amanha',
+      text: '12h30 de amanha ue',
+      today: '2026-11-15',
+      dates: ['2026-11-16'],
+      times: ['12:30'],
+    },
   ]
 
   for (const c of cases) {

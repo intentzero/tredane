@@ -2,8 +2,9 @@
  * Interpretador da resposta contra `pending.options` (ADR-0015 § interpretador / DEC-127).
  * Corre antes dos parsers de data/hora. Sem frase nova.
  */
-import { extractTimes } from './nlu/temporal'
-import type { BookingFramePending } from './schedule-session'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { extractTimes, parseTemporal } from './nlu/temporal'
+import type { BookingFrameLastOffer, BookingFramePending } from './schedule-session'
 
 const AFFIRM_ONLY =
   /^(sim|pode ser|pode|fechado|combinado|ok|okay|beleza|blz|bora|👍|👍🏻|👍🏼|👍🏽|👍🏾|👍🏿)[\s!.?]*$/i
@@ -206,6 +207,80 @@ export function matchPendingChoice(
   if (exact.length === 1) return { kind: 'match', key: exact[0]!.key, label: exact[0]!.label }
 
   return { kind: 'none' }
+}
+
+function slotKeyFromParts(date: string, time: string): string {
+  return `${date}T${time}`
+}
+
+function localHHMMFromUtc(tz: string, ms: number): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(ms))
+  const h = parts.find((p) => p.type === 'hour')?.value ?? '00'
+  const m = parts.find((p) => p.type === 'minute')?.value ?? '00'
+  return `${h}:${m}`
+}
+
+/**
+ * Além de `matchPendingChoice`: casa data+hora livres com `lastOffer`
+ * (ex. «amanhã 12:30» logo após a IA listar esse horário — S06).
+ */
+export function matchOfferedSlotFromText(
+  text: string,
+  pending: BookingFramePending | null | undefined,
+  lastOffer: BookingFrameLastOffer | null | undefined,
+  tz: string,
+  civilToday: string,
+): PendingChoiceResult {
+  const primary = matchPendingChoice(text, pending)
+  if (primary.kind !== 'none' && primary.kind !== 'ask_which') return primary
+
+  const times = [...extractTimes(text)]
+  if (times.length !== 1) return primary
+  const wantTime = times[0]!
+  const parsed = parseTemporal(text, { civilDate: civilToday })
+  const wantDate = parsed.dates.length === 1 ? parsed.dates[0]! : null
+
+  if (pending?.options?.length) {
+    const hits = pending.options.filter((o) => {
+      const t = [...extractTimes(o.label)]
+      const keyTime = o.key.match(/\d{2}:\d{2}/)?.[0]
+      const clock = keyTime ?? t[0]
+      if (clock !== wantTime) return false
+      const optDate = o.key.match(/^(\d{4}-\d{2}-\d{2})T/)?.[1]
+      if (wantDate && optDate && optDate !== wantDate) return false
+      return true
+    })
+    if (hits.length === 1) {
+      return { kind: 'match', key: hits[0]!.key, label: hits[0]!.label }
+    }
+    if (hits.length > 1) return { kind: 'ambiguous' }
+  }
+
+  const slots = lastOffer?.slots ?? []
+  const matching = slots.filter((s) => {
+    const civil = clinicCivilDateFromUtc(tz, s.startsAt)
+    const clock = localHHMMFromUtc(tz, s.startsAt)
+    if (clock !== wantTime) return false
+    if (wantDate && civil !== wantDate) return false
+    return true
+  })
+  if (matching.length === 1) {
+    const civil = clinicCivilDateFromUtc(tz, matching[0]!.startsAt)
+    const clock = localHHMMFromUtc(tz, matching[0]!.startsAt)
+  return {
+      kind: 'match',
+      key: slotKeyFromParts(civil, clock),
+      label: clock,
+    }
+  }
+  if (matching.length > 1) return { kind: 'ambiguous' }
+
+  return primary
 }
 
 /** 24 h sem mensagem da cliente desde a criação do pending/lastOffer (DEC-127.1). */
