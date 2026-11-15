@@ -24,6 +24,7 @@
 3. **Confirmado** (DEC-038, ADR-0012, [ADR-0015](../adr/0015-estado-persistente-da-conversa.md)): o painel recebe tempo real por WebSocket do DO da clínica. A fonte de verdade operacional é o SQLite desse DO. Memória e WebSocket não a substituem.
 4. **Confirmado** (DEC-061, revista da DEC-060): só o botão Confirmar de uma proposta versionada pelo backend, ainda válida, marca. Texto livre não marca. O Sim do eco não marca (DEC-137). O fecho do Flow não marca (DEC-138, [ADR-0016](../adr/0016-whatsapp-flow-agendamento.md)).
 5. **Confirmado** (DEC-104, ADR-0016): o modelo não escolhe zona, hora nem marcação. No atendimento automático, a frase à cliente é determinística; o LLM interpreta o que o código não cobre e responde a perguntas abertas, com validador.
+5a. **Confirmado** (DEC-188): Claude do interpretador/extrator e do redator de caminho aberto (autodraft) corre no Worker via fila `tredane-llm-*`; o Clinic DO só prepara snapshot e faz `claim`/`apply`/`fail`. Não chames AI Gateway de dentro do DO nesse caminho. `suggestReply` do painel fica no DO neste recorte. Sombra H1 na demo só depois de N turnos LLM estáveis.
 6. **Confirmado** (DEC-138, ADR-0015, ADR-0016): o Flow é o percurso por ids. O texto livre preenche o mesmo `BookingFrame`. Não há segundo quadro.
 7. **Confirmado** (Paulo, conversa de 06/11/2026): as quatro leituras da secção seguinte. Não estão em `docs/product/decisions.md` de `main`. O código que as aplica está em curso no [#580](https://github.com/intentzero/tredane/pull/580). Não assumas que `main` já as cumpre, e não escrevas o contrário.
 8. **Proposto** (hipótese de compreensão por LLM primeiro e experimento da sombra, [`hipotese-compreensao-llm-primeiro.md`](hipotese-compreensao-llm-primeiro.md)): não está decidida. A sombra `AI_INTERPRETER_SHADOW` só mede; não mudes o que a cliente recebe por conta dela.
@@ -49,7 +50,7 @@
 
 **Em aberto** (ADR-0012): protocolo de revogação D1/DO, migrações por instância e recuperação. Não inventes esse protocolo. O índice que resolve número WhatsApp para tenant, e o sítio das credenciais, continuam **Proposto/Em aberto** no mesmo ADR.
 
-**Confirmado** (ADR-0012): efeito externo em Queue ou Workflow leva o tenant e uma chave idempotente. Não fica isolado por existir um DO por clínica. **Em aberto** ([`overview.md`](overview.md)): se a primeira fatia já corre Workflows. Não acrescentes um motor novo por inferência.
+**Confirmado** (ADR-0012): efeito externo em Queue ou Workflow leva o tenant e uma chave idempotente. Não fica isolado por existir um DO por clínica. **Confirmado** (DEC-188): a chamada Claude do autodraft é esse tipo de efeito — fila dedicada `tredane-llm-*`, não dentro do isolate do Clinic DO. **Em aberto** ([`overview.md`](overview.md)): se a primeira fatia já corre Workflows. Não acrescentes um motor novo por inferência.
 
 ## Identidade
 
