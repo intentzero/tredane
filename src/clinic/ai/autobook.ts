@@ -1584,29 +1584,40 @@ export async function tryAiAutoBook(
   let frame = deferred.peekFrame(db, tenantId, input.conversationId)
   // Mid-funnel (Lab H1): «na verdade prefiro peeling» com serviço sticky e sem
   // proposta aberta. CF-23 só cobre troca com proposta; sem isto o sticky
-  // reofere slots do serviço antigo. Não sobrescrever det quando o turno já
-  // resolveu o serviço novo (ex.: «prefiro massagem amanhã às 16h»).
+  // reofere slots do serviço antigo (ou o turno cai no LLM). Mantém o dia
+  // sticky se o turno não trouxer dia novo — reoferta Horários do serviço novo.
   if (!swap && !RESCHEDULE.test(norm(turnText))) {
     const stickyId = session?.serviceId ?? frame?.serviceId ?? null
     const namedTurn = extractServices(turnText, services)
     if (stickyId && namedTurn.length === 1 && namedTurn[0]!.id !== stickyId) {
+      const keepDate =
+        det.date ??
+        [...extractDates(turnText, clinicCivilDateFromUtc(tz, confirmation.created_at))][0] ??
+        session?.date ??
+        frame?.date ??
+        null
+      const keepTime = det.time ?? null
       if (det.service?.id === namedTurn[0]!.id) {
         saveSession({
           serviceId: namedTurn[0]!.id,
-          ...(det.date ? { date: det.date } : {}),
-          ...(det.time ? { clockTime: det.time } : {}),
+          ...(keepDate ? { date: keepDate } : {}),
+          ...(keepTime ? { clockTime: keepTime } : {}),
         })
         session = deferred.peekSession(db, tenantId, input.conversationId)
         frame = deferred.peekFrame(db, tenantId, input.conversationId)
       } else if (!det.service || det.service.id === stickyId) {
-        saveSession({ serviceId: namedTurn[0]!.id })
+        saveSession({
+          serviceId: namedTurn[0]!.id,
+          ...(keepDate ? { date: keepDate } : {}),
+        })
         session = deferred.peekSession(db, tenantId, input.conversationId)
         frame = deferred.peekFrame(db, tenantId, input.conversationId)
         det = {
           ok: false,
           status: 'needs_info',
-          missing: ['dia', 'horario'],
+          missing: keepDate ? ['horario'] : ['dia', 'horario'],
           service: namedTurn[0]!,
+          ...(keepDate ? { date: keepDate } : {}),
         }
       }
     }

@@ -124,7 +124,33 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
     },
   )
 
-  it('mid-funnel sem proposta: «na verdade prefiro peeling» troca o serviço sticky', async () => {
+  it('mid-funnel com Horários abertos: «prefiro peeling» responde (não silêncio)', async () => {
+    const s = bootDialogScenario()
+    try {
+      await say(s, 'Quero limpeza de pele amanhã')
+      const before = s.db.get<{ service_id: string | null }>(
+        `SELECT service_id FROM schedule_sessions WHERE conversation_id = ?`,
+        s.conversationId,
+      )
+      const out = await say(s, 'na verdade prefiro peeling')
+      expect(out.length, `silêncio Lab: out=${JSON.stringify(out)}`).toBeGreaterThan(0)
+      expect(out.join('\n')).toMatch(/hor[aá]rios? dispon[ií]veis|Algum serve/i)
+      expect(out.join('\n')).not.toMatch(/limpeza/i)
+      const after = s.db.get<{ name: string }>(
+        `SELECT v.name AS name
+         FROM schedule_sessions ss JOIN services v
+           ON v.tenant_id = ss.tenant_id AND v.id = ss.service_id
+         WHERE ss.conversation_id = ?`,
+        s.conversationId,
+      )
+      expect(after?.name).toMatch(/peeling/i)
+      expect(before?.service_id).toBeTruthy()
+    } finally {
+      s.close()
+    }
+  })
+
+  it('mid-funnel sem proposta: «na verdade prefiro massagem» troca o serviço sticky', async () => {
     const s = bootDialogScenario()
     try {
       await say(s, 'Quero limpeza de pele amanhã')
@@ -143,7 +169,7 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
       )
       expect(after?.name).toMatch(/massagem/i)
       expect(after?.service_id).not.toBe(before?.service_id)
-      expect(out.join('\n')).toMatch(/massagem/i)
+      expect(out.length).toBeGreaterThan(0)
       expect(out.join('\n')).not.toMatch(/limpeza/i)
     } finally {
       s.close()

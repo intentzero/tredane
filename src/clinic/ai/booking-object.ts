@@ -879,7 +879,9 @@ export function servicesFromBookingMatch(
     const svc = services.find((s) => s.id === result.serviceId)
     return svc ? [svc] : []
   }
-  if (result.kind === 'selected') {
+  // selected *e* clarify com um só serviço (hit parcial «peeling» → Peeling químico):
+  // extractServices precisa disto no mid-funnel; senão cai no LLM / CPU DO (Lab H1).
+  if (result.kind === 'selected' || result.kind === 'clarify') {
     const ids = uniqueServices(result.candidates)
     if (ids.length === 1) {
       const svc = services.find((s) => s.id === ids[0])
