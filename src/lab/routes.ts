@@ -125,6 +125,38 @@ export const LAB_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
+    name: 'lab_config_zones',
+    description:
+      'Substitui as variantes/zonas de um serviço da clínica demo (mesmo PUT do painel: name, audience, durationMinutes, priceCents, synonyms, clientExplanation…). Lista completa; omitir um campo numa zona existente mantém o valor.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        serviceId: { type: 'string' },
+        zones: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              audience: { type: 'string' },
+              durationMinutes: { type: 'integer' },
+              priceCents: { type: ['integer', 'null'] },
+              active: { type: 'boolean' },
+              synonyms: { type: 'array', items: { type: 'string' } },
+              clientExplanation: { type: ['string', 'null'] },
+            },
+            required: ['name', 'audience'],
+            additionalProperties: true,
+          },
+        },
+      },
+      required: ['serviceId', 'zones'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
     name: 'lab_config_resource',
     description:
       'Cria (sem id) ou atualiza uma sala, profissional ou equipamento (kind, name, capacity, attendanceMode, sameSexInSlot, hoursMode, homeRoomId…). Mesma validação do painel.',
@@ -277,6 +309,14 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
         return toolTextResult(await stub.labConfig(caller, name.slice('lab_config_'.length), args))
       case 'lab_config_service_active':
         return toolTextResult(await stub.labConfig(caller, 'service_active', args))
+      case 'lab_config_zones': {
+        const serviceId = typeof args.serviceId === 'string' ? args.serviceId.trim() : ''
+        if (!serviceId) return toolErrorResult('serviceId obrigatório.')
+        if (!Array.isArray(args.zones)) return toolErrorResult('zones deve ser uma lista.')
+        return toolTextResult(
+          await stub.labConfig(caller, 'zones', { serviceId, zones: args.zones }),
+        )
+      }
       case 'lab_config_resource_active':
         return toolTextResult(await stub.labConfig(caller, 'resource_active', args))
       case 'lab_config_ai_assist':

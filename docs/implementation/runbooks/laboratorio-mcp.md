@@ -74,8 +74,9 @@ eventos em tempo real). Lista fechada, sem apagar:
 | Ferramenta | O que faz |
 | --- | --- |
 | `lab_config_get` | Configuração completa e os ids (serviços, variantes, salas, profissionais, horários, bloqueios). Chamar antes de alterar. |
-| `lab_config_service` | Cria (sem `id`) ou atualiza um serviço, com variantes, sinónimos, audiência, sala e profissionais. Omitido na edição mantém. |
+| `lab_config_service` | Cria (sem `id`) ou atualiza um serviço (nome, duração, sinónimos, audiência, sala, profissionais, `variantKind`…). Omitido na edição mantém. |
 | `lab_config_service_active` | Ativa ou desativa um serviço. |
+| `lab_config_zones` | Substitui as variantes/zonas de um serviço (`serviceId` + lista: name, audience, duração, preço, synonyms, `clientExplanation`…). |
 | `lab_config_resource` | Cria ou atualiza sala, profissional ou equipamento. |
 | `lab_config_resource_active` | Ativa ou desativa um recurso. |
 | `lab_config_windows` | Substitui as faixas semanais de um recurso. |
