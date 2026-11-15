@@ -71,6 +71,20 @@ describe('ClinicDurableObject — cache do alarme', () => {
     expect(src).toMatch(/canSkipAlarmSchedule\(this\.#scheduledAlarmAt, at, this\.#clock\.nowMs\(\)\)/)
   })
 
+  it('demo: não agenda alarme nem apaga autodraft jobs no alarm()', () => {
+    const src = readFileSync(resolve(import.meta.dirname, 'clinic-do.ts'), 'utf8')
+    const schedule = src.slice(
+      src.indexOf('async #scheduleAlarmNoLaterThan'),
+      src.indexOf('async #scheduleAlarmNoLaterThan') + 900,
+    )
+    expect(schedule).toMatch(/isDemoTenantId\(bound\.tenantId\)/)
+    const demoIdx = src.indexOf("event: 'clinic.alarm_demo_noop'")
+    expect(demoIdx).toBeGreaterThan(0)
+    const alarmDemo = src.slice(demoIdx - 500, demoIdx + 350)
+    expect(alarmDemo).not.toMatch(/DELETE FROM ai_autodraft_jobs/)
+    expect(alarmDemo).toMatch(/autodraftJobsPreserved:\s*true/)
+  })
+
   it('planAlarmAfterHandoffCleared apaga órfão e rearma outro wake', () => {
     expect(planAlarmAfterHandoffCleared(null)).toEqual({ action: 'delete' })
     expect(planAlarmAfterHandoffCleared(90_000)).toEqual({ action: 'set', at: 90_000 })

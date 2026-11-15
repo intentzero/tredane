@@ -2201,6 +2201,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (typeof storage.deleteAlarm !== 'function' && typeof storage.setAlarm !== 'function') {
       return
     }
+    // Demo/Lab: nunca rearmar — o alarme apaga jobs e compete com labTurn inline.
+    if (isDemoTenantId(tenantId)) {
+      if (typeof storage.deleteAlarm === 'function') {
+        await storage.deleteAlarm()
+        this.#scheduledAlarmAt = null
+      }
+      return
+    }
     const plan = planAlarmAfterHandoffCleared(this.#nextWakeAtExcludingHandoff(tenantId))
     if (typeof storage.deleteAlarm === 'function') {
       await storage.deleteAlarm()
@@ -2218,6 +2226,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       setAlarm?: (t: number) => Promise<void>
     }
     if (typeof storage.setAlarm !== 'function') return
+    // Demo/Lab: labTurn corre autodrafts inline. O alarme na demo faz
+    // DELETE ai_autodraft_jobs e, com debounce pending 300 ms, dispara
+    // entre o enqueue e o runAutoDrafts → aiOutcomes [] (silêncio opaco).
+    const bound = getBoundTenant(this.#db)
+    if (bound && isDemoTenantId(bound.tenantId)) return
     // Cache só vale para um alarme ainda futuro: quando o alarme dispara o runtime
     // apaga-o, e um valor passado aqui suprimia todos os setAlarm seguintes.
     if (canSkipAlarmSchedule(this.#scheduledAlarmAt, at, this.#clock.nowMs())) return
@@ -2273,6 +2286,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
     this.#ensureDemoSeededForLab(caller)
+    // Cancelar alarme órfão: na demo o handler competia com o autodraft inline.
+    try {
+      await this.ctx.storage.deleteAlarm()
+      this.#scheduledAlarmAt = null
+    } catch {
+      /* best-effort */
+    }
     const key = `lab:turns:${labDay(this.#clock.nowMs())}`
     const used = (await this.ctx.storage.get<number>(key)) ?? 0
     return runLabTurn(
@@ -4183,7 +4203,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           shedStarted,
           meta.tenantId,
         )
-        this.#db.run(`DELETE FROM ai_autodraft_jobs WHERE tenant_id = ?`, meta.tenantId)
+        // Não apagar ai_autodraft_jobs: o Lab força due_at e corre runAutoDrafts
+        // inline; um alarme órfão (pré-do-v17) a apagar jobs causava silêncio.
         timer.addPhase('alarm_demo_noop', this.#clock.nowMs() - shedStarted)
         console.warn(
           JSON.stringify({
@@ -4193,6 +4214,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             shed: shed.shed,
             idleDue: shed.idleDue,
             autodraftDue: shed.autodraftDue,
+            autodraftJobsPreserved: true,
           }),
         )
         try {
