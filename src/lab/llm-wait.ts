@@ -22,6 +22,7 @@ async function sleep(ms: number): Promise<void> {
 
 /**
  * Processa jobs LLM abertos da conversa (inline no Worker) até vazio ou timeout.
+ * Se a lista estiver vazia mas ainda houver tempo (race enqueue), espera `pollMs`.
  */
 export async function waitLabLlmJobs(
   env: WorkerBindings,
@@ -34,11 +35,20 @@ export async function waitLabLlmJobs(
   const pollMs = opts.pollMs ?? LAB_LLM_POLL_MS
   const deadline = Date.now() + waitMs
   let processed = 0
+  let emptyStreak = 0
 
   while (Date.now() < deadline) {
     const open = await stub.listOpenLlmJobs(caller, { conversationId })
-    if (open.length === 0) return { timedOut: false, processed }
-
+    if (open.length === 0) {
+      // Já processámos pelo menos um job e a fila esvaziou → sucesso.
+      if (processed > 0) return { timedOut: false, processed }
+      // Ainda sem job: breve espera (race enqueue DO → list).
+      emptyStreak += 1
+      if (emptyStreak > 3) return { timedOut: false, processed }
+      await sleep(pollMs)
+      continue
+    }
+    emptyStreak = 0
     const job: LlmQueueMessage = open[0]!
     await processLlmJob(job, {
       env,
@@ -63,5 +73,4 @@ export async function waitLabLlmJobs(
   return { timedOut: leftover.length > 0, processed }
 }
 
-/** Útil em testes sem CF Queue: uma passagem de sleep. */
 export { sleep }
