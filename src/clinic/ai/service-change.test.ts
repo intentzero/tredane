@@ -158,16 +158,19 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
       )
       const out = await say(s, 'na verdade prefiro peeling')
       expect(out.length, `silêncio Lab: out=${JSON.stringify(out)}`).toBeGreaterThan(0)
-      expect(out.join('\n')).toMatch(/hor[aá]rios? dispon[ií]veis|Algum serve/i)
+      // F-11: troca limpa dia sticky — oferta de peeling (próximos / Horários), sem limpeza.
+      expect(out.join('\n')).toMatch(/peeling|hor[aá]rio|serve|Tenho /i)
       expect(out.join('\n')).not.toMatch(/limpeza/i)
-      const after = s.db.get<{ name: string }>(
-        `SELECT v.name AS name
+      const after = s.db.get<{ name: string; date: string | null }>(
+        `SELECT v.name AS name, ss.date AS date
          FROM schedule_sessions ss JOIN services v
            ON v.tenant_id = ss.tenant_id AND v.id = ss.service_id
          WHERE ss.conversation_id = ?`,
         s.conversationId,
       )
       expect(after?.name).toMatch(/peeling/i)
+      // Dia sticky do serviço antigo não atravessa (F-11).
+      expect(after?.date).toBeNull()
       expect(before?.service_id).toBeTruthy()
     } finally {
       s.close()

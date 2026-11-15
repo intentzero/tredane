@@ -44,6 +44,7 @@ import type { OutboxRow } from '../outbox'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { AutoBookOutcome } from './autobook'
+import { isMidFunnelServiceCorrection } from './autobook'
 import { runBookingTurn } from './run-booking-turn'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
@@ -1270,43 +1271,63 @@ export async function runDueAutoDrafts(
     let generateError: string | null = null
     let liveTurn = turn
 
-    try {
-      const extractorStarted = clock.nowMs()
-      const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
-      opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
-      if (shadowTask) {
-        // A sombra reutiliza a saída do extrator do caminho real em vez de chamar outra vez.
-        shadowTask.mainRaw = extracted.raw ?? null
-        shadowTask.mainModelCalled = extracted.modelCalled
-      }
-      if (extracted.modelCalled) {
-        modelCalled = true
-        modelCalls += 1
-        // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
-        recordModelCallTowardDailyCap(db, tenantId, clock)
-      }
-      if (extracted.applied) {
-        liveTurn = loadTurnContext(
-          db,
-          tenantId,
-          {
-            conversationId: job.conversationId,
-            contactId: conv.contactId,
-            messageId: job.messageId,
-            inboundBody,
-          },
-          clock,
-        )
-      }
-    } catch (err) {
-      console.warn(
+    // Lab H1: «prefiro peeling» com Horários abertos — o extrator LLM no DO demo
+    // estoura CPU antes do mid-funnel determinístico. Saltar quando a troca já
+    // casa sticky ≠ serviço nomeado com sinal de correção.
+    const skipExtractorForServiceSwap = isMidFunnelServiceCorrection({
+      text: turnText,
+      stickyServiceId: getBookingFrame(db, tenantId, job.conversationId)?.serviceId,
+      services: listServices(db, tenantId).filter((s) => s.active),
+    })
+    if (skipExtractorForServiceSwap) {
+      console.info(
         JSON.stringify({
-          level: 'warn',
-          event: 'ai.extractor_error',
+          level: 'info',
+          event: 'ai.extractor_skipped',
           tenantId,
-          error: err instanceof Error ? err.message : 'unknown',
+          conversationId: job.conversationId,
+          reason: 'mid_funnel_service_correction',
         }),
       )
+    } else {
+      try {
+        const extractorStarted = clock.nowMs()
+        const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
+        opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
+        if (shadowTask) {
+          // A sombra reutiliza a saída do extrator do caminho real em vez de chamar outra vez.
+          shadowTask.mainRaw = extracted.raw ?? null
+          shadowTask.mainModelCalled = extracted.modelCalled
+        }
+        if (extracted.modelCalled) {
+          modelCalled = true
+          modelCalls += 1
+          // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
+          recordModelCallTowardDailyCap(db, tenantId, clock)
+        }
+        if (extracted.applied) {
+          liveTurn = loadTurnContext(
+            db,
+            tenantId,
+            {
+              conversationId: job.conversationId,
+              contactId: conv.contactId,
+              messageId: job.messageId,
+              inboundBody,
+            },
+            clock,
+          )
+        }
+      } catch (err) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'ai.extractor_error',
+            tenantId,
+            error: err instanceof Error ? err.message : 'unknown',
+          }),
+        )
+      }
     }
 
     try {

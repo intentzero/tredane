@@ -398,6 +398,43 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
 }
 
 /**
+ * Um serviço nomeado no turno (exacto / parcial único). Usado no mid-funnel e
+ * para saltar o extrator LLM quando a troca já é determinística (Lab CPU DO).
+ */
+export function resolveNamedServiceInTurn(
+  text: string,
+  services: ServiceRow[],
+): ServiceRow | null {
+  let named = extractServices(text, services)
+  if (named.length !== 1) {
+    const tokens = new Set(norm(text).split(/[^a-z0-9]+/).filter(Boolean))
+    const partial = services.filter((s) =>
+      significantWords(s.name).some((w) => w.length >= 5 && tokens.has(w)),
+    )
+    if (partial.length === 1) named = partial
+  }
+  return named.length === 1 ? named[0]! : null
+}
+
+/** Correção / troca de serviço no texto («prefiro peeling», «na verdade massagem»). */
+export function looksLikeServiceCorrection(text: string): boolean {
+  return /\b(na verdade|quero dizer|prefiro|melhor|troca|trocar|muda|mudar|quero\s+outra|em\s+vez)\b/i.test(
+    text,
+  )
+}
+
+/** Sticky ≠ serviço nomeado no turno com sinal de correção — mid-funnel determinístico. */
+export function isMidFunnelServiceCorrection(input: {
+  text: string
+  stickyServiceId: string | null | undefined
+  services: ServiceRow[]
+}): boolean {
+  if (!input.stickyServiceId || !looksLikeServiceCorrection(input.text)) return false
+  const named = resolveNamedServiceInTurn(input.text, input.services)
+  return Boolean(named && named.id !== input.stickyServiceId)
+}
+
+/**
  * Pergunta Opções quando uma zona citada não resolve (#509).
  * DEC-C3: option-miss só sob obrigação de escolha; senão `esclarecer`.
  * T2: quando emite option-miss, devolve também friction (nao_encontrei / particle_as_zone).
@@ -1584,39 +1621,39 @@ export async function tryAiAutoBook(
   let frame = deferred.peekFrame(db, tenantId, input.conversationId)
   // Mid-funnel (Lab H1): «na verdade prefiro peeling» com serviço sticky e sem
   // proposta aberta. CF-23 só cobre troca com proposta; sem isto o sticky
-  // reofere slots do serviço antigo (ou o turno cai no LLM). Mantém o dia
-  // sticky se o turno não trouxer dia novo — reoferta Horários do serviço novo.
+  // reofere slots do serviço antigo (ou o turno cai no LLM).
+  // F-11 / Paulo 09/11/2026: troca de serviço limpa dia sticky do quadro — só
+  // mantém dia/hora se o próprio turno os trouxer. Limpa pending/lastOffer.
   // Hit parcial («peeling» ⊂ «Peeling químico»): extractServices pode vir vazio
   // se o resolver marcar weakOnly; cai então na palavra longa do nome.
   if (!swap && !RESCHEDULE.test(norm(turnText))) {
     const stickyId = session?.serviceId ?? frame?.serviceId ?? null
-    let namedTurn = extractServices(turnText, services)
-    if (namedTurn.length !== 1) {
-      const tokens = new Set(norm(turnText).split(/[^a-z0-9]+/).filter(Boolean))
-      const partial = services.filter((s) =>
-        significantWords(s.name).some((w) => w.length >= 5 && tokens.has(w)),
-      )
-      if (partial.length === 1) namedTurn = partial
-    }
-    if (stickyId && namedTurn.length === 1 && namedTurn[0]!.id !== stickyId) {
+    const namedTurn = resolveNamedServiceInTurn(turnText, services)
+    if (stickyId && namedTurn && namedTurn.id !== stickyId) {
       const keepDate =
         det.date ??
         [...extractDates(turnText, clinicCivilDateFromUtc(tz, confirmation.created_at))][0] ??
-        frame?.date ??
         null
       const keepTime = det.time ?? null
-      if (det.service?.id === namedTurn[0]!.id) {
+      if (det.service?.id === namedTurn.id) {
         saveSession({
-          serviceId: namedTurn[0]!.id,
-          ...(keepDate ? { date: keepDate } : {}),
-          ...(keepTime ? { clockTime: keepTime } : {}),
+          serviceId: namedTurn.id,
+          date: keepDate,
+          period: null,
+          pending: null,
+          lastOffer: null,
+          ...(keepTime ? { clockTime: keepTime } : { clockTime: null }),
         })
         session = deferred.peekSession(db, tenantId, input.conversationId)
         frame = deferred.peekFrame(db, tenantId, input.conversationId)
       } else if (!det.service || det.service.id === stickyId) {
         saveSession({
-          serviceId: namedTurn[0]!.id,
-          ...(keepDate ? { date: keepDate } : {}),
+          serviceId: namedTurn.id,
+          date: keepDate,
+          period: null,
+          clockTime: null,
+          pending: null,
+          lastOffer: null,
         })
         session = deferred.peekSession(db, tenantId, input.conversationId)
         frame = deferred.peekFrame(db, tenantId, input.conversationId)
@@ -1624,7 +1661,7 @@ export async function tryAiAutoBook(
           ok: false,
           status: 'needs_info',
           missing: keepDate ? ['horario'] : ['dia', 'horario'],
-          service: namedTurn[0]!,
+          service: namedTurn,
           ...(keepDate ? { date: keepDate } : {}),
         }
       }
