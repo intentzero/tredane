@@ -4169,6 +4169,40 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       const meta = getBoundTenant(this.#db)
       if (!meta) return
       const caller = workerCaller(meta.tenantId)
+      // Demo/Lab: o alarme (idle + autodraft stale + sombra) reentrou em espiral
+      // de CPU mesmo com uma só conversa. O Lab corre autodrafts inline em
+      // labTurn; na demo o alarme só limpa backlog barato e não reagenda.
+      if (isDemoTenantId(meta.tenantId)) {
+        const shedStarted = this.#clock.nowMs()
+        const shed = shedDueAlarmBacklog(this.#db, meta.tenantId, shedStarted)
+        // Forçar limpeza mesmo abaixo do limiar (idle futuro não dispara).
+        this.#db.run(
+          `UPDATE conversations
+           SET idle_due_at = NULL, idle_phase = NULL, idle_prompt_sent_at = NULL, updated_at = ?
+           WHERE tenant_id = ? AND idle_due_at IS NOT NULL`,
+          shedStarted,
+          meta.tenantId,
+        )
+        this.#db.run(`DELETE FROM ai_autodraft_jobs WHERE tenant_id = ?`, meta.tenantId)
+        timer.addPhase('alarm_demo_noop', this.#clock.nowMs() - shedStarted)
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'clinic.alarm_demo_noop',
+            tenantId: meta.tenantId,
+            shed: shed.shed,
+            idleDue: shed.idleDue,
+            autodraftDue: shed.autodraftDue,
+          }),
+        )
+        try {
+          await this.ctx.storage.deleteAlarm()
+        } catch {
+          /* best-effort */
+        }
+        this.#scheduledAlarmAt = null
+        return
+      }
       // Quebra espiral de CPU: backlog vencido (Lab paralelo / muitos idle) é
       // limpo com SQL barato; a passagem seguinte corre o caminho normal.
       const shedStarted = this.#clock.nowMs()
