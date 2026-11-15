@@ -62,7 +62,15 @@ export type LabHooks = {
     buttonTitle: string
     providerEventKey: string
   }) => Promise<unknown>
-  runAutoDrafts: () => Promise<Array<{ status: string; conversationId: string; reason?: string }>>
+  /**
+   * Só a conversa deste turno (DEC-188 / Lab): não drenar a fila global de
+   * `ai_autodraft_jobs` vencidos — isso reentrou em espiral de CPU no DO demo
+   * após Bloco D (vários jobs `queued` de waIds paralelos).
+   */
+  runAutoDrafts: (opts: {
+    conversationId: string
+    limit?: number
+  }) => Promise<Array<{ status: string; conversationId: string; reason?: string }>>
   settleOutbound: (row: {
     outboxEventId: string
     idempotencyKey: string
@@ -136,7 +144,7 @@ export async function runLabTurn(
         tenantId,
         conversationId,
       )
-      aiOutcomes = await hooks.runAutoDrafts()
+      aiOutcomes = await hooks.runAutoDrafts({ conversationId, limit: 1 })
     }
   } else {
     const tap = input.tap!
