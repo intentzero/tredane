@@ -10,6 +10,7 @@ import {
 } from '../clinic/constants'
 import { isDevelopmentEnv } from '../security/env-gate'
 import { isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
+import { shedDueAlarmBacklog } from './clinic-do-alarm-shed'
 import { labMaxTurnsDaily } from '../lab/gate'
 import { labDay, readLabState, runLabTurn, type LabStateResult, type LabTurnInput, type LabTurnResult } from '../lab/turn'
 import type { ProposalButtonClickInput } from '../clinic/proposals'
@@ -4153,6 +4154,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       const meta = getBoundTenant(this.#db)
       if (!meta) return
       const caller = workerCaller(meta.tenantId)
+      // Quebra espiral de CPU: backlog vencido (Lab paralelo / muitos idle) é
+      // limpo com SQL barato; a passagem seguinte corre o caminho normal.
+      const shedStarted = this.#clock.nowMs()
+      const shed = shedDueAlarmBacklog(this.#db, meta.tenantId, shedStarted)
+      timer.addPhase('alarm_shed_backlog', this.#clock.nowMs() - shedStarted)
+      if (shed.shed) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'clinic.alarm_shed_backlog',
+            tenantId: meta.tenantId,
+            idleDue: shed.idleDue,
+            autodraftDue: shed.autodraftDue,
+            idleCleared: shed.idleCleared,
+            autodraftDropped: shed.autodraftDropped,
+          }),
+        )
+        await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + 60_000)
+        return
+      }
       let phase = this.#clock.nowMs()
       try {
         await this.expireDuePixCharges(caller)
@@ -4312,7 +4333,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       timer.addPhase('alarm_drain', this.#clock.nowMs() - phase)
       if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
       phase = this.#clock.nowMs()
-      await this.#runAutoDraftsWork(caller, timer)
+      // No alarme: no máximo 1 job (LLM) por passagem — evita N× timeout no isolate.
+      await this.#runAutoDraftsWork(caller, timer, { limit: 1 })
       timer.addPhase('alarm_run_autodrafts', this.#clock.nowMs() - phase)
     })
   }
@@ -4467,6 +4489,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async #runAutoDraftsWork(
     caller: ClinicCaller,
     timer: DoInvocationTimer | null,
+    opts: { limit?: number } = {},
   ): Promise<clinicAi.AutoDraftOutcome[]> {
     this.#ensureReady()
     let outcomes: clinicAi.AutoDraftOutcome[] = []
@@ -4478,6 +4501,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
       )
       outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
+        limit: opts.limit,
         onStart: async (job) => {
           const t0 = this.#clock.nowMs()
           await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
