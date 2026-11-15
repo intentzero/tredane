@@ -269,8 +269,9 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
       expect(clicked.handled).toBe(true)
       if (!clicked.handled) return
       expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Horários|Entendi:/)
-      expect(clicked.autoBook?.replyText ?? '').toMatch(/quais zonas|Toque em Opções|Escreva uma ou várias/i)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
+      expect(clicked.autoBook?.replyText ?? '').toMatch(/quais zonas|Escreva uma ou várias/i)
+      expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Toque em Opções/i)
+      expect(clicked.autoBook?.interactive ?? null).toBeNull()
       const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
       expect(frame?.line).toBe('feminino')
       expect(frame?.variantIds ?? null).toBeNull()
@@ -315,7 +316,7 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
         },
         tap.clock,
       )
-      // `varias`: zonas só por texto (+ eco), com Opções (DEC-178).
+      // `varias`: zonas só por texto (+ eco DEC-137; DEC-191).
       await say(tap, 'Axila')
       const echoTap = outbound(tap).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
       expect(echoTap).toBeTruthy()
