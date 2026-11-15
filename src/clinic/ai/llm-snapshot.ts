@@ -121,6 +121,7 @@ export async function buildRedactSnapshot(
     clock,
     clinicName: deps.clinicName ?? null,
     forecast: deps.forecast,
+    skipDebugExcluded: true,
     ...(input.turn ? { turn: input.turn } : {}),
   })
   return {

@@ -53,11 +53,23 @@ export type LlmClinicStub = {
       idempotencyKey: string
       result: ExtractModelResult | RedactModelResult
     },
-  ) => Promise<{ status: string; resumeAutodraft?: boolean }>
+  ) => Promise<{
+    status: string
+    resumeAutodraft?: boolean
+    conversationId?: string | null
+  }>
   failLlmJob: (
     caller: ReturnType<typeof queueCaller>,
     input: { jobId: string; idempotencyKey: string; errorCode: string },
   ) => Promise<{ status: string }>
+  /**
+   * Retoma autodraft noutro pedido DO (após extract apply).
+   * Opcional no tipo para stubs de teste mínimos; o DO real implementa.
+   */
+  runAutoDrafts?: (
+    caller: ReturnType<typeof queueCaller>,
+    opts?: { conversationId?: string; limit?: number },
+  ) => Promise<unknown>
 }
 
 function clinicFromEnv(env: WorkerBindings, tenantId: string): LlmClinicStub {
@@ -291,7 +303,13 @@ export async function processLlmJob(
         idempotencyKey: msg.idempotencyKey,
         result,
       })
-      // applyLlmResult no DO já retoma o autodraft (booking / enqueue redact).
+      // Apply é fino: booking / enqueue redact correm noutro RPC DO.
+      if (applied.resumeAutodraft && stub.runAutoDrafts) {
+        await stub.runAutoDrafts(caller, {
+          conversationId: applied.conversationId ?? msg.conversationId,
+          limit: 1,
+        })
+      }
       log({
         level: 'info',
         event: 'llm.job_applied',
@@ -300,6 +318,7 @@ export async function processLlmJob(
           jobId: msg.jobId,
           purpose: 'extract',
           applyStatus: applied.status,
+          resumedAutodraft: Boolean(applied.resumeAutodraft),
         },
       })
       return 'ack'

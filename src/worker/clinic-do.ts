@@ -2173,7 +2173,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return { status: 'missing' as const }
   }
 
-  /** DEC-188 — aplica resultado Claude (extract/redact) no DO. */
+  /**
+   * DEC-188 — aplica resultado Claude (extract/redact) no DO.
+   * Apply fica fino: sem `#runAutoDraftsWork` no mesmo isolate (Lab: CPU no
+   * ca03/redact quando apply+resume empilhavam). O Worker chama
+   * `runAutoDrafts` à parte quando `resumeAutodraft` é true.
+   */
   async applyLlmResult(
     caller: ClinicCaller,
     input: ApplyLlmResultInput,
@@ -2189,10 +2194,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, outcome.outbox, true)
       await this.#drain(caller)
     }
-    if (outcome.resumeAutodraft) {
-      // Continua booking (+ eventual enqueue redact) sem Claude no isolate.
-      await this.#runAutoDraftsWork(caller, null)
-    }
     if (outcome.job) {
       await this.#emitAiDraftEvent(caller, outcome.job.conversationId, {
         state: outcome.status === 'applied' ? 'generating' : outcome.status,
@@ -2200,7 +2201,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     return {
       status: outcome.status,
-      resumeAutodraft: false,
+      resumeAutodraft: outcome.resumeAutodraft,
+      conversationId: outcome.job?.conversationId ?? null,
       reason: outcome.reason,
     }
   }
@@ -4703,18 +4705,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return out
   }
 
-  async runAutoDrafts(caller: ClinicCaller): Promise<clinicAi.AutoDraftOutcome[]> {
+  async runAutoDrafts(
+    caller: ClinicCaller,
+    opts: { conversationId?: string; limit?: number } = {},
+  ): Promise<clinicAi.AutoDraftOutcome[]> {
     return this.#withRpc('runAutoDrafts', async (timer) => {
       this.#ensureReady()
       timer.markHandlerEntry(this.#clock)
-      return this.#runAutoDraftsWork(caller, timer)
+      return this.#runAutoDraftsWork(caller, timer, opts)
     })
   }
 
   async #runAutoDraftsWork(
     caller: ClinicCaller,
     timer: DoInvocationTimer | null,
-    opts: { limit?: number } = {},
+    opts: { limit?: number; conversationId?: string } = {},
   ): Promise<clinicAi.AutoDraftOutcome[]> {
     this.#ensureReady()
     let outcomes: clinicAi.AutoDraftOutcome[] = []
@@ -4744,6 +4749,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
         {
           limit: opts.limit,
+          conversationId: opts.conversationId,
           onStart: async (job) => {
             const t0 = this.#clock.nowMs()
             await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })

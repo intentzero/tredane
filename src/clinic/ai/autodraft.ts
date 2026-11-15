@@ -381,6 +381,11 @@ export async function runDueAutoDrafts(
   deps: AiAssistDeps,
   opts: {
     limit?: number
+    /**
+     * DEC-188: após apply extract, o Worker retoma só a conversa do job
+     * (evita empilhar N autodrafts due no mesmo isolate do apply).
+     */
+    conversationId?: string
     onStart?: (job: AutoDraftJob) => Promise<void> | void
     /**
      * DEC-136: despacha o outbox `whatsapp.typing_indicator` cedo (antes do LLM
@@ -394,15 +399,26 @@ export async function runDueAutoDrafts(
   const tenantId = caller.tenantId
   const now = clock.nowMs()
   reclaimOrphanGenerating(db, tenantId, now)
-  const due = db
-    .all<JobSql>(
-      `SELECT conversation_id, message_id, due_at, state, created_at FROM ai_autodraft_jobs
-       WHERE tenant_id = ? AND state = 'queued' AND due_at <= ? ORDER BY due_at LIMIT ?`,
-      tenantId,
-      now,
-      opts.limit ?? 10,
-    )
-    .map(mapJob)
+  const limit = opts.limit ?? 10
+  const due = (
+    opts.conversationId
+      ? db.all<JobSql>(
+          `SELECT conversation_id, message_id, due_at, state, created_at FROM ai_autodraft_jobs
+           WHERE tenant_id = ? AND state = 'queued' AND due_at <= ? AND conversation_id = ?
+           ORDER BY due_at LIMIT ?`,
+          tenantId,
+          now,
+          opts.conversationId,
+          limit,
+        )
+      : db.all<JobSql>(
+          `SELECT conversation_id, message_id, due_at, state, created_at FROM ai_autodraft_jobs
+           WHERE tenant_id = ? AND state = 'queued' AND due_at <= ? ORDER BY due_at LIMIT ?`,
+          tenantId,
+          now,
+          limit,
+        )
+  ).map(mapJob)
 
   const out: AutoDraftOutcome[] = []
   const alarmTurnStartedMs = now
