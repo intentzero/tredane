@@ -26,7 +26,7 @@ describe('S05 remarcação na clínica demo', () => {
     const tenantId = DEMO_CLINIC_TENANT_ID
     const caller = workerCaller(tenantId, 'user_demo_owner_s05')
     seedDemoClinicOp(db, caller, clock, { ownerClerkUserId: 'user_demo_owner_s05' })
-    const drenagem = listServices(db, tenantId, clock).find((s) => s.name === 'Drenagem linfática')!
+    const drenagem = listServices(db, tenantId).find((s) => s.name === 'Drenagem linfática')!
     const contact = upsertContact(db, { tenantId, waId: '5500000001049', displayName: 'Aline' }, clock)
     const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
     const tue1230 = zonedCivilToUtc(TZ, 2026, 11, 17, 12, 30)
@@ -45,7 +45,7 @@ describe('S05 remarcação na clínica demo', () => {
       },
       clock,
     )
-    return { ...boot, clock, tenantId, caller, cnv, db, drenagem, aptId: apt.id }
+    return { ...boot, clock, tenantId, caller, cnv, db, drenagem, aptId: apt.value.id }
   }
 
   it('controlo: sexta 20/11 tem vagas de drenagem (marcação nova)', () => {
@@ -65,7 +65,7 @@ describe('S05 remarcação na clínica demo', () => {
     const tenantId = DEMO_CLINIC_TENANT_ID
     const caller = workerCaller(tenantId, 'user_demo_owner_s05b')
     seedDemoClinicOp(db, caller, clock, { ownerClerkUserId: 'user_demo_owner_s05b' })
-    const micro = listServices(db, tenantId, clock).find((s) => s.name === 'Microagulhamento')!
+    const micro = listServices(db, tenantId).find((s) => s.name === 'Microagulhamento')!
     const contact = upsertContact(db, { tenantId, waId: '5500000001059', displayName: 'Priscila' }, clock)
     const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
     const mon1245 = zonedCivilToUtc(TZ, 2026, 11, 16, 12, 45)
