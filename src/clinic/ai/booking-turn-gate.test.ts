@@ -60,6 +60,18 @@ describe('classifyCrossCuttingAct (P1 gate)', () => {
     if (act.kind === 'ask_info') expect(act.topic).toBe('explanation')
   })
 
+  it('lab FAQ: «é o que?» / «como é feita» = ask_info explanation (não leftover)', () => {
+    for (const text of [
+      'A depilação íntima é o que?',
+      'Como é feita a depilação íntima?',
+      'O que inclui a íntima?',
+    ]) {
+      const act = classifyCrossCuttingAct({ text })
+      expect(act.kind).toBe('ask_info')
+      if (act.kind === 'ask_info') expect(act.topic).toBe('explanation')
+    }
+  })
+
   it('escolha de variante = none (segue pending/filler)', () => {
     const act = classifyCrossCuttingAct({ text: 'Massagem relaxante' })
     expect(act.kind).toBe('none')

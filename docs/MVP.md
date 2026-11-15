@@ -127,7 +127,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Agendado curto no WhatsApp (Confirmado, DEC-174, Paulo, 13/11/2026):** `Agendado: {serviço}[ · variante] · terça 17/11 às 10:00 com {profissional}.` — sem ano, sem hora de fim, sem «Qualquer dúvida…» quando o follow-up DEC-086 segue; variante no rótulo. Detalhe: [DEC-174](product/decisions.md).
 
-**FAQ na escolha de zona (Confirmado, DEC-177, Paulo, 13/11/2026):** perguntas («inclui?», «o que é?») durante a escolha de variantes não viram leftover; resposta só com Explicação para clientes ou sinónimos do cadastro; sem detalhe → frase fixa + Continuar / Falar com a equipe; sem LLM neste recorte. Detalhe: [DEC-177](product/decisions.md).
+**FAQ na escolha de zona (Confirmado, DEC-177, Paulo, 13/11/2026):** perguntas («inclui?», «o que é?») durante a escolha de variantes não viram leftover; resposta com explicação da variante nomeada, sinónimos do cadastro ou — se a pergunta não nomeia variante — Explicação para clientes do serviço; zona nomeada sem explicação própria → frase fixa + Continuar / Falar com a equipe (não a prosa do serviço); sem LLM neste recorte. Detalhe: [DEC-177](product/decisions.md).
 
 **FAQ / conhecimento institucional da clínica (Confirmado, DEC-185, Paulo, 14/11/2026):** Q&A publicadas pela owner no DO (categorias CRUD livres; piloto 5–15; resposta ≤500 caracteres); resposta determinística com o texto cadastrado (modo A); mid-funnel park/resume; política de sinal (DEC-180) também como entrada FAQ; alarga DEC-120 sob esses limites sem paráfrase LLM; saúde continua handoff (DEC-046); DEC-177 inalterada. Detalhe: [DEC-185](product/decisions.md); discovery no Project store.
 

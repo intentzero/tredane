@@ -23,6 +23,8 @@
  * A-50: «gostaria de saber» não ecoa «saber» como zona (zonas-cases).
  * A-53 / A-54: FAQ mid-zonas (DEC-177) — zonas-cases.
  * A-60: FAQ institucional mid-funnel (DEC-185) — zonas-cases.
+ * A-61 / A-62: FAQ «O que inclui a íntima?» variante vs serviço (DEC-177) — zonas-cases.
+ * A-63..A-65: FAQ «é o que?» / «como é feita» (DEC-177 cue) — zonas-cases.
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
  * A-49: cartão DEC-141 A+B — fillers/stopwords fora; só nomes populares; sem auto-Gravar.
  * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
