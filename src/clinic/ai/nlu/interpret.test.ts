@@ -39,6 +39,16 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
 }
 
 describe('interpretTurn (#416)', () => {
+  it('reconhece abreviação «qnto» como preço', () => {
+    const r = interpretTurn({
+      turnText: 'qnto custa?',
+      messageId: 'msg_q',
+      today: '2026-11-02',
+      services: [service({ id: 'svc_1', name: 'Limpeza de pele' })],
+    })
+    expect(r.acts).toContain('informar_preco')
+  })
+
   it('reconhece preço e serviço com cobertura alta', () => {
     const svc = service({ id: 'svc_1', name: 'Limpeza de pele' })
     const r = interpretTurn({

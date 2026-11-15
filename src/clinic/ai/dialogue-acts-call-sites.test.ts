@@ -103,6 +103,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Nesse horário das \$\{input\.time\} já não tenho vaga e o dia está cheio nesse período\. No próximo com vaga tenho \$\{listed\}\. Qual fica melhor\?$/,
   /^Nesse horário das \$\{input\.time\} já não tenho vaga\. Quer que eu veja outro horário\?$/,
   /^Às \$\{hour\} da tarde seria \$\{hora24\}\. É esse horário\?$/,
+  /^Qual horário fica melhor para \{serviço\}\?$/,
   /^Qual horário fica melhor para \$\{svc\.name\}\?$/,
   /^Qual horário fica melhor para \$\{det\.service\.name\}\?$/,
   /^Me diga o dia para \$\{det\.service\.name\}\.$/,
@@ -127,6 +128,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Pode continuar — diga o serviço ou a opção que prefere\.$/,
   /^DEC-177: FAQ missing catalog detail; Continuar\/equipe; no leftover\.$/,
   /^DEC-177: FAQ \$\{faq\.kind\} from catalog facts \(pending kept\)\.$/,
+  /^Pagamento\/parcelamento: equipe avisada; funil retomado\.$/,
+  /^Sobre cartão e parcelamento, a equipe confirma com você\.$/,
   // DEC-185 — FAQ institucional modo A (park/resume; fallback alinhado)
   /^Qual horário fica melhor para \$\{svcKn\.name\}\?$/,
   /^DEC-185: clinic knowledge \$\{knowledge\.entry\.id\} \(mode A; pending kept\)\.$/,
