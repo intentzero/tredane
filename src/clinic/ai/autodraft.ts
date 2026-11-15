@@ -44,6 +44,11 @@ import type { OutboxRow } from '../outbox'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { AutoBookOutcome } from './autobook'
+import {
+  isMidFunnelServiceCorrection,
+  looksLikeServiceCorrection,
+  resolveNamedServiceInTurn,
+} from './autobook'
 import { runBookingTurn } from './run-booking-turn'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
@@ -1270,43 +1275,77 @@ export async function runDueAutoDrafts(
     let generateError: string | null = null
     let liveTurn = turn
 
-    try {
-      const extractorStarted = clock.nowMs()
-      const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
-      opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
-      if (shadowTask) {
-        // A sombra reutiliza a saída do extrator do caminho real em vez de chamar outra vez.
-        shadowTask.mainRaw = extracted.raw ?? null
-        shadowTask.mainModelCalled = extracted.modelCalled
-      }
-      if (extracted.modelCalled) {
-        modelCalled = true
-        modelCalls += 1
-        // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
-        recordModelCallTowardDailyCap(db, tenantId, clock)
-      }
-      if (extracted.applied) {
-        liveTurn = loadTurnContext(
-          db,
-          tenantId,
-          {
-            conversationId: job.conversationId,
-            contactId: conv.contactId,
-            messageId: job.messageId,
-            inboundBody,
-          },
-          clock,
-        )
-      }
-    } catch (err) {
-      console.warn(
+    // Lab H1: «prefiro peeling» com Horários abertos — o extrator LLM no DO demo
+    // estoura CPU antes do mid-funnel determinístico. Saltar quando a troca já
+    // casa sticky ≠ serviço nomeado com sinal de correção.
+    const activeServices = listServices(db, tenantId).filter((s) => s.active)
+    const stickyForSwap =
+      getBookingFrame(db, tenantId, job.conversationId)?.serviceId ??
+      getScheduleSession(db, tenantId, job.conversationId)?.serviceId ??
+      null
+    const namedSwapService = resolveNamedServiceInTurn(turnText, activeServices)
+    const correctionNamesService =
+      looksLikeServiceCorrection(turnText) && namedSwapService != null
+    // Qualquer «prefiro / na verdade …» que nomeia um serviço do catálogo: zero LLM
+    // (extrator + redator). Lab H1 com Horários abertos morria no CPU do DO.
+    const skipExtractorForServiceSwap =
+      correctionNamesService ||
+      isMidFunnelServiceCorrection({
+        text: turnText,
+        stickyServiceId: stickyForSwap,
+        services: activeServices,
+      })
+    if (skipExtractorForServiceSwap) {
+      console.info(
         JSON.stringify({
-          level: 'warn',
-          event: 'ai.extractor_error',
+          level: 'info',
+          event: 'ai.extractor_skipped',
           tenantId,
-          error: err instanceof Error ? err.message : 'unknown',
+          conversationId: job.conversationId,
+          reason: 'mid_funnel_service_correction',
+          stickyServiceId: stickyForSwap,
+          namedServiceId: namedSwapService?.id ?? null,
         }),
       )
+    } else {
+      try {
+        const extractorStarted = clock.nowMs()
+        const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
+        opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
+        if (shadowTask) {
+          // A sombra reutiliza a saída do extrator do caminho real em vez de chamar outra vez.
+          shadowTask.mainRaw = extracted.raw ?? null
+          shadowTask.mainModelCalled = extracted.modelCalled
+        }
+        if (extracted.modelCalled) {
+          modelCalled = true
+          modelCalls += 1
+          // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
+          recordModelCallTowardDailyCap(db, tenantId, clock)
+        }
+        if (extracted.applied) {
+          liveTurn = loadTurnContext(
+            db,
+            tenantId,
+            {
+              conversationId: job.conversationId,
+              contactId: conv.contactId,
+              messageId: job.messageId,
+              inboundBody,
+            },
+            clock,
+          )
+        }
+      } catch (err) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'ai.extractor_error',
+            tenantId,
+            error: err instanceof Error ? err.message : 'unknown',
+          }),
+        )
+      }
     }
 
     try {
@@ -1340,6 +1379,42 @@ export async function runDueAutoDrafts(
           error: err instanceof Error ? err.message : 'unknown',
         }),
       )
+      // Lab H1: se o mid-funnel falhar, NÃO cair no redator LLM (CPU DO →
+      // aiOutcomes []). Frase determinística do serviço novo.
+      if (
+        correctionNamesService &&
+        namedSwapService &&
+        !(autoBook?.replyText && autoBook.replyText.trim())
+      ) {
+        autoBook = {
+          status: 'needs_info',
+          missing: ['dia', 'horario'],
+          confirmationMessageId: job.messageId,
+          serviceId: namedSwapService.id,
+          replyText: `Qual horário fica melhor para ${namedSwapService.name}?`,
+          notes: `mid_funnel_service_correction_fallback: ${err instanceof Error ? err.message : 'unknown'}`,
+          outbox: [],
+        }
+      }
+    }
+
+    // Mesmo sem throw: autobook pode devolver none sem texto — evita LLM na troca
+    // (Lab: silêncio / aiOutcomes [] após CPU no redator).
+    if (
+      correctionNamesService &&
+      namedSwapService &&
+      !(autoBook?.replyText && autoBook.replyText.trim()) &&
+      !autoBook?.proposalId
+    ) {
+      autoBook = {
+        status: 'needs_info',
+        missing: ['dia', 'horario'],
+        confirmationMessageId: job.messageId,
+        serviceId: namedSwapService.id,
+        replyText: `Qual horário fica melhor para ${namedSwapService.name}?`,
+        notes: 'mid_funnel_service_correction_fallback: empty_autobook',
+        outbox: [],
+      }
     }
 
     const deterministicReplyEarly = Boolean(autoBook?.replyText && autoBook.replyText.trim())
@@ -1624,18 +1699,33 @@ export async function runDueAutoDrafts(
           const frameNow =
             autoBook?.deferredFrame?.peekFrame(db, tenantId, job.conversationId) ??
             getBookingFrame(db, tenantId, job.conversationId)
-          const replaced = await maybeReplaceM5WithFlow({
-            choice: autoBook?.interactive ?? null,
-            replyBody: draftText,
-            prepare: deps.prepareBookingFlowOffer,
-            tenantId,
-            conversationId: job.conversationId,
-            catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, tenantId),
-            session: sessionFromBookingFrame(frameNow),
-            deferred: autoBook?.deferredFrame,
-          })
-          interactive = replaced.interactive
-          body = replaced.body
+          try {
+            const replaced = await maybeReplaceM5WithFlow({
+              choice: autoBook?.interactive ?? null,
+              replyBody: draftText,
+              prepare: deps.prepareBookingFlowOffer,
+              tenantId,
+              conversationId: job.conversationId,
+              catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, tenantId),
+              session: sessionFromBookingFrame(frameNow),
+              deferred: autoBook?.deferredFrame,
+            })
+            interactive = replaced.interactive
+            body = replaced.body
+          } catch (err) {
+            // Lab H1: mid-funnel «prefiro peeling» com Horários abertos — prepare Flow
+            // pode falhar e o catch externo engolia o turno (silêncio, aiOutcomes []).
+            // Mantém a lista M5 determinística.
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'ai.flow_replace_failed',
+                tenantId,
+                conversationId: job.conversationId,
+                error: err instanceof Error ? err.message : 'unknown',
+              }),
+            )
+          }
         }
         const sent = sendOutboundMessageOp(
           db,

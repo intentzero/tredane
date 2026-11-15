@@ -14,6 +14,12 @@ describe('classifyCrossCuttingAct (P1 gate)', () => {
     if (act.kind === 'exit_ab') expect(act.explicit).toBe(true)
   })
 
+  it('deixa pra lá = exit_ab explícito (Unicode á / Lab #750)', () => {
+    const act = classifyCrossCuttingAct({ text: 'deixa pra lá' })
+    expect(act.kind).toBe('exit_ab')
+    if (act.kind === 'exit_ab') expect(act.explicit).toBe(true)
+  })
+
   it('obrigado após oferta = exit_ab (classe B)', () => {
     const act = classifyCrossCuttingAct({ text: 'obrigado!' })
     expect(act.kind).toBe('exit_ab')
