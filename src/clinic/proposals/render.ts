@@ -178,43 +178,34 @@ export function renderProposalInteractive(
     db != null && opts?.clock != null
       ? isHumanTeamOfferAllowed(db, proposal.tenantId, opts.clock)
       : true
-  const lines: string[] = ['Proposta de horário', '']
-  if (location) lines.push(`Local: ${location}`)
-  // DEC-100: o cartão não imprime «beneficiária». O facto interno (titular/terceiro) continua na proposta.
-  lines.push(
-    `Serviço: ${zoneLabel(proposal.serviceName, zones)}`,
-    `Quando: ${formatSlotRange(proposal)}`,
-    `Duração: ${proposal.durationMinutes} min`,
-  )
+  const serviceLabel = zoneLabel(proposal.serviceName, zones)
+  const when = formatBookedWhen(proposal)
+  const parts = [serviceLabel, when]
   if (proposal.professionalName) {
-    lines.push(`Profissional: ${proposal.professionalName}`)
+    parts.push(`com ${proposal.professionalName}`)
   }
-  // DEC-090: sala e intervalo/buffer são internos — nunca entram no WhatsApp ao cliente.
   if (proposal.priceCents != null) {
-    lines.push(
-      combo
-        ? `Preço: ${formatBrl(proposal.priceCents)} (combo ${combo.name}, economia de ${formatBrl(
-            combo.listPriceCents - combo.priceCents,
-          )})`
-        : `Preço: ${formatBrl(proposal.priceCents)}`,
-    )
+    if (proposal.priceCents === 0) {
+      parts.push('gratuita')
+    } else if (combo) {
+      parts.push(
+        `${formatBrl(proposal.priceCents)} (combo ${combo.name}, economia de ${formatBrl(
+          combo.listPriceCents - combo.priceCents,
+        )})`,
+      )
+    } else {
+      parts.push(formatBrl(proposal.priceCents))
+    }
   }
+  const summary = parts.join(' · ')
+  const lines: string[] = [`Fica assim: ${summary}.`, '', 'Posso confirmar?']
+  if (location) lines.push('', `Local: ${location}.`)
   const signal = formatSignal(proposal)
   if (signal) lines.push(signal)
-  lines.push('')
-  const validUntil =
-    opts?.validUntilMs ??
-    proposal.expiresAt ??
-    null
-  lines.push(
-    validUntil != null
-      ? proposalValidityLine(proposal.timezone, validUntil)
-      : 'Válida por 30 minutos após o envio.',
-  )
   lines.push(
     includeHuman
-      ? 'Toque em Confirmar para seguir, em Alterar detalhes para mudar horário, serviço ou detalhes, ou em Falar com a equipe.'
-      : 'Toque em Confirmar para seguir ou em Alterar detalhes para mudar horário, serviço ou detalhes.',
+      ? 'É só tocar em Confirmar, em Alterar detalhes se quiser mudar algo, ou em Falar com a equipe.'
+      : 'É só tocar em Confirmar ou em Alterar detalhes se quiser mudar algo.',
   )
 
   let body = lines.join('\n')
