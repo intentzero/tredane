@@ -51,6 +51,10 @@ function card(
     contact: { id: `ct_${id}`, waId: '5511900000000', displayName: name, createdAt: 1 },
     missingAppointment: false,
     linkedAppointment: null,
+    cardKind: 'cycle',
+    boardKey: id,
+    futureAppointmentCount: 0,
+    hasOpenAttendance: false,
     ...over,
   }
 }
@@ -387,5 +391,60 @@ describe('AcompanhamentoWideBoard — cartões ao vivo', () => {
     // keep:true → o quadro não volta ao skeleton.
     expect(screen.getByRole('group', { name: 'Quadro por etapa' })).toBeTruthy()
     expect(screen.getByText('Carla Mendes')).toBeTruthy()
+  })
+
+  it('DEC-187: gémeo de atendimento + badge N no Agendado; total conta contactos distintos', async () => {
+    const prevEarly = [...(DATA.em_atendimento ?? [])]
+    const prevAg = [...(DATA.agendado ?? [])]
+    DATA.em_atendimento = [
+      card('d', 'Carla Mendes', 'em_atendimento', {
+        contactId: 'ct_d',
+        cardKind: 'open_attendance',
+        boardKey: 'd:attendance',
+        futureAppointmentCount: 2,
+        hasOpenAttendance: true,
+      }),
+    ]
+    DATA.agendado = [
+      card('d', 'Carla Mendes', 'agendado', {
+        contactId: 'ct_d',
+        cardKind: 'cycle',
+        boardKey: 'd',
+        futureAppointmentCount: 2,
+        hasOpenAttendance: true,
+        linkedAppointmentId: 'ap1',
+        linkedAppointment: {
+          id: 'ap1',
+          startsAt: NOW + DAY,
+          endsAt: NOW + DAY + 3_600_000,
+          status: 'confirmed',
+        } as never,
+      }),
+    ]
+    DATA.novo_contato = []
+    try {
+      mount()
+      await screen.findByText('Atendimento em curso')
+      const cols = within(await screen.findByRole('group', { name: 'Quadro por etapa' })).getAllByRole(
+        'region',
+      )
+      expect(cols.map((c) => c.getAttribute('aria-label'))).toEqual([
+        'Novo contato, 0',
+        'Em atendimento, 1',
+        'Horário proposto, 0',
+        'Agendado, 1',
+        'Concluído, 0',
+      ])
+      // Mesmo contacto nas duas colunas → «1 contato em andamento».
+      expect(screen.getByText('1 contatos em andamento')).toBeTruthy()
+      const agendado = within(
+        screen.getByRole('region', { name: 'Agendado, 1' }),
+      ).getByRole('button', { name: 'Abrir Carla Mendes' })
+      expect(agendado.querySelector('.acomp-apt-count')?.textContent).toBe('2')
+    } finally {
+      DATA.em_atendimento = prevEarly
+      DATA.agendado = prevAg
+      DATA.novo_contato = [card('a', 'Maria Souza', 'novo_contato', { assigneeClerkUserId: null, assigneeDisplayName: null })]
+    }
   })
 })

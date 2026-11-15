@@ -43,6 +43,10 @@ function card(over: Partial<PipelineOpportunity> = {}): PipelineOpportunity {
     contact: { id: 'ct_1', waId: '5511900000000', displayName: 'Ana Silva', createdAt: 1 },
     missingAppointment: false,
     linkedAppointment: null,
+    cardKind: 'cycle',
+    boardKey: 'opp_1',
+    futureAppointmentCount: 0,
+    hasOpenAttendance: false,
     ...over,
   }
 }

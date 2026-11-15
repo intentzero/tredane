@@ -23,6 +23,10 @@ Registado explicitamente no seed e nos testes (não é decisão aprovada):
 | Concluído | Fecha o ciclo (`status=closed`); significado de negócio para a clínica piloto **Em aberto** |
 | Por serviço / por ciclo de compra | Não modelado; um ciclo ≈ uma oportunidade open por conversa |
 
+## DEC-187 — cartão gémeo (Confirmado)
+
+Com horário futuro + atendimento/marcação aberta, `listPipelineOpportunities` devolve o ciclo em **Agendado** e um cartão projectado (`cardKind: open_attendance`) em **Em atendimento** / **Horário proposto**. Ao confirmar a nova marcação o gémeo some (merge). `futureAppointmentCount` alimenta o badge N>1 no Agendado. Contagens de coluna incluem o gémeo; o subtítulo largo usa contactos distintos.
+
 ## Schema SQLite (migração 5)
 
 Tabelas: `opportunities`, `opportunity_stage_history`.  

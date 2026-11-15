@@ -224,7 +224,10 @@ describe('Pipeline / Acompanhamento (#30)', () => {
         clock,
       )
       const byConv = new Map<string, number>()
-      for (const o of listed.items.filter((x) => x.status === 'open')) {
+      // VAL-02: uma oportunidade open por conversa (gémeos DEC-187 não contam).
+      for (const o of listed.items.filter(
+        (x) => x.status === 'open' && (x.cardKind ?? 'cycle') === 'cycle',
+      )) {
         byConv.set(o.conversationId, (byConv.get(o.conversationId) ?? 0) + 1)
       }
       for (const n of byConv.values()) expect(n).toBe(1)

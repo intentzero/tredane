@@ -49,6 +49,17 @@ export type OpportunityListItem = OpportunityRow & {
   linkedAppointment: LinkedAppointmentSummary | null
   /** Reserva por bloco em aberto (activa ou vencida sem hora). */
   openHold: ScheduleHoldView | null
+  /**
+   * DEC-187 — cartão do ciclo (oportunidade real) ou gémeo de atendimento
+   * projectado enquanto há horário futuro + marcação/atendimento aberto.
+   */
+  cardKind: 'cycle' | 'open_attendance'
+  /** Chave estável no quadro (gémeo = `${id}:attendance`). */
+  boardKey: string
+  /** Horários futuros confirmados do contacto (badge no Agendado). */
+  futureAppointmentCount: number
+  /** True quando a conversa tem sessão/proposta/quadro de marcação activo. */
+  hasOpenAttendance: boolean
 }
 
 export type OpportunityDetail = OpportunityListItem & {

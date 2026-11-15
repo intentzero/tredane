@@ -164,6 +164,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   const list = items ?? []
   const countMap = new Map((counts ?? []).map((c) => [c.stage, c.count]))
   const stageTotal = countMap.get(stage) ?? 0
+  // Soma de cartões (DEC-187: gémeo de atendimento conta na coluna cedo).
   const totalOpen = (counts ?? [])
     .filter((c) => c.stage !== 'concluido' && c.stage !== 'perdido')
     .reduce((n, c) => n + c.count, 0)
@@ -223,20 +224,25 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
         ) : (
           list.map((card) => {
             const name = contactLabel(card.contact.displayName, card.contact.waId)
+            const isAttendanceTwin = card.cardKind === 'open_attendance'
+            const aptCount = card.futureAppointmentCount ?? 0
             const meta = [
               card.assigneeDisplayName ?? 'Sem responsável',
               relativeTime(card.lastInteractionAt),
-              appointmentLine(
-                card.linkedAppointment?.startsAt,
-                card.missingAppointment,
-                card.linkedAppointment?.changeReason,
-              ),
+              isAttendanceTwin
+                ? 'Atendimento em curso'
+                : appointmentLine(
+                    card.linkedAppointment?.startsAt,
+                    card.missingAppointment,
+                    card.linkedAppointment?.changeReason,
+                  ),
             ].join(' · ')
             return (
               <article
-                key={card.id}
+                key={card.boardKey ?? card.id}
                 className="panel-card-lg"
                 aria-label={`${name}. ${meta}`}
+                data-card-kind={card.cardKind ?? 'cycle'}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
@@ -261,16 +267,27 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                   >
                     {name}
                   </button>
-                  <Button
-                    className="panel-move"
-                    aria-label={`Mover ${name}`}
-                    onPress={() => {
-                      setMoveError(null)
-                      setMovingCard(card)
-                    }}
-                  >
-                    Mover
-                  </Button>
+                  {!isAttendanceTwin && card.stage === 'agendado' && aptCount > 1 ? (
+                    <span
+                      className="acomp-apt-count"
+                      title={`${aptCount} horários confirmados`}
+                      aria-label={`${aptCount} horários confirmados`}
+                    >
+                      {aptCount}
+                    </span>
+                  ) : null}
+                  {isAttendanceTwin ? null : (
+                    <Button
+                      className="panel-move"
+                      aria-label={`Mover ${name}`}
+                      onPress={() => {
+                        setMoveError(null)
+                        setMovingCard(card)
+                      }}
+                    >
+                      Mover
+                    </Button>
+                  )}
                 </div>
                 <span className="panel-meta">{meta}</span>
                 <Button
