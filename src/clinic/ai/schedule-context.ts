@@ -146,6 +146,12 @@ export async function buildClinicAiContext(
     contactId: string
     recentTexts: string[]
     forecast?: ForecastAdapter
+    /**
+     * `full` (defeito): freeSlots via queryAvailability × dias (pesado).
+     * `hours`: só expediente / agora / políticas — para snapshot redact DEC-188
+     * (Lab: freeSlots no DO matava CPU em ca03).
+     */
+    agendaMode?: 'full' | 'hours'
     /** #411: reusa settings/catálogo e restringe horários ao serviço em jogo. */
     turn?: {
       settings: import('../config/types').ClinicSettingsRow
@@ -158,6 +164,7 @@ export async function buildClinicAiContext(
   const tz = settings.timezone || 'America/Sao_Paulo'
   const now = clock.nowMs()
   const today = clinicCivilDateFromUtc(tz, now)
+  const agendaMode = opts.agendaMode ?? 'full'
 
   const nowLabel = new Intl.DateTimeFormat('pt-BR', {
     timeZone: tz,
@@ -185,68 +192,71 @@ export async function buildClinicAiContext(
     })),
   )
 
-  const active = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
-  const chosen = pickServicesForSlots(active, opts.recentTexts, opts.turn?.serviceIdInPlay)
-  const mentioned = extractTimes(opts.recentTexts.join('\n'))
-  const tempoNotes = new Set<string>()
-  const forecast = memoAdapter(opts.forecast ?? { read: readOpenMeteo })
   const freeSlots: AiFreeSlotDay[] = []
-  for (const svc of chosen) {
-    for (let i = 0; i < AI_FREE_SLOT_DAYS; i++) {
-      const date = addDays(today, i)
-      let times: string[] = []
-      try {
-        const preview = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
-        const r = await queryAutomaticAvailability(
-          db,
-          tenantId,
-          { serviceId: svc.id, date },
-          clock,
-          forecast,
-        )
-        if (!r.schedulingAllowed) continue
-        if (mentioned.size > 0) {
-          const kept = new Set(r.slots.map((slot) => slot.startsAt))
-          for (const slot of preview.slots) {
-            if (slot.startsAt <= now) continue
-            const label = formatClinicTime(tz, slot.startsAt)
-            if (!mentioned.has(label) || kept.has(slot.startsAt)) continue
-            const verdict = await evaluateServiceTempo(
-              db,
-              tenantId,
-              { serviceId: svc.id, startsAt: slot.startsAt },
-              forecast,
-              clock,
-            )
-            if (verdict.outcome === 'nao_serve') tempoNotes.add(TEMPO_REFUSED_PHRASE)
-            if (verdict.outcome === 'indisponivel') tempoNotes.add(TEMPO_UNCONFIRMED_PHRASE)
+  let tempoNote: string | null = null
+  if (agendaMode === 'full') {
+    const active = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
+    const chosen = pickServicesForSlots(active, opts.recentTexts, opts.turn?.serviceIdInPlay)
+    const mentioned = extractTimes(opts.recentTexts.join('\n'))
+    const tempoNotes = new Set<string>()
+    const forecast = memoAdapter(opts.forecast ?? { read: readOpenMeteo })
+    for (const svc of chosen) {
+      for (let i = 0; i < AI_FREE_SLOT_DAYS; i++) {
+        const date = addDays(today, i)
+        let times: string[] = []
+        try {
+          const preview = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
+          const r = await queryAutomaticAvailability(
+            db,
+            tenantId,
+            { serviceId: svc.id, date },
+            clock,
+            forecast,
+          )
+          if (!r.schedulingAllowed) continue
+          if (mentioned.size > 0) {
+            const kept = new Set(r.slots.map((slot) => slot.startsAt))
+            for (const slot of preview.slots) {
+              if (slot.startsAt <= now) continue
+              const label = formatClinicTime(tz, slot.startsAt)
+              if (!mentioned.has(label) || kept.has(slot.startsAt)) continue
+              const verdict = await evaluateServiceTempo(
+                db,
+                tenantId,
+                { serviceId: svc.id, startsAt: slot.startsAt },
+                forecast,
+                clock,
+              )
+              if (verdict.outcome === 'nao_serve') tempoNotes.add(TEMPO_REFUSED_PHRASE)
+              if (verdict.outcome === 'indisponivel') tempoNotes.add(TEMPO_UNCONFIRMED_PHRASE)
+            }
           }
+          const mins = r.slots
+            .filter((s) => s.startsAt > now)
+            .map((s) => {
+              const t = formatClinicTime(tz, s.startsAt)
+              const [hh, mm] = t.split(':').map(Number) as [number, number]
+              return hh * 60 + mm
+            })
+          times = thin(mins).map(hhmm)
+        } catch {
+          // Serviço sem recurso utilizável etc.: sem horários para ele.
+          continue
         }
-        const mins = r.slots
-          .filter((s) => s.startsAt > now)
-          .map((s) => {
-            const t = formatClinicTime(tz, s.startsAt)
-            const [hh, mm] = t.split(':').map(Number) as [number, number]
-            return hh * 60 + mm
-          })
-        times = thin(mins).map(hhmm)
-      } catch {
-        // Serviço sem recurso utilizável etc.: sem horários para ele.
-        continue
+        if (times.length === 0) continue
+        freeSlots.push({
+          serviceName: svc.name,
+          date,
+          dayLabel: dayLabel(date, i, weekdayOf(date)),
+          times,
+        })
       }
-      if (times.length === 0) continue
-      freeSlots.push({
-        serviceName: svc.name,
-        date,
-        dayLabel: dayLabel(date, i, weekdayOf(date)),
-        times,
-      })
     }
+    tempoNote = [
+      tempoNotes.has(TEMPO_REFUSED_PHRASE) ? TEMPO_REFUSED_PHRASE : null,
+      tempoNotes.has(TEMPO_UNCONFIRMED_PHRASE) ? TEMPO_UNCONFIRMED_PHRASE : null,
+    ].filter((phrase): phrase is string => phrase != null).join(' ') || null
   }
-  const tempoNote = [
-    tempoNotes.has(TEMPO_REFUSED_PHRASE) ? TEMPO_REFUSED_PHRASE : null,
-    tempoNotes.has(TEMPO_UNCONFIRMED_PHRASE) ? TEMPO_UNCONFIRMED_PHRASE : null,
-  ].filter((phrase): phrase is string => phrase != null).join(' ') || null
 
   const appts = db.all<{ starts_at: number; service_name: string | null }>(
     `SELECT a.starts_at AS starts_at, s.name AS service_name

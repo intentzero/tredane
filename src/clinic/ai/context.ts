@@ -89,6 +89,11 @@ export async function buildAiContextPayload(
      * (attachments count + outras conversas) para poupar CPU no isolate.
      */
     skipDebugExcluded?: boolean
+    /**
+     * DEC-188 redact: `hours` evita queryAvailability × N no DO (Lab CPU).
+     * Defeito `full` quando há `clock` (suggestReply / booking).
+     */
+    agendaMode?: 'full' | 'hours'
   } = {},
 ): Promise<{
   payload: AiContextPayload
@@ -217,6 +222,7 @@ export async function buildAiContextPayload(
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),
       forecast: opts.forecast,
+      agendaMode: opts.agendaMode ?? 'full',
       ...(opts.turn
         ? {
             turn: {
