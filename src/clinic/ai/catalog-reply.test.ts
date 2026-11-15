@@ -74,6 +74,11 @@ describe('catalogReply', () => {
     const open = catalogReply(boot.db, tenantId, 'Qual o horário de funcionamento da clínica?', clock)
     expect(open).toContain('09:00–12:00 e 13:00–18:00')
     expect(open).not.toContain('09:00–18:00')
+    // Lab Bloco B: FAQ de expediente, não DEC-151 «Não entendi «depois»» + lista.
+    const evening = catalogReply(boot.db, tenantId, 'tem horário depois das 20h?', clock)
+    expect(evening).toContain('09:00–12:00 e 13:00–18:00')
+    expect(evening).not.toMatch(/n[aã]o entendi/i)
+    expect(evening).not.toMatch(/Quer ver as op[cç][oõ]es/i)
 
     expect(catalogReply(boot.db, tenantId, 'Quanto custa a axila masculina e quanto tempo dura?', clock)).toBe(
       'Axila masculina custa R$ 50,00 e dura 15 min.',

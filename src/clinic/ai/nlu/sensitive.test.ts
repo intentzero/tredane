@@ -122,6 +122,13 @@ describe('classifySensitive (#409)', () => {
       labels: ['pergunta_politica'],
       pause: false,
     },
+    // Lab Bloco B — FAQ «cancelamento» (não DEC-151 / não cancelar)
+    {
+      id: 'E-06b',
+      text: 'como funciona o cancelamento se eu marcar?',
+      labels: ['pergunta_politica'],
+      pause: false,
+    },
     // G-06 — cancelar real
     {
       id: 'G-06',
@@ -310,7 +317,7 @@ describe('classifySensitive (#409)', () => {
         expect(isStrongInjection(hits)).toBe(false)
         expect(isWeakInjection(hits)).toBe(false)
       }
-      if (row.id === 'E-06') expect(hasPolicyQuestion(hits)).toBe(true)
+      if (row.id === 'E-06' || row.id === 'E-06b') expect(hasPolicyQuestion(hits)).toBe(true)
       if (row.labels.includes('recomecar')) expect(hasRestartRequest(hits)).toBe(true)
       if (row.id === 'R-03') expect(hasRestartRequest(hits)).toBe(false)
       if (row.labels.includes('desistir')) expect(hasSoftDeclineRequest(hits)).toBe(true)

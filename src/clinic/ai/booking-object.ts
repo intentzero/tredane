@@ -94,8 +94,36 @@ const BOOKING_INTENT =
  */
 const SERVICE_INQUIRY = /\b(fazem|faz|tem|têm|oferecem|oferece)\b/i
 
+/**
+ * Sobras que `catalogMissHint` ecoa em FAQs (política, expediente, etc.) e que
+ * não são nomes de serviço. Com booking/inquiry falso-positivo (`marcar`,
+ * `horário`, `tem`), sem isto caímos em DEC-151 / clarify + lista.
+ * Lab Bloco B (15/11/2026): cancelamento / depois das 20h.
+ */
+const FAQ_MISS_TOKENS: ReadonlySet<string> = new Set([
+  'depois',
+  'funciona',
+  'cancelamento',
+  'cancelamentos',
+  'multa',
+  'politica',
+  'politicas',
+  'feriado',
+  'feriados',
+  'expediente',
+  'funcionamento',
+  'noturno',
+  'noturna',
+])
+
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+/** True se o eco DEC-151 é só léxico de FAQ (sem substantivo de procedimento). */
+function isFaqMissLeftover(unknown: string): boolean {
+  const tokens = unknown.split(/\s+/).filter(Boolean)
+  return tokens.length > 0 && tokens.every((t) => FAQ_MISS_TOKENS.has(fold(t)))
 }
 
 function significantWords(name: string): string[] {
@@ -641,13 +669,18 @@ export function resolveBookingObject(input: {
       const inquiry = SERVICE_INQUIRY.test(text)
       if (unknown && exactServiceHits.length === 0 && scored.length === 0) {
         const unknownTokens = unknown.split(/\s+/).filter(Boolean)
+        // FAQ pura (política/expediente): não dump DEC-151 — open-path / gates acima.
+        if (isFaqMissLeftover(unknown)) {
+          return noneResult()
+        }
         // Marcar X desconhecido, ou pergunta curta «fazem X?» (um só termo).
         if (booking || (inquiry && unknownTokens.length === 1)) {
           return handoff('inexistente')
         }
       }
       // Clarify só com intenção de marcar — inquiry aberta fica para o extrator (#491).
-      if (booking) {
+      // FAQ com booking falso-positivo e sem eco útil também não lista o catálogo.
+      if (booking && !(unknown && isFaqMissLeftover(unknown))) {
         return {
           kind: 'clarify',
           candidates: listBookableOptions(services).filter(

@@ -1383,6 +1383,17 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'E-06b',
+    title: 'FAQ «como funciona o cancelamento» (Lab Bloco B)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'como funciona o cancelamento se eu marcar?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['24h'],
+      outboundExcludes: ['Não entendi', 'Quer ver as opções'],
+    },
+  },
+  {
     id: 'G-06',
     title: 'Cancelar',
     turnosIdeais: 1,
