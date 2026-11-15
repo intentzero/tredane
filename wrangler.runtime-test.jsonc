@@ -46,6 +46,10 @@
       {
         "binding": "INBOUND_EVENTS",
         "queue": "tredane-inbound-dev"
+      },
+      {
+        "binding": "LLM_JOBS",
+        "queue": "tredane-llm-dev"
       }
     ],
     "consumers": [
@@ -55,6 +59,14 @@
         "max_batch_timeout": 1,
         "max_retries": 3,
         "dead_letter_queue": "tredane-inbound-dlq-dev",
+        "retry_delay": 1
+      },
+      {
+        "queue": "tredane-llm-dev",
+        "max_batch_size": 5,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "tredane-llm-dlq-dev",
         "retry_delay": 1
       }
     ]

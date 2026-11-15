@@ -12,7 +12,15 @@ import { isDevelopmentEnv } from '../security/env-gate'
 import { clinicDurableObjectName, isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
 import { shedDueAlarmBacklog } from './clinic-do-alarm-shed'
 import { labMaxTurnsDaily } from '../lab/gate'
-import { labDay, readLabState, runLabTurn, type LabStateResult, type LabTurnInput, type LabTurnResult } from '../lab/turn'
+import {
+  collectLabTurnAfterLlm,
+  labDay,
+  readLabState,
+  runLabTurn,
+  type LabStateResult,
+  type LabTurnInput,
+  type LabTurnResult,
+} from '../lab/turn'
 import type { ProposalButtonClickInput } from '../clinic/proposals'
 import { DurableObject } from 'cloudflare:workers'
 import {
@@ -24,6 +32,15 @@ import {
   type ClaimOutboundSendResult,
 } from '../clinic/inbox/dispatch'
 import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
+import { llmOutOfDoEnabled } from '../clinic/ai/llm-out-of-do'
+import {
+  claimLlmJobForTenant,
+  applyLlmResultOp,
+  failLlmJobOp,
+  type ApplyLlmResultInput,
+  type FailLlmJobInput,
+} from '../clinic/ai/llm-apply'
+import type { LlmQueueMessage } from '../clinic/ai/llm-queue-types'
 import {
   acknowledgeOutboxResult,
   assertClinicTenantId,
@@ -2139,6 +2156,104 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return releaseOutboundSendOp(this.#db, caller, input)
   }
 
+  /** DEC-188 — reivindica job LLM antes do AI Gateway (consumer da fila). */
+  async claimLlmJob(
+    caller: ClinicCaller,
+    input: { jobId: string; idempotencyKey: string },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = claimLlmJobForTenant(this.#db, caller.tenantId, input, this.#clock)
+    if (result.status === 'claimed' || result.status === 'done' || result.status === 'in_flight') {
+      return { status: result.status, job: result.job }
+    }
+    if (result.status === 'failed' || result.status === 'resolved_stale') {
+      return { status: result.status, job: result.job }
+    }
+    return { status: 'missing' as const }
+  }
+
+  /** DEC-188 — aplica resultado Claude (extract/redact) no DO. */
+  async applyLlmResult(
+    caller: ClinicCaller,
+    input: ApplyLlmResultInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const deps = this.#aiAssistDepsWithFlow(
+      clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
+      { tenantId: caller.tenantId },
+    )
+    const outcome = applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
+    if (outcome.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, outcome.outbox, true)
+      await this.#drain(caller)
+    }
+    if (outcome.resumeAutodraft) {
+      // Continua booking (+ eventual enqueue redact) sem Claude no isolate.
+      await this.#runAutoDraftsWork(caller, null)
+    }
+    if (outcome.job) {
+      await this.#emitAiDraftEvent(caller, outcome.job.conversationId, {
+        state: outcome.status === 'applied' ? 'generating' : outcome.status,
+      })
+    }
+    return {
+      status: outcome.status,
+      resumeAutodraft: false,
+      reason: outcome.reason,
+    }
+  }
+
+  /** DEC-188 — falha de Gateway/timeout/lease → DEC-107. */
+  async failLlmJob(caller: ClinicCaller, input: FailLlmJobInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const outcome = failLlmJobOp(this.#db, caller, this.#clock, input)
+    if (outcome.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, outcome.outbox, true)
+      await this.#drain(caller)
+    }
+    if (outcome.job) {
+      await this.#emitAiDraftEvent(caller, outcome.job.conversationId, {
+        state: 'failed',
+      })
+    }
+    return { status: outcome.status, reason: outcome.reason }
+  }
+
+  /** DEC-188 / Lab — jobs LLM ainda abertos para poll no Worker. */
+  async listOpenLlmJobs(
+    caller: ClinicCaller,
+    input: { conversationId: string },
+  ): Promise<LlmQueueMessage[]> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return this.#db
+      .all<{
+        id: string
+        conversation_id: string
+        message_id: string
+        purpose: string
+        idempotency_key: string
+      }>(
+        `SELECT id, conversation_id, message_id, purpose, idempotency_key FROM llm_jobs
+         WHERE tenant_id = ? AND conversation_id = ? AND state IN ('queued', 'claimed')
+         ORDER BY created_at`,
+        caller.tenantId,
+        input.conversationId,
+      )
+      .map((r) => ({
+        source: 'llm_job' as const,
+        tenantId: caller.tenantId,
+        jobId: r.id,
+        conversationId: r.conversation_id,
+        messageId: r.message_id,
+        purpose: r.purpose as 'extract' | 'redact',
+        idempotencyKey: r.idempotency_key,
+      }))
+  }
+
   async #sweepStuckOutbound(caller: ClinicCaller): Promise<number | null> {
     try {
       const swept = sweepStuckOutboundOp(this.#db, caller, this.#clock)
@@ -2354,6 +2469,37 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureDemoSeededForLab(caller)
     const used = (await this.ctx.storage.get<number>(`lab:turns:${labDay(this.#clock.nowMs())}`)) ?? 0
     return readLabState(this.#db, caller.tenantId, input, { used, cap: labMaxTurnsDaily(this.env) })
+  }
+
+  /**
+   * DEC-188 — depois do wait LLM no Worker: settle outbound + mensagens do turno.
+   */
+  async labCollectAfterLlm(
+    caller: ClinicCaller,
+    input: { conversationId: string; sinceMs: number; waId: string },
+  ): Promise<LabTurnResult> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    this.#assertLabAllowed(caller)
+    const used = (await this.ctx.storage.get<number>(`lab:turns:${labDay(this.#clock.nowMs())}`)) ?? 0
+    return collectLabTurnAfterLlm(
+      this.#db,
+      caller.tenantId,
+      { conversationId: input.conversationId, sinceMs: input.sinceMs },
+      {
+        nowMs: () => this.#clock.nowMs(),
+        settleOutbound: async (row) => {
+          await this.applyOutboundSendResult(caller, {
+            outboundId: row.outboundId,
+            outboxEventId: row.outboxEventId,
+            idempotencyKey: row.idempotencyKey,
+            outcome: 'succeeded',
+            providerMessageId: `lab.${row.outboxEventId}`,
+          })
+        },
+      },
+      { used, cap: labMaxTurnsDaily(this.env) },
+    )
   }
 
   /**
@@ -4580,36 +4726,53 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
         { tenantId: caller.tenantId },
       )
-      outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
-        limit: opts.limit,
-        onStart: async (job) => {
-          const t0 = this.#clock.nowMs()
-          await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
-          // Demo: alarme é no-op e reagendar só desperta a espiral.
-          if (!isDemoTenantId(caller.tenantId)) {
-            await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
-          }
-          turnPhase('autodraft_on_start', this.#clock.nowMs() - t0)
+      const llmOut = llmOutOfDoEnabled(this.env, caller.tenantId)
+      outcomes = await clinicAi.runDueAutoDrafts(
+        this.#db,
+        caller,
+        this.#clock,
+        {
+          ...deps,
+          llmOutOfDo: llmOut,
+          enqueueLlmJob: llmOut
+            ? async (msg) => {
+                const q = this.env.LLM_JOBS
+                if (!q) throw new Error('LLM_JOBS_binding_missing')
+                await q.send(msg)
+              }
+            : undefined,
         },
-        onTyping: async (typingOb) => {
-          const t0 = this.#clock.nowMs()
-          try {
-            await this.#fanoutOutboxes(caller, [typingOb], true)
-            await this.#drain(caller)
-            turnPhase('autodraft_signal_typing', this.#clock.nowMs() - t0)
-          } catch (err) {
-            console.warn(
-              JSON.stringify({
-                level: 'warn',
-                event: 'whatsapp_typing.flush_failed',
-                tenantId: caller.tenantId,
-                error: err instanceof Error ? err.message : 'unknown',
-              }),
-            )
-          }
+        {
+          limit: opts.limit,
+          onStart: async (job) => {
+            const t0 = this.#clock.nowMs()
+            await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
+            // Demo: alarme é no-op e reagendar só desperta a espiral.
+            if (!isDemoTenantId(caller.tenantId)) {
+              await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
+            }
+            turnPhase('autodraft_on_start', this.#clock.nowMs() - t0)
+          },
+          onTyping: async (typingOb) => {
+            const t0 = this.#clock.nowMs()
+            try {
+              await this.#fanoutOutboxes(caller, [typingOb], true)
+              await this.#drain(caller)
+              turnPhase('autodraft_signal_typing', this.#clock.nowMs() - t0)
+            } catch (err) {
+              console.warn(
+                JSON.stringify({
+                  level: 'warn',
+                  event: 'whatsapp_typing.flush_failed',
+                  tenantId: caller.tenantId,
+                  error: err instanceof Error ? err.message : 'unknown',
+                }),
+              )
+            }
+          },
+          onTurnPhase: (phase, ms) => turnPhase(`autodraft_${phase}`, ms),
         },
-        onTurnPhase: (phase, ms) => turnPhase(`autodraft_${phase}`, ms),
-      })
+      )
       for (const o of outcomes) {
         const queued = [...(o.autoBook?.outbox ?? []), ...(o.replyOutbox ?? [])]
         if (queued.length > 0) {
@@ -4621,7 +4784,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           turnPhase('autodraft_dispatch_drain', this.#clock.nowMs() - drainStartedMs)
         }
         await this.#emitAiDraftEvent(caller, o.conversationId, {
-          state: o.status,
+          state: o.status === 'awaiting_llm' ? 'generating' : o.status,
           suggestionId: o.suggestion?.id ?? null,
           autoBook: o.autoBook
             ? { status: o.autoBook.status, appointmentId: o.autoBook.appointmentId ?? null }

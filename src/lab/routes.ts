@@ -25,7 +25,7 @@ import {
   type ReviewMcpOAuthProps,
 } from '../mcp/review-central/oauth'
 import type { WorkerBindings } from '../worker/bindings'
-import type { LabStateResult } from './turn'
+import type { LabStateResult, LabTurnResult } from './turn'
 import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
 
 const SERVER_INFO = { name: 'tredane-lab', version: '1.0.0' }
@@ -237,7 +237,25 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
         const text = str(args.text, 1000)
         if (!text) return toolErrorResult('text obrigatório (até 1000 caracteres).')
         const displayName = str(args.displayName, 60) ?? undefined
-        return toolTextResult(await stub.labTurn(caller, { waId: waId!, displayName, text }))
+        let result = (await stub.labTurn(caller, {
+          waId: waId!,
+          displayName,
+          text,
+        })) as LabTurnResult
+        // DEC-188: Claude corre no Worker/Queue; Lab bloqueia até apply (~15–20 s).
+        if (
+          result.conversationId &&
+          result.aiOutcomes.some((o) => o.status === 'awaiting_llm')
+        ) {
+          const { waitLabLlmJobs } = await import('./llm-wait')
+          await waitLabLlmJobs(env, stub, caller, result.conversationId)
+          result = (await stub.labCollectAfterLlm(caller, {
+            conversationId: result.conversationId,
+            sinceMs: result.startedAt,
+            waId: waId!,
+          })) as LabTurnResult
+        }
+        return toolTextResult(result)
       }
       case 'lab_tap': {
         const buttonId = str(args.buttonId, 256)

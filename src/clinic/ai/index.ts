@@ -53,6 +53,20 @@ export {
   type AutoDraftJob,
   type AutoDraftOutcome,
 } from './autodraft'
+export { llmOutOfDoEnabled, parseLlmOutOfDoMode } from './llm-out-of-do'
+export {
+  createLlmJob,
+  claimLlmJobOp,
+  getLlmJob,
+  type LlmJobRow,
+} from './llm-jobs'
+export {
+  applyLlmResultOp,
+  failLlmJobOp,
+  claimLlmJobForTenant,
+} from './llm-apply'
+export type { LlmQueueMessage, LlmJobPurpose } from './llm-queue-types'
+export { isLlmQueueMessage, LAB_LLM_WAIT_MS } from './llm-queue-types'
 export {
   enqueueTypingIndicator,
   enqueueTypingIndicatorForLatestInbound,

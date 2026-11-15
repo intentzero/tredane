@@ -18,6 +18,7 @@ import type { ClinicPurgeStateRow } from './types'
  * (audit sem conteúdo clínico apagado — só acções; Em aberto retenção de logs).
  */
 const WIPE_TABLES: readonly string[] = [
+  'llm_jobs',
   'ai_autodraft_jobs',
   'ai_suggestions',
   'ai_commands',

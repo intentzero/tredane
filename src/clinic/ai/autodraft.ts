@@ -128,6 +128,8 @@ import {
   promiseTeamFollowUp,
   textPromisesTeamFollowUp,
 } from './promise-team-follow-up'
+import { createLlmJob, hasDoneLlmJob, hasOpenLlmJobForConversation } from './llm-jobs'
+import { buildExtractSnapshot, buildRedactSnapshot } from './llm-snapshot'
 
 /** ADR-0015: anexa afterPersist do frame diferido ao envio outbound. */
 function withDeferredFrame(
@@ -290,13 +292,15 @@ export function nextAutoDraftDueAt(db: ClinicDb, tenantId: string): number | nul
 export type AutoDraftOutcome = {
   conversationId: string
   messageId: string
-  status: 'ready' | 'failed' | 'skipped' | 'superseded' | 'cap_reached'
+  status: 'ready' | 'failed' | 'skipped' | 'superseded' | 'cap_reached' | 'awaiting_llm'
   suggestion: AiSuggestionRow | null
   reason?: string
   /** Tentativa de agendamento pela IA (só com rascunho pronto). */
   autoBook?: AutoBookOutcome
   /** Texto da IA enviado sem clique, quando não houve proposta. */
   replyOutbox?: OutboxRow[]
+  /** Job enfileirado na `tredane-llm-*` (DEC-188). */
+  llmQueueMessage?: import('./llm-queue-types').LlmQueueMessage
 }
 
 /**
@@ -340,19 +344,25 @@ export function isInteractiveReplyBody(body: string): boolean {
  * Reabre para a mesma passagem. Sem isto o spinner fica preso para sempre.
  */
 function reclaimOrphanGenerating(db: ClinicDb, tenantId: string, now: number): void {
-  const row = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM ai_autodraft_jobs WHERE tenant_id = ? AND state = 'generating'`,
+  const rows = db.all<{ conversation_id: string }>(
+    `SELECT conversation_id FROM ai_autodraft_jobs WHERE tenant_id = ? AND state = 'generating'`,
     tenantId,
   )
-  const count = Number(row?.n ?? 0)
+  let count = 0
+  for (const row of rows) {
+    // DEC-188: job à espera da fila LLM não é órfão — não reabrir.
+    if (hasOpenLlmJobForConversation(db, tenantId, row.conversation_id)) continue
+    db.run(
+      `UPDATE ai_autodraft_jobs SET state = 'queued', due_at = ?, updated_at = ?
+       WHERE tenant_id = ? AND conversation_id = ? AND state = 'generating'`,
+      now,
+      now,
+      tenantId,
+      row.conversation_id,
+    )
+    count += 1
+  }
   if (count <= 0) return
-  db.run(
-    `UPDATE ai_autodraft_jobs SET state = 'queued', due_at = ?, updated_at = ?
-     WHERE tenant_id = ? AND state = 'generating'`,
-    now,
-    now,
-    tenantId,
-  )
   console.warn(
     JSON.stringify({
       level: 'warn',
@@ -457,6 +467,11 @@ export async function runDueAutoDrafts(
         sendMs?: number
       } = {},
     ): void => {
+      // DEC-188: turno ainda à espera da fila — sem ai.turn_decided.
+      if (outcome.status === 'awaiting_llm') {
+        out.push(outcome)
+        return
+      }
       const modelCalls =
         extra.modelCalls ??
         (extra.modelCalled || outcome.suggestion ? 1 : 0)
@@ -1307,6 +1322,70 @@ export async function runDueAutoDrafts(
           namedServiceId: namedSwapService?.id ?? null,
         }),
       )
+    } else if (
+      hasDoneLlmJob(db, tenantId, {
+        conversationId: job.conversationId,
+        messageId: job.messageId,
+        purpose: 'extract',
+      })
+    ) {
+      // DEC-188: extract já aplicado via Queue; slots estão no frame.
+      opts.onTurnPhase?.('extractor', 0)
+    } else if (deps.llmOutOfDo) {
+      const snapshot = buildExtractSnapshot(db, tenantId, liveTurn, clock)
+      if (snapshot) {
+        const created = createLlmJob(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            messageId: job.messageId,
+            purpose: 'extract',
+            frameVersion: snapshot.frameVersion,
+            snapshot,
+          },
+          clock,
+        )
+        if (deps.enqueueLlmJob) {
+          try {
+            await deps.enqueueLlmJob(created.queueMessage)
+          } catch (err) {
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'llm.enqueue_failed',
+                tenantId,
+                purpose: 'extract',
+                error: err instanceof Error ? err.message : 'unknown',
+              }),
+            )
+            // Sem fila → DEC-107 (não silêncio).
+            const fb = notifyModelFallback(
+              db,
+              tenantId,
+              { conversationId: job.conversationId, messageId: job.messageId },
+              clock,
+            )
+            cancelAutoDraft(db, tenantId, job.conversationId)
+            record({
+              ...job,
+              status: 'failed',
+              suggestion: null,
+              reason: 'llm_enqueue_failed',
+              replyOutbox: fb.outbox,
+            })
+            continue
+          }
+        }
+        record({
+          ...job,
+          status: 'awaiting_llm',
+          suggestion: null,
+          reason: 'extract',
+          llmQueueMessage: created.queueMessage,
+        })
+        continue
+      }
     } else {
       try {
         const extractorStarted = clock.nowMs()
@@ -1431,12 +1510,70 @@ export async function runDueAutoDrafts(
     })
 
     if (needsOpenReply) {
-      try {
-        if (getAiDailyUsage(db, tenantId, clock).capReached) {
-          cancelAutoDraft(db, tenantId, job.conversationId)
-          record({ ...job, status: 'cap_reached', suggestion: null })
-          continue
+      if (getAiDailyUsage(db, tenantId, clock).capReached) {
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({ ...job, status: 'cap_reached', suggestion: null })
+        continue
+      }
+      if (deps.llmOutOfDo) {
+        const snapshot = await buildRedactSnapshot(db, caller, clock, deps, {
+          conversationId: job.conversationId,
+          messageId: job.messageId,
+          question: liveTurn.turnText,
+          turn: liveTurn,
+        })
+        const created = createLlmJob(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            messageId: job.messageId,
+            purpose: 'redact',
+            frameVersion: snapshot.frameVersion,
+            snapshot,
+          },
+          clock,
+        )
+        if (deps.enqueueLlmJob) {
+          try {
+            await deps.enqueueLlmJob(created.queueMessage)
+          } catch (err) {
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'llm.enqueue_failed',
+                tenantId,
+                purpose: 'redact',
+                error: err instanceof Error ? err.message : 'unknown',
+              }),
+            )
+            const fb = notifyModelFallback(
+              db,
+              tenantId,
+              { conversationId: job.conversationId, messageId: job.messageId },
+              clock,
+            )
+            cancelAutoDraft(db, tenantId, job.conversationId)
+            record({
+              ...job,
+              status: 'failed',
+              suggestion: null,
+              reason: 'llm_enqueue_failed',
+              replyOutbox: fb.outbox,
+            })
+            continue
+          }
         }
+        record({
+          ...job,
+          status: 'awaiting_llm',
+          suggestion: null,
+          reason: 'redact',
+          llmQueueMessage: created.queueMessage,
+        })
+        continue
+      }
+      try {
         const exception = await generateExceptionReply(db, caller, clock, deps, {
           conversationId: job.conversationId,
           question: liveTurn.turnText,
