@@ -23,7 +23,7 @@ import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { parseTemporal, extractTimes } from './nlu/temporal'
 import { tryAiReschedule } from './reschedule'
-import { saveBookingFrame, getBookingFrame } from './schedule-session'
+import { saveBookingFrame } from './schedule-session'
 import { loadTurnContext } from './turn-context'
 
 const TZ = 'America/Sao_Paulo'
