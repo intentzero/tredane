@@ -2187,7 +2187,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     const deps = this.#aiAssistDepsWithFlow(
       clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
-      { tenantId: caller.tenantId },
     )
     const outcome = applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
     if (outcome.outbox.length > 0) {
@@ -4681,7 +4680,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   #aiAssistDepsWithFlow(
     base: ReturnType<typeof clinicAi.toAiAssistDeps>,
-    opts: { tenantId?: string } = {},
   ): ReturnType<typeof clinicAi.toAiAssistDeps> {
     const prepare = this.#prepareBookingFlowOffer()
     let out = base
@@ -4726,7 +4724,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     try {
       const deps = this.#aiAssistDepsWithFlow(
         clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
-        { tenantId: caller.tenantId },
       )
       const llmOut = llmOutOfDoEnabled(this.env, caller.tenantId)
       outcomes = await clinicAi.runDueAutoDrafts(

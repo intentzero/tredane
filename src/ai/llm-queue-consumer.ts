@@ -26,7 +26,6 @@ import type { WorkerBindings } from '../worker/bindings'
 import type { ClinicDurableObject } from '../worker/clinic-do'
 import {
   isLlmQueueEnvelope,
-  isLlmQueueMessage,
   isLlmShadowQueueMessage,
   type LlmQueueEnvelope,
   type LlmQueueMessage,
