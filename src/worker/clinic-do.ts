@@ -197,6 +197,7 @@ import {
 } from './clinic-do-timing'
 import type { SqlInvocationStats } from '../clinic'
 import { fromD1 } from '../db/admin/async-store'
+import { setConversationQualityCentralDb } from '../conversation-metrics/hook'
 import { insertInterpreterShadowEvent } from '../shadow-report/store'
 import {
   appendRealtimeEvent,
@@ -262,6 +263,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.ctx.blockConcurrencyWhile(async () => {
       runClinicMigrations(this.#db, this.#clock)
       ensureRealtimeFence(this.#db, this.#clock)
+      if (this.env.DB) {
+        setConversationQualityCentralDb(fromD1(this.env.DB))
+      }
       this.#ready = true
       // Auto-ping/pong sem acordar o DO (hibernação).
       try {

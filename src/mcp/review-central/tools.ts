@@ -17,6 +17,10 @@ import {
 import type { AdminDb } from '../../db/admin/store'
 import { asyncFromSync, fromD1 } from '../../db/admin/async-store'
 import {
+  parseMetricsWindowFromQuery,
+  fetchConversationMetricsReport,
+} from '../../conversation-metrics/query'
+import {
   listInterpreterShadowEvents,
   SHADOW_REPORT_ROW_LIMIT,
   type ShadowEventRow,
@@ -117,6 +121,22 @@ export const REVIEW_CENTRAL_MCP_TOOLS = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   SHADOW_REPORT_TOOL,
+  {
+    name: 'get_conversation_metrics' as const,
+    description:
+      'Métricas founder-approved de qualidade conversacional por clínica e janela (booking rate, red-line de confirmações falsas, atendente, abandono 24h, turnos até marcar, incompreensões, comparecimento IA). Sem texto de conversa. Só leitura; superadmin.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tenantId: { type: 'string', description: 'Filtro opcional por clínica.' },
+        sinceHours: { type: 'number', description: 'Janela em horas (1–2160); default 168 (7 dias).' },
+        sinceMs: { type: 'number', description: 'Início epoch ms (alternativa a sinceHours).' },
+        untilMs: { type: 'number', description: 'Fim epoch ms; default agora.' },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
 ]
 
 export type ReviewCentralStore = {
@@ -137,21 +157,26 @@ export type ReviewCentralStore = {
     tenantId?: string | null
     limit?: number
   }) => Promise<ShadowEventRow[]>
+  conversationMetrics?: typeof fetchConversationMetricsReport
 }
 
 export function createD1ReviewCentralStore(d1: D1Database): ReviewCentralStore {
+  const admin = fromD1(d1)
   return {
     list: (opts) => listReviewSamplesD1(d1, opts),
     get: (sampleId, nowMs) => getReviewSampleD1(d1, sampleId, nowMs),
-    shadowEvents: (opts) => listInterpreterShadowEvents(fromD1(d1), opts),
+    shadowEvents: (opts) => listInterpreterShadowEvents(admin, opts),
+    conversationMetrics: (window, nowMs) => fetchConversationMetricsReport(admin, window, nowMs),
   }
 }
 
 export function createSyncReviewCentralStore(db: AdminDb): ReviewCentralStore {
+  const asyncDb = asyncFromSync(db)
   return {
     list: async (opts) => listReviewSamplesSync(db, opts),
     get: async (sampleId, nowMs) => getReviewSampleSync(db, sampleId, nowMs),
-    shadowEvents: (opts) => listInterpreterShadowEvents(asyncFromSync(db), opts),
+    shadowEvents: (opts) => listInterpreterShadowEvents(asyncDb, opts),
+    conversationMetrics: (window, nowMs) => fetchConversationMetricsReport(asyncDb, window, nowMs),
   }
 }
 
@@ -328,6 +353,33 @@ export async function callReviewCentralMcpTool(
           messages,
           diagnosisGuidance: DIAGNOSIS_GUIDANCE,
           note: 'agent_side_diagnosis_only',
+        })
+      }
+      case 'get_conversation_metrics': {
+        if (!deps.store.conversationMetrics) {
+          return toolErrorResult('Métricas conversacionais indisponíveis neste armazenamento', {
+            error: 'conversation_metrics_unavailable',
+            status: 501,
+          })
+        }
+        const window = parseMetricsWindowFromQuery({
+          tenantId: optionalString(args, 'tenantId'),
+          sinceHours: optionalFiniteNumber(args, 'sinceHours'),
+          sinceMs: optionalFiniteNumber(args, 'sinceMs'),
+          untilMs: optionalFiniteNumber(args, 'untilMs'),
+          nowMs,
+        })
+        if (!window) {
+          return toolErrorResult('Janela inválida (sinceHours/sinceMs/untilMs)', {
+            error: 'invalid_params',
+            rpcCode: JSON_RPC_INVALID_PARAMS,
+          })
+        }
+        const report = await deps.store.conversationMetrics(window, nowMs)
+        return toolTextResult({
+          metrics: report,
+          howToRead:
+            'bookingRate = confirmados/intenção; falseConfirmations deve ser 0 (alerta ops.alert conversation.false_confirmation); messagesToBook mediana vs baseline 6; attendantCalls não é para minimizar à força.',
         })
       }
       case 'get_interpreter_shadow_report': {

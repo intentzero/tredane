@@ -33,9 +33,11 @@ import {
   hasStopRequest,
   wantsHumanPause,
 } from './nlu/sensitive'
-import { endBookingSession } from './booking-session'
+import { endBookingSession, getOpenBookingSession } from './booking-session'
 import { sayAct } from './dialogue-acts'
 import { formatOpeningHours } from './schedule-context'
+import { recordAttendantRequest } from '../../conversation-metrics/session-counters'
+import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -587,6 +589,11 @@ export function notifyHumanHandoff(
     clientRequestId: string
     /** DEC-114: pausa + alerta sem mensagem automática. */
     silent?: boolean
+    /**
+     * Integração métricas: `offered_misunderstanding_rule` quando a regra de
+     * 2 incompreensões oferecer atendente (PR paralelo). Default: spontaneous.
+     */
+    attendantSource?: AttendantRequestSource
   },
   clock: Clock,
 ): { already: boolean; sent: boolean; outbox: OutboxRow[] } {
@@ -606,6 +613,23 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
+  const openSession = getOpenBookingSession(db, tenantId, input.conversationId)
+  if (openSession && input.reason === 'customer_requested') {
+    recordAttendantRequest(db, openSession.sessionId, {
+      source: input.attendantSource ?? 'spontaneous',
+      recognized: !input.silent,
+      registered: Boolean(
+        db.get<{ id: string }>(
+          `SELECT id FROM pending_communications
+           WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team'
+             AND status != 'resolved' LIMIT 1`,
+          tenantId,
+          input.conversationId,
+        ),
+      ),
+      step: openSession.maxStep,
+    })
+  }
   // DEC-148 / T1: handoff (DEC-083) fecha a sessão de marcação com outcome handoff.
   const frame = getBookingFrame(db, tenantId, input.conversationId)
   const sessionEnd = endBookingSession(
@@ -679,6 +703,17 @@ export function notifyHumanHandoff(
       },
       clock,
     )
+    if (openSession && input.reason === 'customer_requested') {
+      try {
+        db.run(
+          `UPDATE booking_sessions SET attendant_registered = attendant_registered + 1
+           WHERE session_id = ?`,
+          openSession.sessionId,
+        )
+      } catch {
+        /* migração 0071 ausente em harness legado */
+      }
+    }
   } else {
     db.run(
       `UPDATE pending_communications
