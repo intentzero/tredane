@@ -1975,8 +1975,18 @@ export async function runDueAutoDrafts(
         if (clock.nowMs() - alarmTurnStartedMs >= AUTODRAFT_ALARM_BUDGET_MS) break
         await runInterpreterShadow(deps, task)
       }
-    } catch {
+    } catch (err) {
       // Medição nunca afecta o atendimento.
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ai.interpreter_shadow_enqueue_failed',
+          tenantId: task.tenantId,
+          conversationId: task.conversationId,
+          messageId: task.messageId,
+          error: err instanceof Error ? err.message : 'unknown',
+        }),
+      )
     }
     opts.onTurnPhase?.('interpreter_shadow', clock.nowMs() - started)
   }
