@@ -163,10 +163,12 @@ export function buildUserContent(input: AiGenerateInput): string {
           .map((z) => {
             const zp = z.priceCents == null ? 'sem preço' : formatBRL(z.priceCents)
             const gender = z.audience === 'feminino' || z.audience === 'masculino' ? z.audience : 'ambos'
+            const zEffective =
+              (z.clientExplanationAudience?.trim() || z.clientExplanation?.trim() || '') || null
             const zExpl =
-              z.clientExplanation == null || z.clientExplanation.trim() === ''
+              zEffective == null
                 ? 'explicação: (não cadastrada)'
-                : `explicação: ${u(z.clientExplanation.trim())}`
+                : `explicação: ${u(zEffective)}`
             return `  · ${u(z.name)}: ${z.durationMinutes} min; ${zp}; gênero: ${gender}; ${zExpl}`
           })
           .join('\n')

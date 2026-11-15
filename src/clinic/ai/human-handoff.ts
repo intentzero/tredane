@@ -178,6 +178,9 @@ export function humanHelpRequestButtons(
   tenantId: string,
   clock: Clock,
 ): Array<{ id: string; title: string }> {
+  void db
+  void tenantId
+  void clock
   return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
 }
 

@@ -82,7 +82,9 @@ export function analyzeContentRules(
     }
     if (procedureAsk) {
       const zoneHasExplanation = (s.zones ?? []).some(
-        (z) => z.clientExplanation != null && z.clientExplanation.trim() !== '',
+        (z) =>
+          (z.clientExplanationAudience != null && z.clientExplanationAudience.trim() !== '') ||
+          (z.clientExplanation != null && z.clientExplanation.trim() !== ''),
       )
       const serviceHasExplanation =
         s.clientExplanation != null && s.clientExplanation.trim() !== ''

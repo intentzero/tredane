@@ -300,11 +300,14 @@ export function answerFaqFromCatalog(input: {
     }
   }
 
-  // Preferir a explicação da variante nomeada (espelho de DEC-046 por zona).
-  // Se a pergunta nomeia uma zona e essa zona não tem explicação, não usar a
-  // prosa do serviço pai como se fosse da variante (lab: «O que inclui a íntima?»).
+  // Preferir a explicação da variante nomeada (DEC-189: override por género,
+  // senão comum do nome). Sem texto na variante, não usar a prosa do serviço
+  // pai (lab: «O que inclui a íntima?»).
   if (subject) {
-    const zoneExplanation = subject.clientExplanation?.trim() ?? ''
+    const zoneExplanation =
+      subject.clientExplanationAudience?.trim() ||
+      subject.clientExplanation?.trim() ||
+      ''
     if (zoneExplanation) {
       return {
         kind: 'explanation',

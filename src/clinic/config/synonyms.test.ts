@@ -23,7 +23,7 @@ describe('sinónimos DEC-110 (#421)', () => {
   it('migração 50 sobe CLINIC_SCHEMA_VERSION e cria colunas', () => {
     const s = boot()
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(70)
+      expect(CLINIC_SCHEMA_VERSION).toBe(71)
       const cols = s.db
         .all<{ name: string }>(`PRAGMA table_info(services)`)
         .map((c) => c.name)
@@ -348,7 +348,7 @@ describe('sinónimos DEC-110 (#421)', () => {
     expect(textCitesNameOrSynonym('quero axila', 'Lábio superior', ['buço'])).toBe(false)
   })
 
-  it('replaceZones grava clientExplanation por variante (espelho DEC-046)', () => {
+  it('replaceZones grava explicação comum e override por género (DEC-189)', () => {
     const { db, close } = bootClinicDb({ clock: systemClock })
     const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
     try {
@@ -376,14 +376,16 @@ describe('sinónimos DEC-110 (#421)', () => {
             durationMinutes: 20,
             priceCents: 15_000,
             audience: 'feminino',
-            clientExplanation: 'Inclui virilha e ânus.',
+            clientExplanation: 'Zona íntima com cera.',
+            clientExplanationAudience: 'Inclui virilha e ânus.',
           },
           {
             name: 'Íntima',
             durationMinutes: 25,
             priceCents: 18_000,
             audience: 'masculino',
-            clientExplanation: null,
+            clientExplanation: 'Zona íntima com cera.',
+            clientExplanationAudience: null,
           },
         ],
         systemClock,
@@ -392,11 +394,13 @@ describe('sinónimos DEC-110 (#421)', () => {
       expect(loaded.zones).toHaveLength(2)
       expect(loaded.zones[0]).toMatchObject({
         audience: 'feminino',
-        clientExplanation: 'Inclui virilha e ânus.',
+        clientExplanation: 'Zona íntima com cera.',
+        clientExplanationAudience: 'Inclui virilha e ânus.',
       })
       expect(loaded.zones[1]).toMatchObject({
         audience: 'masculino',
-        clientExplanation: null,
+        clientExplanation: 'Zona íntima com cera.',
+        clientExplanationAudience: null,
       })
 
       replaceServiceZonesOp(
@@ -411,6 +415,7 @@ describe('sinónimos DEC-110 (#421)', () => {
             priceCents: 15_000,
             audience: 'feminino',
             clientExplanation: '  ',
+            clientExplanationAudience: '  ',
           },
           {
             id: loaded.zones[1]!.id,
@@ -418,14 +423,17 @@ describe('sinónimos DEC-110 (#421)', () => {
             durationMinutes: 25,
             priceCents: 18_000,
             audience: 'masculino',
-            clientExplanation: 'Só a linha masculina.',
+            clientExplanation: null,
+            clientExplanationAudience: 'Só a linha masculina.',
           },
         ],
         systemClock,
       )
       const again = getService(db, 'clinic-demo-a', svc.id)!
       expect(again.zones[0]!.clientExplanation).toBeNull()
-      expect(again.zones[1]!.clientExplanation).toBe('Só a linha masculina.')
+      expect(again.zones[0]!.clientExplanationAudience).toBeNull()
+      expect(again.zones[1]!.clientExplanation).toBeNull()
+      expect(again.zones[1]!.clientExplanationAudience).toBe('Só a linha masculina.')
     } finally {
       close()
     }
