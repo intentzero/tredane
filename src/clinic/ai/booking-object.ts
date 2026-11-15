@@ -9,7 +9,7 @@ import { allowsMultipleVariants } from '../catalog/variant-selection'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
-import { THIRD_PARTY_RE } from './nlu/sensitive'
+import { FAMILY_VOCATIVE_RE, THIRD_PARTY_RE } from './nlu/sensitive'
 import { CATALOG_MISS_STOP } from '../config/option-match-stop'
 import { textCitesSynonym } from '../config/synonyms'
 import { citesServiceName, claimsWholeCatalog } from './schedule-choice'
@@ -82,10 +82,48 @@ const LAST_TIME = /\b(igual\s+(a|à)\s+ultima\s+vez|como\s+da\s+outra\s+vez|o\s+
 
 const DEICTIC = /\b(esse|essa|desse|dessa|aquele|aquela|o\s+mesmo|a\s+mesma)\b/i
 
-const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
+const PRICE = /\b(pre[cç]o|custa|valor|quanto|qnto|qto)\b/i
+
+function aestheticEvaluationService(services: readonly ServiceRow[]): ServiceRow | null {
+  return (
+    services.find(
+      (s) => /avalia[cç][aã]o/.test(fold(s.name)) && /estet/.test(fold(s.name)),
+    ) ??
+    services.find((s) => /avalia[cç][aã]o/.test(fold(s.name))) ??
+    null
+  )
+}
+
+function wantsSkinGuidance(text: string): boolean {
+  const folded = fold(text)
+  const skin = /\b(pele|manchad|mancha|oleos|acne|rejuvenesc|manchada)\b/.test(folded)
+  const guidance =
+    /\b(indica|recomend|suger|nao sei|qual\s+(faz|faco|proced)|oq\s+vc|o\s+que\s+vc)\b/.test(
+      folded,
+    )
+  return skin && guidance
+}
+
+function skinGuidanceReply(service: ServiceRow, conversationId: string, lista: string): string {
+  const avaliacao = service.name.trim()
+  const ask = sayAct(
+    'perguntar_servico',
+    conversationId,
+    { lista },
+    `Qual serviço você quer? Temos ${lista}.`,
+    { requireInTemplate: ['{lista}'] },
+  )
+  return `Pra pele assim, a ${avaliacao} é gratuita e ajuda a indicar o melhor tratamento.\n${ask}`
+}
 
 const BOOKING_INTENT =
-  /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
+  /\b(quero|queria\s+(?:ver|marcar|agendar|fazer)|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
+
+/** Léxico popular → radical do nome no catálogo (baseline S9a idosa / toxina). */
+const POPULAR_SERVICE_NAME_PARTS: ReadonlyArray<{ tokens: readonly string[]; inName: string }> = [
+  { tokens: ['ruga', 'rugas', 'testa', 'botox', 'botulina', 'galinha', 'glabela'], inName: 'toxina' },
+  { tokens: ['ruga', 'rugas', 'testa', 'botox', 'botulina', 'galinha', 'glabela'], inName: 'botul' },
+]
 
 /**
  * «Vocês fazem botox?» / «Tem peeling?» — pergunta curta de oferta.
@@ -527,7 +565,7 @@ export function resolveBookingObject(input: {
     return noneResult()
   }
 
-  if (THIRD_PARTY.test(fold(text))) return handoff('terceiro')
+  if (THIRD_PARTY.test(fold(text)) && !FAMILY_VOCATIVE_RE.test(text)) return handoff('terceiro')
   if (LAST_TIME.test(fold(text))) return handoff('historico_indisponivel')
   if (input.catalogDrift) return handoff('catalogo_vazio')
 
@@ -615,6 +653,20 @@ export function resolveBookingObject(input: {
     if (score > 0) scored.push({ option, score, source, variantOnly: variantHit && svcHit === null })
   }
 
+  const textFold = fold(text)
+  const textTokens = new Set(textFold.split(/[^a-z0-9]+/).filter(Boolean))
+  for (const hint of POPULAR_SERVICE_NAME_PARTS) {
+    if (!hint.tokens.some((t) => textTokens.has(t))) continue
+    for (const option of options) {
+      if (shadowedServiceIds.has(option.serviceId)) continue
+      const nameF = fold(option.serviceName)
+      if (!nameF.includes(hint.inName)) continue
+      const existing = scored.find((s) => s.option.key === option.key)
+      if (existing) existing.score = Math.max(existing.score, 45)
+      else scored.push({ option, score: 45, source: 'partial' })
+    }
+  }
+
   // Zona citada sem serviço citado + outro serviço com o mesmo radical no texto: põe esse serviço
   // na disputa (um pouco abaixo da zona) para o funil perguntar em vez de assumir.
   const variantOnlyServiceIds = new Set(
@@ -658,6 +710,24 @@ export function resolveBookingObject(input: {
     if (held.length > 0) pool = held
     else if (topScore < 30) {
       pool = options.filter((o) => o.serviceId === input.session!.serviceId)
+    }
+  }
+
+  if (pool.length === 0 && wantsSkinGuidance(text) && !wantsPrice) {
+    const av = aestheticEvaluationService(services)
+    if (av) {
+      const lista = catalogServiceList(services)
+      return {
+        kind: 'clarify',
+        candidates: listBookableOptions([av]),
+        missing: ['servico'],
+        question: skinGuidanceReply(av, cnv, lista),
+        handoffReason: null,
+        source: 'partial',
+        correction: false,
+        serviceId: av.id,
+        variantIds: [],
+      }
     }
   }
 

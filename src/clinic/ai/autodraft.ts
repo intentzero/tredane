@@ -69,10 +69,17 @@ import {
   AI_TRANSPARENCY_TEXT,
   handoffReason,
   humanTeamOfferButtons,
+  inboundWarrantsHandoffResume,
   isHumanTeamOfferAllowed,
   notifyHumanHandoff,
+  type AiReplyPauseReason,
+  readAiReplyPause,
   replyAfterHoursHumanRequest,
+  replyWhileHandoffPaused,
+  resumeAiReply,
+  shouldAcknowledgeWhileHandoffPaused,
 } from './human-handoff'
+import { resetMisunderstandingStreak } from './misunderstanding-streak'
 import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
@@ -216,11 +223,15 @@ export function enqueueAutoDraft(
   // #475 S4 opção B: texto de verdade limpa «já pedi» mesmo com IA pausada (antes do return).
   clearMediaAskTextOnRealInbound(db, tenantId, input.conversationId, body, now)
   // DEC-157: «avaliar»/«feedback» é orthogonal à pausa DEC-083 — enfileira mesmo pausada.
-  if (
-    isConversationPaused(db, tenantId, input.conversationId) &&
-    !isReviewFlagRequest(body)
-  ) {
-    return null
+  if (isConversationPaused(db, tenantId, input.conversationId) && !isReviewFlagRequest(body)) {
+    const pause = readAiReplyPause(db, tenantId, input.conversationId)
+    const reason = (pause?.reason ?? 'off_purpose') as AiReplyPauseReason
+    if (
+      !inboundWarrantsHandoffResume(body, reason) &&
+      !shouldAcknowledgeWhileHandoffPaused(reason)
+    ) {
+      return null
+    }
   }
   // Mesmo detector do caminho do hub em runDueAutoDrafts (TR-306).
   // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
@@ -660,7 +671,35 @@ export async function runDueAutoDrafts(
     }
     if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
     if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
-    if (isConversationPaused(db, tenantId, job.conversationId)) { skip('ai_reply_paused'); continue }
+    const aiPause = readAiReplyPause(db, tenantId, job.conversationId)
+    if (aiPause) {
+      const pauseReason = aiPause.reason as AiReplyPauseReason
+      if (inboundWarrantsHandoffResume(inboundBody, pauseReason)) {
+        const resumeOutbox = resumeAiReply(db, tenantId, job.conversationId, clock)
+        if (resumeOutbox.length > 0) {
+          // evento de retomada — não conta como resposta à cliente
+        }
+      } else if (shouldAcknowledgeWhileHandoffPaused(pauseReason)) {
+        const ack = replyWhileHandoffPaused(
+          db,
+          tenantId,
+          { conversationId: job.conversationId, clientRequestId: `ai-handoff-ack:${job.messageId}` },
+          clock,
+        )
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'handoff_paused_ack',
+          replyOutbox: ack.outbox,
+        })
+        continue
+      } else {
+        skip('ai_reply_paused')
+        continue
+      }
+    }
     // A atendente já respondeu durante a espera.
     if (lastMessageDirection(db, tenantId, job.conversationId) !== 'inbound') { skip('already_answered'); continue }
     // #411: uma leitura por job — catálogo, mensagens, sessão, turno, compromisso futuro.
@@ -1094,6 +1133,7 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             clientRequestId: `ai-handoff-after-hours:${job.messageId}`,
+            messageId: job.messageId,
           },
           clock,
         )
@@ -1977,7 +2017,7 @@ export async function runDueAutoDrafts(
       }
     }
     const tookInjectionPath = injectionSuspected && !deterministicReply && !proposalDelivered
-    const hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
+    let hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     let fallbackSent = false
     if (!tookInjectionPath && !hasOutbound && !proposalDelivered && !deterministicReply) {
       // DEC-107 (#489): falha do redator / modelo → frase fixa + alerta, IA activa.
@@ -1989,6 +2029,10 @@ export async function runDueAutoDrafts(
       )
       replyOutbox = fallback.outbox
       fallbackSent = fallback.sent || fallback.already
+      hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
+    }
+    if ((proposalDelivered || deterministicReply) && hasOutbound) {
+      resetMisunderstandingStreak(db, tenantId, job.conversationId, clock)
     }
     const textDiscarded =
       modelCalled &&

@@ -23,8 +23,11 @@ export {
   weeklyCovers,
   appointmentOccupiesUntil,
   listConfirmedOccupyingResource,
+  occupyingForRange,
+  createOccupancyDayIndex,
   resourceBusyReasons,
   gridStartMinutes,
+  type OccupancyDayIndex,
 } from './occupancy'
 export { queryAvailability } from './query'
 export { checkSlotAvailability } from './check'

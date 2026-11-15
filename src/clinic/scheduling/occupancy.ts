@@ -85,14 +85,94 @@ type AptSql = {
  * NÃO recalcula pela duração atual do serviço: um bloco mais longo que o
  * serviço, ou um serviço editado depois, ocupa o que foi reservado.
  */
+export type ServiceBufferCache = Map<string, number>
+
+function bufferMsForService(
+  db: ClinicDb,
+  tenantId: string,
+  serviceId: string,
+  cache?: ServiceBufferCache,
+): number {
+  if (cache?.has(serviceId)) return cache.get(serviceId)!
+  const svc = getService(db, tenantId, serviceId)
+  const ms = svc ? svc.bufferMinutes * 60_000 : 0
+  cache?.set(serviceId, ms)
+  return ms
+}
+
 export function appointmentOccupiesUntil(
   db: ClinicDb,
   tenantId: string,
   apt: Pick<AptSql, 'service_id' | 'ends_at' | 'occupies_until'>,
+  serviceBufferCache?: ServiceBufferCache,
 ): number {
   if (apt.occupies_until != null) return Math.max(apt.occupies_until, apt.ends_at)
-  const svc = getService(db, tenantId, apt.service_id)
-  return apt.ends_at + (svc ? svc.bufferMinutes * 60_000 : 0)
+  return apt.ends_at + bufferMsForService(db, tenantId, apt.service_id, serviceBufferCache)
+}
+
+/** Cache por recurso/dia: uma leitura SQL por recurso em `queryAvailability`. */
+export type OccupancyDayIndex = {
+  dayRange: Interval
+  excludeAppointmentId?: string | null
+  byResource: Map<string, OccupyingAppointment[]>
+  serviceBufferCache: ServiceBufferCache
+}
+
+export function createOccupancyDayIndex(
+  dayRange: Interval,
+  excludeAppointmentId?: string | null,
+): OccupancyDayIndex {
+  return {
+    dayRange,
+    excludeAppointmentId,
+    byResource: new Map(),
+    serviceBufferCache: new Map(),
+  }
+}
+
+function loadOccupyingForResourceDay(
+  db: ClinicDb,
+  tenantId: string,
+  index: OccupancyDayIndex,
+  resourceId: string,
+): OccupyingAppointment[] {
+  let hit = index.byResource.get(resourceId)
+  if (!hit) {
+    hit = listConfirmedOccupyingResource(
+      db,
+      tenantId,
+      resourceId,
+      index.dayRange,
+      index.excludeAppointmentId,
+      index.serviceBufferCache,
+    )
+    index.byResource.set(resourceId, hit)
+  }
+  return hit
+}
+
+/** Ocupações que intersectam `range`; com índice de dia evita N×SQL na grade. */
+export function occupyingForRange(
+  db: ClinicDb,
+  tenantId: string,
+  resourceId: string,
+  range: Interval,
+  index: OccupancyDayIndex | undefined,
+  excludeAppointmentId?: string | null,
+): OccupyingAppointment[] {
+  if (index) {
+    const dayList = loadOccupyingForResourceDay(db, tenantId, index, resourceId)
+    return dayList.filter((a) =>
+      intervalsOverlap(range, { startsAt: a.startsAt, endsAt: a.occupiesUntil }),
+    )
+  }
+  return listConfirmedOccupyingResource(
+    db,
+    tenantId,
+    resourceId,
+    range,
+    excludeAppointmentId,
+  )
 }
 
 export type OccupyingAppointment = {
@@ -112,6 +192,7 @@ export function listConfirmedOccupyingResource(
   range: Interval,
   /** Ao reagendar, o próprio compromisso não conta como conflito. */
   excludeAppointmentId?: string | null,
+  serviceBufferCache?: ServiceBufferCache,
 ): OccupyingAppointment[] {
   // DEC-082: room_resource_id é uma sala da lista do serviço. Equipamento exigido
   // (mode=equipment) ocupa uma vaga à parte, sem ser o room_resource_id.
@@ -119,8 +200,14 @@ export function listConfirmedOccupyingResource(
     `SELECT a.id, a.service_id, a.professional_id, a.room_resource_id, a.contact_id,
             a.starts_at, a.ends_at, a.occupies_until
      FROM appointments a
+     LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
      WHERE a.tenant_id = ?
        AND a.status = 'confirmed'
+       AND a.starts_at < ?
+       AND COALESCE(
+         a.occupies_until,
+         a.ends_at + COALESCE(s.buffer_minutes, 0) * 60000
+       ) > ?
        AND (
          a.professional_id = ?
          OR a.room_resource_id = ?
@@ -139,6 +226,8 @@ export function listConfirmedOccupyingResource(
        )
      ORDER BY a.starts_at, a.id`,
     tenantId,
+    range.endsAt,
+    range.startsAt,
     resourceId,
     resourceId,
     resourceId,
@@ -146,7 +235,7 @@ export function listConfirmedOccupyingResource(
   const out: OccupyingAppointment[] = []
   for (const row of rows) {
     if (excludeAppointmentId && row.id === excludeAppointmentId) continue
-    const occupiesUntil = appointmentOccupiesUntil(db, tenantId, row)
+    const occupiesUntil = appointmentOccupiesUntil(db, tenantId, row, serviceBufferCache)
     if (intervalsOverlap(range, { startsAt: row.starts_at, endsAt: occupiesUntil })) {
       const contactId = row.contact_id ?? null
       out.push({
@@ -207,6 +296,7 @@ export function resourceBusyReasons(
   excludeAppointmentId?: string | null,
   groupModeRoomId?: string | null,
   targetRoomId?: string | null,
+  occupancyIndex?: OccupancyDayIndex,
 ): ResourceBusyReason[] {
   const reasons: ResourceBusyReason[] = []
   if (range.endsAt > dayEndsAt) {
@@ -218,12 +308,13 @@ export function resourceBusyReasons(
   if (listBlocksOverlapping(db, tenantId, resourceId, range).length > 0) {
     reasons.push('resource_block')
   }
-  let occupying = listConfirmedOccupyingResource(
+  let occupying = occupyingForRange(
     db,
     tenantId,
     resourceId,
     range,
-    excludeAppointmentId,
+    occupancyIndex,
+    occupancyIndex ? occupancyIndex.excludeAppointmentId : excludeAppointmentId,
   )
   if (groupModeRoomId) {
     occupying = occupying.filter((a) => a.roomResourceId !== groupModeRoomId)

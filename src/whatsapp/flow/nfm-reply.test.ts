@@ -301,7 +301,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       const bodies = s.outboundBodies()
       expect(bodies.some((b) => b === FLOW_COPY.preparingProposal)).toBe(true)
       expect(bodies.join('\n')).not.toMatch(/America\//)
-      const proposal = bodies.find((b) => b.includes('Proposta de horário'))
+      const proposal = bodies.find((b) => b.includes('Fica assim:'))
       if (proposal) expect(proposal).toMatch(/Confirmar/)
     } finally {
       s.close()
@@ -402,7 +402,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(ack.needsProposal).toBe(true)
       expect(s.outboundBodies().some((b) => b === FLOW_COPY.preparingProposal)).toBe(true)
       // Ainda sem cartão Confirmar — a fase proposal é que monta.
-      expect(s.outboundBodies().some((b) => /Proposta de horário/i.test(b))).toBe(false)
+      expect(s.outboundBodies().some((b) => /Fica assim:/i.test(b))).toBe(false)
       expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.phase).toBe('ofertado')
 
       const prop = await handleFlowNfmReply(
@@ -428,7 +428,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(prop.autoBook?.proposalId).toBeTruthy()
       expect(prop.autoBook?.status).not.toBe('not_confirmed')
       expect(after.some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
-      expect(after.some((b) => /Proposta de horário/i.test(b))).toBe(true)
+      expect(after.some((b) => /Fica assim:/i.test(b))).toBe(true)
       expect(after.some((b) => /Confirmar/i.test(b))).toBe(true)
       expect(flushed.length).toBeGreaterThan(0)
     } finally {
@@ -498,7 +498,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(prop.outcome).toBe('proposal_sent')
       expect(prop.autoBook?.status).not.toBe('not_confirmed')
       expect(s.outboundBodies().some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
-      expect(s.outboundBodies().some((b) => /Proposta de horário/i.test(b))).toBe(true)
+      expect(s.outboundBodies().some((b) => /Fica assim:/i.test(b))).toBe(true)
       expect(s.appointmentCount()).toBe(0)
     } finally {
       s.close()
@@ -558,7 +558,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       const ackCount = bodies.filter((b) => b === FLOW_COPY.preparingProposal).length
       // Mid-flight (mesmo serviço/slot): segundo nfm não reenvia C16.
       expect(ackCount).toBe(1)
-      const hasProposal = bodies.some((b) => /Proposta de horário/i.test(b))
+      const hasProposal = bodies.some((b) => /Fica assim:/i.test(b))
       const hasRecovery = bodies.some((b) => b === FLOW_COPY.proposalBuildFailed)
       const hasFollowUp = bodies.some(
         (b) => b !== FLOW_COPY.preparingProposal && b.trim().length > 0,

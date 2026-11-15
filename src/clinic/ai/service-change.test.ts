@@ -85,7 +85,7 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
       expect(open).toHaveLength(1)
       expect(open[0]!.service).toBe('Massagem')
       expect(new Date(open[0]!.starts_at).toISOString()).toBe('2026-11-06T19:00:00.000Z') // sex 16:00 SP
-      expect(out.join('\n')).toMatch(/Serviço:\s*Massagem/i)
+      expect(out.join('\n')).toMatch(/Fica assim:\s*Massagem/i)
     } finally {
       s.close()
     }

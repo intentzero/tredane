@@ -502,7 +502,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: 'na verdade prefiro massagem' },
     ],
     expect: {
-      turns: [{ turn: 1, matches: [/Serviço:\s*Massagem/i] }],
+      turns: [{ turn: 1, matches: [/Fica assim:\s*Massagem/i] }],
       openProposals: 1,
       supersededProposals: 1,
       proposalAt: { date: '2026-11-06', time: '15:00' },
@@ -1356,7 +1356,9 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       // DEC-155 (revê DEC-113 no pedido de equipe): horário + IA activa, sem pausa.
       notPaused: true,
       outboundIncludes: [
-        'A equipe atende a partir de segunda às 09:00. Posso continuar te ajudando por aqui.',
+        'Deixei seu pedido para a equipe',
+        'A equipe responde a partir de segunda às 09:00',
+        'Posso continuar te ajudando por aqui',
       ],
     },
   },
