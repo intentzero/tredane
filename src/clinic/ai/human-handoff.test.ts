@@ -13,7 +13,7 @@ import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
-import { HUMAN_HANDOFF_TEXT, resumeAiReply } from './human-handoff'
+import { HANDOFF_PAUSED_ACK_TEXT, HUMAN_HANDOFF_TEXT, resumeAiReply } from './human-handoff'
 
 const NOW = Date.UTC(2026, 9, 28, 18, 51)
 
@@ -123,10 +123,18 @@ describe('pausa da IA na divergência', () => {
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(0)
 
       const price = s.say('Quanto custa a depilação de axila masculina?')
-      expect(enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: price.id }, s.clock)).toBeNull()
+      expect(
+        enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: price.id }, s.clock),
+      ).not.toBeNull()
       s.clock.advance(7_000)
       const second = await runDueAutoDrafts(s.db, s.caller, s.clock, { mode: 'synthetic', adapter: s.adapter })
-      expect(second).toHaveLength(0)
+      expect(second[0]?.reason).toBe('handoff_paused_ack')
+      expect(
+        s.db.get<{ body: string }>(
+          `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+          s.tenantId,
+        )?.body,
+      ).toBe(HANDOFF_PAUSED_ACK_TEXT)
       expect(s.calls()).toBe(0)
 
       resumeAiReply(s.db, s.tenantId, s.cnv.id, s.clock)

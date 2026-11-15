@@ -51,9 +51,21 @@ export type SensitiveHit = {
  * Corre também sobre o texto sem acentos (ver `wantsHumanText`).
  */
 const HUMAN_TARGET = String.raw`(?:(?:o|a|um|uma|algum|alguma)\s+)?(?:atendente(?:\s+humano)?|atendimento\s+humano|humano|humana|pessoa(?:\s+(?:real|de\s+verdade))?|algu[eé]m|equipe|equipa|recepcionista|recep[cç][aã]o)`
+/** Vocativo carinhoso («boa tarde minha filha», «obrigada minha filha») — não é agendar para terceiro. */
+export const FAMILY_VOCATIVE_RE =
+  /(?:^|(?:boa\s+tarde|boa\s+noite|bom\s+dia|oi|ol[aá]|obrigad[oa]|valeu)[,.\s!]+)(?:minha|meu)\s+(?:filha|filho)\b/i
+
 export const WANTS_HUMAN_RE = new RegExp(
   String.raw`(?<![\p{L}\p{N}])(?:` +
     [
+      // «tem uma pessoa aí?», «tem alguém?»
+      String.raw`tem\s+(?:uma\s+)?(?:pessoa|gente|algu[eé]m)(?:\s+a[ií]|\s+ai)?\s*[?!.…]*`,
+      // «não tô entendendo… desse robô»
+      String.raw`n[aã]o\s+(?:t[oô]|estou)\s+entendendo\b[^.?\n]{0,48}\b(?:rob[oô]|bot)\b`,
+      String.raw`n[aã]o\s+(?:t[oô]|estou)\s+entendendo\s+nada\b`,
+      // «prefiro ligar» / telefone da clínica
+      String.raw`(?:prefiro|quero)\s+ligar\b`,
+      String.raw`telefone\b[^.?\n]{0,40}\bprefiro\s+ligar\b`,
       // «falar com um atendente», «posso conversar com alguém?»
       String.raw`(?:falar|conversar)\s+com\s+${HUMAN_TARGET}`,
       // «me passa pra alguém», «me transfere para um humano», «passa pra equipe»
@@ -140,9 +152,15 @@ export const FAREWELL_RE = new RegExp(
   [
     String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|vlw|bye|obrigad[oa]|valeu)[.!?\s]*$`,
     String.raw`\b(?:tchau|adeus)\b`,
+    String.raw`\bdeus\s+te\s+aben[cç][oõ]e\b`,
+    String.raw`\b(?:am[eé]m|aben[cç]oada)\b`,
   ].join('|'),
   'i',
 )
+
+/** Confirmação de marcação com agradecimento — não é handoff nem abandono. */
+export const BOOKING_ACK_WITH_THANKS_RE =
+  /\b(?:sim|pode\s+marcar|confirmo|fechado)\b[\s\S]{0,120}(?:obrigad[oa]|valeu|deus\s+te\s+aben)/iu
 
 /** A ∪ B — classificador; o autobook distingue A vs B. */
 export const SOFT_DECLINE_RE = new RegExp(
@@ -202,6 +220,7 @@ export function classifySensitive(text: string): SensitiveHit[] {
     SOFT_DECLINE_RE.test(body) &&
     !SOFT_DECLINE_CLOCK_RE.test(body) &&
     !RESTART_BOOKING_RE.test(body) &&
+    !BOOKING_ACK_WITH_THANKS_RE.test(body) &&
     !hits.some((h) => h.label === 'pedir_parar')
   ) {
     hits.push({ label: 'desistir', matchedBy: 'soft_decline' })
@@ -226,7 +245,13 @@ export function classifySensitive(text: string): SensitiveHit[] {
 
   if (RESCHEDULE_RE.test(body)) hits.push({ label: 'remarcar', matchedBy: 'reschedule' })
 
-  if (THIRD_PARTY_RE.test(fold(body))) hits.push({ label: 'terceiro', matchedBy: 'third_party' })
+  if (
+    THIRD_PARTY_RE.test(fold(body)) &&
+    !FAMILY_VOCATIVE_RE.test(body) &&
+    !BOOKING_ACK_WITH_THANKS_RE.test(body)
+  ) {
+    hits.push({ label: 'terceiro', matchedBy: 'third_party' })
+  }
 
   return hits
 }
