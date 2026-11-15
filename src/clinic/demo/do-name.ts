@@ -8,7 +8,7 @@
 import { DEMO_CLINIC_TENANT_ID, isDemoTenantId } from './ids'
 
 /** Bump quando a instância DO da demo ficar irrecuperável (CPU death spiral). */
-export const DEMO_CLINIC_DO_GENERATION = 'do-v8'
+export const DEMO_CLINIC_DO_GENERATION = 'do-v9'
 
 export function clinicDurableObjectName(tenantId: string): string {
   if (isDemoTenantId(tenantId)) {
