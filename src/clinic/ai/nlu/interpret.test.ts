@@ -63,6 +63,18 @@ describe('interpretTurn (#416)', () => {
     expect(r.coverage).toBeLessThanOrEqual(COVERAGE_THRESHOLD + 0.2)
   })
 
+  it('DEC-190: needsExtractor com data e sem serviço (lacuna híbrida)', () => {
+    const r = interpretTurn({
+      turnText: 'queria relaxar as costas amanhã',
+      messageId: 'msg_h1',
+      today: '2026-11-02',
+      services: [service({ id: 'svc_mass', name: 'Massagem relaxante' })],
+    })
+    expect(r.slots.date?.value).toBe('2026-11-03')
+    expect(r.slots.serviceId).toBeUndefined()
+    expect(r.needsExtractor).toBe(true)
+  })
+
   it('lê opção pendente com «a segunda»', () => {
     const r = interpretTurn({
       turnText: 'a segunda',

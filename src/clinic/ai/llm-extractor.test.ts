@@ -145,6 +145,8 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
         base: quiet,
       },
     )
+    // Afirmação curta: sem sinal de marcação no turno → serviço inventado cai
+    // (DEC-190 só relaxa com bookingSignal). Variantes/line/period mantêm citação.
     expect(v.slots.serviceId?.fonte).not.toBe('llm')
     expect(v.slots.variantIds).toBeUndefined()
     expect(v.slots.professionalId).toBeUndefined()
@@ -165,6 +167,34 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
         'optionIndex',
       ]),
     )
+  })
+
+  it('DEC-190: id de catálogo sem citação literal preenche serviço se léxico none + marcar', () => {
+    const massagem = service({ id: 'svc_mass', name: 'Massagem relaxante', zones: [] })
+    const base = interpretTurn({
+      turnText: 'queria relaxar as costas amanhã',
+      messageId: 'msg_h1',
+      today: '2026-11-02',
+      services: [massagem],
+    })
+    expect(base.slots.serviceId).toBeUndefined()
+    expect(base.slots.date?.value).toBe('2026-11-03')
+    const v = validateExtractorOutput(
+      { acts: ['marcar'], serviceId: 'svc_mass', dateLiteral: 'amanhã', line: 'feminino' },
+      {
+        messageId: 'msg_h1',
+        turnText: 'queria relaxar as costas amanhã',
+        today: '2026-11-02',
+        services: [massagem],
+        professionals: [],
+        pending: null,
+        base,
+      },
+    )
+    expect(v.slots.serviceId?.value).toBe('svc_mass')
+    expect(v.slots.serviceId?.fonte).toBe('llm')
+    expect(v.discarded).toContain('line')
+    expect(v.slots.line?.fonte).not.toBe('llm')
   })
 
   it('FAQ sem género: line inventada é descartada (DEC-079 / Lab Bloco D)', () => {
