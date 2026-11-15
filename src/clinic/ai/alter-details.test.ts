@@ -456,9 +456,7 @@ describe('Alterar detalhes → menu IA', () => {
         s.clock,
       )
       const rendered = renderProposalInteractive(proposal, s.db)
-      expect(rendered.body).toMatch(
-        /Alterar detalhes para mudar horário, serviço ou detalhes/,
-      )
+      expect(rendered.body).toMatch(/É só tocar em Confirmar, em Alterar detalhes/)
       expect(rendered.body).not.toMatch(/\bvariant(?:e|es)\b/i)
       expect(rendered.body).not.toMatch(/Alterar detalhes para mudar ou em Falar/)
     } finally {

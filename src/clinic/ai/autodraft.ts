@@ -1274,6 +1274,12 @@ export async function runDueAutoDrafts(
     const midFunnelAskInfo =
       Boolean(midFrame?.serviceId) &&
       classifyCrossCuttingAct({ text: turnText }).kind === 'ask_info'
+    // DEC-190: se o extrator pode preencher serviço (léxico none), o clarify
+    // «É X…?» cede ao extract — catalog só FAQ / outros caminhos.
+    const preferExtractService =
+      !midFrame?.serviceId &&
+      !midFunnelAskInfo &&
+      buildExtractSnapshot(db, tenantId, turn, clock) != null
     const catalogDeferred = createDeferredBookingFrame()
     const catalogText = midFunnelAskInfo
       ? null
@@ -1281,6 +1287,7 @@ export async function runDueAutoDrafts(
           conversationId: job.conversationId,
           turn,
           deferredFrame: catalogDeferred,
+          preferExtractService,
         })
     if (catalogText) {
       await signalTyping()

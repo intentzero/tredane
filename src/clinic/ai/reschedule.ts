@@ -326,13 +326,21 @@ export async function tryAiReschedule(
   // Chave civil da oferta (`2026-11-04T10:00`). «2026» não é 20:26.
   const spokenSlot = slotBindingFromChoice(input.inboundText.trim(), '')
   const dates = spokenSlot ? [spokenSlot.date] : [...extractDates(input.inboundText, today)]
-  let date = dates.length === 1 ? dates[0] : undefined
+  let date = dates.length === 1 ? dates[0] : dates.length > 1 ? dates[dates.length - 1] : undefined
   if (!date && facts.dayLabel) {
     const resolved = [...extractDates(facts.dayLabel, today)]
     if (resolved.length === 1) date = resolved[0]
   }
   // ADR-0015: data absoluta do frame (day_label órfã — não autoriza, #472).
-  if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando')) {
+  // Não colar no dia da oferta anterior se o turno cita outro dia («sexta» após terça).
+  const inboundFolded = input.inboundText.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const citesNewDay =
+  dates.length > 0 ||
+    facts.dayLabel != null ||
+    /\b(amanha|hoje|segunda|terca|quarta|quinta|sexta|sabado|domingo|semana|dia\s+\d{1,2})\b/.test(
+      inboundFolded,
+    )
+  if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando') && !citesNewDay) {
     date = frame.date
   }
   const times = spokenSlot ? [spokenSlot.time] : [...extractTimes(input.inboundText)]

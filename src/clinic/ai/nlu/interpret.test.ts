@@ -39,6 +39,16 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
 }
 
 describe('interpretTurn (#416)', () => {
+  it('reconhece abreviação «qnto» como preço', () => {
+    const r = interpretTurn({
+      turnText: 'qnto custa?',
+      messageId: 'msg_q',
+      today: '2026-11-02',
+      services: [service({ id: 'svc_1', name: 'Limpeza de pele' })],
+    })
+    expect(r.acts).toContain('informar_preco')
+  })
+
   it('reconhece preço e serviço com cobertura alta', () => {
     const svc = service({ id: 'svc_1', name: 'Limpeza de pele' })
     const r = interpretTurn({
@@ -61,6 +71,18 @@ describe('interpretTurn (#416)', () => {
     })
     expect(r.needsExtractor || r.acts.includes('desconhecido')).toBe(true)
     expect(r.coverage).toBeLessThanOrEqual(COVERAGE_THRESHOLD + 0.2)
+  })
+
+  it('DEC-190: needsExtractor com data e sem serviço (lacuna híbrida)', () => {
+    const r = interpretTurn({
+      turnText: 'queria relaxar as costas amanhã',
+      messageId: 'msg_h1',
+      today: '2026-11-02',
+      services: [service({ id: 'svc_mass', name: 'Massagem relaxante' })],
+    })
+    expect(r.slots.date?.value).toBe('2026-11-03')
+    expect(r.slots.serviceId).toBeUndefined()
+    expect(r.needsExtractor).toBe(true)
   })
 
   it('lê opção pendente com «a segunda»', () => {
@@ -122,5 +144,25 @@ describe('interpretTurn (#416)', () => {
       services: catalog,
     })
     expect(ambiguous.slots.serviceId).toBeUndefined()
+  })
+
+  it('Lab #8 / PR-D: «depois das Nh» preenche period (noite) sem time pontual', () => {
+    const faq = interpretTurn({
+      turnText: 'tem horário depois das 20h?',
+      messageId: 'msg_3b05c6',
+      today: '2026-11-02',
+      services: [],
+    })
+    expect(faq.slots.period?.value).toBe('noite')
+    expect(faq.slots.time).toBeUndefined()
+
+    const pref = interpretTurn({
+      turnText: 'só posso depois das 18h',
+      messageId: 'msg_h07',
+      today: '2026-11-02',
+      services: [],
+    })
+    expect(pref.slots.period?.value).toBe('noite')
+    expect(pref.slots.time).toBeUndefined()
   })
 })

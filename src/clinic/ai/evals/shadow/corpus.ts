@@ -87,7 +87,9 @@ export const REPLAY_CORPUS: ReplayPhrase[] = [
   { id: 'H04', tag: 'hora', text: 'semana que vem, segunda', expect: { date: '2026-11-09' } },
   { id: 'H05', tag: 'hora', text: 'dia 12 às 10', expect: { date: '2026-11-12', time: '10:00' } },
   { id: 'H06', tag: 'hora', text: 'tem vaga hoje?', expect: { date: '2026-11-05' } },
-  { id: 'H07', tag: 'hora', text: 'só posso depois das 18h', expect: {}, ignore: ['time', 'period'] },
+  // PR-D / Lab #8: «depois das Nh» → período (léxico); sem HH:MM pontual.
+  { id: 'H07', tag: 'hora', text: 'só posso depois das 18h', expect: { period: 'noite' } },
+  { id: 'H07b', tag: 'hora', text: 'tem horário depois das 20h?', expect: { period: 'noite' } },
   { id: 'H08', tag: 'hora', text: 'quinta que vem às 14h', expect: { date: '2026-11-12', time: '14:00' } },
   { id: 'H09', tag: 'hora', text: 'fim de tarde no sábado', expect: { date: '2026-11-07', period: 'tarde' } },
   { id: 'H10', tag: 'hora', text: 'às 8 e meia da manhã', expect: { time: '08:30' }, ignore: ['period'] },

@@ -176,9 +176,21 @@ export function validateExtractorOutput(
   }
 
   if (raw.serviceId) {
-    const svc = opts.services.find((s) => s.id === raw.serviceId)
+    const svc = opts.services.find((s) => s.id === raw.serviceId && s.active)
     const viaZone = Boolean(svc && variantServiceId === svc.id)
-    if (svc && raw.serviceId !== '_none' && (cites(svc.name, svc.synonyms) || viaZone)) {
+    const cited = Boolean(svc && (cites(svc.name, svc.synonyms) || viaZone))
+    // DEC-190 / H1 fatia serviço: se o léxico não leu serviço e há sinal de
+    // marcação, aceita id activo no catálogo (espelha a sombra relaxada).
+    // Não inventa serviço em FAQ / afirmação curta; line/variantes mantêm citação.
+    const lexiconHasService = Boolean(opts.base.slots.serviceId)
+    const bookingSignal =
+      opts.base.acts.includes('marcar') ||
+      /\b(quero|queria|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|fazer|preciso)\b/i.test(
+        opts.turnText,
+      )
+    const allowIdOnly =
+      !lexiconHasService && Boolean(svc) && bookingSignal && raw.serviceId !== '_none'
+    if (svc && raw.serviceId !== '_none' && (cited || allowIdOnly)) {
       slots.serviceId = fieldLlm(raw.serviceId, opts.messageId, svc.name)
     } else discarded.push('serviceId')
   } else if (variantServiceId && !slots.serviceId) {

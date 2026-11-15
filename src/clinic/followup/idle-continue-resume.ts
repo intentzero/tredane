@@ -29,6 +29,7 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { getActiveProposalForConversation, getProposal } from '../proposals/proposals'
+import { PROPOSAL_CONFIRM_NUDGE_LEAD } from '../proposals/text-confirm-nudge'
 import { renderProposalInteractive } from '../proposals/render'
 import { APPOINTMENT_PROPOSAL_VALIDITY_MS } from '../constants'
 import { FOLLOWUP_ACTOR, FOLLOWUP_ACTOR_DISPLAY } from './post-booking'
@@ -293,7 +294,7 @@ export function sendIdleContinueProposalReoffer(
   if (!proposal) return { outbox: [], duplicate: false }
   const validUntilMs = clock.nowMs() + APPOINTMENT_PROPOSAL_VALIDITY_MS
   const interactive = renderProposalInteractive(proposal, db, { validUntilMs, clock })
-  const body = `${IDLE_RESUME_LEAD_IN}\n${interactive.body}`
+  const body = `${PROPOSAL_CONFIRM_NUDGE_LEAD}\n\n${interactive.body}`
   const sent = sendOutboundMessageOp(
     db,
     caller,

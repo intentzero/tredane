@@ -14,12 +14,14 @@ import {
   slotStartUtc,
 } from './timezone'
 import {
+  createOccupancyDayIndex,
   gridStartMinutes,
-  listConfirmedOccupyingResource,
+  occupyingForRange,
   peakConcurrentPeople,
   resourceBusyReasons,
   resourceCapacity,
   serviceOfferingAllows,
+  type OccupancyDayIndex,
 } from './occupancy'
 import { earliestBookableStartsAt } from './booking-lead'
 import { candidateBreaksHolds } from './hold-fit'
@@ -115,9 +117,11 @@ export function placementBlockers(
     timezone: string
     excludeAppointmentId?: string | null
     excludeHoldId?: string | null
+    occupancyIndex?: OccupancyDayIndex
   },
   clock: Clock,
 ): UnavailabilityReason[] {
+  const occIndex = ctx.occupancyIndex
   const groupRoomId =
     room && room.attendanceMode === 'uma_para_todas' && room.capacity > 1 ? room.id : null
   const reasons: UnavailabilityReason[] = [
@@ -134,6 +138,7 @@ export function placementBlockers(
       ctx.excludeAppointmentId,
       groupRoomId,
       room?.id,
+      occIndex,
     ),
   ]
   if (
@@ -162,6 +167,9 @@ export function placementBlockers(
         ctx.range,
         ctx.dayEndsAt,
         ctx.excludeAppointmentId,
+        undefined,
+        undefined,
+        occIndex,
       ),
     )
     if (roomSexConflict(db, tenantId, room.id, ctx.range, service.audiencia, {
@@ -184,6 +192,9 @@ export function placementBlockers(
         ctx.range,
         ctx.dayEndsAt,
         ctx.excludeAppointmentId,
+        undefined,
+        undefined,
+        occIndex,
       ),
     )
   }
@@ -266,6 +277,10 @@ export function queryAvailability(
       : activeRoomsForService(db, tenantId, service, clock)
   const candidateStarts = gridStartMinutes(occMins)
   const slots: AvailableSlot[] = []
+  const occupancyIndex = createOccupancyDayIndex(
+    { startsAt: dayStartsAt, endsAt: dayEndsAt },
+    input.excludeAppointmentId,
+  )
 
   for (const startMinute of candidateStarts) {
     const startsAt = slotStartUtc(timezone, civil, startMinute)
@@ -301,6 +316,7 @@ export function queryAvailability(
             timezone,
             excludeHoldId: input.excludeHoldId,
             excludeAppointmentId: input.excludeAppointmentId,
+            occupancyIndex,
           },
           clock,
         )
@@ -313,7 +329,7 @@ export function queryAvailability(
                 roomCapacity
                   - peakConcurrentPeople(
                     range,
-                    listConfirmedOccupyingResource(db, tenantId, room.id, range).map((a) => ({
+                    occupyingForRange(db, tenantId, room.id, range, occupancyIndex).map((a) => ({
                       startsAt: a.startsAt,
                       endsAt: a.occupiesUntil,
                       personKey: a.personKey,

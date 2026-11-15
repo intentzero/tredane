@@ -100,6 +100,14 @@ export function serviceChangedReply(conversationId = ''): string {
   return sayAct('catalogo_mudou', conversationId, {}, SERVICE_CHANGED_REPLY)
 }
 
+/** Lacuna de cadastro (parcelamento/cartão) — equipe confirma; baseline 15/11/2026 P6. */
+export const PAYMENT_METHOD_REPLY =
+  'Sobre cartão e parcelamento, a equipe confirma com você.'
+
+export function paymentMethodReply(): string {
+  return PAYMENT_METHOD_REPLY
+}
+
 /** Fallback — `nao_consegui_fechar`. */
 export function teamConfirmsSoonReply(
   serviceName: string,
