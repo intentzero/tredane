@@ -250,7 +250,9 @@ describe('runInterpreterShadow', () => {
       expect(ev.fields?.service).toBe('llm_only')
       expect(ev.fields?.date).toBe('agree')
       expect(ev.llmOnly).toEqual(['service'])
-      expect(ev.strictDiscarded).toContain('serviceId')
+      // DEC-190: serviço com id no catálogo + marcar já não cai no strictDiscarded
+      // (a fatia H1 promove a validação relaxada a apply). Line inventada continua fora.
+      expect(ev.strictDiscarded ?? []).not.toContain('serviceId')
       expect(ev.relaxedRejected).toEqual([])
 
       const line = String(spy.mock.calls.at(-1)![0])
