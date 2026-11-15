@@ -1278,7 +1278,7 @@ export function sendOutboundMessageOp(
           templateLanguage,
           waId: getConversationWithContact(db, meta.tenantId, input.conversationId)!.contact
             .waId,
-          phoneNumberId: channel.phoneNumberId,
+          phoneNumberId: channel?.phoneNumberId ?? null,
           // Corpo só na fila interna — logs do consumer não devem ecoá-lo.
           // Texto livre humano: body com prefixo [Nome] (DEC-088).
           body: whatsappBody,
