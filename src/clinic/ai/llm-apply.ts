@@ -84,6 +84,10 @@ export type FailLlmJobInput = {
   errorCode: string
 }
 
+/**
+ * Aplica slots do extract (DEC-188 Queue). Validação = `validateExtractorOutput`
+ * (DEC-190: serviceId por id de catálogo quando léxico none + marcar).
+ */
 function applyExtractSlots(
   db: ClinicDb,
   tenantId: string,

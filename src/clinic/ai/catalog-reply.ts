@@ -294,6 +294,11 @@ export function catalogReply(
     }
     /** ADR-0015: acumula frame para a mesma TX do outbound. */
     deferredFrame?: import('./deferred-booking-frame').DeferredBookingFrame
+    /**
+     * DEC-190: cede o clarify «É {serviço}…?» ao extrator quando o léxico
+     * deixou service vazio e o modelo pode preencher id validado.
+     */
+    preferExtractService?: boolean
   } = {},
 ): string | null {
   const body = text.trim()
@@ -464,6 +469,8 @@ export function catalogReply(
     !CLOCK.test(source) &&
     !SHORT_CONFIRM.test(body.trim())
   ) {
+    // DEC-190: extrator preenche service antes do eco de clarify.
+    if (opts.preferExtractService) return null
     if (opts.conversationId && bookingMatch.serviceId) {
       saveSession(opts.conversationId, { serviceId: bookingMatch.serviceId })
     }

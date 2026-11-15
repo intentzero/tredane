@@ -376,9 +376,21 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
 
   const coverage =
     tokens.length === 0 ? 1 : Math.min(1, explained.size / Math.max(1, tokens.length))
-  // Slots já resolvidos deterministicamente: não chama o extrator.
+  // Slots já resolvidos deterministicamente: não chama o extrator —
+  // excepto fatia H1 (DEC-190): léxico leu data/hora/período mas não
+  // serviço, com intenção de marcar → o modelo pode preencher serviceId
+  // (validação por id no catálogo; line continua a exigir evidência).
+  const needsServiceExtract =
+    !slots.serviceId &&
+    (acts.includes('marcar') || BOOK.test(text)) &&
+    (slots.date != null ||
+      slots.dateLiteral != null ||
+      slots.time != null ||
+      slots.period != null ||
+      coverage < COVERAGE_THRESHOLD)
   const needsExtractor =
-    !hasSlots && (coverage < COVERAGE_THRESHOLD || acts.includes('desconhecido'))
+    (!hasSlots && (coverage < COVERAGE_THRESHOLD || acts.includes('desconhecido'))) ||
+    needsServiceExtract
 
   return { acts, slots, coverage, needsExtractor }
 }
