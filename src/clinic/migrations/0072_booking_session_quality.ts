@@ -2,8 +2,8 @@
  * Contadores de qualidade na sessão analítica (DEC-148) — sem texto da cliente.
  */
 
-export const MIGRATION_ID = 71
-export const MIGRATION_NAME = '0071_booking_session_quality'
+export const MIGRATION_ID = 72
+export const MIGRATION_NAME = '0072_booking_session_quality'
 
 export const STATEMENTS = [
   `ALTER TABLE booking_sessions ADD COLUMN misunderstanding_turns INTEGER NOT NULL DEFAULT 0`,

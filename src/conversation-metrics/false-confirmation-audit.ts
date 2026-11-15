@@ -84,7 +84,7 @@ export async function auditOutboundForFalseConfirmation(
       try {
         db.run(`UPDATE booking_sessions SET false_confirmation = 1 WHERE session_id = ?`, open.sessionId)
       } catch {
-        /* migração 0071 ausente */
+        /* migração 0072 ausente */
       }
     }
   }

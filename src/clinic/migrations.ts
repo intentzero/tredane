@@ -355,7 +355,7 @@ import {
   MIGRATION_ID as M71_ID,
   MIGRATION_NAME as M71_NAME,
   STATEMENTS as M71_STATEMENTS,
-} from './migrations/0071_booking_session_quality'
+} from './migrations/0072_booking_session_quality'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {

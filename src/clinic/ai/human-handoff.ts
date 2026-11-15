@@ -36,7 +36,10 @@ import {
 import { endBookingSession, getOpenBookingSession } from './booking-session'
 import { sayAct } from './dialogue-acts'
 import { formatOpeningHours } from './schedule-context'
-import { recordAttendantRequest } from '../../conversation-metrics/session-counters'
+import {
+  recordAttendantMetricsForOpenSession,
+  resolveAttendantRequestSource,
+} from '../../conversation-metrics/attendant-metrics'
 import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
 
@@ -614,9 +617,13 @@ export function notifyHumanHandoff(
     input.conversationId,
   )
   const openSession = getOpenBookingSession(db, tenantId, input.conversationId)
-  if (openSession && input.reason === 'customer_requested') {
-    recordAttendantRequest(db, openSession.sessionId, {
-      source: input.attendantSource ?? 'spontaneous',
+  const attendantSource = resolveAttendantRequestSource(
+    input.attendantSource,
+    input.clientRequestId,
+  )
+  if (input.reason === 'customer_requested' || attendantSource === 'offered_misunderstanding_rule') {
+    recordAttendantMetricsForOpenSession(db, tenantId, input.conversationId, {
+      source: attendantSource,
       recognized: !input.silent,
       registered: Boolean(
         db.get<{ id: string }>(
@@ -627,7 +634,6 @@ export function notifyHumanHandoff(
           input.conversationId,
         ),
       ),
-      step: openSession.maxStep,
     })
   }
   // DEC-148 / T1: handoff (DEC-083) fecha a sessão de marcação com outcome handoff.
@@ -703,7 +709,10 @@ export function notifyHumanHandoff(
       },
       clock,
     )
-    if (openSession && input.reason === 'customer_requested') {
+    if (
+      openSession &&
+      (input.reason === 'customer_requested' || attendantSource === 'offered_misunderstanding_rule')
+    ) {
       try {
         db.run(
           `UPDATE booking_sessions SET attendant_registered = attendant_registered + 1
@@ -711,7 +720,7 @@ export function notifyHumanHandoff(
           openSession.sessionId,
         )
       } catch {
-        /* migração 0071 ausente em harness legado */
+        /* migração 0072 ausente em harness legado */
       }
     }
   } else {

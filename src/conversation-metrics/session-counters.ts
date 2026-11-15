@@ -9,7 +9,7 @@ function failSoft(fn: () => void): void {
   try {
     fn()
   } catch {
-    /* migração 0071 ainda não aplicada em harnesses legados */
+    /* migração 0072 ainda não aplicada em harnesses legados */
   }
 }
 

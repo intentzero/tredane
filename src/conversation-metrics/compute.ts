@@ -106,7 +106,7 @@ export function computeConversationMetrics(
     blindSpots.push(`${attendance.unknown} agendamento(s) IA sem classificação de fulfillment.`)
   }
   blindSpots.push(
-    'Pedido de atendente «offered_misunderstanding_rule» depende da regra de 2 incompreensões (PR em curso); plug-in em recordAttendantRequest.',
+    'offered_misunderstanding_rule: `notifyHumanHandoff` com clientRequestId `ai-misunderstanding-esc:*` (PR #801) ou `recordAttendantMetricsForOpenSession` após `registerHumanHelpRequest`.',
   )
   blindSpots.push(
     'Pergunta da cliente ignorada só entra via contador futuro (question_ignored); hoje: fallback + nao_encontrei + repetida.',
