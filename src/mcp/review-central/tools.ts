@@ -20,6 +20,7 @@ import {
   parseMetricsWindowFromQuery,
   fetchConversationMetricsReport,
 } from '../../conversation-metrics/query'
+import type { ConversationMetricsWindow } from '../../conversation-metrics/types'
 import {
   listInterpreterShadowEvents,
   SHADOW_REPORT_ROW_LIMIT,
@@ -157,7 +158,10 @@ export type ReviewCentralStore = {
     tenantId?: string | null
     limit?: number
   }) => Promise<ShadowEventRow[]>
-  conversationMetrics?: typeof fetchConversationMetricsReport
+  conversationMetrics?: (
+    window: ConversationMetricsWindow,
+    nowMs: number,
+  ) => ReturnType<typeof fetchConversationMetricsReport>
 }
 
 export function createD1ReviewCentralStore(d1: D1Database): ReviewCentralStore {

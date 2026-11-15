@@ -2,6 +2,7 @@
  * Persistência D1 central das métricas (fail-soft).
  */
 import type { AsyncAdminDb } from '../db/admin/async-store'
+import type { SqlValue } from '../db/admin/store'
 import type {
   ConversationQualityEpisodeRow,
   FalseConfirmationSignal,
@@ -135,7 +136,7 @@ export async function listConversationQualityEpisodes(
   opts: { sinceMs: number; toMs: number; tenantId?: string | null },
 ): Promise<ConversationQualityEpisodeRow[]> {
   const tenantFilter = opts.tenantId ? 'AND tenant_id = ?' : ''
-  const params: unknown[] = [opts.sinceMs, opts.toMs]
+  const params: SqlValue[] = [opts.sinceMs, opts.toMs]
   if (opts.tenantId) params.push(opts.tenantId)
   const rows = await db.all<{
     session_id: string
@@ -201,7 +202,7 @@ export async function listFalseConfirmationIds(
   opts: { sinceMs: number; toMs: number; tenantId?: string | null },
 ): Promise<string[]> {
   const tenantFilter = opts.tenantId ? 'AND tenant_id = ?' : ''
-  const params: unknown[] = [opts.sinceMs, opts.toMs]
+  const params: SqlValue[] = [opts.sinceMs, opts.toMs]
   if (opts.tenantId) params.push(opts.tenantId)
   const rows = await db.all<{ id: string }>(
     `SELECT id FROM conversation_false_confirmations

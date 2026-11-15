@@ -133,7 +133,7 @@ export function buildConversationQualityEpisode(
   const inboundToConfirm: number | null =
     session.outcome === 'agendado' ? session.inboundTurns : null
 
-  const appt =
+  const apptRow =
     appointmentId != null
       ? db.get<{
           id: string
@@ -147,23 +147,23 @@ export function buildConversationQualityEpisode(
           session.tenantId,
           appointmentId,
         )
+      : null
+  const appt =
+    apptRow != null
+      ? {
+          id: apptRow.id,
+          startsAt: apptRow.starts_at,
+          status: apptRow.status,
+          changeReason: apptRow.change_reason,
+          confirmedBy: apptRow.confirmed_by,
+        }
       : latestConfirmedAppointment(db, session.tenantId, session.conversationId, session.openedAt)
 
   if (appt && session.outcome === 'agendado') {
     appointmentId = appt.id
   }
 
-  const fulfillment = fulfillmentForAppointment(
-    appt
-      ? {
-          startsAt: appt.starts_at,
-          status: appt.status,
-          changeReason: appt.change_reason,
-          confirmedBy: appt.confirmed_by,
-        }
-      : null,
-    now,
-  )
+  const fulfillment = fulfillmentForAppointment(appt, now)
 
   return {
     sessionId: session.sessionId,
