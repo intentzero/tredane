@@ -9,7 +9,8 @@ import {
   PROPOSAL_SEND_ACTOR_DISPLAY,
 } from '../clinic/constants'
 import { isDevelopmentEnv } from '../security/env-gate'
-import { isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
+import { clinicDurableObjectName, isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
+import { shedDueAlarmBacklog } from './clinic-do-alarm-shed'
 import { labMaxTurnsDaily } from '../lab/gate'
 import { labDay, readLabState, runLabTurn, type LabStateResult, type LabTurnInput, type LabTurnResult } from '../lab/turn'
 import type { ProposalButtonClickInput } from '../clinic/proposals'
@@ -339,13 +340,25 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (!name) {
       throw new TenantMismatchError('DO sem nome estável (idFromName obrigatório)')
     }
-    assertClinicTenantId(name, { allowSynthetic: isDevelopmentEnv(this.env) })
-    if (caller.tenantId !== name) {
+    // Demo pode usar idFromName com sufixo de geração (`:do-vN`); o tenantId
+    // lógico do caller continua sem sufixo.
+    assertClinicTenantId(caller.tenantId, { allowSynthetic: isDevelopmentEnv(this.env) })
+    if (name !== clinicDurableObjectName(caller.tenantId)) {
       throw new TenantMismatchError(
         `instância=${name} chamador=${caller.tenantId}`,
       )
     }
-    return name
+    return caller.tenantId
+  }
+
+  /** Demo DO nova / vazia: seed idempotente para o Lab não depender do ops seed. */
+  #ensureDemoSeededForLab(caller: ClinicCaller): void {
+    if (!isDemoTenantId(caller.tenantId)) return
+    if (getBoundTenant(this.#db)) return
+    seedDemoClinicOp(this.#db, caller, this.#clock, {
+      ownerClerkUserId: 'lab:auto-seed',
+      ownerDisplayName: 'Lab',
+    })
   }
 
   #authority(): AccessAuthority {
@@ -2259,6 +2272,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
+    this.#ensureDemoSeededForLab(caller)
     const key = `lab:turns:${labDay(this.#clock.nowMs())}`
     const used = (await this.ctx.storage.get<number>(key)) ?? 0
     return runLabTurn(
@@ -2317,6 +2331,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
+    this.#ensureDemoSeededForLab(caller)
     const used = (await this.ctx.storage.get<number>(`lab:turns:${labDay(this.#clock.nowMs())}`)) ?? 0
     return readLabState(this.#db, caller.tenantId, input, { used, cap: labMaxTurnsDaily(this.env) })
   }
@@ -2330,6 +2345,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
+    this.#ensureDemoSeededForLab(caller)
     switch (op) {
       case 'get':
         return this.getConfigSnapshot(caller)
@@ -4153,6 +4169,60 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       const meta = getBoundTenant(this.#db)
       if (!meta) return
       const caller = workerCaller(meta.tenantId)
+      // Demo/Lab: o alarme (idle + autodraft stale + sombra) reentrou em espiral
+      // de CPU mesmo com uma só conversa. O Lab corre autodrafts inline em
+      // labTurn; na demo o alarme só limpa backlog barato e não reagenda.
+      if (isDemoTenantId(meta.tenantId)) {
+        const shedStarted = this.#clock.nowMs()
+        const shed = shedDueAlarmBacklog(this.#db, meta.tenantId, shedStarted)
+        // Forçar limpeza mesmo abaixo do limiar (idle futuro não dispara).
+        this.#db.run(
+          `UPDATE conversations
+           SET idle_due_at = NULL, idle_phase = NULL, idle_prompt_sent_at = NULL, updated_at = ?
+           WHERE tenant_id = ? AND idle_due_at IS NOT NULL`,
+          shedStarted,
+          meta.tenantId,
+        )
+        this.#db.run(`DELETE FROM ai_autodraft_jobs WHERE tenant_id = ?`, meta.tenantId)
+        timer.addPhase('alarm_demo_noop', this.#clock.nowMs() - shedStarted)
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'clinic.alarm_demo_noop',
+            tenantId: meta.tenantId,
+            shed: shed.shed,
+            idleDue: shed.idleDue,
+            autodraftDue: shed.autodraftDue,
+          }),
+        )
+        try {
+          await this.ctx.storage.deleteAlarm()
+        } catch {
+          /* best-effort */
+        }
+        this.#scheduledAlarmAt = null
+        return
+      }
+      // Quebra espiral de CPU: backlog vencido (Lab paralelo / muitos idle) é
+      // limpo com SQL barato; a passagem seguinte corre o caminho normal.
+      const shedStarted = this.#clock.nowMs()
+      const shed = shedDueAlarmBacklog(this.#db, meta.tenantId, shedStarted)
+      timer.addPhase('alarm_shed_backlog', this.#clock.nowMs() - shedStarted)
+      if (shed.shed) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'clinic.alarm_shed_backlog',
+            tenantId: meta.tenantId,
+            idleDue: shed.idleDue,
+            autodraftDue: shed.autodraftDue,
+            idleCleared: shed.idleCleared,
+            autodraftDropped: shed.autodraftDropped,
+          }),
+        )
+        await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + 60_000)
+        return
+      }
       let phase = this.#clock.nowMs()
       try {
         await this.expireDuePixCharges(caller)
@@ -4312,7 +4382,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       timer.addPhase('alarm_drain', this.#clock.nowMs() - phase)
       if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
       phase = this.#clock.nowMs()
-      await this.#runAutoDraftsWork(caller, timer)
+      // No alarme: no máximo 1 job (LLM) por passagem — evita N× timeout no isolate.
+      await this.#runAutoDraftsWork(caller, timer, { limit: 1 })
       timer.addPhase('alarm_run_autodrafts', this.#clock.nowMs() - phase)
     })
   }
@@ -4440,18 +4511,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   #aiAssistDepsWithFlow(
     base: ReturnType<typeof clinicAi.toAiAssistDeps>,
+    opts: { tenantId?: string } = {},
   ): ReturnType<typeof clinicAi.toAiAssistDeps> {
     const prepare = this.#prepareBookingFlowOffer()
     let out = base
     if (prepare) out = { ...out, prepareBookingFlowOffer: prepare }
+    // Demo/Lab: a sombra (2.ª chamada LLM no mesmo isolate) + turno principal
+    // excedia o teto de CPU do DO. Sem sombra na demo até o caminho LLM ser
+    // mais leve; H1 em staging real / Review MCP continua noutros tenants.
+    const shadowOk = base.interpreterShadow && !isDemoTenantId(opts.tenantId)
     // TEMPORÁRIO: a sombra do interpretador grava os eventos no D1 central (Review MCP).
     const d1 = (this.env as WorkerBindings).DB
-    if (base.interpreterShadow && d1) {
+    if (shadowOk && d1) {
       out = {
         ...out,
+        interpreterShadow: true,
         interpreterShadowSink: (event) =>
           insertInterpreterShadowEvent(fromD1(d1), event, this.#clock.nowMs()),
       }
+    } else if (isDemoTenantId(opts.tenantId)) {
+      out = { ...out, interpreterShadow: false }
     }
     return out
   }
@@ -4467,6 +4546,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async #runAutoDraftsWork(
     caller: ClinicCaller,
     timer: DoInvocationTimer | null,
+    opts: { limit?: number } = {},
   ): Promise<clinicAi.AutoDraftOutcome[]> {
     this.#ensureReady()
     let outcomes: clinicAi.AutoDraftOutcome[] = []
@@ -4476,12 +4556,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     try {
       const deps = this.#aiAssistDepsWithFlow(
         clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
+        { tenantId: caller.tenantId },
       )
       outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
+        limit: opts.limit,
         onStart: async (job) => {
           const t0 = this.#clock.nowMs()
           await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
-          await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
+          // Demo: alarme é no-op e reagendar só desperta a espiral.
+          if (!isDemoTenantId(caller.tenantId)) {
+            await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
+          }
           turnPhase('autodraft_on_start', this.#clock.nowMs() - t0)
         },
         onTyping: async (typingOb) => {

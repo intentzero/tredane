@@ -12,6 +12,7 @@
 import { Hono } from 'hono'
 import { workerCaller } from '../clinic'
 import { DEMO_CLINIC_NAME, DEMO_CLINIC_TENANT_ID } from '../clinic/demo/ids'
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import { d1CreateTenantWithOwner, d1GetTenant } from '../platform/d1-ops'
 import type { WorkerBindings } from '../worker/bindings'
 
@@ -70,7 +71,7 @@ export function createDemoSeedRoutes() {
           .bind(DEMO_CLINIC_TENANT_ID, ownerId, Date.now())
           .run()
       }
-      const stub = c.env.CLINIC.get(c.env.CLINIC.idFromName(DEMO_CLINIC_TENANT_ID))
+      const stub = c.env.CLINIC.get(c.env.CLINIC.idFromName(clinicDurableObjectName(DEMO_CLINIC_TENANT_ID)))
       const seeded = await stub.seedDemoClinic(workerCaller(DEMO_CLINIC_TENANT_ID, ownerId), {
         ownerClerkUserId: ownerId,
         ownerDisplayName: body.ownerDisplayName?.trim() || undefined,

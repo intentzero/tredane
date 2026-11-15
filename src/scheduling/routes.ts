@@ -21,6 +21,7 @@ import {
 } from '../clinic'
 import type { AppointmentChangeReason } from '../clinic/constants'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 function parseZoneIds(raw: unknown): string[] | null {
   if (raw == null) return null
   if (!Array.isArray(raw) || raw.some((id) => typeof id !== 'string' || !id.trim())) {
@@ -89,7 +90,7 @@ function schedulingErrorResponse(
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     queryAvailability: (caller, input) => stub.queryClinicAvailability(caller, input),
     checkSlot: (caller, input) => stub.checkClinicSlot(caller, input),

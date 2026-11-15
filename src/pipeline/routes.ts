@@ -32,6 +32,7 @@ import {
   serializeStageCounts,
 } from './serialize'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type PipelineEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -75,7 +76,7 @@ function pipelineErrorResponse(
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): PipelineGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     list: (caller, input) => stub.listPipelineOpportunities(caller, input),
     get: (caller, id) => stub.getPipelineOpportunity(caller, id),

@@ -24,6 +24,7 @@ import type { WorkerBindings } from '../worker/bindings'
 import type { AiAssistGateway } from './gateway'
 import { serializeAiSuggestion } from './serialize'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type AiEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -72,7 +73,7 @@ function aiErrorResponse(
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): AiAssistGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     suggestReply: (caller, input, deps) => stub.suggestAiReply(caller, input, deps),
     summarize: (caller, input, deps) => stub.summarizeAiConversation(caller, input, deps),

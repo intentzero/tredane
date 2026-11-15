@@ -33,6 +33,7 @@ import {
 } from './serialize'
 import type { UpdateAbuseLimitsInput } from '../clinic/config'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type ConfigEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -71,7 +72,7 @@ function configErrorResponse(
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     getSnapshot: (caller) => stub.getConfigSnapshot(caller),
     getReadiness: (caller) => stub.getConfigReadiness(caller),

@@ -40,6 +40,7 @@ import {
 } from './recovery'
 import { SECRETS_INVENTORY } from './secrets'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type OpsEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -78,7 +79,7 @@ function defaultClinicStub(
   env: WorkerBindings,
   tenantId: string,
 ): OpsClinicStub {
-  const id = env.CLINIC.idFromName(tenantId)
+  const id = env.CLINIC.idFromName(clinicDurableObjectName(tenantId))
   const stub = env.CLINIC.get(id)
   return {
     getOpsSnapshot: (caller) => stub.getOpsSnapshot(caller),

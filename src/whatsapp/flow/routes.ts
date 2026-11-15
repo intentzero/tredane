@@ -24,6 +24,7 @@ import {
 import { isWhatsappFlowConfigured } from './config'
 import type { FlowCatalogService, FlowSlotOption, FlowBookingSnapshot } from './screens'
 
+import { clinicDurableObjectName } from '../../clinic/demo/do-name'
 type AppEnv = { Bindings: WorkerBindings }
 
 export type WhatsappFlowRouteOptions = {
@@ -70,7 +71,7 @@ async function defaultDataLookup(
     clearedFields?: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
     visitTotalLine?: string | null
   }> {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(input.token.tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(input.token.tenantId)))
   if (typeof stub.flowDataExchange !== 'function') {
     return { catalog: [], slots: [], frame: input.frame, catalogMismatch: false, clearedFields: [] }
   }
@@ -101,7 +102,7 @@ async function notifyFlowOpened(
 ): Promise<void> {
   if (row.openedAt != null) return
   try {
-    const stub = env.CLINIC.get(env.CLINIC.idFromName(row.tenantId))
+    const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(row.tenantId)))
     if (typeof stub.recordFlowOpened !== 'function') return
     await stub.recordFlowOpened({
       tenantId: row.tenantId,

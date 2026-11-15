@@ -162,7 +162,7 @@ export function sweepDueIdleConversations(
     `SELECT id, idle_phase, idle_prompt_sent_at, idle_due_at FROM conversations
      WHERE tenant_id = ? AND idle_due_at IS NOT NULL AND idle_due_at <= ?
      ORDER BY idle_due_at ASC
-     LIMIT 50`,
+     LIMIT 5`,
     tenantId,
     now,
   )

@@ -29,6 +29,7 @@ import { createSyntheticMetaAdapter } from '../whatsapp/meta'
 import { listPendingOutbox, toEventEnvelope } from '../clinic/outbox'
 import { queueCaller } from '../clinic'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 /**
  * Gateway DO real — partilhado pelas rotas REST do inbox e pelo MCP DEC-158.
  */
@@ -36,7 +37,7 @@ export function createClinicDoInboxGateway(
   env: WorkerBindings,
   tenantId: string,
 ): InboxGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     listConversations: (caller, input) => stub.listInboxConversations(caller, input),
     getConversation: (caller, input) => stub.getInboxConversation(caller, input),

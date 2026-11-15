@@ -52,6 +52,7 @@ import type {
   WhatsappSignupSessionView,
 } from './types'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type WaEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -130,7 +131,7 @@ type ChannelSyncInput = {
 function createDoChannelSync(env: WorkerBindings) {
   return {
     async syncChannel(tenantId: string, input: ChannelSyncInput) {
-      const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+      const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
       await stub.syncWhatsappChannel(workerCaller(tenantId, 'whatsapp'), input)
     },
   }
@@ -150,7 +151,7 @@ async function readLastInboundAt(
     return clinicWhatsapp.getWhatsappChannel(mem.db, tenantId)?.lastInboundAt ?? null
   }
   if (env.CLINIC) {
-    const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+    const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
     const row = await stub.getWhatsappChannel(workerCaller(tenantId, 'whatsapp'))
     return row?.lastInboundAt ?? null
   }
@@ -366,7 +367,7 @@ export function createWhatsappRoutes(opts: WhatsappRouteOptions = {}) {
           approvedOnly,
         })
       } else if (c.env.CLINIC) {
-        const stub = c.env.CLINIC.get(c.env.CLINIC.idFromName(tenantId))
+        const stub = c.env.CLINIC.get(c.env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
         templates = await stub.listWhatsappTemplates(
           workerCaller(tenantId, c.get('principal').clerkUserId),
           { approvedOnly },
