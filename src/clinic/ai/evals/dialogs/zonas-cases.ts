@@ -9,6 +9,8 @@
  * A-57 / A-58: DEC-178 acumulação Opções + Mais|Pronto.
  * A-59: pedido de atendente na ask de zonas (DEC-083; #725 — id único, não colidir com A-53 FAQ).
  * A-60: FAQ institucional mid-funnel (DEC-185) — park/resume com texto cadastrado.
+ * A-61 / A-62: FAQ «O que inclui a íntima?» — variante sem/com explicação (não prosa do serviço).
+ * A-63 / A-64: FAQ «é o que?» / «como é feita» — gate DEC-177 (não esclarecer nem leftover «Não encontrei como»).
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
@@ -96,6 +98,33 @@ function withIntimaAndServiceExplanation(
       variantKindPlural: dep.variantKindPlural,
       variantSelection: dep.variantSelection,
     },
+    s.clock,
+  )
+}
+
+/** Intima com Explicação para a IA (painel) — resposta FAQ da variante, não do serviço. */
+function withIntimaZoneExplanation(
+  s: Parameters<NonNullable<DialogCase['prepare']>>[0],
+): void {
+  withIntimaAndServiceExplanation(s)
+  const prior = listZones(s.db, s.tenantId, s.ids.depilacao)
+  replaceServiceZonesOp(
+    s.db,
+    s.caller,
+    s.ids.depilacao,
+    prior.map((z) => ({
+      id: z.id,
+      name: z.name,
+      audience: z.audience,
+      durationMinutes: z.durationMinutes,
+      priceCents: z.priceCents,
+      active: z.active,
+      synonyms: z.synonyms,
+      clientExplanation:
+        z.name === 'Intima' && z.audience === 'feminino'
+          ? 'Inclui virilha e ânus no feminino.'
+          : z.clientExplanation,
+    })),
     s.clock,
   )
 }
@@ -634,6 +663,159 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
           turn: 1,
           matches: [/vagas na rua em frente/i, /quais zonas/i],
           excludes: [/Não encontrei estacionamento/i, /Entendi:.*estacionamento/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-61',
+    title: 'FAQ «O que inclui a íntima?» sem explicação da variante → missing (DEC-177)',
+    turnosIdeais: 2,
+    // Lab screenshot: prosa genérica de Depilação («Sobre isso: Remoção dos pelos…»)
+    // em vez de detalhe da variante Intima. Zona nomeada sem clientExplanation → missing.
+    prepare: withIntimaAndServiceExplanation,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'O que inclui a íntima?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Não tenho esse detalhe no cadastro; a equipe confirma/i],
+          excludes: [
+            /Remoção dos pelos/i,
+            /Retirada de pelos/i,
+            /Sobre isso/i,
+            /Não encontrei inclui/i,
+            /Entendi:.*intima/i,
+            /Certo\?/,
+          ],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-62',
+    title: 'FAQ «O que inclui a íntima?» com explicação da variante (DEC-177 / #759)',
+    turnosIdeais: 2,
+    prepare: withIntimaZoneExplanation,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'O que inclui a íntima?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Inclui virilha e ânus/i],
+          excludes: [
+            /Retirada de pelos com cera em várias zonas/i,
+            /Não tenho esse detalhe/i,
+            /Não encontrei inclui/i,
+            /Entendi:.*intima/i,
+          ],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-63',
+    title: 'FAQ «A depilação íntima é o que?» → missing (não esclarecer/Opções leftover)',
+    turnosIdeais: 2,
+    // Lab screenshot: «Pode me dizer de outro jeito…» + Opções — cue «é o que?» faltava.
+    prepare: withIntimaAndServiceExplanation,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'A depilação íntima é o que?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Não tenho esse detalhe no cadastro; a equipe confirma/i],
+          excludes: [
+            /Pode me dizer de outro jeito/i,
+            /Não peguei bem/i,
+            /Remoção dos pelos/i,
+            /Retirada de pelos/i,
+            /Sobre isso/i,
+            /Não encontrei/i,
+            /Entendi:.*intima/i,
+            /Certo\?/,
+          ],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-64',
+    title: 'FAQ «Como é feita a depilação íntima?» → missing (não leftover «Não encontrei como»)',
+    turnosIdeais: 2,
+    // Lab screenshot: «Entendi: íntima. Não encontrei como nas opções…» + Opções.
+    prepare: withIntimaAndServiceExplanation,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'Como é feita a depilação íntima?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Não tenho esse detalhe no cadastro; a equipe confirma/i],
+          excludes: [
+            /Não encontrei como/i,
+            /Entendi:.*intima/i,
+            /Certo\?/,
+            /Remoção dos pelos/i,
+            /Retirada de pelos/i,
+            /Sobre isso/i,
+            /Pode me dizer de outro jeito/i,
+          ],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-65',
+    title: 'FAQ «Como é feita a depilação íntima?» com explicação da variante',
+    turnosIdeais: 2,
+    prepare: withIntimaZoneExplanation,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'Como é feita a depilação íntima?' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Inclui virilha e ânus/i],
+          excludes: [
+            /Não encontrei como/i,
+            /Entendi:.*intima/i,
+            /Retirada de pelos com cera em várias zonas/i,
+            /Não tenho esse detalhe/i,
+          ],
         },
       ],
       outboundExcludes: NO_LEAK,

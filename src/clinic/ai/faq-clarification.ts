@@ -30,9 +30,13 @@ export const FAQ_MISSING_DETAIL_BODY =
 export const FAQ_CONTINUE_BUTTON_ID = 'fu:faq:continue'
 export const FAQ_CONTINUE_BUTTON_TITLE = 'Continuar'
 
-/** Cues de pergunta/clarificação (camada 1) — não são escolha de zona. */
+/**
+ * Cues de pergunta/clarificação (camada 1) — não são escolha de zona.
+ * Testado sobre texto *dobrado* (sem acentos): «o que é» → «o que e»,
+ * «é o quê?» → «e o que», «como é feita» → «como e feita».
+ */
 const CLARIFICATION_CUE =
-  /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+(?:e|é)|o\s+que\s+significa|como\s+funciona|explica(?:r|ção)?|significa|abrang(?:e|em)|contempla)\b/i
+  /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+e|e\s+o\s+que|o\s+que\s+significa|como\s+funciona|como\s+e\s+feit[ao]s?|como\s+sao\s+feit[ao]s?|como\s+se\s+faz|como\s+fazem?|explica(?:r|cao)?|significa|abrang(?:e|em)|contempla)\b/i
 
 export function foldFaqText(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -40,7 +44,7 @@ export function foldFaqText(text: string): string {
 
 /**
  * True se o texto é pergunta/clarificação de cobertura ou significado
- * (ex.: «A íntima inclui anus?», «o que é íntima?»).
+ * (ex.: «A íntima inclui anus?», «o que é íntima?», «é o que?», «como é feita…?»).
  */
 /**
  * Pergunta de abrangência («Pernas é a perna inteira?», «Braços é o braço todo?»).
@@ -170,6 +174,11 @@ function coverageObjectTerm(
     'cobre',
     'cobrem',
     'faz',
+    'fazem',
+    'feita',
+    'feito',
+    'feitas',
+    'feitos',
     'parte',
     'vem',
     'com',
@@ -196,6 +205,8 @@ function coverageObjectTerm(
     'voces',
     'tem',
     'sera',
+    'seria',
+    'seriam',
     'tambem',
   ])
   const tokens = withoutSubject
@@ -290,16 +301,24 @@ export function answerFaqFromCatalog(input: {
   }
 
   // Preferir a explicação da variante nomeada (espelho de DEC-046 por zona).
-  const zoneExplanation = subject?.clientExplanation?.trim() ?? ''
-  if (zoneExplanation) {
+  // Se a pergunta nomeia uma zona e essa zona não tem explicação, não usar a
+  // prosa do serviço pai como se fosse da variante (lab: «O que inclui a íntima?»).
+  if (subject) {
+    const zoneExplanation = subject.clientExplanation?.trim() ?? ''
+    if (zoneExplanation) {
+      return {
+        kind: 'explanation',
+        replyText: sayAct(
+          'informar_explicacao',
+          input.conversationId,
+          { explicação: zoneExplanation },
+          zoneExplanation,
+        ),
+      }
+    }
     return {
-      kind: 'explanation',
-      replyText: sayAct(
-        'informar_explicacao',
-        input.conversationId,
-        { explicação: zoneExplanation },
-        zoneExplanation,
-      ),
+      kind: 'missing',
+      replyText: FAQ_MISSING_DETAIL_BODY,
     }
   }
 

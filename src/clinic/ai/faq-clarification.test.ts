@@ -51,6 +51,14 @@ describe('isCatalogClarificationAsk (DEC-177)', () => {
     expect(isCatalogClarificationAsk('faz parte da íntima o ânus?')).toBe(true)
   })
 
+  it('lab: «é o que?» / «como é feita» são clarificação (não leftover de zona)', () => {
+    expect(isCatalogClarificationAsk('A depilação íntima é o que?')).toBe(true)
+    expect(isCatalogClarificationAsk('A íntima é o quê?')).toBe(true)
+    expect(isCatalogClarificationAsk('Como é feita a depilação íntima?')).toBe(true)
+    expect(isCatalogClarificationAsk('Como se faz a íntima?')).toBe(true)
+    expect(isCatalogClarificationAsk('O que inclui a íntima?')).toBe(true)
+  })
+
   it('não trata escolha de zona como pergunta', () => {
     expect(isCatalogClarificationAsk('axila e pernas')).toBe(false)
     expect(isCatalogClarificationAsk('Intima')).toBe(false)
@@ -149,5 +157,69 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       expect(r.replyText).toMatch(/Inclui virilha e ânus/)
       expect(r.replyText).not.toMatch(/várias zonas/)
     }
+  })
+
+  it('zona nomeada sem explicação não cai na prosa do serviço («O que inclui a íntima?»)', () => {
+    const r = answerFaqFromCatalog({
+      text: 'O que inclui a íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation:
+          'Remoção dos pelos pela raiz utilizando cera depilatória, proporcionando uma pele mais lisa.',
+      } as ServiceRow,
+      zones: [intima, axila],
+    })
+    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r.replyText).not.toMatch(/Remoção dos pelos|Sobre isso/i)
+  })
+
+  it('«o que é íntima?» sem explicação da zona → missing (mesmo com serviço preenchido)', () => {
+    const r = answerFaqFromCatalog({
+      text: 'o que é íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Retirada de pelos com cera em várias zonas.',
+      } as ServiceRow,
+      zones: [intima, axila],
+    })
+    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r.replyText).not.toMatch(/Retirada de pelos/)
+  })
+
+  it('«A depilação íntima é o que?» com explicação da zona → variante (não prosa do serviço)', () => {
+    const withZone = {
+      ...intima,
+      clientExplanation: 'Inclui virilha e ânus no feminino.',
+    }
+    const r = answerFaqFromCatalog({
+      text: 'A depilação íntima é o que?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Remoção dos pelos pela raiz utilizando cera depilatória.',
+      } as ServiceRow,
+      zones: [withZone, axila],
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/Inclui virilha e ânus/)
+      expect(r.replyText).not.toMatch(/Remoção dos pelos/)
+    }
+  })
+
+  it('«Como é feita a depilação íntima?» sem explicação da zona → missing (não cobertura «feita»)', () => {
+    const r = answerFaqFromCatalog({
+      text: 'Como é feita a depilação íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Remoção dos pelos pela raiz utilizando cera depilatória.',
+      } as ServiceRow,
+      zones: [intima, axila],
+    })
+    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r.replyText).not.toMatch(/Remoção dos pelos|faz parte/i)
   })
 })
