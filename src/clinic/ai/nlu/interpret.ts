@@ -90,6 +90,31 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 0)
 }
 
+function significantNameWords(name: string): string[] {
+  return norm(name)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3)
+}
+
+/**
+ * Serviços nomeados no turno: nome completo / includes, fuzzy curto, ou
+ * hit parcial único («peeling» ⊂ «Peeling químico», «drenagem» ⊂ «Drenagem
+ * linfática») — alinhado a `resolveNamedServiceInTurn` (Lab Bloco D mid-switch).
+ */
+function servicesNamedInText(text: string, services: ServiceRow[]): ServiceRow[] {
+  const folded = text.toLowerCase()
+  const exact = services.filter(
+    (s) => citesServiceName(text, s.name) || folded.includes(s.name.trim().toLowerCase()),
+  )
+  if (exact.length === 1) return exact
+  if (exact.length > 1) return exact
+  const tokens = new Set(tokenize(text))
+  const partial = services.filter((s) =>
+    significantNameWords(s.name).some((w) => w.length >= 5 && tokens.has(w)),
+  )
+  return partial.length === 1 ? partial : []
+}
+
 function field<T>(value: T, messageId: string, trecho: string, fonte: FieldSource = 'regra'): Field<T> {
   return { value, messageId, trecho, fonte }
 }
@@ -245,9 +270,7 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     markTokens(text)
   }
 
-  const servicesHit = input.services.filter(
-    (s) => citesServiceName(text, s.name) || text.toLowerCase().includes(s.name.trim().toLowerCase()),
-  )
+  const servicesHit = servicesNamedInText(text, input.services)
   if (servicesHit.length === 1) {
     const s = servicesHit[0]!
     slots.serviceId = field(s.id, messageId, s.name)
