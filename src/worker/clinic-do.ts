@@ -2435,8 +2435,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             buttonTitle: i.buttonTitle,
             providerEventKey: i.providerEventKey,
           }),
-        runAutoDrafts: async () =>
-          (await this.#runAutoDraftsWork(caller, null)).map((o) => ({
+        runAutoDrafts: async (opts) =>
+          (
+            await this.#runAutoDraftsWork(caller, null, {
+              conversationId: opts.conversationId,
+              limit: opts.limit ?? 1,
+            })
+          ).map((o) => ({
             status: o.status,
             conversationId: o.conversationId,
             ...(o.reason ? { reason: o.reason } : {}),

@@ -39,6 +39,9 @@ describe('turno do laboratório (DEC-186)', () => {
       const b = budget()
       const out = await runLabTurn(db, DEMO_CLINIC_TENANT_ID, { waId: WA, text: ' Quero massagem ' }, hooks, b)
       expect(hooks.runAutoDrafts).toHaveBeenCalledTimes(1)
+      expect(hooks.runAutoDrafts).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: out.conversationId, limit: 1 }),
+      )
       expect(b.commit).toHaveBeenCalledWith(1)
       expect(out.turnsUsedToday).toBe(1)
       expect(out.messages.map((m) => [m.direction, m.body])).toEqual([['inbound', 'Quero massagem']])
