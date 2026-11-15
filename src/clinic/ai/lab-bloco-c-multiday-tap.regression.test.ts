@@ -175,7 +175,7 @@ describe('Lab Bloco C — multi-day Horários tap (same HH:MM)', () => {
         cnv.id,
       )
       .map((r) => r.body)
-    expect(bodies.some((b) => /Proposta de horário/i.test(b))).toBe(true)
+    expect(bodies.some((b) => /Fica assim:/i.test(b))).toBe(true)
     boot.close()
   })
 })

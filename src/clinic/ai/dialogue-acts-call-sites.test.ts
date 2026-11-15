@@ -187,6 +187,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Recebi seu pedido de remarcar\. Ainda não está remarcado: a equipe confirma e já te retorna\.$/,
   /^Ainda não está remarcado: a equipe confirma e já te retorna\.$/,
   // — Notas internas à equipe (não WhatsApp cliente) —
+  /^DEC-061: short affirmative with open sent proposal → re-offer Confirmar button \(baseline item 1\)\.$/,
   /Texto livre não marca/,
   /Confirme com a cliente/,
   /Pergunta automática enviada/,

@@ -73,6 +73,18 @@ describe('interpretTurn (#416)', () => {
     expect(r.coverage).toBeLessThanOrEqual(COVERAGE_THRESHOLD + 0.2)
   })
 
+  it('DEC-190: needsExtractor com data e sem serviço (lacuna híbrida)', () => {
+    const r = interpretTurn({
+      turnText: 'queria relaxar as costas amanhã',
+      messageId: 'msg_h1',
+      today: '2026-11-02',
+      services: [service({ id: 'svc_mass', name: 'Massagem relaxante' })],
+    })
+    expect(r.slots.date?.value).toBe('2026-11-03')
+    expect(r.slots.serviceId).toBeUndefined()
+    expect(r.needsExtractor).toBe(true)
+  })
+
   it('lê opção pendente com «a segunda»', () => {
     const r = interpretTurn({
       turnText: 'a segunda',
@@ -90,5 +102,47 @@ describe('interpretTurn (#416)', () => {
     })
     expect(r.acts).toContain('escolher_opcao')
     expect(r.slots.optionIndex?.value).toBe(1)
+  })
+
+  it('Lab Bloco D: hit parcial único em mid-switch e booking («prefiro peeling», «troca pra drenagem»)', () => {
+    const peeling = service({ id: 'svc_peel', name: 'Peeling químico' })
+    const drenagem = service({ id: 'svc_dren', name: 'Drenagem linfática' })
+    const limpeza = service({ id: 'svc_limp', name: 'Limpeza de pele profunda' })
+    const catalog = [peeling, drenagem, limpeza]
+
+    const prefiro = interpretTurn({
+      turnText: 'prefiro peeling',
+      messageId: 'msg_c3',
+      today: '2026-11-02',
+      services: catalog,
+    })
+    expect(prefiro.slots.serviceId?.value).toBe('svc_peel')
+    expect(prefiro.acts).toContain('corrigir')
+    expect(prefiro.acts).toContain('marcar')
+
+    const troca = interpretTurn({
+      turnText: 'troca pra drenagem',
+      messageId: 'msg_c5',
+      today: '2026-11-02',
+      services: catalog,
+    })
+    expect(troca.slots.serviceId?.value).toBe('svc_dren')
+    expect(troca.acts).toContain('corrigir')
+
+    const booking = interpretTurn({
+      turnText: 'quero drenagem amanhã',
+      messageId: 'msg_a2',
+      today: '2026-11-02',
+      services: catalog,
+    })
+    expect(booking.slots.serviceId?.value).toBe('svc_dren')
+
+    const ambiguous = interpretTurn({
+      turnText: 'quero pele',
+      messageId: 'msg_amb',
+      today: '2026-11-02',
+      services: catalog,
+    })
+    expect(ambiguous.slots.serviceId).toBeUndefined()
   })
 })

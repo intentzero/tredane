@@ -43,6 +43,7 @@ import {
   proposalPixClientRequestId,
   renderProposalInteractive,
 } from './index'
+import { POST_BOOKING_BODY } from '../followup/post-booking'
 
 const T0 = Date.UTC(2026, 9, 29, 15, 0)
 
@@ -261,7 +262,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(69)
+    expect(CLINIC_SCHEMA_VERSION).toBe(70)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')
@@ -289,6 +290,34 @@ describe('S5: book sem sinal', () => {
       expect(ai?.detailJson).toMatch(/Marcado pela IA/)
       expect(ai?.detailJson).toMatch(proposal.id)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('baseline 15/11 item 10: «Agendado» enfileira antes de «Posso ajudar…»', async () => {
+    const s = await seedBookable('clinic-demo-postbook-order-af34')
+    try {
+      const proposal = makeSent(s)
+      const result = await confirmClick(s, proposal.id, proposal.version)
+      expect(result.status).toBe('booked')
+      if (result.status !== 'booked') return
+      const bodies = result.outbox
+        .filter((row) => row.type === 'whatsapp.send')
+        .map((row) => {
+          const payload = JSON.parse(row.payloadJson) as { messageId?: string }
+          return s.db.get<{ body: string }>(
+            `SELECT body FROM messages WHERE tenant_id = ? AND id = ?`,
+            s.tenantId,
+            payload.messageId ?? '',
+          )?.body
+        })
+        .filter((b): b is string => Boolean(b))
+      const agIdx = bodies.findIndex((b) => /^Agendado:/.test(b))
+      const fuIdx = bodies.findIndex((b) => b === POST_BOOKING_BODY)
+      expect(agIdx).toBeGreaterThanOrEqual(0)
+      expect(fuIdx).toBeGreaterThanOrEqual(0)
+      expect(agIdx).toBeLessThan(fuIdx)
     } finally {
       s.close()
     }

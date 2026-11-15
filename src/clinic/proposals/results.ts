@@ -32,6 +32,7 @@ import {
   resolvePendingByProposalKind,
 } from './pending-communication'
 import { readZoneSnapshots } from '../config/zones'
+import { sendPostBookingFollowupOp } from '../followup/post-booking'
 import { proposalResultClientRequestId, renderProposalResultBody } from './render'
 import type { AppointmentProposalRow } from './types'
 
@@ -70,6 +71,8 @@ export function sendProposalResultMessageOp(
     resultKind: ProposalResultKind
     /** #511 — horários livres do mesmo pedido no corpo (expirada / vaga perdida). */
     alternativesListing?: string | null
+    /** DEC-086 / baseline 15/11: follow-up depois do Agendado na mesma cadeia (item 10). */
+    postBookingAppointmentId?: string | null
   },
   clock: Clock,
 ): SendProposalResultOutcome {
@@ -242,6 +245,18 @@ export function sendProposalResultMessageOp(
     clock,
   )
 
+  const appointmentId = input.postBookingAppointmentId?.trim() || null
+  let outbox = sent.outbox
+  if (input.resultKind === 'booked' && appointmentId && window.open) {
+    const follow = sendPostBookingFollowupOp(
+      db,
+      caller.actorId ? caller : workerCaller(meta.tenantId, PROPOSAL_SEND_ACTOR),
+      { conversationId: proposal.conversationId, appointmentId },
+      clock,
+    )
+    if (follow.status === 'queued') outbox = [...outbox, ...follow.outbox]
+  }
+
   return {
     status: 'queued',
     proposal: getProposal(db, meta.tenantId, proposal.id)!,
@@ -249,7 +264,7 @@ export function sendProposalResultMessageOp(
     outbound: sent.value.outbound,
     duplicate: sent.value.duplicate,
     body,
-    outbox: sent.outbox,
+    outbox,
   }
 }
 

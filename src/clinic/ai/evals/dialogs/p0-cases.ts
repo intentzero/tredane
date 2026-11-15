@@ -502,7 +502,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: 'na verdade prefiro massagem' },
     ],
     expect: {
-      turns: [{ turn: 1, matches: [/Serviço:\s*Massagem/i] }],
+      turns: [{ turn: 1, matches: [/Fica assim:\s*Massagem/i] }],
       openProposals: 1,
       supersededProposals: 1,
       proposalAt: { date: '2026-11-06', time: '15:00' },

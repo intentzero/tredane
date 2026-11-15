@@ -43,7 +43,6 @@ import {
 } from './proposals'
 import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
-import { appendPostBookingFollowup } from '../followup/post-booking'
 import { offerAlternativesForProposal } from './alternatives'
 import { sendProposalResultMessageOp, type SendProposalResultOutcome } from './results'
 import type { AppointmentProposalRow } from './types'
@@ -321,7 +320,7 @@ async function ensureResult(
   proposalId: string,
   resultKind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
   clock: Clock,
-  opts: { alternativesListing?: string | null } = {},
+  opts: { alternativesListing?: string | null; postBookingAppointmentId?: string | null } = {},
 ): Promise<SendProposalResultOutcome> {
   return sendProposalResultMessageOp(
     db,
@@ -331,6 +330,9 @@ async function ensureResult(
       resultKind,
       ...(opts.alternativesListing != null
         ? { alternativesListing: opts.alternativesListing }
+        : {}),
+      ...(opts.postBookingAppointmentId != null
+        ? { postBookingAppointmentId: opts.postBookingAppointmentId }
         : {}),
     },
     clock,
@@ -467,18 +469,11 @@ export async function executeProposalConfirmOp(
             },
             clock,
           )
-      const result = await ensureResult(db, caller, proposal.id, 'booked', clock)
+      const result = await ensureResult(db, caller, proposal.id, 'booked', clock, {
+        postBookingAppointmentId: booked.value.id,
+      })
       settleBookingFrameAfterConfirm(db, meta.tenantId, proposal.conversationId, clock)
-      const outbox = appendPostBookingFollowup(
-        db,
-        caller,
-        {
-          conversationId: proposal.conversationId,
-          appointmentId: booked.value.id,
-        },
-        clock,
-        collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : []),
-      )
+      const outbox = collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : [])
       return {
         status: 'booked',
         proposal,
@@ -831,18 +826,11 @@ export async function executeProposalConfirmOp(
       },
       clock,
     )
-    const result = await ensureResult(db, caller, confirmed.id, 'booked', clock)
+    const result = await ensureResult(db, caller, confirmed.id, 'booked', clock, {
+      postBookingAppointmentId: booked.value.id,
+    })
     settleBookingFrameAfterConfirm(db, meta.tenantId, confirmed.conversationId, clock)
-    const outbox = appendPostBookingFollowup(
-      db,
-      caller,
-      {
-        conversationId: confirmed.conversationId,
-        appointmentId: booked.value.id,
-      },
-      clock,
-      collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : []),
-    )
+    const outbox = collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : [])
     return {
       status: 'booked',
       proposal: confirmed,
