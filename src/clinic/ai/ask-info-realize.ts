@@ -263,6 +263,49 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
+  // Oferta de horário aberta sem variante no quadro (ex. «qnto custa?» após lista).
+  if (topic === 'price' && zones.length === 1) {
+    const quote = quoteSingleVariant(zones[0]!)
+    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const { entry, stack: after } = popInterrupt(stack)
+    const quoteText = renderAct(quote, conversationId)
+    const replyText = resume
+      ? `${quoteText}\n${renderAct(resume, conversationId)}`
+      : quoteText
+    return {
+      quote,
+      resume,
+      replyText,
+      parked,
+      stack: after,
+      resumedObligation: entry ? resumeParkedObligation(entry) : null,
+    }
+  }
+
+  if (topic === 'price' && zones.length === 0 && service.priceCents != null) {
+    const preço = formatBRL(service.priceCents)
+    const duração = String(service.durationMinutes)
+    const quote: AskInfoPolicyAct = {
+      act: 'informar_preco',
+      vars: { preço, duração },
+      fallback: `${service.name} custa ${preço} e dura ${duração} min.`,
+    }
+    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const { entry, stack: after } = popInterrupt(stack)
+    const quoteText = renderAct(quote, conversationId)
+    const replyText = resume
+      ? `${quoteText}\n${renderAct(resume, conversationId)}`
+      : quoteText
+    return {
+      quote,
+      resume,
+      replyText,
+      parked,
+      stack: after,
+      resumedObligation: entry ? resumeParkedObligation(entry) : null,
+    }
+  }
+
   // Serviço aberto sem variante (ask-tipo / «Quais zonas?»): tabela + re-pergunta.
   // A re-pergunta vive no mesmo acto `informar_preco_tabela` (resume embutido).
   if (zones.length > 0 && shouldResumeVariantAsk(parked)) {

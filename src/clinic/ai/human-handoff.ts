@@ -20,10 +20,12 @@ import { setConversationAssignee } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
+import { flagConversationForTeamHandoff } from '../inbox/review-flag'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
 import {
+  HEALTH_RE,
   OFF_TOPIC_RE,
   PIX_OFF_PURPOSE_RE,
   RESCHEDULE_RE,
@@ -104,6 +106,10 @@ export const AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK =
 
 /** Registo + continuidade — baseline P3 (15/11/2026). */
 export const AFTER_HOURS_HUMAN_REGISTERED_PREFIX = 'Deixei seu pedido para a equipe'
+
+/** Linha curta de segurança — queixa de saúde antes do handoff (baseline P4 / 15/11/2026). */
+export const HEALTH_SAFETY_LINE =
+  'Se a dor for forte, súbita ou estiver piorando, procure um médico ou pronto-socorro.'
 
 export const HANDOFF_PAUSED_ACK_TEXT =
   'Recebi sua mensagem. A equipe já foi avisada. Posso continuar te ajudando por aqui com o agendamento enquanto você espera.'
@@ -193,13 +199,13 @@ export function registerHumanHelpRequest(
     messageId?: string | null
   },
   clock: Clock,
-): void {
+): OutboxRow[] {
   const conv = db.get<{ contact_id: string }>(
     `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
     tenantId,
     input.conversationId,
   )
-  if (!conv) return
+  if (!conv) return []
   const now = clock.nowMs()
   const open = db.get<{ id: string }>(
     `SELECT id FROM pending_communications
@@ -236,6 +242,14 @@ export function registerHumanHelpRequest(
       open.id,
     )
   }
+  const flagged = flagConversationForTeamHandoff(
+    db,
+    tenantId,
+    input.conversationId,
+    clock,
+    input.detailText.slice(0, 200),
+  )
+  return flagged.outbox
 }
 
 export function afterHoursHumanRequestBody(
@@ -280,12 +294,18 @@ export function replyAfterHoursHumanRequest(
   input: { conversationId: string; clientRequestId: string; messageId?: string | null },
   clock: Clock,
 ): { outbox: OutboxRow[] } {
-  registerHumanHelpRequest(db, tenantId, {
-    conversationId: input.conversationId,
-    detailText: 'A cliente pediu atendimento humano.',
-    messageId: input.messageId ?? null,
-  }, clock)
-  const outbox: OutboxRow[] = []
+  const outbox: OutboxRow[] = [
+    ...registerHumanHelpRequest(
+      db,
+      tenantId,
+      {
+        conversationId: input.conversationId,
+        detailText: 'A cliente pediu atendimento humano.',
+        messageId: input.messageId ?? null,
+      },
+      clock,
+    ),
+  ]
   const buttons = humanHelpRequestButtons(db, tenantId, clock)
   try {
     const result = sendOutboundMessageOp(
@@ -331,13 +351,19 @@ export function replyMisunderstandingEscalation(
   input: { conversationId: string; clientRequestId: string; messageId?: string | null },
   clock: Clock,
 ): { outbox: OutboxRow[] } {
-  registerHumanHelpRequest(db, tenantId, {
-    conversationId: input.conversationId,
-    detailText: 'A IA não entendeu a cliente duas vezes seguidas. Pedido de equipe registrado.',
-    messageId: input.messageId ?? null,
-  }, clock)
+  const outbox: OutboxRow[] = [
+    ...registerHumanHelpRequest(
+      db,
+      tenantId,
+      {
+        conversationId: input.conversationId,
+        detailText: 'A IA não entendeu a cliente duas vezes seguidas. Pedido de equipe registrado.',
+        messageId: input.messageId ?? null,
+      },
+      clock,
+    ),
+  ]
   const buttons = humanHelpRequestButtons(db, tenantId, clock)
-  const outbox: OutboxRow[] = []
   try {
     const sent = sendOutboundMessageOp(
       db,
@@ -751,6 +777,8 @@ export function notifyHumanHandoff(
     clientRequestId: string
     /** DEC-114: pausa + alerta sem mensagem automática. */
     silent?: boolean
+    /** Última mensagem da cliente (linha de segurança em queixa de saúde). */
+    inboundText?: string | null
   },
   clock: Clock,
 ): { already: boolean; sent: boolean; outbox: OutboxRow[] } {
@@ -820,18 +848,18 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
+  const baseDetail = input.silent
+    ? 'A cliente pediu para parar as mensagens automáticas. Sem resposta automática.'
+    : input.reason === 'customer_requested'
+      ? 'A cliente pediu atendimento humano.'
+      : input.reason === 'human_only'
+        ? 'Pedido que a IA não cumpre (cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
+        : input.reason === 'payment_proof'
+          ? 'Possível comprovativo de pagamento (imagem ou documento). A equipe confirma.'
+          : input.reason === 'media_after_ask'
+            ? 'A cliente enviou outra mídia depois do pedido para escrever. A equipe continua.'
+            : 'A mensagem saiu do agendamento. A IA ficou pausada.'
   if (!open) {
-    const baseDetail = input.silent
-      ? 'A cliente pediu para parar as mensagens automáticas. Sem resposta automática.'
-      : input.reason === 'customer_requested'
-        ? 'A cliente pediu atendimento humano.'
-        : input.reason === 'human_only'
-          ? 'Pedido que a IA não cumpre (cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
-          : input.reason === 'payment_proof'
-            ? 'Possível comprovativo de pagamento (imagem ou documento). A equipe confirma.'
-            : input.reason === 'media_after_ask'
-              ? 'A cliente enviou outra mídia depois do pedido para escrever. A equipe continua.'
-              : 'A mensagem saiu do agendamento. A IA ficou pausada.'
     // Prática 10 / #512: o alerta leva o quadro (serviço, zonas, hora) já entendido.
     const detail = withUnderstoodFrame(db, tenantId, input.conversationId, baseDetail)
     openPendingCommunication(
@@ -857,7 +885,14 @@ export function notifyHumanHandoff(
       open.id,
     )
   }
-  const outbox: OutboxRow[] = []
+  const panelFlag = flagConversationForTeamHandoff(
+    db,
+    tenantId,
+    input.conversationId,
+    clock,
+    baseDetail.slice(0, 200),
+  )
+  const outbox: OutboxRow[] = [...panelFlag.outbox]
   if (sessionEnd.outbox) outbox.push(sessionEnd.outbox)
   const pausePayload = {
     source: 'handoff' as const,
@@ -868,7 +903,11 @@ export function notifyHumanHandoff(
     outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock, pausePayload))
     return { already: false, sent: false, outbox }
   }
-  const handoffBody = humanHandoffBody(db, tenantId, clock)
+  let handoffBody = humanHandoffBody(db, tenantId, clock)
+  const inbound = (input.inboundText ?? '').trim()
+  if (input.reason === 'off_purpose' && inbound && HEALTH_RE.test(inbound)) {
+    handoffBody = `${HEALTH_SAFETY_LINE}\n\n${handoffBody}`
+  }
   const alreadySaid = open
     ? db.get<{ id: string }>(
         `SELECT id FROM messages

@@ -972,12 +972,17 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 1,
     // Staging 14/11/2026: a frase ia ao redator e inventava «vale procurar um médico».
     // Lab #752: HEALTH_RE passa a casar «inchad» / «dor» → pausa off_purpose sem LLM.
+    // Baseline 15/11: frase fixa de segurança (não LLM) pode mencionar urgência.
     turns: [{ role: 'client', text: 'Queria algo para drenar, to inchada' }],
     expect: {
       proposal: false,
       noAppointment: true,
-      outboundExcludes: [/m[eé]dic/i],
-      turns: [{ turn: 0, matches: [/equipe continuar/i] }],
+      turns: [
+        {
+          turn: 0,
+          matches: [/equipe continuar/i, /forte|piorando|pronto-socorro/i],
+        },
+      ],
     },
   },
   {
