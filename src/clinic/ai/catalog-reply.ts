@@ -56,7 +56,12 @@ import {
 } from './variant-line'
 import { extractDates, parseTemporal } from './nlu/temporal'
 
-const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas)\b/i
+/**
+ * Expediente / horário de abertura — não confundir com «quero um horário».
+ * Lab Bloco B: «tem horário depois das 20h?» é FAQ de expediente, não DEC-151.
+ */
+const HOURS =
+  /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas|tem\s+hor[aá]rio\s+depois\s+das|(abrem|funcionam|atendem)\s+depois\s+das\s+\d|(hor[aá]rio|atendimento)\s+(noturno|depois\s+das\s+\d))\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 /** Alias estável — ver `CATALOG_PRICE_ASK` (singular «valor», tabela, sinónimos). */
 const PRICE = CATALOG_PRICE_ASK

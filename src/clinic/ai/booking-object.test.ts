@@ -168,6 +168,28 @@ describe('booking-object', () => {
     ).toBe('inexistente')
   })
 
+  it('Lab Bloco B: FAQ cancelamento/depois não é DEC-151 inexistente', () => {
+    const cancel = resolveBookingObject({
+      text: 'como funciona o cancelamento se eu marcar?',
+      services: EVAL_BOOKING_CATALOG,
+    })
+    expect(cancel.handoffReason).not.toBe('inexistente')
+    expect(cancel.kind).toBe('none')
+    const evening = resolveBookingObject({
+      text: 'tem horário depois das 20h?',
+      services: EVAL_BOOKING_CATALOG,
+    })
+    expect(evening.handoffReason).not.toBe('inexistente')
+    expect(evening.kind).toBe('none')
+    // FL-22 / DEC-151 real permanece.
+    expect(
+      resolveBookingObject({
+        text: 'Quero agendar uma mensagem',
+        services: EVAL_BOOKING_CATALOG,
+      }).handoffReason,
+    ).toBe('inexistente')
+  })
+
   it('#509 «Quero depilar» casa Depilação quando o sinónimo está na ficha', () => {
     const base = EVAL_BOOKING_CATALOG.find((s) => s.name === 'Depilação')
     expect(base).toBeTruthy()

@@ -173,9 +173,13 @@ export const RESCHEDULE_RE =
 export const THIRD_PARTY_RE =
   /\b(pra|para)\s+(minha|meu|o|a)\s+(m[aã]e|pai|irm[aã]|irm[aã]o|esposa|esposo|marido|filho|filha|amiga|amigo|ela|ele)\b|\be\s+pra\s+(ela|ele|outra|outro)\b|\b(agendar|marcar)\s+pra\s+(ela|ele)\b|\b(minha\s+m[aã]e|meu\s+pai|minha\s+filha|meu\s+filho|n[aã]o\s+[eé]\s+para\s+mim)\b/i
 
-/** Pergunta condicional sobre política (CF-04 / E-06) — antes de cancelar. */
+/**
+ * Pergunta sobre política (CF-04 / E-06) — antes de cancelar.
+ * Lab Bloco B: «como funciona o cancelamento se eu marcar?» é FAQ de política,
+ * não inexistente DEC-151 nem handoff de cancelar.
+ */
 export const POLICY_QUESTION_RE =
-  /\b(se\s+eu\s+(precisar|tiver\s+que|quiser)\s+(desmarcar|cancelar|remarcar)|caso\s+(eu\s+)?(desmarque|cancele|remarque)|tem\s+multa|qual\s+(a\s+)?pol[ií]tica|posso\s+(desmarcar|cancelar|remarcar)\b[^?]{0,40}\?|(desmarcar|cancelar).{0,40}\b(multa|pol[ií]tica|antes)\b)/i
+  /\b(se\s+eu\s+(precisar|tiver\s+que|quiser)\s+(desmarcar|cancelar|remarcar)|caso\s+(eu\s+)?(desmarque|cancele|remarque)|tem\s+multa|qual\s+(a\s+)?pol[ií]tica|como\s+funciona\s+(o\s+)?cancelamento|funciona\s+(o\s+)?cancelamento|pol[ií]tica\s+de\s+cancelamento|taxa\s+de\s+(cancelamento|reagendamento)|posso\s+(desmarcar|cancelar|remarcar)\b[^?]{0,40}\?|(desmarcar|cancelar).{0,40}\b(multa|pol[ií]tica|antes)\b)/i
 
 function fold(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
