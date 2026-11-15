@@ -280,6 +280,21 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`)
 }
 
+/**
+ * Login URL that resumes /authorize after Clerk (return_to).
+ * Without return_to, painel forceRedirect lands on /clinicas («Escolha a clínica»)
+ * and never completes the OAuth callback → Cursor Declined.
+ */
+export function authorizeLoginUrl(
+  issuerBase: string,
+  authorizeRequestUrl: string,
+): string {
+  const auth = new URL(authorizeRequestUrl)
+  const returnTo = `${auth.pathname}${auth.search}`
+  const base = issuerBase.replace(/\/$/, '')
+  return `${base}/entrar?return_to=${encodeURIComponent(returnTo)}`
+}
+
 /** HTML quando /authorize GET não tem sessão Clerk superadmin (evita stall em text/plain). */
 export function authorizeLoginRequiredHtml(
   loginUrl: string,
@@ -294,9 +309,9 @@ a.button{display:inline-block;margin:.75rem .5rem .75rem 0;padding:.5rem 1rem;ba
 </style></head><body>
 <h1>É preciso entrar no painel</h1>
 <p>${escapeHtml(message)}</p>
-<p>Abra o login numa conta com <code>privateMetadata.superadmin === true</code>, depois volte a esta página (ou reinicie o OAuth no Cursor).</p>
+<p>Abra o login numa conta com <code>privateMetadata.superadmin === true</code>. Depois do login, o painel volta a esta autorização para o consentimento (não fica em «Escolha a clínica»).</p>
 <p><a class="button" href="${escapeHtml(loginUrl)}">Abrir login Tredane</a></p>
-<p style="color:#555;font-size:.9rem">URL desta autorização: mantenha o separador do Cursor aberto até concluir o consentimento.</p>
+<p style="color:#555;font-size:.9rem">Mantenha o Cursor aberto até concluir o consentimento; o callback fecha o fluxo OAuth.</p>
 </body></html>`
 }
 
@@ -377,14 +392,17 @@ export async function handleReviewMcpAuthorize(
           { verifySuperadmin: true },
         )
       } catch (err) {
-        const loginUrl = `${reviewMcpIssuerUrl(env, request.url)}/entrar`
+        const loginUrl = authorizeLoginUrl(
+          reviewMcpIssuerUrl(env, request.url),
+          authorizeGet.url,
+        )
         const msg = isAuthError(err)
           ? err.message
-          : 'Entre no painel como superadmin (sessão Clerk) e volte a abrir este URL.'
-        // Sem redirect automático ao Clerk (forceRedirect do painel não volta ao /authorize).
-        // HTML com link explícito evita o stall do browser OAuth em texto «Sessão ausente».
-        // 200 (not 401): some OAuth browsers treat authorize 401 as hard failure / Declined
-        // before rendering the login HTML; the page itself still requires a session to continue.
+          : 'Entre no painel como superadmin (sessão Clerk); depois o login retoma este /authorize.'
+        // Link /entrar?return_to=/authorize?… — o painel usa return_to como forceRedirect
+        // (e sessionStorage) para não cair em /clinicas. HTML explícito evita stall em texto
+        // «Sessão ausente». 200 (not 401): alguns browsers OAuth tratam 401 como Declined
+        // antes de pintar o HTML; a página em si ainda exige sessão para continuar.
         return new Response(authorizeLoginRequiredHtml(loginUrl, msg), {
           status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
