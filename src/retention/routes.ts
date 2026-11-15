@@ -38,6 +38,7 @@ import { deleteAttachmentObjects } from './r2-purge'
 import { startTenantPurgeWorkflow } from './workflow-start'
 import { tickTenantPurgeOnEnv } from './env-orchestrator'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type RetentionEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -119,7 +120,7 @@ function serializePurgeCommand(cmd: PurgeCommandRow) {
 }
 
 function createDoStub(env: WorkerBindings, tenantId: string): RetentionClinicStub {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     deleteContact: (caller, contactId) => stub.deleteContact(caller, contactId),
     wipeClinicOperationalData: (caller) => stub.wipeClinicOperationalData(caller),

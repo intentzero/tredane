@@ -35,6 +35,7 @@ import {
 import { assertNoExternalDownloadUrl, sha256Hex, validateAttachmentBytes } from './validate'
 import { RETENTION } from './policy'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type AttachEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -123,7 +124,7 @@ function attachError(
 }
 
 function defaultStub(env: WorkerBindings, tenantId: string) {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     getAttachment: (caller: ReturnType<typeof workerCaller>, id: string) =>
       stub.getAttachment(caller, id),

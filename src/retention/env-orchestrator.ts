@@ -17,6 +17,7 @@ import {
 import type { TenantPurgeWorkflowParams } from './workflow-params'
 import type { WorkerBindings } from '../worker/bindings'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type PurgeCmd = {
   id: string
   tenant_id: string
@@ -360,7 +361,7 @@ async function runEnvStep(
       return { r2DeletedKeys }
     }
     case 'clinic_sqlite_wiped': {
-      const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+      const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
       const wipe = await stub.wipeClinicOperationalData(
         workerCaller(tenantId, actorClerkUserId),
       )

@@ -49,6 +49,7 @@ import {
 import { parseNfmResponseJson } from './flow/nfm-reply'
 import { INBOUND_INLINE_BUDGET_MS } from './webhook-routes'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 export type QueueConsumerDeps = {
   env: WorkerBindings
   clock?: Clock
@@ -95,7 +96,7 @@ export type QueueConsumerDeps = {
 const defaultLog = createChannelLogger('inbound_queue')
 
 function clinicFromEnv(env: WorkerBindings, tenantId: string) {
-  const id = env.CLINIC.idFromName(tenantId)
+  const id = env.CLINIC.idFromName(clinicDurableObjectName(tenantId))
   return env.CLINIC.get(id)
 }
 

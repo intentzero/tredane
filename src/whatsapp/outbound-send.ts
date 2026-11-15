@@ -4,6 +4,7 @@
  * Timeout → uncertain (Desconhecido); sem retry automático de efeito externo.
  */
 import { isDemoTenantId } from '../clinic/demo/ids'
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import { queueCaller } from '../clinic'
 import { systemClock, type Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
@@ -60,7 +61,7 @@ export type ProcessOutboundSendDeps = {
 }
 
 function clinicFromEnv(env: WorkerBindings, tenantId: string) {
-  const id = env.CLINIC.idFromName(tenantId)
+  const id = env.CLINIC.idFromName(clinicDurableObjectName(tenantId))
   return env.CLINIC.get(id)
 }
 

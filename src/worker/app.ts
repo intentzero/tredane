@@ -96,6 +96,7 @@ import type { ClinicConfigGateway } from '../clinic-config'
 import type { InboxGateway } from '../inbox'
 import type { PipelineGateway } from '../pipeline'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 export type { WorkerBindings } from './bindings'
 
 type AppEnv = {
@@ -346,7 +347,7 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.route('/', createLabMcpRoutes())
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
-    const id = env.CLINIC.idFromName(tenantId)
+    const id = env.CLINIC.idFromName(clinicDurableObjectName(tenantId))
     return env.CLINIC.get(id)
   }
 

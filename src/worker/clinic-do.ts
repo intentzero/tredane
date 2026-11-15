@@ -9,7 +9,7 @@ import {
   PROPOSAL_SEND_ACTOR_DISPLAY,
 } from '../clinic/constants'
 import { isDevelopmentEnv } from '../security/env-gate'
-import { isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
+import { clinicDurableObjectName, isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
 import { shedDueAlarmBacklog } from './clinic-do-alarm-shed'
 import { labMaxTurnsDaily } from '../lab/gate'
 import { labDay, readLabState, runLabTurn, type LabStateResult, type LabTurnInput, type LabTurnResult } from '../lab/turn'
@@ -340,13 +340,25 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (!name) {
       throw new TenantMismatchError('DO sem nome estável (idFromName obrigatório)')
     }
-    assertClinicTenantId(name, { allowSynthetic: isDevelopmentEnv(this.env) })
-    if (caller.tenantId !== name) {
+    // Demo pode usar idFromName com sufixo de geração (`:do-vN`); o tenantId
+    // lógico do caller continua sem sufixo.
+    assertClinicTenantId(caller.tenantId, { allowSynthetic: isDevelopmentEnv(this.env) })
+    if (name !== clinicDurableObjectName(caller.tenantId)) {
       throw new TenantMismatchError(
         `instância=${name} chamador=${caller.tenantId}`,
       )
     }
-    return name
+    return caller.tenantId
+  }
+
+  /** Demo DO nova / vazia: seed idempotente para o Lab não depender do ops seed. */
+  #ensureDemoSeededForLab(caller: ClinicCaller): void {
+    if (!isDemoTenantId(caller.tenantId)) return
+    if (getBoundTenant(this.#db)) return
+    seedDemoClinicOp(this.#db, caller, this.#clock, {
+      ownerClerkUserId: 'lab:auto-seed',
+      ownerDisplayName: 'Lab',
+    })
   }
 
   #authority(): AccessAuthority {
@@ -2260,6 +2272,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
+    this.#ensureDemoSeededForLab(caller)
     const key = `lab:turns:${labDay(this.#clock.nowMs())}`
     const used = (await this.ctx.storage.get<number>(key)) ?? 0
     return runLabTurn(
@@ -2318,6 +2331,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
+    this.#ensureDemoSeededForLab(caller)
     const used = (await this.ctx.storage.get<number>(`lab:turns:${labDay(this.#clock.nowMs())}`)) ?? 0
     return readLabState(this.#db, caller.tenantId, input, { used, cap: labMaxTurnsDaily(this.env) })
   }
@@ -2331,6 +2345,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     this.#assertLabAllowed(caller)
+    this.#ensureDemoSeededForLab(caller)
     switch (op) {
       case 'get':
         return this.getConfigSnapshot(caller)

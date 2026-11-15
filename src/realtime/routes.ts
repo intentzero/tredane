@@ -31,6 +31,7 @@ import { WS_TICKET_HEADER, WS_TICKET_QUERY, isWellFormedWsTicket } from './ticke
 import type { AdminDb } from '../db/admin/store'
 import { newId } from '../db/admin/ids'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type RealtimeBindings = WorkerBindings
 
 type RealtimeEnv = {
@@ -39,7 +40,7 @@ type RealtimeEnv = {
 }
 
 function clinicStub(env: RealtimeBindings, tenantId: string) {
-  return env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  return env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
 }
 
 export function createDoInvalidator(env: RealtimeBindings): ClinicAccessInvalidator {

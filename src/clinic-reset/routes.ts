@@ -25,6 +25,7 @@ import { systemClock } from '../db/clock'
 import { isStagingEnv } from '../security/env-gate'
 import type { WorkerBindings } from '../worker/bindings'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type ResetEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
@@ -48,7 +49,7 @@ export type ClinicResetRouteOptions = {
 export const RESET_PATH = '/api/tenants/:tenantId/staging/reset-operational-data'
 
 function doGateway(env: WorkerBindings, tenantId: string): ClinicResetGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return { reset: (caller) => stub.resetClinicOperationalData(caller) }
 }
 

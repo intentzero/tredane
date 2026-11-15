@@ -22,6 +22,7 @@ import {
 } from '../clinic'
 import type { WorkerBindings } from '../worker/bindings'
 
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 function parseZoneIds(raw: unknown): string[] | null {
   if (raw == null) return null
   if (!Array.isArray(raw) || raw.some((id) => typeof id !== 'string' || !id.trim())) {
@@ -102,7 +103,7 @@ function defaultConnectDeps(env: WorkerBindings): PixConnectDeps {
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): PixAccountGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
   return {
     getAccount: (caller) => stub.getPixAccount(caller),
     connect: (caller, input, deps) => stub.connectPixAccount(caller, input, deps),

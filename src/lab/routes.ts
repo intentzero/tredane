@@ -5,6 +5,7 @@
 import { Hono } from 'hono'
 import { workerCaller } from '../clinic'
 import { DEMO_CLINIC_TENANT_ID } from '../clinic/demo/ids'
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import {
   isJsonRpcRequest,
   jsonRpcError,
@@ -212,7 +213,7 @@ function str(v: unknown, max: number): string | null {
 
 export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBindings, actor = 'mcp') {
   const args: Args = rawArgs && typeof rawArgs === 'object' ? (rawArgs as Args) : {}
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(DEMO_CLINIC_TENANT_ID))
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(DEMO_CLINIC_TENANT_ID)))
   const caller = workerCaller(DEMO_CLINIC_TENANT_ID, `lab:${actor}`)
   const waId = resolveLabWaId(args.waId)
   if ((name === 'lab_say' || name === 'lab_tap' || name === 'lab_state') && !waId) {
