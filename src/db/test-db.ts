@@ -108,6 +108,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0023_interpreter_shadow_events.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0024_conversation_quality.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

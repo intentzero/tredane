@@ -23,6 +23,7 @@ export const OPS_ALERT_KINDS = [
   'tenant.purge',
   'schema.mismatch',
   'recovery.isolation',
+  'conversation.false_confirmation',
 ] as const
 
 export type OpsAlertKind = (typeof OPS_ALERT_KINDS)[number]
@@ -53,6 +54,7 @@ const KIND_TO_LEVEL: Record<OpsAlertKind, OpsLogLevel> = {
   'tenant.purge': 'warn',
   'schema.mismatch': 'error',
   'recovery.isolation': 'error',
+  'conversation.false_confirmation': 'error',
 }
 
 const KIND_TO_SEVERITY: Record<OpsAlertKind, OpsAlertSeverity> = {
@@ -66,6 +68,7 @@ const KIND_TO_SEVERITY: Record<OpsAlertKind, OpsAlertSeverity> = {
   'tenant.purge': 'warning',
   'schema.mismatch': 'critical',
   'recovery.isolation': 'critical',
+  'conversation.false_confirmation': 'critical',
 }
 
 export function severityForAlert(kind: OpsAlertKind): OpsAlertSeverity {
