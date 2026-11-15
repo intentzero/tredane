@@ -1566,8 +1566,13 @@ export async function tryAiAutoBook(
           const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
           pendingDateOverride = dateFromLabel ?? frameEarly.date
         }
-      } else if (choice.kind === 'ask_which' || choice.kind === 'ambiguous') {
+      } else if (
+        (choice.kind === 'ask_which' || choice.kind === 'ambiguous') &&
+        !input.boundSlot
+      ) {
         // Catálogo perguntar_horario (#448): fallback alinhado à allowlist; sem frase nova.
+        // Lab Bloco C: toque na lista multi-dia (dois «15:15» em dias diferentes) gera
+        // turnTextOverride «às 15:15» + boundSlot civil — não reinterpretar como ambíguo.
         const svc =
           services.find((s) => s.id === frameEarly.serviceId) ?? { name: 'o horário' }
         return finish({
