@@ -1,7 +1,10 @@
 import { app } from './app'
 import { handleInboundQueue } from '../whatsapp/queue-consumer'
 import { handleLlmQueueBatch } from '../ai/llm-queue-consumer'
-import { isLlmQueueMessage, type LlmQueueMessage } from '../clinic/ai/llm-queue-types'
+import {
+  isLlmQueueEnvelope,
+  type LlmQueueEnvelope,
+} from '../clinic/ai/llm-queue-types'
 import { runReviewSamplesPurge } from '../review-samples'
 import type { WorkerBindings } from './bindings'
 import type { InboundQueueMessage } from '../whatsapp/queue-types'
@@ -22,12 +25,12 @@ function isLlmQueueName(name: string): boolean {
 const worker = {
   fetch: app.fetch.bind(app),
   async queue(
-    batch: MessageBatch<InboundQueueMessage | LlmQueueMessage>,
+    batch: MessageBatch<InboundQueueMessage | LlmQueueEnvelope>,
     env: WorkerBindings,
     ctx: ExecutionContext,
   ): Promise<void> {
-    if (isLlmQueueName(batch.queue) || batch.messages.some((m) => isLlmQueueMessage(m.body))) {
-      await handleLlmQueueBatch(batch as MessageBatch<LlmQueueMessage>, env)
+    if (isLlmQueueName(batch.queue) || batch.messages.some((m) => isLlmQueueEnvelope(m.body))) {
+      await handleLlmQueueBatch(batch as MessageBatch<LlmQueueEnvelope>, env)
       return
     }
     await handleInboundQueue(batch as MessageBatch<InboundQueueMessage>, env, ctx)
