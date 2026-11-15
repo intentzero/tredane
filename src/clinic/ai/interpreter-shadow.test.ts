@@ -173,6 +173,31 @@ describe('resolveShadowSlots (validação relaxada)', () => {
       s.close()
     }
   })
+
+  it('recusa line inventada sem género na frase (DEC-079 / Lab Bloco D FAQ)', () => {
+    const s = seed()
+    try {
+      const opts = {
+        today: TODAY,
+        services: s.services,
+        professionals: [],
+        pending: null,
+        turnText: 'vocês têm estacionamento perto da clínica?',
+      }
+      const invented = resolveShadowSlots({ acts: ['desconhecido'], line: 'feminino' }, opts)
+      expect(invented.slots.line).toBeUndefined()
+      expect(invented.rejected).toContain('line')
+
+      const evidenced = resolveShadowSlots(
+        { acts: ['marcar'], line: 'feminino' },
+        { ...opts, turnText: 'quero depilação feminina' },
+      )
+      expect(evidenced.slots.line).toBe('feminino')
+      expect(evidenced.rejected).not.toContain('line')
+    } finally {
+      s.close()
+    }
+  })
 })
 
 describe('compareInterpretations', () => {
