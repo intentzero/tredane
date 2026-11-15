@@ -46,6 +46,7 @@ import type { ClinicDb } from '../store'
 import type { AutoBookOutcome } from './autobook'
 import {
   isMidFunnelServiceCorrection,
+  looksLikeServiceCorrection,
   resolveNamedServiceInTurn,
 } from './autobook'
 import { runBookingTurn } from './run-booking-turn'
@@ -1283,11 +1284,17 @@ export async function runDueAutoDrafts(
       getScheduleSession(db, tenantId, job.conversationId)?.serviceId ??
       null
     const namedSwapService = resolveNamedServiceInTurn(turnText, activeServices)
-    const skipExtractorForServiceSwap = isMidFunnelServiceCorrection({
-      text: turnText,
-      stickyServiceId: stickyForSwap,
-      services: activeServices,
-    })
+    const correctionNamesService =
+      looksLikeServiceCorrection(turnText) && namedSwapService != null
+    // Qualquer «prefiro / na verdade …» que nomeia um serviço do catálogo: zero LLM
+    // (extrator + redator). Lab H1 com Horários abertos morria no CPU do DO.
+    const skipExtractorForServiceSwap =
+      correctionNamesService ||
+      isMidFunnelServiceCorrection({
+        text: turnText,
+        stickyServiceId: stickyForSwap,
+        services: activeServices,
+      })
     if (skipExtractorForServiceSwap) {
       console.info(
         JSON.stringify({
@@ -1296,6 +1303,8 @@ export async function runDueAutoDrafts(
           tenantId,
           conversationId: job.conversationId,
           reason: 'mid_funnel_service_correction',
+          stickyServiceId: stickyForSwap,
+          namedServiceId: namedSwapService?.id ?? null,
         }),
       )
     } else {
@@ -1373,7 +1382,7 @@ export async function runDueAutoDrafts(
       // Lab H1: se o mid-funnel falhar, NÃO cair no redator LLM (CPU DO →
       // aiOutcomes []). Frase determinística do serviço novo.
       if (
-        skipExtractorForServiceSwap &&
+        correctionNamesService &&
         namedSwapService &&
         !(autoBook?.replyText && autoBook.replyText.trim())
       ) {
@@ -1392,7 +1401,7 @@ export async function runDueAutoDrafts(
     // Mesmo sem throw: autobook pode devolver none sem texto — evita LLM na troca
     // (Lab: silêncio / aiOutcomes [] após CPU no redator).
     if (
-      skipExtractorForServiceSwap &&
+      correctionNamesService &&
       namedSwapService &&
       !(autoBook?.replyText && autoBook.replyText.trim()) &&
       !autoBook?.proposalId
