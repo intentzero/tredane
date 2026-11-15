@@ -39,7 +39,8 @@ export async function queryAutomaticAvailability(
     !service
     || (service.tempoCeu === 'tanto_faz' && service.tempoTemperatura === 'tanto_faz')
   ) {
-    return queryAvailability(db, tenantId, { ...input, tempoMode: 'automatico' }, clock)
+    // Uma passagem na grade; `tempoMode` só etiqueta o resultado (DEC-077).
+    return { ...preview, tempoMode: 'automatico' }
   }
   const memo = memoAdapter(adapter)
   const yes = new Set<number>()
@@ -53,14 +54,9 @@ export async function queryAutomaticAvailability(
     )
     if (verdict.outcome === 'serve') yes.add(startsAt)
   }
-  return queryAvailability(
-    db,
-    tenantId,
-    {
-      ...input,
-      tempoMode: 'automatico',
-      tempoKeeps: (startsAt) => yes.has(startsAt),
-    },
-    clock,
-  )
+  return {
+    ...preview,
+    tempoMode: 'automatico',
+    slots: preview.slots.filter((slot) => yes.has(slot.startsAt)),
+  }
 }
