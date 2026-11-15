@@ -54,6 +54,7 @@ import {
 import { validateTemplateSend } from './templates'
 import { messagingWindowForConversation } from './window'
 import { contactHasPendingPix } from './pending-pix'
+import { isDemoTenantId } from '../demo/ids'
 import { getWhatsappChannel } from '../whatsapp/channel'
 import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
@@ -951,7 +952,12 @@ export function sendOutboundMessageOp(
     }
 
     const channel = getWhatsappChannel(db, meta.tenantId)
-    if (!channel || channel.status !== 'connected') {
+    // Clínica demo / Lab (DEC-186): nada sai para a Meta; o consumer marca entregue
+    // de forma sintética. Sem canal real, o opt-in da IA ainda tem de poder responder.
+    if (
+      !isDemoTenantId(meta.tenantId) &&
+      (!channel || channel.status !== 'connected')
+    ) {
       throw new ValidationError(
         'whatsapp_not_connected',
         channel?.status === 'interrupted'
@@ -1272,7 +1278,7 @@ export function sendOutboundMessageOp(
           templateLanguage,
           waId: getConversationWithContact(db, meta.tenantId, input.conversationId)!.contact
             .waId,
-          phoneNumberId: channel.phoneNumberId,
+          phoneNumberId: channel?.phoneNumberId ?? null,
           // Corpo só na fila interna — logs do consumer não devem ecoá-lo.
           // Texto livre humano: body com prefixo [Nome] (DEC-088).
           body: whatsappBody,

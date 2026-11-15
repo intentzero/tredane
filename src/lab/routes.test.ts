@@ -96,6 +96,7 @@ describe('MCP de laboratório (DEC-186)', () => {
       'lab_config_resource_active',
       'lab_config_windows',
       'lab_config_block',
+      'lab_config_ai_assist',
     ])
   })
 
@@ -142,6 +143,7 @@ describe('MCP de laboratório (DEC-186)', () => {
     await post(env, call('lab_config_block', { resourceId: 'r1', startsAt: 1, endsAt: 2, reason: 'x' }))
     await post(env, call('lab_config_service_active', { serviceId: 's1', active: false }))
     await post(env, call('lab_config_resource_active', { resourceId: 'r1', active: true }))
+    await post(env, call('lab_config_ai_assist', { enabled: true }))
     expect(labConfig.mock.calls.map((c) => c[1])).toEqual([
       'get',
       'service',
@@ -150,9 +152,11 @@ describe('MCP de laboratório (DEC-186)', () => {
       'block',
       'service_active',
       'resource_active',
+      'ai_assist',
     ])
     expect(labConfig.mock.calls[0]![0].actorId).toBe('lab:user_super')
     expect(labConfig.mock.calls[1]![2]).toMatchObject({ name: 'Massagem', professionalIds: ['p1'] })
+    expect(labConfig.mock.calls[7]![2]).toEqual({ enabled: true })
   })
 
   it('não há ferramenta para apagar', async () => {

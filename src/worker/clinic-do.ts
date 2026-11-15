@@ -2289,6 +2289,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           (await this.#runAutoDraftsWork(caller, null)).map((o) => ({
             status: o.status,
             conversationId: o.conversationId,
+            ...(o.reason ? { reason: o.reason } : {}),
           })),
         settleOutbound: async (row) => {
           await this.applyOutboundSendResult(caller, {
@@ -2346,6 +2347,29 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         return this.setClinicWeeklyWindows(caller, payload as unknown as SetWeeklyWindowsInput)
       case 'block':
         return this.createClinicBlock(caller, payload as unknown as CreateBlockInput)
+      case 'ai_assist': {
+        const settings = await this.setClinicAiAssistEnabled(caller, payload.enabled === true)
+        // Lab: canal sintético para o outbound e o readiness (nada para a Meta).
+        if (payload.enabled === true) {
+          clinicWhatsapp.syncWhatsappChannel(
+            this.#db,
+            caller.tenantId,
+            {
+              status: 'connected',
+              bindingId: 'lab-demo-binding',
+              phoneNumberId: 'lab-demo-phone',
+              wabaId: 'lab-demo-waba',
+              displayPhone: '+550000000000',
+              displayName: 'Clínica Demo Lab',
+              connectedBy: caller.actorId ?? 'lab:mcp',
+              connectedAt: this.#clock.nowMs(),
+              action: 'channel_connected',
+            },
+            this.#clock,
+          )
+        }
+        return settings
+      }
       case 'unmatched_terms':
         return this.listClinicUnmatchedTerms(caller)
       default:

@@ -26,6 +26,18 @@ describe('clínica demo (backlog item 3)', () => {
       expect(n('SELECT COUNT(*) AS n FROM resources WHERE tenant_id = ?')).toBe(6)
       expect(n('SELECT COUNT(*) AS n FROM services WHERE tenant_id = ?')).toBe(9)
       expect(n('SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?')).toBe(first.appointmentsCreated)
+      expect(
+        db.get<{ ai_assist_enabled: number }>(
+          'SELECT ai_assist_enabled FROM clinic_settings WHERE id = 1 AND tenant_id = ?',
+          DEMO_CLINIC_TENANT_ID,
+        )?.ai_assist_enabled,
+      ).toBe(1)
+      expect(
+        db.get<{ status: string }>(
+          'SELECT status FROM whatsapp_channel WHERE tenant_id = ?',
+          DEMO_CLINIC_TENANT_ID,
+        )?.status,
+      ).toBe('connected')
 
       // Sem sobreposição por profissional.
       const overlaps = n(`SELECT COUNT(*) AS n FROM appointments a JOIN appointments b

@@ -3,7 +3,9 @@ import { insertSyntheticAppointment } from '../config/appointments'
 import { setWeeklyWindows } from '../config/availability'
 import { listResources, upsertResource } from '../config/resources'
 import { listServices, upsertService } from '../config/services'
+import { setClinicAiAssistEnabled } from '../config/settings'
 import type { ResourceRow, ServiceRow } from '../config/types'
+import { syncWhatsappChannel } from '../whatsapp/channel'
 import { upsertContact } from '../contacts'
 import type { OpportunityStage } from '../constants'
 import type { ClinicCaller } from '../envelopes'
@@ -256,7 +258,7 @@ export function seedDemoClinicOp(
   const tenantId = meta.tenantId
   const owner = { id: opts.ownerClerkUserId, name: opts.ownerDisplayName ?? 'Você' }
 
-  return db.transactionSync(() => {
+  const seeded = db.transactionSync(() => {
     const t0 = clock.nowMs()
     const existingRes = listResources(db, tenantId, clock)
 
@@ -538,4 +540,25 @@ export function seedDemoClinicOp(
       opportunitiesCreated,
     }
   })
+
+  // Fora da transação do seed (syncWhatsappChannel / settings abrem a sua).
+  // Lab MCP (DEC-186): IA ligada + canal WhatsApp sintético — nada sai para a Meta.
+  setClinicAiAssistEnabled(db, tenantId, true, clock)
+  syncWhatsappChannel(
+    db,
+    tenantId,
+    {
+      status: 'connected',
+      bindingId: 'lab-demo-binding',
+      phoneNumberId: 'lab-demo-phone',
+      wabaId: 'lab-demo-waba',
+      displayPhone: '+550000000000',
+      displayName: 'Clínica Demo Lab',
+      connectedBy: 'lab:seed',
+      connectedAt: clock.nowMs(),
+      action: 'channel_connected',
+    },
+    clock,
+  )
+  return seeded
 }
