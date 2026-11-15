@@ -229,8 +229,8 @@ describe('DEC-137: eco e plural das zonas', () => {
       expect(reply).not.toMatch(/ou outra\?/i)
       const after = outbound(s).slice(before)
       const json = after.map((row) => row.interactive_json ?? '').join('\n')
-      // DEC-178: sobra reabre Opções; sem Horários / sem Sim|Corrigir neste eco parcial.
-      expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)
+      // DEC-191: sobra só texto (sem Opções); sem Horários / sem Sim|Corrigir neste eco parcial.
+      expect(json).not.toContain(VARIANT_LIST_BUTTON_LABEL)
       expect(json).not.toContain(SLOT_LIST_BUTTON_LABEL)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       const rows = s.db.all<{ id: string; name: string; audience: string }>(
@@ -287,7 +287,7 @@ describe('DEC-137: eco e plural das zonas', () => {
     }
   })
 
-  it('Corrigir volta à pergunta das zonas com Opções e não abre Horários', async () => {
+  it('Corrigir volta à pergunta das zonas (só texto) e não abre Horários', async () => {
     const s = seed()
     try {
       await lockFeminine(s)
@@ -322,8 +322,9 @@ describe('DEC-137: eco e plural das zonas', () => {
       if (!clicked.handled) return
       expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Entendi:/)
       expect(clicked.autoBook?.replyText ?? '').not.toMatch(/tenho .+\d{2}:\d{2}/)
-      expect(clicked.autoBook?.replyText ?? '').toMatch(/quais zonas|Toque em Opções/i)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
+      expect(clicked.autoBook?.replyText ?? '').toMatch(/quais zonas|Escreva uma ou várias/i)
+      expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Toque em Opções/i)
+      expect(clicked.autoBook?.interactive ?? null).toBeNull()
       expect(clicked.autoBook?.proposalId).toBeFalsy()
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.variantIds ?? null).toBeNull()

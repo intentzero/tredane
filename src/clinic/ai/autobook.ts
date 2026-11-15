@@ -309,6 +309,25 @@ function variantChoiceForImpl(
   return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
 }
 
+/**
+ * DEC-191: lista Meta Opções só em modo `uma` (single-select).
+ * Em `varias` a cliente escreve («axila e pernas» / «todas») + eco Sim/Corrigir.
+ */
+function variantChoiceIfSingle(
+  selectionMode: ServiceRow['variantSelection'] | null | undefined,
+  deferred: DeferredBookingFrame,
+  serviceId: string,
+  catalogVersion: string,
+  zones: Array<{ id: string; name: string; audience?: string | null; durationMinutes: number; priceCents?: number | null }>,
+  opts?: { includeTodas?: boolean; omitIds?: readonly string[] },
+): ChoiceInteractive | null {
+  if (allowsMultipleVariants(selectionMode)) return null
+  return variantChoiceForImpl(deferred, serviceId, catalogVersion, zones, {
+    includeTodas: false,
+    ...opts,
+  })
+}
+
 export { extractDates, extractTimes, norm }
 
 export const AI_AUTOBOOK_ACTOR_ID = AI_AUTOBOOK_ACTOR
@@ -504,6 +523,19 @@ function mentionZones(
 const AFFIRMATIVE =
   /\b(sim|pode ser|pode marcar|pode agendar|pode|confirmo|confirmado|confirma|fechado|combinado|quero|isso|ok|okay|perfeito|beleza|blz|otimo|bora|marca|marcar|agenda|agendar|serve|fica bom|esta otimo|ta bom|ta otimo|certo)\b/
 /**
+ * «Sim» / 👍 após lista de horários — pode herdar a hora da bolha anterior da clínica.
+ * «Quero todas» / «as duas» não: é escolha de variante, não confirmação de slot.
+ */
+const SHORT_SLOT_PICK_AFFIRM =
+  /^(sim|pode ser|pode marcar|pode agendar|pode|confirmo|confirmado|confirma|fechado|combinado|isso|ok|okay|perfeito|beleza|blz|otimo|bora|certo|perfeito|serve|fica bom|esta otimo|ta bom|ta otimo)([\s,!.?]|$)/i
+
+export function isShortSlotPickAffirmation(text: string): boolean {
+  const c = norm(text).trim()
+  if (claimsCatalogShortcut(text)) return false
+  if (extractTimes(text).size > 0) return false
+  return SHORT_SLOT_PICK_AFFIRM.test(c)
+}
+/**
  * Hesitação por expressão (#410 / CF-05). Palavras soltas («ver», «acho», «não», «outra»)
  * não bloqueiam aceite nem pedido completo; «não, 16h» é correção de horário.
  */
@@ -537,6 +569,8 @@ export function detectExplicitConfirmation(input: {
   previousClinicText: string | null
   /** Mensagens mais antigas, da mais recente para a mais antiga, fora da vez atual. */
   historyTexts?: string[]
+  /** Só inbound — para horário não herdar o expediente da cópia da clínica (rsamp_fa7f138 / cnv_3fa91176). */
+  clientHistoryTexts?: string[]
   clientToday: string
   clinicToday: string
   services: ServiceRow[]
@@ -563,7 +597,9 @@ export function detectExplicitConfirmation(input: {
   const pTimes = extractTimes(prev)
   const pServices = extractServices(prev, input.services)
 
-  const affirmative = AFFIRMATIVE.test(c)
+  const affirmative =
+    (AFFIRMATIVE.test(c) && !claimsCatalogShortcut(client)) ||
+    (cTimes.size === 1 && cDates.size >= 1 && cServices.length === 1)
   // «sim/pode ser…» OU horário de relógio («15h», «1530») OU dia absoluto
   // já resolvido com um serviço (oferta de período, ex. B-04 «semana que vem de manhã»).
   if (!affirmative && cTimes.size === 0 && !(cDates.size === 1 && cServices.length === 1)) {
@@ -573,6 +609,7 @@ export function detectExplicitConfirmation(input: {
   const missing: Array<'dia' | 'horario' | 'procedimento'> = []
   let ambiguous = false
   const history = input.historyTexts ?? []
+  const clientHistory = input.clientHistoryTexts ?? history
   const resolve = <T,>(
     own: T[],
     prior: T[],
@@ -592,7 +629,32 @@ export function detectExplicitConfirmation(input: {
     return undefined
   }
   const date = resolve([...cDates], [...pDates], 'dia', (text) => [...extractDates(text, input.clinicToday)])
-  const time = resolve([...cTimes], [...pTimes], 'horario', (text) => [...extractTimes(text)])
+  const priorTimesForPick = isShortSlotPickAffirmation(client) ? [...pTimes] : []
+  const time = (() => {
+    if (cTimes.size === 1) return [...cTimes][0]
+    if (cTimes.size > 1) {
+      ambiguous = true
+      missing.push('horario')
+      return undefined
+    }
+    if (priorTimesForPick.length === 1) return priorTimesForPick[0]
+    if (priorTimesForPick.length > 1) {
+      ambiguous = true
+      missing.push('horario')
+      return undefined
+    }
+    for (const text of clientHistory) {
+      const found = [...extractTimes(text)]
+      if (found.length === 1) return found[0]
+      if (found.length > 1) {
+        ambiguous = true
+        missing.push('horario')
+        return undefined
+      }
+    }
+    missing.push('horario')
+    return undefined
+  })()
   const service = resolve(cServices, pServices, 'procedimento', (text) => extractServices(text, input.services))
   if (missing.length > 0) {
     // Devolve o que já está determinado para a oferta de período / perguntas (#408 B-04).
@@ -635,7 +697,7 @@ function zonesChosenByClient(
  * Pergunta as variantes com hora já conhecida (`perguntar_variantes` + `{hora}`).
  * `phrase` legado («as zonas» / «a zona») só entra no fallback; `{tipo}` vem do kind.
  * DEC-145: `selectionMode=uma` escolhe redação singular (sem convite multi).
- * Modo `varias`: Opções + Mais|Pronto (DEC-178); texto livre + eco DEC-137 mantém-se.
+ * Modo `varias`: só texto livre + eco DEC-137 (DEC-191; revê DEC-178).
  */
 export function askZonesReply(
   phrase: string,
@@ -1727,6 +1789,7 @@ export async function tryAiAutoBook(
     clientTexts: clientTurn.map((m) => m.body),
     previousClinicText: prevClinic?.body ?? null,
     historyTexts: older.map((m) => m.body),
+    clientHistoryTexts: older.filter((m) => m.direction === 'inbound').map((m) => m.body),
     clientToday: clinicCivilDateFromUtc(tz, confirmation.created_at),
     clinicToday: clinicCivilDateFromUtc(tz, prevClinic?.created_at ?? confirmation.created_at),
     services,
@@ -2117,6 +2180,10 @@ export async function tryAiAutoBook(
       }
       if (!missing.includes('horario') && !det.time) missing = [...missing, 'horario']
     }
+    if (catalogShortcutNow && !clockFromTurn && !pendingTimeOverride && !input.boundSlot) {
+      det = { ...det, ok: false, time: undefined, status: 'needs_info' }
+      if (!missing.includes('horario')) missing = [...missing, 'horario']
+    }
   }
   if (input.boundSlot) {
     const frameBound = frame
@@ -2148,6 +2215,14 @@ export async function tryAiAutoBook(
     }
   }
   let time = dropStickyTimeAfterDayRemap ? undefined : det.time
+  const shortPickAffirm = isShortSlotPickAffirmation(turnText)
+  const timeStatedByClient = Boolean(
+    clockFromTurn ||
+      pendingTimeOverride ||
+      input.boundSlot ||
+      (shortPickAffirm && det.time) ||
+      Boolean(swap?.time),
+  )
   if (
     !dropStickyTimeAfterDayRemap &&
     !time &&
@@ -2157,6 +2232,16 @@ export async function tryAiAutoBook(
   ) {
     time = session.clockTime
     missing = missing.filter((item) => item !== 'horario')
+  }
+  if (time && !timeStatedByClient) {
+    time = undefined
+    det = {
+      ...det,
+      ok: false,
+      time: undefined,
+      status: det.status === 'requires_button' ? 'needs_info' : det.status,
+    }
+    if (!missing.includes('horario')) missing = [...missing, 'horario']
   }
   // Relógio neste turno (ex. «às 15») sobrevive ao remap de dia.
   if (!time && clockFromTurn) time = clockFromTurn
@@ -2515,9 +2600,9 @@ export async function tryAiAutoBook(
           if (!multiVariants && claimsWholeCatalog(turnText)) {
             pushFriction(frictionModeUmaTodas(det.service.id))
           }
-          // DEC-178: `varias` também envia Opções (toque → Mais|Pronto); `uma` sem Todas.
-          // Texto livre + eco DEC-137 mantém-se em paralelo.
-          interactive = variantChoiceFor(
+          // DEC-191: Opções só em `uma`; `varias` = texto livre + eco DEC-137.
+          interactive = variantChoiceIfSingle(
+            det.service.variantSelection,
             deferred,
             det.service.id,
             catalog.version,
@@ -2528,7 +2613,6 @@ export async function tryAiAutoBook(
               durationMinutes: z.durationMinutes,
               priceCents: z.priceCents,
             })),
-            { includeTodas: false },
           )
         } else if (!time) {
           // Período deste turno, ou o que o silencioso 1 deixou no quadro (nomeado antes do eco).
@@ -2732,8 +2816,9 @@ export async function tryAiAutoBook(
               input.conversationId,
               { selectionMode: svc.variantSelection },
             )
-            // DEC-178: Opções também em `varias` (Corrigir / re-ask).
-            interactive = variantChoiceFor(
+            // DEC-191: Opções só em `uma` (Corrigir / re-ask).
+            interactive = variantChoiceIfSingle(
+              svc.variantSelection,
               deferred,
               svc.id,
               catalog.version,
@@ -2744,7 +2829,6 @@ export async function tryAiAutoBook(
                 durationMinutes: z.durationMinutes,
                 priceCents: z.priceCents,
               })),
-              { includeTodas: false },
             )
           } else {
           const echoedIds =
@@ -2790,8 +2874,9 @@ export async function tryAiAutoBook(
                 input.conversationId,
                 { selectionMode: svc.variantSelection },
               )
-            // DEC-178: Opções em `varias` e `uma`.
-            interactive = variantChoiceFor(
+            // DEC-191: Opções só em `uma`.
+            interactive = variantChoiceIfSingle(
+              svc.variantSelection,
               deferred,
               svc.id,
               catalog.version,
@@ -2802,7 +2887,6 @@ export async function tryAiAutoBook(
                 durationMinutes: z.durationMinutes,
                 priceCents: z.priceCents,
               })),
-              { includeTodas: false },
             )
           } else {
             const mention = mentionZones(turnText, zonePool, svc)
@@ -2845,8 +2929,9 @@ export async function tryAiAutoBook(
               ) {
                 pushFriction(frictionModeUmaTodas(svc.id))
               }
-              // DEC-178: Opções também após «Não encontrei…».
-              interactive = variantChoiceFor(
+              // DEC-191: Opções só em `uma` após «Não encontrei…».
+              interactive = variantChoiceIfSingle(
+                svc.variantSelection,
                 deferred,
                 svc.id,
                 catalog.version,
@@ -2857,7 +2942,6 @@ export async function tryAiAutoBook(
                   durationMinutes: z.durationMinutes,
                   priceCents: z.priceCents,
                 })),
-                { includeTodas: false },
               )
             } else {
             const resolvedRaw = mention.zones.length > 0 ? mention.zones : keptForMode
@@ -3125,8 +3209,9 @@ export async function tryAiAutoBook(
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const zonePool = scoped.length > 0 ? scoped : activeZones
     const names = stableVariantLabelList(zonePool)
-    // DEC-178: Opções em `varias` e `uma` (sem Todas); toque multi → Mais|Pronto.
-    const interactive = variantChoiceFor(
+    // DEC-191: Opções só em `uma` (sem Todas); `varias` = texto livre.
+    const interactive = variantChoiceIfSingle(
+      svc.variantSelection,
       deferred,
       svc.id,
       catalog.version,
@@ -3137,7 +3222,6 @@ export async function tryAiAutoBook(
         durationMinutes: z.durationMinutes,
         priceCents: z.priceCents,
       })),
-      { includeTodas: false },
     )
     const genericAsk = askZonesReply(
       phrase,
