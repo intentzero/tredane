@@ -59,11 +59,12 @@ export type DialogueActId =
 
 /**
  * Convite na pergunta de variantes em modo `varias`
- * (DEC-178 — lista Opções + acumulação Mais|Pronto; texto livre + eco DEC-137 mantém-se).
- * Modo `uma` não usa este sufixo (DEC-145).
+ * (DEC-191 — só texto livre + eco DEC-137; Meta lista não permite multi-seleção).
+ * Modo `uma` não usa este sufixo (DEC-145; lista Opções mantém-se).
+ * Revê DEC-178 (Opções + Mais|Pronto em `varias`).
  */
 export const MULTI_VARIANT_ASK_HINT =
-  'Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.'
+  'Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.'
 
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {

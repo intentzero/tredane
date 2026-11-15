@@ -6,7 +6,7 @@
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (staging).
  * A-53 / A-54: FAQ gate mid-zonas (DEC-177) — pergunta ≠ leftover.
- * A-57 / A-58: DEC-178 acumulação Opções + Mais|Pronto.
+ * A-57 / A-58: DEC-191 ask zonas varias só texto + eco DEC-137.
  * A-59: pedido de atendente na ask de zonas (DEC-083; #725 — id único, não colidir com A-53 FAQ).
  * A-60: FAQ institucional mid-funnel (DEC-185) — park/resume com texto cadastrado.
  * A-61 / A-62: FAQ «O que inclui a íntima?» — variante sem/com explicação (não prosa do serviço).
@@ -274,7 +274,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 2,
     // Staging Paulo 09/11/2026: texto/toque da linha fazia sair a mesma frase duas vezes
     // (handoff + Opções). Catálogo cede ao autoBook; interactive reply não reentra no autodraft.
-    // DEC-178: `varias` = Opções + texto livre.
+    // DEC-191: `varias` = só texto livre (sem Opções).
     turns: [
       { role: 'client', text: 'Quero depilação' },
       { role: 'client', text: 'Masculina' },
@@ -287,8 +287,8 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         { turn: 0, matches: [/feminina ou masculina/i] },
         {
           turn: 1,
-          matches: [/quais zonas/i, /Toque em Opções|Escreva uma ou várias/i],
-          excludes: [/Falar com a equipe/i, /Pode ser mais de uma/i],
+          matches: [/quais zonas/i, /Escreva uma ou várias/i],
+          excludes: [/Falar com a equipe/i, /Pode ser mais de uma/i, /Toque em Opções/i],
         },
       ],
       outboundExcludes: NO_LEAK,
@@ -304,8 +304,8 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
             s.conversationId,
           )
           .at(0)
-        if (!(last?.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL)) {
-          return ['A-40: ask-tipo varias deve trazer lista Opções (DEC-178)']
+        if ((last?.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL)) {
+          return ['A-40: ask-tipo varias não deve trazer lista Opções (DEC-191)']
         }
         return []
       },
@@ -575,7 +575,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'A-57',
-    title: 'DEC-178: ask zonas em varias traz Opções (sem handoff)',
+    title: 'DEC-191: ask zonas em varias é só texto (sem Opções nem handoff)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quero depilação feminina' }],
     expect: {
@@ -584,8 +584,8 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/quais zonas/i, /Toque em Opções/i],
-          excludes: [/Falar com a equipe/i, /Entendi:/i],
+          matches: [/quais zonas/i, /Escreva uma ou várias/i],
+          excludes: [/Falar com a equipe/i, /Entendi:/i, /Toque em Opções/i],
         },
       ],
       outboundExcludes: NO_LEAK,
@@ -602,11 +602,8 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
           )
           .at(0)
         const json = last?.interactive_json ?? ''
-        if (!json.includes(VARIANT_LIST_BUTTON_LABEL)) {
-          return ['A-57: ask varias deve trazer lista Opções (DEC-178)']
-        }
-        if (json.includes('"title":"Todas"') || json.includes('"Todas"')) {
-          return ['A-57: Opções em varias não inclui Todas (texto livre / DEC-178)']
+        if (json.includes(VARIANT_LIST_BUTTON_LABEL)) {
+          return ['A-57: ask varias não deve trazer lista Opções (DEC-191)']
         }
         return []
       },
@@ -614,7 +611,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'A-58',
-    title: 'DEC-178: texto livre «axila e pernas» continua a ecoar Entendi',
+    title: 'DEC-191: texto livre «axila e pernas» ecoa Entendi (sem Opções no ask)',
     turnosIdeais: 2,
     turns: [
       { role: 'client', text: 'Quero depilação feminina' },
@@ -624,7 +621,11 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       noAppointment: true,
       turns: [
-        { turn: 0, matches: [/quais zonas/i, /Toque em Opções/i] },
+        {
+          turn: 0,
+          matches: [/quais zonas/i, /Escreva uma ou várias/i],
+          excludes: [/Toque em Opções/i],
+        },
         { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] },
       ],
       outboundExcludes: NO_LEAK,

@@ -309,6 +309,25 @@ function variantChoiceForImpl(
   return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
 }
 
+/**
+ * DEC-191: lista Meta Opções só em modo `uma` (single-select).
+ * Em `varias` a cliente escreve («axila e pernas» / «todas») + eco Sim/Corrigir.
+ */
+function variantChoiceIfSingle(
+  selectionMode: ServiceRow['variantSelection'] | null | undefined,
+  deferred: DeferredBookingFrame,
+  serviceId: string,
+  catalogVersion: string,
+  zones: Array<{ id: string; name: string; audience?: string | null; durationMinutes: number; priceCents?: number | null }>,
+  opts?: { includeTodas?: boolean; omitIds?: readonly string[] },
+): ChoiceInteractive | null {
+  if (allowsMultipleVariants(selectionMode)) return null
+  return variantChoiceForImpl(deferred, serviceId, catalogVersion, zones, {
+    includeTodas: false,
+    ...opts,
+  })
+}
+
 export { extractDates, extractTimes, norm }
 
 export const AI_AUTOBOOK_ACTOR_ID = AI_AUTOBOOK_ACTOR
@@ -678,7 +697,7 @@ function zonesChosenByClient(
  * Pergunta as variantes com hora já conhecida (`perguntar_variantes` + `{hora}`).
  * `phrase` legado («as zonas» / «a zona») só entra no fallback; `{tipo}` vem do kind.
  * DEC-145: `selectionMode=uma` escolhe redação singular (sem convite multi).
- * Modo `varias`: Opções + Mais|Pronto (DEC-178); texto livre + eco DEC-137 mantém-se.
+ * Modo `varias`: só texto livre + eco DEC-137 (DEC-191; revê DEC-178).
  */
 export function askZonesReply(
   phrase: string,
@@ -2581,9 +2600,9 @@ export async function tryAiAutoBook(
           if (!multiVariants && claimsWholeCatalog(turnText)) {
             pushFriction(frictionModeUmaTodas(det.service.id))
           }
-          // DEC-178: `varias` também envia Opções (toque → Mais|Pronto); `uma` sem Todas.
-          // Texto livre + eco DEC-137 mantém-se em paralelo.
-          interactive = variantChoiceFor(
+          // DEC-191: Opções só em `uma`; `varias` = texto livre + eco DEC-137.
+          interactive = variantChoiceIfSingle(
+            det.service.variantSelection,
             deferred,
             det.service.id,
             catalog.version,
@@ -2594,7 +2613,6 @@ export async function tryAiAutoBook(
               durationMinutes: z.durationMinutes,
               priceCents: z.priceCents,
             })),
-            { includeTodas: false },
           )
         } else if (!time) {
           // Período deste turno, ou o que o silencioso 1 deixou no quadro (nomeado antes do eco).
@@ -2798,8 +2816,9 @@ export async function tryAiAutoBook(
               input.conversationId,
               { selectionMode: svc.variantSelection },
             )
-            // DEC-178: Opções também em `varias` (Corrigir / re-ask).
-            interactive = variantChoiceFor(
+            // DEC-191: Opções só em `uma` (Corrigir / re-ask).
+            interactive = variantChoiceIfSingle(
+              svc.variantSelection,
               deferred,
               svc.id,
               catalog.version,
@@ -2810,7 +2829,6 @@ export async function tryAiAutoBook(
                 durationMinutes: z.durationMinutes,
                 priceCents: z.priceCents,
               })),
-              { includeTodas: false },
             )
           } else {
           const echoedIds =
@@ -2856,8 +2874,9 @@ export async function tryAiAutoBook(
                 input.conversationId,
                 { selectionMode: svc.variantSelection },
               )
-            // DEC-178: Opções em `varias` e `uma`.
-            interactive = variantChoiceFor(
+            // DEC-191: Opções só em `uma`.
+            interactive = variantChoiceIfSingle(
+              svc.variantSelection,
               deferred,
               svc.id,
               catalog.version,
@@ -2868,7 +2887,6 @@ export async function tryAiAutoBook(
                 durationMinutes: z.durationMinutes,
                 priceCents: z.priceCents,
               })),
-              { includeTodas: false },
             )
           } else {
             const mention = mentionZones(turnText, zonePool, svc)
@@ -2911,8 +2929,9 @@ export async function tryAiAutoBook(
               ) {
                 pushFriction(frictionModeUmaTodas(svc.id))
               }
-              // DEC-178: Opções também após «Não encontrei…».
-              interactive = variantChoiceFor(
+              // DEC-191: Opções só em `uma` após «Não encontrei…».
+              interactive = variantChoiceIfSingle(
+                svc.variantSelection,
                 deferred,
                 svc.id,
                 catalog.version,
@@ -2923,7 +2942,6 @@ export async function tryAiAutoBook(
                   durationMinutes: z.durationMinutes,
                   priceCents: z.priceCents,
                 })),
-                { includeTodas: false },
               )
             } else {
             const resolvedRaw = mention.zones.length > 0 ? mention.zones : keptForMode
@@ -3191,8 +3209,9 @@ export async function tryAiAutoBook(
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const zonePool = scoped.length > 0 ? scoped : activeZones
     const names = stableVariantLabelList(zonePool)
-    // DEC-178: Opções em `varias` e `uma` (sem Todas); toque multi → Mais|Pronto.
-    const interactive = variantChoiceFor(
+    // DEC-191: Opções só em `uma` (sem Todas); `varias` = texto livre.
+    const interactive = variantChoiceIfSingle(
+      svc.variantSelection,
       deferred,
       svc.id,
       catalog.version,
@@ -3203,7 +3222,6 @@ export async function tryAiAutoBook(
         durationMinutes: z.durationMinutes,
         priceCents: z.priceCents,
       })),
-      { includeTodas: false },
     )
     const genericAsk = askZonesReply(
       phrase,

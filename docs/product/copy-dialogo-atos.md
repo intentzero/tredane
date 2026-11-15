@@ -44,13 +44,13 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 ### perguntar_variantes
 
-1. `Quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
-2. `Quais {tipo} você quer? {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
-3. `Para {serviço}, quais {tipo}? {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
-4. `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
-5. `Para fechar às {hora}, quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.`
+1. `Quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
+2. `Quais {tipo} você quer? {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
+3. `Para {serviço}, quais {tipo}? {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
+4. `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
+5. `Para fechar às {hora}, quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.`
 
-**Nota (Paulo 09/11/2026 / DEC-135 revisto):** em modo `varias` a pergunta é **só texto** (sem lista Meta Opções); o sufixo convida a nomear uma ou várias zonas (ou «todas»), com eco DEC-137. A lista Opções fica para modo `uma`. Flow CheckboxGroup continua diferido. Supersede a opção A do mesmo dia (Opções + hint).
+**Nota (DEC-191, Paulo 15/11/2026):** em modo `varias` a pergunta é **só texto** (sem lista Meta Opções — a lista Meta é single-select e não serve multi-zona); o sufixo convida a nomear uma ou várias zonas (ou «todas»), com eco DEC-137 (Sim/Corrigir). A lista Opções fica para modo `uma`. Revê DEC-178. A mesma redação vale na re-pergunta embutida em `informar_preco_tabela` («Quais zonas você quer? Escreva…»).
 
 **Nota DEC-145 (modo `uma`):** o catálogo M4 permanece plural (máx. 5 redações). Em modo `uma` o código usa a pergunta singular directa `Para {serviço}, qual {tipo} você quer? Temos {lista}.` (e com hora: `Para fechar às {hora}, qual {tipo} você quer? Temos {lista}.`), **sem** o convite multi, e anexa a lista Opções (sem «Todas»). Ato dedicado no catálogo fica fora deste corte.
 
@@ -162,7 +162,7 @@ One-shot na **primeira** oferta de horários da sessão de booking (DEC-153 — 
 
 ### Redação nova num ato já aprovado
 
-- `perguntar_variantes` *(novo)*: `Para fechar às {hora}, quais {tipo}? Temos {lista}. Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.` — substitui o texto legado com «Pode ser mais de uma» / «me diga»; DEC-178 (13/11/2026): Opções + Mais|Pronto em `varias`.
+- `perguntar_variantes` *(novo)*: `Para fechar às {hora}, quais {tipo}? Temos {lista}. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.` — substitui o texto legado com «Pode ser mais de uma» / «me diga»; DEC-191 (15/11/2026): só texto em `varias` (revê DEC-178).
 
 ### perguntar_dia
 
@@ -340,7 +340,7 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 | Lista de horários: botão que abre a lista | `Horários` | ≤ 20 | |
 | Eco das zonas no texto livre (DEC-137) | `Entendi: axila, pernas, costas. Certo?` | — | **Confirmado** (Paulo, 09/11/2026): nomes em minúsculas; lista só com vírgulas (sem «e» antes do último). Botões Sim/Corrigir inalterados. |
 | Botão do eco | `Sim` | título ≤ 20 | confirma o conjunto e só então abre Horários; não marca (DEC-061) |
-| Botão do eco | `Corrigir` | título ≤ 20 | volta à pergunta das zonas (Opções + texto livre) |
+| Botão do eco | `Corrigir` | título ≤ 20 | volta à pergunta das zonas (só texto em `varias`, DEC-191; Opções em `uma`) |
 | Zona citada sem match (#509 / prática 1) — **Confirmado** (Paulo 07/11/2026; **parcial** 10/11/2026) | `Não encontrei {palavra} nas opções. Quer {lista}?` | — | `{palavra}` = token que sobrou; `{lista}` = nomes do âmbito (linha travada). Sem «ou outra?» — a lista já tem todas as variantes. Sem acto no catálogo; frase fixa em `zoneNotFoundAskReply` (DEC-104). **Parcial (Paulo 10/11):** se outras zonas casaram no mesmo turno, prefixo factual `Entendi: {casadas}.` **sem** Sim/Corrigir; o eco DEC-137 completo espera o conjunto resolvido. |
 | Lista de horários: título de cada linha | dinâmico, `terça 03/11 17:00` | linha ≤ 24 | dia da semana + `DD/MM` + hora (DEC-138 / #507), relógio da clínica, sem fuso IANA e sem mês-dia. Se o título cortar, a descrição leva o texto completo (DEC-134 opção A). O toque usa o id `YYYY-MM-DDTHH:MM`, não o título |
 | Lista de variantes: título de cada linha | dinâmico, o nome da variante | linha ≤ 24 | cortado em 24 caracteres; um nome longo pode perder o fim |
