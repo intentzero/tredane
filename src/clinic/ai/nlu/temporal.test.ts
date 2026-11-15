@@ -146,6 +146,31 @@ describe('parseTemporal (#408)', () => {
       times: ['10:00'],
       dateConflict: true,
     },
+    // Lab #8 / PR-D: «depois das Nh» → período; sem HH:MM pontual.
+    {
+      id: 'PR-D-depois-20h',
+      text: 'tem horário depois das 20h?',
+      periods: ['noite'],
+      times: [],
+    },
+    {
+      id: 'PR-D-depois-18h',
+      text: 'só posso depois das 18h',
+      periods: ['noite'],
+      times: [],
+    },
+    {
+      id: 'PR-D-depois-14h',
+      text: 'pode ser depois das 14h',
+      periods: ['tarde'],
+      times: [],
+    },
+    {
+      id: 'PR-D-depois-10h',
+      text: 'depois das 10h',
+      periods: ['manha'],
+      times: [],
+    },
   ]
 
   for (const c of cases) {
@@ -237,5 +262,16 @@ describe('parseTemporal (#408)', () => {
     expect(extractDates('31/11', TODAY)).toEqual(new Set())
     expect(extractTimes('custa 1500?')).toEqual(new Set())
     expect(extractTimes('15 e 30')).toEqual(new Set(['15:30']))
+  })
+
+  it('PR-D: «depois das Nh» não vira relógio pontual; «depois de amanhã» intacto', () => {
+    expect(extractTimes('tem horário depois das 20h?')).toEqual(new Set())
+    expect(extractTimes('depois das 18h')).toEqual(new Set())
+    // Sem regressão: «das 14» / «às 20h» soltos continuam relógio.
+    expect(extractTimes('o das 14')).toEqual(new Set(['14:00']))
+    expect(extractTimes('às 20h')).toEqual(new Set(['20:00']))
+    const amanha = parseTemporal('depois de amanhã de manhã', TODAY)
+    expect(amanha.dates).toEqual(['2026-11-07'])
+    expect(amanha.periods).toEqual(['manha'])
   })
 })

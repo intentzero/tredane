@@ -145,4 +145,24 @@ describe('interpretTurn (#416)', () => {
     })
     expect(ambiguous.slots.serviceId).toBeUndefined()
   })
+
+  it('Lab #8 / PR-D: «depois das Nh» preenche period (noite) sem time pontual', () => {
+    const faq = interpretTurn({
+      turnText: 'tem horário depois das 20h?',
+      messageId: 'msg_3b05c6',
+      today: '2026-11-02',
+      services: [],
+    })
+    expect(faq.slots.period?.value).toBe('noite')
+    expect(faq.slots.time).toBeUndefined()
+
+    const pref = interpretTurn({
+      turnText: 'só posso depois das 18h',
+      messageId: 'msg_h07',
+      today: '2026-11-02',
+      services: [],
+    })
+    expect(pref.slots.period?.value).toBe('noite')
+    expect(pref.slots.time).toBeUndefined()
+  })
 })

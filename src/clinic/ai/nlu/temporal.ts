@@ -223,11 +223,39 @@ function mergeDates(
   return { dates: [...new Set([...explicit, ...weekdays.dates, ...relative])].sort(), dateConflict: false }
 }
 
+/** Mesmos limiares que `periodFromHHMM` (slot-offer): <12 manhã, <18 tarde, senão noite. */
+function periodFromHour(hour: number): Period {
+  if (hour < 12) return 'manha'
+  if (hour < 18) return 'tarde'
+  return 'noite'
+}
+
+/**
+ * «depois das 18h» / «depois das 20» (Lab #8 / PR-D sombra): preferência de
+ * faixa, não relógio pontual. Não casa «depois de amanhã» (exige das?/da + dígito).
+ * Função nova a cada uso: o flag `g` partilha `lastIndex` se reutilizarmos a mesma RegExp.
+ */
+function depoisDasClockRe(): RegExp {
+  return /\bdepois\s+das?\s+([01]?\d|2[0-3])(?:\s*h(?:rs|s)?(?:\s*([0-5]\d))?|:([0-5]\d))?\b/g
+}
+
+function maskDepoisDasSpans(folded: string): string {
+  return folded.replace(depoisDasClockRe(), (m) => ' '.repeat(m.length))
+}
+
 function parsePeriods(folded: string): Period[] {
   const out: Period[] = []
-  if (/\bmanha\b/.test(folded)) out.push('manha')
-  if (/\btarde\b/.test(folded)) out.push('tarde')
-  if (/\bnoite\b/.test(folded)) out.push('noite')
+  const add = (p: Period) => {
+    if (!out.includes(p)) out.push(p)
+  }
+  if (/\bmanha\b/.test(folded)) add('manha')
+  if (/\btarde\b/.test(folded)) add('tarde')
+  if (/\bnoite\b/.test(folded)) add('noite')
+  for (const m of folded.matchAll(depoisDasClockRe())) {
+    const hour = Number(m[1])
+    if (Number.isNaN(hour) || hour > 23) continue
+    add(periodFromHour(hour))
+  }
   return out
 }
 
@@ -243,7 +271,8 @@ export function parseTimes(
   foldedRaw: string,
   periods: Period[] = [],
 ): { times: string[]; ambiguousAfternoonHour: number | null; spans: ClockSpan[] } {
-  const folded = maskNonClockSpans(foldedRaw)
+  // «depois das Nh» → período (parsePeriods); não extrair HH:MM pontual.
+  const folded = maskDepoisDasSpans(maskNonClockSpans(foldedRaw))
   const out = new Set<string>()
   const spans: ClockSpan[] = []
   const add = (h: number, m: number) => {
