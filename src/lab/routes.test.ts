@@ -93,6 +93,7 @@ describe('MCP de laboratório (DEC-186)', () => {
       'lab_config_get',
       'lab_config_service',
       'lab_config_service_active',
+      'lab_config_zones',
       'lab_config_resource',
       'lab_config_resource_active',
       'lab_config_windows',
@@ -140,6 +141,10 @@ describe('MCP de laboratório (DEC-186)', () => {
     const env = envWith({ labConfig })
     await post(env, call('lab_config_get'))
     await post(env, call('lab_config_service', { name: 'Massagem', durationMinutes: 60, bufferMinutes: 0, professionalIds: ['p1'] }))
+    await post(env, call('lab_config_zones', {
+      serviceId: 's1',
+      zones: [{ name: 'Intima', audience: 'feminino', durationMinutes: 20, priceCents: 15000 }],
+    }))
     await post(env, call('lab_config_resource', { kind: 'room', name: 'Sala 1' }))
     await post(env, call('lab_config_windows', { resourceId: 'r1', windows: [] }))
     await post(env, call('lab_config_block', { resourceId: 'r1', startsAt: 1, endsAt: 2, reason: 'x' }))
@@ -149,6 +154,7 @@ describe('MCP de laboratório (DEC-186)', () => {
     expect(labConfig.mock.calls.map((c) => c[1])).toEqual([
       'get',
       'service',
+      'zones',
       'resource',
       'windows',
       'block',
@@ -158,7 +164,11 @@ describe('MCP de laboratório (DEC-186)', () => {
     ])
     expect(labConfig.mock.calls[0]![0].actorId).toBe('lab:user_super')
     expect(labConfig.mock.calls[1]![2]).toMatchObject({ name: 'Massagem', professionalIds: ['p1'] })
-    expect(labConfig.mock.calls[7]![2]).toEqual({ enabled: true })
+    expect(labConfig.mock.calls[2]![2]).toMatchObject({
+      serviceId: 's1',
+      zones: [{ name: 'Intima', audience: 'feminino' }],
+    })
+    expect(labConfig.mock.calls[8]![2]).toEqual({ enabled: true })
   })
 
   it('não há ferramenta para apagar', async () => {

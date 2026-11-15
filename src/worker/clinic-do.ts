@@ -2527,6 +2527,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         return this.upsertClinicService(caller, payload as unknown as UpsertServiceInput)
       case 'service_active':
         return this.setClinicServiceActive(caller, String(payload.serviceId ?? ''), payload.active === true)
+      case 'zones': {
+        const serviceId = String(payload.serviceId ?? '').trim()
+        if (!serviceId) {
+          throw new ValidationError('invalid_zones', 'serviceId obrigatório')
+        }
+        if (!Array.isArray(payload.zones)) {
+          throw new ValidationError('invalid_zones', 'zones deve ser uma lista')
+        }
+        return this.replaceClinicServiceZones(
+          caller,
+          serviceId,
+          payload.zones as ServiceZoneInput[],
+        )
+      }
       case 'resource':
         return this.upsertClinicResource(caller, payload as unknown as UpsertResourceInput)
       case 'resource_active':
