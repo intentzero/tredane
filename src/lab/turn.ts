@@ -38,7 +38,7 @@ export type LabTurnResult = {
   messages: LabMessage[]
   /** O que a cliente pode tocar agora (último envio com botões ou lista), se houver. */
   tappable: LabOutboundOptions | null
-  aiOutcomes: Array<{ status: string; conversationId: string }>
+  aiOutcomes: Array<{ status: string; conversationId: string; reason?: string }>
   click?: unknown
   turnsUsedToday: number
   turnsCapToday: number
@@ -60,7 +60,7 @@ export type LabHooks = {
     buttonTitle: string
     providerEventKey: string
   }) => Promise<unknown>
-  runAutoDrafts: () => Promise<Array<{ status: string; conversationId: string }>>
+  runAutoDrafts: () => Promise<Array<{ status: string; conversationId: string; reason?: string }>>
   settleOutbound: (row: {
     outboxEventId: string
     idempotencyKey: string
@@ -115,7 +115,7 @@ export async function runLabTurn(
   const key = `lab:${hooks.newId()}`
   let conversationId: string | null = null
   let click: unknown
-  let aiOutcomes: Array<{ status: string; conversationId: string }> = []
+  let aiOutcomes: Array<{ status: string; conversationId: string; reason?: string }> = []
 
   if (hasText) {
     const ingested = await hooks.ingest({

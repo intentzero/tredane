@@ -32,6 +32,12 @@ describe('clínica demo (backlog item 3)', () => {
           DEMO_CLINIC_TENANT_ID,
         )?.ai_assist_enabled,
       ).toBe(1)
+      expect(
+        db.get<{ status: string }>(
+          'SELECT status FROM whatsapp_channel WHERE tenant_id = ?',
+          DEMO_CLINIC_TENANT_ID,
+        )?.status,
+      ).toBe('connected')
 
       // Sem sobreposição por profissional.
       const overlaps = n(`SELECT COUNT(*) AS n FROM appointments a JOIN appointments b
