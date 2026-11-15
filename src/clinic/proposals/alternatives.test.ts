@@ -46,13 +46,15 @@ function sampleProposal(
 }
 
 describe('#511 validade visível e Confirmar expirado (copy)', () => {
-  it('proposta mostra Válida até HH:MM no relógio da clínica, sem IANA', () => {
+  it('proposta não mostra «Válida até» no cartão (baseline P10); helper interno mantém-se', () => {
     const proposal = sampleProposal()
     const until = Date.UTC(2026, 10, 5, 16, 30) // 13:30 America/Sao_Paulo
     const body = renderProposalInteractive(proposal, undefined, {
       validUntilMs: until,
     }).body
-    expect(body).toMatch(/Válida até 13:30\./)
+    expect(body).toMatch(/Fica assim:/)
+    expect(body).toMatch(/Posso confirmar\?/)
+    expect(body).not.toMatch(/Válida até/i)
     expect(body).not.toContain('America/')
     expect(body).not.toMatch(/\([A-Za-z]+\/[A-Za-z_]+\)/)
     expect(proposalValidityLine('America/Sao_Paulo', until)).toBe('Válida até 13:30.')

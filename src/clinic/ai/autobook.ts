@@ -44,6 +44,11 @@ import {
   suspendOpenProposalConfirm,
 } from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
+import {
+  proposalConfirmNudgeClientRequestId,
+  sendProposalConfirmNudgeOp,
+  shouldReofferProposalOnAffirmText,
+} from '../proposals/text-confirm-nudge'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { TEMPO_REFUSED_PHRASE, TEMPO_UNCONFIRMED_PHRASE } from '../proposals/render'
@@ -2124,6 +2129,49 @@ export async function tryAiAutoBook(
   const ready =
     Boolean(det.service && date && time) &&
     (det.ok || (det.status === 'needs_info' && missing.length === 0))
+  if (
+    shouldReofferProposalOnAffirmText({
+      open: openProposal,
+      turnText,
+      swap,
+      zoneEcho,
+      turnServiceId: det.service?.id ?? session?.serviceId ?? frame?.serviceId ?? null,
+      turnDate: date ?? null,
+      turnTime: time ?? null,
+      tz,
+    })
+  ) {
+    const nudge = sendProposalConfirmNudgeOp(
+      db,
+      caller,
+      {
+        proposal: openProposal!,
+        conversationId: input.conversationId,
+        clientRequestId: proposalConfirmNudgeClientRequestId(
+          openProposal!.id,
+          openProposal!.version,
+          confirmation.id,
+        ),
+      },
+      clock,
+    )
+    if (nudge.status === 'queued') {
+      const propDate = clinicCivilDateFromUtc(tz, openProposal!.startsAt)
+      const propTime = localHHMM(tz, openProposal!.startsAt)
+      return finish({
+        ...none('requires_button', {
+          confirmationMessageId: confirmation.id,
+          serviceId: openProposal!.serviceId,
+          date: propDate,
+          time: propTime,
+        }),
+        replyText: nudge.lead,
+        interactive: nudge.interactive,
+        outbox: nudge.outbox,
+        notes: 'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
+      })
+    }
+  }
   if (!ready || !det.service || !date || !time) {
     let replyText: string | undefined
     if (det.service) {

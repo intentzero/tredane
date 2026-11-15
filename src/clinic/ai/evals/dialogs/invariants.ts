@@ -98,7 +98,7 @@ export function checkInvariants(
   for (const body of inbound) for (const t of clientTimes(body)) repeatable.add(t)
   const free = s.freeTimesUnion()
   const openingHoursBody =
-    /^(Proposta de horário|Funcionamos assim|Nosso horário|Abrimos assim)\b/
+    /^(Fica assim:|Proposta de horário|Funcionamos assim|Nosso horário|Abrimos assim)\b/
   const offeredBodies = bodies.filter((b) => !openingHoursBody.test(b)).map(scrubOpeningHours)
   const badTime = offeredBodies
     .flatMap((b) => timesInText(b).map((h) => h.time))
@@ -136,7 +136,7 @@ export function checkInvariants(
       if (/\b(axila|pernas|bu[cç]o)\b/i.test(m.body)) zoneSaid = true
       continue
     }
-    if (/^Proposta de horário/.test(m.body)) continue
+    if (/^(Fica assim:|Proposta de horário)/.test(m.body)) continue
     // Abertura do hub: reenviada por desenho a cada cumprimento novo (#554).
     if (HUB_OPENING_BODY.test(m.body)) continue
     if (seen.has(m.body)) repeatedDetail = 'mensagem repetida'

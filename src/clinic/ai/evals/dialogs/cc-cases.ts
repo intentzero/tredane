@@ -725,7 +725,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     expect: {
       proposal: true,
       noAppointment: true,
-      outboundIncludes: ['Serviço: Massagem relaxante'],
+      outboundIncludes: ['Fica assim: Massagem relaxante'],
       outboundExcludes: [/de cada vez/i],
     },
   },
@@ -737,7 +737,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     expect: {
       proposal: true,
       noAppointment: true,
-      outboundIncludes: ['Serviço: Limpeza de pele profunda'],
+      outboundIncludes: ['Fica assim: Limpeza de pele profunda'],
       outboundExcludes: [/de cada vez/i],
     },
   },
@@ -760,7 +760,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     expect: {
       proposal: true,
       noAppointment: true,
-      outboundIncludes: ['Serviço: Massagem\n'],
+      outboundIncludes: ['Fica assim: Massagem'],
       outboundExcludes: [/relaxante/i, /de cada vez/i],
     },
   },
