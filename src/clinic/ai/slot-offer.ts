@@ -151,6 +151,86 @@ function joinNames(names: string[]): string {
 
 export type OfferedSlot = { date: string; time: string; startsAt: number }
 
+function smallestZoneSample(zones: ServiceRow['zones']): ServiceRow['zones'] {
+  if (zones.length === 0) return zones
+  const min = zones.reduce((a, b) =>
+    (a.durationMinutes ?? 0) <= (b.durationMinutes ?? 0) ? a : b,
+  )
+  return [min]
+}
+
+async function dayHasBookableSlot(input: {
+  db: ClinicDb
+  tenantId: string
+  service: ServiceRow
+  zones: ServiceRow['zones']
+  date: string
+  clock: Clock
+  forecast: ForecastAdapter | undefined
+  professionalId?: string
+  earliest: number
+}): Promise<boolean> {
+  const { slots } = await slotsOnDay(
+    input.db,
+    input.tenantId,
+    input.service,
+    input.zones,
+    input.date,
+    input.clock,
+    input.forecast,
+    input.professionalId,
+  )
+  return slots.some((slot) => slot.startsAt >= input.earliest)
+}
+
+/** Dia pedido sem vaga para a visita completa, mas cabe uma zona (duração parcial). */
+export async function visitTooLongForRequestedDay(input: {
+  db: ClinicDb
+  tenantId: string
+  service: ServiceRow
+  zones: ServiceRow['zones']
+  date: string
+  tz: string
+  clock: Clock
+  forecast?: ForecastAdapter
+  professionalId?: string
+  earliest: number
+  requestedDayEmptyIgnoringPeriod: boolean
+}): Promise<boolean> {
+  if (!input.requestedDayEmptyIgnoringPeriod) return false
+  if (input.zones.length < 2) return false
+  const partial = smallestZoneSample(input.zones)
+  return dayHasBookableSlot({
+    db: input.db,
+    tenantId: input.tenantId,
+    service: input.service,
+    zones: partial,
+    date: input.date,
+    clock: input.clock,
+    forecast: input.forecast,
+    professionalId: input.professionalId,
+    earliest: input.earliest,
+  })
+}
+
+function visitTooLongForDayReply(
+  conversationId: string,
+  date: string,
+  today: string,
+  zoneCount: number,
+  otherDay: string,
+): string {
+  const dia = dayOfferLabelPt(date, today)
+  const outro = dayTextPt(otherDay, today)
+  const fallback = `Na ${dia} não cabem as ${zoneCount} zonas; quer dividir em 2 visitas ou ver ${outro}?`
+  return sayAct(
+    'sem_horario_visita_longa',
+    conversationId,
+    { dia, n: String(zoneCount), outro_dia: outro },
+    fallback,
+  )
+}
+
 function visitDuration(
   db: ClinicDb,
   tenantId: string,
@@ -428,11 +508,33 @@ export async function offerNearestSlots(input: {
         _skipEmptyAdvance: true,
       })
       if (advanced.slots.length > 0) {
+        const splitLead =
+          requestedDayEmptyIgnoringPeriod &&
+          (await visitTooLongForRequestedDay({
+            db,
+            tenantId,
+            service,
+            zones,
+            date,
+            tz,
+            clock,
+            forecast,
+            professionalId,
+            earliest,
+            requestedDayEmptyIgnoringPeriod,
+          }))
+            ? visitTooLongForDayReply(
+                conversationId,
+                date,
+                today,
+                zones.length,
+                advanced.slots[0]!.date,
+              )
+            : null
         return {
           ...advanced,
-          // O dia pedido não serve: diz-se antes de oferecer o que há (mesma frase aprovada).
-          replyText: `${noSlotsOnDayReply(date)} ${dropRepeatedSubject(advanced.replyText, subject)}`,
-          clearDate: true,
+          replyText: `${splitLead ?? noSlotsOnDayReply(date)} ${dropRepeatedSubject(advanced.replyText, subject)}`,
+          clearDate: !splitLead,
           clearPeriod: Boolean(period) || Boolean(advanced.clearPeriod),
         }
       }
@@ -542,10 +644,27 @@ export async function offerNearestSlots(input: {
   // «hoje de manhã» com tarde livre mentiria «hoje não tenho horário livre».
   if (date && !picked.some((slot) => slot.date === date)) {
     if (!period || requestedDayEmptyIgnoringPeriod) {
+      const splitLead =
+        requestedDayEmptyIgnoringPeriod &&
+        (await visitTooLongForRequestedDay({
+          db,
+          tenantId,
+          service,
+          zones,
+          date,
+          tz,
+          clock,
+          forecast,
+          professionalId,
+          earliest,
+          requestedDayEmptyIgnoringPeriod,
+        }))
+          ? visitTooLongForDayReply(conversationId, date, today, zones.length, picked[0]!.date)
+          : null
       return {
         slots: picked,
-        replyText: `${noSlotsOnDayReply(date)} ${dropRepeatedSubject(body, subject)}`,
-        clearDate: true,
+        replyText: `${splitLead ?? noSlotsOnDayReply(date)} ${dropRepeatedSubject(body, subject)}`,
+        clearDate: !splitLead,
       }
     }
     return {

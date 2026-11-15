@@ -40,6 +40,7 @@ export type DialogueActId =
   | 'confirmar_hora_ambigua'
   | 'sem_horario_periodo'
   | 'sem_horario_dia'
+  | 'sem_horario_visita_longa'
   | 'sem_horario_semana'
   | 'sem_vaga_sem_alternativa'
   | 'informar_preco_variante'
@@ -157,6 +158,11 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   sem_horario_dia: [
     'Para {assunto}, {dia} não tenho horário livre.',
     'Não tenho horário livre para {assunto} {dia}.',
+  ],
+  sem_horario_visita_longa: [
+    'Na {dia} não cabem as {n} zonas; quer dividir em 2 visitas ou ver {outro_dia}?',
+    'Na {dia} não cabe tudo de uma vez ({n} zonas). Quer dividir em 2 visitas ou ver {outro_dia}?',
+    '{dia} não tem bloco livre para as {n} zonas juntas; prefere 2 visitas ou {outro_dia}?',
   ],
   sem_horario_semana: [
     'Para {assunto}, no momento não tenho horário livre.',

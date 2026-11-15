@@ -734,6 +734,20 @@ describe('detectExplicitConfirmation', () => {
     })
     expect(r).toMatchObject({ ok: true, time: '15:00', date: '2026-10-29' })
   })
+  it('«Quero todas» não herda 09:00 da cópia da clínica (atalho de zonas)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      clientTexts: ['Quero todas'],
+      previousClinicText:
+        'Para fechar às 09:00, quais zonas? Temos axila, pernas. Ou abra Opções.',
+      historyTexts: ['depilação masculina na terça'],
+      clientHistoryTexts: ['depilação masculina na terça'],
+    })
+    expect(r.ok).toBe(false)
+    expect(r.time).toBeUndefined()
+    expect(r.status).not.toBe('requires_button')
+  })
+
   it('«não, 16h» é correção de horário, não recusa (C-08)', () => {
     const r = detectExplicitConfirmation({
       ...base,
