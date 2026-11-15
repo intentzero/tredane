@@ -74,6 +74,11 @@ describe('parseTemporal (#408)', () => {
       times: ['12:00'],
     },
     {
+      id: 'baseline-meio-dia-meia',
+      text: 'meio dia e meia ta bom sim',
+      times: ['12:30'],
+    },
+    {
       id: 'C-03',
       text: 'custa 1500?',
       dates: [],

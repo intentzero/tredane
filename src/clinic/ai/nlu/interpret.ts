@@ -68,7 +68,7 @@ export type TurnInterpretation = {
   needsExtractor: boolean
 }
 
-const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
+const PRICE = /\b(pre[cç]o|custa|valor|quanto|qnto|qto)\b/i
 const HOURS = /\b(hor[aá]rio de funcionamento|que horas|abrem|funcionam|atendem)\b/i
 const LOCAL = /\b(onde fica|endere[cç]o|localiza[cç][aã]o|como chegar|maps?|google)\b/i
 const EXPLAIN = /\b(como funciona|o que [eé]|explica|procedimento)\b/i

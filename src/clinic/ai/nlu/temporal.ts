@@ -255,10 +255,16 @@ export function parseTimes(
     spans.push({ start: m.index, end: m.index + m[0].length })
   }
 
-  const meio = /\bmeio[\s-]?dia\b/.exec(folded)
-  if (meio) {
-    note(meio)
-    add(12, 0)
+  const meioMeia = /\bmeio[\s-]?dia\s+e\s+meia\b/.exec(folded)
+  if (meioMeia) {
+    note(meioMeia)
+    add(12, 30)
+  } else {
+    const meio = /\bmeio[\s-]?dia\b/.exec(folded)
+    if (meio) {
+      note(meio)
+      add(12, 0)
+    }
   }
 
   let ambiguousAfternoonHour: number | null = null

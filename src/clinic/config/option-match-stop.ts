@@ -120,6 +120,8 @@ export const CATALOG_MISS_STOP: ReadonlySet<string> = new Set([
   'oferece',
   'procedimento',
   'servico',
+  'semana',
+  'proxima',
 ])
 
 /**

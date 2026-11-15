@@ -62,6 +62,7 @@ import type { AbuseLimits } from './abuse-limits'
 import {
   DEFAULT_OPTION_KIND_PLURAL,
   mixedAudienceReply,
+  paymentMethodReply,
   serviceNotFoundReply,
   teamConfirmsSoonReply,
   zoneNotFoundAskReply,
@@ -130,7 +131,9 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
+import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
+import { validateClientOutbound } from './outbound-validate'
 import { realizeAskInfo, realizeClarify } from './ask-info-realize'
 import {
   answerFaqFromCatalog,
@@ -1335,6 +1338,108 @@ export async function tryAiAutoBook(
         }),
         replyText,
         notes: `DEC-185: clinic knowledge ${knowledge.entry.id} (mode A; pending kept).`,
+      })
+    }
+  }
+
+  if (isPaymentMethodAsk(turnText) && !isCatalogInfoAsk(turnText)) {
+    const payKnowledge = answerClinicKnowledge(db, tenantId, turnText)
+    if (!payKnowledge) {
+      const framePay = getBookingFrame(db, tenantId, input.conversationId)
+      const svcPay = framePay?.serviceId
+        ? services.find((s) => s.id === framePay.serviceId)
+        : services.find((s) => norm(turnText).includes(norm(s.name))) ??
+          services.find((s) =>
+            (s.synonyms ?? []).some((syn) => turnText.toLowerCase().includes(syn.trim().toLowerCase())),
+          )
+      const paymentBase = paymentMethodReply()
+      promiseTeamFollowUp(
+        db,
+        tenantId,
+        {
+          conversationId: input.conversationId,
+          detailText: 'Pergunta sobre forma de pagamento ou parcelamento.',
+        },
+        clock,
+      )
+      let replyText = paymentBase
+      let slotInteractive: ChoiceInteractive | null = null
+      if (svcPay && framePay?.serviceId === svcPay.id) {
+        const parked = parkFromFrame(framePay, 'ask_info', 'price')
+        if (shouldResumeSlotAsk(parked)) {
+          const activePay = svcPay.zones.filter((z) => z.active)
+          const linePay = heldAudienceLine(framePay) ?? framePay.line ?? null
+          const poolPay =
+            needsAudienceLine(activePay) && linePay
+              ? zonesForAudienceLine(activePay, linePay)
+              : activePay
+          const variantIds = framePay.variantIds ?? []
+          const kept = poolPay.filter((z) => variantIds.includes(z.id))
+          const zonesOffer = kept.length > 0 ? kept : poolPay.length > 0 ? poolPay : activePay
+          const preferred = preferredProfessionalId(
+            db,
+            tenantId,
+            [turnText, ...older.map((m) => m.body)].join('\n'),
+            svcPay,
+            clock,
+            input.turn?.catalog.resources,
+          )
+          const offered = await offerNearestSlots({
+            db,
+            tenantId,
+            service: svcPay,
+            zones: zonesOffer,
+            tz,
+            clock,
+            forecast: input.forecast,
+            professionalId: preferred,
+            date: framePay.date ?? null,
+            period: framePay.period ?? null,
+            order: slotOrderFromText(turnText),
+            limit: 3,
+            conversationId: input.conversationId,
+          })
+          slotInteractive = applyOfferSideEffects(
+            deferred,
+            svcPay.id,
+            catalog.version,
+            offered,
+            preferred,
+            rememberOfferFrame,
+          )
+          const horarioAsk = sayAct(
+            'perguntar_horario',
+            input.conversationId,
+            { serviço: svcPay.name },
+            'Qual horário fica melhor para {serviço}?',
+          )
+          replyText =
+            offered.slots.length > 0
+              ? `${paymentBase}\n${offered.replyText}`
+              : `${paymentBase}\n${horarioAsk}`
+        } else {
+          const horarioAsk = sayAct(
+            'perguntar_horario',
+            input.conversationId,
+            { serviço: svcPay.name },
+            'Qual horário fica melhor para {serviço}?',
+          )
+          replyText = `${paymentBase}\n${horarioAsk}`
+        }
+      }
+      const checked = validateClientOutbound(replyText, {
+        source: 'phrase',
+        requireSingleQuestion: false,
+      })
+      if (!checked.ok) replyText = paymentBase
+      return finish({
+        ...none('needs_info', {
+          confirmationMessageId: confirmation.id,
+          ...(svcPay ? { serviceId: svcPay.id } : {}),
+        }),
+        replyText,
+        ...(slotInteractive ? { interactive: slotInteractive } : {}),
+        notes: 'Pagamento/parcelamento: equipe avisada; funil retomado.',
       })
     }
   }

@@ -82,7 +82,39 @@ const LAST_TIME = /\b(igual\s+(a|à)\s+ultima\s+vez|como\s+da\s+outra\s+vez|o\s+
 
 const DEICTIC = /\b(esse|essa|desse|dessa|aquele|aquela|o\s+mesmo|a\s+mesma)\b/i
 
-const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
+const PRICE = /\b(pre[cç]o|custa|valor|quanto|qnto|qto)\b/i
+
+function aestheticEvaluationService(services: readonly ServiceRow[]): ServiceRow | null {
+  return (
+    services.find(
+      (s) => /avalia[cç][aã]o/.test(fold(s.name)) && /estet/.test(fold(s.name)),
+    ) ??
+    services.find((s) => /avalia[cç][aã]o/.test(fold(s.name))) ??
+    null
+  )
+}
+
+function wantsSkinGuidance(text: string): boolean {
+  const folded = fold(text)
+  const skin = /\b(pele|manchad|mancha|oleos|acne|rejuvenesc|manchada)\b/.test(folded)
+  const guidance =
+    /\b(indica|recomend|suger|nao sei|qual\s+(faz|faco|proced)|oq\s+vc|o\s+que\s+vc)\b/.test(
+      folded,
+    )
+  return skin && guidance
+}
+
+function skinGuidanceReply(service: ServiceRow, conversationId: string, lista: string): string {
+  const avaliacao = service.name.trim()
+  const ask = sayAct(
+    'perguntar_servico',
+    conversationId,
+    { lista },
+    `Qual serviço você quer? Temos ${lista}.`,
+    { requireInTemplate: ['{lista}'] },
+  )
+  return `Pra pele assim, a ${avaliacao} é gratuita e ajuda a indicar o melhor tratamento.\n${ask}`
+}
 
 const BOOKING_INTENT =
   /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
@@ -658,6 +690,24 @@ export function resolveBookingObject(input: {
     if (held.length > 0) pool = held
     else if (topScore < 30) {
       pool = options.filter((o) => o.serviceId === input.session!.serviceId)
+    }
+  }
+
+  if (pool.length === 0 && wantsSkinGuidance(text) && !wantsPrice) {
+    const av = aestheticEvaluationService(services)
+    if (av) {
+      const lista = catalogServiceList(services)
+      return {
+        kind: 'clarify',
+        candidates: listBookableOptions([av]),
+        missing: ['servico'],
+        question: skinGuidanceReply(av, cnv, lista),
+        handoffReason: null,
+        source: 'partial',
+        correction: false,
+        serviceId: av.id,
+        variantIds: [],
+      }
     }
   }
 
