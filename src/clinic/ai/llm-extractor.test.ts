@@ -167,6 +167,29 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
     )
   })
 
+  it('FAQ sem género: line inventada é descartada (DEC-079 / Lab Bloco D)', () => {
+    const quiet = interpretTurn({
+      turnText: 'tem estacionamento na clínica?',
+      messageId: 'msg_faq_line',
+      today: '2026-11-02',
+      services: [svc],
+    })
+    const v = validateExtractorOutput(
+      { acts: ['desconhecido'], line: 'feminino' },
+      {
+        messageId: 'msg_faq_line',
+        turnText: 'tem estacionamento na clínica?',
+        today: '2026-11-02',
+        services: [svc],
+        professionals: [],
+        pending: null,
+        base: quiet,
+      },
+    )
+    expect(v.slots.line).toBeUndefined()
+    expect(v.discarded).toContain('line')
+  })
+
   it('hora só entra se parseTimes a confirma na frase da cliente', () => {
     const quiet = interpretTurn({
       turnText: 'pode ser às 18',
