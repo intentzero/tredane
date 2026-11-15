@@ -11,7 +11,6 @@ import { bootClinicDb } from '../test-db'
 import * as occupancy from './occupancy'
 import { queryAvailability } from './query'
 
-const TZ = 'America/Sao_Paulo'
 /** Segunda 2026-11-16 10:00 SP — alinhado ao cenário S03a (dia útil após domingo 15/11). */
 const NOW = Date.UTC(2026, 10, 16, 13, 0)
 
