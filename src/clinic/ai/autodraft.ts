@@ -44,7 +44,10 @@ import type { OutboxRow } from '../outbox'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { AutoBookOutcome } from './autobook'
-import { isMidFunnelServiceCorrection } from './autobook'
+import {
+  isMidFunnelServiceCorrection,
+  resolveNamedServiceInTurn,
+} from './autobook'
 import { runBookingTurn } from './run-booking-turn'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
@@ -1274,10 +1277,16 @@ export async function runDueAutoDrafts(
     // Lab H1: «prefiro peeling» com Horários abertos — o extrator LLM no DO demo
     // estoura CPU antes do mid-funnel determinístico. Saltar quando a troca já
     // casa sticky ≠ serviço nomeado com sinal de correção.
+    const activeServices = listServices(db, tenantId).filter((s) => s.active)
+    const stickyForSwap =
+      getBookingFrame(db, tenantId, job.conversationId)?.serviceId ??
+      getScheduleSession(db, tenantId, job.conversationId)?.serviceId ??
+      null
+    const namedSwapService = resolveNamedServiceInTurn(turnText, activeServices)
     const skipExtractorForServiceSwap = isMidFunnelServiceCorrection({
       text: turnText,
-      stickyServiceId: getBookingFrame(db, tenantId, job.conversationId)?.serviceId,
-      services: listServices(db, tenantId).filter((s) => s.active),
+      stickyServiceId: stickyForSwap,
+      services: activeServices,
     })
     if (skipExtractorForServiceSwap) {
       console.info(
@@ -1361,6 +1370,42 @@ export async function runDueAutoDrafts(
           error: err instanceof Error ? err.message : 'unknown',
         }),
       )
+      // Lab H1: se o mid-funnel falhar, NÃO cair no redator LLM (CPU DO →
+      // aiOutcomes []). Frase determinística do serviço novo.
+      if (
+        skipExtractorForServiceSwap &&
+        namedSwapService &&
+        !(autoBook?.replyText && autoBook.replyText.trim())
+      ) {
+        autoBook = {
+          status: 'needs_info',
+          missing: ['dia', 'horario'],
+          confirmationMessageId: job.messageId,
+          serviceId: namedSwapService.id,
+          replyText: `Qual horário fica melhor para ${namedSwapService.name}?`,
+          notes: `mid_funnel_service_correction_fallback: ${err instanceof Error ? err.message : 'unknown'}`,
+          outbox: [],
+        }
+      }
+    }
+
+    // Mesmo sem throw: autobook pode devolver none sem texto — evita LLM na troca
+    // (Lab: silêncio / aiOutcomes [] após CPU no redator).
+    if (
+      skipExtractorForServiceSwap &&
+      namedSwapService &&
+      !(autoBook?.replyText && autoBook.replyText.trim()) &&
+      !autoBook?.proposalId
+    ) {
+      autoBook = {
+        status: 'needs_info',
+        missing: ['dia', 'horario'],
+        confirmationMessageId: job.messageId,
+        serviceId: namedSwapService.id,
+        replyText: `Qual horário fica melhor para ${namedSwapService.name}?`,
+        notes: 'mid_funnel_service_correction_fallback: empty_autobook',
+        outbox: [],
+      }
     }
 
     const deterministicReplyEarly = Boolean(autoBook?.replyText && autoBook.replyText.trim())
