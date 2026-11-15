@@ -13,7 +13,7 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './autodraft'
 import { getLlmJobByIdempotency, llmJobIdempotencyKey } from './llm-jobs'
-import type { LlmQueueMessage } from './llm-queue-types'
+import type { LlmQueueEnvelope } from './llm-queue-types'
 
 const NOW = Date.UTC(2026, 10, 15, 16, 0)
 
@@ -69,7 +69,7 @@ describe('autodraft llm out of DO (DEC-188)', () => {
       )
 
       const adapter = new SpyAdapter()
-      const queued: LlmQueueMessage[] = []
+      const queued: LlmQueueEnvelope[] = []
       const out = await runDueAutoDrafts(
         db,
         caller,
@@ -88,14 +88,17 @@ describe('autodraft llm out of DO (DEC-188)', () => {
       expect(adapter.calls).toBe(0)
       expect(out[0]?.status).toBe('awaiting_llm')
       expect(queued).toHaveLength(1)
-      expect(queued[0]?.purpose).toMatch(/extract|redact/)
+      const jobMsg = queued[0]!
+      expect(jobMsg.source).toBe('llm_job')
+      if (jobMsg.source !== 'llm_job') throw new Error('expected llm_job')
+      expect(jobMsg.purpose).toMatch(/extract|redact/)
       const job = getLlmJobByIdempotency(
         db,
         tenantId,
         llmJobIdempotencyKey({
           conversationId: conv.id,
           messageId: msg.id,
-          purpose: queued[0]!.purpose,
+          purpose: jobMsg.purpose,
         }),
       )
       expect(job?.state).toBe('queued')

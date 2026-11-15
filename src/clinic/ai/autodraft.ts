@@ -129,6 +129,7 @@ import {
   textPromisesTeamFollowUp,
 } from './promise-team-follow-up'
 import { createLlmJob, hasDoneLlmJob, hasOpenLlmJobForConversation } from './llm-jobs'
+import { buildLlmShadowQueueMessage } from './llm-queue-types'
 import { buildExtractSnapshot, buildRedactSnapshot } from './llm-snapshot'
 
 /** ADR-0015: anexa afterPersist do frame diferido ao envio outbound. */
@@ -651,8 +652,19 @@ export async function runDueAutoDrafts(
     // ramos determinísticos abaixo (catálogo, hub, pergunta de tipo, preço…) que respondem e
     // fazem `continue`. Colhida mais à frente, só via os turnos que chegam ao extrator e perdia
     // a maioria. Só mede; a saída do extrator do caminho real junta-se depois, se houver.
+    // Com LLM_OUT_OF_DO: não recolhe de novo no resume após extract (já enfileirou no 1.º passo).
+    const shadowAlreadyQueued =
+      Boolean(deps.llmOutOfDo) &&
+      hasDoneLlmJob(db, tenantId, {
+        conversationId: job.conversationId,
+        messageId: job.messageId,
+        purpose: 'extract',
+      })
     const shadowTask: InterpreterShadowTask | null =
-      deps.interpreterShadow && turnText.trim() && !isInteractiveReplyBody(turnText)
+      deps.interpreterShadow &&
+      turnText.trim() &&
+      !isInteractiveReplyBody(turnText) &&
+      !shadowAlreadyQueued
         ? {
             tenantId,
             conversationId: job.conversationId,
@@ -1952,12 +1964,17 @@ export async function runDueAutoDrafts(
       },
     )
   }
-  // As respostas já saíram; a sombra só mede e respeita o teto do alarme.
+  // As respostas já saíram; a sombra só mede. Com LLM_OUT_OF_DO enfileira sibling
+  // `llm_shadow` (Claude fora do DO); senão corre inline com teto do alarme.
   for (const task of shadowTasks) {
-    if (clock.nowMs() - alarmTurnStartedMs >= AUTODRAFT_ALARM_BUDGET_MS) break
     const started = clock.nowMs()
     try {
-      await runInterpreterShadow(deps, task)
+      if (deps.llmOutOfDo && deps.enqueueLlmJob) {
+        await deps.enqueueLlmJob(buildLlmShadowQueueMessage(task))
+      } else {
+        if (clock.nowMs() - alarmTurnStartedMs >= AUTODRAFT_ALARM_BUDGET_MS) break
+        await runInterpreterShadow(deps, task)
+      }
     } catch {
       // Medição nunca afecta o atendimento.
     }

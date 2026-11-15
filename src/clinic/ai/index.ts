@@ -65,8 +65,19 @@ export {
   failLlmJobOp,
   claimLlmJobForTenant,
 } from './llm-apply'
-export type { LlmQueueMessage, LlmJobPurpose } from './llm-queue-types'
-export { isLlmQueueMessage, LAB_LLM_WAIT_MS } from './llm-queue-types'
+export type {
+  LlmQueueMessage,
+  LlmShadowQueueMessage,
+  LlmQueueEnvelope,
+  LlmJobPurpose,
+} from './llm-queue-types'
+export {
+  isLlmQueueMessage,
+  isLlmShadowQueueMessage,
+  isLlmQueueEnvelope,
+  buildLlmShadowQueueMessage,
+  LAB_LLM_WAIT_MS,
+} from './llm-queue-types'
 export {
   enqueueTypingIndicator,
   enqueueTypingIndicatorForLatestInbound,

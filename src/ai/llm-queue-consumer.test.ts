@@ -1,10 +1,12 @@
 /**
  * DEC-188: após extract apply fino, o consumer retoma autodraft noutro RPC.
+ * Sibling `llm_shadow`: medição H1 sem claim/apply.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { processLlmJob, type LlmClinicStub } from './llm-queue-consumer'
-import type { LlmQueueMessage } from '../clinic/ai/llm-queue-types'
+import { processLlmJob, processLlmShadowJob, type LlmClinicStub } from './llm-queue-consumer'
+import type { LlmQueueMessage, LlmShadowQueueMessage } from '../clinic/ai/llm-queue-types'
 import type { WorkerBindings } from '../worker/bindings'
+import { isLlmShadowQueueMessage, buildLlmShadowQueueMessage } from '../clinic/ai/llm-queue-types'
 
 describe('processLlmJob resume after thin apply', () => {
   it('chama runAutoDrafts com conversationId e limit 1 quando resumeAutodraft', async () => {
@@ -119,5 +121,39 @@ describe('processLlmJob resume after thin apply', () => {
 
     await processLlmJob(msg, { env, clinicStub: () => stub })
     expect(runAutoDrafts).not.toHaveBeenCalled()
+  })
+})
+
+describe('processLlmShadowJob (H1 sibling)', () => {
+  it('reconhecimento e ack sem claim/apply no DO', async () => {
+    const task = {
+      tenantId: 'tenant_dec0de000000000000000001',
+      conversationId: 'cnv_shadow_1',
+      messageId: 'msg_shadow_1',
+      turnText: 'vocês têm estacionamento?',
+      today: '2026-11-15',
+      services: [],
+      professionals: [],
+      pending: null,
+      mainRaw: null,
+      mainModelCalled: false,
+    }
+    const msg = buildLlmShadowQueueMessage(task)
+    expect(isLlmShadowQueueMessage(msg)).toBe(true)
+    expect(msg.source).toBe('llm_shadow')
+
+    const claimLlmJob = vi.fn()
+    const env = { AI_MODE: 'synthetic' } as unknown as WorkerBindings
+    const outcome = await processLlmShadowJob(msg as LlmShadowQueueMessage, {
+      env,
+      clinicStub: () =>
+        ({
+          claimLlmJob,
+          applyLlmResult: vi.fn(),
+          failLlmJob: vi.fn(),
+        }) as unknown as LlmClinicStub,
+    })
+    expect(outcome).toBe('ack')
+    expect(claimLlmJob).not.toHaveBeenCalled()
   })
 })

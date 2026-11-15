@@ -112,6 +112,9 @@ export type AiAssistDeps = {
    * no extrator/redator. `suggestReply` do painel ignora isto.
    */
   llmOutOfDo?: boolean
-  /** Publica na fila `tredane-llm-*`. Obrigatório quando `llmOutOfDo` está ligado. */
-  enqueueLlmJob?: (msg: import('./llm-queue-types').LlmQueueMessage) => Promise<void>
+  /**
+   * Publica na fila `tredane-llm-*` (extract/redact ou sibling `llm_shadow`).
+   * Obrigatório quando `llmOutOfDo` está ligado.
+   */
+  enqueueLlmJob?: (msg: import('./llm-queue-types').LlmQueueEnvelope) => Promise<void>
 }

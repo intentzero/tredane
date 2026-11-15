@@ -4686,21 +4686,18 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const prepare = this.#prepareBookingFlowOffer()
     let out = base
     if (prepare) out = { ...out, prepareBookingFlowOffer: prepare }
-    // Demo/Lab: a sombra (2.ª chamada LLM no mesmo isolate) + turno principal
-    // excedia o teto de CPU do DO. Sem sombra na demo até o caminho LLM ser
-    // mais leve; H1 em staging real / Review MCP continua noutros tenants.
-    const shadowOk = base.interpreterShadow && !isDemoTenantId(opts.tenantId)
-    // TEMPORÁRIO: a sombra do interpretador grava os eventos no D1 central (Review MCP).
+    // TEMPORÁRIO: sombra H1 grava no D1 central (Review MCP). Com LLM_OUT_OF_DO
+    // a chamada Claude da sombra vai na fila (sibling `llm_shadow`); o sink no DO
+    // só serve o caminho inline (tenants sem out-of-DO). Demo deixa de forçar off
+    // após N turnos LLM estáveis (DEC-188).
     const d1 = (this.env as WorkerBindings).DB
-    if (shadowOk && d1) {
+    if (base.interpreterShadow && d1) {
       out = {
         ...out,
         interpreterShadow: true,
         interpreterShadowSink: (event) =>
           insertInterpreterShadowEvent(fromD1(d1), event, this.#clock.nowMs()),
       }
-    } else if (isDemoTenantId(opts.tenantId)) {
-      out = { ...out, interpreterShadow: false }
     }
     return out
   }

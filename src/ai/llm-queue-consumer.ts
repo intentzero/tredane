@@ -25,8 +25,12 @@ import { systemClock, type Clock } from '../db/clock'
 import type { WorkerBindings } from '../worker/bindings'
 import type { ClinicDurableObject } from '../worker/clinic-do'
 import {
+  isLlmQueueEnvelope,
   isLlmQueueMessage,
+  isLlmShadowQueueMessage,
+  type LlmQueueEnvelope,
   type LlmQueueMessage,
+  type LlmShadowQueueMessage,
 } from '../clinic/ai/llm-queue-types'
 import type {
   ExtractModelResult,
@@ -35,6 +39,10 @@ import type {
   RedactSnapshot,
 } from '../clinic/ai/llm-snapshot'
 import type { ExtractorRaw } from '../clinic/ai/llm-extractor'
+import { runInterpreterShadow } from '../clinic/ai/interpreter-shadow'
+import { insertInterpreterShadowEvent } from '../shadow-report/store'
+import { fromD1 } from '../db/admin/async-store'
+import { rpcDepsFromEnv, toAiAssistDeps } from '../clinic/ai/deps'
 
 export type LlmProcessOutcome = 'ack' | { retryDelaySeconds: number }
 
@@ -241,6 +249,52 @@ export type ProcessLlmJobDeps = {
 }
 
 /**
+ * Sibling H1: Claude + compare no Worker; grava D1; nunca claim/apply no DO.
+ */
+export async function processLlmShadowJob(
+  msg: LlmShadowQueueMessage,
+  deps: ProcessLlmJobDeps,
+): Promise<LlmProcessOutcome> {
+  const clock = deps.clock ?? systemClock
+  const log =
+    deps.log ??
+    ((e) => {
+      console[e.level === 'info' ? 'info' : e.level === 'warn' ? 'warn' : 'error'](
+        JSON.stringify({ level: e.level, event: e.event, ...e.detail, at: clock.nowMs() }),
+      )
+    })
+  try {
+    const shadowDeps = toAiAssistDeps(rpcDepsFromEnv(deps.env))
+    const d1 = deps.env.DB
+    if (d1) {
+      shadowDeps.interpreterShadowSink = (event) =>
+        insertInterpreterShadowEvent(fromD1(d1), event, clock.nowMs())
+    }
+    await runInterpreterShadow(shadowDeps, msg.task)
+    log({
+      level: 'info',
+      event: 'llm.shadow_applied',
+      detail: {
+        tenantId: msg.tenantId,
+        conversationId: msg.conversationId,
+        messageId: msg.messageId,
+      },
+    })
+  } catch (err) {
+    log({
+      level: 'warn',
+      event: 'llm.shadow_error',
+      detail: {
+        tenantId: msg.tenantId,
+        messageId: msg.messageId,
+        error: err instanceof Error ? err.message : 'unknown',
+      },
+    })
+  }
+  return 'ack'
+}
+
+/**
  * Processa uma mensagem da fila LLM (ou invocação inline do Lab).
  */
 export async function processLlmJob(
@@ -371,16 +425,18 @@ export async function processLlmJob(
 }
 
 export async function handleLlmQueueBatch(
-  batch: MessageBatch<LlmQueueMessage>,
+  batch: MessageBatch<LlmQueueEnvelope>,
   env: WorkerBindings,
 ): Promise<void> {
   for (const message of batch.messages) {
     const body = message.body
-    if (!isLlmQueueMessage(body)) {
+    if (!isLlmQueueEnvelope(body)) {
       message.ack()
       continue
     }
-    const outcome = await processLlmJob(body, { env })
+    const outcome = isLlmShadowQueueMessage(body)
+      ? await processLlmShadowJob(body, { env })
+      : await processLlmJob(body, { env })
     if (outcome === 'ack') message.ack()
     else message.retry({ delaySeconds: outcome.retryDelaySeconds })
   }

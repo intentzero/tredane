@@ -59,7 +59,7 @@ O que **não** muda em nenhuma das partes: só o botão Confirmar marca (DEC-061
 
 ### 5.1 O que faz
 
-Com `AI_INTERPRETER_SHADOW=on`, depois de as respostas de um alarme saírem, cada turno de texto livre dispara uma chamada ao extrator, cuja leitura é comparada com a do léxico. O resultado é o evento `ai.interpreter_shadow`. Implementação: [`interpreter-shadow.ts`](../../src/clinic/ai/interpreter-shadow.ts); ligação em `runDueAutoDrafts`.
+Com `AI_INTERPRETER_SHADOW=on`, depois de as respostas de um alarme saírem, cada turno de texto livre dispara uma chamada ao extrator, cuja leitura é comparada com a do léxico. O resultado é o evento `ai.interpreter_shadow`. Implementação: [`interpreter-shadow.ts`](../../src/clinic/ai/interpreter-shadow.ts); ligação em `runDueAutoDrafts`. Com `LLM_OUT_OF_DO` (DEC-188), a chamada Claude da sombra sai do Clinic DO via job irmão `llm_shadow` na fila `tredane-llm-*` (só medição; sem claim/apply de atendimento).
 
 Garantias, cobertas por teste ([`interpreter-shadow.test.ts`](../../src/clinic/ai/interpreter-shadow.test.ts)):
 
