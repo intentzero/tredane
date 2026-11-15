@@ -2168,7 +2168,7 @@ export async function tryAiAutoBook(
         replyText: nudge.lead,
         interactive: nudge.interactive,
         outbox: nudge.outbox,
-        notes: 'DEC-061: afirmativa curta com proposta aberta → botão Confirmar (baseline P1).',
+        notes: 'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
       })
     }
   }
