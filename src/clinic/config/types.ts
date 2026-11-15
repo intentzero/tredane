@@ -93,10 +93,15 @@ export type ServiceZoneRow = {
   /** DEC-110 — sinónimos da variante (interpretação). */
   synonyms: string[]
   /**
-   * Espelho de DEC-046 no serviço: «Explicação para clientes» / «Explicação para a IA»
-   * por variante (género). null = não descrever esta variante.
+   * DEC-189 — explicação **comum** do nome da variante (partilhada pelos géneros).
+   * null = sem texto comum.
    */
   clientExplanation: string | null
+  /**
+   * DEC-189 — override opcional só deste género. Se preenchido, prevalece sobre o comum
+   * na FAQ/prompt. null/ausente = usar o comum.
+   */
+  clientExplanationAudience?: string | null
 }
 
 export type ServiceZoneInput = {
@@ -112,9 +117,13 @@ export type ServiceZoneInput = {
   /** DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui. */
   synonyms?: string[]
   /**
-   * Espelho de DEC-046: omitido mantém; `null` ou string vazia limpa; texto grava.
+   * DEC-189 — texto comum: omitido mantém; `null` ou string vazia limpa; texto grava.
    */
   clientExplanation?: string | null
+  /**
+   * DEC-189 — override por género: omitido mantém; `null` ou string vazia limpa.
+   */
+  clientExplanationAudience?: string | null
 }
 
 /** Combo de variantes de um serviço (DEC-080). */

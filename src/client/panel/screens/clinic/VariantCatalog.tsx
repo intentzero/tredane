@@ -30,8 +30,10 @@ export type ZoneDraft = {
   active: boolean
   /** DEC-110 — nomes populares da variante. */
   synonyms: string[]
-  /** Espelho de DEC-046 — explicação para a IA desta variante (género). */
+  /** DEC-189 — explicação comum do nome (sincronizada no grupo, como sinónimos). */
   explanation: string
+  /** DEC-189 — override opcional só deste género. */
+  explanationAudience: string
 }
 
 const AUDIENCE_LABEL: Record<VariantAudience, string> = {
@@ -62,9 +64,37 @@ type GroupEdit = {
   originalKeys: string[]
   name: string
   synonyms: string[]
+  /** Explicação comum (DEC-189) — vale para todos os géneros do nome. */
+  explanation: string
   members: ZoneDraft[]
   error: string | null
   confirmRemove: boolean
+}
+
+/** Texto comum do grupo; se só houver overrides iguais, promove-os na folha. */
+function groupCommonExplanation(group: VariantGroup): {
+  explanation: string
+  members: ZoneDraft[]
+} {
+  const commons = group.members.map((m) => m.explanation.trim()).filter(Boolean)
+  if (commons.length > 0) {
+    return {
+      explanation: commons[0]!,
+      members: group.members.map((m) => ({ ...m })),
+    }
+  }
+  const active = group.members.filter((m) => m.active)
+  const audiences = active.map((m) => m.explanationAudience.trim())
+  if (audiences.length > 0 && audiences.every((a) => a === audiences[0]!)) {
+    return {
+      explanation: audiences[0]!,
+      members: group.members.map((m) => ({ ...m, explanationAudience: '' })),
+    }
+  }
+  return {
+    explanation: '',
+    members: group.members.map((m) => ({ ...m })),
+  }
 }
 
 /**
@@ -107,12 +137,14 @@ export function VariantCatalog({
       : null
 
   function open(group: VariantGroup) {
+    const common = groupCommonExplanation(group)
     setEdit({
       groupKey: group.key,
       originalKeys: group.members.map((m) => m.key),
       name: group.name,
       synonyms: groupSynonyms(group),
-      members: group.members.map((m) => ({ ...m })),
+      explanation: common.explanation,
+      members: common.members,
       error: null,
       confirmRemove: false,
     })
@@ -162,7 +194,8 @@ export function VariantCatalog({
             audience,
             active: true,
             synonyms: cur.synonyms,
-            explanation: '',
+            explanation: cur.explanation,
+            explanationAudience: '',
           },
         ].sort((a, b) => (a.audience === 'feminino' ? -1 : b.audience === 'feminino' ? 1 : 0)),
       }
@@ -208,7 +241,12 @@ export function VariantCatalog({
         }
       }
     }
-    const members = edit.members.map((m) => ({ ...m, name, synonyms: edit.synonyms }))
+    const members = edit.members.map((m) => ({
+      ...m,
+      name,
+      synonyms: edit.synonyms,
+      explanation: edit.explanation,
+    }))
     const original = new Set(edit.originalKeys)
     onZones((prev) => {
       const next: ZoneDraft[] = []
@@ -271,6 +309,7 @@ export function VariantCatalog({
         active: true,
         synonyms: [],
         explanation: '',
+        explanationAudience: '',
       },
     ])
     setNewName('')
@@ -482,6 +521,19 @@ export function VariantCatalog({
               }A resposta usa sempre «${edit.name.trim() || labels.singular}».`}
               takenBy={takenBy ? (word) => takenBy(edit.groupKey, word) : undefined}
             />
+            <TextField className="clinic-field">
+              <Label>Explicação para a IA</Label>
+              <TextArea
+                value={edit.explanation}
+                rows={3}
+                onChange={(e) => patchEdit({ explanation: e.target.value, error: null })}
+              />
+              <p className="clinic-footnote">
+                {split
+                  ? 'Texto comum a feminino e masculino. Se um género precisar de detalhe diferente, preencha o campo opcional abaixo.'
+                  : 'A IA usa só este texto para explicar esta opção. Não escreva promessas de resultado.'}
+              </p>
+            </TextField>
             <div className="vc-who" role="group" aria-labelledby="vc-who-t">
               <span id="vc-who-t" className="vc-label">
                 Para quem, tempo e preço
@@ -551,22 +603,21 @@ export function VariantCatalog({
                         onChange={(price) => member && patchMember(member.key, { price })}
                       />
                     </div>
-                    {on && member ? (
+                    {on && member && split ? (
                       <TextField className="clinic-field vc-who-expl">
                         <Label>
-                          Explicação para a IA
-                          {split ? <span className="visually-hidden"> ({label})</span> : null}
+                          Só {label.toLocaleLowerCase('pt-BR')}
+                          <span className="visually-hidden"> (explicação opcional)</span>
                         </Label>
                         <TextArea
-                          value={member.explanation}
-                          rows={3}
+                          value={member.explanationAudience}
+                          rows={2}
                           disabled={!on}
-                          onChange={(e) => patchMember(member.key, { explanation: e.target.value })}
+                          placeholder="Opcional — deixa vazio para usar a explicação comum"
+                          onChange={(e) =>
+                            patchMember(member.key, { explanationAudience: e.target.value })
+                          }
                         />
-                        <p className="clinic-footnote">
-                          A IA usa só este texto para explicar esta opção. Não escreva promessas de
-                          resultado.
-                        </p>
                       </TextField>
                     ) : null}
                   </div>

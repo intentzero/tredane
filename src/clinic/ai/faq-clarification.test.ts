@@ -159,6 +159,50 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     }
   })
 
+  it('DEC-189: override por género prevalece sobre a explicação comum', () => {
+    const withZone = {
+      ...intima,
+      clientExplanation: 'Zona íntima com cera.',
+      clientExplanationAudience: 'Inclui virilha e ânus no feminino.',
+    }
+    const r = answerFaqFromCatalog({
+      text: 'o que é íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Retirada de pelos com cera em várias zonas.',
+      } as ServiceRow,
+      zones: [withZone, axila],
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/Inclui virilha e ânus/)
+      expect(r.replyText).not.toMatch(/Zona íntima com cera|várias zonas/)
+    }
+  })
+
+  it('DEC-189: sem override, usa a explicação comum do nome', () => {
+    const withZone = {
+      ...intima,
+      clientExplanation: 'Zona íntima com cera.',
+      clientExplanationAudience: null,
+    }
+    const r = answerFaqFromCatalog({
+      text: 'o que é íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Retirada de pelos com cera em várias zonas.',
+      } as ServiceRow,
+      zones: [withZone, axila],
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/Zona íntima com cera/)
+      expect(r.replyText).not.toMatch(/várias zonas/)
+    }
+  })
+
   it('zona nomeada sem explicação não cai na prosa do serviço («O que inclui a íntima?»)', () => {
     const r = answerFaqFromCatalog({
       text: 'O que inclui a íntima?',

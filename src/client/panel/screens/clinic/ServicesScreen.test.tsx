@@ -940,7 +940,7 @@ describe('ServiceForm — opções agrupadas e palavras (DEC-176)', () => {
     ])
   })
 
-  it('explicação para a IA grava por variante (Feminino/Masculino)', async () => {
+  it('explicação para a IA: comum + override opcional por género (DEC-189)', async () => {
     const upsertService = vi.fn(async () => depilacao())
     const replaceServiceZones = vi.fn(async () => depilacao())
     renderForm(
@@ -953,17 +953,27 @@ describe('ServiceForm — opções agrupadas e palavras (DEC-176)', () => {
       { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Editar Axila' }))
-    const explFields = screen.getAllByRole('textbox', { name: /Explicação para a IA/ })
-    expect(explFields).toHaveLength(2)
-    fireEvent.change(explFields[0]!, { target: { value: 'Inclui a dobra feminina.' } })
-    fireEvent.change(explFields[1]!, { target: { value: 'Linha masculina completa.' } })
+    const common = screen.getByRole('textbox', { name: 'Explicação para a IA' })
+    fireEvent.change(common, { target: { value: 'Axila com cera.' } })
+    const femOnly = screen.getByRole('textbox', { name: /Só feminino/i })
+    fireEvent.change(femOnly, { target: { value: 'Inclui a dobra feminina.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(replaceServiceZones).toHaveBeenCalled())
     const sent = (replaceServiceZones.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
     expect(sent).toMatchObject([
-      { id: 'z1', audience: 'feminino', clientExplanation: 'Inclui a dobra feminina.' },
-      { id: 'z2', audience: 'masculino', clientExplanation: 'Linha masculina completa.' },
+      {
+        id: 'z1',
+        audience: 'feminino',
+        clientExplanation: 'Axila com cera.',
+        clientExplanationAudience: 'Inclui a dobra feminina.',
+      },
+      {
+        id: 'z2',
+        audience: 'masculino',
+        clientExplanation: 'Axila com cera.',
+        clientExplanationAudience: null,
+      },
     ])
   })
 
