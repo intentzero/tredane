@@ -1,0 +1,149 @@
+/* Platform Admin (DEC-192): desktop primeiro, quebra no celular. Só tokens de ui/tokens.css. */
+.admin-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--color-surface-app);
+  color: var(--color-text-primary);
+}
+
+.admin-nav {
+  flex: 1 1 240px;
+  max-width: 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-3);
+  background: var(--color-nav-base);
+  color: var(--color-nav-icon);
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--space-3) var(--space-4);
+}
+
+.admin-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-nav-logo);
+  color: var(--color-nav-icon-active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-title);
+}
+
+.admin-brand-text {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-brand-text strong {
+  color: var(--color-nav-icon-active);
+  font-size: var(--font-size-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-nav-list a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-nav-icon);
+  text-decoration: none;
+  font-size: var(--font-size-body);
+}
+
+.admin-nav-list a:hover {
+  color: var(--color-nav-icon-active);
+}
+
+.admin-nav-list a[aria-current='page'] {
+  background: var(--color-nav-active);
+  color: var(--color-nav-icon-active);
+  font-weight: var(--font-weight-medium);
+}
+
+.admin-nav-foot {
+  margin-top: auto;
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-nav-logo);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--color-nav-icon-active);
+  font-size: var(--font-size-small);
+}
+
+.admin-nav-note {
+  color: var(--color-nav-icon);
+  font-size: var(--font-size-caption);
+}
+
+.admin-nav-foot .panel-link-btn {
+  align-self: flex-start;
+  color: var(--color-nav-icon-active);
+  margin-top: var(--space-2);
+}
+
+.admin-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  max-width: 1200px;
+  padding: var(--space-6) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.admin-pending h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-pending p {
+  margin: 0 0 var(--space-2);
+}
+
+.admin-muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+/* Celular: a navegação passa para cima e as listas ficam em coluna. */
+@media (max-width: 767px) {
+  .admin-nav {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .admin-nav-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .admin-main {
+    padding: var(--space-4);
+  }
+}

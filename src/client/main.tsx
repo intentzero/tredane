@@ -2,6 +2,7 @@ import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { resolveProvaRoute } from './prova/routes'
 import { resolveRootRedirect } from './panel/routes'
+import { isAdminPath } from './admin/routes'
 import './styles.css'
 import { initTheme } from './panel/theme'
 
@@ -21,6 +22,12 @@ const ProvaApp = lazy(async () => {
   return { default: mod.ProvaApp }
 })
 
+const AdminApp = lazy(async () => {
+  await import('./ui/panel.css')
+  const mod = await import('./admin/AdminApp')
+  return { default: mod.AdminApp }
+})
+
 const PanelApp = lazy(async () => {
   await import('./ui/panel.css')
   const mod = await import('./panel/PanelApp')
@@ -34,7 +41,9 @@ createRoot(root).render(
         <div className="panel-root">
           <ProvaApp route={provaRoute} />
         </div>
-      ) : rootRedirect ? null : (
+      ) : rootRedirect ? null : isAdminPath(pathname) ? (
+        <AdminApp />
+      ) : (
         <PanelApp />
       )}
     </Suspense>
