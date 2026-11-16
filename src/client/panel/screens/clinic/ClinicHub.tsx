@@ -14,11 +14,19 @@ type Props = {
   snap: ClinicConfigSnapshot
   /** Só a responsável vê «Assistente e automações» (DEC-042). */
   showAssistant?: boolean
+  /** Owner: exportar/importar catálogo (serviços e profissionais). */
+  catalogTransferCard?: ReactNode
   /** STAGING-ONLY (dono): reset dos dados operacionais. */
   stagingCard?: ReactNode
 }
 
-export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }: Props) {
+export function ClinicHub({
+  tenantId,
+  snap,
+  showAssistant = true,
+  catalogTransferCard,
+  stagingCard,
+}: Props) {
   const { readiness } = snap
   const go = (section: ClinicaSection) => () =>
     navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
@@ -390,6 +398,13 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
           </div>
         </>
       )}
+
+      {catalogTransferCard ? (
+        <details className="hub-staging">
+          <summary>Exportar e importar catálogo</summary>
+          {catalogTransferCard}
+        </details>
+      ) : null}
 
       {stagingCard ? (
         // DEC-163: ferramentas de staging recolhidas no fim, longe do uso diário.

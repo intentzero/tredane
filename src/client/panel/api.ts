@@ -429,6 +429,51 @@ export function createPanelApi(getToken: TokenGetter) {
       return { status: res.status, body }
     },
 
+    /** Exportação JSON do catálogo (owner). */
+    async exportClinicCatalog(
+      tenantId: string,
+      scopes: { services: boolean; professionals: boolean },
+      opts?: FetchOpts,
+    ): Promise<ClinicCatalogTransferDocument> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/catalog/export`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scopes),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicCatalogTransferDocument
+    },
+
+    /** Importação do catálogo (owner). dryRun default true no servidor. */
+    async importClinicCatalog(
+      tenantId: string,
+      input: {
+        document: ClinicCatalogTransferDocument | Record<string, unknown>
+        dryRun: boolean
+        services?: boolean
+        professionals?: boolean
+      },
+      opts?: FetchOpts,
+    ): Promise<ClinicCatalogImportResult> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/catalog/import`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicCatalogImportResult
+    },
+
     async interruptWhatsappDev(
       tenantId: string,
       reason?: string,
@@ -2968,6 +3013,37 @@ export type ClinicBlock = {
   reason: string
   note: string | null
   createdAt: number
+}
+
+/** JSON portátil do catálogo (export/import owner). */
+export type ClinicCatalogTransferDocument = {
+  format: 'tredane.clinic-catalog'
+  version: number
+  exportedAt: string
+  sourceTenantId: string
+  scopes: { services: boolean; professionals: boolean }
+  professionals: unknown[]
+  services: unknown[]
+  personalDataNote: string
+}
+
+export type ClinicCatalogImportResult = {
+  dryRun: boolean
+  scopes: { services: boolean; professionals: boolean }
+  items: Array<{
+    scope: 'professionals' | 'services'
+    action: 'create' | 'update' | 'skip'
+    sourceId: string
+    targetId: string | null
+    name: string
+    detail?: string
+  }>
+  warnings: Array<{ code: string; message: string; sourceId?: string }>
+  idMap: {
+    professionals: Record<string, string>
+    services: Record<string, string>
+    zones: Record<string, string>
+  }
 }
 
 export type ClinicConfigReadiness = {

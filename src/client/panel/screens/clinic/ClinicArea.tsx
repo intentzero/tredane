@@ -7,6 +7,7 @@ import { AiAssistCard } from './AiAssistCard'
 import { ClientConfirmsCard } from './ClientConfirmsCard'
 import { ForecastPlaceCard } from './ForecastPlaceCard'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
+import { CatalogTransferCard } from './CatalogTransferCard'
 import { StagingClearAppointmentsCard } from './StagingClearAppointmentsCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
@@ -352,6 +353,16 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             tenantId={tenantId}
             snap={snap}
             showAssistant={isOwner}
+            catalogTransferCard={
+              isOwner ? (
+                <CatalogTransferCard
+                  tenantId={tenantId}
+                  api={api}
+                  generation={generation}
+                  onApplied={() => void reload()}
+                />
+              ) : null
+            }
             stagingCard={
               isOwner && isStagingHostname() && active.phase === 'ready' ? (
                 <>
