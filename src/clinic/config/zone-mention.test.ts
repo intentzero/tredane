@@ -382,6 +382,13 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
     expect(got.leftover).toBe('cotovelo')
   })
 
+  it('typo «miofaacial» casa Liberação miofascial sem leftover (staging 16/11)', () => {
+    const got = resolveZoneMention('Liberação miofaacial', massagemZones, ignore)
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.zones.map((z) => z.id)).toEqual(['lib'])
+  })
+
   it('regressão: «íntima» continua a casar Parte íntima (depilação)', () => {
     const depil = [
       zone('ax-f', 'Axila', 'feminino'),
