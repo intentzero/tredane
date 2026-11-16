@@ -566,6 +566,7 @@ describe('S25 — dia errado no cancelamento', () => {
       expect(res.replyText).toMatch(/sexta|20\/11/i)
       expect(res.replyText).toMatch(/quinta/i)
       expect(res.replyText).toMatch(/é essa/i)
+      expect(res.replyText).toMatch(/não encontrei marcação/i)
     } finally {
       s.close()
     }

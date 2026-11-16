@@ -1240,7 +1240,9 @@ export async function runDueAutoDrafts(
         continue
       }
     }
-    const reason = handoffReason(db, tenantId, turnText, clock, turn)
+    const reason = handoffReason(db, tenantId, turnText, clock, turn, {
+      conversationId: job.conversationId,
+    })
     if (reason) {
       await signalTyping()
       // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).

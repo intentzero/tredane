@@ -15,6 +15,11 @@ import { cancelAppointmentOp } from '../scheduling'
 import { formatBookedWhenAt } from '../scheduling/format-booked-when'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
+import {
+  CANCEL_MISMATCH_DATE_PREFIX,
+  filterUpcomingByServiceMention,
+  isCancelMismatchPending,
+} from './appointment-intent'
 import { extractDates } from './autobook'
 import {
   buildCancelAppointmentChoiceInteractive,
@@ -103,7 +108,9 @@ export function resolveCancelTargetAppointment(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const today = clinicCivilDateFromUtc(tz, now)
-  const upcoming = loadUpcomingAppointments(db, tenantId, contactId, now)
+  let upcoming = loadUpcomingAppointments(db, tenantId, contactId, now)
+  if (upcoming.length === 0) return { kind: 'none' }
+  upcoming = filterUpcomingByServiceMention(upcoming, inboundText, db, tenantId)
   if (upcoming.length === 0) return { kind: 'none' }
 
   const namedDates = [...extractDates(inboundText, today)]
@@ -144,7 +151,7 @@ export function resolveCancelTargetAppointment(
           apt,
           namedDate,
           replyText: safePhrase(
-            `Você mencionou ${dayText(namedDate)}, mas a sua marcação de ${apt.serviceName} é ${when}. É essa que quer cancelar?`,
+            `Na ${dayText(namedDate)} não encontrei marcação sua. A sua é ${apt.serviceName} · ${when}. É essa que quer cancelar?`,
           ),
         }
       }
@@ -224,8 +231,7 @@ export function tryCancelAutodraftContinuation(
   clock: Clock,
 ): CancelAutodraftOutcome {
   const frame = getBookingFrame(db, tenantId, conversationId)
-  const aptId = frame?.rescheduleAppointmentId?.trim()
-  if (!aptId) return { handled: false }
+  const mismatchPending = isCancelMismatchPending(frame?.date)
 
   const conv = getConversation(db, tenantId, conversationId)
   if (!conv) return { handled: false }
@@ -233,13 +239,46 @@ export function tryCancelAutodraftContinuation(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const upcoming = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs())
+
+  if (mismatchPending) {
+    const aptId = frame?.rescheduleAppointmentId?.trim()
+    const apt = aptId ? upcoming.find((a) => a.id === aptId) : upcoming[0]
+    if (!apt) {
+      saveBookingFrame(db, tenantId, conversationId, { rescheduleAppointmentId: null, date: null }, clock)
+      return { handled: false }
+    }
+    if (isCancelDisambiguationAck(inboundText)) {
+      saveBookingFrame(db, tenantId, conversationId, { date: null }, clock)
+      return {
+        handled: true,
+        replyText: phraseCancelOfferReschedule(apt.serviceName),
+        appointmentId: apt.id,
+        reason: 'cancel_offer_reschedule',
+      }
+    }
+    if (isInsistCancelOnly(inboundText)) {
+      saveBookingFrame(db, tenantId, conversationId, { date: null }, clock)
+      return {
+        handled: true,
+        replyText: cancelConfirmOfferBody(apt, tz),
+        interactive: { buttons: cancelConfirmInteractiveButtons(apt.id) },
+        appointmentId: apt.id,
+        reason: 'cancel_confirm_offer',
+      }
+    }
+    return { handled: false }
+  }
+
+  const aptId = frame?.rescheduleAppointmentId?.trim()
+  if (!aptId) return { handled: false }
+
   const apt = upcoming.find((a) => a.id === aptId) ?? upcoming[0]
   if (!apt) {
     saveBookingFrame(db, tenantId, conversationId, { rescheduleAppointmentId: null }, clock)
     return { handled: false }
   }
 
-  if (isCancelDisambiguationAck(inboundText) || isInsistCancelOnly(inboundText)) {
+  if (isInsistCancelOnly(inboundText)) {
     return {
       handled: true,
       replyText: cancelConfirmOfferBody(apt, tz),
@@ -275,7 +314,11 @@ export function handleCancelIntentAutodraft(
       db,
       tenantId,
       conversationId,
-      { rescheduleAppointmentId: resolution.apt.id },
+      {
+        serviceId: resolution.apt.serviceId,
+        rescheduleAppointmentId: resolution.apt.id,
+        date: `${CANCEL_MISMATCH_DATE_PREFIX}${resolution.namedDate}`,
+      },
       clock,
     )
     return {
