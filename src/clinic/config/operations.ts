@@ -34,7 +34,15 @@ import {
   type KnowledgeEntryStatus,
   type UpsertKnowledgeEntryInput,
 } from './knowledge'
-import { NotFoundError } from '../errors'
+import { NotFoundError, ValidationError } from '../errors'
+import {
+  exportClinicCatalog,
+  importClinicCatalog,
+  parseCatalogTransferDocument,
+  type CatalogImportResult,
+  type CatalogTransferDocument,
+  type CatalogTransferScopes,
+} from './catalog-transfer'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
   buildAbuseLimitsView,
@@ -756,5 +764,61 @@ export function deleteKnowledgeEntryOp(
       clock,
     )
     return out
+  })
+}
+
+export function exportClinicCatalogOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  scopes: CatalogTransferScopes,
+  clock: Clock,
+): CatalogTransferDocument {
+  const meta = prepare(db, caller, clock)
+  return exportClinicCatalog(db, meta.tenantId, scopes, clock)
+}
+
+export function importClinicCatalogOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  document: unknown,
+  clock: Clock,
+  opts: { dryRun: boolean; scopes?: CatalogTransferScopes },
+): CatalogImportResult {
+  const meta = prepare(db, caller, clock)
+  const parsed = parseCatalogTransferDocument(document)
+  const scopes = opts.scopes ?? parsed.scopes
+  if (!scopes.services && !scopes.professionals) {
+    throw new ValidationError(
+      'catalog_transfer_empty_scopes',
+      'selecione pelo menos um: serviços ou profissionais',
+    )
+  }
+  const run = () =>
+    importClinicCatalog(db, meta.tenantId, parsed, clock, {
+      dryRun: opts.dryRun,
+      scopes,
+    })
+  if (opts.dryRun) return run()
+  return db.transactionSync(() => {
+    const result = run()
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.catalog_imported',
+        objectType: 'clinic_catalog',
+        objectId: meta.tenantId,
+        detail: {
+          dryRun: false,
+          scopes,
+          items: result.items.length,
+          warnings: result.warnings.length,
+          sourceTenantId: parsed.sourceTenantId,
+        },
+      },
+      clock,
+    )
+    return result
   })
 }

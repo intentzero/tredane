@@ -3657,6 +3657,41 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return windows
   }
 
+  async exportClinicCatalog(
+    caller: ClinicCaller,
+    scopes: clinicConfig.CatalogTransferScopes,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.exportClinicCatalogOp(this.#db, caller, scopes, this.#clock)
+  }
+
+  async importClinicCatalog(
+    caller: ClinicCaller,
+    document: unknown,
+    opts: { dryRun: boolean; scopes?: clinicConfig.CatalogTransferScopes },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicConfig.importClinicCatalogOp(
+      this.#db,
+      caller,
+      document,
+      this.#clock,
+      opts,
+    )
+    if (!opts.dryRun) {
+      await this.#fanoutConfigEvent(
+        caller,
+        'config.catalog_imported',
+        'clinic_catalog',
+        caller.tenantId,
+        { items: result.items.length, warnings: result.warnings.length },
+      )
+    }
+    return result
+  }
+
   async createClinicBlock(caller: ClinicCaller, input: CreateBlockInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

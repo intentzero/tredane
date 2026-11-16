@@ -136,7 +136,20 @@ export {
   deleteKnowledgeCategoryOp,
   upsertKnowledgeEntryOp,
   deleteKnowledgeEntryOp,
+  exportClinicCatalogOp,
+  importClinicCatalogOp,
 } from './operations'
+export {
+  CATALOG_TRANSFER_FORMAT,
+  CATALOG_TRANSFER_VERSION,
+  normalizeCatalogScopes,
+  parseCatalogTransferDocument,
+  type CatalogTransferScopes,
+  type CatalogTransferDocument,
+  type CatalogImportResult,
+  type CatalogImportPlanItem,
+  type CatalogImportWarning,
+} from './catalog-transfer'
 export {
   matchPublishedKnowledge,
   KNOWLEDGE_MAX_PUBLISHED,

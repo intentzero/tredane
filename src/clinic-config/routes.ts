@@ -31,7 +31,10 @@ import {
   serializeSnapshot,
   serializeWindow,
 } from './serialize'
-import type { UpdateAbuseLimitsInput } from '../clinic/config'
+import {
+  normalizeCatalogScopes,
+  type UpdateAbuseLimitsInput,
+} from '../clinic/config'
 
 import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type ConfigEnv = {
@@ -114,6 +117,9 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
       stub.allowBothSexesInClinicBlock(caller, input),
     insertAppointment: (caller, input) =>
       stub.insertSyntheticAppointmentForTests(caller, input),
+    exportCatalog: (caller, scopes) => stub.exportClinicCatalog(caller, scopes),
+    importCatalog: (caller, document, opts) =>
+      stub.importClinicCatalog(caller, document, opts),
   }
 }
 
@@ -974,6 +980,54 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         },
       )
       return c.json(row, 201)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  /**
+   * Exportação do catálogo (serviços+variantes e/ou profissionais). Só owner (DEC-042).
+   * Body: { services?: boolean, professionals?: boolean } — pelo menos um true.
+   */
+  app.post('/api/tenants/:tenantId/config/catalog/export', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+      const scopes = normalizeCatalogScopes(body)
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const doc = await gw.exportCatalog(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        scopes,
+      )
+      return c.json(doc)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  /**
+   * Importação do catálogo. Só owner. Body: { document, dryRun?, services?, professionals? }.
+   * Sem scopes no body, usa os do documento. dryRun default true.
+   */
+  app.post('/api/tenants/:tenantId/config/catalog/import', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+      const document = body.document ?? body
+      const dryRun = body.dryRun !== false
+      const hasExplicitScopes =
+        Object.prototype.hasOwnProperty.call(body, 'services') ||
+        Object.prototype.hasOwnProperty.call(body, 'professionals')
+      const scopes = hasExplicitScopes ? normalizeCatalogScopes(body) : undefined
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.importCatalog(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        document,
+        { dryRun, ...(scopes ? { scopes } : {}) },
+      )
+      return c.json(result)
     } catch (err) {
       return configErrorResponse(c, err)
     }

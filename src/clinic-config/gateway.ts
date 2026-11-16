@@ -148,6 +148,15 @@ export type ClinicConfigGateway = {
       contactLabel?: string | null
     },
   ): Promise<AppointmentRow>
+  exportCatalog(
+    caller: ClinicCaller,
+    scopes: clinicConfig.CatalogTransferScopes,
+  ): Promise<clinicConfig.CatalogTransferDocument>
+  importCatalog(
+    caller: ClinicCaller,
+    document: unknown,
+    opts: { dryRun: boolean; scopes?: clinicConfig.CatalogTransferScopes },
+  ): Promise<clinicConfig.CatalogImportResult>
 }
 
 export function createMemoryClinicConfigGateway(
@@ -260,6 +269,12 @@ export function createMemoryClinicConfigGateway(
     async insertAppointment(caller, input) {
       clinicConfig.getConfigSnapshotOp(db, caller, clock)
       return clinicConfig.insertSyntheticAppointment(db, caller.tenantId, input, clock)
+    },
+    async exportCatalog(caller, scopes) {
+      return clinicConfig.exportClinicCatalogOp(db, caller, scopes, clock)
+    },
+    async importCatalog(caller, document, opts) {
+      return clinicConfig.importClinicCatalogOp(db, caller, document, clock, opts)
     },
   }
 }
