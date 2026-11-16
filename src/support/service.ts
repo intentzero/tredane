@@ -463,6 +463,8 @@ export async function ownerDecideTermination(
     terminationRequestId: string
     ownerClerkUserId: string
     decision: 'end' | 'keep'
+    /** Sessão do URL: tem de ser a do pedido, verificado **antes** de decidir. */
+    sessionId?: string
   },
 ): Promise<{
   termination: SupportTerminationRow
@@ -473,6 +475,9 @@ export async function ownerDecideTermination(
   const preview = getSupportTerminationRequest(services.db, input.terminationRequestId)
   if (!preview || preview.tenantId !== input.tenantId) {
     throw new NotFoundError('termination_request_not_found', 'Pedido inexistente')
+  }
+  if (input.sessionId && preview.supportSessionId !== input.sessionId) {
+    throw new ConflictError('termination_session_mismatch', 'Sessão não corresponde')
   }
   const result = decideSupportTermination(services.db, services.clock, {
     terminationRequestId: input.terminationRequestId,

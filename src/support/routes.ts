@@ -27,15 +27,20 @@ import { isAuthError } from '../auth/errors'
 import { AuthError } from '../auth/errors'
 import { requestUsesBearer } from '../auth/session'
 import type { AdminDb } from '../db/admin/store'
+import { supportSessionsEnabled } from './flag'
 import { asyncFromSync, fromD1, type AsyncAdminDb } from '../db/admin/async-store'
 import {
   consumeSupportHandoffAsync,
+  getActiveSupportSessionForSubjectAsync,
+  listActiveSupportSessionsForTenantAsync,
   resolveSupportSessionByTokenAsync,
 } from './d1-session'
 import {
   activateApprovedSupportSessionAsync,
   cancelSupportRequestWithServices,
   endSupportSessionAsync,
+  ownerDecideTerminationAsync,
+  subjectRequestTerminationAsync,
   type AsyncSupportServices,
 } from './service-async'
 import type { WorkerBindings } from '../worker/bindings'
@@ -101,14 +106,7 @@ export type SupportRouteOptions = {
   asyncAdminDbFactory?: (env: WorkerBindings) => AsyncAdminDb | null
 }
 
-/**
- * ADR-0017 §7: ativar e trocar o handoff ficam desligados em produção até a revisão de segurança.
- * Fora de produção (staging, desenvolvimento, testes) estão ligados.
- */
-export function supportSessionsEnabled(env: { ENVIRONMENT?: string; SUPPORT_SESSIONS_ENABLED?: string } | undefined): boolean {
-  if (env?.ENVIRONMENT !== 'production') return true
-  return env?.SUPPORT_SESSIONS_ENABLED === 'true'
-}
+export { supportSessionsEnabled }
 
 function supportErrorResponse(
   c: { json: (body: unknown, status?: number) => Response },
@@ -492,6 +490,11 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
     }
   }
 
+  /** Só a base (leituras que não enviam e-mail nem eventos): D1 de produção ou o armazém assíncrono de teste. */
+  function resolveAsyncDbOnly(c: { env: WorkerBindings }): AsyncAdminDb | null {
+    return opts.asyncAdminDbFactory?.(c.env) ?? (c.env?.DB ? fromD1(c.env.DB) : null)
+  }
+
   /** A superadmin cancela o seu pedido enquanto não há sessão ativa (pendente ou aprovado por ativar). */
   routes.post('/api/platform/support-requests/:id/cancel', requireSuperadmin(), async (c) => {
     try {
@@ -677,8 +680,11 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
         requireClinicPermission(ctx, 'clinic.support.decide')
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
-        const sessions = listSessionsForOwner(services, ctx.tenantId)
+        const asyncDb = services ? null : resolveAsyncDbOnly(c)
+        if (!services && !asyncDb) return c.json({ error: 'support_session_sync_required' }, 503)
+        const sessions = services
+          ? listSessionsForOwner(services, ctx.tenantId)
+          : await listActiveSupportSessionsForTenantAsync(asyncDb!, clock, ctx.tenantId)
         c.header('Cache-Control', 'no-store')
         return c.json({
           tenantId: ctx.tenantId,
@@ -702,13 +708,12 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
         const principal = c.get('principal')
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+        const asyncDb = services ? null : resolveAsyncDbOnly(c)
+        if (!services && !asyncDb) return c.json({ error: 'support_session_sync_required' }, 503)
 
-        const notice = loadSubjectSupportNotice(
-          services,
-          ctx.tenantId,
-          principal.clerkUserId,
-        )
+        const notice = services
+          ? loadSubjectSupportNotice(services, ctx.tenantId, principal.clerkUserId)
+          : await getActiveSupportSessionForSubjectAsync(asyncDb!, clock, ctx.tenantId, principal.clerkUserId)
         // Owners também vêem via list; aqui só o subject recebe o aviso contextual.
         if (!notice) {
           c.header('Cache-Control', 'no-store')
@@ -814,13 +819,17 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
         const principal = c.get('principal')
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+        const asyncServices = services ? null : buildAsyncServices(c, clock)
+        if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
 
-        const result = await subjectRequestTermination(services, {
+        const termInput = {
           sessionId: c.req.param('sessionId'),
           subjectClerkUserId: principal.clerkUserId,
           tenantId: ctx.tenantId,
-        })
+        }
+        const result = services
+          ? await subjectRequestTermination(services, termInput)
+          : await subjectRequestTerminationAsync(asyncServices!, termInput)
         c.header('Cache-Control', 'no-store')
         return c.json({
           terminationRequest: result.termination,
@@ -851,14 +860,19 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
 
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+        const asyncServices = services ? null : buildAsyncServices(c, clock)
+        if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
 
-        const result = await ownerDecideTermination(services, {
+        const decideInput = {
           tenantId: ctx.tenantId,
           terminationRequestId: c.req.param('terminationId'),
           ownerClerkUserId: principal.clerkUserId,
-          decision,
-        })
+          decision: decision as 'end' | 'keep',
+          sessionId: c.req.param('sessionId'),
+        }
+        const result = services
+          ? await ownerDecideTermination(services, decideInput)
+          : await ownerDecideTerminationAsync(asyncServices!, decideInput)
         if (result.session.id !== c.req.param('sessionId')) {
           throw new ConflictError('termination_session_mismatch', 'Sessão não corresponde')
         }
