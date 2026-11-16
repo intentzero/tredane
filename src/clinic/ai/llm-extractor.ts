@@ -28,6 +28,7 @@ import {
 } from './nlu/interpret'
 import { norm, parseTemporal, parseTimes } from './nlu/temporal'
 import { textCitesNameOrSynonym } from '../config/synonyms'
+import { lexiconVariantsCoherent } from './lexicon-variants-gate'
 import { applyBookingUpdate } from './apply-booking-update'
 import {
   getBookingFrame,
@@ -160,6 +161,16 @@ export function validateExtractorOutput(
     else discarded.push(`act:${a}`)
   }
 
+  // PR-E / F1: léxico já tem variantes coerentes → em differ, não sobrescrever
+  // variants/service com o LLM (eco/funil já certos). Se o modelo concorda, ok.
+  const lexiconKeepsVariants = lexiconVariantsCoherent(opts.base.slots.variantIds?.value, {
+    turnText: opts.turnText,
+    services: opts.services,
+  })
+  const ruleVariantKey = opts.base.slots.variantIds?.value
+    ? [...opts.base.slots.variantIds.value].sort().join('\0')
+    : ''
+
   let variantServiceId: string | null = null
   if (Array.isArray(raw.variantIds) && raw.variantIds.length > 0) {
     const requested = raw.variantIds.filter((id) => id !== '_none')
@@ -167,8 +178,15 @@ export function validateExtractorOutput(
       const meta = variantById.get(id)
       return Boolean(meta && cites(meta.name, meta.synonyms))
     })
-    if (requested.length === 0 || ok.length !== requested.length) discarded.push('variantIds')
-    else {
+    const llmVariantKey = [...ok].sort().join('\0')
+    if (
+      lexiconKeepsVariants &&
+      (requested.length === 0 || ok.length !== requested.length || llmVariantKey !== ruleVariantKey)
+    ) {
+      discarded.push('variantIds')
+    } else if (requested.length === 0 || ok.length !== requested.length) {
+      discarded.push('variantIds')
+    } else {
       const names = ok.map((id) => variantById.get(id)!.name).join(', ')
       slots.variantIds = fieldLlm(ok, opts.messageId, names)
       variantServiceId = variantById.get(ok[0]!)!.serviceId
@@ -190,7 +208,15 @@ export function validateExtractorOutput(
       )
     const allowIdOnly =
       !lexiconHasService && Boolean(svc) && bookingSignal && raw.serviceId !== '_none'
-    if (svc && raw.serviceId !== '_none' && (cited || allowIdOnly)) {
+    // PR-E: com variantes coerentes, não trocar o serviço se o modelo diverge.
+    const serviceDiffers =
+      lexiconKeepsVariants &&
+      lexiconHasService &&
+      raw.serviceId !== '_none' &&
+      raw.serviceId !== opts.base.slots.serviceId?.value
+    if (serviceDiffers) {
+      discarded.push('serviceId')
+    } else if (svc && raw.serviceId !== '_none' && (cited || allowIdOnly)) {
       slots.serviceId = fieldLlm(raw.serviceId, opts.messageId, svc.name)
     } else discarded.push('serviceId')
   } else if (variantServiceId && !slots.serviceId) {

@@ -738,6 +738,7 @@ export async function runDueAutoDrafts(
         messageId: job.messageId,
         purpose: 'extract',
       })
+    const frameForShadow = getBookingFrame(db, tenantId, job.conversationId)
     const shadowTask: InterpreterShadowTask | null =
       deps.interpreterShadow &&
       turnText.trim() &&
@@ -755,7 +756,10 @@ export async function runDueAutoDrafts(
                 [...turn.catalog.professionalsByService.values()].flat().map((p) => [p.id, p]),
               ).values(),
             ],
-            pending: getBookingFrame(db, tenantId, job.conversationId)?.pending ?? null,
+            pending: frameForShadow?.pending ?? null,
+            // PR-E: léxico da sombra vê serviço/linha do quadro (F1 multi-zona).
+            frameServiceId: frameForShadow?.serviceId ?? null,
+            frameLine: frameForShadow?.line ?? null,
             mainRaw: null,
             mainModelCalled: false,
           }
