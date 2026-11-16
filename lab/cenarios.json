@@ -742,6 +742,74 @@
       }
     },
     {
+      "id": "H1-expediente-domingo",
+      "waId": "550000000301",
+      "displayName": "LabH1",
+      "note": "FAQ expediente sem LLM: «atende domingo» resposta determinística.",
+      "steps": [{ "say": "vocês atendem no domingo?" }],
+      "expect": {
+        "deterministicHoursReply": true,
+        "noMisunderstanding": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H2-expediente-sabado-abrev",
+      "waId": "550000000302",
+      "displayName": "LabH2",
+      "steps": [{ "say": "abrem sab?" }],
+      "expect": {
+        "mentionsSaturday": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H3-feriado-expediente",
+      "waId": "550000000303",
+      "displayName": "LabH3",
+      "steps": [{ "say": "atendem em feriado?" }],
+      "expect": {
+        "openingOrClosureCopy": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H4-faq-endereco",
+      "waId": "550000000304",
+      "displayName": "LabH4",
+      "steps": [{ "say": "qual o endereço da clínica?" }],
+      "expect": {
+        "addressFromConfigOrMissing": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H5-faq-estacionamento",
+      "waId": "550000000305",
+      "displayName": "LabH5",
+      "note": "Requer entrada published «estacionamento» no cadastro demo.",
+      "steps": [{ "say": "vocês têm estacionamento?" }],
+      "expect": {
+        "knowledgeOrMissingCopy": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H6-expediente-mid-funil",
+      "waId": "550000000306",
+      "displayName": "LabH6",
+      "note": "Pergunta de expediente no meio do funil; quadro mantém serviço.",
+      "steps": [
+        { "say": "quero depilação feminina" },
+        { "say": "vocês abrem no sábado?" }
+      ],
+      "expect": {
+        "bookingContextKept": true,
+        "saturdayHoursMentioned": true,
+        "modelCalled": false
+      }
+    },
+    {
       "id": "G2-ordem-pos-agendar",
       "waId": "550000000198",
       "displayName": "Lab G2",

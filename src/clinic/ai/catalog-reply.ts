@@ -6,7 +6,6 @@ import { formatBRL } from '../../ai/prompt'
 import type { Clock } from '../../db/clock'
 import { currentClientTurnText, explicitAudienceLine } from '../catalog/audience'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
-import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
@@ -36,7 +35,6 @@ import {
 import { realizeAskInfo } from './ask-info-realize'
 import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
-import { formatOpeningHours } from './schedule-context'
 import {
   funnelMessageFilter,
   getBookingFrame,
@@ -55,14 +53,11 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, parseTemporal } from './nlu/temporal'
-import { isOpeningDayAsk } from './opening-day-ask'
+import { answerClinicKnowledge } from './clinic-knowledge-reply'
+import { buildOpeningHoursReply } from './opening-hours-reply'
 
-/**
- * Expediente / horário de abertura — não confundir com «quero um horário».
- * Lab Bloco B: «tem horário depois das 20h?» é FAQ de expediente, não DEC-151.
- */
-const HOURS =
-  /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas|tem\s+hor[aá]rio\s+depois\s+das|(abrem|funcionam|atendem)\s+depois\s+das\s+\d|(hor[aá]rio|atendimento)\s+(noturno|depois\s+das\s+\d))\b/i
+const LOCAL =
+  /\b(onde fica|endere[cç]o|localiza[cç][aã]o|como chegar|maps?|google)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 /** Alias estável — ver `CATALOG_PRICE_ASK` (singular «valor», tabela, sinónimos). */
 const PRICE = CATALOG_PRICE_ASK
@@ -316,19 +311,47 @@ export function catalogReply(
   }
   const cnv = opts.conversationId ?? ''
   const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
-  if ((HOURS.test(body) || isOpeningDayAsk(body)) && !PRICE.test(body)) {
-    const resources = opts.turn?.catalog.resources ?? listResources(db, tenantId, clock)
-    const pros = new Set(
-      resources.filter((r) => r.kind === 'professional').map((r) => r.id),
-    )
-    const lines = formatOpeningHours(
-      listEffectiveWeeklyWindows(db, tenantId)
-        .filter((w) => pros.has(w.resourceId))
-        .map((w) => ({ dayOfWeek: w.dayOfWeek, startMinute: w.startMinute, endMinute: w.endMinute })),
-    )
-    const lista = lines.join('\n')
-    const fallback = `Funcionamos assim:\n${lista}`
-    return sayAct('informar_expediente', cnv, { lista }, fallback)
+  if (!PRICE.test(body)) {
+    const hoursReply = buildOpeningHoursReply(db, tenantId, clock, body, cnv)
+    if (hoursReply) return hoursReply
+  }
+
+  if (LOCAL.test(body) && !PRICE.test(body) && !CLOCK.test(body)) {
+    const settings = ensureClinicSettings(db, tenantId, clock)
+    const address = settings.clinicAddress.trim()
+    const link = settings.googleBusinessUrl.trim()
+    if (!address) {
+      return sayAct(
+        'esclarecer',
+        cnv,
+        {},
+        'Não tenho o endereço cadastrado; a equipe confirma.',
+      )
+    }
+    if (link) {
+      return sayAct(
+        'informar_local_link',
+        cnv,
+        { endereço: address, link },
+        `${address}\n${link}`,
+      )
+    }
+    return sayAct('informar_local', cnv, { endereço: address }, address)
+  }
+
+  const bookingIntentCold =
+    /\b(quero|gostaria|marcar|agendar|disponi|vaga|fazer|preciso)\b/i.test(body) &&
+    !isCatalogInfoAsk(body)
+  const frameCold = opts.conversationId ? getBookingFrame(db, tenantId, opts.conversationId) : null
+  const midFunnelCatalog = Boolean(frameCold?.serviceId)
+  if (
+    !midFunnelCatalog &&
+    !bookingIntentCold &&
+    !CLOCK.test(body) &&
+    !(PERIOD.test(body) && !CLOCK.test(body))
+  ) {
+    const knowledge = answerClinicKnowledge(db, tenantId, body)
+    if (knowledge) return knowledge.replyText
   }
 
   const source = clientSource(db, tenantId, body, opts.conversationId, opts.turn)

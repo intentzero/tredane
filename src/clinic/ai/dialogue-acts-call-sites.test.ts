@@ -17,6 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const CALL_SITE_FILES = [
   'slot-offer.ts',
   'catalog-reply.ts',
+  'opening-hours-reply.ts',
   'client-copy.ts',
   'variant-line.ts',
   'autobook.ts',
@@ -65,14 +66,13 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'esclarecer',
   // DEC-177: FAQ a partir de Explicação para clientes.
   'informar_explicacao',
-]
-
-/** Sem rota natural neste recorte — não inventar call-site. */
-const UNWIRED_ACTS: readonly DialogueActId[] = [
-  'abrir',
+  // FAQ endereço (cadastro da clínica) — catalog-reply antes do LLM.
   'informar_local',
   'informar_local_link',
 ]
+
+/** Sem rota natural neste recorte — não inventar call-site. */
+const UNWIRED_ACTS: readonly DialogueActId[] = ['abrir']
 
 /**
  * Frases reformadas (Substitui / revisão leva 2) que NÃO podem regressar
@@ -135,6 +135,10 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // DEC-185 — FAQ institucional modo A (park/resume; fallback alinhado)
   /^Qual horário fica melhor para \$\{svcKn\.name\}\?$/,
   /^DEC-185: clinic knowledge \$\{knowledge\.entry\.id\} \(mode A; pending kept\)\.$/,
+  /^Não tenho o endereço cadastrado; a equipe confirma\.$/,
+  /^Não tenho o horário cadastrado; a equipe confirma\.$/,
+  /^a equipe confirma o horário$/,
+  /^deterministic opening hours mid-funnel \(pending kept\)\.$/,
   /^Continuar$/,
   // ask-info-realize fallbacks (acto decide; sayAct redige)
   /^\$\{zone\.name\} custa \$\{preço\} e dura \$\{duração\} min\.$/,
@@ -269,8 +273,8 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(33)
-    expect(UNWIRED_ACTS).toHaveLength(3)
+    expect(WIRED_ACTS).toHaveLength(35)
+    expect(UNWIRED_ACTS).toHaveLength(1)
   })
 
   it('cada ato ligado aparece em sayAct nos módulos do funil', () => {

@@ -149,6 +149,11 @@ import {
   looksLikeKnowledgeAsk,
 } from './clinic-knowledge-reply'
 import {
+  buildOpeningHoursReply,
+  isOpeningHoursFaqAsk,
+  openingHoursMixedWithBooking,
+} from './opening-hours-reply'
+import {
   parkFromFrame,
   shouldResumeSlotAsk,
   shouldResumeVariantAsk,
@@ -1435,6 +1440,49 @@ export async function tryAiAutoBook(
       }
     }
     // Sem serviço aberto: cede aos fillers / catalog frio (não leftover).
+  }
+
+  // Expediente mid-funnel (catálogo pode ter sido omitido em testes directos).
+  if (gate.kind === 'none' && isOpeningHoursFaqAsk(turnText) && !openingHoursMixedWithBooking(turnText)) {
+    const frameHours = getBookingFrame(db, tenantId, input.conversationId)
+    const hoursReply = buildOpeningHoursReply(db, tenantId, clock, turnText, input.conversationId)
+    if (hoursReply && frameHours?.serviceId) {
+      const svcHours = services.find((s) => s.id === frameHours.serviceId)
+      let replyText = hoursReply
+      if (svcHours) {
+        const parked = parkFromFrame(frameHours, 'ask_info', 'explanation')
+        if (shouldResumeVariantAsk(parked)) {
+          const activeH = svcHours.zones.filter((z) => z.active)
+          const lineH = heldAudienceLine(frameHours) ?? frameHours.line ?? null
+          const poolH =
+            needsAudienceLine(activeH) && lineH ? zonesForAudienceLine(activeH, lineH) : activeH
+          const pool = poolH.length > 0 ? poolH : activeH
+          replyText =
+            hoursReply +
+            '\n' +
+            variantListQuestion(
+              svcHours.name,
+              variantKindForAsk(svcHours),
+              pool,
+              input.conversationId,
+              { selectionMode: svcHours.variantSelection },
+            )
+        } else if (shouldResumeSlotAsk(parked)) {
+          replyText =
+            hoursReply +
+            '\n' +
+            sayAct('perguntar_horario', input.conversationId, { serviço: svcHours.name }, '   ')
+        }
+      }
+      return finish({
+        ...none('needs_info', {
+          confirmationMessageId: confirmation.id,
+          ...(frameHours.serviceId ? { serviceId: frameHours.serviceId } : {}),
+        }),
+        replyText,
+        notes: 'deterministic opening hours mid-funnel (pending kept).',
+      })
+    }
   }
 
   // DEC-185: FAQ institucional (modo A) mid-funnel — park → texto cadastrado → resume.
