@@ -5,7 +5,7 @@
  * já certos). Não é H1 completo; FAQ/line continuam a exigir evidência.
  */
 import { textCitesNameOrSynonym } from '../config/synonyms'
-import type { ServiceRow } from '../config/types'
+import type { ServiceRow, VariantAudience } from '../config/types'
 import { variantAudiencesConflict } from '../config/zones'
 import { zonesForAudienceLine, type AudienceLine } from './variant-line'
 
@@ -14,7 +14,10 @@ export function lexiconVariantsCoherent(
   opts: { turnText: string; services: readonly ServiceRow[] },
 ): boolean {
   if (!variantIds || variantIds.length === 0) return false
-  const byId = new Map<string, { serviceId: string; name: string; synonyms: string[]; audience: string }>()
+  const byId = new Map<
+    string,
+    { serviceId: string; name: string; synonyms: string[]; audience: VariantAudience }
+  >()
   for (const s of opts.services) {
     for (const z of s.zones) {
       if (!z.active) continue
