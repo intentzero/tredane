@@ -1,6 +1,6 @@
 # ADR-0017 — Como a Clinic App aceita uma sessão de suporte
 
-- **Estado:** **Direção Confirmada** (Paulo, 17/11/2026, «Aprovada»; DEC-195), ao planear a [#853](https://github.com/intentzero/tredane/issues/853). **As perguntas Q-SUP-01 a Q-SUP-04 continuam em aberto**: o PR 1 (porte para o D1) não depende delas; Q-SUP-01 e Q-SUP-02 bloqueiam o PR 2, Q-SUP-03 o PR 5 e Q-SUP-04 o uso em produção. Os valores «proposto» da tabela não são respostas. Revê e concretiza o «Fluxo técnico proposto» da [ADR-0007](0007-support-impersonation.md), cujos pontos de cookie, CSRF e handoff «devem passar por revisão de segurança antes do deployment real».
+- **Estado:** **Direção Confirmada** (Paulo, 17/11/2026, «Aprovada»; DEC-195), ao planear a [#853](https://github.com/intentzero/tredane/issues/853). **Respostas do Paulo (17/11/2026): Q-SUP-01 = ler conversas; Q-SUP-02 = sim, auditar leituras; Q-SUP-03 = sim, interruptor ligado em staging.** **Q-SUP-04 em aberto** (o Paulo pediu a sugestão do Claude, abaixo, ainda por aprovar): só bloqueia o uso em produção. O PR 1 (porte para o D1) e o PR 2 (overlay) já não estão bloqueados. Revê e concretiza o «Fluxo técnico proposto» da [ADR-0007](0007-support-impersonation.md), cujos pontos de cookie, CSRF e handoff «devem passar por revisão de segurança antes do deployment real».
 - **Relacionados:** [ADR-0006](0006-clerk-platform-admin.md), [ADR-0007](0007-support-impersonation.md), [ADR-0011](0011-owner-approval-for-support.md), [platform-admin.md](../product/platform-admin.md), DEC-029 a DEC-037.
 
 ## Problema (o que o código faz hoje)
@@ -51,10 +51,25 @@ Cada sessão já audita pedido, aprovação, ativação, handoff, expiração e 
 ## Perguntas para o Paulo
 | ID | Pergunta | Opções | Bloqueia |
 | --- | --- | --- | --- |
-| Q-SUP-01 | O suporte lê **conversas de clientes** (`clinic.inbox.read`) ou só diagnóstico (contagens, configuração, estado da agenda)? | (a) só diagnóstico no início; (b) também conversas, com a aprovação da owner (DEC-029) | PR 2 |
-| Q-SUP-02 | Auditar cada leitura de conteúdo (`support.access`)? | (a) sim, agregada por rota e minuto (proposto); (b) só início e fim da sessão | PR 2 |
-| Q-SUP-03 | O interruptor liga em **staging** já, e em produção só após revisão de segurança? | (a) sim (proposto); (b) nem em staging até à revisão | PR 5 |
-| Q-SUP-04 | Quem faz a revisão de segurança e o pen-test exigidos pela ADR-0007 antes de produção? | a indicar | ligar em produção |
+| Q-SUP-01 | O suporte lê **conversas de clientes** (`clinic.inbox.read`) ou só diagnóstico? | **Resolvida (Paulo): (b) lê conversas**, com a aprovação da owner a cada sessão (DEC-029) | — (ver «Consequência de Q-SUP-01») |
+| Q-SUP-02 | Auditar cada leitura de conteúdo (`support.access`)? | **Resolvida (Paulo): (a) sim**, agregada por rota e por minuto | — |
+| Q-SUP-03 | O interruptor liga em **staging** já, e em produção só após revisão de segurança? | **Resolvida (Paulo): (a) sim** | — |
+| Q-SUP-04 | Quem faz a revisão de segurança e o pen-test exigidos pela ADR-0007 antes de produção? | **Em aberto. Sugestão do Claude (a aprovar), abaixo.** | ligar em produção |
+
+## Consequência de Q-SUP-01: o suporte passa a ler dados pessoais de clientes
+Ler conversas é o caso de maior risco desta ADR. O que muda, **Proposto** até o Paulo confirmar:
+- `SUPPORT_READ_PERMISSIONS` inclui `clinic.inbox.read` e a leitura de contactos e do funil; **continua sem nenhuma escrita** e sem `clinic.contacts.delete`.
+- O aviso ao subject (DEC-036) e o e-mail às owners (DEC-035) passam a dizer que a sessão **pode ler conversas de clientes**.
+- A sessão de suporte **não vê o telefone completo** das clientes, como a Platform Admin já faz nas amostras (#857): só os 4 últimos dígitos. Em aberto (Q-SUP-05): se a equipa de suporte precisa do número inteiro para reproduzir um problema.
+- Fica a **base legal e a política de retenção** (VAL-09, #43), que o MVP já marca como «em aberto antes de dados reais». Esta decisão torna-as um **requisito para ligar em produção**, não um extra.
+
+## Sugestão para Q-SUP-04 (Claude, a aprovar)
+Como a equipa é pequena, proponho **três camadas, por esta ordem**, e **produção só liga depois das três**:
+1. **Revisão independente do desenho e do código** por uma pessoa que não escreveu nada disto (colega, ou consultor de segurança por 1 a 2 dias), com esta ADR e o PR 2 como material. O foco é o overlay do `resolveTenantContext`, o isolamento entre clínicas e o bloqueio de escrita.
+2. **Testes adversariais automáticos escritos no PR 2**, que correm sempre na CI: cookie de outra clínica, cookie de outra sessão Clerk, sessão expirada ou revogada a meio, subject sem membership, tenant suspenso, flag do actor retirada, tentativa de cada rota de escrita, WebSocket depois da revogação. Isto já é trabalho de engenharia e não custa extra.
+3. **Pen-test curto e pontual** (2 a 3 dias, externo) só sobre as superfícies novas: handoff, cookie, overlay e WebSocket de suporte. Pode ser um freelancer de segurança de aplicações; não precisa de uma auditoria geral.
+
+Antes de ligar: **lista de verificação assinada pelo Paulo** (as três camadas feitas, base legal e retenção definidas, textos de aviso revistos, interruptor ligado primeiro só numa clínica de teste). Alternativa mais barata e mais fraca: só as camadas 1 e 2 e ligar para **uma clínica piloto** com a owner informada por escrito; **não recomendo**, por causa da leitura de conversas.
 
 ## Fora do âmbito
 Escrita em nome do subject (continua bloqueada até política explícita), extensão de sessão (DEC-033), MFA (DEC-028) e acesso de suporte a mais de uma clínica por sessão.
