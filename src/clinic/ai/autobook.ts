@@ -65,7 +65,6 @@ import type { AbuseLimits } from './abuse-limits'
 import {
   DEFAULT_OPTION_KIND_PLURAL,
   mixedAudienceReply,
-  paymentMethodReply,
   serviceNotFoundReply,
   teamConfirmsSoonReply,
   zoneNotFoundAskReply,
@@ -148,7 +147,14 @@ import {
   notBeforeTimeFromText,
   wantsNextWeekWithoutWeekday,
 } from './nlu/temporal'
+import { wantsHumanText } from './nlu/sensitive'
 import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
+import { buildFrustrationRecoveryReply, isClientNotAnsweredComplaint } from './client-frustration-turn'
+import {
+  buildPaymentDeferralReply,
+  paymentAskIsRepeat,
+  paymentDeferralInteractive,
+} from './payment-method-turn'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { validateClientOutbound } from './outbound-validate'
 import { realizeAskInfo, realizeClarify } from './ask-info-realize'
@@ -1257,6 +1263,36 @@ export async function tryAiAutoBook(
   // P1 / DEC-C4: gate cross-cutting antes de pending / fillers
   // (restart → exit A/B → reject C → ask_info). Handoff fica no autodraft.
   const gate = classifyCrossCuttingAct({ text: turnText })
+
+  if (isClientNotAnsweredComplaint(turnText) && !wantsHumanText(turnText)) {
+    const frameFr = getBookingFrame(db, tenantId, input.conversationId)
+    const svcFr = frameFr?.serviceId ? services.find((s) => s.id === frameFr.serviceId) : null
+    const inboundBodies = [
+      ...older.filter((m) => m.direction === 'inbound').map((m) => m.body),
+      ...clientTurn.map((m) => m.body),
+    ]
+    const recovery = buildFrustrationRecoveryReply({
+      conversationId: input.conversationId,
+      turnText,
+      inboundBodies,
+      service: svcFr ?? null,
+      frame: frameFr,
+      db,
+      tenantId,
+      clock,
+    })
+    if (recovery) {
+      return finish({
+        ...none('needs_info', {
+          confirmationMessageId: confirmation.id,
+          ...(svcFr ? { serviceId: svcFr.id } : {}),
+        }),
+        replyText: recovery.replyText,
+        ...(recovery.interactive ? { interactive: recovery.interactive } : {}),
+        notes: 'Queixa de não-resposta: desculpa, pendente, equipe; sem reoferta de horários.',
+      })
+    }
+  }
   // CF-28 / #508 / DEC-138 practice 5: restart phrases clear the booking frame
   // and retire any open proposal without confirming (DEC-061). Reply = perguntar_servico.
   if (gate.kind === 'restart') {
@@ -1766,7 +1802,8 @@ export async function tryAiAutoBook(
           services.find((s) =>
             (s.synonyms ?? []).some((syn) => turnText.toLowerCase().includes(syn.trim().toLowerCase())),
           )
-      const paymentBase = paymentMethodReply()
+      const isRepeat = paymentAskIsRepeat(db, tenantId, input.conversationId)
+      const paymentBase = buildPaymentDeferralReply(isRepeat)
       const teamFollowUp = promiseTeamFollowUp(
         db,
         tenantId,
@@ -1777,8 +1814,13 @@ export async function tryAiAutoBook(
         clock,
       )
       let replyText = paymentBase
-      let slotInteractive: ChoiceInteractive | null = null
-      if (svcPay && framePay?.serviceId === svcPay.id) {
+      let slotInteractive: ChoiceInteractive | null = paymentDeferralInteractive(
+        db,
+        tenantId,
+        clock,
+        isRepeat,
+      )
+      if (!isRepeat && svcPay && framePay?.serviceId === svcPay.id) {
         const parked = parkFromFrame(framePay, 'ask_info', 'price')
         if (shouldResumeSlotAsk(parked)) {
           const activePay = svcPay.zones.filter((z) => z.active)
@@ -1855,6 +1897,14 @@ export async function tryAiAutoBook(
           slotInteractive = resumed.interactive
           replyText = `${paymentBase}\n${resumed.slotText}`
         }
+      } else if (!isRepeat && svcPay) {
+        const horarioAsk = sayAct(
+          'perguntar_horario',
+          input.conversationId,
+          { serviço: svcPay.name },
+          'Qual horário fica melhor para {serviço}?',
+        )
+        replyText = `${paymentBase}\n${horarioAsk}`
       }
       const checked = validateClientOutbound(replyText, {
         source: 'phrase',

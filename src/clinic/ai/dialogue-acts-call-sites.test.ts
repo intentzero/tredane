@@ -135,6 +135,10 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^DEC-177: FAQ \$\{faq\.kind\} from catalog facts \(pending kept\)\.$/,
   /^Pagamento\/parcelamento: equipe avisada; funil retomado\.$/,
   /^Sobre cartão e parcelamento, a equipe confirma com você\.$/,
+  /^Ainda estou aguardando a equipe confirmar cartão e parcelamento\. Se preferir, toque em Falar com a equipe\.$/,
+  /^Desculpe, entendi mal o seu pedido\.$/,
+  /^Se quiser, toque em Falar com a equipe\.$/,
+  /^Queixa de não-resposta: desculpa, pendente, equipe; sem reoferta de horários\.$/,
   // DEC-185 — FAQ institucional modo A (park/resume; fallback alinhado)
   /^Qual horário fica melhor para \$\{svcKn\.name\}\?$/,
   /^DEC-185: clinic knowledge \$\{knowledge\.entry\.id\} \(mode A; pending kept\)\.$/,
