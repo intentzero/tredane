@@ -29,6 +29,8 @@ import {
   proposalButtonId,
 } from './index'
 import { POST_BOOKING_BODY } from '../followup/post-booking'
+import { applyOutboundSendResultOp } from '../inbox/operations'
+import { reconcileProposalResultOutboundSend } from './results'
 
 // Qui 29/10/2026 15:00 UTC — mesmo padrão de execute-confirm.test (slot +24h = sexta).
 const T0 = Date.UTC(2026, 9, 29, 15, 0)
@@ -301,6 +303,34 @@ describe('pós-Agendado sem esclarecer spurioso', () => {
         s.clock,
       )
       expect(result.status).toBe('booked')
+      const agSend = result.outbox.find((row) => row.type === 'whatsapp.send')
+      const outbound = clinicInbox.findOutboundByClientRequestId(
+        s.db,
+        s.tenantId,
+        `proposal.result:${s.proposal.id}:v${s.proposal.version}:booked`,
+      )
+      if (agSend && outbound) {
+        const applied = applyOutboundSendResultOp(
+          s.db,
+          s.caller,
+          {
+            outboundId: outbound.id,
+            outboxEventId: agSend.id,
+            idempotencyKey: agSend.idempotencyKey,
+            outcome: 'succeeded',
+            providerMessageId: 'wamid.postbook_confused',
+          },
+          s.clock,
+        )
+        reconcileProposalResultOutboundSend(
+          s.db,
+          s.tenantId,
+          applied.value.outbound,
+          'succeeded',
+          s.clock,
+          s.caller,
+        )
+      }
 
       expect(getBookingFrame(s.db, s.tenantId, s.conversation.id)).toBeNull()
 

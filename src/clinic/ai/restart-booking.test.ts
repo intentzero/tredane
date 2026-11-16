@@ -215,7 +215,9 @@ describe('tryAiAutoBook — recomeçar limpa frame e proposta (#508)', () => {
       // Commit do clear (mesmo caminho que afterPersist no envio).
       const flushed = out.deferredFrame!.flushNow(s.db, s.tenantId, s.cnv.id, s.clock)
       expect(flushed.some((o) => o.type === 'booking_frame.updated')).toBe(true)
-      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.serviceId).toBeNull()
+      expect(frame?.pending?.slot).toBe('servico')
       expect(getActiveProposalForConversation(s.db, s.tenantId, s.cnv.id, s.clock)).toBeNull()
       expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('substituida')
     } finally {

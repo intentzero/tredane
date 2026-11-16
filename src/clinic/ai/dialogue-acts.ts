@@ -208,7 +208,7 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   catalogo_mudou: ['Nossas opções mudaram. Pode dizer de novo qual serviço e opção você quer?'],
   nao_consegui_fechar: ['Não consegui fechar {serviço} às {hora} agora. A equipe confirma em seguida.'],
   // DEC-152 (Paulo, 08/11/2026): uma redação fixa; one-shot no funil.
-  orientar_terminar: ['Se quiser parar, diga terminar.'],
+  orientar_terminar: ['Se quiser parar, use o botão Terminar quando aparecer.'],
   // DEC-153 (Paulo, 09/11/2026, opção 3): dica na 1.ª oferta de slots; sem handoff automático.
   orientar_ajuda_humana: [
     'Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer.',

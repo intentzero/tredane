@@ -47,7 +47,9 @@ import { sendProposalToWhatsAppOp } from '../proposals/send'
 import {
   proposalConfirmNudgeClientRequestId,
   sendProposalConfirmNudgeOp,
+  PROPOSAL_CONFIRM_NUDGE_LEAD,
   shouldReofferProposalOnAffirmText,
+  shouldReofferProposalOnRepeatedSlot,
 } from '../proposals/text-confirm-nudge'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { openPendingCommunication } from '../proposals/pending-communication'
@@ -88,6 +90,7 @@ import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
   catalogServiceList,
+  findExplicitServiceInText,
   resolveBookingObject,
   servicesFromBookingMatch,
 } from './booking-object'
@@ -118,6 +121,7 @@ import {
   scheduleFactsFromText,
   syncBookingFrameWithCatalog,
   wouldAskFilledSlot,
+  type BookingFrame,
 } from './schedule-session'
 import { getOrCompileCatalog } from './turn-context'
 import {
@@ -131,7 +135,7 @@ import {
   whichKind,
   zonesForAudienceLine,
 } from './variant-line'
-import { extractDates, extractTimes, norm } from './nlu/temporal'
+import { extractDates, extractTimes, norm, notBeforeTimeFromText } from './nlu/temporal'
 import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { validateClientOutbound } from './outbound-validate'
@@ -148,6 +152,7 @@ import {
   parkFromFrame,
   shouldResumeSlotAsk,
   shouldResumeVariantAsk,
+  shouldResumeZoneChoiceAfterFaq,
 } from './dialogue-interrupt-stack'
 import {
   obligationFromFrame,
@@ -196,6 +201,27 @@ import {
   type ChoiceInteractive,
 } from './choice-offer'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
+import {
+  attachServicePickToDeferred,
+  buildServicePickOffer,
+} from './service-pick-offer'
+
+function servicePickFromCatalog(
+  deferred: DeferredBookingFrame,
+  services: ServiceRow[],
+  catalogVersion: string,
+  candidateServiceIds?: ReadonlySet<string>,
+): { replyText: string; interactive: ChoiceInteractive } | null {
+  const pool =
+    candidateServiceIds && candidateServiceIds.size > 0
+      ? services.filter((s) => candidateServiceIds.has(s.id))
+      : services
+  const pick = buildServicePickOffer({ services: pool, catalogVersion })
+  if (!pick?.interactive) return null
+  const interactive = attachServicePickToDeferred(deferred, catalogVersion, pick)
+  if (!interactive) return null
+  return { replyText: pick.body, interactive }
+}
 
 /** Acumula pending + lastOffer da oferta (CF-22); commit na TX do outbound (ADR-0015). */
 function rememberOfferFrameImpl(
@@ -1052,6 +1078,7 @@ export async function tryAiAutoBook(
     ? input.turnTextOverride.trim()
     : clientTurn.map((m) => m.body).join('\n')
   turnTextForFriction = turnText
+  const notBeforeHHMM = notBeforeTimeFromText(turnText)
 
   // ADR-0015 / #472: revalidar ids se catalogVersion divergir (também sem TurnContext).
   syncBookingFrameWithCatalog(
@@ -1079,25 +1106,27 @@ export async function tryAiAutoBook(
   if (gate.kind === 'restart') {
     deferred.clearSession()
     retireActiveProposal(db, tenantId, input.conversationId, clock)
+    const picked = servicePickFromCatalog(deferred, services, catalog.version)
     const names = services.map((s) => s.name.trim()).filter((n) => n.length > 0)
-    const lista = names.join(', ')
     const replyText =
-      names.length >= 2
+      picked?.replyText ??
+      (names.length >= 2
         ? sayAct(
             'perguntar_servico',
             input.conversationId,
-            { lista },
-            `Qual serviço você quer? Temos ${lista}.`,
+            { lista: names.join(', ') },
+            'Qual serviço você quer? Temos ${lista}.',
           )
         : sayAct(
             'perguntar_servico',
             input.conversationId,
             {},
             'Qual serviço você gostaria de agendar?',
-          )
+          ))
     return finish({
       ...none('needs_info', { confirmationMessageId: confirmation.id }),
       replyText,
+      ...(picked ? { interactive: picked.interactive } : {}),
       notes: 'CF-28/#508: restart clears schedule_sessions; open proposal retired.',
     })
   }
@@ -1193,6 +1222,7 @@ export async function tryAiAutoBook(
           period: (frameReject.period as DayPeriod | null) ?? null,
           limit: 3,
           conversationId: input.conversationId,
+          notBeforeHHMM,
         })
         const interactive = applyOfferSideEffects(
           deferred,
@@ -1220,17 +1250,46 @@ export async function tryAiAutoBook(
   // DEC-177: FAQ (explanation) usa o mesmo gate — factos do cadastro, sem leftover.
   if (gate.kind === 'ask_info') {
     const frameAsk = getBookingFrame(db, tenantId, input.conversationId)
-    const svcAsk = frameAsk?.serviceId
+    const explicitSvc = findExplicitServiceInText(turnText, services)
+    const frameSvc = frameAsk?.serviceId
       ? services.find((s) => s.id === frameAsk.serviceId)
       : null
-    if (svcAsk && frameAsk?.serviceId) {
+    const svcAsk = explicitSvc ?? frameSvc
+    const sameServiceFunnel = Boolean(
+      svcAsk && (!explicitSvc || !frameAsk?.serviceId || explicitSvc.id === frameAsk.serviceId),
+    )
+    if (svcAsk) {
+      const lineAsk =
+        sameServiceFunnel && frameAsk
+          ? heldAudienceLine(frameAsk) ?? frameAsk.line ?? null
+          : null
       const activeAsk = svcAsk.zones.filter((z) => z.active)
-      const lineAsk = heldAudienceLine(frameAsk) ?? frameAsk.line ?? null
       const poolAsk =
         needsAudienceLine(activeAsk) && lineAsk
           ? zonesForAudienceLine(activeAsk, lineAsk)
           : activeAsk
       const pool = poolAsk.length > 0 ? poolAsk : activeAsk
+      const frameInFunnel =
+        sameServiceFunnel && frameAsk?.serviceId === svcAsk.id ? frameAsk : null
+      const frameForQuote: BookingFrame =
+        frameInFunnel ??
+        ({
+          phase: 'coletando',
+          serviceId: svcAsk.id,
+          line: lineAsk,
+          variantIds: null,
+          professionalPref: null,
+          date: null,
+          period: null,
+          time: null,
+          pending: null,
+          lastOffer: null,
+          proposal: null,
+          rescheduleAppointmentId: null,
+          catalogVersion: catalog.version,
+          provenance: {},
+          updatedAt: clock.nowMs(),
+        } satisfies BookingFrame)
 
       if (gate.topic === 'explanation') {
         runBookingUpdate({ type: 'ask_info', topic: 'explicacao' })
@@ -1253,8 +1312,11 @@ export async function tryAiAutoBook(
         }
         let replyText = faq.replyText
         // Com facto: retoma a pergunta de zonas se ainda não há variante (não avança Horários).
-        const parked = parkFromFrame(frameAsk, 'ask_info', 'explanation')
-        if (shouldResumeVariantAsk(parked)) {
+        const parked = parkFromFrame(frameInFunnel, 'ask_info', 'explanation')
+        if (
+          sameServiceFunnel &&
+          (shouldResumeVariantAsk(parked) || shouldResumeZoneChoiceAfterFaq(parked))
+        ) {
           const ask = variantListQuestion(
             svcAsk.name,
             variantKindForAsk(svcAsk),
@@ -1287,7 +1349,7 @@ export async function tryAiAutoBook(
         topic: gate.topic,
         service: svcAsk,
         zones: pool,
-        frame: frameAsk,
+        frame: frameForQuote,
         namedZones: namedAsk,
         sameFunnel: true,
       })
@@ -1303,8 +1365,20 @@ export async function tryAiAutoBook(
         let replyText = realized.replyText
         let slotInteractive: ChoiceInteractive | null = null
         // rsamp_fa7f138: após preço, reofertar slots (não só «qual horário?»).
-        if (gate.topic === 'price' && shouldResumeSlotAsk(realized.parked)) {
-          const variantIds = frameAsk.variantIds ?? []
+        // P10/C-03: serviço em linha com oferta aberta — só cotação + retoma textual.
+        const lineServiceOpenOffer =
+          frameInFunnel?.pending?.slot === 'horario' &&
+          frameInFunnel?.lastOffer &&
+          activeAsk.length === 0 &&
+          poolAsk.length === 0
+        if (
+          gate.topic === 'price' &&
+          sameServiceFunnel &&
+          frameInFunnel &&
+          shouldResumeSlotAsk(realized.parked) &&
+          !lineServiceOpenOffer
+        ) {
+          const variantIds = frameInFunnel.variantIds ?? []
           const kept = poolAsk.filter((z) => variantIds.includes(z.id))
           const zonesOffer = kept.length > 0 ? kept : poolAsk
           const quoteOnly = realized.resume
@@ -1327,11 +1401,12 @@ export async function tryAiAutoBook(
             clock,
             forecast: input.forecast,
             professionalId: preferred,
-            date: frameAsk.date ?? null,
-            period: frameAsk.period ?? null,
+            date: frameInFunnel.date ?? null,
+            period: frameInFunnel.period ?? null,
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
+            notBeforeHHMM,
           })
           slotInteractive = applyOfferSideEffects(
             deferred,
@@ -1434,7 +1509,7 @@ export async function tryAiAutoBook(
             (s.synonyms ?? []).some((syn) => turnText.toLowerCase().includes(syn.trim().toLowerCase())),
           )
       const paymentBase = paymentMethodReply()
-      promiseTeamFollowUp(
+      const teamFollowUp = promiseTeamFollowUp(
         db,
         tenantId,
         {
@@ -1479,6 +1554,7 @@ export async function tryAiAutoBook(
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
+            notBeforeHHMM,
           })
           slotInteractive = applyOfferSideEffects(
             deferred,
@@ -1513,7 +1589,7 @@ export async function tryAiAutoBook(
         requireSingleQuestion: false,
       })
       if (!checked.ok) replyText = paymentBase
-      return finish({
+      const paymentOutcome = finish({
         ...none('needs_info', {
           confirmationMessageId: confirmation.id,
           ...(svcPay ? { serviceId: svcPay.id } : {}),
@@ -1522,6 +1598,10 @@ export async function tryAiAutoBook(
         ...(slotInteractive ? { interactive: slotInteractive } : {}),
         notes: 'Pagamento/parcelamento: equipe avisada; funil retomado.',
       })
+      return {
+        ...paymentOutcome,
+        outbox: [...paymentOutcome.outbox, ...teamFollowUp.outbox],
+      }
     }
   }
 
@@ -2359,47 +2439,78 @@ export async function tryAiAutoBook(
   const ready =
     Boolean(det.service && date && time) &&
     (det.ok || (det.status === 'needs_info' && missing.length === 0))
+  const reofferCtx = {
+    open: openProposal,
+    turnText,
+    swap,
+    zoneEcho,
+    turnServiceId: det.service?.id ?? session?.serviceId ?? frame?.serviceId ?? null,
+    turnDate: date ?? null,
+    turnTime: time ?? null,
+    tz,
+  }
   if (
-    shouldReofferProposalOnAffirmText({
-      open: openProposal,
-      turnText,
-      swap,
-      zoneEcho,
-      turnServiceId: det.service?.id ?? session?.serviceId ?? frame?.serviceId ?? null,
-      turnDate: date ?? null,
-      turnTime: time ?? null,
-      tz,
-    })
+    shouldReofferProposalOnAffirmText(reofferCtx) ||
+    shouldReofferProposalOnRepeatedSlot(reofferCtx)
   ) {
-    const nudge = sendProposalConfirmNudgeOp(
-      db,
-      caller,
-      {
-        proposal: openProposal!,
-        conversationId: input.conversationId,
-        clientRequestId: proposalConfirmNudgeClientRequestId(
-          openProposal!.id,
-          openProposal!.version,
-          confirmation.id,
-        ),
-      },
-      clock,
-    )
-    if (nudge.status === 'queued') {
-      const propDate = clinicCivilDateFromUtc(tz, openProposal!.startsAt)
-      const propTime = localHHMM(tz, openProposal!.startsAt)
-      return finish({
-        ...none('requires_button', {
-          confirmationMessageId: confirmation.id,
-          serviceId: openProposal!.serviceId,
-          date: propDate,
-          time: propTime,
-        }),
-        replyText: nudge.lead,
-        interactive: nudge.interactive,
-        outbox: nudge.outbox,
-        notes: 'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
-      })
+  const open = openProposal!
+    if (open.state === 'enviada') {
+      const nudge = sendProposalConfirmNudgeOp(
+        db,
+        caller,
+        {
+          proposal: open,
+          conversationId: input.conversationId,
+          clientRequestId: proposalConfirmNudgeClientRequestId(
+            open.id,
+            open.version,
+            confirmation.id,
+          ),
+        },
+        clock,
+      )
+      if (nudge.status === 'queued') {
+        const propDate = clinicCivilDateFromUtc(tz, open.startsAt)
+        const propTime = localHHMM(tz, open.startsAt)
+        return finish({
+          ...none('requires_button', {
+            confirmationMessageId: confirmation.id,
+            serviceId: open.serviceId,
+            date: propDate,
+            time: propTime,
+          }),
+          replyText: nudge.lead,
+          interactive: nudge.interactive,
+          outbox: nudge.outbox,
+          notes:
+            'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
+        })
+      }
+    } else {
+      const resent = sendProposalToWhatsAppOp(
+        db,
+        caller,
+        { proposalId: open.id },
+        clock,
+      )
+      if (resent.status === 'queued' || resent.status === 'already_sent') {
+        const propDate = clinicCivilDateFromUtc(tz, open.startsAt)
+        const propTime = localHHMM(tz, open.startsAt)
+        return finish({
+          ...none('requires_button', {
+            confirmationMessageId: confirmation.id,
+            serviceId: open.serviceId,
+            date: propDate,
+            time: propTime,
+          }),
+          replyText: PROPOSAL_CONFIRM_NUDGE_LEAD,
+          ...(resent.status === 'queued'
+            ? { outbox: resent.outbox, interactive: { mode: 'buttons', buttons: resent.interactive.buttons } }
+            : {}),
+          notes:
+            'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
+        })
+      }
     }
   }
   if (!ready || !det.service || !date || !time) {
@@ -2708,6 +2819,7 @@ export async function tryAiAutoBook(
               order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
+              notBeforeHHMM,
             })
             logPolicyShadow({
               tenantId,
@@ -2825,16 +2937,30 @@ export async function tryAiAutoBook(
           // DEC-141: o termo (só ele) vira sugestão de sinónimo para a owner.
           recordUnmatchedTerm(db, tenantId, pedido, clock)
           pushFriction(...frictionForCatalogMiss(pedido))
+          const lista = catalogServiceList(services)
+          const picked = servicePickFromCatalog(deferred, services, catalog.version)
           replyText = serviceNotFoundReply(input.conversationId, {
             pedido,
-            lista: catalogServiceList(services),
+            lista: picked ? null : lista,
           })
+          if (picked) {
+            replyText = `${replyText}\n${picked.replyText}`
+            interactive = picked.interactive
+          }
         } else if (booking.handoffReason === 'historico_indisponivel') {
           const fb = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
           replyText = sayAct('historico_indisponivel', input.conversationId, {}, fb)
         }
       } else if (booking.kind === 'clarify' && booking.question && !booking.serviceId) {
         replyText = booking.question
+        if (booking.missing.includes('servico')) {
+          const ids = new Set(booking.candidates.map((c) => c.serviceId))
+          const picked = servicePickFromCatalog(deferred, services, catalog.version, ids)
+          if (picked) {
+            replyText = picked.replyText
+            interactive = picked.interactive
+          }
+        }
       } else if (
         (booking.kind === 'selected' || booking.kind === 'clarify') &&
         booking.serviceId
@@ -3040,6 +3166,7 @@ export async function tryAiAutoBook(
               order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
+              notBeforeHHMM,
             })
             logPolicyShadow({
               tenantId,
@@ -3395,6 +3522,48 @@ export async function tryAiAutoBook(
   const label = `${svc.name} · ${dayText(date)} às ${time}`
   const found = { ...base, serviceId: svc.id, date, time }
 
+  const openActive = getActiveProposalForConversation(
+    db,
+    tenantId,
+    input.conversationId,
+    clock,
+  )
+  if (
+    openActive &&
+    openActive.state === 'enviada' &&
+    !openActive.confirmSuspended &&
+    openActive.serviceId === svc.id &&
+    clinicCivilDateFromUtc(tz, openActive.startsAt) === date &&
+    localHHMM(tz, openActive.startsAt) === time
+  ) {
+    const nudge = sendProposalConfirmNudgeOp(
+      db,
+      caller,
+      {
+        proposal: openActive,
+        conversationId: input.conversationId,
+        clientRequestId: proposalConfirmNudgeClientRequestId(
+          openActive.id,
+          openActive.version,
+          confirmation.id,
+        ),
+      },
+      clock,
+    )
+    if (nudge.status === 'queued') {
+      return finish({
+        ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+        proposalId: openActive.id,
+        proposalVersion: openActive.version,
+        replyText: nudge.lead,
+        interactive: nudge.interactive,
+        outbox: nudge.outbox,
+        notes:
+          'Aguarda o clique da cliente; texto livre («sim») não marca.',
+      })
+    }
+  }
+
   // S2 / DEC-061: texto livre NUNCA marca. Com capacidade ligada, monta+envia proposta versionada
   // (botão WhatsApp); o clique (S5) é que marca ou inicia Pix. Sem capacidade → só nota à atendente.
   const avail = await queryAutomaticAvailability(
@@ -3573,6 +3742,47 @@ export async function tryAiAutoBook(
     const status: AutoBookStatus = svc.requiresSignal ? 'needs_signal' : 'requires_button'
     const delivered = sent.status === 'queued' || sent.status === 'already_sent'
     if (delivered) deferred.discard()
+    if (delivered && sent.outbox.length === 0) {
+      const existing = getActiveProposalForConversation(
+        db,
+        tenantId,
+        input.conversationId,
+        clock,
+      )
+      if (
+        existing &&
+        existing.state === 'enviada' &&
+        localHHMM(tz, existing.startsAt) === time &&
+        clinicCivilDateFromUtc(tz, existing.startsAt) === date
+      ) {
+        const nudge = sendProposalConfirmNudgeOp(
+          db,
+          caller,
+          {
+            proposal: existing,
+            conversationId: input.conversationId,
+            clientRequestId: proposalConfirmNudgeClientRequestId(
+              existing.id,
+              existing.version,
+              confirmation.id,
+            ),
+          },
+          clock,
+        )
+        if (nudge.status === 'queued') {
+          return finish({
+            ...none(status, found),
+            proposalId: existing.id,
+            proposalVersion: existing.version,
+            replyText: nudge.lead,
+            interactive: nudge.interactive,
+            outbox: nudge.outbox,
+            notes:
+              'Aguarda o clique da cliente; texto livre («sim») não marca.',
+          })
+        }
+      }
+    }
     const sendNote = delivered
       ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
         'Aguarda o clique da cliente; texto livre («sim») não marca.'

@@ -67,7 +67,8 @@ Garantias, cobertas por teste ([`interpreter-shadow.test.ts`](../../src/clinic/a
 - com a flag ligada, respostas, mensagens enviadas, quadro e uso diário são iguais aos da flag desligada;
 - reutiliza a saída do extrator quando o caminho real já o chamou no turno, em vez de chamar outra vez;
 - falha do provedor ou saída inválida nunca lança;
-- o log não leva texto da conversa, nomes, ids de catálogo nem trechos literais.
+- o log não leva texto da conversa, nomes, ids de catálogo nem trechos literais;
+- **PR-E (Paulo, 16/11/2026 — F1 «axila e pernas» = rules certas):** o léxico da sombra usa serviço/linha já no quadro (não mistura Axila M+F); se o léxico já leu variantes coerentes e o modelo diverge em `variants`/`service`, o veredicto prefere o léxico (`rule_only` / sem `differ`) e o apply não sobrescreve. FAQ/`line` inalterados.
 
 A validação da leitura do modelo na sombra é **relaxada**: o id tem de existir e estar ativo no catálogo; data e hora têm de resolver no parser. Sem exigir citação literal. É esta a diferença que se quer medir.
 

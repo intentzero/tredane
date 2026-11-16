@@ -36,7 +36,7 @@ export const FAQ_CONTINUE_BUTTON_TITLE = 'Continuar'
  * «é o quê?» → «e o que», «como é feita» → «como e feita».
  */
 const CLARIFICATION_CUE =
-  /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+e|e\s+o\s+que|o\s+que\s+significa|como\s+funciona|como\s+e\s+feit[ao]s?|como\s+sao\s+feit[ao]s?|como\s+se\s+faz|como\s+fazem?|explica(?:r|cao)?|significa|abrang(?:e|em)|contempla)\b/i
+  /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+e|e\s+o\s+que|o\s+que\s+significa|como\s+funciona|como\s+e\b|como\s+e\s+feit[ao]s?|como\s+sao\s+feit[ao]s?|como\s+se\s+faz|como\s+fazem?|explica(?:r|cao)?|significa|abrang(?:e|em)|contempla|quero\s+saber\s+(?:como|o\s+que))\b/i
 
 export function foldFaqText(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()

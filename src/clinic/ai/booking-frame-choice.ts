@@ -237,7 +237,7 @@ export function matchOfferedSlotFromText(
   civilToday: string,
 ): PendingChoiceResult {
   const primary = matchPendingChoice(text, pending)
-  if (primary.kind !== 'none' && primary.kind !== 'ask_which') return primary
+  if (primary.kind === 'match' || primary.kind === 'ask_which') return primary
 
   const times = [...extractTimes(text)]
   if (times.length !== 1) return primary
