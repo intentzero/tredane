@@ -40,6 +40,7 @@ export type DialogueActId =
   | 'confirmar_hora_ambigua'
   | 'sem_horario_periodo'
   | 'sem_horario_dia'
+  | 'sem_horario_visita_longa'
   | 'sem_horario_semana'
   | 'sem_vaga_sem_alternativa'
   | 'informar_preco_variante'
@@ -58,11 +59,12 @@ export type DialogueActId =
 
 /**
  * Convite na pergunta de variantes em modo `varias`
- * (DEC-178 — lista Opções + acumulação Mais|Pronto; texto livre + eco DEC-137 mantém-se).
- * Modo `uma` não usa este sufixo (DEC-145).
+ * (DEC-191 — só texto livre + eco DEC-137; Meta lista não permite multi-seleção).
+ * Modo `uma` não usa este sufixo (DEC-145; lista Opções mantém-se).
+ * Revê DEC-178 (Opções + Mais|Pronto em `varias`).
  */
 export const MULTI_VARIANT_ASK_HINT =
-  'Toque em Opções ou escreva (ex.: axila e pernas). Também pode dizer todas.'
+  'Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.'
 
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
@@ -157,6 +159,11 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   sem_horario_dia: [
     'Para {assunto}, {dia} não tenho horário livre.',
     'Não tenho horário livre para {assunto} {dia}.',
+  ],
+  sem_horario_visita_longa: [
+    'Na {dia} não cabem as {n} zonas; quer dividir em 2 visitas ou ver {outro_dia}?',
+    'Na {dia} não cabe tudo de uma vez ({n} zonas). Quer dividir em 2 visitas ou ver {outro_dia}?',
+    '{dia} não tem bloco livre para as {n} zonas juntas; prefere 2 visitas ou {outro_dia}?',
   ],
   sem_horario_semana: [
     'Para {assunto}, no momento não tenho horário livre.',
