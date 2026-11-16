@@ -5,7 +5,8 @@
  */
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
-import { isCatalogInfoAsk } from './booking-intent-text'
+import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
+import { outboundWasPaymentDeferral } from './payment-method-turn'
 import { extractTimes } from './nlu/temporal'
 import {
   CONSECUTIVE_MISUNDERSTANDING_THRESHOLD,
@@ -75,6 +76,15 @@ export function detectTurnMisunderstanding(input: {
     !/\bR\$\b/.test(outboundBody)
   ) {
     return 'ask_time_loop'
+  }
+  if (
+    isPaymentMethodAsk(inboundBody) &&
+    !isCatalogInfoAsk(inboundBody) &&
+    priorOutboundBody &&
+    outboundWasPaymentDeferral(priorOutboundBody) &&
+    outboundWasPaymentDeferral(outboundBody)
+  ) {
+    return 'duplicate_outbound'
   }
   if (priorOutboundBody && outboundBodiesDuplicate(outboundBody, priorOutboundBody)) {
     // S04: segunda pergunta de preço com resposta válida + reoferta não é loop.

@@ -213,6 +213,7 @@ export async function runDialogCase(
 ): Promise<DialogRunResult> {
   const s = boot({ adapter: c.adapter, nowMs: c.nowMs })
   c.prepare?.(s)
+  const baselineAppointments = s.appointmentCount()
   const flow = c.flow ? createFlowHarness({ forecast: c.forecast }) : null
   flow?.bind(s)
   const flowDeps = flow
@@ -409,6 +410,7 @@ export async function runDialogCase(
       requireNoPause: c.expect?.notPaused ?? c.expect?.paused === false,
       allowSilentPause: c.expect?.silentPause,
       confirmClicks,
+      baselineAppointments,
     })
     const outbound = s.outboundBodies()
     const errors: string[] = []

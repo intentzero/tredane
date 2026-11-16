@@ -118,6 +118,19 @@ function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
   return services.filter((service) => citesServiceName(text, service.name))
 }
 
+/** «vocês tem massagem?» / «a drenagem ajuda?» — token do nome do serviço no cadastro. */
+function servicesForAvailabilityAsk(services: ServiceRow[], text: string): ServiceRow[] {
+  const named = namedServices(services, text)
+  if (named.length > 0) return named
+  const folded = text.toLowerCase()
+  return services.filter((service) =>
+    service.name
+      .toLowerCase()
+      .split(/[\s(]+/)
+      .some((token) => token.length >= 5 && folded.includes(token)),
+  )
+}
+
 function mixedAudienceRefusal(
   services: ServiceRow[],
   source: string,
@@ -501,8 +514,25 @@ export function catalogReply(
     return bookingMatch.question
   }
 
-  // E-01 / E-07 / C-12: preço ou duração de serviço sem variantes — antes do early-return.
   const asksDuration = /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(source)
+  const availabilityServices = servicesForAvailabilityAsk(services, source)
+  const serviceAvailabilityAsk =
+    /\b(?:voc[eê]s\s+t[eê]m|vcs\s+t[eê]m|(?:t[eê]m|fazem)\s+(?:massagem|drenagem|depila|botox))\b/i.test(source) &&
+    availabilityServices.length > 0
+  if (serviceAvailabilityAsk && !asksPrice && !asksDuration) {
+    const lines = availabilityServices.map((service) => {
+      const preço =
+        service.priceCents != null ? formatBRL(service.priceCents) : 'valor a confirmar com a equipe'
+      return `${service.name}: ${preço}, ${service.durationMinutes} min.`
+    })
+    const fb =
+      lines.length === 1
+        ? `Sim, temos ${lines[0]}. Quer que eu veja horários?`
+        : `Temos estes serviços:\n${lines.join('\n')}\nQuer que eu veja horários?`
+    return sayAct('informar_preco', cnv, { preço: lines.join('; '), duração: '' }, fb)
+  }
+
+  // E-01 / E-07 / C-12: preço ou duração de serviço sem variantes — antes do early-return.
   if ((asksPrice || asksDuration) && svc) {
     const activeZones = svc.zones.filter((zone) => zone.active)
     if (activeZones.length === 0) {
