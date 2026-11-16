@@ -42,8 +42,8 @@ Uma variável `SUPPORT_SESSIONS_ENABLED`, **desligada por omissão em produção
 Cada sessão já audita pedido, aprovação, ativação, handoff, expiração e revogação (DEC-029–037). Proposta nova: **cada leitura de conteúdo em contexto de suporte grava `support.access`** (sessão, rota, clínica), agregada por rota e por minuto para não inundar a auditoria (Q-SUP-02).
 
 ## Fatiamento proposto (PRs pequenos, por ordem)
-1. D1 do ciclo de vida (§6) e do pedido de cancelamento da superadmin, com testes de concorrência e de handoff único, ainda **sem** ninguém a consumir a sessão.
-2. Overlay em `resolveTenantContext` + lista de leitura + testes de isolamento entre clínicas e de «escrita bloqueada» (§1 e §2), atrás do interruptor.
+1. **Entregue** ([#860](https://github.com/intentzero/tredane/pull/860)): D1 do ciclo de vida (§6) e do pedido de cancelamento da superadmin, com testes de concorrência e de handoff único. Pendente (PR 1b): pedido de término, aviso ao subject e lista do owner ainda respondem 503 no D1.
+2. **Entregue** ([#863](https://github.com/intentzero/tredane/pull/863)): overlay em `requireTenantAccess` (`TenantContext.support`) + lista de leitura + testes de isolamento entre clínicas e de «escrita bloqueada» (§1 e §2), atrás do interruptor. Rotas lidas (só GET): `context`, `inbox/conversations`, `inbox/conversations/:id`, `inbox/contacts`, `inbox/contacts/:id`; permissões `clinic.context.read` e `clinic.inbox.read`. Cookie `Path=/api; HttpOnly; Secure; SameSite=Strict`. Telefones mascarados (últimos 4 dígitos) e `support.access` agregado por sessão/rota/minuto. **Limites:** números no texto livre das mensagens não são mascarados; pipeline, agenda e config continuam bloqueados até haver permissões de leitura próprias; CI deve validar os caminhos D1.
 3. Clinic App: banner, modo só de leitura, fim da sessão (§5).
 4. Bilhete WebSocket de leitura e fence por sessão (§4).
 5. Platform Admin: «Entrar como…», «Encerrar», contador, «Cancelar pedido», com a nota da #854 a sair.
