@@ -12,19 +12,22 @@ import { getConversation } from '../inbox/conversations'
 import type { OutboxRow } from '../outbox'
 import { createProposal } from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
-import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import { queryAutomaticAvailability } from '../tempo/automatic'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import {
+  filterUpcomingByServiceMention,
   isCancelMismatchPending,
+  pickUpcomingByCitedClock,
   rescheduleDayIsNewDestination,
   resolveUpcomingByServiceAndDay,
   thinRescheduleSlotOffers,
 } from './appointment-intent'
 import { extractDates, extractTimes } from './autobook'
+import { matchOfferedSlotFromText } from './booking-frame-choice'
 import { slotBindingFromChoice } from './choice-offer'
 import { inPeriodHHMM, type DayPeriod } from './slot-offer'
 import {
@@ -36,7 +39,13 @@ import {
 import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { validateClientOutbound } from './outbound-validate'
 import { checkConversationProtection } from './protection'
-import { getBookingFrame, getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
+import {
+  getBookingFrame,
+  getScheduleSession,
+  saveBookingFrame,
+  saveScheduleSession,
+  scheduleFactsFromText,
+} from './schedule-session'
 import {
   createDeferredBookingFrame,
   offerFramePatch,
@@ -98,6 +107,83 @@ function localHHMM(tz: string, ms: number): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(ms))
+}
+
+const CIVIL_SLOT_KEY = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/
+
+function startsAtFromCivilKey(tz: string, key: string): number | null {
+  const m = key.trim().match(CIVIL_SLOT_KEY)
+  if (!m) return null
+  const [y, mo, d] = m[1]!.split('-').map(Number) as [number, number, number]
+  return zonedCivilToUtc(tz, y, mo, d, Number(m[2]), Number(m[3]))
+}
+
+type RescheduleChosenSlot = { startsAt: number; professionalId: string }
+
+/** Liga a escolha ao instante já ofertado (`lastOffer`) ou à chave civil YYYY-MM-DDTHH:MM. */
+function resolveRescheduleChosenSlot(input: {
+  inboundText: string
+  date: string
+  time: string
+  slots: RescheduleChosenSlot[]
+  frame: ReturnType<typeof getBookingFrame>
+  tz: string
+  today: string
+}): RescheduleChosenSlot | null {
+  const lastOffer =
+    input.frame?.phase === 'remarcando' ? (input.frame.lastOffer?.slots ?? []) : []
+
+  const fromOffer = lastOffer.filter(
+    (s) =>
+      clinicCivilDateFromUtc(input.tz, s.startsAt) === input.date
+      && localHHMM(input.tz, s.startsAt) === input.time,
+  )
+  if (fromOffer.length === 1) {
+    const match = fromOffer[0]!
+    return input.slots.find((s) => s.startsAt === match.startsAt) ?? match
+  }
+
+  const keyMs = startsAtFromCivilKey(input.tz, input.inboundText.trim())
+  if (keyMs != null) {
+    return (
+      input.slots.find((s) => s.startsAt === keyMs)
+      ?? lastOffer.find((s) => s.startsAt === keyMs)
+      ?? null
+    )
+  }
+
+  if (input.frame?.phase === 'remarcando') {
+    const choice = matchOfferedSlotFromText(
+      input.inboundText,
+      input.frame.pending,
+      input.frame.lastOffer,
+      input.tz,
+      input.today,
+    )
+    if (choice.kind === 'match') {
+      const fromKey = startsAtFromCivilKey(input.tz, choice.key)
+      if (fromKey != null) {
+        return (
+          input.slots.find((s) => s.startsAt === fromKey)
+          ?? lastOffer.find((s) => s.startsAt === fromKey)
+          ?? null
+        )
+      }
+      const bound = slotBindingFromChoice(choice.key, choice.label)
+      if (bound?.date === input.date && bound.time === input.time) {
+        const ms = startsAtFromCivilKey(input.tz, `${bound.date}T${bound.time}`)
+        if (ms != null) {
+          return (
+            input.slots.find((s) => s.startsAt === ms)
+            ?? lastOffer.find((s) => s.startsAt === ms)
+            ?? null
+          )
+        }
+      }
+    }
+  }
+
+  return input.slots.find((s) => localHHMM(input.tz, s.startsAt) === input.time) ?? null
 }
 
 /**
@@ -283,13 +369,14 @@ function priorRescheduleOfferFromFrame(
 function rememberRescheduleOffer(
   deferred: DeferredBookingFrame,
   serviceId: string,
+  rescheduleAppointmentId: string,
   date: string,
   slots: Array<{ startsAt: number; professionalId: string }>,
   tz: string,
 ): void {
   if (slots.length === 0) return
-  deferred.save(
-    offerFramePatch({
+  deferred.save({
+    ...offerFramePatch({
       serviceId,
       date,
       phase: 'remarcando',
@@ -300,7 +387,8 @@ function rememberRescheduleOffer(
         date,
       })),
     }),
-  )
+    rescheduleAppointmentId,
+  })
 }
 
 /**
@@ -346,7 +434,13 @@ export async function tryAiReschedule(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const today = clinicCivilDateFromUtc(tz, now)
+  const stickyAptId =
+    frameEarly?.phase === 'remarcando' ? frameEarly.rescheduleAppointmentId ?? null : null
+  const stickyApt = stickyAptId
+    ? allUpcoming.find((a) => a.id === stickyAptId) ?? null
+    : null
   const apt =
+    stickyApt ??
     resolveUpcomingByServiceAndDay(allUpcoming, input.inboundText, db, tenantId, tz, today) ??
     allUpcoming[0] ??
     null
@@ -367,6 +461,20 @@ export async function tryAiReschedule(
       frameEarly.phase === 'proposto')
   if (midNewBooking && !EXPLICIT.test(input.inboundText)) {
     return null
+  }
+
+  if (!stickyApt) {
+    saveBookingFrame(
+      db,
+      tenantId,
+      input.conversationId,
+      {
+        serviceId: apt.serviceId,
+        rescheduleAppointmentId: apt.id,
+        phase: 'remarcando',
+      },
+      clock,
+    )
   }
 
   const service = getService(db, tenantId, apt.serviceId)
@@ -407,7 +515,22 @@ export async function tryAiReschedule(
     date = frame.date
   }
   const times = spokenSlot ? [spokenSlot.time] : [...extractTimes(input.inboundText)]
-  const time = times.length === 1 ? times[0] : undefined
+  let time = times.length === 1 ? times[0] : undefined
+  const poolForPick = filterUpcomingByServiceMention(allUpcoming, input.inboundText, db, tenantId)
+  if (
+    poolForPick.length > 1 &&
+    pickUpcomingByCitedClock(poolForPick, input.inboundText, tz)?.id === apt.id &&
+    time &&
+    EXPLICIT.test(input.inboundText)
+  ) {
+    const aptDate = clinicCivilDateFromUtc(tz, apt.startsAt)
+    const aptTime = localHHMM(tz, apt.startsAt)
+    const pickDay =
+      date ?? [...extractDates(input.inboundText, today)][0] ?? (/\bhoje\b/i.test(input.inboundText) ? today : undefined)
+    if (pickDay === aptDate && time === aptTime) {
+      time = undefined
+    }
+  }
   let period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
   // Hora explícita («13h») não fica presa ao período sticky («de manhã»).
   if (time) period = null
@@ -535,6 +658,7 @@ export async function tryAiReschedule(
     rememberRescheduleOffer(
       deferred,
       apt.serviceId,
+      apt.id,
       date,
       offered.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
       tz,
@@ -552,13 +676,24 @@ export async function tryAiReschedule(
     })
   }
 
-  const slot = slots.find((s) => localHHMM(tz, s.startsAt) === time)
+  const slot = time
+    ? resolveRescheduleChosenSlot({
+        inboundText: input.inboundText,
+        date,
+        time,
+        slots,
+        frame: frameEarly,
+        tz,
+        today,
+      })
+    : undefined
   if (!slot) {
     const altSlots = thinRescheduleSlotOffers(slots, tz, apt, { limit: 3 })
     if (altSlots.length > 0) {
       rememberRescheduleOffer(
         deferred,
         apt.serviceId,
+        apt.id,
         date,
         altSlots.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
         tz,
