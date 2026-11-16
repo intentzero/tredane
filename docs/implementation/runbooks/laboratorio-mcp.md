@@ -56,6 +56,7 @@ callback `cursor://` ou agents). Sem `return_to`, o `forceRedirect` do painel ia
 | `lab_say` | A cliente envia texto; a IA responde já (sem esperar o debounce). Devolve as mensagens novas e `tappable` (botões/lista a tocar). |
 | `lab_tap` | A cliente toca num botão ou numa linha de lista (`buttonId` e `title` vêm de `options`/`tappable`; `kind: "list"` para listas). Só o botão Confirmar marca (DEC-061). |
 | `lab_state` | Contato, conversa, mensagens, propostas, jobs da IA e marcações da clínica. Só leitura. |
+| `lab_reset` | **Hard reset** da agenda e estado conversacional no Clinic DO (só staging): apaga marcações passadas e futuras, propostas, holds e conversas no âmbito do tenant ou de um `waId` (`5500…`). Tenants: demo (`tenant_dec0de…0001`) ou Teste Paulo (`tenant_b40dc579…` com proteções). `dryRun: true` por defeito. Não toca D1 nem configuração da clínica. |
 
 `waId` omitido usa `550000000001`; outro número (`5500…`) é outra cliente, com conversa própria.
 
@@ -86,3 +87,12 @@ eventos em tempo real). Lista fechada, sem apagar:
 
 Fora desta fase: apagar serviços ou salas (desativar chega), Pix e cobrança, e «repor seed». Alterações ficam na
 clínica demo e persistem entre sessões: anotar o que se mudou e desfazer no fim do teste.
+
+## Repor agenda (`lab_reset`)
+
+1. `lab_reset` — dry run (padrão): contagens por categoria e itens protegidos ignorados.
+2. `lab_reset` com `dryRun: false` — DELETE no SQLite do DO (agenda + conversas no âmbito; configuração da clínica mantém-se).
+
+**Teste Paulo:** contacto/conversa protegidos por ids fixos no código (`ctc_…` / `cnv_…`) e waIds extra via secret/env `LAB_RESET_PROTECTED_WAIDS` (staging). Pedir reset com `waId` de um contato protegido é recusado. Fail-closed se a lista de proteção não puder ser avaliada.
+
+Não substitui o reset operacional do painel nem apaga dados no D1 (Review).

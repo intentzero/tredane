@@ -27,6 +27,12 @@ import {
 import type { WorkerBindings } from '../worker/bindings'
 import type { LabStateResult, LabTurnResult } from './turn'
 import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
+import {
+  assertLabResetAllowed,
+  LabResetGuardError,
+  resolveLabResetTenantId,
+} from './reset-guards'
+import { LabResetProtectionError } from './reset-protected'
 
 const SERVER_INFO = { name: 'tredane-lab', version: '1.0.0' }
 
@@ -236,6 +242,28 @@ export const LAB_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
+  {
+    name: 'lab_reset',
+    description:
+      'Hard reset da agenda e estado conversacional no Clinic DO (só staging). Apaga marcações (passadas e futuras), propostas, holds e conversas no âmbito do tenant ou de um waId. Proteções obrigatórias no tenant Teste Paulo. dryRun=true por defeito.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tenantId: {
+          type: 'string',
+          description:
+            'Omitido: demo (tenant_dec0de000000000000000001). Teste Paulo: tenant_b40dc579540c30130840b9ac.',
+        },
+        dryRun: {
+          type: 'boolean',
+          description: 'true (padrão): contagens sem alterar; false aplica DELETE no DO.',
+        },
+        waId: WA_ID_PROP,
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true },
+  },
 ] as const
 
 type Args = Record<string, unknown>
@@ -246,6 +274,34 @@ function str(v: unknown, max: number): string | null {
 
 export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBindings, actor = 'mcp') {
   const args: Args = rawArgs && typeof rawArgs === 'object' ? (rawArgs as Args) : {}
+  if (name === 'lab_reset') {
+    try {
+      const tenantId = resolveLabResetTenantId(args.tenantId)
+      assertLabResetAllowed(env, tenantId)
+      let waFilter: string | undefined
+      if (args.waId !== undefined && args.waId !== null && args.waId !== '') {
+        const filtered = resolveLabWaId(args.waId)
+        if (!filtered) {
+          return toolErrorResult('waId inválido: usar 5500 + 8 a 11 dígitos.')
+        }
+        waFilter = filtered
+      }
+      const dryRun = args.dryRun !== false
+      const resetStub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
+      const resetCaller = workerCaller(tenantId, `lab:${actor}`)
+      return toolTextResult(
+        await resetStub.labReset(resetCaller, {
+          dryRun,
+          ...(waFilter ? { waId: waFilter } : {}),
+        }),
+      )
+    } catch (err) {
+      if (err instanceof LabResetGuardError || err instanceof LabResetProtectionError) {
+        return toolErrorResult(err.message, { code: err.code })
+      }
+      throw err
+    }
+  }
   const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(DEMO_CLINIC_TENANT_ID)))
   const caller = workerCaller(DEMO_CLINIC_TENANT_ID, `lab:${actor}`)
   const waId = resolveLabWaId(args.waId)
