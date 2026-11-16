@@ -754,6 +754,91 @@
         "agendadoBeforeFollowUp": true,
         "note": "Após Confirmar: Agendado antes de Posso ajudar"
       }
+    },
+    {
+      "id": "DB1-bolhas-seguidas",
+      "waId": "550000000197",
+      "displayName": "Lab DB1",
+      "steps": [
+        {
+          "say": "quero depilar",
+          "pauseSeconds": 2
+        },
+        {
+          "say": "axila e pernas amanha de tarde",
+          "pauseSeconds": 1
+        }
+      ],
+      "expect": {
+        "singleAiTurnAfterAggregation": true,
+        "noDoubleReply": true,
+        "note": "Produção: 1.ª bolha 7 s; 2.ª empurra o job; 1 resposta só (L1 debounce-interpreter)."
+      }
+    },
+    {
+      "id": "DB2-botao-depois-texto",
+      "waId": "550000000196",
+      "displayName": "Lab DB2",
+      "steps": [
+        {
+          "say": "quero limpeza de pele quinta a tarde"
+        },
+        {
+          "tap": {
+            "kind": "list",
+            "title": "15:15",
+            "fallbackTapRowIndex": 0
+          }
+        },
+        {
+          "tap": {
+            "kind": "button",
+            "title": "Confirmar"
+          }
+        }
+      ],
+      "expect": {
+        "booked": true,
+        "noDoubleReply": true,
+        "note": "Lista/botão = debounce 0; texto aberto anterior não gera segunda resposta."
+      }
+    },
+    {
+      "id": "DB3-sim-e-correcao",
+      "waId": "550000000195",
+      "displayName": "Lab DB3",
+      "steps": [
+        {
+          "say": "quero massagem relaxante amanha"
+        },
+        {
+          "say": "sim",
+          "pauseSeconds": 1
+        },
+        {
+          "say": "na verdade prefiro limpeza de pele",
+          "pauseSeconds": 1
+        }
+      ],
+      "expect": {
+        "noFalseConfirmation": true,
+        "noDoubleReply": true,
+        "note": "«sim» sozinho: debounce curto; correção ≤3 s cancela agregação — sem marcar massagem por engano."
+      }
+    },
+    {
+      "id": "DB4-mensagem-longa",
+      "waId": "550000000194",
+      "displayName": "Lab DB4",
+      "steps": [
+        {
+          "say": "oi boa tarde queria marcar uma limpeza de pele pra quinta feira a tarde se tiver vaga depois das 15"
+        }
+      ],
+      "expect": {
+        "offersSlotsOrAsksOneThing": true,
+        "note": "Pedido longo mas fechado: debounce ~2,5 s + typing em produção; lab_say ignora espera."
+      }
     }
   ]
 }

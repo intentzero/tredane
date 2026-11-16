@@ -10,6 +10,8 @@ import {
   AI_AUTODRAFT_DEBOUNCE_INTERACTIVE_MS,
   AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
   autodraftDebounceMs,
+  interpreterResolvesTurnConfidently,
+  interpretTurnForDebounce,
   looksLikeCompleteBookingRequest,
   looksLikeShortPendingAnswer,
 } from './debounce'
@@ -53,6 +55,19 @@ describe('debounce DEC-111', () => {
     expect(looksLikeCompleteBookingRequest(text)).toBe(true)
     // Mesmo com hubOpening (detector casa «horário»), o tier complete vence.
     expect(autodraftDebounceMs({ text, hubOpening: true })).toBe(AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS)
+  })
+
+  it('interpretador confiante (sim/hora) → 2,5 s sem heurística complete', () => {
+    const interp = interpretTurnForDebounce({
+      turnText: 'sim',
+      messageId: 'm',
+      today: '2026-10-27',
+      services: [],
+    })
+    expect(interpreterResolvesTurnConfidently(interp, 'sim')).toBe(true)
+    expect(autodraftDebounceMs({ text: 'sim', interpretation: interp })).toBe(
+      AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS,
+    )
   })
 
   it('pending aberto + resposta curta → 300 ms (Paulo P2 07/11)', () => {
@@ -127,6 +142,45 @@ describe('enqueueAutoDraft debounce hub opção C', () => {
       expect(getAutoDraftJob(s.db, s.tenantId, s.conversationId)?.dueAt).toBeLessThanOrEqual(
         s.clock.nowMs(),
       )
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«sim» enfileira typing no tier 2,5 s do interpretador', () => {
+    const s = bootDialogScenario()
+    try {
+      s.clock.advance(1_000)
+      const now = s.clock.nowMs()
+      const msg = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: 'sim',
+          externalMessageId: 'wa:msg:wamid.AFFIRM_DEBOUNCE',
+          deliveryState: 'received',
+          createdAt: now,
+        },
+        s.clock,
+      )
+      const job = enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: msg.id },
+        s.clock,
+      )
+      expect(job).not.toBeNull()
+      expect(job!.dueAt - job!.createdAt).toBe(AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS)
+      const typing = s.db.get<{ id: string }>(
+        `SELECT id FROM outbox_events
+         WHERE tenant_id = ? AND type = ? AND idempotency_key = ?`,
+        s.tenantId,
+        WHATSAPP_TYPING_INDICATOR_TYPE,
+        'whatsapp.typing_indicator:wamid.AFFIRM_DEBOUNCE',
+      )
+      expect(typing).toBeTruthy()
     } finally {
       s.close()
     }
