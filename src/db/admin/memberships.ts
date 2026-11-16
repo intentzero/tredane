@@ -122,6 +122,17 @@ export function requireActiveOwner(db: AdminDb, tenantId: string, clerkUserId: s
   return membership
 }
 
+/**
+ * Autorização da Platform Admin (DEC-194): o chamador é o superadmin, já validado pela rota
+ * (`requireSuperadmin`), por isso não precisa de ser owner — mas a clínica tem de estar ativa.
+ * Só os caminhos `asPlatformAdmin` chamam isto; nunca expor a flag a input do cliente.
+ */
+export function requireActiveTenant(db: AdminDb, tenantId: string): void {
+  const tenant = getTenant(db, tenantId)
+  if (!tenant) throw new NotFoundError('tenant_not_found', 'Tenant inexistente')
+  if (tenant.status !== 'active') throw new ForbiddenError('tenant_not_active', 'Tenant inativo')
+}
+
 /** Variante sem transação — usar dentro de `db.immediate` do caller. */
 export function upsertMembershipInTx(
   db: AdminDb,

@@ -102,6 +102,7 @@ export function suspendTenantLifecycle(
   clock: Clock,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): { tenant: TenantRow } & LifecycleSideEffects {
   assertAdminSchemaReady(db)
   return db.immediate(() => {
@@ -130,7 +131,7 @@ export function suspendTenantLifecycle(
       objectType: 'tenant',
       objectId: tenantId,
       outcome: 'success',
-      metadata: { to: 'suspended' },
+      metadata: { to: 'suspended', ...(reason ? { reason } : {}) },
     })
     const side = revokeActiveSupportForTenantInTx(
       db,
@@ -152,6 +153,7 @@ export function reactivateTenantLifecycle(
   clock: Clock,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): { tenant: TenantRow; preservedRevokedMemberships: number; preservedRevokedSupport: number } {
   assertAdminSchemaReady(db)
   const beforeRevokedMembers = db.get<{ n: number }>(
@@ -164,7 +166,7 @@ export function reactivateTenantLifecycle(
      WHERE tenant_id = ? AND status = 'revoked'`,
     tenantId,
   )
-  const tenant = reactivateTenant(db, clock, tenantId, actorClerkUserId)
+  const tenant = reactivateTenant(db, clock, tenantId, actorClerkUserId, reason)
   const afterRevokedMembers = db.get<{ n: number }>(
     `SELECT COUNT(*) AS n FROM tenant_memberships
      WHERE tenant_id = ? AND status = 'revoked'`,
@@ -199,6 +201,7 @@ export function markTenantPendingDeletionLifecycle(
   clock: Clock,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): { tenant: TenantRow } & LifecycleSideEffects {
   assertAdminSchemaReady(db)
   return db.immediate(() => {
@@ -228,7 +231,7 @@ export function markTenantPendingDeletionLifecycle(
       objectType: 'tenant',
       objectId: tenantId,
       outcome: 'success',
-      metadata: { to: 'pending_deletion' },
+      metadata: { to: 'pending_deletion', ...(reason ? { reason } : {}) },
     })
     const side = revokeActiveSupportForTenantInTx(
       db,

@@ -35,6 +35,8 @@ type AuthContextValue = {
   authResolved: boolean
   clerkUserId: string | null
   api: PanelApi | null
+  /** Token Bearer atual (Clerk ou synthetic) — a Platform Admin monta o seu próprio cliente com ele. */
+  getToken: () => Promise<string | null>
   signInSynthetic: (clerkUserId: string) => void
   signOut: () => Promise<void>
   /** Injeta getToken do Clerk quando authMode=clerk. */
@@ -139,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authResolved,
     clerkUserId: resolvedUserId,
     api,
+    getToken,
     signInSynthetic,
     signOut,
     bindClerkToken,

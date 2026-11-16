@@ -114,6 +114,7 @@ export async function suspendTenantAndPropagate(
     tenantId: string
     actorClerkUserId: string
     source?: FenceSource
+    reason?: string
   },
 ): Promise<SuspendPropagationResult & {
   revokedSupportSessionIds: string[]
@@ -124,6 +125,7 @@ export async function suspendTenantAndPropagate(
     clock,
     input.tenantId,
     input.actorClerkUserId,
+    input.reason,
   )
   const notified = await invalidator.applyTenantSuspended({
     tenantId: input.tenantId,
@@ -164,6 +166,7 @@ export async function reactivateTenantAndPropagate(
     tenantId: string
     actorClerkUserId: string
     source?: FenceSource
+    reason?: string
   },
 ): Promise<ReactivatePropagationResult> {
   const lifecycle = reactivateTenantLifecycle(
@@ -171,6 +174,7 @@ export async function reactivateTenantAndPropagate(
     clock,
     input.tenantId,
     input.actorClerkUserId,
+    input.reason,
   )
   const clear = invalidator.applyTenantReactivated
   if (!clear) {
@@ -221,6 +225,7 @@ export async function markPendingDeletionAndPropagate(
     tenantId: string
     actorClerkUserId: string
     source?: FenceSource
+    reason?: string
   },
 ): Promise<PendingDeletionPropagationResult> {
   const lifecycle = markTenantPendingDeletionLifecycle(
@@ -228,6 +233,7 @@ export async function markPendingDeletionAndPropagate(
     clock,
     input.tenantId,
     input.actorClerkUserId,
+    input.reason,
   )
   const notified = await invalidator.applyTenantSuspended({
     tenantId: input.tenantId,

@@ -177,6 +177,15 @@ export function createSupportAccessRequest(
   if (!tenant || tenant.status !== 'active') {
     throw new ForbiddenError('tenant_not_active', 'Tenant inativo')
   }
+  // DEC-194: clínica «em configuração» (sem owner ativa) — ninguém pode aprovar (DEC-029).
+  const owners = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM tenant_memberships
+     WHERE tenant_id = ? AND role = 'owner' AND status = 'active'`,
+    input.tenantId,
+  )
+  if (Number(owners?.n ?? 0) === 0) {
+    throw new ForbiddenError('no_active_owner', 'Clínica sem owner ativa: ninguém pode aprovar o acesso')
+  }
   const subject = getMembership(db, input.tenantId, input.subjectClerkUserId)
   if (!subject || subject.status !== 'active') {
     throw new ForbiddenError('subject_not_member', 'Subject sem membership ativo')

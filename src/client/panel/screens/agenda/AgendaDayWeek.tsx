@@ -391,7 +391,7 @@ export function AgendaDayWeek({
             {onToday ? <span className="agenda-bar-badge">Hoje</span> : null}
             <span className="agenda-bar-spacer" />
             {viewToggle}
-            <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
+            <Button className="panel-btn-primary panel-btn-accent panel-btn-compact agenda-add" onPress={goSchedule}>
               <Plus aria-hidden size={18} strokeWidth={2} />
               Agendar
             </Button>

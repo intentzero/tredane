@@ -20,6 +20,7 @@ import { PanelShell } from './shell/PanelShell'
 import { ErrorState, LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
 import { captureInstallPrompt, registerServiceWorker } from './pwa'
+import { takeAdminReturn } from '../admin/routes'
 import {
   navigatePanel,
   resolvePanelRoute,
@@ -93,6 +94,12 @@ function PanelRouter() {
       if (oauthReturn) {
         clearPendingOAuthAuthorize()
         window.location.assign(oauthReturn)
+        return
+      }
+      // Platform Admin (#828): sessão expirada em /admin volta a /admin depois do login.
+      const adminReturn = takeAdminReturn()
+      if (adminReturn) {
+        window.location.assign(adminReturn)
         return
       }
       if (route.kind === 'entrar' || route.kind === 'cadastro') {
