@@ -1319,8 +1319,13 @@ export async function tryAiAutoBook(
         let replyText = realized.replyText
         let slotInteractive: ChoiceInteractive | null = null
         // rsamp_fa7f138: após preço, reofertar slots (não só «qual horário?»).
-        if (gate.topic === 'price' && sameServiceFunnel && shouldResumeSlotAsk(realized.parked)) {
-          const variantIds = frameAsk.variantIds ?? []
+        if (
+          gate.topic === 'price' &&
+          sameServiceFunnel &&
+          frameInFunnel &&
+          shouldResumeSlotAsk(realized.parked)
+        ) {
+          const variantIds = frameInFunnel.variantIds ?? []
           const kept = poolAsk.filter((z) => variantIds.includes(z.id))
           const zonesOffer = kept.length > 0 ? kept : poolAsk
           const quoteOnly = realized.resume
@@ -1343,8 +1348,8 @@ export async function tryAiAutoBook(
             clock,
             forecast: input.forecast,
             professionalId: preferred,
-            date: frameAsk.date ?? null,
-            period: frameAsk.period ?? null,
+            date: frameInFunnel.date ?? null,
+            period: frameInFunnel.period ?? null,
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,

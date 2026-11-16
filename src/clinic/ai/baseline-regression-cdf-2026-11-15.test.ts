@@ -140,14 +140,14 @@ describe('item (c): preço mid-funnel sem variante no quadro', () => {
       conversationId: 'cnv_test',
       topic: 'price',
       service: service as never,
-      zones: [zone],
+      zones: [zone as never],
       frame: {
         serviceId: 'svc_dren',
         variantIds: null,
         date: '2026-11-17',
         pending: { slot: 'horario', options: [], messageId: 'm1' },
         lastOffer: { slots: [], messageId: 'm1' },
-      },
+      } as never,
       sameFunnel: true,
     })
     expect(r?.replyText).toMatch(/R\$\s*160,00|160,00/)

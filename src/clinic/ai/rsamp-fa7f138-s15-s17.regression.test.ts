@@ -157,7 +157,7 @@ describe('S15 — FAQ «Como é a íntima?» no meio das zonas', () => {
         s.tenantId,
         {
           conversationId: s.cnv.id,
-          contactId: s.cnv.contact_id,
+          contactId: s.cnv.contactId,
           messageId: inbound.id,
           inboundBody: inbound.body,
         },
