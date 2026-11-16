@@ -27,6 +27,7 @@ import { ConflictError, ClinicError, NotFoundError, ValidationError } from '../e
 import { newId } from '../ids'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
+import { formatBookedWhenAt } from './format-booked-when'
 import { assertClinicSchemaReady } from '../migrations'
 import { endBookingSession } from '../ai/booking-session'
 import { setSessionConfirmedAppointment } from '../../conversation-metrics/session-counters'
@@ -769,14 +770,16 @@ function deliverCancelNotice(
   const now = clock.nowMs()
   const window = messagingWindowForConversation(db, detail.tenantId, conversationId, now)
   if (!window.open) return { status: 'window_closed', outbox: [] }
-  const when = slotWhen(db, detail.tenantId, detail.startsAt, clock)
+  const tz = ensureClinicSettings(db, detail.tenantId, clock).timezone
+  const when = formatBookedWhenAt(tz, detail.startsAt)
+  const service = detail.serviceName?.trim() || 'Atendimento'
   try {
     const sent = sendOutboundMessageOp(
       db,
       workerCaller(detail.tenantId, 'system:cancel-notice'),
       {
         conversationId,
-        body: `O horário de ${when.day} às ${when.hour} foi cancelado.`,
+        body: `Cancelado: ${service} · ${when}.`,
         clientRequestId: `cancel.notice:${detail.id}`,
         authorClerkUserId: 'system:cancel-notice',
         authorDisplayName: 'Sistema',

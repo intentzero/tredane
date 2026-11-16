@@ -61,7 +61,7 @@ export type RescheduleOutcome = {
   deferredFrame?: DeferredBookingFrame
 }
 
-type UpcomingApt = {
+export type UpcomingApt = {
   id: string
   serviceId: string
   professionalId: string
@@ -78,7 +78,7 @@ function weekdayOf(date: string): number {
 }
 
 /** `{dia}` sem preposição («sexta 06/11»); a preposição vai na frase fixa. */
-function dayText(date: string): string {
+export function dayText(date: string): string {
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOf(date)]} ${d}/${m}`
 }
@@ -111,16 +111,14 @@ export function phraseAskDay(): string {
   return reschedulePhrase('Claro, vamos remarcar. Para qual dia você prefere?')
 }
 
-/** Cancelamento com compromisso futuro — oferece remarcar antes da equipe (baseline S11). */
+/** Cancelamento com compromisso futuro — oferece remarcar; cancelamento só com botão (S24). */
 export function phraseCancelOfferReschedule(serviceName: string): string {
   const withName = reschedulePhrase(
-    `Entendi o imprevisto sobre ${serviceName}. Quer que eu veja outro dia para remarcar? Se for só cancelar, passo para a equipe confirmar.`,
+    `Sobre ${serviceName}: quer que eu veja outro dia para remarcar?`,
   )
   const check = validateClientOutbound(withName, { source: 'phrase', requireSingleQuestion: false })
   if (check.ok) return withName
-  return reschedulePhrase(
-    'Entendi. Quer que eu veja outro dia para remarcar? Se for só cancelar, passo para a equipe confirmar.',
-  )
+  return reschedulePhrase('Quer que eu veja outro dia para remarcar?')
 }
 
 /** (2) Oferece horários no dia. */
@@ -180,13 +178,32 @@ export function isRescheduleIntent(text: string, opts: { hasUpcoming: boolean; p
   return false
 }
 
-export function loadUpcomingAppointment(
+function mapUpcomingRow(row: {
+  id: string
+  service_id: string
+  professional_id: string
+  starts_at: number
+  ends_at: number
+  service_name: string | null
+}): UpcomingApt {
+  return {
+    id: row.id,
+    serviceId: row.service_id,
+    professionalId: row.professional_id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    serviceName: row.service_name ?? 'Atendimento',
+  }
+}
+
+export function loadUpcomingAppointments(
   db: ClinicDb,
   tenantId: string,
   contactId: string,
   now: number,
-): UpcomingApt | null {
-  const row = db.get<{
+  limit = 5,
+): UpcomingApt[] {
+  const rows = db.all<{
     id: string
     service_id: string
     professional_id: string
@@ -198,20 +215,22 @@ export function loadUpcomingAppointment(
      FROM appointments a
      LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
      WHERE a.tenant_id = ? AND a.contact_id = ? AND a.status = 'confirmed' AND a.starts_at > ?
-     ORDER BY a.starts_at ASC LIMIT 1`,
+     ORDER BY a.starts_at ASC LIMIT ?`,
     tenantId,
     contactId,
     now,
+    limit,
   )
-  if (!row) return null
-  return {
-    id: row.id,
-    serviceId: row.service_id,
-    professionalId: row.professional_id,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    serviceName: row.service_name ?? 'Atendimento',
-  }
+  return rows.map(mapUpcomingRow)
+}
+
+export function loadUpcomingAppointment(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  now: number,
+): UpcomingApt | null {
+  return loadUpcomingAppointments(db, tenantId, contactId, now, 1)[0] ?? null
 }
 
 /**
@@ -393,11 +412,11 @@ export async function tryAiReschedule(
     const dayPeriod = p as DayPeriod
     return list.filter((s) => inPeriodHHMM(dayPeriod, localHHMM(tz, s.startsAt)))
   }
-  let slots = filterByPeriod(avail.slots, period)
+  let slots = filterByPeriod(avail.slots, period).filter((s) => s.startsAt !== apt.startsAt)
   let clearedPeriod = false
   // Mesma política que offerNearestSlots: período vazio mas dia com vaga → oferece o dia.
   if (slots.length === 0 && period && avail.slots.length > 0) {
-    slots = avail.slots
+    slots = avail.slots.filter((s) => s.startsAt !== apt.startsAt)
     period = null
     clearedPeriod = true
   }

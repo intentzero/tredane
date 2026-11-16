@@ -907,6 +907,60 @@
         "offersSlotsOrAsksOneThing": true,
         "note": "Pedido longo mas fechado: debounce ~2,5 s + typing em produção; lab_say ignora espera."
       }
+    },
+    {
+      "id": "S23-remarcacao-e2e",
+      "waId": "550000000123",
+      "displayName": "LabS23",
+      "steps": [
+        { "say": "quero marcar microagulhamento na segunda" },
+        { "tapRowIndex": 2, "kind": "list" },
+        { "tap": { "kind": "button", "title": "Confirmar" } },
+        { "say": "opa, na vdd vou precisar remarcar pra sexta, pode ser?" },
+        { "say": "meio dia" },
+        { "tap": { "kind": "button", "title": "Confirmar" } }
+      ],
+      "expect": {
+        "rescheduled": true,
+        "confirmationSaysRemarcado": true,
+        "excludesOwnBookedSlot": true
+      }
+    },
+    {
+      "id": "S24-cancelar-so-botao",
+      "waId": "550000000124",
+      "displayName": "LabS24",
+      "steps": [
+        { "say": "quero marcar microagulhamento na sexta meio dia" },
+        { "tapRowIndex": 0, "kind": "list" },
+        { "tap": { "kind": "button", "title": "Confirmar" } },
+        { "say": "vou ter que cancelar, surgiu um imprevisto" },
+        { "say": "nao quero remarcar, so cancelar" },
+        { "tap": { "kind": "button", "title": "Cancelar marcação" } }
+      ],
+      "expect": {
+        "cancelled": true,
+        "noTeamEscalation": true,
+        "cancelRequiresButton": true
+      }
+    },
+    {
+      "id": "S25-cancelar-dia-errado",
+      "waId": "550000000125",
+      "displayName": "LabS25",
+      "steps": [
+        { "say": "quero marcar microagulhamento na sexta meio dia" },
+        { "tapRowIndex": 0, "kind": "list" },
+        { "tap": { "kind": "button", "title": "Confirmar" } },
+        { "say": "oi, vou ter q cancelar o microagulhamento de quinta" },
+        { "say": "sim, essa mesma" },
+        { "tap": { "kind": "button", "title": "Cancelar marcação" } }
+      ],
+      "expect": {
+        "wrongDayClarified": true,
+        "cancelled": true,
+        "noFalseConfirmation": true
+      }
     }
   ]
 }
