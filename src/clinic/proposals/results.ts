@@ -99,12 +99,22 @@ export function sendProposalResultMessageOp(
     input.resultKind === 'booked'
       ? readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
       : []
+  let replacedStartsAt: number | null = null
+  if (input.resultKind === 'booked' && proposal.replacesAppointmentId) {
+    const prev = db.get<{ starts_at: number }>(
+      `SELECT starts_at FROM appointments WHERE tenant_id = ? AND id = ?`,
+      meta.tenantId,
+      proposal.replacesAppointmentId,
+    )
+    replacedStartsAt = prev?.starts_at ?? null
+  }
   const body = renderProposalResultBody(proposal, input.resultKind, {
     alternativesListing: input.alternativesListing,
     ...(input.resultKind === 'booked'
       ? {
           zones,
           omitDoubtFallback: window.open,
+          ...(replacedStartsAt != null ? { replacedStartsAt } : {}),
         }
       : {}),
   })

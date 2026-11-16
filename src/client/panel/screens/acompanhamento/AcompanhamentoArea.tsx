@@ -31,6 +31,7 @@ export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) 
   }
 
   // WS da clínica: cartões ao vivo (mensagem/IA/compromisso) + contact.deleted (AC-52).
+  // Faixa «Precisa de alguém» vive no PanelShell (DEC-156 A+E, 16/11/2026).
   return (
     <InboxRealtimeProvider
       tenantId={tenantId}

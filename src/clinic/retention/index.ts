@@ -18,3 +18,8 @@ export {
   OPERATIONAL_RESET_KEPT_TABLES,
   type OperationalResetResult,
 } from './operational-reset'
+export {
+  clearClinicAppointments,
+  APPOINTMENT_CLEAR_TABLES,
+  type ClearAppointmentsResult,
+} from './clear-appointments'

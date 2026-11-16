@@ -220,7 +220,7 @@ describe('item (f): saúde e cancelamento', () => {
   it('cancelamento oferece remarcar', () => {
     const body = phraseCancelOfferReschedule('Limpeza de pele profunda')
     expect(body).toMatch(/remarcar/i)
-    expect(body).toMatch(/equipe confirmar/i)
+    expect(body).not.toMatch(/equipe confirmar/i)
   })
 
   it('cancelamento com compromisso futuro no fluxo autodraft (integração mínima)', async () => {
@@ -296,7 +296,7 @@ describe('item (f): saúde e cancelamento', () => {
         tenantId,
         conversationId: cnv.id,
         direction: 'inbound',
-        body: 'oi, vou ter q cancelar a limpeza de quinta, surgiu um imprevisto',
+        body: 'oi, vou ter q cancelar a limpeza, surgiu um imprevisto',
         deliveryState: 'received',
         createdAt: clock.nowMs(),
       },
@@ -330,7 +330,7 @@ describe('item (f): saúde e cancelamento', () => {
       cnv.id,
     )
     expect(last?.body).toMatch(/remarcar/i)
-    expect(readReviewFlag(db, tenantId, cnv.id)?.flaggedAt).not.toBeNull()
+    expect(readReviewFlag(db, tenantId, cnv.id)?.flaggedAt ?? null).toBeNull()
     boot.close()
   })
 })

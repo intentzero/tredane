@@ -176,6 +176,8 @@ import {
   clearBookingFrame,
   saveBookingFrame,
 } from '../clinic/ai/schedule-session'
+import { handleCancelConfirmButtonClick } from '../clinic/ai/cancel-flow'
+import { cancelAutoDraft } from '../clinic/ai/autodraft'
 import {
   handleIdleButtonClick,
   nextIdleDueAt,
@@ -1387,6 +1389,28 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.conversationId,
       )
       contactId = conv?.contact_id ?? ''
+    }
+    if (input.conversationId && contactId) {
+      const cancelClick = handleCancelConfirmButtonClick(
+        this.#db,
+        caller,
+        {
+          tenantId: caller.tenantId,
+          contactId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      )
+      if (cancelClick.handled) {
+        cancelAutoDraft(this.#db, caller.tenantId, input.conversationId)
+        if (cancelClick.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, cancelClick.outbox, true)
+          await this.#drain(caller)
+        }
+        return { handled: true, action: 'cancel_appointment' as const }
+      }
     }
     const click = clinicProposals.handleProposalButtonClick(
       this.#db,
@@ -2772,6 +2796,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicRetention.resetClinicOperationalData(this.#db, caller, this.#clock)
+  }
+
+  /** STAGING-ONLY: apaga todos os compromissos da clínica (painel / clear-appointments). */
+  async clearClinicAppointments(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicRetention.clearClinicAppointments(this.#db, caller, this.#clock)
   }
 
   async wipeClinicOperationalData(caller: ClinicCaller) {

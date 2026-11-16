@@ -132,7 +132,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     })
   })
 
-  it('cartão: avatar com iniciais, ponto de etapa no título e coluna vazia com texto (DEC-184)', async () => {
+  it('cartão: avatar com iniciais, ponto de etapa no título; coluna vazia sem «Ninguém aqui»', async () => {
     mount()
     const board = await screen.findByRole('group', { name: 'Quadro por etapa' })
     const maria = within(board).getByRole('button', { name: 'Abrir Maria Souza' })
@@ -141,7 +141,9 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     const dots = Array.from(board.querySelectorAll('.acomp-col-dot')).map((d) => d.getAttribute('data-stage'))
     expect(dots).toEqual(['novo_contato', 'em_atendimento', 'horario_proposto', 'agendado', 'concluido'])
     const empty = within(board).getByRole('region', { name: 'Horário proposto, 0' })
-    expect(within(empty).getByText('Ninguém aqui').className).toContain('acomp-col-empty')
+    expect(within(empty).queryByText('Ninguém aqui')).toBeNull()
+    expect(empty.querySelector('.acomp-col-empty')).toBeNull()
+    expect(within(empty).getByText('0')).toBeTruthy()
   })
 
   it('cartão: data da marcação em chip, «IA» em chip e «Parado» com texto (DEC-184)', async () => {
@@ -391,6 +393,66 @@ describe('AcompanhamentoWideBoard — cartões ao vivo', () => {
     // keep:true → o quadro não volta ao skeleton.
     expect(screen.getByRole('group', { name: 'Quadro por etapa' })).toBeTruthy()
     expect(screen.getByText('Carla Mendes')).toBeTruthy()
+  })
+
+  it('Precisa de alguém: chip no cartão, filtro e barra de atenção no quadro', async () => {
+    const previous = [...(DATA.agendado ?? [])]
+    DATA.agendado = [
+      card('p', 'Paulo', 'agendado', {
+        assigneeClerkUserId: null,
+        assigneeDisplayName: null,
+        needsPerson: true,
+        hasOpenAttendance: true,
+        futureAppointmentCount: 1,
+        linkedAppointmentId: 'ap-p',
+        linkedAppointment: {
+          id: 'ap-p',
+          startsAt: NOW + DAY,
+          endsAt: NOW + DAY + 3_600_000,
+          status: 'confirmed',
+        } as never,
+      }),
+    ]
+    DATA.em_atendimento = [
+      card('p', 'Paulo', 'em_atendimento', {
+        contactId: 'ct_p',
+        assigneeClerkUserId: null,
+        assigneeDisplayName: null,
+        needsPerson: true,
+        cardKind: 'open_attendance',
+        boardKey: 'p:attendance',
+        hasOpenAttendance: true,
+        futureAppointmentCount: 1,
+      }),
+    ]
+    try {
+      mount()
+      const board = await screen.findByRole('group', { name: 'Quadro por etapa' })
+      const pauloCards = within(board).getAllByRole('button', {
+        name: /Abrir Paulo\. Precisa de alguém/,
+      })
+      expect(pauloCards).toHaveLength(2)
+      for (const el of pauloCards) {
+        expect(el.className).toContain('acomp-card--needs-person')
+        expect(within(el).getByText('Precisa de alguém')).toBeTruthy()
+      }
+      expect(
+        pauloCards.some((el) => el.getAttribute('data-card-kind') === 'open_attendance'),
+      ).toBe(true)
+      const needsFilter = screen.getByRole('button', { name: /^Precisa de alguém/ })
+      expect(needsFilter.className).toContain('panel-chip--warn')
+      expect(within(needsFilter).getByText('2')).toBeTruthy()
+    } finally {
+      DATA.agendado = previous
+      DATA.em_atendimento = [
+        card('b', 'Sérgio Teixeira', 'em_atendimento'),
+        card('c', 'Fernanda Araújo', 'em_atendimento', {
+          assigneeClerkUserId: 'user_outra',
+          assigneeDisplayName: 'Camila',
+          lastInteractionAt: NOW - 3 * DAY,
+        }),
+      ]
+    }
   })
 
   it('DEC-187: gémeo de atendimento + badge N no Agendado; total conta contactos distintos', async () => {

@@ -68,6 +68,7 @@ export type { ContactDirectoryFilter } from './conversations'
 export { seedSyntheticInboxOp } from './seed'
 
 export {
+  conversationNeedsPerson,
   getConversation,
   getConversationWithContact,
   listConversations,

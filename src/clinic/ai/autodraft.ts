@@ -70,6 +70,7 @@ import {
   handoffReason,
   humanTeamOfferButtons,
   inboundWarrantsHandoffResume,
+  inboundWarrantsParallelHandoffAutomation,
   isHumanTeamOfferAllowed,
   notifyHumanHandoff,
   type AiReplyPauseReason,
@@ -113,9 +114,12 @@ import {
   RESCHEDULE_RE,
 } from './nlu/sensitive'
 import {
+  handleCancelIntentAutodraft,
+  tryCancelAutodraftContinuation,
+} from './cancel-flow'
+import {
   isCancelIntent,
   isRescheduleIntent,
-  phraseCancelOfferReschedule,
   tryAiReschedule,
 } from './reschedule'
 import { isConversationPaused } from './protection'
@@ -237,7 +241,17 @@ export function enqueueAutoDraft(
   if (isConversationPaused(db, tenantId, input.conversationId) && !isReviewFlagRequest(body)) {
     const pause = readAiReplyPause(db, tenantId, input.conversationId)
     const reason = (pause?.reason ?? 'off_purpose') as AiReplyPauseReason
+    const teamOpen = isHumanTeamOfferAllowed(db, tenantId, clock)
+    const parallelAutomation =
+      teamOpen &&
+      inboundWarrantsParallelHandoffAutomation(body, reason, {
+        db,
+        tenantId,
+        conversationId: input.conversationId,
+        fromInteractive: input.fromInteractive,
+      })
     if (
+      !parallelAutomation &&
       !inboundWarrantsHandoffResume(body, reason) &&
       !shouldAcknowledgeWhileHandoffPaused(reason)
     ) {
@@ -692,10 +706,22 @@ export async function runDueAutoDrafts(
     }
     if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
     if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
+    let parallelHandoffAutomationActive = false
     const aiPause = readAiReplyPause(db, tenantId, job.conversationId)
     if (aiPause) {
       const pauseReason = aiPause.reason as AiReplyPauseReason
-      if (inboundWarrantsHandoffResume(inboundBody, pauseReason)) {
+      const teamOpen = isHumanTeamOfferAllowed(db, tenantId, clock)
+      const parallelAutomation =
+        teamOpen &&
+        inboundWarrantsParallelHandoffAutomation(inboundBody, pauseReason, {
+          db,
+          tenantId,
+          conversationId: job.conversationId,
+        })
+      if (parallelAutomation) {
+        parallelHandoffAutomationActive = true
+        /* alerta/equipe mantidos; automação de agendamento ou catálogo segue abaixo */
+      } else if (inboundWarrantsHandoffResume(inboundBody, pauseReason)) {
         const resumeOutbox = resumeAiReply(db, tenantId, job.conversationId, clock)
         if (resumeOutbox.length > 0) {
           // evento de retomada — não conta como resposta à cliente
@@ -1146,34 +1172,38 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    if (isCancelIntent(turnText) && upcoming) {
+    const cancelCapability = deps.autoBookPaused !== true
+    const cancelContinuation = tryCancelAutodraftContinuation(
+      db,
+      tenantId,
+      job.conversationId,
+      turnText,
+      clock,
+    )
+    if (cancelContinuation.handled) {
       await signalTyping()
-      const body = phraseCancelOfferReschedule(upcoming.serviceName)
-      const teamAlert = promiseTeamFollowUp(
-        db,
-        tenantId,
-        {
-          conversationId: job.conversationId,
-          detailText: 'Pedido de cancelamento com compromisso futuro; oferecida remarcação.',
-          messageId: job.messageId,
-        },
-        clock,
-      )
-      let replyOutbox: OutboxRow[] = [...teamAlert.outbox]
+      let replyOutbox: OutboxRow[] = []
       try {
         const sent = sendOutboundMessageOp(
           db,
           caller,
-          {
-            conversationId: job.conversationId,
-            body,
-            clientRequestId: `ai-cancel-reschedule-offer:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
+          withDeferredFrame(
+            {
+              conversationId: job.conversationId,
+              body: cancelContinuation.replyText,
+              ...(cancelContinuation.interactive
+                ? { interactive: cancelContinuation.interactive }
+                : {}),
+              clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelContinuation.reason}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            cancelContinuation.deferredFrame,
+            clock,
+          ),
           clock,
         )
-        replyOutbox = [...replyOutbox, ...sent.outbox]
+        replyOutbox = sent.outbox
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
       }
@@ -1182,12 +1212,60 @@ export async function runDueAutoDrafts(
         ...job,
         status: 'skipped',
         suggestion: null,
-        reason: 'cancel_offer_reschedule',
+        reason: cancelContinuation.reason,
         replyOutbox,
       })
       continue
     }
-    const reason = handoffReason(db, tenantId, turnText, clock, turn)
+    if (isCancelIntent(turnText) && upcoming && conv) {
+      const cancelStart = handleCancelIntentAutodraft(
+        db,
+        tenantId,
+        job.conversationId,
+        conv.contactId,
+        turnText,
+        clock,
+        { capability: cancelCapability },
+      )
+      if (cancelStart.handled) {
+        await signalTyping()
+        let replyOutbox: OutboxRow[] = []
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            withDeferredFrame(
+              {
+                conversationId: job.conversationId,
+                body: cancelStart.replyText,
+                ...(cancelStart.interactive ? { interactive: cancelStart.interactive } : {}),
+                clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelStart.reason}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              cancelStart.deferredFrame,
+              clock,
+            ),
+            clock,
+          )
+          replyOutbox = sent.outbox
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: cancelStart.reason,
+          replyOutbox,
+        })
+        continue
+      }
+    }
+    const reason = handoffReason(db, tenantId, turnText, clock, turn, {
+      conversationId: job.conversationId,
+    })
     if (reason) {
       await signalTyping()
       // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).
@@ -1311,7 +1389,7 @@ export async function runDueAutoDrafts(
     // a frase desse passo sai sem o CTA (Paulo, 07/11/2026).
     // Gate ops = `prepareBookingFlowOffer`.
     // Remarcar / cancelar / serviço nomeado já foram tratados acima ou caem no funil.
-    if (deps.prepareBookingFlowOffer) {
+    if (deps.prepareBookingFlowOffer && !parallelHandoffAutomationActive) {
       if (
         shouldAttachHubOpeningCta({
           turnText,

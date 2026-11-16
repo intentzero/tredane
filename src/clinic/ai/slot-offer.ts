@@ -119,7 +119,8 @@ export function periodWordPt(period: DayPeriod): string {
 export function inPeriodHHMM(period: DayPeriod, hhmm: string): boolean {
   const hour = Number(hhmm.slice(0, 2))
   if (period === 'manha') return hour < 12
-  if (period === 'tarde') return hour >= 12 && hour < 18
+  // «À tarde» / depois do almoço: a partir de 13:00 (meio-dia explícito continua HH:MM).
+  if (period === 'tarde') return hour >= 13 && hour < 18
   return hour >= 18
 }
 
@@ -377,6 +378,10 @@ export async function offerNearestSlots(input: {
   _skipEmptyAdvance?: boolean
   /** Lab S02: «depois das Nh» — não oferecer horários anteriores no dia pedido. */
   notBeforeHHMM?: string | null
+  /** S02: «semana que vem» sem dia — só dias desta lista (segunda–sábado). */
+  searchDays?: string[] | null
+  /** S06: quando livre, oferece exactamente esta hora no dia pedido. */
+  preferHHMM?: string | null
   /** P13: não oferecer horário em que o contato já tem outro compromisso. */
   contactId?: string | null
 }): Promise<OfferNearestSlotsResult> {
@@ -397,6 +402,8 @@ export async function offerNearestSlots(input: {
     conversationId = '',
     _skipEmptyAdvance = false,
     notBeforeHHMM = null,
+    searchDays = null,
+    preferHHMM = null,
     contactId = null,
   } = input
   const notBeforeMinute = notBeforeHHMM ? minutesOfHHMM(notBeforeHHMM) : null
@@ -411,9 +418,12 @@ export async function offerNearestSlots(input: {
     ensureClinicSettings(db, tenantId, clock).bookingLeadMinutes,
   )
   const today = clinicCivilDateFromUtc(tz, nowMs)
-  const dates = date
-    ? [date, ...[1, 2, 3, 4, 5, 6].map((n) => addCivilDays(date, n))]
-    : [0, 1, 2, 3, 4, 5, 6].map((offset) => addCivilDays(today, offset))
+  const dates =
+    searchDays && searchDays.length > 0
+      ? searchDays
+      : date
+        ? [date, ...[1, 2, 3, 4, 5, 6].map((n) => addCivilDays(date, n))]
+        : [0, 1, 2, 3, 4, 5, 6].map((offset) => addCivilDays(today, offset))
   const picked: OfferedSlot[] = []
   const lastMinute = new Map<string, number>()
   /** Dia pedido sem qualquer vaga bookable (ignora período). Evita `sem_horario_dia` falso. */
@@ -422,7 +432,7 @@ export async function offerNearestSlots(input: {
   for (const day of dates) {
     if (picked.length >= limit) break
     // Com data pedida: no 1.º dia só esse; nos seguintes só se o 1.º veio vazio.
-    if (date && day !== date && picked.some((p) => p.date === date)) break
+    if (date && !searchDays?.length && day !== date && picked.some((p) => p.date === date)) break
     const { schedulingAllowed, slots } = await slotsOnDay(
       db,
       tenantId,
@@ -437,6 +447,21 @@ export async function offerNearestSlots(input: {
       requestedDayEmptyIgnoringPeriod = !slots.some((slot) => slot.startsAt >= earliest)
     }
     if (!schedulingAllowed && slots.length === 0) continue
+    if (preferHHMM && (date == null || day === date) && (searchDays == null || searchDays.includes(day))) {
+      const exact = slots.find(
+        (slot) =>
+          slot.startsAt >= earliest &&
+          localHHMM(tz, slot.startsAt) === preferHHMM &&
+          (notBeforeMinute == null || minutesOfHHMM(preferHHMM) >= notBeforeMinute) &&
+          (!period || inPeriodHHMM(period, preferHHMM)) &&
+          (contactBusy.length === 0 ||
+            !slotOverlapsContactBooking(slot.startsAt, visitMinutes, contactBusy)),
+      )
+      if (exact) {
+        picked.push({ date: day, time: preferHHMM, startsAt: exact.startsAt })
+        break
+      }
+    }
     if (order === 'latest') {
       // DEC-181: do fim para o princípio, com o mesmo espaçamento; sai em ordem crescente.
       const eligible = slots
