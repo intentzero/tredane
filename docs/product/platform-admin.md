@@ -51,7 +51,8 @@ Qualquer pessoa sem a flag que abra `/admin` vê a mesma resposta de rota inexis
 ### JRN-21 — Criar clínica com a primeira owner
 
 - **Estado:** Proposto (capacidade Confirmada em JRN-10).
-- **Fluxo:** PA-02 → «Nova clínica» (PA-03) → nome, fuso e e-mail da owner → `POST /api/platform/tenants` → abre o detalhe (PA-04) com a owner e o estado do convite.
+- **Fluxo:** PA-02 → «Nova clínica» (PA-03) → nome, fuso e e-mail da owner → o backend cria a clínica e **emite um convite de owner** (DEC-194) → abre o detalhe (PA-04) com o estado do convite. A API atual (`POST /api/platform/tenants` com `ownerClerkUserId`) não serve a este fluxo: ver a issue do convite de owner.
+- **Estado «Em configuração» (DEC-194):** clínica ativa sem owner ativa até o convite ser aceite; é derivado, não existe no D1. O superadmin reenvia ou cancela o convite no detalhe; sem owner ativa não há aprovação de suporte.
 - **Alternativas:** e-mail inválido ou já owner → erro no campo; falha a meio → nada criado (a API é atómica); duplo clique → uma só clínica.
 - **Requisitos:** REQ-006, REQ-105.
 
@@ -105,7 +106,7 @@ Mocks **Confirmados** (Paulo, 16/11/2026) em [`docs/design/admin/`](../design/ad
 | --- | --- | --- | --- |
 | PA-01 | Visão geral | `GET /api/platform/tenants` | Resumo agregado de alertas e suporte |
 | PA-02 | Clínicas (lista) | `GET /api/platform/tenants` | Busca/filtro no servidor se a lista crescer |
-| PA-03 | Nova clínica | `POST /api/platform/tenants` | — |
+| PA-03 | Nova clínica | — (o `POST` atual exige `ownerClerkUserId`) | Convite de owner emitido pelo superadmin, reenvio e cancelamento (DEC-194) |
 | PA-04 | Detalhe da clínica (abas Resumo, Membros, Saúde, Suporte, Auditoria) | `GET/PATCH .../:id`, `suspend`, `reactivate`, `DELETE`, `members`, `owners*`, `GET /api/f6/ops/tenants/:id/snapshot` | Estado real do WhatsApp; `GET .../:id/audit` |
 | PA-05 | Suporte | `POST/GET /api/platform/support-requests*`, `activate`, `support-sessions/:id/end` | Listagem de pedidos de todas as clínicas |
 | PA-06 | Saúde global | snapshot por clínica | Endpoint agregado (fan-out limitado ou cache); jobs LLM no snapshot |
