@@ -108,7 +108,7 @@ Mocks **Confirmados** (Paulo, 16/11/2026) em [`docs/design/admin/`](../design/ad
 | PA-02 | Clínicas (lista) | `GET /api/platform/tenants` | Busca/filtro no servidor se a lista crescer |
 | PA-03 | Nova clínica | `POST /api/platform/tenants` (`ownerEmail`), `POST .../invitations`, `.../resend`, `.../cancel` | — (implementado em #842) |
 | PA-04 | Detalhe da clínica (abas Resumo, Membros, Saúde, Suporte, Auditoria) | `GET/PATCH .../:id`, `suspend`, `reactivate`, `DELETE`, `members`, `owners*`, `GET /api/f6/ops/tenants/:id/snapshot` | Estado real do WhatsApp; `GET .../:id/audit` |
-| PA-05 | Suporte | `POST/GET /api/platform/support-requests*`, `activate`, `support-sessions/:id/end` | Listagem de pedidos de todas as clínicas |
+| PA-05 | Suporte | `GET /api/platform/support`, `GET .../tenants/:id/support`, `POST /api/platform/support-requests` | **Pedir e listar: PR #854 (#831).** Ativar, entrar, encerrar e cancelar pedido: #853 (no D1 de produção essas rotas dão 503; a Clinic App não lê o cookie de suporte) |
 | PA-06 | Saúde global | `GET /api/platform/health` (resumo gravado pelo cron, DEC-193); `GET .../tenants/:id/health`; `POST .../health/refresh` | — (implementado em #833/PR #851) |
 | PA-07 | Qualidade IA | `GET /api/f6/ops/conversation-metrics`; MCP review-central | Rotas REST `/api/platform/quality/*` sobre as funções do MCP |
 | PA-08 a PA-11 | Abas Membros, Saúde, Suporte e Auditoria do detalhe | ver 6.1 | ver 6.1 |
