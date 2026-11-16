@@ -205,7 +205,7 @@ export function AcompanhamentoDetail({
             <strong>Sem compromisso vinculado</strong>
             <p>Pode agendar um horário sem alterar a etapa automaticamente.</p>
             <Button
-              className="panel-btn-primary"
+              className="panel-btn-primary panel-btn-accent"
               onPress={() =>
                 navigatePanel({
                   kind: 'area',
