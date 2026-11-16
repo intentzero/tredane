@@ -27,6 +27,7 @@ import { isAuthError } from '../auth/errors'
 import { AuthError } from '../auth/errors'
 import { requestUsesBearer } from '../auth/session'
 import type { AdminDb } from '../db/admin/store'
+import { supportSessionsEnabled } from './flag'
 import { asyncFromSync, fromD1, type AsyncAdminDb } from '../db/admin/async-store'
 import {
   consumeSupportHandoffAsync,
@@ -101,14 +102,7 @@ export type SupportRouteOptions = {
   asyncAdminDbFactory?: (env: WorkerBindings) => AsyncAdminDb | null
 }
 
-/**
- * ADR-0017 §7: ativar e trocar o handoff ficam desligados em produção até a revisão de segurança.
- * Fora de produção (staging, desenvolvimento, testes) estão ligados.
- */
-export function supportSessionsEnabled(env: { ENVIRONMENT?: string; SUPPORT_SESSIONS_ENABLED?: string } | undefined): boolean {
-  if (env?.ENVIRONMENT !== 'production') return true
-  return env?.SUPPORT_SESSIONS_ENABLED === 'true'
-}
+export { supportSessionsEnabled }
 
 function supportErrorResponse(
   c: { json: (body: unknown, status?: number) => Response },

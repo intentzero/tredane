@@ -7,8 +7,10 @@ import {
   type AsyncTenantRow,
 } from '../db/admin/async-queries'
 import type { AsyncAdminDb } from '../db/admin/async-store'
+import type { Clock } from '../db/clock'
 import { ForbiddenError } from '../db/admin/errors'
 import { AuthError } from './errors'
+import { supportPermissionAllowed } from '../support/overlay'
 import { platformAllows, roleAllows } from './permissions'
 import { requireSession, type SessionAuthenticator } from './session'
 import { requireVerifiedSuperadmin, type AuthorityReader } from './superadmin'
@@ -24,6 +26,8 @@ export type AuthServices = {
   verifiedEmails?: VerifiedEmailReader
   /** DEC-102: nome + e-mail na lista Equipe (Clerk Backend / sintético). */
   staffProfiles?: StaffProfileReader
+  /** Relógio da sessão de suporte (prazo exacto); por omissão o do sistema. Testes injetam um controlável. */
+  clock?: Clock
 }
 
 export async function authenticateHuman(
@@ -106,6 +110,13 @@ export function requireClinicPermission(
   ctx: TenantContext,
   permission: Permission,
 ): void {
+  if (ctx.support) {
+    // Sessão de suporte: só as permissões de leitura da lista; tudo o resto é escrita bloqueada (ADR-0017 §2).
+    if (!supportPermissionAllowed(ctx.role, permission)) {
+      throw new AuthError('support_write_blocked', 'Escrita bloqueada em sessão de suporte', 403)
+    }
+    return
+  }
   if (!roleAllows(ctx.role, permission)) {
     throw new AuthError('permission_denied', 'Permissão negada', 403)
   }

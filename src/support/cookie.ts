@@ -1,6 +1,6 @@
 /**
  * Cookie de sessão de suporte (#27 / ADR-0007).
- * HttpOnly; Secure; SameSite=Lax — nunca em localStorage/URL.
+ * HttpOnly; Secure; SameSite=Strict; Path=/api (ADR-0017 §3) — só viaja em chamadas à API, nunca em navegações, localStorage ou URL.
  * Vinculado à sessão Clerk do actor via actor_clerk_session_id no D1.
  */
 
@@ -23,9 +23,9 @@ export function buildSupportSetCookie(
 ): string {
   const parts = [
     `${SUPPORT_COOKIE_NAME}=${encodeURIComponent(sessionToken)}`,
-    'Path=/',
+    'Path=/api',
     'HttpOnly',
-    'SameSite=Lax',
+    'SameSite=Strict',
     `Max-Age=${Math.max(0, Math.floor(opts.maxAgeSec))}`,
   ]
   if (opts.secure !== false) parts.push('Secure')
@@ -36,9 +36,9 @@ export function buildSupportSetCookie(
 export function buildSupportClearCookie(opts: { secure?: boolean } = {}): string {
   const parts = [
     `${SUPPORT_COOKIE_NAME}=`,
-    'Path=/',
+    'Path=/api',
     'HttpOnly',
-    'SameSite=Lax',
+    'SameSite=Strict',
     'Max-Age=0',
   ]
   if (opts.secure !== false) parts.push('Secure')
