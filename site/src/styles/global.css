@@ -1,5 +1,6 @@
-/* Landing page do Tredane, direção «Luz» com abertura escura (ver docs/product/landing.md).
-   Paleta da marca (DEC-050): Petróleo, Damasco, Tinta. Neutros e fonte Geist são só do site. */
+/* Estrutura e interações do site Tredane.
+   As cores históricas abaixo são substituídas por coral-menta.css (DEC-044, revisão 16/11/2026).
+   Geist é exclusiva do site; tokens do painel permanecem separados. */
 :root {
   --bg: #FAFAF8;
   --card: #FFFFFF;
@@ -219,6 +220,20 @@ svg { flex: none; }
 .pilot-person p { display: flex; flex-direction: column; gap: 2px; font-size: 15px; color: #DCE9E8; }
 .pilot-person strong { color: #FFFFFF; font-weight: 600; }
 .pilot-pending { color: #E7EFEE; font-size: 15px; }
+.pilot-status { margin: 0 0 8px; font-size: 15px; font-weight: 500; }
+.pendente {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(180, 60, 20, .18);
+  border: 1px dashed #8a3b17;
+  color: #5c2208;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.panel.apricot .pendente { background: rgba(255, 255, 255, .75); color: #6b2b0a; border-color: #8a3b17; }
+.pilot-photo-empty { font-size: 0; }
 
 
 /* Como ajuda */

@@ -55,7 +55,8 @@
         {"tap": {"kind": "button", "title": "Confirmar"}}
       ],
       "expect": {"booked": true, "handoffRecognizedFirstTry": true, "handoffRegistered": "conversa sinalizada/atribuida a equipe ou recado registado"},
-      "baseline20261115": {"booked": false, "clientTurns": 6, "doErrors": 3, "notes": "tap 'Sim' em axila+pernas -> 'Durable Object exceeded its CPU time limit' 3/3"}
+      "baseline20261115": {"booked": false, "clientTurns": 6, "doErrors": 3, "notes": "tap 'Sim' em axila+pernas -> 'Durable Object exceeded its CPU time limit' 3/3"},
+      "baseline20261116": {"booked": false, "clientTurns": 5, "notes": "handoff em horário de equipe pausava a IA; «Posso continuar…» sem processar zonas (regressão ae6ccd78)"}
     },
     {
       "id": "S03b-atendente-frases",
@@ -170,7 +171,8 @@
         {"say": "ah ta.. e vcs tem massagem? a drenagem ajuda nisso?"}
       ],
       "expect": {"noHealthAdvice": true, "safetyLine": true, "repliesToStep2": true},
-      "baseline20261115": {"booked": false, "clientTurns": 2, "notes": "handoff + silencio total no passo 2"}
+      "baseline20261115": {"booked": false, "clientTurns": 2, "notes": "handoff + silencio total no passo 2"},
+      "baseline20261116": {"booked": false, "clientTurns": 2, "notes": "passo 2 só handoff_paused_ack (lab ae6ccd78); alvo: catálogo massagem/drenagem com alerta aberto"}
     },
     {
       "id": "S08b-fora-do-assunto-pagamento",
