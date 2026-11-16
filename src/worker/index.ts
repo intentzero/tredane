@@ -6,6 +6,7 @@ import {
   type LlmQueueEnvelope,
 } from '../clinic/ai/llm-queue-types'
 import { runReviewSamplesPurge } from '../review-samples'
+import { HEALTH_CRON, runHealthRefresh } from '../ops/health-cron'
 import type { WorkerBindings } from './bindings'
 import type { InboundQueueMessage } from '../whatsapp/queue-types'
 
@@ -36,9 +37,14 @@ const worker = {
     await handleInboundQueue(batch as MessageBatch<InboundQueueMessage>, env, ctx)
   },
   async scheduled(
-    _controller: ScheduledController,
+    controller: ScheduledController,
     env: WorkerBindings,
   ): Promise<void> {
+    // Dois crons em `wrangler.jsonc`: o diário (purge, DEC-159) e o de 10 min (saúde, DEC-193).
+    if (controller.cron === HEALTH_CRON) {
+      await runHealthRefresh(env)
+      return
+    }
     await runReviewSamplesPurge(env)
   },
 }

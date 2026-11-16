@@ -71,6 +71,20 @@ async function requireOwner(
   }
 }
 
+/**
+ * Autorização da Platform Admin (DEC-194): o chamador é o superadmin, já validado pela rota
+ * (`requireSuperadmin`); basta a clínica existir e estar ativa. Só os caminhos `asPlatformAdmin`
+ * o usam — nunca ligar a flag a input do cliente.
+ */
+async function requireActiveTenant(db: D1Database, tenantId: string): Promise<void> {
+  const row = await db
+    .prepare(`SELECT status FROM tenants WHERE id = ?`)
+    .bind(tenantId)
+    .first<{ status: string }>()
+  if (!row) throw new NotFoundError('tenant_not_found', 'Tenant inexistente')
+  if (row.status !== 'active') throw new ForbiddenError('tenant_not_active', 'Tenant inativo')
+}
+
 function mapInvitationRole(role: string): InvitationRow['role'] {
   return role === 'owner' ? 'owner' : 'attendant'
 }
@@ -249,11 +263,22 @@ export async function d1CreateInvitation(
     appBaseUrl: string
     now: number
     role?: InvitationRow['role']
+    /** DEC-194: emitido pelo superadmin (rota `requireSuperadmin`). */
+    asPlatformAdmin?: boolean
   },
 ): Promise<{ invitation: InvitationRow; emailSent: boolean; deliveryJobId: string }> {
-  await requireOwner(db, input.tenantId, input.issuedByClerkUserId)
+  if (input.asPlatformAdmin) await requireActiveTenant(db, input.tenantId)
+  else await requireOwner(db, input.tenantId, input.issuedByClerkUserId)
   const role: InvitationRow['role'] = input.role === 'owner' ? 'owner' : 'attendant'
   const email = normalizeEmail(input.email)
+  // Convite vencido continua «pending» até alguém o tocar; não pode bloquear um novo (DEC-194).
+  await db
+    .prepare(
+      `UPDATE tenant_invitations SET status = 'expired'
+       WHERE tenant_id = ? AND normalized_email = ? AND status = 'pending' AND expires_at <= ?`,
+    )
+    .bind(input.tenantId, email, input.now)
+    .run()
   const pending = await db
     .prepare(
       `SELECT id FROM tenant_invitations
@@ -309,6 +334,100 @@ export async function d1CreateInvitation(
   return { invitation, ...delivery }
 }
 
+/**
+ * DEC-194: cria a clínica **sem owner ativa** e o convite de owner numa só `batch` (atómica no D1).
+ * O envio do e-mail corre depois: uma falha de e-mail não desfaz a clínica; o convite fica pendente
+ * e o superadmin pode reenviá-lo.
+ */
+export async function d1CreateClinicWithOwnerInvitation(
+  db: D1Database,
+  transport: EmailTransport,
+  input: {
+    id?: string
+    name: string
+    timezone?: string
+    ownerEmail: string
+    actorClerkUserId: string
+    appBaseUrl: string
+    now: number
+  },
+): Promise<{
+  tenant: { id: string; name: string; timezone: string; createdAt: number }
+  invitation: InvitationRow
+  emailSent: boolean
+  deliveryJobId: string
+}> {
+  const name = input.name.trim()
+  if (!name) throw new ConflictError('tenant_name_required', 'Nome do tenant obrigatório')
+  const email = normalizeEmail(input.ownerEmail)
+  if (!email) throw new ConflictError('owner_email_required', 'E-mail da primeira owner obrigatório')
+  const id = input.id ?? newId('tenant')
+  const timezone = input.timezone?.trim() || 'America/Sao_Paulo'
+  const exists = await db.prepare(`SELECT id FROM tenants WHERE id = ?`).bind(id).first<{ id: string }>()
+  if (exists) throw new ConflictError('tenant_id_conflict', 'Tenant id já existe')
+
+  const rawToken = generateOpaqueToken()
+  const tokenHash = await hashToken(rawToken)
+  const invitationId = newId('inv')
+  const auditSql = `INSERT INTO central_audit_events (
+      id, occurred_at, actor_clerk_user_id, subject_clerk_user_id, tenant_id,
+      action, object_type, object_id, outcome, support_session_id, metadata_json
+    ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, 'success', NULL, ?)`
+
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO tenants (id, name, timezone, status, created_at, updated_at, suspended_at, pending_deletion_at)
+         VALUES (?, ?, ?, 'active', ?, ?, NULL, NULL)`,
+      )
+      .bind(id, name, timezone, input.now, input.now),
+    db
+      .prepare(auditSql)
+      .bind(
+        newId('aud'),
+        input.now,
+        input.actorClerkUserId,
+        id,
+        'tenant.create',
+        'tenant',
+        id,
+        JSON.stringify({ name, firstOwnerEmail: email, via: 'owner_invitation' }),
+      ),
+    db
+      .prepare(
+        `INSERT INTO tenant_invitations (
+          id, tenant_id, normalized_email, role, issued_by_clerk_user_id, token_hash,
+          status, issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
+          cancelled_at, cancelled_by_clerk_user_id, last_resent_at
+        ) VALUES (?, ?, ?, 'owner', ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
+      )
+      .bind(invitationId, id, email, input.actorClerkUserId, tokenHash, input.now, input.now + INVITATION_TTL_MS),
+    db
+      .prepare(auditSql)
+      .bind(
+        newId('aud'),
+        input.now,
+        input.actorClerkUserId,
+        id,
+        'invitation.create',
+        'tenant_invitation',
+        invitationId,
+        JSON.stringify({ email, role: 'owner' }),
+      ),
+  ])
+
+  const invitation = (await getInvitation(db, invitationId))!
+  const delivery = await deliverEmail(db, transport, {
+    invitation,
+    rawToken,
+    tenantName: name,
+    appBaseUrl: input.appBaseUrl,
+    actorClerkUserId: input.actorClerkUserId,
+    now: input.now,
+  })
+  return { tenant: { id, name, timezone, createdAt: input.now }, invitation, ...delivery }
+}
+
 export async function d1ResendInvitation(
   db: D1Database,
   transport: EmailTransport,
@@ -318,13 +437,16 @@ export async function d1ResendInvitation(
     tenantId: string
     appBaseUrl: string
     now: number
+    /** DEC-194: superadmin (rota `requireSuperadmin`). */
+    asPlatformAdmin?: boolean
   },
 ): Promise<{ invitation: InvitationRow; emailSent: boolean; deliveryJobId: string }> {
   const current = await getInvitation(db, input.invitationId)
   if (!current || current.tenantId !== input.tenantId) {
     throw new NotFoundError('invitation_not_found', 'Convite inexistente')
   }
-  await requireOwner(db, current.tenantId, input.actorClerkUserId)
+  if (input.asPlatformAdmin) await requireActiveTenant(db, current.tenantId)
+  else await requireOwner(db, current.tenantId, input.actorClerkUserId)
   if (current.status !== 'pending') {
     throw new ConflictError('invitation_not_pending', 'Convite não está pendente')
   }
@@ -417,13 +539,16 @@ export async function d1CancelInvitation(
     actorClerkUserId: string
     tenantId: string
     now: number
+    /** DEC-194: superadmin (rota `requireSuperadmin`). */
+    asPlatformAdmin?: boolean
   },
 ): Promise<InvitationRow> {
   const current = await getInvitation(db, input.invitationId)
   if (!current || current.tenantId !== input.tenantId) {
     throw new NotFoundError('invitation_not_found', 'Convite inexistente')
   }
-  await requireOwner(db, current.tenantId, input.actorClerkUserId)
+  if (input.asPlatformAdmin) await requireActiveTenant(db, current.tenantId)
+  else await requireOwner(db, current.tenantId, input.actorClerkUserId)
   const result = await db
     .prepare(
       `UPDATE tenant_invitations

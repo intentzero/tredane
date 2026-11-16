@@ -162,6 +162,8 @@ function transitionTenantStatus(
     action: string
     extraSet: string
     extraParams: Array<string | number | null>
+    /** Motivo do operador (Platform Admin, REQ-106) — fica no metadata da auditoria. */
+    reason?: string
   },
 ): TenantRow {
   assertAdminSchemaReady(db)
@@ -193,7 +195,7 @@ function transitionTenantStatus(
       objectType: 'tenant',
       objectId: input.tenantId,
       outcome: 'success',
-      metadata: { to: input.to },
+      metadata: { to: input.to, ...(input.reason ? { reason: input.reason } : {}) },
     })
     return getTenant(db, input.tenantId)!
   })
@@ -204,6 +206,7 @@ export function suspendTenant(
   clock: Clock,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): TenantRow {
   return transitionTenantStatus(db, clock, {
     tenantId,
@@ -213,6 +216,7 @@ export function suspendTenant(
     action: 'tenant.suspend',
     extraSet: 'suspended_at = ?, pending_deletion_at = NULL',
     extraParams: [clock.nowMs()],
+    reason,
   })
 }
 
@@ -221,6 +225,7 @@ export function reactivateTenant(
   clock: Clock,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): TenantRow {
   return transitionTenantStatus(db, clock, {
     tenantId,
@@ -230,6 +235,7 @@ export function reactivateTenant(
     action: 'tenant.reactivate',
     extraSet: 'suspended_at = NULL, pending_deletion_at = NULL',
     extraParams: [],
+    reason,
   })
 }
 
@@ -238,6 +244,7 @@ export function markTenantPendingDeletion(
   clock: Clock,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): TenantRow {
   return transitionTenantStatus(db, clock, {
     tenantId,
@@ -247,5 +254,6 @@ export function markTenantPendingDeletion(
     action: 'tenant.pending_deletion',
     extraSet: 'pending_deletion_at = ?, suspended_at = COALESCE(suspended_at, ?)',
     extraParams: [clock.nowMs(), clock.nowMs()],
+    reason,
   })
 }

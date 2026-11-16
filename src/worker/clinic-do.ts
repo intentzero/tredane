@@ -468,6 +468,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     messageCount: number
     appointmentCount: number
     attachmentMetaCount: number
+    /** DEC-188: jobs de IA abertos (queued/claimed) e falhados na última hora — só contagens. */
+    llmJobsOpen: number
+    llmJobsFailed1h: number
     eventSeq: number
   }> {
     this.#ensureReady()
@@ -503,6 +506,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         `SELECT COUNT(*) AS n FROM attachments WHERE tenant_id = ?`,
         meta.tenantId,
       )?.n ?? 0
+    const llmJobsOpen =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM llm_jobs
+         WHERE tenant_id = ? AND state IN ('queued', 'claimed')`,
+        meta.tenantId,
+      )?.n ?? 0
+    const llmJobsFailed1h =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM llm_jobs
+         WHERE tenant_id = ? AND state = 'failed' AND updated_at >= ?`,
+        meta.tenantId,
+        this.#clock.nowMs() - 60 * 60 * 1000,
+      )?.n ?? 0
     return {
       tenantId: meta.tenantId,
       schemaVersion: schema?.version ?? null,
@@ -514,6 +530,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       messageCount,
       appointmentCount,
       attachmentMetaCount,
+      llmJobsOpen,
+      llmJobsFailed1h,
       eventSeq: getLastEventSeq(this.#db),
     }
   }

@@ -16,6 +16,9 @@ export type OpsClinicSnapshot = {
   messageCount: number
   appointmentCount: number
   attachmentMetaCount: number
+  /** DEC-188: jobs de IA abertos e falhados na última hora (só contagens). */
+  llmJobsOpen?: number
+  llmJobsFailed1h?: number
   openWsConnections?: number
 }
 

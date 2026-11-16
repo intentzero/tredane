@@ -3,6 +3,13 @@ import { useEffect, useState } from 'react'
 import { SignOutButton } from '../panel/auth/ClerkBridge'
 import { ADMIN_AREAS, navigateAdmin, resolveAdminRoute, type AdminArea, type AdminRoute } from './routes'
 import { AdminNotFound } from './AdminStates'
+import { ClinicaDetalhe } from './clinicas/ClinicaDetalhe'
+import { ClinicasList } from './clinicas/ClinicasList'
+import { NovaClinica } from './clinicas/NovaClinica'
+import { SaudeGlobal } from './saude/SaudeGlobal'
+import { VisaoGeral } from './saude/VisaoGeral'
+import { QualidadeIA } from './qualidade/QualidadeIA'
+import { SuporteGlobal } from './suporte/SuporteGlobal'
 
 const ICONS: Record<AdminArea, LucideIcon> = {
   'visao-geral': LayoutDashboard,
@@ -10,35 +17,6 @@ const ICONS: Record<AdminArea, LucideIcon> = {
   suporte: LifeBuoy,
   saude: Activity,
   'qualidade-ia': Sparkles,
-}
-
-/** Cada área chega com a sua issue do épico #827; até lá mostra só o que vem a seguir. */
-const PENDING: Record<AdminArea, { title: string; issue: string; text: string }> = {
-  'visao-geral': {
-    title: 'Visão geral',
-    issue: '#833',
-    text: 'Clínicas por estado, alertas e suporte pendente.',
-  },
-  clinicas: {
-    title: 'Clínicas',
-    issue: '#829',
-    text: 'Lista, nova clínica, detalhe e ciclo de vida.',
-  },
-  suporte: {
-    title: 'Suporte',
-    issue: '#831',
-    text: 'Pedidos e sessões de suporte de todas as clínicas.',
-  },
-  saude: {
-    title: 'Saúde',
-    issue: '#833',
-    text: 'Resumo periódico de envios, WhatsApp e jobs de IA por clínica.',
-  },
-  'qualidade-ia': {
-    title: 'Qualidade IA',
-    issue: '#834',
-    text: 'Métricas agregadas, sombra do interpretador e amostras para revisão.',
-  },
 }
 
 function useAdminRoute(): AdminRoute {
@@ -56,7 +34,12 @@ function useAdminRoute(): AdminRoute {
 
 export default function AdminShell() {
   const route = useAdminRoute()
-  const current = route.kind === 'area' ? route.area : null
+  const current: AdminArea | null =
+    route.kind === 'area'
+      ? route.area
+      : route.kind === 'clinica' || route.kind === 'clinica-nova'
+        ? 'clinicas'
+        : null
 
   return (
     <div className="admin-shell">
@@ -98,12 +81,20 @@ export default function AdminShell() {
       <main className="admin-main">
         {route.kind === 'not-found' ? (
           <AdminNotFound />
+        ) : route.kind === 'clinica-nova' ? (
+          <NovaClinica />
+        ) : route.kind === 'clinica' ? (
+          <ClinicaDetalhe key={route.tenantId} tenantId={route.tenantId} tab={route.tab} />
+        ) : route.area === 'clinicas' ? (
+          <ClinicasList />
+        ) : route.area === 'visao-geral' ? (
+          <VisaoGeral />
+        ) : route.area === 'saude' ? (
+          <SaudeGlobal />
+        ) : route.area === 'suporte' ? (
+          <SuporteGlobal />
         ) : (
-          <section aria-labelledby="admin-area-title" className="admin-pending">
-            <h1 id="admin-area-title">{PENDING[route.area].title}</h1>
-            <p>{PENDING[route.area].text}</p>
-            <p className="admin-muted">Esta área chega com a issue {PENDING[route.area].issue} do épico #827.</p>
-          </section>
+          <QualidadeIA />
         )}
       </main>
     </div>
