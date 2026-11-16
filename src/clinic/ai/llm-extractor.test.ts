@@ -197,6 +197,86 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
     expect(v.slots.line?.fonte).not.toBe('llm')
   })
 
+  it('PR-E: léxico com variantes coerentes não deixa LLM sobrescrever variants/service', () => {
+    const dep = service({
+      id: 'svc_dep',
+      name: 'Depilação',
+      zones: [
+        {
+          id: 'zone_ax_f',
+          tenantId: 't',
+          serviceId: 'svc_dep',
+          name: 'Axila',
+          durationMinutes: 15,
+          priceCents: 4000,
+          audience: 'feminino',
+          active: true,
+          sortOrder: 0,
+          synonyms: [],
+          clientExplanation: null,
+        },
+        {
+          id: 'zone_pe_f',
+          tenantId: 't',
+          serviceId: 'svc_dep',
+          name: 'Pernas',
+          durationMinutes: 30,
+          priceCents: 9000,
+          audience: 'feminino',
+          active: true,
+          sortOrder: 1,
+          synonyms: [],
+          clientExplanation: null,
+        },
+        {
+          id: 'zone_ax_m',
+          tenantId: 't',
+          serviceId: 'svc_dep',
+          name: 'Axila',
+          durationMinutes: 15,
+          priceCents: 4500,
+          audience: 'masculino',
+          active: true,
+          sortOrder: 2,
+          synonyms: [],
+          clientExplanation: null,
+        },
+      ],
+    })
+    // Só zonas femininas no interpretador (como sombra com frame.line).
+    const scoped = {
+      ...dep,
+      zones: dep.zones.filter((z) => z.audience === 'feminino'),
+    }
+    const base = interpretTurn({
+      turnText: 'axila e pernas',
+      messageId: 'msg_f1',
+      today: '2026-11-02',
+      services: [scoped],
+    })
+    expect(base.slots.variantIds?.value?.sort()).toEqual(['zone_ax_f', 'zone_pe_f'])
+    const v = validateExtractorOutput(
+      {
+        acts: ['marcar'],
+        serviceId: 'svc_outra',
+        variantIds: ['zone_ax_m'],
+      },
+      {
+        messageId: 'msg_f1',
+        turnText: 'axila e pernas',
+        today: '2026-11-02',
+        services: [dep],
+        professionals: [],
+        pending: { slot: 'variantes', messageId: 'ask', options: [] },
+        base,
+      },
+    )
+    expect(v.slots.variantIds?.value?.sort()).toEqual(['zone_ax_f', 'zone_pe_f'])
+    expect(v.slots.variantIds?.fonte).not.toBe('llm')
+    expect(v.slots.serviceId?.fonte).not.toBe('llm')
+    expect(v.discarded).toEqual(expect.arrayContaining(['variantIds', 'serviceId']))
+  })
+
   it('FAQ sem género: line inventada é descartada (DEC-079 / Lab Bloco D)', () => {
     const quiet = interpretTurn({
       turnText: 'tem estacionamento na clínica?',
