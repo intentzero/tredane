@@ -146,8 +146,8 @@ Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão exp
 
 | ID | Pergunta | Opções | Decide | Bloqueia |
 | --- | --- | --- | --- | --- |
-| Q-PA-01 | PA-07 pode mostrar o texto das amostras de revisão? | (a) só métricas e ids, texto continua só no MCP; (b) mostrar texto, como o MCP já faz ao superadmin (DEC-159) | Paulo | Mock PA-07 |
-| Q-PA-02 | Saúde global: ler cada DO a pedido ou guardar snapshot periódico no D1? | (a) fan-out com limite e timeout; (b) cron grava resumo no D1 | Engenharia, com aval do Paulo | Implementação de PA-06 |
+| Q-PA-01 | **Resolvida (Paulo, 16/11/2026: «sim»):** PA-07 mostra o texto das amostras de revisão, como o Review MCP já faz ao superadmin (DEC-159). | Opção (b). Descartada: só ids. | Paulo | O mock PA-07 aprovado mostra só ids e precisa de ajuste (abrir amostra com as mensagens) antes de #834 |
+| Q-PA-02 | **Resolvida (Paulo, 16/11/2026):** a saúde global lê um **resumo periódico gravado no D1** (cron), não o DO a cada pedido. | Opção (b). Descartada: fan-out aos DOs a pedido. | Paulo | PA-06 e PA-01 mostram a hora do resumo; PA-09 (clínica) pode atualizar o snapshot da própria clínica a pedido |
 | Q-PA-03 | Aviso de aprovação de suporte em tempo real para o superadmin | polling 30 s (proposto) ou canal próprio | Paulo | Não bloqueia o primeiro corte |
 | Q-PA-04 | A aba Saúde pode mostrar volume (contatos, mensagens, marcações, anexos) da clínica? | (a) sim, só números, como o snapshot já faz; (b) não, só sinais de falha | Paulo | Mock PA-09 |
 
