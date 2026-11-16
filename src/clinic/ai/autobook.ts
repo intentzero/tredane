@@ -23,6 +23,7 @@ import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
 import {
+  orderZonesByIds,
   quoteVisit,
   readZoneSnapshots,
   resolveZoneMention,
@@ -1227,6 +1228,7 @@ export async function tryAiAutoBook(
           period: (frameReject.period as DayPeriod | null) ?? null,
           limit: 3,
           conversationId: input.conversationId,
+          contactId: conv.contactId,
           notBeforeHHMM,
         })
         const interactive = applyOfferSideEffects(
@@ -1411,6 +1413,7 @@ export async function tryAiAutoBook(
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
+            contactId: conv.contactId,
             notBeforeHHMM,
           })
           slotInteractive = applyOfferSideEffects(
@@ -1602,6 +1605,7 @@ export async function tryAiAutoBook(
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
+            contactId: conv.contactId,
             notBeforeHHMM,
           })
           slotInteractive = applyOfferSideEffects(
@@ -2705,7 +2709,7 @@ export async function tryAiAutoBook(
       if (earlyUpdate.resolvedVariantIds?.length) {
         // Inclui `unresolved_variant` com matches (Paulo 10/11 opção 2): o quadro
         // já gravou o que casou; o funil só avança se não houver sobra.
-        kept = mentionPool.filter((z) => earlyUpdate.resolvedVariantIds!.includes(z.id))
+        kept = orderZonesByIds(mentionPool, earlyUpdate.resolvedVariantIds!)
         chosen = { zones: kept, ambiguous: false }
       } else {
         kept = []
@@ -2822,8 +2826,16 @@ export async function tryAiAutoBook(
           // Serviço sem variantes (ex. massagem): oferta de período com a data absoluta (#408 B-04).
           // CF-19 (#413): com serviço (e variantes) conhecidos, oferecer 2–3 horários reais
           // mesmo sem período — não perguntar «qual horário?» vazio.
+          const zonesForOffer =
+            kept.length > 0
+              ? kept
+              : earlyUpdate.resolvedVariantIds?.length
+                ? orderZonesByIds(mentionPool, earlyUpdate.resolvedVariantIds)
+                : sessionIntact && sessionIds.length > 0
+                  ? orderZonesByIds(mentionPool, sessionIds)
+                  : []
           const canOffer =
-            !chosen.ambiguous && (kept.length > 0 || active.length === 0)
+            !chosen.ambiguous && (zonesForOffer.length > 0 || active.length === 0)
           // DEC-137: zonas escritas num texto ainda não ecoado também pedem eco, mesmo quando o
           // texto é anterior a este turno (zonas ditas antes da linha, DEC-143).
           // DEC-145: só em modo `varias`.
@@ -2839,7 +2851,7 @@ export async function tryAiAutoBook(
             turnNamed
           if (wantEcho) {
             // DEC-137: texto livre ecoa o conjunto. Sim é que abre Horários.
-            const echoed = presentZoneEcho(det.service.id, kept, det.service.variantSelection)
+            const echoed = presentZoneEcho(det.service.id, zonesForOffer, det.service.variantSelection)
             if (echoed) {
               replyText = echoed.replyText
               interactive = echoed.interactive
@@ -2857,7 +2869,7 @@ export async function tryAiAutoBook(
               db,
               tenantId,
               service: det.service,
-              zones: kept,
+              zones: zonesForOffer,
               tz,
               clock,
               forecast: input.forecast,
@@ -2867,6 +2879,7 @@ export async function tryAiAutoBook(
               order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
+              contactId: conv.contactId,
               notBeforeHHMM,
             })
             logPolicyShadow({
@@ -3214,6 +3227,7 @@ export async function tryAiAutoBook(
               order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
+              contactId: conv.contactId,
               notBeforeHHMM,
             })
             logPolicyShadow({
@@ -3407,7 +3421,7 @@ export async function tryAiAutoBook(
   const namedZones: typeof fromSession =
     variantUpdate.resolvedVariantIds?.length &&
     variantUpdate.reason !== 'unresolved_variant'
-      ? mentionPool.filter((z) => variantUpdate.resolvedVariantIds!.includes(z.id))
+      ? orderZonesByIds(mentionPool, variantUpdate.resolvedVariantIds)
       : []
   const echoLocked =
     variantUpdate.reason === 'echo_locked' || variantUpdate.reason === 'variants_preserved'

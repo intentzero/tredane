@@ -382,7 +382,10 @@ describe('S4: envio WhatsApp', () => {
         true,
       )
       expect(queued.outbound.interactiveButtons).toHaveLength(3)
-      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('envio_pendente')
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('enviada')
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.expiresAt).toBe(
+        s.clock.nowMs() + 30 * 60 * 1000,
+      )
 
       simulateMetaAccepted(s.db, s.tenantId, s.clock, queued.outbound.clientRequestId)
       const sent = getProposal(s.db, s.tenantId, proposal.id)!
@@ -468,10 +471,9 @@ describe('S4: envio WhatsApp', () => {
       const a = sendProposalToWhatsAppOp(s.db, s.caller, { proposalId: proposal.id }, s.clock)
       const b = sendProposalToWhatsAppOp(s.db, s.caller, { proposalId: proposal.id }, s.clock)
       expect(a.status).toBe('queued')
-      expect(b.status).toBe('queued')
-      if (a.status !== 'queued' || b.status !== 'queued') return
-      expect(b.duplicate).toBe(true)
-      expect(b.outbound.id).toBe(a.outbound.id)
+      expect(b.status).toBe('already_sent')
+      if (a.status !== 'queued') return
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('enviada')
       const n = s.db.get<{ n: number }>(
         `SELECT COUNT(*) AS n FROM outbound_messages WHERE tenant_id = ?`,
         s.tenantId,

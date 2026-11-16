@@ -177,8 +177,8 @@ describe('P1 rsamp_fa7f138 — sobra de zona só quando parece zona', () => {
   )
 
   it.each([
-    ['Íntima e pernas', /^Entendi: pernas, intima\. Certo\?$/],
-    ['pernas e axila?', /^Entendi: axila, pernas\. Certo\?$/],
+    ['Íntima e pernas', /^Entendi: intima, pernas\. Certo\?$/],
+    ['pernas e axila?', /^Entendi: pernas, axila\. Certo\?$/],
     ['Orelha', /^Entendi: orelha\. Certo\?$/],
   ] as const)('negativo: zona real «%s» continua a casar', async (text, re) => {
     const s = seed()
