@@ -47,6 +47,56 @@ export type AdminMember = AdminMembership & {
   email: string | null
 }
 
+export type HealthSituation = 'critical' | 'attention' | 'normal' | 'no_data' | 'inactive'
+
+export type HealthAlert = {
+  kind: string
+  severity: 'info' | 'warning' | 'critical'
+  reason: string
+  value: number | null
+  threshold: number | null
+}
+
+export type HealthCounts = {
+  pendingOutbox: number | null
+  failedOutbox: number | null
+  uncertainOutbound: number | null
+  llmJobsOpen: number | null
+  llmJobsFailed1h: number | null
+  schemaVersion: number | null
+  schemaReady: boolean | null
+}
+
+/** Saúde de uma clínica lida do resumo gravado pelo cron (DEC-193): só contagens e estados. */
+export type ClinicHealth = {
+  tenantId: string
+  name: string
+  tenantStatus: AdminTenantStatus
+  whatsapp: { status: ChannelStatus }
+  situation: HealthSituation
+  /** A última leitura falhou: os números são da última leitura boa. */
+  stale: boolean
+  alerts: HealthAlert[]
+  readAt: number | null
+  lastOkAt: number | null
+  counts: HealthCounts | null
+}
+
+export type HealthOverview = {
+  summaryAt: number | null
+  refreshIntervalMs: number
+  totals: {
+    activeClinics: number
+    critical: number
+    attention: number
+    normal: number
+    noData: number
+    unreachable: number
+    llmJobsOpen: number
+  }
+  clinics: ClinicHealth[]
+}
+
 export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
 
 export type AdminTenantDetail = {
@@ -119,6 +169,16 @@ export function createAdminApi(getToken: TokenGetter) {
     }): Promise<{ tenant: AdminTenant } & InviteResult> {
       return request('/api/platform/tenants', { method: 'POST', body: JSON.stringify(input) })
     },
+    getHealthOverview(opts?: FetchOpts): Promise<HealthOverview> {
+      return request<HealthOverview>('/api/platform/health', {}, opts)
+    },
+    async getTenantHealth(tenantId: string, opts?: FetchOpts): Promise<ClinicHealth> {
+      return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health`, {}, opts)).health
+    },
+    /** Relê o Durable Object desta clínica agora e grava o resumo. */
+    async refreshTenantHealth(tenantId: string): Promise<ClinicHealth> {
+      return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health/refresh`, { method: 'POST' })).health
+    },
     async listMembers(tenantId: string, opts?: FetchOpts): Promise<AdminMember[]> {
       return (await request<{ members: AdminMember[] }>(`${tenantPath(tenantId)}/members`, {}, opts)).members
     },
@@ -176,6 +236,8 @@ export function adminErrorMessage(err: unknown): string {
       return 'O estado da clínica mudou entretanto. Atualize a página e confira.'
     case 'tenant_not_found':
       return 'Esta clínica já não existe.'
+    case 'tenant_not_active':
+      return 'A clínica não está ativa: não há leituras novas.'
     case 'last_owner_protected':
       return 'Não é possível remover a última owner ativa. Adicione ou substitua por outra primeiro.'
     case 'owner_not_found':

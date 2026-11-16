@@ -609,3 +609,50 @@
   display: block;
   font-weight: var(--font-weight-regular);
 }
+
+/* Saúde e visão geral */
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-stat {
+  gap: var(--space-1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.admin-stat b {
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-stat span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.admin-note--warn {
+  color: var(--color-warning-ink);
+  background: var(--color-warning-tint);
+  border: 1px solid var(--color-warning-border);
+}
+
+.admin-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-rows > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 32px;
+}
+
+.admin-rows > div > span:first-child {
+  flex: 1;
+  color: var(--color-text-secondary);
+}

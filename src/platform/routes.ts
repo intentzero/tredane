@@ -38,6 +38,11 @@ import type { FenceSource } from '../realtime/protocol'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
 import type { MembershipRow } from '../db/admin/memberships'
+import { asyncFromSync, fromD1 } from '../db/admin/async-store'
+import { workerCaller } from '../clinic'
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
+import { getHealth, listHealth, refreshTenantHealth } from '../ops/health-summary'
+import type { OpsClinicSnapshot } from '../ops/metrics'
 import { resolveAppBaseUrlFromEnv, resolveEmailTransport, type EmailTransport } from '../email'
 import {
   d1CancelInvitation,
@@ -76,6 +81,8 @@ import {
 import {
   serializeAdminTenantView,
   serializeMembership,
+  serializeHealth,
+  serializeHealthOverview,
   serializePlatformInvitation,
   serializeTenant,
 } from './serialize'
@@ -111,6 +118,15 @@ export type PlatformRouteOptions = {
   clockFactory?: () => Clock
   emailFactory?: (env: WorkerBindings) => EmailTransport
   appBaseUrlFactory?: (env: WorkerBindings) => string
+  /** Leitura do snapshot do DO (saúde, #833); por omissão o Durable Object da clínica. */
+  clinicStubFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => {
+    getOpsSnapshot: (
+      caller: ReturnType<typeof workerCaller>,
+    ) => Promise<Partial<OpsClinicSnapshot> & { tenantId: string }>
+  }
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -510,6 +526,62 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         doError: notified.ok ? null : notified.error,
         closedConnections: notified.ok ? notified.closedConnections : [],
         workflow,
+      })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  const healthDb = (env: WorkerBindings) => {
+    const syncDb = opts.syncAdminDbFactory?.(env) ?? null
+    return syncDb ? asyncFromSync(syncDb) : fromD1(env.DB)
+  }
+  const stubFor = (env: WorkerBindings, tenantId: string) =>
+    opts.clinicStubFactory?.(env, tenantId) ?? env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
+
+  // DEC-193: lê o resumo gravado pelo cron; nunca consulta os Durable Objects a cada visita.
+  routes.get('/api/platform/health', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      c.header('Cache-Control', 'no-store')
+      return c.json(serializeHealthOverview(await listHealth(healthDb(c.env))))
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/tenants/:tenantId/health', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const row = await getHealth(healthDb(c.env), c.req.param('tenantId'))
+      if (!row) return c.json({ error: 'tenant_not_found' }, 404)
+      c.header('Cache-Control', 'no-store')
+      return c.json({ health: serializeHealth(row), refreshIntervalMs: serializeHealthOverview([]).refreshIntervalMs })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** «Atualizar» na aba Saúde: relê o DO desta clínica agora e grava o resumo. */
+  routes.post('/api/platform/tenants/:tenantId/health/refresh', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const tenantId = c.req.param('tenantId')
+      const db = healthDb(c.env)
+      const before = await getHealth(db, tenantId)
+      if (!before) return c.json({ error: 'tenant_not_found' }, 404)
+      if (before.tenantStatus !== 'active') return c.json({ error: 'tenant_not_active' }, 403)
+      const stub = stubFor(c.env, tenantId)
+      await refreshTenantHealth(
+        db,
+        tenantId,
+        (id) => stub.getOpsSnapshot(workerCaller(id)),
+        clockNow().nowMs(),
+      )
+      c.header('Cache-Control', 'no-store')
+      return c.json({
+        health: serializeHealth((await getHealth(db, tenantId))!),
+        refreshIntervalMs: serializeHealthOverview([]).refreshIntervalMs,
       })
     } catch (err) {
       return adminErrorResponse(c, err)

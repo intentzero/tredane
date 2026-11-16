@@ -32,6 +32,17 @@ function mockFetch(outcome: () => MeOutcome) {
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         )
       }
+      const json = (body: unknown) =>
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      if (url === '/api/platform/tenants') return json({ tenants: [] })
+      if (url === '/api/platform/health') {
+        return json({
+          summaryAt: null,
+          refreshIntervalMs: 600_000,
+          totals: { activeClinics: 0, critical: 0, attention: 0, normal: 0, noData: 0, unreachable: 0, llmJobsOpen: 0 },
+          clinics: [],
+        })
+      }
       return new Response('{}', { status: 404 })
     }),
   )
