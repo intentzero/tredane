@@ -86,7 +86,10 @@ import {
   shouldAppendHumanHelpHint,
   wasHumanHelpHintSent,
 } from './human-help-hint'
-import { existingAppointmentPrefix } from './contact-appointment-hint'
+import {
+  existingAppointmentPrefix,
+  upcomingAppointmentsOfferPrefix,
+} from './contact-appointment-hint'
 import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
@@ -803,6 +806,22 @@ function slotOfferReplyText(
   if (!date) return offered.replyText
   const prefix = existingAppointmentPrefix(db, tenantId, contactId, date, tz, clock)
   return prefix ? `${prefix}${offered.replyText}` : offered.replyText
+}
+
+function withUpcomingAppointmentReminder(
+  offered: { replyText: string },
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  date: string | null | undefined,
+  tz: string,
+  clock: Clock,
+): string {
+  const body = slotOfferReplyText(offered, db, tenantId, contactId, date, tz, clock)
+  const alreadySameDay = date != null && existingAppointmentPrefix(db, tenantId, contactId, date, tz, clock)
+  if (alreadySameDay) return body
+  const upcoming = upcomingAppointmentsOfferPrefix(db, tenantId, contactId, tz, clock)
+  return upcoming ? `${upcoming}${body}` : body
 }
 
 function signalAmountCents(svc: ServiceRow, priceCents: number | null = svc.priceCents): number | null {
@@ -3291,7 +3310,7 @@ export async function tryAiAutoBook(
               preferred,
               rememberOfferFrame,
             )
-            replyText = slotOfferReplyText(
+            replyText = withUpcomingAppointmentReminder(
               offered,
               db,
               tenantId,
