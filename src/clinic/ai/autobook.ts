@@ -87,6 +87,7 @@ import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
   catalogServiceList,
+  findExplicitServiceInText,
   resolveBookingObject,
   servicesFromBookingMatch,
 } from './booking-object'
@@ -117,6 +118,7 @@ import {
   scheduleFactsFromText,
   syncBookingFrameWithCatalog,
   wouldAskFilledSlot,
+  type BookingFrame,
 } from './schedule-session'
 import { getOrCompileCatalog } from './turn-context'
 import {
@@ -147,6 +149,7 @@ import {
   parkFromFrame,
   shouldResumeSlotAsk,
   shouldResumeVariantAsk,
+  shouldResumeZoneChoiceAfterFaq,
 } from './dialogue-interrupt-stack'
 import {
   obligationFromFrame,
@@ -1224,17 +1227,46 @@ export async function tryAiAutoBook(
   // DEC-177: FAQ (explanation) usa o mesmo gate — factos do cadastro, sem leftover.
   if (gate.kind === 'ask_info') {
     const frameAsk = getBookingFrame(db, tenantId, input.conversationId)
-    const svcAsk = frameAsk?.serviceId
+    const explicitSvc = findExplicitServiceInText(turnText, services)
+    const frameSvc = frameAsk?.serviceId
       ? services.find((s) => s.id === frameAsk.serviceId)
       : null
-    if (svcAsk && frameAsk?.serviceId) {
+    const svcAsk = explicitSvc ?? frameSvc
+    const sameServiceFunnel = Boolean(
+      svcAsk && (!explicitSvc || !frameAsk?.serviceId || explicitSvc.id === frameAsk.serviceId),
+    )
+    if (svcAsk) {
+      const lineAsk =
+        sameServiceFunnel && frameAsk
+          ? heldAudienceLine(frameAsk) ?? frameAsk.line ?? null
+          : null
       const activeAsk = svcAsk.zones.filter((z) => z.active)
-      const lineAsk = heldAudienceLine(frameAsk) ?? frameAsk.line ?? null
       const poolAsk =
         needsAudienceLine(activeAsk) && lineAsk
           ? zonesForAudienceLine(activeAsk, lineAsk)
           : activeAsk
       const pool = poolAsk.length > 0 ? poolAsk : activeAsk
+      const frameInFunnel =
+        sameServiceFunnel && frameAsk?.serviceId === svcAsk.id ? frameAsk : null
+      const frameForQuote: BookingFrame =
+        frameInFunnel ??
+        ({
+          phase: 'coletando',
+          serviceId: svcAsk.id,
+          line: lineAsk,
+          variantIds: null,
+          professionalPref: null,
+          date: null,
+          period: null,
+          time: null,
+          pending: null,
+          lastOffer: null,
+          proposal: null,
+          rescheduleAppointmentId: null,
+          catalogVersion: catalog.version,
+          provenance: {},
+          updatedAt: clock.nowMs(),
+        } satisfies BookingFrame)
 
       if (gate.topic === 'explanation') {
         runBookingUpdate({ type: 'ask_info', topic: 'explicacao' })
@@ -1257,8 +1289,11 @@ export async function tryAiAutoBook(
         }
         let replyText = faq.replyText
         // Com facto: retoma a pergunta de zonas se ainda não há variante (não avança Horários).
-        const parked = parkFromFrame(frameAsk, 'ask_info', 'explanation')
-        if (shouldResumeVariantAsk(parked)) {
+        const parked = parkFromFrame(frameInFunnel, 'ask_info', 'explanation')
+        if (
+          sameServiceFunnel &&
+          (shouldResumeVariantAsk(parked) || shouldResumeZoneChoiceAfterFaq(parked))
+        ) {
           const ask = variantListQuestion(
             svcAsk.name,
             variantKindForAsk(svcAsk),
@@ -1291,7 +1326,7 @@ export async function tryAiAutoBook(
         topic: gate.topic,
         service: svcAsk,
         zones: pool,
-        frame: frameAsk,
+        frame: frameForQuote,
         namedZones: namedAsk,
         sameFunnel: true,
       })
@@ -1307,17 +1342,20 @@ export async function tryAiAutoBook(
         let replyText = realized.replyText
         let slotInteractive: ChoiceInteractive | null = null
         // rsamp_fa7f138: após preço, reofertar slots (não só «qual horário?»).
+        // P10/C-03: serviço em linha com oferta aberta — só cotação + retoma textual.
         const lineServiceOpenOffer =
-          frameAsk.pending?.slot === 'horario' &&
-          frameAsk.lastOffer &&
+          frameInFunnel?.pending?.slot === 'horario' &&
+          frameInFunnel?.lastOffer &&
           activeAsk.length === 0 &&
           poolAsk.length === 0
         if (
           gate.topic === 'price' &&
+          sameServiceFunnel &&
+          frameInFunnel &&
           shouldResumeSlotAsk(realized.parked) &&
           !lineServiceOpenOffer
         ) {
-          const variantIds = frameAsk.variantIds ?? []
+          const variantIds = frameInFunnel.variantIds ?? []
           const kept = poolAsk.filter((z) => variantIds.includes(z.id))
           const zonesOffer = kept.length > 0 ? kept : poolAsk
           const quoteOnly = realized.resume
@@ -1340,8 +1378,8 @@ export async function tryAiAutoBook(
             clock,
             forecast: input.forecast,
             professionalId: preferred,
-            date: frameAsk.date ?? null,
-            period: frameAsk.period ?? null,
+            date: frameInFunnel.date ?? null,
+            period: frameInFunnel.period ?? null,
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
@@ -1447,7 +1485,7 @@ export async function tryAiAutoBook(
             (s.synonyms ?? []).some((syn) => turnText.toLowerCase().includes(syn.trim().toLowerCase())),
           )
       const paymentBase = paymentMethodReply()
-      promiseTeamFollowUp(
+      const teamFollowUp = promiseTeamFollowUp(
         db,
         tenantId,
         {
@@ -1526,7 +1564,7 @@ export async function tryAiAutoBook(
         requireSingleQuestion: false,
       })
       if (!checked.ok) replyText = paymentBase
-      return finish({
+      const paymentOutcome = finish({
         ...none('needs_info', {
           confirmationMessageId: confirmation.id,
           ...(svcPay ? { serviceId: svcPay.id } : {}),
@@ -1535,6 +1573,10 @@ export async function tryAiAutoBook(
         ...(slotInteractive ? { interactive: slotInteractive } : {}),
         notes: 'Pagamento/parcelamento: equipe avisada; funil retomado.',
       })
+      return {
+        ...paymentOutcome,
+        outbox: [...paymentOutcome.outbox, ...teamFollowUp.outbox],
+      }
     }
   }
 

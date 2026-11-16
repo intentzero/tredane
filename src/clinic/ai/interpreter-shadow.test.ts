@@ -24,14 +24,17 @@ import { rpcDepsFromEnv } from './deps'
 import { setDialogueVariantForTests } from './dialogue-acts'
 import {
   compareInterpretations,
+  gateShadowSlotsPreferLexiconVariants,
   interpreterShadowEnabled,
   resolveShadowSlots,
   runInterpreterShadow,
   type InterpreterShadowEvent,
 } from './interpreter-shadow'
+import { servicesForShadowRule } from './lexicon-variants-gate'
 import type { ExtractorRaw } from './llm-extractor'
 import { interpretTurn } from './nlu/interpret'
 import { getAiDailyUsage } from './usage'
+import { replaceServiceZonesOp } from '../config'
 
 const NOW = Date.UTC(2026, 10, 5, 15, 0)
 const TODAY = '2026-11-05'
@@ -224,6 +227,135 @@ describe('compareInterpretations', () => {
       expect(cmp.llmOnly).toEqual(['period'])
       expect(cmp.differ).toEqual(['date'])
     } finally {
+      s.close()
+    }
+  })
+})
+
+describe('PR-E gate sombra differ variants (F1 axila e pernas)', () => {
+  function seedDepil() {
+    const s = seed()
+    const dep = upsertServiceOp(
+      s.db,
+      s.caller,
+      {
+        name: 'Depilação',
+        durationMinutes: 30,
+        bufferMinutes: 0,
+        priceCents: 8000,
+        variantKind: 'zona',
+        variantKindPlural: 'zonas',
+        professionalIds: [s.proId],
+        roomRequirement: { mode: 'none' },
+      },
+      s.clock,
+    )
+    replaceServiceZonesOp(
+      s.db,
+      s.caller,
+      dep.id,
+      [
+        { name: 'Axila', durationMinutes: 15, priceCents: 4000, audience: 'feminino' },
+        { name: 'Pernas', durationMinutes: 30, priceCents: 9000, audience: 'feminino' },
+        { name: 'Axila', durationMinutes: 15, priceCents: 4500, audience: 'masculino' },
+        { name: 'Pernas', durationMinutes: 35, priceCents: 10000, audience: 'masculino' },
+      ],
+      s.clock,
+    )
+    const services = listServices(s.db, s.tenantId)
+    return { ...s, depId: dep.id, services }
+  }
+
+  it('filtra léxico pelo quadro (linha) — sem misturar Axila M+F', () => {
+    const s = seedDepil()
+    try {
+      const scoped = servicesForShadowRule(s.services, {
+        serviceId: s.depId,
+        line: 'feminino',
+      })
+      const base = interpretTurn({
+        turnText: 'axila e pernas',
+        messageId: 'm',
+        today: TODAY,
+        services: scoped,
+      })
+      const ids = base.slots.variantIds?.value ?? []
+      expect(ids.length).toBe(2)
+      const zones = scoped[0]!.zones.filter((z) => ids.includes(z.id))
+      expect(zones.every((z) => z.audience === 'feminino')).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('differ variants → rule_only quando léxico coerente (não preferir LLM)', () => {
+    const s = seedDepil()
+    try {
+      const scoped = servicesForShadowRule(s.services, {
+        serviceId: s.depId,
+        line: 'feminino',
+      })
+      const base = interpretTurn({
+        turnText: 'axila e pernas',
+        messageId: 'm',
+        today: TODAY,
+        services: scoped,
+      })
+      const ruleIds = [...(base.slots.variantIds?.value ?? [])].sort()
+      expect(ruleIds.length).toBe(2)
+      const masc = s.services
+        .find((svc) => svc.id === s.depId)!
+        .zones.filter((z) => z.audience === 'masculino')
+        .map((z) => z.id)
+        .sort()
+      const gated = gateShadowSlotsPreferLexiconVariants(
+        base,
+        { service: 'svc_outra', variants: masc },
+        { turnText: 'axila e pernas', services: scoped },
+      )
+      expect(gated.variants).toBeUndefined()
+      expect(gated.service).toBeUndefined()
+      const cmp = compareInterpretations(base, gated)
+      expect(cmp.fields.variants).toBe('rule_only')
+      expect(cmp.fields.service).toBe('rule_only')
+      expect(cmp.differ).toEqual([])
+    } finally {
+      s.close()
+    }
+  })
+
+  it('sombra F1: modelo diverge em variants → sem differ (frame line feminino)', async () => {
+    const s = seedDepil()
+    const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    try {
+      const masc = s.services
+        .find((svc) => svc.id === s.depId)!
+        .zones.filter((z) => z.audience === 'masculino')
+        .map((z) => z.id)
+      const adapter = new FixedExtractAdapter(() => ({
+        acts: ['marcar'],
+        serviceId: s.depId,
+        variantIds: masc,
+      }))
+      const ev = await runInterpreterShadow(
+        { mode: 'synthetic', adapter },
+        {
+          ...task(s.services, s.proId, 'axila e pernas'),
+          frameServiceId: s.depId,
+          frameLine: 'feminino',
+          pending: {
+            slot: 'variantes',
+            messageId: 'ask',
+            options: [],
+          },
+        },
+      )
+      expect(ev.status).toBe('ok')
+      expect(ev.fields?.variants).toBe('rule_only')
+      expect(ev.differ ?? []).not.toContain('variants')
+      expect(ev.differ ?? []).not.toContain('service')
+    } finally {
+      spy.mockRestore()
       s.close()
     }
   })

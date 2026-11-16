@@ -9,6 +9,7 @@ import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
+import { readReviewFlag } from '../inbox/review-flag'
 import { listOpenPendingCommunicationsForConversation } from '../proposals/pending-communication'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
@@ -127,6 +128,7 @@ describe('baseline P3 — pedido de atendente', () => {
       expect(pending.some((p) => p.kind === 'alter_awaiting_team' && p.status !== 'resolved')).toBe(
         true,
       )
+      expect(readReviewFlag(s.db, s.tenantId, s.cnv.id)?.flaggedAt).not.toBeNull()
     } finally {
       s.close()
     }

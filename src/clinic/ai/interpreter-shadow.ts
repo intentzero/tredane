@@ -12,13 +12,17 @@
  */
 import type { ServiceRow } from '../config/types'
 import {
+  lexiconVariantsCoherent,
+  servicesForShadowRule,
+} from './lexicon-variants-gate'
+import {
   callExtractorModel,
   validateExtractorOutput,
   type ExtractorRaw,
 } from './llm-extractor'
 import { interpretTurn, type TurnInterpretation, type TurnSlots } from './nlu/interpret'
 import { norm, parseTemporal, parseTimes } from './nlu/temporal'
-import type { BookingFramePending } from './schedule-session'
+import type { BookingFramePending, ScheduleAudienceLine } from './schedule-session'
 import type { AiAssistDeps } from './types'
 
 /** Teto próprio: a sombra corre depois das respostas e não deve prender o alarme. */
@@ -194,6 +198,34 @@ export function compareInterpretations(base: TurnInterpretation, llm: ShadowSlot
   }
 }
 
+/**
+ * PR-E / F1: se o léxico já tem variantes coerentes e o modelo diverge,
+ * descarta variants/service do LLM na comparação (fica `rule_only` ou `agree`).
+ * Medição continua a ver o raw em `strictDiscarded` / chamada; só o veredicto
+ * de apply deixa de preferir o modelo.
+ */
+export function gateShadowSlotsPreferLexiconVariants(
+  base: TurnInterpretation,
+  llm: ShadowSlots,
+  opts: { turnText: string; services: readonly ServiceRow[] },
+): ShadowSlots {
+  const ruleVariants = base.slots.variantIds?.value
+  if (!lexiconVariantsCoherent(ruleVariants, opts)) return llm
+  const rule = toShadowSlots(base.slots)
+  const next: ShadowSlots = { ...llm }
+  if (
+    next.variants &&
+    rule.variants &&
+    JSON.stringify(next.variants) !== JSON.stringify(rule.variants)
+  ) {
+    delete next.variants
+  }
+  if (next.service && rule.service && next.service !== rule.service) {
+    delete next.service
+  }
+  return next
+}
+
 /** Fotografia do turno tirada **antes** de o motor mexer no quadro. */
 export type InterpreterShadowTask = {
   tenantId: string
@@ -204,6 +236,12 @@ export type InterpreterShadowTask = {
   services: ServiceRow[]
   professionals: Array<{ id: string; name: string }>
   pending: BookingFramePending | null
+  /**
+   * Serviço / linha já no quadro (funil). A sombra filtra o léxico com isto
+   * para não misturar variantes M+F quando a cliente já escolheu a linha (F1).
+   */
+  frameServiceId?: string | null
+  frameLine?: ScheduleAudienceLine | null
   /** Saída do extrator do caminho real, se ele já chamou o modelo neste turno. */
   mainRaw?: ExtractorRaw | null
   mainModelCalled: boolean
@@ -248,11 +286,16 @@ export async function runInterpreterShadow(
   deps: AiAssistDeps,
   task: InterpreterShadowTask,
 ): Promise<InterpreterShadowEvent> {
+  // Léxico alinhado ao funil: serviço/linha do quadro (evita Axila M+F em «axila e pernas»).
+  const ruleServices = servicesForShadowRule(task.services, {
+    serviceId: task.frameServiceId,
+    line: task.frameLine,
+  })
   const base = interpretTurn({
     turnText: task.turnText,
     messageId: task.messageId,
     today: task.today,
-    services: task.services,
+    services: ruleServices,
     pending: task.pending,
     professionals: task.professionals,
   })
@@ -313,7 +356,11 @@ export async function runInterpreterShadow(
       pending: task.pending,
       base,
     })
-    const cmp = compareInterpretations(base, relaxed.slots)
+    const gated = gateShadowSlotsPreferLexiconVariants(base, relaxed.slots, {
+      turnText: task.turnText,
+      services: ruleServices,
+    })
+    const cmp = compareInterpretations(base, gated)
     event.llmActs = (raw.acts ?? []).filter((a): a is string => typeof a === 'string').slice(0, 8)
     event.fields = cmp.fields
     event.diverged = cmp.diverged

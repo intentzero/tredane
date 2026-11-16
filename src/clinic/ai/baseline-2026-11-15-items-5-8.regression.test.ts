@@ -17,6 +17,7 @@ import { insertMessage } from '../inbox/messages'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
+import { readReviewFlag } from '../inbox/review-flag'
 import { tryAiAutoBook } from './autobook'
 import { resolveBookingObject, listBookableOptions } from './booking-object'
 import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
@@ -117,7 +118,6 @@ describe('item 5 — preço e pagamento', () => {
       cnv.id,
       {
         serviceId: drenagem.id,
-        variantIds: [db.get<{ id: string }>(`SELECT id FROM service_zones WHERE service_id = ? LIMIT 1`, drenagem.id)!.id],
         date: '2026-11-17',
         phase: 'ofertado',
         pending: { slot: 'horario', options: [{ key: 'k', label: 'l' }], messageId: offerMsg.id },
@@ -247,6 +247,7 @@ describe('item 5 — preço e pagamento', () => {
     const reply = out.replyText ?? ''
     expect(reply).toMatch(/cart[aã]o|parcelamento|equipe confirma/i)
     expect(reply).not.toMatch(/^Para preenchimento labial, tenho amanh/i)
+    expect(readReviewFlag(db, tenantId, cnv.id)?.flaggedAt).not.toBeNull()
     boot.close()
   })
 })
