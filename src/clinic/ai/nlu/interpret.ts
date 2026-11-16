@@ -9,7 +9,7 @@ import type { BookingFramePending } from '../schedule-session'
 import { citesServiceName } from '../schedule-choice'
 import { classifySensitive } from './sensitive'
 import { extractDates, extractTimes, parseTemporal, norm } from './temporal'
-import { isOpeningDayAsk } from '../opening-day-ask'
+import { isOpeningHoursFaqAsk } from '../opening-hours-reply'
 
 export const COVERAGE_THRESHOLD = 0.55
 
@@ -231,9 +231,9 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     acts.push('informar_preco')
     markTokens(PRICE)
   }
-  if (HOURS.test(text) || isOpeningDayAsk(text)) {
+  if (HOURS.test(text) || isOpeningHoursFaqAsk(text)) {
     acts.push('informar_horario_funcionamento')
-    markTokens(HOURS)
+    markTokens(text)
   }
   if (LOCAL.test(text)) {
     acts.push('informar_local')
@@ -390,8 +390,19 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
       slots.time != null ||
       slots.period != null ||
       coverage < COVERAGE_THRESHOLD)
+  const faqActsOnly =
+    acts.length > 0 &&
+    !acts.includes('marcar') &&
+    acts.every((a) =>
+      a === 'informar_horario_funcionamento' ||
+      a === 'informar_local' ||
+      a === 'informar_preco' ||
+      a === 'explicar',
+    )
   const needsExtractor =
-    (!hasSlots && (coverage < COVERAGE_THRESHOLD || acts.includes('desconhecido'))) ||
+    (!faqActsOnly &&
+      !hasSlots &&
+      (coverage < COVERAGE_THRESHOLD || acts.includes('desconhecido'))) ||
     needsServiceExtract
 
   return { acts, slots, coverage, needsExtractor }
