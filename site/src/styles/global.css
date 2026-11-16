@@ -1,5 +1,6 @@
-/* Landing page do Tredane, direção «Luz» com abertura escura (ver docs/product/landing.md).
-   Paleta da marca (DEC-050): Petróleo, Damasco, Tinta. Neutros e fonte Geist são só do site. */
+/* Estrutura e interações do site Tredane.
+   As cores históricas abaixo são substituídas por coral-menta.css (DEC-044, revisão 16/11/2026).
+   Geist é exclusiva do site; tokens do painel permanecem separados. */
 :root {
   --bg: #FAFAF8;
   --card: #FFFFFF;

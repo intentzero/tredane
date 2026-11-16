@@ -109,6 +109,18 @@ Origem: pedido do responsável pelo produto («dá um upgrade na landing page»,
 - **Em aberto (bloqueia a publicação):** os mesmos itens das seções anteriores; nenhum foi fechado nesta rodada.
 - **Medido em 13/11/2026:** `astro check` sem erros e `astro build` concluído; sem rolagem horizontal em 360px, 390px e 1440px; revisão visual em 1440px e 390px. axe e Lighthouse **não** foram rodados; o contraste dos textos novos foi escolhido para passar 4,5 : 1, mas não foi medido com ferramenta.
 
+## Exploração de paleta «Coral & Menta» — 16/11/2026
+
+**Confirmado:** Paulo pediu uma alternativa mais vibrante e alegre, adequada ao contexto de saúde e beleza, com mock antes da implementação. **Confirmado (Paulo, 16/11/2026, «gosto, implementa»):** [mock navegável](../design/landing/paleta-viva/PaletaViva.dc.html), com alternador Atual/Proposta; [preview desktop](../design/landing/paleta-viva/previews/desktop.png) e [celular](../design/landing/paleta-viva/previews/celular.png). A referência desta comparação é o código local de `site/` em `6b65453f`, não uma auditoria do site publicado.
+
+A paleta aprovada usa coral `#FF745F` nas ações, turquesa `#007F78` nos destaques e no painel de confiança, menta `#E4F8EF`, pêssego `#FFF2E9` e branco quente `#FFFDF9` nas superfícies. Texto principal `#203632`, secundário `#52645F` e turquesa escuro `#00665F` nos rótulos pequenos. A intenção é transmitir acolhimento e energia; a adequação percebida pelo público continua **Proposta**, sem pesquisa de validação.
+
+O mock conserva estrutura, copy, fonte Geist, símbolo da marca e imagens ilustrativas da implementação local. Usa a versão existente da marca para fundo claro; os telefones recebem moldura branca. A barra de comparação não faz parte da landing. O snapshot é autocontido, tem `noindex`, suspende animações para comparar as cores e impede a abertura de canais comerciais. Os marcadores comerciais já existentes permanecem visíveis; não representam condições definidas.
+
+**Confirmado:** implementar esta paleta em `site/`, substituindo a abertura Aurora Petróleo e os fundos de 05/11/2026. Esta revisão da DEC-044 permite cores próprias da landing; os tokens do painel, o escopo do MVP e os gates comerciais/de publicação permanecem os mesmos. As animações e interações existentes continuam no site; a barra Atual/Proposta fica somente no mock. **Em aberto:** publicação. Critérios desta revisão: comparar as duas paletas, manter o conteúdo, verificar contraste de texto e ausência de rolagem horizontal em 360, 390 e 1440 px. Ver instruções e evidência em [README do mock](../design/landing/paleta-viva/README.md).
+
+**Implementado localmente em 16/11/2026:** paleta em `site/src/styles/coral-menta.css`, marca para fundo claro e cor do navegador atualizadas. `astro check` e `build:staging` passaram. Sem overflow ou violações axe em 360/390/1440 px, incluindo verificação das cenas animadas em desktop. [Previews e evidência](../design/landing/paleta-viva/README.md#implementação-aprovada). Publicação, Lighthouse e validação manual completa com leitor de tela continuam **Em aberto**.
+
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.
@@ -128,7 +140,7 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 
 - **LP-AC-01:** em 360px e 390px de largura não há rolagem horizontal; no computador, o conteúdo fica limitado a 1120px.
 - **LP-AC-02:** todos os links e botões têm área de toque de pelo menos 44px e foco visível; a página navega inteira pelo teclado, com link “Ir para o conteúdo”.
-- **LP-AC-03:** cores só do [tokens.json](../design/tokens.json), com os pares de contraste já verificados.
+- **LP-AC-03:** painel mantém [tokens.json](../design/tokens.json); a landing usa a paleta Coral & Menta aprovada em 16/11/2026 (revisão DEC-044), em `site/src/styles/coral-menta.css`, com contraste de texto ≥ 4,5:1. Validar também foco, hover e header fixo após rolar.
 - **LP-AC-04:** a página não carrega recursos de terceiros (fontes, scripts, rastreadores).
 - **LP-AC-05:** nenhum texto `[A DEFINIR]`, `[A PUBLICAR]` ou endereço `.example` existe na versão publicada.
 - **LP-AC-06:** verificador automático de acessibilidade (axe, regras WCAG 2.0 a 2.2 AA e boas práticas) sem violações em 390px e 1440px, e Lighthouse com 100 em acessibilidade, SEO e boas práticas e pelo menos 95 em desempenho (**Confirmado**, 24/10/2026; exigir 100 foi descartado). Medido em 24/10/2026 na v7 com marcadores: axe 0 violações; Lighthouse 100 em acessibilidade, SEO e boas práticas e 99 em desempenho; repetir antes de publicar, e fazer teste manual com leitor de tela (**Em aberto**).

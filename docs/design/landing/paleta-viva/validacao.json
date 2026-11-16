@@ -1,0 +1,96 @@
+[
+  {
+    "width": 1440,
+    "motion": "reduce",
+    "http": 200,
+    "overflow": false,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "sticky": {
+      "stuck": false,
+      "bg": "rgba(255, 253, 249, 0.96)",
+      "nav": "rgb(0, 102, 95)"
+    }
+  },
+  {
+    "width": 1440,
+    "faq": true
+  },
+  {
+    "width": 390,
+    "motion": "reduce",
+    "http": 200,
+    "overflow": false,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "width": 390,
+    "sticky": {
+      "stuck": true,
+      "bg": "rgba(255, 253, 249, 0.96)",
+      "nav": "rgb(0, 102, 95)"
+    }
+  },
+  {
+    "width": 390,
+    "faq": true
+  },
+  {
+    "width": 360,
+    "motion": "reduce",
+    "http": 200,
+    "overflow": false,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "width": 360,
+    "sticky": {
+      "stuck": true,
+      "bg": "rgba(255, 253, 249, 0.96)",
+      "nav": "rgb(0, 102, 95)"
+    }
+  },
+  {
+    "width": 360,
+    "faq": true
+  },
+  {
+    "motion": "active",
+    "section": "#topo",
+    "violations": []
+  },
+  {
+    "motion": "active",
+    "section": "#conversa",
+    "violations": []
+  },
+  {
+    "motion": "active",
+    "section": "#pix",
+    "violations": []
+  },
+  {
+    "motion": "active",
+    "section": "#confianca",
+    "violations": []
+  },
+  {
+    "motion": "active",
+    "section": "#piloto",
+    "violations": []
+  },
+  {
+    "nojs": true,
+    "h1": true,
+    "cards": true
+  },
+  {
+    "legal": true,
+    "violations": []
+  }
+]

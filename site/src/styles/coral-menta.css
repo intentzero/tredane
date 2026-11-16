@@ -1,0 +1,61 @@
+/* Coral & Menta — Confirmado por Paulo em 16/11/2026 (revisão DEC-044).
+   Paleta do site; importada após global.css. Tokens do painel permanecem próprios. */
+:root {
+  --bg: #FFFDF9; --ink: #203632; --ink-2: #52645F;
+  --petrol: #007F78; --petrol-dark: #00665F;
+  --apricot: #FF745F; --apricot-soft: #FFD0BD;
+  --cream: #FFF2E9; --mint: #E4F8EF; --sunken: #EAF7F2; --line: #D6E6DE;
+}
+.topbar, .topbar.is-stuck { background: #FFFDF9F5; border-bottom-color: #D6E6DE; }
+.topbar.is-stuck { box-shadow: 0 12px 30px -18px #286B5E55; }
+.topbar .nav a:hover, .topbar .nav a.is-active { color: #00665F; }
+.topbar .nav a.is-active { box-shadow: inset 0 -2px 0 #007F78; }
+.topbar .nav a,
+.topbar .top-link { color: #203632; }
+.hero {
+  background: linear-gradient(110deg, #FFFDF9 4%, #EDFAF1 55%, #FFDECC 100%);
+  color: #203632;
+}
+.hero .h1 em { color: #007F78; }
+.eyebrow { color: #00665F; }
+.hero .lead,
+.hero-note,
+.hero .fine { color: #52645F; }
+.hero-link { color: #203632; text-decoration-color: #007F78; }
+.chip { background: #D6F4E8; color: #00665F; }
+.chip .dot { background: #007F78; }
+.proof { color: #52645F; border-top-color: #BDDCCF; }
+.hero .aurora i:nth-child(1) { background: #27C6B1; opacity: .23; }
+.hero .aurora i:nth-child(2) { background: #FFAD8D; opacity: .32; }
+.hero .aurora i:nth-child(3) { background: #B5EDC5; opacity: .15; }
+.btn-apricot { background: #FF745F; color: #203632; box-shadow: 0 8px 22px -12px #C14438; }
+.btn-apricot:hover { background: #FF8D77; }
+.hero-phone { background: #FFFFFF; box-shadow: 0 24px 50px -22px #286B5E55; }
+.glow-corner::before { background: #FFD0BD; opacity: .5; }
+.help { border: 1px solid #D6E6DE; box-shadow: none; }
+.help:nth-child(1) { border-top: 4px solid #27C6B1; }
+.help:nth-child(2) { border-top: 4px solid #FF745F; }
+.help:nth-child(3) { border-top: 4px solid #D9C9F3; }
+.oi { background: #D6F4E8; color: #00665F; }
+.oi.warm { background: #FFE1D5; color: #A33B2F; }
+.help:nth-child(3) .oi { background: #EEE5FA; color: #685087; }
+.bg-dots { background-color: #E4F8EF; background-image: radial-gradient(#007F781A 1px, transparent 1.5px); }
+.story-dark { background: #007F78; border-color: #007F78; }
+.story-dark p,
+.story-dark .story-t { color: #FFFFFF; }
+.mini-slot { background: #00665F; color: #FFFFFF; }
+.pix::before { background: #FFD0BD; }
+.panel.aurora-panel { background: #007F78; color: #FFFFFF; }
+.panel.aurora-panel .aurora { display: none; }
+.panel.aurora-panel .eyebrow { color: #FFFFFF; }
+.panel.aurora-panel .lead,
+.panel.aurora-panel .feats p { color: #FFFFFF; }
+.panel.apricot { background: linear-gradient(120deg, #FFB69C, #FF917D); }
+.panel.apricot .orb { background: #FFEBC3; }
+a:focus-visible,
+summary:focus-visible { outline: 3px solid #00665F; outline-offset: 4px; }
+.panel.aurora-panel a:focus-visible { outline-color: #FFFFFF; }
+
+
+/* Contraste do foco também sobre os botões coral e o painel do piloto. */
+.topbar a:focus-visible, .hero a:focus-visible, .panel.apricot a:focus-visible { outline: 3px solid #00665F; outline-offset: 4px; }
