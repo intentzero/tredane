@@ -113,7 +113,7 @@ Mocks **Confirmados** (Paulo, 16/11/2026) em [`docs/design/admin/`](../design/ad
 | PA-07, PA-12 | Qualidade IA e amostra aberta | `GET /api/platform/quality/{metrics,shadow,samples,samples/:id}` — as mesmas funções do Review MCP (DEC-159) | — (implementado em #834) |
 | PA-08 a PA-11 | Abas Membros, Saúde, Suporte e Auditoria do detalhe | ver 6.1 | ver 6.1 |
 
-Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão expirada; PA-04 e PA-06 também «clínica sem resposta».
+Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão expirada; PA-04 e PA-06 também «clínica sem resposta». **Desenhados em PA-13 a PA-19 (#835, Propostos)**: estados transversais, página não encontrada, diálogos de suspender/reativar, excluir, pedir suporte e substituir owner, e a clínica em configuração.
 
 ### 6.1 Abas do detalhe da clínica (PA-04, PA-08 a PA-11)
 

@@ -1,5 +1,10 @@
 # Histórico do design
 
+## 17/11/2026 — Platform Admin: estados e diálogos PA-13 a PA-19 (**Proposto**, #835)
+
+- Seis mocks novos espelham os componentes já implementados: **PA-13** estados transversais, **PA-14** página não encontrada, **PA-15** suspender (e reativar), **PA-16** excluir, **PA-17** pedir suporte, **PA-18** substituir owner; e **PA-19**, a clínica «em configuração» com convite pendente (DEC-194).
+- Nenhum token novo; `check_mocks.py` e `check_contrast.py` passam.
+
 ## 17/11/2026 — Platform Admin: PA-07 revisto e PA-12 novo (DEC-193)
 
 - **PA-07** passa a refletir os dados reais: oito cartões de métricas (falsa confirmação a vermelho se > 0), sombra H1 por campo com Concorda, Diverge, Só LLM e Só regra, e amostras com telefone mascarado que abrem a conversa. Antes mostrava só ids e valores fictícios.

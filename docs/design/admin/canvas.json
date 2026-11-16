@@ -101,6 +101,71 @@
       "h": 900,
       "title": "PA-12 Qualidade IA · Amostra",
       "expand": "fill"
+    },
+    "Estados.dc.html": {
+      "x": 0,
+      "y": 4380,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-13 Estados",
+      "expand": "fill"
+    },
+    "NaoEncontrada.dc.html": {
+      "x": 1520,
+      "y": 4380,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-14 Página não encontrada",
+      "expand": "fill"
+    },
+    "DialogoSuspender.dc.html": {
+      "x": 3040,
+      "y": 4380,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-15 Diálogo · Suspender",
+      "expand": "fill"
+    },
+    "DialogoExcluir.dc.html": {
+      "x": 0,
+      "y": 5400,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-16 Diálogo · Excluir",
+      "expand": "fill"
+    },
+    "DialogoPedirSuporte.dc.html": {
+      "x": 1520,
+      "y": 5400,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-17 Diálogo · Pedir suporte",
+      "expand": "fill"
+    },
+    "DialogoOwner.dc.html": {
+      "x": 3040,
+      "y": 5400,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-18 Diálogo · Substituir owner",
+      "expand": "fill"
+    },
+    "ClinicaEmConfiguracao.dc.html": {
+      "x": 0,
+      "y": 6420,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-19 Clínica em configuração",
+      "expand": "fill"
     }
-  }
+  },
+  "order": [
+    "Estados.dc.html",
+    "NaoEncontrada.dc.html",
+    "DialogoSuspender.dc.html",
+    "DialogoExcluir.dc.html",
+    "DialogoPedirSuporte.dc.html",
+    "DialogoOwner.dc.html",
+    "ClinicaEmConfiguracao.dc.html"
+  ]
 }
