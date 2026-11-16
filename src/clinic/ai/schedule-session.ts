@@ -138,6 +138,7 @@ export type ScheduleSessionPatch = {
   phase?: BookingFramePhase
   proposal?: BookingFrameProposal | null
   professionalPref?: string | null
+  rescheduleAppointmentId?: string | null
   catalogVersion?: string
 }
 

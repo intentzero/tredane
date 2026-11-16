@@ -12,7 +12,7 @@ import { getConversation } from '../inbox/conversations'
 import type { OutboxRow } from '../outbox'
 import { createProposal } from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
-import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import { queryAutomaticAvailability } from '../tempo/automatic'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
@@ -27,6 +27,7 @@ import {
   thinRescheduleSlotOffers,
 } from './appointment-intent'
 import { extractDates, extractTimes } from './autobook'
+import { matchOfferedSlotFromText } from './booking-frame-choice'
 import { slotBindingFromChoice } from './choice-offer'
 import { inPeriodHHMM, type DayPeriod } from './slot-offer'
 import {
@@ -104,6 +105,83 @@ function localHHMM(tz: string, ms: number): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(ms))
+}
+
+const CIVIL_SLOT_KEY = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/
+
+function startsAtFromCivilKey(tz: string, key: string): number | null {
+  const m = key.trim().match(CIVIL_SLOT_KEY)
+  if (!m) return null
+  const [y, mo, d] = m[1]!.split('-').map(Number) as [number, number, number]
+  return zonedCivilToUtc(tz, y, mo, d, Number(m[2]), Number(m[3]))
+}
+
+type RescheduleChosenSlot = { startsAt: number; professionalId: string }
+
+/** Liga a escolha ao instante já ofertado (`lastOffer`) ou à chave civil YYYY-MM-DDTHH:MM. */
+function resolveRescheduleChosenSlot(input: {
+  inboundText: string
+  date: string
+  time: string
+  slots: RescheduleChosenSlot[]
+  frame: ReturnType<typeof getBookingFrame>
+  tz: string
+  today: string
+}): RescheduleChosenSlot | null {
+  const lastOffer =
+    input.frame?.phase === 'remarcando' ? (input.frame.lastOffer?.slots ?? []) : []
+
+  const fromOffer = lastOffer.filter(
+    (s) =>
+      clinicCivilDateFromUtc(input.tz, s.startsAt) === input.date
+      && localHHMM(input.tz, s.startsAt) === input.time,
+  )
+  if (fromOffer.length === 1) {
+    const match = fromOffer[0]!
+    return input.slots.find((s) => s.startsAt === match.startsAt) ?? match
+  }
+
+  const keyMs = startsAtFromCivilKey(input.tz, input.inboundText.trim())
+  if (keyMs != null) {
+    return (
+      input.slots.find((s) => s.startsAt === keyMs)
+      ?? lastOffer.find((s) => s.startsAt === keyMs)
+      ?? null
+    )
+  }
+
+  if (input.frame?.phase === 'remarcando') {
+    const choice = matchOfferedSlotFromText(
+      input.inboundText,
+      input.frame.pending,
+      input.frame.lastOffer,
+      input.tz,
+      input.today,
+    )
+    if (choice.kind === 'match') {
+      const fromKey = startsAtFromCivilKey(input.tz, choice.key)
+      if (fromKey != null) {
+        return (
+          input.slots.find((s) => s.startsAt === fromKey)
+          ?? lastOffer.find((s) => s.startsAt === fromKey)
+          ?? null
+        )
+      }
+      const bound = slotBindingFromChoice(choice.key, choice.label)
+      if (bound?.date === input.date && bound.time === input.time) {
+        const ms = startsAtFromCivilKey(input.tz, `${bound.date}T${bound.time}`)
+        if (ms != null) {
+          return (
+            input.slots.find((s) => s.startsAt === ms)
+            ?? lastOffer.find((s) => s.startsAt === ms)
+            ?? null
+          )
+        }
+      }
+    }
+  }
+
+  return input.slots.find((s) => localHHMM(input.tz, s.startsAt) === input.time) ?? null
 }
 
 /**
@@ -267,13 +345,14 @@ function priorRescheduleOfferFromFrame(
 function rememberRescheduleOffer(
   deferred: DeferredBookingFrame,
   serviceId: string,
+  rescheduleAppointmentId: string,
   date: string,
   slots: Array<{ startsAt: number; professionalId: string }>,
   tz: string,
 ): void {
   if (slots.length === 0) return
-  deferred.save(
-    offerFramePatch({
+  deferred.save({
+    ...offerFramePatch({
       serviceId,
       date,
       phase: 'remarcando',
@@ -284,7 +363,8 @@ function rememberRescheduleOffer(
         date,
       })),
     }),
-  )
+    rescheduleAppointmentId,
+  })
 }
 
 /**
@@ -526,6 +606,7 @@ export async function tryAiReschedule(
     rememberRescheduleOffer(
       deferred,
       apt.serviceId,
+      apt.id,
       date,
       offered.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
       tz,
@@ -544,13 +625,24 @@ export async function tryAiReschedule(
     })
   }
 
-  const slot = slots.find((s) => localHHMM(tz, s.startsAt) === time)
+  const slot = time
+    ? resolveRescheduleChosenSlot({
+        inboundText: input.inboundText,
+        date,
+        time,
+        slots,
+        frame: frameEarly,
+        tz,
+        today,
+      })
+    : undefined
   if (!slot) {
     const altSlots = thinRescheduleSlotOffers(slots, tz, apt, { limit: 3 })
     if (altSlots.length > 0) {
       rememberRescheduleOffer(
         deferred,
         apt.serviceId,
+        apt.id,
         date,
         altSlots.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
         tz,

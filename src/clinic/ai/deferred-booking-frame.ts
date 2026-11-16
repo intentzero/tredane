@@ -50,6 +50,7 @@ function sessionPatchToFramePatch(patch: ScheduleSessionPatch): BookingFramePatc
     phase: patch.phase,
     proposal: patch.proposal,
     professionalPref: patch.professionalPref,
+    rescheduleAppointmentId: patch.rescheduleAppointmentId,
     catalogVersion: patch.catalogVersion,
     source: 'regra',
   }

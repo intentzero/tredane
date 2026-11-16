@@ -24,7 +24,7 @@ import {
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { hubMeusBody } from '../../whatsapp/flow/hub-opening'
+import { hubMeusBody, listUpcomingForHub } from '../../whatsapp/flow/hub-opening'
 import { getBookingFrame } from './schedule-session'
 import { tryAiReschedule } from './reschedule'
 
@@ -231,6 +231,82 @@ describe('P22 staging 16/11/2026', () => {
 
       expect(booked.status === 'booked' && booked.appointment.startsAt).toBe(expectedStartsAt)
 
+      const list = hubMeusBody(s.db, s.tenantId, s.contact.id, s.clock)
+      expect(list).toMatch(new RegExp(`quinta 19/11 às ${pickTime}`, 'i'))
+      const hubRows = listUpcomingForHub(s.db, s.tenantId, s.contact.id, s.clock.nowMs())
+      expect(hubRows.some((a) => a.startsAt === expectedStartsAt)).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('escolha pela chave civil do pending (YYYY-MM-DDTHH:MM) grava o mesmo instante após Confirmar', async () => {
+    const s = seedP22()
+  try {
+      const flushFrame = (out: Awaited<ReturnType<typeof tryAiReschedule>>) => {
+        out?.deferredFrame?.flushNow(s.db, s.tenantId, s.cnv.id, s.clock)
+      }
+      await tryAiReschedule(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        inboundText: 'Quero remarcar a depilação de hoje às 1645',
+        capability: true,
+      }).then(flushFrame)
+      const step2 = await tryAiReschedule(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        inboundText: 'Para quinta tem vaga?',
+        capability: true,
+      })
+      flushFrame(step2)
+      const offeredTimes = [...(step2!.replyText?.matchAll(/\b(\d{2}:\d{2})\b/g) ?? [])].map(
+        (m) => m[1]!,
+      )
+      const pickTime = offeredTimes.find((t) => t === '13:30') ?? offeredTimes[offeredTimes.length - 1]!
+      const key = `2026-11-19T${pickTime}`
+      const pendingKey = getBookingFrame(s.db, s.tenantId, s.cnv.id)?.pending?.options.find(
+        (o) => o.key === key,
+      )?.key
+      expect(pendingKey).toBe(key)
+      const step3 = await tryAiReschedule(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        inboundText: key,
+        capability: true,
+      })
+      flushFrame(step3)
+      expect(step3?.proposalId).toBeTruthy()
+      const [hh, mm] = pickTime.split(':').map(Number) as [number, number]
+      const expectedStartsAt = zonedCivilToUtc(TZ, 2026, 11, 19, hh, mm)
+      const proposal = getProposal(s.db, s.tenantId, step3!.proposalId!)!
+      expect(proposal.startsAt).toBe(expectedStartsAt)
+      s.db.run(
+        `UPDATE appointment_proposals SET state = 'enviada', sent_at = ?, expires_at = ?
+         WHERE tenant_id = ? AND id = ?`,
+        s.clock.nowMs(),
+        s.clock.nowMs() + 30 * 60_000,
+        s.tenantId,
+        proposal.id,
+      )
+      const click = handleProposalButtonClick(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          contactId: s.contact.id,
+          buttonId: proposalButtonId(proposal.id, proposal.version, 'confirm'),
+          providerEventKey: 'p22-confirm-key',
+        },
+        s.clock,
+      )
+      expect('handoff' in click).toBe(true)
+      if (!('handoff' in click)) return
+      const booked = await executeProposalConfirmOp(
+        s.db,
+        s.caller,
+        { handoff: click.handoff, capability: true },
+        s.clock,
+        {},
+      )
+      expect(booked.status).toBe('booked')
+      expect(booked.status === 'booked' && booked.appointment.startsAt).toBe(expectedStartsAt)
       const list = hubMeusBody(s.db, s.tenantId, s.contact.id, s.clock)
       expect(list).toMatch(new RegExp(`quinta 19/11 às ${pickTime}`, 'i'))
     } finally {
