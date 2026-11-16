@@ -19,7 +19,7 @@ import {
 import { BOOKED_DOUBT_FALLBACK } from './render'
 import { upsertContact } from '../contacts'
 import { queueCaller, workerCaller } from '../index'
-import { createConversation } from '../inbox/conversations'
+import { conversationNeedsPerson, createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { clinicInbox } from '../index'
 import { bootClinicDb } from '../test-db'
@@ -38,6 +38,8 @@ import {
   sendProposalResultMessageOp,
   sendProposalToWhatsAppOp,
   sweepPendingCommunicationAlerts,
+  listOpenPendingCommunicationsForConversation,
+  resolveSupersededProposalSendPendings,
   reconcileProposalOutboundSend,
   reconcileProposalResultOutboundSend,
 } from './index'
@@ -745,5 +747,200 @@ describe('M5: webhook list_reply (#415)', () => {
     expect(item.buttonId).toBe('ch1~horario~1%3A2~10%3A00')
     expect(item.buttonTitle).toBe('06/11 10:00')
     expect(item.contextMessageId).toBe('wamid.offer')
+  })
+})
+
+/**
+ * Bug 16/11/2026 (staging): «Precisa de alguém · Aguardando aceitação Meta da
+ * proposta» ficava aberto depois de a cliente confirmar pelo botão. Dados fictícios.
+ */
+describe('proposal_send ultrapassado não fica pendente', () => {
+  function sendOne(s: ReturnType<typeof seed>) {
+    const proposal = createProposal(
+      s.db,
+      s.tenantId,
+      {
+        contactId: s.contact.id,
+        conversationId: s.conversation.id,
+        serviceId: s.svc.id,
+        professionalId: s.pro.id,
+        startsAt: s.startsAt,
+      },
+      s.clock,
+    )
+    const queued = sendProposalToWhatsAppOp(s.db, s.caller, { proposalId: proposal.id }, s.clock)
+    if (queued.status !== 'queued') throw new Error('expected_queued')
+    return { proposal, queued }
+  }
+
+  function openPendingCount(s: ReturnType<typeof seed>) {
+    return (
+      s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM pending_communications
+         WHERE tenant_id = ? AND kind = 'proposal_send' AND status IN ('open', 'alerted')`,
+        s.tenantId,
+      )?.n ?? -1
+    )
+  }
+
+  it('resultado Meta depois do Confirmar não rebenta e resolve o pendente', () => {
+    const s = seed()
+    try {
+      const { proposal, queued } = sendOne(s)
+      expect(openPendingCount(s)).toBe(1)
+      s.clock.advance(30_000)
+      markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'appt_fake_late')
+      // Antes: confirmada→enviada lançava e o pendente nunca era resolvido.
+      expect(() =>
+        simulateMetaAccepted(s.db, s.tenantId, s.clock, queued.outbound.clientRequestId),
+      ).not.toThrow()
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('confirmada')
+      expect(openPendingCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('proposta confirmada sem resultado Meta: some da conversa e o sweep não alerta', () => {
+    const s = seed()
+    try {
+      const { proposal } = sendOne(s)
+      markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'appt_fake_nometa')
+      expect(
+        listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.conversation.id),
+      ).toHaveLength(0)
+      expect(conversationNeedsPerson(s.db, s.tenantId, s.conversation.id)).toBe(false)
+      s.clock.advance(PENDING_COMMUNICATION_ALERT_MS + 1)
+      expect(sweepPendingCommunicationAlerts(s.db, s.tenantId, s.clock)).toHaveLength(0)
+      expect(openPendingCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('pendente já alertado é resolvido quando a proposta avança depois', () => {
+    const s = seed()
+    try {
+      const { proposal } = sendOne(s)
+      s.clock.advance(PENDING_COMMUNICATION_ALERT_MS + 1)
+      expect(sweepPendingCommunicationAlerts(s.db, s.tenantId, s.clock)).toHaveLength(1)
+      markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'appt_fake_after_alert')
+      expect(resolveSupersededProposalSendPendings(s.db, s.tenantId, s.clock)).toBe(1)
+      expect(openPendingCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('cliente escreve depois do envio: resolve; envio falhado continua visível', () => {
+    const s = seed()
+    try {
+      sendOne(s)
+      s.clock.advance(60_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversation.id,
+          direction: 'inbound',
+          body: 'mensagem fictícia',
+          externalMessageId: 'wamid.in_s4_after',
+          deliveryState: 'received',
+          authorClerkUserId: null,
+          authorDisplayName: null,
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      expect(
+        listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.conversation.id),
+      ).toHaveLength(0)
+      expect(resolveSupersededProposalSendPendings(s.db, s.tenantId, s.clock)).toBe(1)
+    } finally {
+      s.close()
+    }
+
+    const f = seed('clinic-demo-s4-fail')
+    try {
+      const { queued } = sendOne(f)
+      clinicInbox.applyOutboundSendResultOp(
+        f.db,
+        queueCaller(f.tenantId),
+        {
+          outboundId: queued.outbound.id,
+          outboxEventId: queued.outbound.outboxEventId ?? 'evt_fail',
+          idempotencyKey: `whatsapp.send:${queued.outbound.clientRequestId}`,
+          outcome: 'failed',
+          errorCode: 'meta_send_rejected',
+        },
+        f.clock,
+      )
+      const failed = clinicInbox.findOutboundByClientRequestId(
+        f.db,
+        f.tenantId,
+        queued.outbound.clientRequestId,
+      )!
+      reconcileProposalOutboundSend(f.db, f.tenantId, failed, 'failed', f.clock)
+      f.clock.advance(60_000)
+      insertMessage(
+        f.db,
+        {
+          tenantId: f.tenantId,
+          conversationId: f.conversation.id,
+          direction: 'inbound',
+          body: 'mensagem fictícia',
+          externalMessageId: 'wamid.in_s4_fail_after',
+          deliveryState: 'received',
+          authorClerkUserId: null,
+          authorDisplayName: null,
+          createdAt: f.clock.nowMs(),
+        },
+        f.clock,
+      )
+      expect(
+        listOpenPendingCommunicationsForConversation(f.db, f.tenantId, f.conversation.id),
+      ).toHaveLength(1)
+    } finally {
+      f.close()
+    }
+  })
+
+  it('conversa encerrada ou outbound aceite pelo Meta: não fica pendente', () => {
+    const s = seed()
+    try {
+      sendOne(s)
+      s.db.run(
+        `UPDATE conversations SET status = 'closed' WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        s.conversation.id,
+      )
+      expect(resolveSupersededProposalSendPendings(s.db, s.tenantId, s.clock)).toBe(1)
+    } finally {
+      s.close()
+    }
+
+    const a = seed('clinic-demo-s4-acc')
+    try {
+      const { queued } = sendOne(a)
+      // Só o resultado Meta, sem reconcile (como quando o reconcile falhava).
+      clinicInbox.applyOutboundSendResultOp(
+        a.db,
+        queueCaller(a.tenantId),
+        {
+          outboundId: queued.outbound.id,
+          outboxEventId: queued.outbound.outboxEventId ?? 'evt_ok',
+          idempotencyKey: `whatsapp.send:${queued.outbound.clientRequestId}`,
+          outcome: 'succeeded',
+          providerMessageId: 'wamid.synth_accepted_only',
+        },
+        a.clock,
+      )
+      expect(
+        listOpenPendingCommunicationsForConversation(a.db, a.tenantId, a.conversation.id),
+      ).toHaveLength(0)
+      expect(resolveSupersededProposalSendPendings(a.db, a.tenantId, a.clock)).toBe(1)
+    } finally {
+      a.close()
+    }
   })
 })

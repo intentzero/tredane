@@ -447,10 +447,11 @@ describe('InboxThread — conversa focada (DEC-161)', () => {
     renderThread(
       mockApi(
         detail({
+          needsPerson: true,
           pendingCommunications: [
             {
               id: 'pc1',
-              kind: 'team_followup',
+              kind: 'alter_awaiting_team',
               status: 'alerted',
               startedAt: NOW - 6 * 60_000,
               alertAfterAt: NOW - 60_000,
@@ -468,5 +469,56 @@ describe('InboxThread — conversa focada (DEC-161)', () => {
     expect(within(card).getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
     expect(screen.queryByText('Comunicação pendente')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Assumir conversa' })).toHaveLength(1)
+  })
+
+  // Bug 16/11/2026: pendente de envio da proposta mostrava «Precisa de alguém»
+  // na conversa, mas a lista e o Acompanhar (NEEDS_PERSON_SQL) não a sinalizavam.
+  it('proposal_send sem needsPerson: «Comunicação pendente», nunca «Precisa de alguém»', async () => {
+    renderThread(
+      mockApi(
+        detail({
+          needsPerson: false,
+          pendingCommunications: [
+            {
+              id: 'pc_prop',
+              kind: 'proposal_send',
+              status: 'alerted',
+              startedAt: NOW - 30 * 60_000,
+              alertAfterAt: NOW - 25 * 60_000,
+              alertedAt: NOW - 25 * 60_000,
+              detailText: 'Aguardando aceitação Meta da proposta',
+              proposalId: 'prop_ficticia',
+            },
+          ],
+        }),
+      ),
+    )
+    const notice = await screen.findByTestId('pending-comm-notice')
+    expect(within(notice).getByText('Comunicação pendente')).toBeTruthy()
+    expect(within(notice).getByText('Aguardando aceitação Meta da proposta')).toBeTruthy()
+    expect(screen.queryByTestId('pending-comm-panel')).toBeNull()
+    expect(screen.queryByText(/Precisa de alguém/)).toBeNull()
+  })
+
+  it('needsPerson do servidor (IA pausada sem responsável) mostra «Precisa de alguém» mesmo sem pendentes', async () => {
+    renderThread(
+      mockApi(
+        detail({
+          needsPerson: true,
+          aiReplyPause: { at: NOW - 4 * 60_000, reason: 'handoff' },
+          pendingCommunications: [],
+        }),
+      ),
+    )
+    const card = await screen.findByTestId('pending-comm-panel')
+    expect(within(card).getByText(/Precisa de alguém · há 4 min/)).toBeTruthy()
+    expect(within(card).getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
+  })
+
+  it('conversa sem needsPerson e sem pendentes não mostra alerta', async () => {
+    renderThread(mockApi(detail({ needsPerson: false, pendingCommunications: [] })))
+    await screen.findAllByRole('button', { name: 'Assumir conversa' })
+    expect(screen.queryByTestId('pending-comm-panel')).toBeNull()
+    expect(screen.queryByText(/Precisa de alguém/)).toBeNull()
   })
 })

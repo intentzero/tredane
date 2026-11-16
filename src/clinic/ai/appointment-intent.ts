@@ -4,9 +4,32 @@
 import { listServices } from '../config/services'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
-import { extractDates } from './autobook'
+import { extractDates, extractTimes } from './autobook'
 import type { UpcomingApt } from './reschedule'
 import { minutesOfHHMM } from './slot-offer'
+
+function localTimeHHMM(tz: string, startsAt: number): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(startsAt))
+}
+
+/** Várias marcações no mesmo dia: hora citada («às 1645», «16h45») desambigua. */
+export function pickUpcomingByCitedClock(
+  candidates: UpcomingApt[],
+  inboundText: string,
+  tz: string,
+): UpcomingApt | null {
+  if (candidates.length <= 1) return candidates[0] ?? null
+  const times = [...extractTimes(inboundText)]
+  const cited = times.length === 1 ? times[0]! : times.length > 1 ? times[times.length - 1]! : null
+  if (!cited) return null
+  const matches = candidates.filter((a) => localTimeHHMM(tz, a.startsAt) === cited)
+  return matches.length === 1 ? matches[0]! : null
+}
 
 const PARA_DEST_DAY =
   /\b(para|pra)\s+(a\s+)?(proxima\s+)?(segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|amanh[aã]|hoje)\b/i
@@ -63,7 +86,11 @@ export function resolveUpcomingByServiceAndDay(
   if (namedDate) {
     const onDay = pool.filter((a) => clinicCivilDateFromUtc(tz, a.startsAt) === namedDate)
     if (onDay.length === 1) return onDay[0]!
+    const byTime = pickUpcomingByCitedClock(onDay, inboundText, tz)
+    if (byTime) return byTime
   }
+  const byTimeAny = pickUpcomingByCitedClock(pool, inboundText, tz)
+  if (byTimeAny) return byTimeAny
   return pool[0] ?? null
 }
 

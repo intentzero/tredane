@@ -418,7 +418,7 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 
 ## 9. Rastreabilidade
 
-**Paleta do app (Confirmado, Paulo, 16/11/2026, «gostei, implementa»):** [mock de comparação](../design/paleta-app/PaletaApp.html) de Conversas TEL-01, com temas claro/escuro e direção Coral & Menta da landing. [Escopo e pendências](../design/paleta-app/README.md). Os [tokens v0.10.0](../design/tokens.json) revêm os valores visuais de DEC-041/050/164, mantendo os papéis semânticos e a seleção claro/escuro de DEC-098. Turquesa identifica seleção e ações frequentes; coral destaca **Agendar** na conversa; âmbar indica atenção; verde, sucesso; lavanda, IA. Não altera os requisitos de TEL-01.
+**Paleta do app (Confirmado, Paulo, 16/11/2026, «gostei, implementa»; normalização em toda a app pedida no mesmo dia):** [mock de comparação](../design/paleta-app/PaletaApp.html) de Conversas TEL-01, com temas claro/escuro e direção Coral & Menta da landing. [Escopo e pendências](../design/paleta-app/README.md). Os [tokens v0.10.0](../design/tokens.json) revêm os valores visuais de DEC-041/050/164, mantendo os papéis semânticos e a seleção claro/escuro de DEC-098. Turquesa identifica seleção, navegação, links e ações gerais; coral destaca a ação principal **iniciar Agendar** em Conversas, Agenda, ficha do cliente e Acompanhar. Confirmações dentro do fluxo usam o botão primário comum; âmbar indica atenção; verde, sucesso; lavanda, IA. Não altera os requisitos de TEL-01.
 
 | Tela | Jornadas | Requisitos | Cenários |
 | --- | --- | --- | --- |

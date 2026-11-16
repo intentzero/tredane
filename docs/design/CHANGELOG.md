@@ -10,6 +10,11 @@
 - **PA-07** passa a refletir os dados reais: oito cartões de métricas (falsa confirmação a vermelho se > 0), sombra H1 por campo com Concorda, Diverge, Só LLM e Só regra, e amostras com telefone mascarado que abrem a conversa. Antes mostrava só ids e valores fictícios.
 - **PA-12** (novo, **Proposto**): diálogo com o texto da conversa de uma amostra de revisão, comentários da cliente e o aviso de leitura auditada (Q-PA-01, DEC-193).
 
+## 16/11/2026 — Normalização do Agendar na app (**Confirmado**)
+
+- Depois de ver a Agenda em staging, Paulo pediu que a paleta fosse normalizada em toda a app. A entrada principal **Agendar** usa o mesmo coral em Conversas, Agenda, ficha do cliente e Acompanhar; ações gerais continuam em turquesa.
+- O balão enviado passa a usar `primary.tint` também no tema escuro, em vez de uma cor fixa anterior. Mocks e previews de Agenda e Contato atualizados.
+
 ## 16/11/2026 — Paleta do painel Coral & Menta (**Confirmado**)
 
 - Paulo aprovou o [mock do app](paleta-app/README.md) com «gostei, implementa». Revisão de DEC-041/050/164 registada em [decisions.md](../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026).

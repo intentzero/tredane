@@ -78,6 +78,8 @@ export {
   openPendingCommunication,
   resolvePendingCommunication,
   resolvePendingByProposalKind,
+  resolveSupersededProposalSendPendings,
+  PROPOSAL_SEND_SUPERSEDED_SQL,
   sweepPendingCommunicationAlerts,
   listOpenPendingCommunicationsForConversation,
   listAlertedPendingCommunications,

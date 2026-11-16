@@ -21,9 +21,11 @@ import {
   upsertMembershipInTx,
   type MembershipRow,
 } from './memberships'
-import { newId } from './ids'
+import { insertInvitationInTx, type InvitationRow } from './invitations'
+import { newId, normalizeEmail } from './ids'
 import type { AdminDb } from './store'
 import { createTenant, getTenant, type TenantRow } from './tenants'
+import { generateOpaqueToken, hashToken } from '../tokens'
 
 export function countActiveOwners(db: AdminDb, tenantId: string): number {
   assertAdminSchemaReady(db)
@@ -46,6 +48,65 @@ function assertCanDropOwner(db: AdminDb, tenantId: string, clerkUserId: string):
       'Não é permitido remover ou despromover o último owner ativo',
     )
   }
+}
+
+/**
+ * DEC-194: cria a clínica **sem owner ativa** e emite, na mesma transação, o convite de owner
+ * (7 dias, DEC-022) em nome do superadmin. Se o convite falhar, a clínica não é criada.
+ * O envio do e-mail é feito depois pelo serviço (uma falha de e-mail não desfaz a clínica;
+ * o convite continua pendente e pode ser reenviado).
+ */
+export async function createTenantWithOwnerInvitation(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    id?: string
+    name: string
+    timezone?: string
+    ownerEmail: string
+    actorClerkUserId: string
+  },
+): Promise<{ tenant: TenantRow; invitation: InvitationRow; rawToken: string }> {
+  assertAdminSchemaReady(db)
+  const name = input.name.trim()
+  if (!name) throw new ConflictError('tenant_name_required', 'Nome do tenant obrigatório')
+  const email = normalizeEmail(input.ownerEmail)
+  if (!email) throw new ConflictError('owner_email_required', 'E-mail da primeira owner obrigatório')
+  const rawToken = generateOpaqueToken()
+  const tokenHash = await hashToken(rawToken)
+
+  return db.immediate(() => {
+    const now = clock.nowMs()
+    const id = input.id ?? newId('tenant')
+    const timezone = input.timezone?.trim() || 'America/Sao_Paulo'
+    if (getTenant(db, id)) throw new ConflictError('tenant_id_conflict', 'Tenant id já existe')
+    db.run(
+      `INSERT INTO tenants (id, name, timezone, status, created_at, updated_at, suspended_at, pending_deletion_at)
+       VALUES (?, ?, ?, 'active', ?, ?, NULL, NULL)`,
+      id,
+      name,
+      timezone,
+      now,
+      now,
+    )
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      tenantId: id,
+      action: 'tenant.create',
+      objectType: 'tenant',
+      objectId: id,
+      outcome: 'success',
+      metadata: { name, firstOwnerEmail: email, via: 'owner_invitation' },
+    })
+    const invitation = insertInvitationInTx(db, clock, {
+      tenantId: id,
+      email,
+      issuedByClerkUserId: input.actorClerkUserId,
+      role: 'owner',
+      tokenHash,
+    })
+    return { tenant: getTenant(db, id)!, invitation, rawToken }
+  })
 }
 
 export function createTenantWithOwner(

@@ -571,4 +571,52 @@ describe('S25 — dia errado no cancelamento', () => {
       s.close()
     }
   })
+
+  it('«Cancelar» após oferta de remarcar avança para o botão (staging 16/11)', () => {
+    const NOW = Date.UTC(2026, 10, 16, 15, 4)
+    const s = seedLab(NOW, '5511900000130')
+    try {
+      const apt = confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-cancel-loop',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: zonedCivilToUtc(TZ, 2026, 11, 20, 16, 45),
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      const start = handleCancelIntentAutodraft(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        s.contact.id,
+        'Quero cancelar o microagulhamento de sexta às 1645',
+        s.clock,
+      )
+      expect(start.handled).toBe(true)
+      if (!start.handled) return
+      start.deferredFrame?.flushNow(s.db, s.tenantId, s.cnv.id, s.clock)
+      const cont = tryCancelAutodraftContinuation(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        'Cancelar',
+        s.clock,
+      )
+      expect(cont.handled).toBe(true)
+      if (!cont.handled) return
+      expect(cont.reason).toBe('cancel_confirm_offer')
+      expect(cont.replyText).toMatch(/Cancelar marcação/)
+      expect(cont.interactive?.buttons?.[0]?.title).toBe('Cancelar marcação')
+      expect(cont.appointmentId).toBe(apt.value.id)
+    } finally {
+      s.close()
+    }
+  })
 })

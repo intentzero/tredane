@@ -470,6 +470,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     messageCount: number
     appointmentCount: number
     attachmentMetaCount: number
+    /** DEC-188: jobs de IA abertos (queued/claimed) e falhados na última hora — só contagens. */
+    llmJobsOpen: number
+    llmJobsFailed1h: number
     eventSeq: number
   }> {
     this.#ensureReady()
@@ -505,6 +508,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         `SELECT COUNT(*) AS n FROM attachments WHERE tenant_id = ?`,
         meta.tenantId,
       )?.n ?? 0
+    const llmJobsOpen =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM llm_jobs
+         WHERE tenant_id = ? AND state IN ('queued', 'claimed')`,
+        meta.tenantId,
+      )?.n ?? 0
+    const llmJobsFailed1h =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM llm_jobs
+         WHERE tenant_id = ? AND state = 'failed' AND updated_at >= ?`,
+        meta.tenantId,
+        this.#clock.nowMs() - 60 * 60 * 1000,
+      )?.n ?? 0
     return {
       tenantId: meta.tenantId,
       schemaVersion: schema?.version ?? null,
@@ -516,6 +532,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       messageCount,
       appointmentCount,
       attachmentMetaCount,
+      llmJobsOpen,
+      llmJobsFailed1h,
       eventSeq: getLastEventSeq(this.#db),
     }
   }
@@ -779,6 +797,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
   }
 
+  /** Best-effort: fecha `proposal_send` cuja proposta/conversa já avançou. */
+  #resolveSupersededProposalSend(tenantId: string, conversationId: string | null | undefined) {
+    if (!conversationId) return
+    try {
+      clinicProposals.resolveSupersededProposalSendPendings(
+        this.#db,
+        tenantId,
+        this.#clock,
+        conversationId,
+      )
+    } catch {
+      /* best-effort */
+    }
+  }
+
   /**
    * Status Meta (#32/#33): dedup inbound_events + reconciliação monotónica de outbound.
    */
@@ -799,6 +832,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       input,
       this.#clock,
     )
+    // sent/delivered/read do envio da proposta fecha o «Aguardando aceitação Meta».
+    this.#resolveSupersededProposalSend(caller.tenantId, result.value.message?.conversationId)
     if (result.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
@@ -854,6 +889,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     } catch {
       /* best-effort */
     }
+    // Proposta que já avançou não fica com «Aguardando aceitação Meta» (16/11/2026).
+    this.#resolveSupersededProposalSend(caller.tenantId, result.value.outbound.conversationId)
     if (result.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)

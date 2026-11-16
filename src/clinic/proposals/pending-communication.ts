@@ -86,17 +86,91 @@ export function getPendingCommunication(
   return row ? mapRow(row) : null
 }
 
+/**
+ * `proposal_send` pendente que já não tem nada a comunicar (bug 16/11/2026):
+ * a proposta avançou (confirmada / substituída / expirada / recusada /
+ * encaminhada), o Meta já aceitou ou entregou o envio, a cliente escreveu
+ * ou tocou num botão depois do envio (excepto se o envio falhou de vez),
+ * ou a conversa foi encerrada. Sem isto o cartão «Aguardando aceitação Meta
+ * da proposta» ficava para sempre quando o resultado Meta chegava depois
+ * do Confirmar (reconcile rebentava em confirmada→enviada e era engolido).
+ *
+ * Alias obrigatório: `p` = pending_communications.
+ */
+export const PROPOSAL_SEND_SUPERSEDED_SQL = `(
+  p.kind = 'proposal_send' AND (
+    EXISTS (
+      SELECT 1 FROM appointment_proposals ap
+      WHERE ap.tenant_id = p.tenant_id AND ap.id = p.proposal_id
+        AND ap.state NOT IN ('preparada', 'envio_pendente', 'envio_incerto', 'enviada')
+    )
+    OR EXISTS (
+      SELECT 1 FROM outbound_messages o
+      WHERE o.tenant_id = p.tenant_id AND o.id = p.outbound_id
+        AND o.delivery_state IN ('accepted', 'delivered', 'read')
+    )
+    OR (
+      EXISTS (
+        SELECT 1 FROM messages m
+        WHERE m.tenant_id = p.tenant_id AND m.conversation_id = p.conversation_id
+          AND m.direction = 'inbound' AND m.created_at > p.started_at
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM outbound_messages o
+        WHERE o.tenant_id = p.tenant_id AND o.id = p.outbound_id
+          AND o.delivery_state = 'failed'
+      )
+    )
+    OR EXISTS (
+      SELECT 1 FROM conversations cv
+      WHERE cv.tenant_id = p.tenant_id AND cv.id = p.conversation_id
+        AND cv.status = 'closed'
+    )
+  )
+)`
+
+/**
+ * Fecha os `proposal_send` ultrapassados (ver `PROPOSAL_SEND_SUPERSEDED_SQL`).
+ * Devolve quantos resolveu. Sem `conversationId` corre no tenant inteiro (sweep).
+ */
+export function resolveSupersededProposalSendPendings(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  conversationId?: string | null,
+): number {
+  assertClinicSchemaReady(db)
+  const params: Array<string | number> = [tenantId]
+  let scope = ''
+  if (conversationId) {
+    scope = 'AND p.conversation_id = ?'
+    params.push(conversationId)
+  }
+  const ids = db
+    .all<{ id: string }>(
+      `SELECT p.id FROM pending_communications p
+       WHERE p.tenant_id = ? ${scope} AND p.status IN ('open', 'alerted')
+         AND ${PROPOSAL_SEND_SUPERSEDED_SQL}`,
+      ...params,
+    )
+    .map((r) => r.id)
+  for (const id of ids) resolvePendingCommunication(db, tenantId, id, clock)
+  return ids.length
+}
+
 export function listOpenPendingCommunicationsForConversation(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
 ): PendingCommunicationRow[] {
   assertClinicSchemaReady(db)
+  // Leitura pura: esconde já os ultrapassados (o sweep resolve-os na base).
   return db
     .all<PendingSql>(
-      `SELECT * FROM pending_communications
-       WHERE tenant_id = ? AND conversation_id = ? AND status IN ('open', 'alerted')
-       ORDER BY started_at ASC, id`,
+      `SELECT p.* FROM pending_communications p
+       WHERE p.tenant_id = ? AND p.conversation_id = ? AND p.status IN ('open', 'alerted')
+         AND NOT ${PROPOSAL_SEND_SUPERSEDED_SQL}
+       ORDER BY p.started_at ASC, p.id`,
       tenantId,
       conversationId,
     )
@@ -234,6 +308,8 @@ export function sweepPendingCommunicationAlerts(
   clock: Clock,
 ): PendingCommunicationRow[] {
   assertClinicSchemaReady(db)
+  // Antes de alertar: proposta que já avançou não gera «Comunicação pendente».
+  resolveSupersededProposalSendPendings(db, tenantId, clock)
   const now = clock.nowMs()
   const due = db.all<PendingSql>(
     `SELECT * FROM pending_communications
@@ -266,9 +342,10 @@ export function listAlertedPendingCommunications(
   assertClinicSchemaReady(db)
   return db
     .all<PendingSql>(
-      `SELECT * FROM pending_communications
-       WHERE tenant_id = ? AND status = 'alerted'
-       ORDER BY alerted_at DESC, id`,
+      `SELECT p.* FROM pending_communications p
+       WHERE p.tenant_id = ? AND p.status = 'alerted'
+         AND NOT ${PROPOSAL_SEND_SUPERSEDED_SQL}
+       ORDER BY p.alerted_at DESC, p.id`,
       tenantId,
     )
     .map(mapRow)
