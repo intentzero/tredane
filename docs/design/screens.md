@@ -102,6 +102,12 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-50 | `HorarioNovaFolga` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 · AC-38 | Folha «Folga ou fechamento»: «Quem fica fora» em multi-seleção, motivo em dropdown (único para todos), período, dia inteiro, aviso de compromissos afetados por pessoa, **Salvar para N pessoas** | M-17, M-51 |
 | M-51 | `HorarioNovaFolgaQuem` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 | Lista de «Quem fica fora» aberta (`aria-multiselectable`): Clínica inteira exclusiva, pessoas com cor e ponto, «N selecionadas», **Concluir** | M-50 |
 
+## Exploração da landing — paleta
+
+| Arquivo | Estado e origem | O que mostra | Critérios |
+| --- | --- | --- | --- |
+| [PaletaViva.dc.html](landing/paleta-viva/PaletaViva.dc.html) · [desktop](landing/paleta-viva/previews/desktop.png) · [celular](landing/paleta-viva/previews/celular.png) | **Confirmado**, Paulo em 16/11/2026, «gosto, implementa»; [especificação](../product/landing.md#exploração-de-paleta-coral--menta--16112026) | Landing completa com coral/turquesa, fundos menta/pêssego e alternador Atual/Proposta; snapshot do código local, sem mudar o painel | Contraste de texto ≥ 4,5:1; sem overflow em 360/390/1440 px; mesma estrutura e conteúdo; paleta aprovada; publicação **Em aberto** |
+
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
 
 Cada tela abaixo aparece com **um** estado. Implemente todos:
