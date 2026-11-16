@@ -7994,20 +7994,6 @@ button.panel-auth-inline-link {
   padding: 0 var(--space-2) var(--space-2);
 }
 
-.acomp-col-empty {
-  margin: var(--space-1) var(--space-1) 0;
-  min-height: 84px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  border: 1.5px dashed var(--color-line-control);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
 .acomp-card {
   display: flex;
   flex-direction: column;
@@ -8095,6 +8081,15 @@ button.panel-auth-inline-link {
   background: var(--color-warning-tint);
   color: var(--color-warning-ink);
   font-weight: var(--font-weight-semibold);
+}
+
+/* DEC-156 no Acompanhar: mesma barra de atenção da lista Conversas. */
+.acomp-card--needs-person {
+  box-shadow: inset 3px 0 0 var(--color-warning-ink);
+}
+
+.panel-card-lg.acomp-card--needs-person {
+  box-shadow: inset 3px 0 0 var(--color-warning-ink);
 }
 
 .acomp-panel,
@@ -13082,6 +13077,16 @@ button.panel-auth-inline-link {
   background: var(--color-ai-tint);
   color: var(--color-ai-ink);
   font-weight: var(--font-weight-medium);
+}
+
+.acomp-chip-needs-person {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* DEC-187: badge com N horários futuros no cartão Agendado. */
