@@ -418,6 +418,8 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 
 ## 9. Rastreabilidade
 
+**Paleta do app (Confirmado, Paulo, 16/11/2026, «gostei, implementa»):** [mock de comparação](../design/paleta-app/PaletaApp.html) de Conversas TEL-01, com temas claro/escuro e direção Coral & Menta da landing. [Escopo e pendências](../design/paleta-app/README.md). Os [tokens v0.10.0](../design/tokens.json) revêm os valores visuais de DEC-041/050/164, mantendo os papéis semânticos e a seleção claro/escuro de DEC-098. Turquesa identifica seleção e ações frequentes; coral destaca **Agendar** na conversa; âmbar indica atenção; verde, sucesso; lavanda, IA. Não altera os requisitos de TEL-01.
+
 | Tela | Jornadas | Requisitos | Cenários |
 | --- | --- | --- | --- |
 | TEL-01 Conversas | JRN-01, JRN-02, JRN-04, JRN-06 | REQ-010, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-022 | AC-04, AC-06, AC-07, AC-16 |

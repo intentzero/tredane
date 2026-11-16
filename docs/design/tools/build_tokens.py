@@ -35,8 +35,8 @@ def dark_block(indent):
     for k, v in t.get('elevationDark', {}).items(): lines.append('%s--elevation-%s: %s;' % (indent, k, v))
     return lines
 
-# Tema escuro (Proposto, DEC-092): data-theme explícito vence; sem ele, segue o sistema.
-out.append('/* Tema escuro (Proposto, DEC-092) */')
+# Tema escuro (Confirmado, DEC-098): data-theme explícito vence; sem ele, segue o sistema.
+out.append('/* Tema escuro (Confirmado, DEC-098) */')
 out.append(':root[data-theme="dark"] {')
 out += dark_block('  ')
 out.append('  color-scheme: dark;')
