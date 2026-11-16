@@ -164,7 +164,7 @@ import {
 } from './slot-offer'
 import {
   isPendingOfferFresh,
-  matchPendingChoice,
+  matchOfferedSlotFromText,
 } from './booking-frame-choice'
 import {
   applyBookingUpdate,
@@ -1687,7 +1687,14 @@ export async function tryAiAutoBook(
     ) {
       // DEC-137: Sim/Corrigir do eco não são escolha de horário (DEC-127).
       // DEC-178: Mais/Pronto tratados acima (zoneAccum).
-      const choice = matchPendingChoice(turnText, frameEarly.pending)
+      const choiceToday = clinicCivilDateFromUtc(tz, confirmation.created_at)
+      const choice = matchOfferedSlotFromText(
+        turnText,
+        frameEarly.pending,
+        frameEarly.lastOffer,
+        tz,
+        choiceToday,
+      )
       if (choice.kind === 'match') {
         if (frameEarly.pending.slot === 'horario') {
           const bound = slotBindingFromChoice(choice.key, choice.label)

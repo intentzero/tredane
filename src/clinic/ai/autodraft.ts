@@ -81,6 +81,12 @@ import {
 } from './human-handoff'
 import { resetMisunderstandingStreak } from './misunderstanding-streak'
 import {
+  bumpMisunderstandingStreak,
+  detectTurnMisunderstanding,
+  lastOutboundBody,
+  maybeEscalateMisunderstanding,
+} from './turn-misunderstanding'
+import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
   markMediaAskTextAsked,
@@ -1890,6 +1896,7 @@ export async function runDueAutoDrafts(
     }
 
     let replyOutbox: OutboxRow[] | undefined
+    let turnMisunderstood = false
     const draftText = suggestion?.suggestedText.trim() ?? ''
     const injectionSuspected =
       Boolean(suggestion?.warningCodes.includes('injection_suspected')) &&
@@ -1929,6 +1936,36 @@ export async function runDueAutoDrafts(
           continue
         }
         let body = draftText
+        if (deterministicReply && body.trim()) {
+          const priorOutbound = lastOutboundBody(db, tenantId, job.conversationId)
+          const misReason = detectTurnMisunderstanding({
+            inboundBody: turnText,
+            outboundBody: body,
+            priorOutboundBody: priorOutbound,
+          })
+          if (misReason) {
+            turnMisunderstood = true
+            const streak = bumpMisunderstandingStreak(
+              db,
+              tenantId,
+              job.conversationId,
+              clock,
+            )
+            if (misReason === 'duplicate_outbound') {
+              body = ''
+            }
+            const esc = maybeEscalateMisunderstanding(
+              db,
+              tenantId,
+              { conversationId: job.conversationId, messageId: job.messageId, streak },
+              clock,
+            )
+            if (esc.escalate) {
+              body = ''
+              replyOutbox = [...(replyOutbox ?? []), ...esc.outbox]
+            }
+          }
+        }
         let interactive = deterministicReply
           ? toSendInteractive(autoBook?.interactive ?? null)
           : (() => {
@@ -1967,25 +2004,27 @@ export async function runDueAutoDrafts(
             )
           }
         }
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          withDeferredFrame(
-            {
-              conversationId: job.conversationId,
-              body,
-              interactive,
-              clientRequestId: `ai-reply:${suggestion.id}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-              aiSuggestionId: suggestion.id,
-            },
-            autoBook?.deferredFrame,
-            clock,
-          ),
-          clock,
-        )
-        replyOutbox = sent.outbox
+        const sent = body.trim()
+          ? sendOutboundMessageOp(
+              db,
+              caller,
+              withDeferredFrame(
+                {
+                  conversationId: job.conversationId,
+                  body,
+                  interactive,
+                  clientRequestId: `ai-reply:${suggestion.id}`,
+                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
+                  aiSuggestionId: suggestion.id,
+                },
+                autoBook?.deferredFrame,
+                clock,
+              ),
+              clock,
+            )
+          : { outbox: [] as OutboxRow[] }
+        replyOutbox = [...(replyOutbox ?? []), ...sent.outbox]
         // TR-487: redator / frase DEC-125 que promete equipe → alerta sem pausa.
         // Determinístico autobook/reschedule já abre o alerta no próprio call-site.
         if (!deterministicReply && textPromisesTeamFollowUp(body)) {
@@ -2031,7 +2070,7 @@ export async function runDueAutoDrafts(
       fallbackSent = fallback.sent || fallback.already
       hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     }
-    if ((proposalDelivered || deterministicReply) && hasOutbound) {
+    if ((proposalDelivered || deterministicReply) && hasOutbound && !turnMisunderstood) {
       resetMisunderstandingStreak(db, tenantId, job.conversationId, clock)
     }
     const textDiscarded =

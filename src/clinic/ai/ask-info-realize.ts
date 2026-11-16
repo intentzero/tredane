@@ -263,6 +263,50 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
+  // Serviço linha única sem variantIds no quadro (ex. drenagem «Sessão» em oferta — S04).
+  if (topic === 'price' && !quoteZones && zones.length === 1) {
+    const quote = quoteSingleVariant(zones[0]!)
+    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const { entry, stack: after } = popInterrupt(stack)
+    const quoteText = renderAct(quote, conversationId)
+    const replyText = resume
+      ? `${quoteText}\n${renderAct(resume, conversationId)}`
+      : quoteText
+    return {
+      quote,
+      resume,
+      replyText,
+      parked,
+      stack: after,
+      resumedObligation: entry ? resumeParkedObligation(entry) : null,
+    }
+  }
+
+  // Preço do serviço sem variantes cadastradas.
+  if (topic === 'price' && zones.length === 0 && service.priceCents != null) {
+    const preço = formatBRL(service.priceCents)
+    const duração = String(service.durationMinutes)
+    const quote: AskInfoPolicyAct = {
+      act: 'informar_preco_variante',
+      vars: { variante: service.name, preço, duração },
+      fallback: `${service.name} custa ${preço} e dura ${duração} min.`,
+    }
+    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const { entry, stack: after } = popInterrupt(stack)
+    const quoteText = renderAct(quote, conversationId)
+    const replyText = resume
+      ? `${quoteText}\n${renderAct(resume, conversationId)}`
+      : quoteText
+    return {
+      quote,
+      resume,
+      replyText,
+      parked,
+      stack: after,
+      resumedObligation: entry ? resumeParkedObligation(entry) : null,
+    }
+  }
+
   // Serviço aberto sem variante (ask-tipo / «Quais zonas?»): tabela + re-pergunta.
   // A re-pergunta vive no mesmo acto `informar_preco_tabela` (resume embutido).
   if (zones.length > 0 && shouldResumeVariantAsk(parked)) {
