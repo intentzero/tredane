@@ -15,10 +15,17 @@ import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
+import { sendOutboundMessageOp } from '../inbox/operations'
 import { renderProposalResultBody } from '../proposals/render'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
+import {
+  buildCancelAppointmentChoiceInteractive,
+  encodeChoiceId,
+  handleChoiceOfferClick,
+  SLOT_LIST_BUTTON_LABEL,
+} from './choice-offer'
 import {
   cancelConfirmButtonId,
   handleCancelConfirmButtonClick,
@@ -26,7 +33,8 @@ import {
   resolveCancelTargetAppointment,
   tryCancelAutodraftContinuation,
 } from './cancel-flow'
-import { getBookingFrame } from './schedule-session'
+import { getBookingFrame, saveBookingFrame } from './schedule-session'
+import { readCatalogVersion } from './turn-context'
 import { tryAiReschedule } from './reschedule'
 
 const TZ = 'America/Sao_Paulo'
@@ -227,7 +235,7 @@ describe('S24 — cancelamento só com botão', () => {
       )
       expect(second.handled).toBe(true)
       if (!second.handled) return
-      expect(second.interactive?.buttons[0]?.title).toBe('Cancelar marcação')
+      expect(second.interactive?.buttons?.[0]?.title).toBe('Cancelar marcação')
 
       const click = handleCancelConfirmButtonClick(
         s.db,
@@ -260,6 +268,272 @@ describe('S24 — cancelamento só com botão', () => {
 })
 
 describe('S25 — dia errado no cancelamento', () => {
+  it('várias marcações e dia sem match → lista interativa com serviço e hora', () => {
+    const NOW = Date.UTC(2026, 10, 16, 15, 0)
+    const s = seedLab(NOW, '5511900000126')
+    try {
+      const wed = zonedCivilToUtc(TZ, 2026, 11, 18, 9, 0)
+      const fri = zonedCivilToUtc(TZ, 2026, 11, 20, 12, 0)
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-s25a',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: wed,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-s25b',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: fri,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      const start = handleCancelIntentAutodraft(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        s.contact.id,
+        'preciso cancelar na quinta',
+        s.clock,
+        { capability: true },
+      )
+      expect(start.handled).toBe(true)
+      if (!start.handled) return
+      expect(start.reason).toBe('cancel_disambiguate')
+      expect(start.interactive?.list?.button).toBe(SLOT_LIST_BUTTON_LABEL)
+      const rows = start.interactive?.list?.sections.flatMap((sec) => sec.rows) ?? []
+      expect(rows).toHaveLength(2)
+      expect(rows.map((r) => r.title)).toContain('Microagulhamento')
+      expect(rows.some((r) => (r.description ?? r.title).match(/18\/11|20\/11/))).toBe(true)
+
+      const sent = sendOutboundMessageOp(
+        s.db,
+        s.caller,
+        {
+          conversationId: s.cnv.id,
+          body: start.replyText,
+          interactive: start.interactive ?? null,
+          clientRequestId: 'test-cancel-list',
+          authorClerkUserId: s.caller.actorId!,
+          authorDisplayName: 'Test',
+          ...(start.deferredFrame?.hasWork
+            ? { afterPersist: start.deferredFrame.toAfterPersist(s.clock) }
+            : {}),
+        },
+        s.clock,
+      )
+      expect(sent.outbox.length).toBeGreaterThan(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('toque na lista escolhe a marcação e só cancela após o botão', async () => {
+    const NOW = Date.UTC(2026, 10, 16, 15, 0)
+    const s = seedLab(NOW, '5511900000127')
+    try {
+      const wed = zonedCivilToUtc(TZ, 2026, 11, 18, 9, 0)
+      const fri = zonedCivilToUtc(TZ, 2026, 11, 20, 12, 0)
+      const aptWed = confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-s25c',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: wed,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      const aptFri = confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-s25d',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: fri,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      const catalogVersion = readCatalogVersion(s.db, s.tenantId)
+      const built = buildCancelAppointmentChoiceInteractive({
+        catalogVersion,
+        appointments: [
+          {
+            id: aptWed.value.id,
+            serviceName: 'Microagulhamento',
+            whenLabel: 'terça 18/11 às 09:00',
+          },
+          {
+            id: aptFri.value.id,
+            serviceName: 'Microagulhamento',
+            whenLabel: 'sexta 20/11 às 12:00',
+          },
+        ],
+      })
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          catalogVersion,
+          pending: {
+            ...built.pending,
+            messageId: insertMessage(
+              s.db,
+              {
+                tenantId: s.tenantId,
+                conversationId: s.cnv.id,
+                direction: 'outbound',
+                body: 'lista',
+                deliveryState: 'delivered',
+                createdAt: s.clock.nowMs(),
+              },
+              s.clock,
+            ).id,
+          },
+        },
+        s.clock,
+      )
+      const pickFri = encodeChoiceId('marcacao', catalogVersion, aptFri.value.id)
+      const click = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: pickFri,
+          capability: true,
+        },
+        s.clock,
+      )
+      expect(click.handled).toBe(true)
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.rescheduleAppointmentId).toBe(aptFri.value.id)
+
+      let row = s.db.get<{ status: string }>(
+        `SELECT status FROM appointments WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        aptFri.value.id,
+      )
+      expect(row?.status).toBe('confirmed')
+
+      const insist = tryCancelAutodraftContinuation(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        'não, só cancelar',
+        s.clock,
+      )
+      expect(insist.handled).toBe(true)
+      if (!insist.handled) return
+      row = s.db.get<{ status: string }>(
+        `SELECT status FROM appointments WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        aptFri.value.id,
+      )
+      expect(row?.status).toBe('confirmed')
+
+      const confirmed = handleCancelConfirmButtonClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          buttonId: cancelConfirmButtonId(aptFri.value.id),
+        },
+        s.clock,
+      )
+      expect(confirmed.handled).toBe(true)
+      row = s.db.get<{ status: string }>(
+        `SELECT status FROM appointments WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        aptFri.value.id,
+      )
+      expect(row?.status).toBe('cancelled')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('capacidade pausada mantém fallback em texto', () => {
+    const NOW = Date.UTC(2026, 10, 16, 15, 0)
+    const s = seedLab(NOW, '5511900000128')
+    try {
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-s25e',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: zonedCivilToUtc(TZ, 2026, 11, 18, 9, 0),
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-s25f',
+          serviceId: s.micro.id,
+          professionalId: s.pro.id,
+          startsAt: zonedCivilToUtc(TZ, 2026, 11, 20, 12, 0),
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: s.zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      const start = handleCancelIntentAutodraft(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        s.contact.id,
+        'cancelar quinta',
+        s.clock,
+        { capability: false },
+      )
+      expect(start.handled).toBe(true)
+      if (!start.handled) return
+      expect(start.interactive).toBeUndefined()
+      expect(start.replyText).toMatch(/18\/11|20\/11/)
+      expect(start.replyText).toMatch(/Microagulhamento/)
+    } finally {
+      s.close()
+    }
+  })
+
   it('aponta sexta quando a cliente disse quinta antes do botão', () => {
     const NOW = Date.UTC(2026, 10, 16, 15, 0)
     const s = seedLab(NOW, '5511900000125')

@@ -7,6 +7,8 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import type { ClinicCaller } from '../envelopes'
 import { ensureClinicSettings } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
+import { sendOutboundMessageOp } from '../inbox/operations'
+import type { SendOutboundInteractiveInput } from '../inbox/types'
 import type { OutboxRow } from '../outbox'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
 import { cancelAppointmentOp } from '../scheduling'
@@ -14,9 +16,15 @@ import { formatBookedWhenAt } from '../scheduling/format-booked-when'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
 import { extractDates } from './autobook'
+import {
+  buildCancelAppointmentChoiceInteractive,
+  toSendInteractive,
+} from './choice-offer'
+import { createDeferredBookingFrame, type DeferredBookingFrame } from './deferred-booking-frame'
 import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { validateClientOutbound } from './outbound-validate'
 import { saveBookingFrame, getBookingFrame } from './schedule-session'
+import { readCatalogVersion } from './turn-context'
 import {
   dayText,
   loadUpcomingAppointments,
@@ -25,6 +33,9 @@ import {
 } from './reschedule'
 
 export const CANCEL_CONFIRM_BUTTON_TITLE = 'Cancelar marcação'
+
+const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
+const AUTODRAFT_ACTOR_NAME = 'IA'
 
 const INSIST_CANCEL_ONLY =
   /\b(s[oó]\s+cancel\w*|s[oó]\s+desist\w*|cancela\s+mesmo|n[aã]o\s+quero\s+remarc\w*|sem\s+remarc\w*|pode\s+cancelar|quero\s+cancelar\s+mesmo)\b/i
@@ -52,11 +63,34 @@ export function parseCancelConfirmButtonId(
   return { appointmentId: m[1]! }
 }
 
+export type CancelDisambiguateVariant = 'same_day' | 'wrong_day' | 'unspecified'
+
 export type CancelTargetResolution =
   | { kind: 'none' }
   | { kind: 'single'; apt: UpcomingApt }
   | { kind: 'day_mismatch'; apt: UpcomingApt; namedDate: string; replyText: string }
-  | { kind: 'disambiguate'; appointments: UpcomingApt[]; replyText: string }
+  | {
+      kind: 'disambiguate'
+      appointments: UpcomingApt[]
+      /** Corpo com lista em prosa — fallback sem interativo. */
+      replyText: string
+      variant: CancelDisambiguateVariant
+      namedDate?: string
+    }
+
+function disambiguateListIntro(variant: CancelDisambiguateVariant, namedDate?: string): string {
+  if (variant === 'wrong_day' && namedDate) {
+    return safePhrase(
+      `Não encontrei marcação na ${dayText(namedDate)}. Qual destas você quer cancelar?`,
+    )
+  }
+  if (variant === 'same_day' && namedDate) {
+    return safePhrase(
+      `Tenho várias marcações na ${dayText(namedDate)}. Qual delas você quer cancelar?`,
+    )
+  }
+  return safePhrase('Qual destas marcações você quer cancelar?')
+}
 
 export function resolveCancelTargetAppointment(
   db: ClinicDb,
@@ -78,16 +112,23 @@ export function resolveCancelTargetAppointment(
   const matchDate = (apt: UpcomingApt, date: string) =>
     clinicCivilDateFromUtc(tz, apt.startsAt) === date
 
+  const listFallback = (appointments: UpcomingApt[]) => {
+    const listed = appointments
+      .map((a) => `${a.serviceName} · ${formatBookedWhenAt(tz, a.startsAt)}`)
+      .join('; ')
+    return listed
+  }
+
   if (namedDate) {
     const onDay = upcoming.filter((a) => matchDate(a, namedDate))
     if (onDay.length === 1) return { kind: 'single', apt: onDay[0]! }
     if (onDay.length > 1) {
-      const listed = onDay
-        .map((a) => `${a.serviceName} · ${formatBookedWhenAt(tz, a.startsAt)}`)
-        .join('; ')
+      const listed = listFallback(onDay)
       return {
         kind: 'disambiguate',
         appointments: onDay,
+        variant: 'same_day',
+        namedDate,
         replyText: safePhrase(
           `Tenho estas marcações na ${dayText(namedDate)}: ${listed}. Qual delas você quer cancelar?`,
         ),
@@ -109,12 +150,12 @@ export function resolveCancelTargetAppointment(
       }
       return { kind: 'single', apt }
     }
-    const listed = upcoming
-      .map((a) => `${a.serviceName} · ${formatBookedWhenAt(tz, a.startsAt)}`)
-      .join('; ')
+    const listed = listFallback(upcoming)
     return {
       kind: 'disambiguate',
       appointments: upcoming,
+      variant: 'wrong_day',
+      namedDate,
       replyText: safePhrase(
         `Não encontrei marcação na ${dayText(namedDate)}. As suas próximas são: ${listed}. Qual delas você quer cancelar?`,
       ),
@@ -122,12 +163,11 @@ export function resolveCancelTargetAppointment(
   }
 
   if (upcoming.length === 1) return { kind: 'single', apt: upcoming[0]! }
-  const listed = upcoming
-    .map((a) => `${a.serviceName} · ${formatBookedWhenAt(tz, a.startsAt)}`)
-    .join('; ')
+  const listed = listFallback(upcoming)
   return {
     kind: 'disambiguate',
     appointments: upcoming,
+    variant: 'unspecified',
     replyText: safePhrase(`Qual destas marcações você quer cancelar? ${listed}`),
   }
 }
@@ -162,7 +202,8 @@ export type CancelAutodraftOutcome =
   | {
       handled: true
       replyText: string
-      interactive?: { buttons: Array<{ id: string; title: string }> }
+      interactive?: SendOutboundInteractiveInput
+      deferredFrame?: DeferredBookingFrame
       appointmentId: string
       reason:
         | 'cancel_offer_reschedule'
@@ -212,6 +253,10 @@ export function tryCancelAutodraftContinuation(
 
 export type CancelIntentOutcome = CancelAutodraftOutcome
 
+export type HandleCancelIntentInput = {
+  capability?: boolean
+}
+
 export function handleCancelIntentAutodraft(
   db: ClinicDb,
   tenantId: string,
@@ -219,7 +264,9 @@ export function handleCancelIntentAutodraft(
   contactId: string,
   inboundText: string,
   clock: Clock,
+  options: HandleCancelIntentInput = {},
 ): CancelIntentOutcome {
+  const capability = options.capability !== false
   const resolution = resolveCancelTargetAppointment(db, tenantId, contactId, inboundText, clock)
   if (resolution.kind === 'none') return { handled: false }
 
@@ -240,9 +287,41 @@ export function handleCancelIntentAutodraft(
   }
 
   if (resolution.kind === 'disambiguate') {
+    const settings = ensureClinicSettings(db, tenantId, clock)
+    const tz = settings.timezone || 'America/Sao_Paulo'
+    const catalogVersion = readCatalogVersion(db, tenantId)
+    const useList = capability && resolution.appointments.length > 1
+    const replyText = useList
+      ? disambiguateListIntro(resolution.variant, resolution.namedDate)
+      : resolution.replyText
+
+    if (useList) {
+      const built = buildCancelAppointmentChoiceInteractive({
+        catalogVersion,
+        appointments: resolution.appointments.map((a) => ({
+          id: a.id,
+          serviceName: a.serviceName,
+          whenLabel: formatBookedWhenAt(tz, a.startsAt),
+        })),
+      })
+      const deferred = createDeferredBookingFrame()
+      deferred.saveFrame({
+        catalogVersion,
+        pending: built.pending,
+      })
+      return {
+        handled: true,
+        replyText,
+        interactive: toSendInteractive(built.interactive) ?? undefined,
+        deferredFrame: deferred,
+        appointmentId: resolution.appointments[0]?.id ?? '',
+        reason: 'cancel_disambiguate',
+      }
+    }
+
     return {
       handled: true,
-      replyText: resolution.replyText,
+      replyText,
       appointmentId: resolution.appointments[0]?.id ?? '',
       reason: 'cancel_disambiguate',
     }
@@ -261,6 +340,62 @@ export function handleCancelIntentAutodraft(
     replyText: phraseCancelOfferReschedule(apt.serviceName),
     appointmentId: apt.id,
     reason: 'cancel_offer_reschedule',
+  }
+}
+
+export type CancelAppointmentListClickInput = {
+  tenantId: string
+  conversationId: string
+  appointmentId: string
+  providerEventKey?: string | null
+}
+
+export type CancelAppointmentListClickResult =
+  | { handled: false }
+  | { handled: true; appointmentId: string; outbox: OutboxRow[] }
+
+/** Toque numa linha da lista de marcações — oferta remarcar (não cancela). */
+export function handleCancelAppointmentChoiceClick(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: CancelAppointmentListClickInput,
+  clock: Clock,
+): CancelAppointmentListClickResult {
+  const conv = getConversation(db, caller.tenantId, input.conversationId)
+  if (!conv) return { handled: false }
+
+  const upcoming = loadUpcomingAppointments(db, caller.tenantId, conv.contactId, clock.nowMs())
+  const apt = upcoming.find((a) => a.id === input.appointmentId)
+  if (!apt) return { handled: false }
+
+  saveBookingFrame(
+    db,
+    caller.tenantId,
+    input.conversationId,
+    {
+      rescheduleAppointmentId: apt.id,
+      serviceId: apt.serviceId,
+      pending: null,
+    },
+    clock,
+  )
+
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId: input.conversationId,
+        body: phraseCancelOfferReschedule(apt.serviceName),
+        clientRequestId: `cancel-pick:${apt.id}:${input.providerEventKey ?? clock.nowMs()}`,
+        authorClerkUserId: AUTODRAFT_ACTOR_ID,
+        authorDisplayName: AUTODRAFT_ACTOR_NAME,
+      },
+      clock,
+    )
+    return { handled: true, appointmentId: apt.id, outbox: sent.outbox }
+  } catch {
+    return { handled: false }
   }
 }
 

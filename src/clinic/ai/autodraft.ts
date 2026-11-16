@@ -1149,6 +1149,7 @@ export async function runDueAutoDrafts(
       })
       continue
     }
+    const cancelCapability = deps.autoBookPaused !== true
     const cancelContinuation = tryCancelAutodraftContinuation(
       db,
       tenantId,
@@ -1163,16 +1164,20 @@ export async function runDueAutoDrafts(
         const sent = sendOutboundMessageOp(
           db,
           caller,
-          {
-            conversationId: job.conversationId,
-            body: cancelContinuation.replyText,
-            ...(cancelContinuation.interactive
-              ? { interactive: cancelContinuation.interactive }
-              : {}),
-            clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelContinuation.reason}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
+          withDeferredFrame(
+            {
+              conversationId: job.conversationId,
+              body: cancelContinuation.replyText,
+              ...(cancelContinuation.interactive
+                ? { interactive: cancelContinuation.interactive }
+                : {}),
+              clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelContinuation.reason}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            cancelContinuation.deferredFrame,
+            clock,
+          ),
           clock,
         )
         replyOutbox = sent.outbox
@@ -1197,6 +1202,7 @@ export async function runDueAutoDrafts(
         conv.contactId,
         turnText,
         clock,
+        { capability: cancelCapability },
       )
       if (cancelStart.handled) {
         await signalTyping()
@@ -1205,14 +1211,18 @@ export async function runDueAutoDrafts(
           const sent = sendOutboundMessageOp(
             db,
             caller,
-            {
-              conversationId: job.conversationId,
-              body: cancelStart.replyText,
-              ...(cancelStart.interactive ? { interactive: cancelStart.interactive } : {}),
-              clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelStart.reason}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            },
+            withDeferredFrame(
+              {
+                conversationId: job.conversationId,
+                body: cancelStart.replyText,
+                ...(cancelStart.interactive ? { interactive: cancelStart.interactive } : {}),
+                clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelStart.reason}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              cancelStart.deferredFrame,
+              clock,
+            ),
             clock,
           )
           replyOutbox = sent.outbox
