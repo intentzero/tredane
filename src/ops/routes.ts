@@ -39,6 +39,11 @@ import {
   RECOVERY_POLICY,
 } from './recovery'
 import { SECRETS_INVENTORY } from './secrets'
+import {
+  fetchConversationMetricsReport,
+  parseMetricsWindowFromQuery,
+} from '../conversation-metrics/query'
+import { fromD1 } from '../db/admin/async-store'
 
 import { clinicDurableObjectName } from '../clinic/demo/do-name'
 type OpsEnv = {
@@ -140,6 +145,26 @@ export function createOpsRoutes(opts: OpsRouteOptions = {}) {
           'Logs técnicos sem PII; retenção/acesso Cloudflare a acordar (REQ-070 / GATE logs)',
       },
     })
+  })
+
+  /** Métricas de qualidade conversacional (founder-approved) — superadmin. */
+  app.get('/api/f6/ops/conversation-metrics', requireSuperadmin(), async (c) => {
+    try {
+      const q = c.req.query()
+      const nowMs = Date.now()
+      const window = parseMetricsWindowFromQuery({
+        tenantId: q.tenantId ?? null,
+        sinceHours: q.sinceHours ? Number(q.sinceHours) : null,
+        sinceMs: q.since ? Number(q.since) : q.from ? Number(q.from) : null,
+        untilMs: q.until ? Number(q.until) : q.to ? Number(q.to) : null,
+        nowMs,
+      })
+      if (!window) return c.json({ error: 'invalid_window' }, 400)
+      const report = await fetchConversationMetricsReport(fromD1(c.env.DB), window, nowMs)
+      return c.json({ metrics: report })
+    } catch (err) {
+      return opsError(c, err)
+    }
   })
 
   /** Inventário de secrets (nomes apenas) — superadmin. */

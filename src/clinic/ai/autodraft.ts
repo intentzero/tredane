@@ -81,6 +81,12 @@ import {
 } from './human-handoff'
 import { resetMisunderstandingStreak } from './misunderstanding-streak'
 import {
+  bumpMisunderstandingStreak,
+  detectTurnMisunderstanding,
+  lastOutboundBody,
+  maybeEscalateMisunderstanding,
+} from './turn-misunderstanding'
+import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
   markMediaAskTextAsked,
@@ -140,6 +146,13 @@ import {
   promiseTeamFollowUp,
   textPromisesTeamFollowUp,
 } from './promise-team-follow-up'
+import { auditOutboundForFalseConfirmation } from '../../conversation-metrics/false-confirmation-audit'
+import {
+  normalizeOutboundForRepeatCheck,
+  outboundLooksLikeMisunderstanding,
+} from '../../conversation-metrics/detect'
+import { getConversationQualityCentralDb } from '../../conversation-metrics/hook'
+import { incrementMisunderstandingTurn } from '../../conversation-metrics/session-counters'
 import { createLlmJob, hasDoneLlmJob, hasOpenLlmJobForConversation } from './llm-jobs'
 import { buildLlmShadowQueueMessage } from './llm-queue-types'
 import { buildExtractSnapshot, buildRedactSnapshot } from './llm-snapshot'
@@ -527,6 +540,27 @@ export async function runDueAutoDrafts(
         openSession?.sessionId ??
         null
       const friction = mergeFriction(outcome.autoBook?.friction)
+      if (sessionId) {
+        const replyText = outcome.autoBook?.replyText?.trim() ?? ''
+        const miss =
+          route === 'fallback' ||
+          friction.some((f) => f.flag === 'nao_encontrei') ||
+          (replyText.length > 0 && outboundLooksLikeMisunderstanding(replyText))
+        if (miss) incrementMisunderstandingTurn(db, sessionId)
+        if (replyText.length > 0) {
+          const folded = normalizeOutboundForRepeatCheck(replyText)
+          const prev = db.get<{ body: string }>(
+            `SELECT body FROM messages
+             WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+             ORDER BY created_at DESC LIMIT 1 OFFSET 1`,
+            tenantId,
+            outcome.conversationId,
+          )
+          if (prev && normalizeOutboundForRepeatCheck(prev.body) === folded) {
+            incrementMisunderstandingTurn(db, sessionId)
+          }
+        }
+      }
       emitTurnDecided(
         db,
         {
@@ -1909,6 +1943,7 @@ export async function runDueAutoDrafts(
     }
 
     let replyOutbox: OutboxRow[] | undefined
+    let turnMisunderstood = false
     const draftText = suggestion?.suggestedText.trim() ?? ''
     const injectionSuspected =
       Boolean(suggestion?.warningCodes.includes('injection_suspected')) &&
@@ -1948,6 +1983,36 @@ export async function runDueAutoDrafts(
           continue
         }
         let body = draftText
+        if (deterministicReply && body.trim()) {
+          const priorOutbound = lastOutboundBody(db, tenantId, job.conversationId)
+          const misReason = detectTurnMisunderstanding({
+            inboundBody: turnText,
+            outboundBody: body,
+            priorOutboundBody: priorOutbound,
+          })
+          if (misReason) {
+            turnMisunderstood = true
+            const streak = bumpMisunderstandingStreak(
+              db,
+              tenantId,
+              job.conversationId,
+              clock,
+            )
+            if (misReason === 'duplicate_outbound') {
+              body = ''
+            }
+            const esc = maybeEscalateMisunderstanding(
+              db,
+              tenantId,
+              { conversationId: job.conversationId, messageId: job.messageId, streak },
+              clock,
+            )
+            if (esc.escalate) {
+              body = ''
+              replyOutbox = [...(replyOutbox ?? []), ...esc.outbox]
+            }
+          }
+        }
         let interactive = deterministicReply
           ? toSendInteractive(autoBook?.interactive ?? null)
           : (() => {
@@ -1986,25 +2051,27 @@ export async function runDueAutoDrafts(
             )
           }
         }
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          withDeferredFrame(
-            {
-              conversationId: job.conversationId,
-              body,
-              interactive,
-              clientRequestId: `ai-reply:${suggestion.id}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-              aiSuggestionId: suggestion.id,
-            },
-            autoBook?.deferredFrame,
-            clock,
-          ),
-          clock,
-        )
-        replyOutbox = sent.outbox
+        const sent = body.trim()
+          ? sendOutboundMessageOp(
+              db,
+              caller,
+              withDeferredFrame(
+                {
+                  conversationId: job.conversationId,
+                  body,
+                  interactive,
+                  clientRequestId: `ai-reply:${suggestion.id}`,
+                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
+                  aiSuggestionId: suggestion.id,
+                },
+                autoBook?.deferredFrame,
+                clock,
+              ),
+              clock,
+            )
+          : { outbox: [] as OutboxRow[] }
+        replyOutbox = [...(replyOutbox ?? []), ...sent.outbox]
         // TR-487: redator / frase DEC-125 que promete equipe → alerta sem pausa.
         // Determinístico autobook/reschedule já abre o alerta no próprio call-site.
         if (!deterministicReply && textPromisesTeamFollowUp(body)) {
@@ -2019,6 +2086,17 @@ export async function runDueAutoDrafts(
             clock,
           )
         }
+        void auditOutboundForFalseConfirmation(
+          db,
+          getConversationQualityCentralDb(),
+          {
+            tenantId,
+            conversationId: job.conversationId,
+            messageId: job.messageId,
+            body,
+          },
+          clock,
+        )
         suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
@@ -2039,7 +2117,7 @@ export async function runDueAutoDrafts(
       fallbackSent = fallback.sent || fallback.already
       hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     }
-    if ((proposalDelivered || deterministicReply) && hasOutbound) {
+    if ((proposalDelivered || deterministicReply) && hasOutbound && !turnMisunderstood) {
       resetMisunderstandingStreak(db, tenantId, job.conversationId, clock)
     }
     const textDiscarded =

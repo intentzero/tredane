@@ -263,8 +263,8 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
-  // Oferta de horário aberta sem variante no quadro (ex. «qnto custa?» após lista).
-  if (topic === 'price' && zones.length === 1) {
+  // Serviço linha única sem variantIds no quadro (ex. drenagem «Sessão» em oferta — S04).
+  if (topic === 'price' && !quoteZones && zones.length === 1) {
     const quote = quoteSingleVariant(zones[0]!)
     const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
     const { entry, stack: after } = popInterrupt(stack)
@@ -282,12 +282,13 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
+  // Preço do serviço sem variantes cadastradas.
   if (topic === 'price' && zones.length === 0 && service.priceCents != null) {
     const preço = formatBRL(service.priceCents)
     const duração = String(service.durationMinutes)
     const quote: AskInfoPolicyAct = {
-      act: 'informar_preco',
-      vars: { preço, duração },
+      act: 'informar_preco_variante',
+      vars: { variante: service.name, preço, duração },
       fallback: `${service.name} custa ${preço} e dura ${duração} min.`,
     }
     const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null

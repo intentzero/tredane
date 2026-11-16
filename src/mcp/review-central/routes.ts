@@ -151,7 +151,7 @@ async function handleMcpMethod(
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
           instructions:
-            'MCP cross-tenant só leitura das amostras de revisão (D1 central). Sem tenantId obrigatório. Auth: OAuth MCP (superadmin) ou Bearer Clerk session de superadmin. TEMPORÁRIO: get_interpreter_shadow_report resume a sombra do interpretador LLM (turnos de texto livre, sem texto); ver docs/implementation/runbooks/sombra-interpretador-relatorio.md.',
+            'MCP cross-tenant só leitura das amostras de revisão (D1 central). Sem tenantId obrigatório. Auth: OAuth MCP (superadmin) ou Bearer Clerk session de superadmin. get_conversation_metrics: métricas founder-approved por clínica/janela (sem texto). TEMPORÁRIO: get_interpreter_shadow_report resume a sombra do interpretador LLM (turnos de texto livre, sem texto); ver docs/implementation/runbooks/sombra-interpretador-relatorio.md.',
         }),
       )
     case 'ping':

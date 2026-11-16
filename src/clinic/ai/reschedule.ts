@@ -20,6 +20,7 @@ import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { extractDates, extractTimes } from './autobook'
 import { slotBindingFromChoice } from './choice-offer'
+import { inPeriodHHMM, type DayPeriod } from './slot-offer'
 import {
   CANCEL_RE,
   RESCHEDULE_RE,
@@ -253,15 +254,6 @@ function rememberRescheduleOffer(
   )
 }
 
-function periodFilter(period: string | null | undefined, hhmm: string): boolean {
-  if (!period) return true
-  const [h] = hhmm.split(':').map(Number) as [number]
-  if (period === 'manha') return h < 12
-  if (period === 'tarde') return h >= 12 && h < 18
-  if (period === 'noite') return h >= 18
-  return true
-}
-
 /**
  * Tenta o fluxo de remarcação. Null = não aplicável (seguir handoff/catálogo).
  */
@@ -357,7 +349,9 @@ export async function tryAiReschedule(
   }
   const times = spokenSlot ? [spokenSlot.time] : [...extractTimes(input.inboundText)]
   const time = times.length === 1 ? times[0] : undefined
-  const period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
+  let period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
+  // Hora explícita («13h») não fica presa ao período sticky («de manhã»).
+  if (time) period = null
 
   if (facts.dayLabel || facts.period) {
     const absolute =
@@ -394,7 +388,19 @@ export async function tryAiReschedule(
     clock,
     input.forecast ?? { read: readOpenMeteo },
   )
-  const slots = avail.slots.filter((s) => periodFilter(period, localHHMM(tz, s.startsAt)))
+  const filterByPeriod = (list: typeof avail.slots, p: typeof period) => {
+    if (!p) return list
+    const dayPeriod = p as DayPeriod
+    return list.filter((s) => inPeriodHHMM(dayPeriod, localHHMM(tz, s.startsAt)))
+  }
+  let slots = filterByPeriod(avail.slots, period)
+  let clearedPeriod = false
+  // Mesma política que offerNearestSlots: período vazio mas dia com vaga → oferece o dia.
+  if (slots.length === 0 && period && avail.slots.length > 0) {
+    slots = avail.slots
+    period = null
+    clearedPeriod = true
+  }
 
   if (!time) {
     if (slots.length === 0) {
@@ -424,6 +430,9 @@ export async function tryAiReschedule(
       offered.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
       tz,
     )
+    if (clearedPeriod) {
+      saveSession({ serviceId: apt.serviceId, period: null, phase: 'remarcando' })
+    }
     const listed = offered.map((s) => localHHMM(tz, s.startsAt))
     return finish({
       handled: true,
@@ -446,6 +455,9 @@ export async function tryAiReschedule(
         altSlots.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
         tz,
       )
+      if (clearedPeriod) {
+        saveSession({ serviceId: apt.serviceId, period: null, phase: 'remarcando' })
+      }
     } else {
       // Sem alternativa no dia: mesma política que dia cheio — limpa date sticky.
       saveSession({

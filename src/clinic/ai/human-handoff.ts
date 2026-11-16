@@ -36,9 +36,14 @@ import {
   wantsHumanPause,
 } from './nlu/sensitive'
 import { MISUNDERSTANDING_ESCALATION_TEXT } from './misunderstanding-streak'
-import { endBookingSession } from './booking-session'
+import { endBookingSession, getOpenBookingSession } from './booking-session'
 import { sayAct } from './dialogue-acts'
 import { formatOpeningHours } from './schedule-context'
+import {
+  recordAttendantMetricsForOpenSession,
+  resolveAttendantRequestSource,
+} from '../../conversation-metrics/attendant-metrics'
+import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -363,6 +368,14 @@ export function replyMisunderstandingEscalation(
       clock,
     ),
   ]
+  const misunderstandingSource = resolveAttendantRequestSource(undefined, input.clientRequestId)
+  if (misunderstandingSource === 'offered_misunderstanding_rule') {
+    recordAttendantMetricsForOpenSession(db, tenantId, input.conversationId, {
+      source: misunderstandingSource,
+      recognized: true,
+      registered: true,
+    })
+  }
   const buttons = humanHelpRequestButtons(db, tenantId, clock)
   try {
     const sent = sendOutboundMessageOp(
@@ -779,6 +792,11 @@ export function notifyHumanHandoff(
     silent?: boolean
     /** Última mensagem da cliente (linha de segurança em queixa de saúde). */
     inboundText?: string | null
+    /**
+     * Integração métricas: `offered_misunderstanding_rule` quando a regra de
+     * 2 incompreensões oferecer atendente (PR paralelo). Default: spontaneous.
+     */
+    attendantSource?: AttendantRequestSource
   },
   clock: Clock,
 ): { already: boolean; sent: boolean; outbox: OutboxRow[] } {
@@ -798,6 +816,27 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
+  const openSession = getOpenBookingSession(db, tenantId, input.conversationId)
+  const attendantSource = resolveAttendantRequestSource(
+    input.attendantSource,
+    input.clientRequestId,
+  )
+  if (input.reason === 'customer_requested' || attendantSource === 'offered_misunderstanding_rule') {
+    recordAttendantMetricsForOpenSession(db, tenantId, input.conversationId, {
+      source: attendantSource,
+      recognized: !input.silent,
+      registered: Boolean(
+        db.get<{ id: string }>(
+          `SELECT id FROM pending_communications
+           WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team'
+             AND status != 'resolved' LIMIT 1`,
+          tenantId,
+          input.conversationId,
+        ),
+      ),
+    })
+  }
+  // DEC-148 / T1: handoff (DEC-083) fecha a sessão de marcação com outcome handoff.
   const frame = getBookingFrame(db, tenantId, input.conversationId)
   // Pedido explícito de equipe: mantém o quadro para retomar o passo (baseline P3).
   const sessionEnd =
@@ -874,6 +913,20 @@ export function notifyHumanHandoff(
       },
       clock,
     )
+    if (
+      openSession &&
+      (input.reason === 'customer_requested' || attendantSource === 'offered_misunderstanding_rule')
+    ) {
+      try {
+        db.run(
+          `UPDATE booking_sessions SET attendant_registered = attendant_registered + 1
+           WHERE session_id = ?`,
+          openSession.sessionId,
+        )
+      } catch {
+        /* migração 0072 ausente em harness legado */
+      }
+    }
   } else {
     db.run(
       `UPDATE pending_communications

@@ -46,6 +46,7 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'confirmar_hora_ambigua',
   'sem_horario_periodo',
   'sem_horario_dia',
+  'sem_horario_visita_longa',
   'sem_horario_semana',
   'sem_vaga_sem_alternativa',
   'informar_preco_variante',
@@ -96,6 +97,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // — Fallbacks sayAct (levas 1–2) —
   /^Para \$\{subject\}, \$\{período\} não tenho horário livre\.$/,
   /^Para \$\{subject\}, \$\{dia\} não tenho horário livre\.$/,
+  /^Na \$\{dia\} não cabem as \$\{zoneCount\} zonas; quer dividir em 2 visitas ou ver \$\{outro\}\?$/,
   /^Para \$\{subject\}, no momento não tenho horário livre\.$/,
   /^Para \$\{subject\}, \$\{quando\}tenho \$\{listed\}\. Qual fica melhor\?$/,
   /^Os horários disponíveis para \$\{dia\} são \$\{listed\}\. Algum serve\?$/,
@@ -267,7 +269,7 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(32)
+    expect(WIRED_ACTS).toHaveLength(33)
     expect(UNWIRED_ACTS).toHaveLength(3)
   })
 

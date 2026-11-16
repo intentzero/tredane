@@ -63,8 +63,9 @@ callback `cursor://` ou agents). Sem `return_to`, o `forceRedirect` do painel ia
 
 1. `lab_status`; 2. `lab_say` com a frase do caso; 3. se a resposta traz opções, `lab_tap` com um id devolvido;
 4. `lab_state` para ver proposta e marcação; 5. repetir com variantes da frase (a escolha entre frases aprovadas varia
-por conversa: usar `waId` diferentes). Um defeito confirmado vira um caso L1 em
-`src/clinic/ai/evals/dialogs/cc-cases.ts` antes da correção.
+por conversa: usar `waId` diferentes). Bateria versionada em [`laboratorio-cenarios.json`](laboratorio-cenarios.json)
+(inclui regressões S12–S14 para dia pedido, hora não inventada e duração total). Um defeito confirmado vira um caso L1
+em `src/clinic/ai/evals/dialogs/cc-cases.ts` antes da correção.
 
 ## Configurar a clínica demo (fase 2)
 

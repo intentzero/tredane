@@ -6,8 +6,8 @@
  * pergunta com handoff; o choice handler mandava de novo com Opções. Com race
  * (alarme antes do cancel) saíam as duas.
  *
- * DEC-178: em `varias` a ask-tipo traz lista Opções (+ texto livre).
- * Estes testes exigem **uma** ask-tipo com Opções, sem handoff duplicado.
+ * DEC-191: em `varias` a ask-tipo é só texto livre (+ eco DEC-137).
+ * Estes testes exigem **uma** ask-tipo só texto, sem Opções nem handoff duplicado.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -137,16 +137,17 @@ function zoneAskRows(rows: ReturnType<typeof outbound>) {
   return rows.filter((m) => /quais zonas/i.test(m.body))
 }
 
-/** Ask-tipo `varias`: texto + Opções (DEC-178), sem handoff. */
+/** Ask-tipo `varias`: só texto (DEC-191), sem Opções nem handoff. */
 function expectSingleTextZoneAsk(asks: ReturnType<typeof zoneAskRows>) {
   expect(asks).toHaveLength(1)
-  expect(asks[0]!.body).toMatch(/Toque em Opções|axila e pernas/i)
-  expect(asks[0]!.interactive_json ?? '').toContain(VARIANT_LIST_BUTTON_LABEL)
+  expect(asks[0]!.body).toMatch(/Escreva uma ou várias|axila e pernas/i)
+  expect(asks[0]!.body).not.toMatch(/Toque em Opções/i)
+  expect(asks[0]!.interactive_json ?? '').not.toContain(VARIANT_LIST_BUTTON_LABEL)
   expect(asks[0]!.interactive_json ?? '').not.toContain(HUMAN_HANDOFF_BUTTON_TITLE)
 }
 
 describe('zona-ask única após escolha de linha', () => {
-  it('texto «Masculina» manda uma ask-tipo com Opções (sem handoff)', async () => {
+  it('texto «Masculina» manda uma ask-tipo só texto (sem Opções nem handoff)', async () => {
     const s = seed()
     try {
       await say(s, 'Quero depilação')
