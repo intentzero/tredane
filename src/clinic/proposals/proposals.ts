@@ -910,7 +910,7 @@ export function markProposalSendPending(
 ): AppointmentProposalRow {
   const current = expireProposalIfNeeded(db, tenantId, proposalId, clock)
   if (!current) throw new NotFoundError('proposal_not_found', 'Proposta não encontrada')
-  if (current.state === 'envio_pendente') return current
+  if (current.state === 'enviada' || current.state === 'envio_pendente') return current
   if (current.state === 'envio_incerto') {
     return transitionRow(db, tenantId, proposalId, 'envio_incerto', 'envio_pendente', clock, {
       expectedVersion: current.version,

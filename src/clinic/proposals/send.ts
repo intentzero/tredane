@@ -240,6 +240,9 @@ export function sendProposalToWhatsAppOp(
     clock,
   )
 
+  // Vigência começa ao enfileirar o envio (P14): Confirmar não depende do webhook Meta.
+  markProposalSent(db, meta.tenantId, proposal.id, clock)
+
   // Enquanto o Meta não confirma, comunicação pode ficar pendente (H7).
   openPendingCommunication(
     db,

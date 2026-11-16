@@ -6,7 +6,36 @@ import { dayTextPt } from './slot-offer'
 
 type Row = {
   starts_at: number
+  ends_at: number
   service_id: string
+}
+
+/** Intervalos confirmados do contato (futuro recente) — excluir ofertas sobrepostas (P13). */
+export function listContactAppointmentRanges(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  clock: Clock,
+): Array<{ startsAt: number; endsAt: number }> {
+  return db
+    .all<Row>(
+      `SELECT starts_at, ends_at, service_id
+       FROM appointments
+       WHERE tenant_id = ? AND contact_id = ? AND status = 'confirmed' AND ends_at >= ?`,
+      tenantId,
+      contactId,
+      clock.nowMs() - 86_400_000,
+    )
+    .map((row) => ({ startsAt: row.starts_at, endsAt: row.ends_at }))
+}
+
+export function slotOverlapsContactBooking(
+  startsAt: number,
+  durationMinutes: number,
+  ranges: readonly { startsAt: number; endsAt: number }[],
+): boolean {
+  const endsAt = startsAt + durationMinutes * 60_000
+  return ranges.some((r) => r.startsAt < endsAt && r.endsAt > startsAt)
 }
 
 function localHHMM(tz: string, ms: number): string {
@@ -31,7 +60,7 @@ export function findContactAppointmentOnDate(
   clock: Clock,
 ): { time: string; serviceLabel: string } | null {
   const rows = db.all<Row>(
-    `SELECT starts_at, service_id
+    `SELECT starts_at, ends_at, service_id
      FROM appointments
      WHERE tenant_id = ? AND contact_id = ? AND status = 'confirmed' AND starts_at >= ?`,
     tenantId,

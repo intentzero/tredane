@@ -13,6 +13,10 @@ import { queryAutomaticAvailability } from '../tempo/automatic'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import type { ClinicDb } from '../store'
+import {
+  listContactAppointmentRanges,
+  slotOverlapsContactBooking,
+} from './contact-appointment-hint'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
@@ -373,6 +377,8 @@ export async function offerNearestSlots(input: {
   _skipEmptyAdvance?: boolean
   /** Lab S02: «depois das Nh» — não oferecer horários anteriores no dia pedido. */
   notBeforeHHMM?: string | null
+  /** P13: não oferecer horário em que o contato já tem outro compromisso. */
+  contactId?: string | null
 }): Promise<OfferNearestSlotsResult> {
   const {
     db,
@@ -391,8 +397,14 @@ export async function offerNearestSlots(input: {
     conversationId = '',
     _skipEmptyAdvance = false,
     notBeforeHHMM = null,
+    contactId = null,
   } = input
   const notBeforeMinute = notBeforeHHMM ? minutesOfHHMM(notBeforeHHMM) : null
+  const visitMinutes = visitDuration(db, tenantId, service, zones)
+  const contactBusy =
+    contactId != null && contactId.length > 0
+      ? listContactAppointmentRanges(db, tenantId, contactId, clock)
+      : []
   const nowMs = clock.nowMs()
   const earliest = earliestBookableStartsAt(
     nowMs,
@@ -429,6 +441,11 @@ export async function offerNearestSlots(input: {
       // DEC-181: do fim para o princípio, com o mesmo espaçamento; sai em ordem crescente.
       const eligible = slots
         .filter((slot) => slot.startsAt >= earliest)
+        .filter(
+          (slot) =>
+            contactBusy.length === 0 ||
+            !slotOverlapsContactBooking(slot.startsAt, visitMinutes, contactBusy),
+        )
         .map((slot) => ({ slot, time: localHHMM(tz, slot.startsAt) }))
         .filter(({ time }) => !period || inPeriodHHMM(period, time))
         .filter(({ time }) => notBeforeMinute == null || minutesOfHHMM(time) >= notBeforeMinute)
@@ -446,6 +463,9 @@ export async function offerNearestSlots(input: {
     }
     for (const slot of slots) {
       if (slot.startsAt < earliest) continue
+      if (contactBusy.length > 0 && slotOverlapsContactBooking(slot.startsAt, visitMinutes, contactBusy)) {
+        continue
+      }
       const time = localHHMM(tz, slot.startsAt)
       if (period && !inPeriodHHMM(period, time)) continue
       if (notBeforeMinute != null && minutesOfHHMM(time) < notBeforeMinute) continue

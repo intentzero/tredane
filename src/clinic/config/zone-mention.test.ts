@@ -167,6 +167,30 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(got.zones).toEqual([])
   })
 
+  it('P11: ordem da cliente no eco («íntima costas e pernas»)', () => {
+    const depil = [
+      zone('in-f', 'Intima', 'feminino'),
+      zone('co-f', 'Costas', 'feminino'),
+      zone('pe-f', 'Pernas', 'feminino'),
+    ]
+    const got = resolveZoneMention('íntima costas e pernas', depil)
+    expect(got.unrecognized).toBe(false)
+    expect(got.zones.map((z) => z.name)).toEqual(['Intima', 'Costas', 'Pernas'])
+  })
+
+  it('P10: «Íntima + Tórax e Abdômen» mantém as duas zonas', () => {
+    const depil = [
+      zone('in-f', 'Íntima', 'feminino', ['intima']),
+      zone('tx-f', 'Tórax e Abdômen', 'feminino'),
+    ]
+    for (const text of ['Íntima + Tórax e Abdômen', 'Íntima e Tórax e Abdômen']) {
+      const got = resolveZoneMention(text, depil, { ignoreWords: ['Depilação'] })
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones.map((z) => z.name), text).toEqual(['Íntima', 'Tórax e Abdômen'])
+    }
+  })
+
   it('zona composta não parte no «e» («tórax e abdômen» / sem acento)', () => {
     const masculine = [
       zone('ax', 'Axila', 'masculino'),
