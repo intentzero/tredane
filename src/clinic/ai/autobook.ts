@@ -1086,8 +1086,18 @@ export async function tryAiAutoBook(
     const replyText =
       picked?.replyText ??
       (names.length >= 2
-        ? sayAct('perguntar_servico', input.conversationId, { lista: names.join(', ') })
-        : sayAct('perguntar_servico', input.conversationId, {}))
+        ? sayAct(
+            'perguntar_servico',
+            input.conversationId,
+            { lista: names.join(', ') },
+            `Qual serviço você quer? Temos ${names.join(', ')}.`,
+          )
+        : sayAct(
+            'perguntar_servico',
+            input.conversationId,
+            {},
+            'Qual serviço você gostaria de agendar?',
+          ))
     return finish({
       ...none('needs_info', { confirmationMessageId: confirmation.id }),
       replyText,

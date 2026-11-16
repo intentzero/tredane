@@ -89,7 +89,7 @@ export function attachServicePickToDeferred(
   pick: ServicePickOffer,
 ): ChoiceInteractive | null {
   if (!pick.interactive || !pick.pending) return null
-  deferred.save({
+  deferred.saveFrame({
     serviceId: null,
     catalogVersion,
     pending: pick.pending,

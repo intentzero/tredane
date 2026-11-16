@@ -19,7 +19,7 @@ function svc(id: string, name: string): ServiceRow {
     variantSelection: 'uma',
     audiencia: 'qualquer',
     synonyms: null,
-  } as ServiceRow
+  } as unknown as ServiceRow
 }
 
 describe('buildServicePickOffer', () => {
