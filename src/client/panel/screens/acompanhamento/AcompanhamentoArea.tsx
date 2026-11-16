@@ -6,6 +6,7 @@ import {
 } from '../../realtime/InboxRealtime'
 import { LoadingState } from '../../states/StatusScreens'
 import type { AcompanhamentoSection } from '../../routes'
+import { NeedsPersonAlerts } from '../inbox/NeedsPersonAlerts'
 import { AcompanhamentoBoard } from './AcompanhamentoBoard'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
 import { AcompanhamentoWideBoard } from './AcompanhamentoWideBoard'
@@ -31,6 +32,7 @@ export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) 
   }
 
   // WS da clínica: cartões ao vivo (mensagem/IA/compromisso) + contact.deleted (AC-52).
+  // Faixa DEC-156 também no Acompanhar — sem ela o handoff só avisava em Conversas.
   return (
     <InboxRealtimeProvider
       tenantId={tenantId}
@@ -38,23 +40,25 @@ export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) 
       generation={generation}
       acceptEvent={isAcompanhamentoEvent}
     >
-      {wide ? (
-        <AcompanhamentoWideBoard
-          tenantId={tenantId}
-          api={api}
-          generation={generation}
-          openId={section === 'detalhe' ? opportunityId : undefined}
-        />
-      ) : section === 'detalhe' && opportunityId ? (
-        <AcompanhamentoDetail
-          tenantId={tenantId}
-          opportunityId={opportunityId}
-          api={api}
-          generation={generation}
-        />
-      ) : (
-        <AcompanhamentoBoard tenantId={tenantId} api={api} generation={generation} />
-      )}
+      <NeedsPersonAlerts tenantId={tenantId} api={api} generation={generation}>
+        {wide ? (
+          <AcompanhamentoWideBoard
+            tenantId={tenantId}
+            api={api}
+            generation={generation}
+            openId={section === 'detalhe' ? opportunityId : undefined}
+          />
+        ) : section === 'detalhe' && opportunityId ? (
+          <AcompanhamentoDetail
+            tenantId={tenantId}
+            opportunityId={opportunityId}
+            api={api}
+            generation={generation}
+          />
+        ) : (
+          <AcompanhamentoBoard tenantId={tenantId} api={api} generation={generation} />
+        )}
+      </NeedsPersonAlerts>
     </InboxRealtimeProvider>
   )
 }

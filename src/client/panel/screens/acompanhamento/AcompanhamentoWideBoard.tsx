@@ -28,12 +28,13 @@ const MAIN_STAGES: OpportunityStage[] = [
   'concluido',
 ]
 
-type Filter = 'all' | 'mine' | 'unassigned' | 'stalled'
+type Filter = 'all' | 'mine' | 'unassigned' | 'needs_person' | 'stalled'
 
 const FILTER_LABEL: Record<Filter, string> = {
   all: 'Todos',
   mine: 'Minhas',
   unassigned: 'Sem responsável',
+  needs_person: 'Precisa de alguém',
   stalled: 'Parados há mais de 2 dias',
 }
 
@@ -190,6 +191,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     }
     if (filter === 'mine') return viewerId != null && card.assigneeClerkUserId === viewerId
     if (filter === 'unassigned') return card.assigneeClerkUserId == null
+    if (filter === 'needs_person') return card.needsPerson === true
     if (filter === 'stalled') {
       return (
         STALL_STAGES.includes(card.stage) &&
@@ -230,6 +232,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     all: all.length,
     mine: viewerId ? all.filter((c) => c.assigneeClerkUserId === viewerId).length : 0,
     unassigned: all.filter((c) => c.assigneeClerkUserId == null).length,
+    needs_person: all.filter((c) => c.needsPerson === true).length,
     stalled: all.filter(
       (c) =>
         STALL_STAGES.includes(c.stage) &&
@@ -255,13 +258,18 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
           {(Object.keys(FILTER_LABEL) as Filter[]).map((f) => (
             <Button
               key={f}
-              className="panel-chip"
+              className={`panel-chip${f === 'needs_person' && counts.needs_person > 0 ? ' panel-chip--warn' : ''}`}
               aria-pressed={filter === f}
               onPress={() => setFilter(f)}
             >
               {FILTER_LABEL[f]}
               <span
-                className={`panel-chip-count${f === 'stalled' && counts.stalled > 0 ? ' panel-chip-count--warn' : ''}`}
+                className={`panel-chip-count${
+                  (f === 'stalled' && counts.stalled > 0) ||
+                  (f === 'needs_person' && counts.needs_person > 0)
+                    ? ' panel-chip-count--warn'
+                    : ''
+                }`}
               >
                 {counts[f]}
               </span>
@@ -332,12 +340,13 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                     STALL_STAGES.includes(card.stage) &&
                     card.lastInteractionAt != null &&
                     now - card.lastInteractionAt > 2 * DAY
+                  const needsPerson = card.needsPerson === true
                   return (
                     <button
                       key={card.boardKey ?? card.id}
                       type="button"
-                      className={`acomp-card${openId === card.id ? ' acomp-card--open' : ''}`}
-                      aria-label={`Abrir ${name}`}
+                      className={`acomp-card${openId === card.id ? ' acomp-card--open' : ''}${needsPerson ? ' acomp-card--needs-person' : ''}`}
+                      aria-label={`Abrir ${name}${needsPerson ? '. Precisa de alguém' : ''}`}
                       aria-expanded={openId === card.id}
                       aria-controls="acomp-panel"
                       data-card-kind={card.cardKind ?? 'cycle'}
@@ -381,7 +390,9 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                         </span>
                       )}
                       <span className="acomp-card-foot">
-                        {isAiActorId(card.assigneeClerkUserId) ? (
+                        {needsPerson ? (
+                          <span className="acomp-chip-needs-person">Precisa de alguém</span>
+                        ) : isAiActorId(card.assigneeClerkUserId) ? (
                           <span className="acomp-chip-ai">IA</span>
                         ) : card.assigneeDisplayName ? (
                           <span>{card.assigneeDisplayName}</span>

@@ -8,7 +8,7 @@ import {
 } from '../constants'
 import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
-import { loadContactSummary } from '../inbox/conversations'
+import { conversationNeedsPerson, loadContactSummary } from '../inbox/conversations'
 import type { ClinicDb, SqlValue } from '../store'
 import {
   boardKeyFor,
@@ -143,6 +143,7 @@ function toListItem(
     now,
   )
   const openAtt = hasOpenAttendance(db, opp.tenantId, opp.conversationId, clock)
+  const needsPerson = conversationNeedsPerson(db, opp.tenantId, opp.conversationId)
   const base: OpportunityListItem = {
     ...opp,
     contact,
@@ -153,6 +154,7 @@ function toListItem(
     boardKey: boardKeyFor({ id: opp.id, cardKind: 'cycle' }),
     futureAppointmentCount,
     hasOpenAttendance: openAtt,
+    needsPerson,
   }
   return base
 }

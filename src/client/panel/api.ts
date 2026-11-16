@@ -2744,6 +2744,8 @@ export type PipelineOpportunity = {
   futureAppointmentCount?: number
   /** Conversação com sessão/proposta/quadro de marcação activo. */
   hasOpenAttendance?: boolean
+  /** DEC-156 — mesmo critério do Conversas; chip no quadro Acompanhar. */
+  needsPerson?: boolean
 }
 
 export type PipelineStageHistory = {

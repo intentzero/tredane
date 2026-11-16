@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
 import { openBookingSessionIfNeeded, endBookingSession } from '../ai/booking-session'
+import { notifyHumanHandoff } from '../ai/human-handoff'
 import {
   setWeeklyWindowsOp,
   upsertResourceOp,
@@ -223,6 +224,64 @@ describe('DEC-187 — cartão gémeo de atendimento + merge Agendado', () => {
       expect(cards[0]?.stage).toBe('agendado')
       expect(cards[0]?.futureAppointmentCount).toBe(2)
       expect(after.items.some((i) => i.boardKey === `${opp.id}:attendance`)).toBe(false)
+    } finally {
+      close()
+    }
+  })
+
+  it('Agendado + Precisa de alguém (handoff) projecta gémeo e marca needsPerson', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { tenantId, caller, pro, room, svc } = seedClinic(db, clock)
+      const contact = upsertContact(
+        db,
+        { tenantId, waId: '5511900002777', displayName: 'Paulo Handoff' },
+        clock,
+      )
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      const opp = ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv.id },
+        clock,
+      ).opportunity
+      confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-handoff-dual-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      expect(
+        listOpportunitiesOp(db, caller, {}, clock).items.find((i) => i.id === opp.id)?.needsPerson,
+      ).toBe(false)
+
+      notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: cnv.id,
+          reason: 'customer_requested',
+          clientRequestId: 'handoff-board-1',
+        },
+        clock,
+      )
+
+      const dual = listOpportunitiesOp(db, caller, {}, clock)
+      const cards = dual.items.filter((i) => i.id === opp.id)
+      expect(cards.map((c) => c.cardKind).sort()).toEqual(['cycle', 'open_attendance'])
+      expect(cards.every((c) => c.needsPerson === true)).toBe(true)
+      expect(cards.find((c) => c.cardKind === 'open_attendance')?.stage).toBe('em_atendimento')
+      expect(cards.find((c) => c.cardKind === 'cycle')?.stage).toBe('agendado')
     } finally {
       close()
     }

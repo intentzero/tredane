@@ -7,12 +7,13 @@
  *
  * Confirmado (Paulo, 16/11/2026): «atendimento aberto» também cobre fio activo
  * após Agendado sem `booking_sessions` — inbound novo depois da confirmação,
- * handoff/Assumir (IA pausada) ou quadro em `remarcando`.
+ * «Precisa de alguém» / handoff (mesmo critério DEC-156) ou quadro em `remarcando`.
  */
 import type { Clock } from '../../db/clock'
 import { getOpenBookingSession } from '../ai/booking-session'
 import { getBookingFrame } from '../ai/schedule-session'
 import type { OpportunityStage } from '../constants'
+import { conversationNeedsPerson } from '../inbox/conversations'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { OpportunityListItem } from './types'
@@ -75,26 +76,10 @@ export function hasInboundAfterLatestBookingConfirm(
   return inbound != null
 }
 
-/** Handoff / Assumir: IA pausada e conversa ainda aberta. */
-export function hasOpenHumanHandoffThread(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-): boolean {
-  const row = db.get<{ paused: number | null; status: string }>(
-    `SELECT ai_reply_paused_at AS paused, status FROM conversations
-     WHERE tenant_id = ? AND id = ?`,
-    tenantId,
-    conversationId,
-  )
-  if (!row || row.paused == null) return false
-  return row.status === 'open' || row.status === 'new'
-}
-
 /**
  * Atendimento/marcação em curso na conversa: sessão de booking aberta,
- * proposta activa, quadro de marcação activo (incl. remarcando), handoff
- * humano, ou inbound novo após a última confirmação (DEC-187, 16/11/2026).
+ * proposta activa, quadro de marcação activo (incl. remarcando),
+ * «Precisa de alguém» (DEC-156), ou inbound novo após a última confirmação.
  */
 export function hasOpenAttendance(
   db: ClinicDb,
@@ -106,7 +91,7 @@ export function hasOpenAttendance(
   if (getActiveProposalForConversation(db, tenantId, conversationId, clock)) return true
   const frame = getBookingFrame(db, tenantId, conversationId)
   if (frame && ACTIVE_FRAME_PHASES.has(frame.phase)) return true
-  if (hasOpenHumanHandoffThread(db, tenantId, conversationId)) return true
+  if (conversationNeedsPerson(db, tenantId, conversationId)) return true
   if (hasInboundAfterLatestBookingConfirm(db, tenantId, conversationId, clock.nowMs())) {
     return true
   }

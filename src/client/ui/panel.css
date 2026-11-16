@@ -8083,6 +8083,15 @@ button.panel-auth-inline-link {
   font-weight: var(--font-weight-semibold);
 }
 
+/* DEC-156 no Acompanhar: mesma barra de atenção da lista Conversas. */
+.acomp-card--needs-person {
+  box-shadow: inset 3px 0 0 var(--color-warning-ink);
+}
+
+.panel-card-lg.acomp-card--needs-person {
+  box-shadow: inset 3px 0 0 var(--color-warning-ink);
+}
+
 .acomp-panel,
 .agenda-panel,
 .clinic-panel {
@@ -13068,6 +13077,16 @@ button.panel-auth-inline-link {
   background: var(--color-ai-tint);
   color: var(--color-ai-ink);
   font-weight: var(--font-weight-medium);
+}
+
+.acomp-chip-needs-person {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* DEC-187: badge com N horários futuros no cartão Agendado. */
