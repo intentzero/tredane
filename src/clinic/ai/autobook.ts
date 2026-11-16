@@ -172,6 +172,7 @@ import {
   shouldEmitOptionMiss,
 } from './dialogue-obligation'
 import { logPolicyShadow } from './policy-shadow'
+import { inboundSignalsFrustration, outboundBodiesDuplicate } from './turn-misunderstanding'
 import {
   occupiedSlotAlternativesReply,
   offerNearestSlots,
@@ -333,6 +334,29 @@ type OfferSlotSearchExtras = (currentDate: string | null | undefined) => {
   date?: string
 }
 
+function slotOfferWouldDuplicatePrior(newBody: string, priorBody: string | null | undefined): boolean {
+  if (!priorBody?.trim()) return false
+  const head = priorBody.split('\n')[0]?.trim() ?? priorBody
+  return outboundBodiesDuplicate(newBody, priorBody) || outboundBodiesDuplicate(newBody, head)
+}
+
+/** Paulo 16/11/2026: não reenviar a mesma lista Horários em sequência. */
+function postProcessSlotOffer(
+  offered: { replyText: string; slots: OfferedSlot[] },
+  serviceName: string,
+  conversationId: string,
+  priorBody: string | null | undefined,
+): { replyText: string; slots: OfferedSlot[]; suppressInteractive: boolean } {
+  if (offered.slots.length === 0 || !slotOfferWouldDuplicatePrior(offered.replyText, priorBody)) {
+    return { replyText: offered.replyText, slots: offered.slots, suppressInteractive: false }
+  }
+  return {
+    replyText: sayAct('perguntar_horario', conversationId, { serviço: serviceName }, '   '),
+    slots: [],
+    suppressInteractive: true,
+  }
+}
+
 async function resumeMidFunnelSlotOffer(input: {
   db: ClinicDb
   tenantId: string
@@ -350,6 +374,7 @@ async function resumeMidFunnelSlotOffer(input: {
   catalogVersion: string
   rememberOffer: typeof rememberOfferFrameImpl
   offerExtras: OfferSlotSearchExtras
+  priorOutboundBody?: string | null
 }): Promise<{ slotText: string; interactive: ChoiceInteractive | null }> {
   const preferred =
     input.frame.professionalPref ??
@@ -378,15 +403,23 @@ async function resumeMidFunnelSlotOffer(input: {
     contactId: input.contactId,
     ...input.offerExtras(input.frame.date ?? null),
   })
-  const interactive = applyOfferSideEffects(
-    input.deferred,
-    input.service.id,
-    input.catalogVersion,
+  const processed = postProcessSlotOffer(
     offered,
-    preferred,
-    input.rememberOffer,
+    input.service.name,
+    input.conversationId,
+    input.priorOutboundBody,
   )
-  return { slotText: offered.replyText, interactive }
+  const interactive = processed.suppressInteractive
+    ? null
+    : applyOfferSideEffects(
+        input.deferred,
+        input.service.id,
+        input.catalogVersion,
+        { ...offered, slots: processed.slots },
+        preferred,
+        input.rememberOffer,
+      )
+  return { slotText: processed.replyText, interactive }
 }
 
 function lineChoiceForImpl(
@@ -1513,17 +1546,25 @@ export async function tryAiAutoBook(
             contactId: conv.contactId,
             ...offerSlotSearchExtras(frameInFunnel.date ?? null),
           })
-          slotInteractive = applyOfferSideEffects(
-            deferred,
-            svcAsk.id,
-            catalog.version,
+          const processedPrice = postProcessSlotOffer(
             offered,
-            preferred,
-            rememberOfferFrame,
+            svcAsk.name,
+            input.conversationId,
+            prevClinic?.body ?? null,
           )
+          slotInteractive = processedPrice.suppressInteractive
+            ? null
+            : applyOfferSideEffects(
+                deferred,
+                svcAsk.id,
+                catalog.version,
+                { ...offered, slots: processedPrice.slots },
+                preferred,
+                rememberOfferFrame,
+              )
           replyText =
-            offered.slots.length > 0
-              ? `${quoteOnly}\n${offered.replyText}`
+            processedPrice.slots.length > 0
+              ? `${quoteOnly}\n${processedPrice.replyText}`
               : quoteOnly
           priceButtons = null
         }
@@ -1592,6 +1633,7 @@ export async function tryAiAutoBook(
             catalogVersion: catalog.version,
             rememberOffer: rememberOfferFrame,
             offerExtras: offerSlotSearchExtras,
+            priorOutboundBody: prevClinic?.body ?? null,
           })
           replyText = `${hoursReply}\n${resumed.slotText}`
           interactiveHours = resumed.interactive
@@ -1676,6 +1718,7 @@ export async function tryAiAutoBook(
             catalogVersion: catalog.version,
             rememberOffer: rememberOfferFrame,
             offerExtras: offerSlotSearchExtras,
+            priorOutboundBody: prevClinic?.body ?? null,
           })
           replyText = `${knowledge.replyText}\n${resumed.slotText}`
           interactiveKn = resumed.interactive
@@ -1787,6 +1830,7 @@ export async function tryAiAutoBook(
             catalogVersion: catalog.version,
             rememberOffer: rememberOfferFrame,
             offerExtras: offerSlotSearchExtras,
+            priorOutboundBody: prevClinic?.body ?? null,
           })
           slotInteractive = resumed.interactive
           replyText = `${paymentBase}\n${resumed.slotText}`
@@ -2086,6 +2130,7 @@ export async function tryAiAutoBook(
               catalogVersion: catalog.version,
               rememberOffer: rememberOfferFrame,
               offerExtras: offerSlotSearchExtras,
+              priorOutboundBody: prevClinic?.body ?? null,
             })
             return finish({
               ...none('needs_info', {
@@ -2111,6 +2156,37 @@ export async function tryAiAutoBook(
             '   ',
           ),
           notes: 'DEC-127: resposta ambígua sem contexto de oferta — último recurso.',
+        })
+      }
+    }
+  }
+
+  if (
+    frameEarly?.pending?.slot === 'horario' &&
+    frameEarly.pending
+  ) {
+    if (
+      inboundSignalsFrustration(turnText) &&
+      !isCatalogInfoAsk(turnText) &&
+      [...extractTimes(turnText)].length === 0 &&
+      !input.boundSlot
+    ) {
+      const choiceToday = clinicCivilDateFromUtc(tz, confirmation.created_at)
+      const stuck = matchOfferedSlotFromText(
+        turnText,
+        frameEarly.pending,
+        frameEarly.lastOffer,
+        tz,
+        choiceToday,
+      )
+      if (stuck.kind === 'none' || stuck.kind === 'ask_which' || stuck.kind === 'ambiguous') {
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: frameEarly.serviceId ?? undefined,
+          }),
+          replyText: sayAct('esclarecer', input.conversationId, {}, '   '),
+          notes: 'pending horario: frustration turn, no slot reoffer.',
         })
       }
     }
@@ -3109,16 +3185,24 @@ export async function tryAiAutoBook(
               },
               proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
             })
-            interactive = applyOfferSideEffects(
-              deferred,
-              det.service.id,
-              catalog.version,
+            const processedDet = postProcessSlotOffer(
               offered,
-              preferred,
-              rememberOfferFrame,
+              det.service.name,
+              input.conversationId,
+              prevClinic?.body ?? null,
             )
+            interactive = processedDet.suppressInteractive
+              ? null
+              : applyOfferSideEffects(
+                  deferred,
+                  det.service.id,
+                  catalog.version,
+                  { ...offered, slots: processedDet.slots },
+                  preferred,
+                  rememberOfferFrame,
+                )
             replyText = slotOfferReplyText(
-              offered,
+              { replyText: processedDet.replyText },
               db,
               tenantId,
               conv.contactId,
@@ -3159,16 +3243,24 @@ export async function tryAiAutoBook(
                 contactId: conv.contactId,
                 ...offerSlotSearchExtras(date ?? null),
               })
-              interactive = applyOfferSideEffects(
-                deferred,
-                det.service.id,
-                catalog.version,
+              const processedFallback = postProcessSlotOffer(
                 offered,
-                preferred,
-                rememberOfferFrame,
+                det.service.name,
+                input.conversationId,
+                prevClinic?.body ?? null,
               )
+              interactive = processedFallback.suppressInteractive
+                ? null
+                : applyOfferSideEffects(
+                    deferred,
+                    det.service.id,
+                    catalog.version,
+                    { ...offered, slots: processedFallback.slots },
+                    preferred,
+                    rememberOfferFrame,
+                  )
               replyText = slotOfferReplyText(
-                offered,
+                { replyText: processedFallback.replyText },
                 db,
                 tenantId,
                 conv.contactId,
@@ -3523,16 +3615,24 @@ export async function tryAiAutoBook(
                 detail: offerPeriod ? 'period' : date ? 'date' : 'soonest',
               },
             })
-            interactive = applyOfferSideEffects(
-              deferred,
-              svc.id,
-              catalog.version,
+            const processedBook = postProcessSlotOffer(
               offered,
-              preferred,
-              rememberOfferFrame,
+              svc.name,
+              input.conversationId,
+              prevClinic?.body ?? null,
             )
+            interactive = processedBook.suppressInteractive
+              ? null
+              : applyOfferSideEffects(
+                  deferred,
+                  svc.id,
+                  catalog.version,
+                  { ...offered, slots: processedBook.slots },
+                  preferred,
+                  rememberOfferFrame,
+                )
             replyText = slotOfferReplyText(
-              offered,
+              { replyText: processedBook.replyText },
               db,
               tenantId,
               conv.contactId,
