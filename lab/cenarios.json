@@ -646,6 +646,61 @@
       }
     },
     {
+      "id": "S15-faq-servico-variantes-no-meio-das-zonas",
+      "waId": "550000000115",
+      "displayName": "PauloFAQ",
+      "note": "rsamp_fa7f138: «Como é a íntima?» com zonas já escolhidas — FAQ, não leftover.",
+      "steps": [
+        {
+          "say": "depilação feminina na próxima terça"
+        },
+        {
+          "say": "axila"
+        },
+        {
+          "say": "Como é a íntima?"
+        }
+      ],
+      "expect": {
+        "faqAnswered": "explicação ou cadastro; sem «Não encontrei como»",
+        "resumesZoneChoice": true,
+        "zonesKept": "axila permanece no quadro"
+      }
+    },
+    {
+      "id": "S16-preco-muda-de-servico",
+      "waId": "550000000116",
+      "displayName": "PauloPreco",
+      "note": "rsamp_fa7f138: quadro em massagem, pergunta preço do bronzeamento.",
+      "steps": [
+        {
+          "say": "quero massagem relaxante amanha"
+        },
+        {
+          "say": "Qual o valor do bronzeamento?"
+        }
+      ],
+      "expect": {
+        "priceBronzeamento": true,
+        "notMassagePrice": true
+      }
+    },
+    {
+      "id": "S17-info-servico-nao-propoe-horario",
+      "waId": "550000000117",
+      "displayName": "PauloInfo",
+      "note": "rsamp_fa7f138: pedido informativo — FAQ sem lista de horários no turno.",
+      "steps": [
+        {
+          "say": "Quero saber como é o bronzeamento"
+        }
+      ],
+      "expect": {
+        "serviceExplanation": true,
+        "noSlotListThisTurn": true
+      }
+    },
+    {
       "id": "S14-duracao-total-nao-cabe-dia",
       "waId": "5500000001122",
       "displayName": "TodasZonas",
@@ -669,6 +724,35 @@
         "noInventedClientTime": "sem hora inventada",
         "splitOrOtherDayCopy": "se terça não cabe tudo: «não cabem as N zonas» + dividir em 2 visitas ou outro dia antes de pular só para sexta",
         "requestedDayOrClearAlternative": "mantém terça na oferta ou explica ausência de bloco contínuo antes de outro dia"
+      }
+    },
+    {
+      "id": "G1-lista-servicos",
+      "waId": "550000000199",
+      "displayName": "Lab G1",
+      "steps": [
+        {
+          "say": "quais servicos voce tem?"
+        }
+      ],
+      "expect": {
+        "serviceListInteractive": true,
+        "noDigaTerminar": true,
+        "note": "Com demo ≥4 serviços: lista Meta, não texto corrido"
+      }
+    },
+    {
+      "id": "G2-ordem-pos-agendar",
+      "waId": "550000000198",
+      "displayName": "Lab G2",
+      "steps": [
+        {
+          "say": "oi queria limpeza de pele amanha"
+        }
+      ],
+      "expect": {
+        "agendadoBeforeFollowUp": true,
+        "note": "Após Confirmar: Agendado antes de Posso ajudar"
       }
     }
   ]

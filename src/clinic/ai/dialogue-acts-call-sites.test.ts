@@ -146,9 +146,9 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\}\?$/,
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
   // Discovery reset hint no option-miss (Paulo 09/11/2026)
-  /^Para recomeçar, diga começar de novo\. Para parar, diga terminar\.$/,
-  // DEC-154 / #660 — meta «como termino?» (determinístico; sem LLM/handoff)
-  /^Para encerrar, diga terminar\. Se o botão Terminar aparecer, pode tocar nele\.$/,
+  /^Para recomeçar, diga começar de novo\.$/,
+  // DEC-154 / regressão P10 — meta «como termino?» (sem «diga terminar»)
+  /^Para encerrar, toque em Terminar quando o botão aparecer aqui embaixo\.$/,
   // DEC-153 — dica one-shot na 1.ª oferta de horários (Paulo opção 3)
   /^Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer\.$/,
   /^falar com a equipe$/,
@@ -185,6 +185,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não consegui enviar a confirmação da remarcação para \$\{dayText\(date\)\} às \$\{time\}\. $/,
   /^Ainda não está remarcado: a equipe vai te responder em seguida\.$/,
   /^Recebi seu pedido de remarcar \$\{serviceName\} para \$\{dayText\(date\)\} às \$\{time\}\. $/,
+  /^Entendi o imprevisto sobre \$\{serviceName\}\. Quer que eu veja outro dia para remarcar\? Se for só cancelar, passo para a equipe confirmar\.$/,
+  /^Entendi\. Quer que eu veja outro dia para remarcar\? Se for só cancelar, passo para a equipe confirmar\.$/,
   // DEC-131: variante sem nome do serviço quando o nome tem termo proibido
   /^Recebi seu pedido de remarcar\. Ainda não está remarcado: a equipe confirma e já te retorna\.$/,
   /^Ainda não está remarcado: a equipe confirma e já te retorna\.$/,

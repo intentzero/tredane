@@ -111,6 +111,18 @@ export function phraseAskDay(): string {
   return reschedulePhrase('Claro, vamos remarcar. Para qual dia você prefere?')
 }
 
+/** Cancelamento com compromisso futuro — oferece remarcar antes da equipe (baseline S11). */
+export function phraseCancelOfferReschedule(serviceName: string): string {
+  const withName = reschedulePhrase(
+    `Entendi o imprevisto sobre ${serviceName}. Quer que eu veja outro dia para remarcar? Se for só cancelar, passo para a equipe confirmar.`,
+  )
+  const check = validateClientOutbound(withName, { source: 'phrase', requireSingleQuestion: false })
+  if (check.ok) return withName
+  return reschedulePhrase(
+    'Entendi. Quer que eu veja outro dia para remarcar? Se for só cancelar, passo para a equipe confirmar.',
+  )
+}
+
 /** (2) Oferece horários no dia. */
 export function phraseOfferSlots(date: string, hours: string): string {
   return reschedulePhrase(`Na ${dayText(date)} tenho ${hours}. Algum serve para remarcar?`)

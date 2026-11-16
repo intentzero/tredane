@@ -260,7 +260,6 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
             /Não encontrei cotovelo nas opções/i,
             // Discovery reset (Paulo 09/11/2026): one-shot hint no option-miss.
             /Para recomeçar, diga começar de novo/i,
-            /Para parar, diga terminar/i,
           ],
           excludes: [/Certo\?/i],
         },

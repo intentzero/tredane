@@ -44,6 +44,8 @@ import {
   renderProposalInteractive,
 } from './index'
 import { POST_BOOKING_BODY } from '../followup/post-booking'
+import { applyOutboundSendResultOp } from '../inbox/operations'
+import { reconcileProposalResultOutboundSend } from './results'
 
 const T0 = Date.UTC(2026, 9, 29, 15, 0)
 
@@ -295,29 +297,55 @@ describe('S5: book sem sinal', () => {
     }
   })
 
-  it('baseline 15/11 item 10: «Agendado» enfileira antes de «Posso ajudar…»', async () => {
+  it('baseline 15/11 item 10: «Agendado» entrega antes de «Posso ajudar…»', async () => {
     const s = await seedBookable('clinic-demo-postbook-order-af34')
     try {
       const proposal = makeSent(s)
       const result = await confirmClick(s, proposal.id, proposal.version)
       expect(result.status).toBe('booked')
       if (result.status !== 'booked') return
-      const bodies = result.outbox
-        .filter((row) => row.type === 'whatsapp.send')
-        .map((row) => {
-          const payload = JSON.parse(row.payloadJson) as { messageId?: string }
-          return s.db.get<{ body: string }>(
-            `SELECT body FROM messages WHERE tenant_id = ? AND id = ?`,
-            s.tenantId,
-            payload.messageId ?? '',
-          )?.body
-        })
-        .filter((b): b is string => Boolean(b))
-      const agIdx = bodies.findIndex((b) => /^Agendado:/.test(b))
-      const fuIdx = bodies.findIndex((b) => b === POST_BOOKING_BODY)
-      expect(agIdx).toBeGreaterThanOrEqual(0)
-      expect(fuIdx).toBeGreaterThanOrEqual(0)
-      expect(agIdx).toBeLessThan(fuIdx)
+      const agSend = result.outbox.find((row) => row.type === 'whatsapp.send')
+      expect(agSend).toBeTruthy()
+      const outbound = clinicInbox.findOutboundByClientRequestId(
+        s.db,
+        s.tenantId,
+        `proposal.result:${proposal.id}:v${proposal.version}:booked`,
+      )
+      expect(outbound).toBeTruthy()
+      const applied = applyOutboundSendResultOp(
+        s.db,
+        s.caller,
+        {
+          outboundId: outbound!.id,
+          outboxEventId: agSend!.id,
+          idempotencyKey: agSend!.idempotencyKey,
+          outcome: 'succeeded',
+          providerMessageId: 'wamid.postbook_order',
+        },
+        s.clock,
+      )
+      const reconciled = reconcileProposalResultOutboundSend(
+        s.db,
+        s.tenantId,
+        applied.value.outbound,
+        'succeeded',
+        s.clock,
+        s.caller,
+      )
+      expect(reconciled.outbox.some((row) => row.type === 'whatsapp.send')).toBe(true)
+      const rows = s.db.all<{ body: string; created_at: number }>(
+        `SELECT body, created_at FROM messages
+         WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+           AND (body LIKE 'Agendado:%' OR body = ?)
+         ORDER BY created_at, id`,
+        s.tenantId,
+        proposal.conversationId,
+        POST_BOOKING_BODY,
+      )
+      expect(rows.length).toBeGreaterThanOrEqual(2)
+      expect(rows[0]!.body).toMatch(/^Agendado:/)
+      expect(rows[1]!.body).toBe(POST_BOOKING_BODY)
+      expect(rows[0]!.created_at).toBeLessThanOrEqual(rows[1]!.created_at)
     } finally {
       s.close()
     }

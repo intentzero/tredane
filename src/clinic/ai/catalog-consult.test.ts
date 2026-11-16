@@ -225,14 +225,14 @@ describe('consulta de catálogo (DEC-142)', () => {
       if (click.handled) expect(click.outcome).toBe('applied')
       const last = lastOutbound(s)
       expect(last.body).toBe(namesFor(s, 'feminino'))
-      expect(last.body).toBe('Temos:\nDepilação\nLimpeza de pele profunda\nQual você quer?')
+      expect(last.body).toBe('Qual você quer?')
       expect(last.body).not.toMatch(/depilação/)
       expect(last.body).not.toContain('Massagem relaxante')
-      expect(last.interactive_json).toBeNull()
+      expect(last.interactive_json ?? '').toContain('Depilação')
       const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
       expect(frame?.line).toBe('feminino')
       expect(frame?.serviceId).toBeNull()
-      expect(frame?.pending).toBeNull()
+      expect(frame?.pending?.slot).toBe('servico')
       expect(s.appointmentCount()).toBe(0)
       expect(calls).toBe(0)
     } finally {
@@ -254,10 +254,10 @@ describe('consulta de catálogo (DEC-142)', () => {
       )
       sendConsult(s, 'quais serviços você tem?')
       const last = lastOutbound(s)
-      expect(last.body).toBe('Temos:\nDepilação\nLimpeza de pele profunda\nQual você quer?')
+      expect(last.body).toBe('Qual você quer?')
       expect(last.body).not.toContain(CATALOG_AUDIENCE_LIST_BODY)
       expect(last.body).not.toContain('Continuo no feminino')
-      expect(last.interactive_json).toBeNull()
+      expect(last.interactive_json ?? '').toContain('Depilação')
       expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.line).toBe('feminino')
     } finally {
       s.close()
@@ -308,15 +308,13 @@ describe('consulta de catálogo (DEC-142)', () => {
       markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
       sendConsult(s, 'quero outro serviço')
       const last = lastOutbound(s)
-      expect(last.body).toBe(
-        `${CATALOG_STAY_FEMININO}\nTemos:\nDepilação\nLimpeza de pele profunda\nQual você quer?`,
-      )
-      expect(last.interactive_json).toBeNull()
+      expect(last.body).toBe(`${CATALOG_STAY_FEMININO}\nQual você quer?`)
+      expect(last.interactive_json ?? '').toContain('Limpeza')
       const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
       expect(frame?.line).toBe('feminino')
       expect(frame?.serviceId).toBeNull()
       expect(frame?.variantIds).toBeNull()
-      expect(frame?.pending).toBeNull()
+      expect(frame?.pending?.slot).toBe('servico')
       expect(frame?.lastOffer).toBeNull()
       expect(frame?.proposal).toBeNull()
       expect(frame?.date).toBeNull()
@@ -342,9 +340,7 @@ describe('consulta de catálogo (DEC-142)', () => {
         s.clock,
       )
       sendConsult(s, 'lista os serviços')
-      expect(lastOutbound(s).body).toBe(
-        `${CATALOG_STAY_MASCULINO}\nTemos:\nLimpeza de pele profunda\nMassagem relaxante\nQual você quer?`,
-      )
+      expect(lastOutbound(s).body).toBe(`${CATALOG_STAY_MASCULINO}\nQual você quer?`)
       expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.line).toBe('masculino')
     } finally {
       s.close()
@@ -365,7 +361,7 @@ describe('consulta de catálogo (DEC-142)', () => {
       )
       sendConsult(s, 'serviços masculinos')
       const body = lastOutbound(s).body
-      expect(body).toBe('Temos:\nLimpeza de pele profunda\nMassagem relaxante\nQual você quer?')
+      expect(body).toBe('Qual você quer?')
       expect(body).not.toContain('Continuo no feminino')
       expect(body).not.toContain('Depilação')
       expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.line).toBe('masculino')
@@ -408,7 +404,7 @@ describe('consulta de catálogo (DEC-142)', () => {
         catalogVersion: 'cat-test',
         hasActiveProposal: false,
       })
-      expect(action?.body).toBe('Temos:\nDepilação\nLimpeza de pele profunda\nQual você quer?')
+      expect(action?.body).toBe('Qual você quer?')
       expect(action?.framePatch.line).toBe('feminino')
     } finally {
       s.close()

@@ -9,18 +9,17 @@
  * no mesmo módulo — ver `botTaughtExitCommands` + teste de paridade.
  */
 import type { ClinicDb } from '../store'
-import { DIALOGUE_ACTS, sayAct } from './dialogue-acts'
+import { sayAct } from './dialogue-acts'
 import type { BookingFrame } from './schedule-session'
 
-/** Fallback Confirmado (Paulo, 08/11/2026, DEC-152 / DEC-104) — acto `orientar_terminar`. */
+/** Retirado da copy à cliente (regressão P10, 15/11/2026). Mantido para testes de paridade histórica. */
 export const END_HELP_HINT_TEXT = 'Se quiser parar, diga terminar.'
 
 /**
  * Hint one-shot em option-miss mid-funnel (Paulo 09/11/2026, pacote reset).
  * Paridade: «começar de novo» = CF-28; «terminar» = Class A DEC-152.
  */
-export const RESET_DISCOVERY_HINT_TEXT =
-  'Para recomeçar, diga começar de novo. Para parar, diga terminar.'
+export const RESET_DISCOVERY_HINT_TEXT = 'Para recomeçar, diga começar de novo.'
 
 /**
  * Meta-pergunta «como termino?» (smoke Paulo 10/11/2026).
@@ -29,7 +28,7 @@ export const RESET_DISCOVERY_HINT_TEXT =
  * Ensina o mesmo comando da DEC-152 / DEC-C2.
  */
 export const HOW_TO_END_REPLY =
-  'Para encerrar, diga terminar. Se o botão Terminar aparecer, pode tocar nele.'
+  'Para encerrar, toque em Terminar quando o botão aparecer aqui embaixo.'
 
 /** Exact «Terminar» (Class A) — não é pergunta de como. */
 const EXACT_TERMINAR_RE =
@@ -70,12 +69,7 @@ export function taughtExitCommandsFromCopy(texts: readonly string[]): string[] {
 
 /** Frases de saída que o bot ensina hoje (hint DEC-152 + option-miss + meta + acto). */
 export function botTaughtExitCommands(): string[] {
-  return taughtExitCommandsFromCopy([
-    END_HELP_HINT_TEXT,
-    RESET_DISCOVERY_HINT_TEXT,
-    HOW_TO_END_REPLY,
-    ...DIALOGUE_ACTS.orientar_terminar,
-  ])
+  return taughtExitCommandsFromCopy([RESET_DISCOVERY_HINT_TEXT, HOW_TO_END_REPLY])
 }
 
 /** «começar de novo» ensinado no hint de discovery (multi-token; CF-28). */
@@ -205,17 +199,7 @@ export function shouldAppendEndHelpHint(input: {
   frameNow: BookingFrame | null
   alreadySent: boolean
 }): boolean {
-  const body = input.replyText?.trim()
-  if (!body) return false
-  if (input.proposalId) return false
-  if (input.alreadySent) return false
-  if (!isOpenBookingAttempt(input.frameAtStart)) return false
-  if (!input.frameNow || !isOpenBookingAttempt(input.frameNow)) return false
-  if (isBookingExitReply(body, input.notes)) return false
-  if (body.includes(END_HELP_HINT_TEXT)) return false
-  // Option-miss já ensinou «terminar» (+ recomeçar) — não duplicar DEC-152.
-  if (body.includes(RESET_DISCOVERY_HINT_TEXT)) return false
-  return (
-    bookingFrameProgressKey(input.frameAtStart) === bookingFrameProgressKey(input.frameNow)
-  )
+  // P10 regressão 15/11/2026: hint «diga terminar» saiu da conversa com a cliente.
+  void input
+  return false
 }

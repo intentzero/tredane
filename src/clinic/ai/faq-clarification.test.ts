@@ -51,6 +51,11 @@ describe('isCatalogClarificationAsk (DEC-177)', () => {
     expect(isCatalogClarificationAsk('faz parte da íntima o ânus?')).toBe(true)
   })
 
+  it('rsamp_fa7f138: «Como é a íntima?» / «quero saber como é o bronzeamento»', () => {
+    expect(isCatalogClarificationAsk('Como é a íntima?')).toBe(true)
+    expect(isCatalogClarificationAsk('Quero saber como é o bronzeamento')).toBe(true)
+  })
+
   it('lab: «é o que?» / «como é feita» são clarificação (não leftover de zona)', () => {
     expect(isCatalogClarificationAsk('A depilação íntima é o que?')).toBe(true)
     expect(isCatalogClarificationAsk('A íntima é o quê?')).toBe(true)

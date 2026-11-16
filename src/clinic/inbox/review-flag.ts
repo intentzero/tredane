@@ -107,6 +107,24 @@ export function readReviewFlag(
  * DEC-167: se já flagged e chega comentário novo, appenda e emite outbox
  * para o upsert D1 (sem alterar source/at/reason).
  */
+/**
+ * Painel «Para revisão» quando a copy à cliente diz que a equipe foi acionada
+ * (pedido registado, parcelamento, «Deixei seu pedido…»). First-flag-wins.
+ */
+export function flagConversationForTeamHandoff(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+  clientComment?: string | null,
+): { changed: boolean; outbox: OutboxRow[] } {
+  return flagConversationForReview(db, tenantId, conversationId, {
+    source: 'auto',
+    reason: 'client_request',
+    clientComment: clientComment ?? null,
+  }, clock)
+}
+
 export function flagConversationForReview(
   db: ClinicDb,
   tenantId: string,
