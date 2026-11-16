@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { adminErrorMessage, type AdminTenantDetail } from '../api'
+import { adminErrorMessage, type AdminInvitation, type AdminTenantDetail, type InviteResult } from '../api'
 import { AdminLoadError, AdminLoading, Pill } from '../AdminUi'
 import {
   CHANNEL_LABEL,
@@ -12,6 +12,10 @@ import {
 import { CLINICA_TABS, clinicaHref, navigateAdmin, type ClinicaTab } from '../routes'
 import { useAdminApi } from '../useAdminApi'
 import { EmptyState } from '../../panel/states/StatusScreens'
+import { SaudeTab } from '../saude/SaudeTab'
+import { AuditoriaTab } from '../auditoria/AuditoriaTab'
+import { SuporteTab } from '../suporte/SuporteTab'
+import { MembrosTab } from './MembrosTab'
 import { EditTenantDialog, LifecycleDialog, type LifecycleKind } from './LifecycleDialogs'
 
 type Load =
@@ -19,14 +23,6 @@ type Load =
   | { phase: 'error' }
   | { phase: 'not-found' }
   | { phase: 'ready'; detail: AdminTenantDetail }
-
-/** Cada aba chega com a sua issue do épico #827; até lá diz o que vem, sem dados inventados. */
-const TAB_PENDING: Record<Exclude<ClinicaTab, 'resumo'>, { issue: string; text: string }> = {
-  membros: { issue: '#830', text: 'Pessoas da clínica, com nome e e-mail, e a gestão de owners.' },
-  saude: { issue: '#833', text: 'Alertas, envios, WhatsApp e jobs de IA desta clínica.' },
-  suporte: { issue: '#831', text: 'Pedidos e sessões de suporte desta clínica.' },
-  auditoria: { issue: '#832', text: 'Eventos de auditoria desta clínica.' },
-}
 
 export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: ClinicaTab }) {
   const api = useAdminApi()
@@ -36,6 +32,8 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
 
   const reload = useCallback(() => setAttempt((n) => n + 1), [])
 
@@ -98,6 +96,27 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
       setActionError(null)
     }
   }
+  const pendingInvites = detail.invitations.filter((i) => i.role === 'owner' && i.status === 'pending')
+  const hasLiveInvite = pendingInvites.some((i) => !i.expired)
+  const canInvite = tenant.status === 'active' && activeOwners.length === 0 && !hasLiveInvite
+  const sentNotice = (r: InviteResult, verb: string) =>
+    setNotice(
+      r.emailSent
+        ? `${verb} para ${r.invitation.email}.`
+        : `${verb}, mas o e-mail não saiu. Tente reenviar em instantes.`,
+    )
+  const inviteAction = (call: () => Promise<InviteResult>, verb: string) =>
+    void run(async () => {
+      sentNotice(await call(), verb)
+    }, () => setInviteEmail(''))
+  const cancelInvite = (inv: AdminInvitation) =>
+    void run(
+      async () => {
+        await api.cancelInvitation(tenant.id, inv.id)
+        setNotice(`Convite para ${inv.email} cancelado.`)
+      },
+      () => undefined,
+    )
   const confirm = (reason: string) => {
     if (!dialog) return
     const call =
@@ -225,7 +244,9 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
           <section className="admin-card admin-card--wide" aria-labelledby="adm-owners">
             <h2 id="adm-owners" className="admin-card-title">Owners</h2>
             {activeOwners.length === 0 ? (
-              <p className="admin-muted">Esta clínica ainda não tem owner ativa.</p>
+              <p className="admin-muted">
+                Esta clínica ainda não tem owner ativa{pendingInvites.length ? ' (convite em curso)' : ''}.
+              </p>
             ) : (
               <div className="admin-table-scroll">
                 <table className="admin-table">
@@ -248,20 +269,100 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
                 </table>
               </div>
             )}
+            {pendingInvites.map((inv) => (
+              <div key={inv.id} className="admin-invite-row">
+                <span className="admin-invite-info">
+                  <strong>{inv.email}</strong>
+                  <span className="admin-muted">
+                    {inv.expired
+                      ? `Convite expirado em ${formatDate(inv.expiresAt)}`
+                      : `Convite pendente · expira em ${formatDate(inv.expiresAt)}`}
+                  </span>
+                </span>
+                <Pill tone={inv.expired ? 'bad' : 'warn'}>{inv.expired ? 'Expirado' : 'Pendente'}</Pill>
+                {inv.expired ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--sm"
+                    disabled={busy}
+                    onClick={() => inviteAction(() => api.inviteOwner(tenant.id, inv.email), 'Novo convite enviado')}
+                  >
+                    Emitir novo convite
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--sm"
+                      disabled={busy}
+                      onClick={() => inviteAction(() => api.resendInvitation(tenant.id, inv.id), 'Convite reenviado')}
+                    >
+                      Reenviar
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--sm admin-btn--danger"
+                      disabled={busy}
+                      onClick={() => cancelInvite(inv)}
+                    >
+                      Cancelar convite
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+            {canInvite ? (
+              <form
+                className="admin-invite-row"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (!inviteEmail.trim() || busy) return
+                  inviteAction(() => api.inviteOwner(tenant.id, inviteEmail.trim()), 'Convite enviado')
+                }}
+              >
+                <label className="admin-field admin-invite-info">
+                  E-mail da owner
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    autoComplete="off"
+                    disabled={busy}
+                  />
+                </label>
+                <button type="submit" className="admin-btn admin-btn--sm admin-btn--primary" disabled={busy}>
+                  Convidar owner
+                </button>
+              </form>
+            ) : null}
+            {notice ? <p className="admin-muted" role="status">{notice}</p> : null}
+            {actionError && !dialog && !editing ? (
+              <p className="admin-dialog-error" role="alert">{actionError}</p>
+            ) : null}
             <span className="admin-muted">
-              Nomes e a gestão de owners chegam com a aba Membros (#830). Attendants são geridos pela owner na Equipe
-              da clínica.
+              Nomes e a gestão de owners estão na aba Membros. Attendants são geridos pela owner na Equipe da clínica.
             </span>
           </section>
         </div>
+      ) : tab === 'membros' ? (
+        <MembrosTab
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          tenantStatus={tenant.status}
+          invitations={detail.invitations}
+          onChanged={reload}
+        />
+      ) : tab === 'suporte' ? (
+        <SuporteTab
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          tenantStatus={tenant.status}
+          hasActiveOwner={activeOwners.length > 0}
+        />
+      ) : tab === 'saude' ? (
+        <SaudeTab tenantId={tenant.id} tenantStatus={tenant.status} whatsapp={detail.integration.whatsapp} />
       ) : (
-        <section className="admin-card" aria-labelledby="adm-tab-pending">
-          <h2 id="adm-tab-pending" className="admin-card-title">
-            {CLINICA_TABS.find((x) => x.tab === tab)?.label}
-          </h2>
-          <p>{TAB_PENDING[tab].text}</p>
-          <p className="admin-muted">Esta aba chega com a issue {TAB_PENDING[tab].issue} do épico #827.</p>
-        </section>
+        <AuditoriaTab tenantId={tenant.id} />
       )}
 
       <LifecycleDialog

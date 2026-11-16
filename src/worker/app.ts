@@ -218,6 +218,11 @@ export function createApp(opts: CreateAppOptions = {}) {
   const platformOpts: PlatformRouteOptions = {
     invalidatorFactory: opts.invalidatorFactory,
     syncAdminDbFactory: opts.syncAdminDbFactory,
+    clockFactory: opts.clockFactory,
+    emailFactory: opts.emailFactory,
+    appBaseUrlFactory: opts.appBaseUrlFactory,
+    // Saúde (#833): mesmo stub injetável das rotas de ops.
+    clinicStubFactory: opts.ops?.clinicStubFactory,
   }
   app.route('/', createPlatformRoutes(platformOpts))
 

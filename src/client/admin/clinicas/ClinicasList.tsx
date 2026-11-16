@@ -71,6 +71,19 @@ export function ClinicasList() {
       <PageHeader
         title="Clínicas"
         sub={`${rows.length} ${rows.length === 1 ? 'clínica' : 'clínicas'}`}
+        actions={
+          <a
+            className="admin-btn admin-btn--primary"
+            href="/admin/clinicas/nova"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+              e.preventDefault()
+              navigateAdmin('/admin/clinicas/nova')
+            }}
+          >
+            Nova clínica
+          </a>
+        }
       />
       {rows.length === 0 ? (
         <EmptyState
