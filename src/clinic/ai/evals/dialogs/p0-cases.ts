@@ -2131,7 +2131,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'A-34',
-    title: 'Após slots sem progresso: hint «diga terminar» uma vez (DEC-152)',
+    title: 'Após slots sem progresso: sem hint «diga terminar» (regressão P10)',
     turnosIdeais: 1,
     // DEC-152: sessão aberta + turno sem avanço do quadro → hint one-shot.
     prepare: (s) => {
@@ -2206,8 +2206,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/Se quiser parar, diga terminar/i],
-          excludes: [/quando quiser|fico por aqui/i],
+          excludes: [/Se quiser parar, diga terminar/i, /quando quiser|fico por aqui/i],
         },
       ],
     },
@@ -2512,7 +2511,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/Para encerrar, diga terminar/i],
+          matches: [/Para encerrar, toque em Terminar/i],
           excludes: [
             /quando quiser|fico por aqui|qualquer coisa/i,
             /Não encontrei/i,

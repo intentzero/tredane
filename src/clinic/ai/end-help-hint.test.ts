@@ -29,12 +29,7 @@ const NOW = Date.UTC(2026, 9, 28, 18, 51)
 
 describe('end-help-hint helpers (DEC-152)', () => {
   it('paridade hint↔Class A: toda frase ensinada por «diga X» é abandono A (DEC-C2)', () => {
-    const taught = botTaughtExitCommands()
-    expect(taught).toEqual(['terminar'])
-    for (const cmd of taught) {
-      expect(isExplicitAbandonText(cmd), `Class A deve reconhecer «${cmd}»`).toBe(true)
-      expect(isExplicitAbandonText(cmd[0]!.toUpperCase() + cmd.slice(1))).toBe(true)
-    }
+    expect(botTaughtExitCommands()).toEqual([])
     // Catálogo DEC-142 ensina «diga “serviços masculinos”» — não é saída; não entra.
     expect(
       taughtExitCommandsFromCopy([
@@ -43,10 +38,10 @@ describe('end-help-hint helpers (DEC-152)', () => {
     ).toEqual([])
   })
 
-  it('discovery hint ensina «começar de novo» (CF-28) e «terminar» (Class A)', () => {
+  it('discovery hint ensina «começar de novo» (CF-28), sem «diga terminar»', () => {
     expect(botTaughtRestartPhraseInCopy()).toBe(true)
     expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/começar de novo/)
-    expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/terminar/)
+    expect(RESET_DISCOVERY_HINT_TEXT).not.toMatch(/terminar/)
     expect(isExplicitAbandonText('terminar')).toBe(true)
   })
 
@@ -60,9 +55,10 @@ describe('end-help-hint helpers (DEC-152)', () => {
     expect(isHowToEndQuestion('quero depilação')).toBe(false)
   })
 
-  it('appendEndHelpHint é idempotente', () => {
+  it('appendEndHelpHint é idempotente (copy sem «diga terminar»)', () => {
     const once = appendEndHelpHint('Qual tipo você quer?')
-    expect(once).toContain(END_HELP_HINT_TEXT)
+    expect(once).toMatch(/botão Terminar/)
+    expect(once).not.toContain(END_HELP_HINT_TEXT)
     expect(appendEndHelpHint(once)).toBe(once)
   })
 
@@ -133,7 +129,7 @@ describe('end-help-hint helpers (DEC-152)', () => {
         frameNow: frame,
         alreadySent: false,
       }),
-    ).toBe(true)
+    ).toBe(false)
     expect(
       shouldAppendEndHelpHint({
         replyText: 'Qual fica melhor?',
@@ -256,8 +252,8 @@ describe('tryAiAutoBook — hint one-shot após oferta sem progresso (DEC-152)',
         capability: true,
       })
       expect(out.replyText).toBeTruthy()
-      expect(out.replyText).toContain(END_HELP_HINT_TEXT)
-      expect(wasEndHelpHintSent(s.db, s.tenantId, s.cnv.id)).toBe(true)
+      expect(out.replyText ?? '').not.toContain(END_HELP_HINT_TEXT)
+      expect(wasEndHelpHintSent(s.db, s.tenantId, s.cnv.id)).toBe(false)
 
       s.clock.advance(60_000)
       insertMessage(

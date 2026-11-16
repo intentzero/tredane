@@ -245,17 +245,8 @@ export function sendProposalResultMessageOp(
     clock,
   )
 
-  const appointmentId = input.postBookingAppointmentId?.trim() || null
-  let outbox = sent.outbox
-  if (input.resultKind === 'booked' && appointmentId && window.open) {
-    const follow = sendPostBookingFollowupOp(
-      db,
-      caller.actorId ? caller : workerCaller(meta.tenantId, PROPOSAL_SEND_ACTOR),
-      { conversationId: proposal.conversationId, appointmentId },
-      clock,
-    )
-    if (follow.status === 'queued') outbox = [...outbox, ...follow.outbox]
-  }
+  // DEC-086 / P10 item 10: «Posso ajudar…» só após o Agendado ser entregue (reconcile).
+  const outbox = sent.outbox
 
   return {
     status: 'queued',
@@ -274,12 +265,13 @@ export function reconcileProposalResultOutboundSend(
   outbound: OutboundMessageRow,
   outcome: 'succeeded' | 'failed' | 'uncertain',
   clock: Clock,
-): AppointmentProposalRow | null {
+  caller: ClinicCaller = workerCaller(tenantId, PROPOSAL_SEND_ACTOR),
+): { proposal: AppointmentProposalRow | null; outbox: OutboxRow[] } {
   if (
     !outbound.clientRequestId.startsWith(PROPOSAL_RESULT_CLIENT_REQUEST_PREFIX) &&
     !findProposalByResultOutboundId(db, tenantId, outbound.id)
   ) {
-    return null
+    return { proposal: null, outbox: [] }
   }
   const proposal =
     findProposalByResultOutboundId(db, tenantId, outbound.id) ??
@@ -287,7 +279,7 @@ export function reconcileProposalResultOutboundSend(
       const m = /^proposal\.result:([^:]+):v(\d+):([^:]+)$/.exec(outbound.clientRequestId)
       return m ? getProposal(db, tenantId, m[1]!) : null
     })()
-  if (!proposal) return null
+  if (!proposal) return { proposal: null, outbox: [] }
 
   linkProposalResult(
     db,
@@ -318,5 +310,30 @@ export function reconcileProposalResultOutboundSend(
       clock,
     )
   }
-  return getProposal(db, tenantId, proposal.id)
+
+  let outbox: OutboxRow[] = []
+  const fresh = getProposal(db, tenantId, proposal.id)
+  const appointmentId = fresh?.appointmentId?.trim() || null
+  if (
+    outcome === 'succeeded' &&
+    fresh?.resultKind === 'booked' &&
+    appointmentId &&
+    fresh.conversationId
+  ) {
+    const agCreated =
+      db.get<{ created_at: number }>(`SELECT created_at FROM messages WHERE id = ?`, outbound.messageId)
+        ?.created_at ?? clock.nowMs()
+    const followClock: Clock = {
+      nowMs: () => Math.max(clock.nowMs(), agCreated + 1),
+    }
+    const follow = sendPostBookingFollowupOp(
+      db,
+      caller,
+      { conversationId: fresh.conversationId, appointmentId },
+      followClock,
+    )
+    if (follow.status === 'queued') outbox = follow.outbox
+  }
+
+  return { proposal: fresh, outbox }
 }

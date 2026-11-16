@@ -15,6 +15,7 @@ export type DialogueObligationKind =
   | 'choose_line'
   | 'choose_variants'
   | 'choose_slot'
+  | 'choose_service'
   | 'confirm_echo'
   | 'accumulate_zones'
   | 'choose_audience'
@@ -32,6 +33,7 @@ const SLOT_TO_KIND: Record<ChoiceSlot, DialogueObligationKind> = {
   linha: 'choose_line',
   variantes: 'choose_variants',
   horario: 'choose_slot',
+  servico: 'choose_service',
   eco: 'confirm_echo',
   acumular: 'accumulate_zones',
   audiencia: 'choose_audience',
@@ -43,6 +45,7 @@ const KIND_CHOICE: ReadonlySet<DialogueObligationKind> = new Set([
   'choose_line',
   'choose_variants',
   'choose_slot',
+  'choose_service',
   'choose_audience',
   'choose_period',
   'choose_alter',
@@ -57,7 +60,8 @@ export function isChoiceSlot(slot: string): slot is ChoiceSlot {
     slot === 'acumular' ||
     slot === 'audiencia' ||
     slot === 'periodo' ||
-    slot === 'alter'
+    slot === 'alter' ||
+    slot === 'servico'
   )
 }
 

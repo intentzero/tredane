@@ -125,15 +125,15 @@ Soft-decline mid-funil (DEC-147). **Não** é o adeus dos botões **Terminar** (
 
 ### orientar_terminar
 
-1. `Se quiser parar, diga terminar.`
+1. `Se quiser parar, use o botão Terminar quando aparecer.`
 
-One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado). Quando a cliente responde «Terminar» (exacto, case-insensitive), o caminho é `acolher_adiamento` + limpar frame (DEC-147 A / L1 A-35) — nunca «Não encontrei terminar…».
+One-shot desactivado na conversa (regressão P10, 15/11/2026): `shouldAppendEndHelpHint` não envia mais hint à cliente. O acto permanece para `appendEndHelpHint` (testes). «Terminar» explícito continua Class A → `acolher_adiamento` (DEC-147 A / L1 A-35).
 
 ### Meta «como termino?» (`HOW_TO_END_REPLY`, DEC-154 / #660)
 
-1. `Para encerrar, diga terminar. Se o botão Terminar aparecer, pode tocar nele.`
+1. `Para encerrar, toque em Terminar quando o botão aparecer aqui embaixo.`
 
-Frase determinística no autodraft (`isHowToEndQuestion` → `HOW_TO_END_REPLY`; sem acto `sayAct` novo). **Não** soft-close; **não** handoff; **não** LLM (evita histórico falso). «Terminar» explícito continua Class A. L1 A-43. Paridade DEC-C2: «terminar» em `botTaughtExitCommands`.
+Frase determinística no autodraft (`isHowToEndQuestion` → `HOW_TO_END_REPLY`; sem acto `sayAct` novo). **Não** soft-close; **não** handoff; **não** LLM (evita histórico falso). «Terminar» explícito continua Class A. L1 A-43. `botTaughtExitCommands` já não ensina «diga terminar».
 
 ### orientar_ajuda_humana
 
@@ -363,7 +363,7 @@ Não marca. Não mexe no Confirmar da proposta (DEC-061).
 | Linha da lista | `Masculino` |
 | Audiência já conhecida e marcação a meio, feminino | `Continuo no feminino. Para ver o masculino, diga “serviços masculinos”.` |
 | Audiência já conhecida e marcação a meio, masculino | `Continuo no masculino. Para ver o feminino, diga “serviços femininos”.` |
-| Nomes, com audiência conhecida (um nome por linha, como no cadastro) | `Temos:\nDepilação\nLimpeza de pele profunda\nQual você quer?` |
+| Nomes, com audiência conhecida (≥4: lista Meta; 2–3: botões; &lt;4 nomes: um por linha no corpo) | `Temos 2 opções.\nQual você quer?` (exemplo com 2 opções; linhas na lista interactiva) |
 | Filtro sem serviço ativo | `Não tenho serviços no feminino.` |
 | Filtro sem serviço ativo | `Não tenho serviços no masculino.` |
 

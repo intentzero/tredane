@@ -92,7 +92,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       notPaused: true,
       outboundCount: 1,
-      outboundIncludes: ['Temos:\n', '\nMassagem\n', '\nBronzeamento\n', 'Qual você quer?'],
+      outboundIncludes: ['Temos ', 'opções', 'Qual você quer?'],
       outboundExcludes: [/Depilação/, ...NO_LEAK],
     },
   },
@@ -148,7 +148,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       noAppointment: true,
       outboundExcludes: [/Depilação/, ...NO_LEAK],
       turns: [
-        { turn: 2, matches: [/Continuo no masculino/, /Temos:/], excludes: [ASK_LIST] },
+        { turn: 2, matches: [/Continuo no masculino/, /Qual você quer/], excludes: [ASK_LIST] },
       ],
     },
   },
@@ -665,7 +665,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
         { turn: 0, matches: [ASK_LIST] },
         {
           turn: 1,
-          matches: [/Temos:/, /Massagem/, /Bronzeamento/, /Qual você quer\?/],
+          matches: [/Temos \d+ opções|Qual você quer/],
           excludes: [/Depilação/, ASK_LIST],
         },
       ],

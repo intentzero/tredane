@@ -198,6 +198,27 @@ import {
   type ChoiceInteractive,
 } from './choice-offer'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
+import {
+  attachServicePickToDeferred,
+  buildServicePickOffer,
+} from './service-pick-offer'
+
+function servicePickFromCatalog(
+  deferred: DeferredBookingFrame,
+  services: ServiceRow[],
+  catalogVersion: string,
+  candidateServiceIds?: ReadonlySet<string>,
+): { replyText: string; interactive: ChoiceInteractive } | null {
+  const pool =
+    candidateServiceIds && candidateServiceIds.size > 0
+      ? services.filter((s) => candidateServiceIds.has(s.id))
+      : services
+  const pick = buildServicePickOffer({ services: pool, catalogVersion })
+  if (!pick?.interactive) return null
+  const interactive = attachServicePickToDeferred(deferred, catalogVersion, pick)
+  if (!interactive) return null
+  return { replyText: pick.body, interactive }
+}
 
 /** Acumula pending + lastOffer da oferta (CF-22); commit na TX do outbound (ADR-0015). */
 function rememberOfferFrameImpl(
@@ -1063,25 +1084,27 @@ export async function tryAiAutoBook(
   if (gate.kind === 'restart') {
     deferred.clearSession()
     retireActiveProposal(db, tenantId, input.conversationId, clock)
+    const picked = servicePickFromCatalog(deferred, services, catalog.version)
     const names = services.map((s) => s.name.trim()).filter((n) => n.length > 0)
-    const lista = names.join(', ')
     const replyText =
-      names.length >= 2
+      picked?.replyText ??
+      (names.length >= 2
         ? sayAct(
             'perguntar_servico',
             input.conversationId,
-            { lista },
-            `Qual serviço você quer? Temos ${lista}.`,
+            { lista: names.join(', ') },
+            'Qual serviço você quer? Temos ${lista}.',
           )
         : sayAct(
             'perguntar_servico',
             input.conversationId,
             {},
             'Qual serviço você gostaria de agendar?',
-          )
+          ))
     return finish({
       ...none('needs_info', { confirmationMessageId: confirmation.id }),
       replyText,
+      ...(picked ? { interactive: picked.interactive } : {}),
       notes: 'CF-28/#508: restart clears schedule_sessions; open proposal retired.',
     })
   }
@@ -1319,11 +1342,18 @@ export async function tryAiAutoBook(
         let replyText = realized.replyText
         let slotInteractive: ChoiceInteractive | null = null
         // rsamp_fa7f138: após preço, reofertar slots (não só «qual horário?»).
+        // P10/C-03: serviço em linha com oferta aberta — só cotação + retoma textual.
+        const lineServiceOpenOffer =
+          frameInFunnel?.pending?.slot === 'horario' &&
+          frameInFunnel?.lastOffer &&
+          activeAsk.length === 0 &&
+          poolAsk.length === 0
         if (
           gate.topic === 'price' &&
           sameServiceFunnel &&
           frameInFunnel &&
-          shouldResumeSlotAsk(realized.parked)
+          shouldResumeSlotAsk(realized.parked) &&
+          !lineServiceOpenOffer
         ) {
           const variantIds = frameInFunnel.variantIds ?? []
           const kept = poolAsk.filter((z) => variantIds.includes(z.id))
@@ -2828,16 +2858,30 @@ export async function tryAiAutoBook(
           // DEC-141: o termo (só ele) vira sugestão de sinónimo para a owner.
           recordUnmatchedTerm(db, tenantId, pedido, clock)
           pushFriction(...frictionForCatalogMiss(pedido))
+          const lista = catalogServiceList(services)
+          const picked = servicePickFromCatalog(deferred, services, catalog.version)
           replyText = serviceNotFoundReply(input.conversationId, {
             pedido,
-            lista: catalogServiceList(services),
+            lista: picked ? null : lista,
           })
+          if (picked) {
+            replyText = `${replyText}\n${picked.replyText}`
+            interactive = picked.interactive
+          }
         } else if (booking.handoffReason === 'historico_indisponivel') {
           const fb = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
           replyText = sayAct('historico_indisponivel', input.conversationId, {}, fb)
         }
       } else if (booking.kind === 'clarify' && booking.question && !booking.serviceId) {
         replyText = booking.question
+        if (booking.missing.includes('servico')) {
+          const ids = new Set(booking.candidates.map((c) => c.serviceId))
+          const picked = servicePickFromCatalog(deferred, services, catalog.version, ids)
+          if (picked) {
+            replyText = picked.replyText
+            interactive = picked.interactive
+          }
+        }
       } else if (
         (booking.kind === 'selected' || booking.kind === 'clarify') &&
         booking.serviceId

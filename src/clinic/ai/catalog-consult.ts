@@ -27,6 +27,8 @@ import {
   createDeferredBookingFrame,
   OUTBOUND_MESSAGE_ID_PLACEHOLDER,
 } from './deferred-booking-frame'
+import { bodyForCatalogServiceList, buildServicePickOffer } from './service-pick-offer'
+import { toSendInteractive } from './choice-offer'
 import {
   getBookingFrame,
   type BookingFrame,
@@ -225,12 +227,24 @@ function namesAction(
   sayStay: boolean,
 ): CatalogConsultAction {
   const names = activeNames(services, line)
-  const list = names.length > 0 ? catalogNamesBody(names) : catalogEmptyBody(line)
+  const active = services.filter((s) => s.active !== false)
+  const lineServices = filterServicesForLine(
+    active as Array<ServiceRow & { audiencia: ServiceAudience }>,
+    line,
+  )
+  const pick = buildServicePickOffer({
+    services: lineServices,
+    catalogVersion,
+    body: names.length > 0 ? bodyForCatalogServiceList(names) : catalogEmptyBody(line),
+  })
+  const list =
+    names.length > 0 ? (pick?.body ?? catalogNamesBody(names)) : catalogEmptyBody(line)
   const body = sayStay ? `${stayCopy(line)}\n${list}` : list
+  const pending = pick?.pending ?? null
   return {
     body,
-    interactive: null,
-    framePatch: holdPatch(line, null, catalogVersion),
+    interactive: pick?.interactive ? toSendInteractive(pick.interactive) : null,
+    framePatch: holdPatch(line, pending, catalogVersion),
   }
 }
 
