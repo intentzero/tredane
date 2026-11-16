@@ -116,6 +116,7 @@ import {
   turnLooksLikeDayOrTimeAsk,
   type TurnFrictionEvent,
 } from './turn-friction'
+import { isCancelMismatchPending } from './appointment-intent'
 import { flagConversationForReview } from '../inbox/review-flag'
 import {
   funnelMessageFilter,
@@ -2300,7 +2301,12 @@ export async function tryAiAutoBook(
     missing = []
   }
   // CF-21 / ADR-0015: data absoluta do frame (day_label órfã — não autoriza, #472).
-  if (!date && frame?.date && (!det.service || frame.serviceId === det.service.id)) {
+  if (
+    !date &&
+    frame?.date &&
+    !isCancelMismatchPending(frame.date) &&
+    (!det.service || frame.serviceId === det.service.id)
+  ) {
     date = frame.date
     missing = missing.filter((item) => item !== 'dia')
   }

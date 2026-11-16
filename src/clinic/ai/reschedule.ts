@@ -18,6 +18,12 @@ import type { ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
+import {
+  isCancelMismatchPending,
+  rescheduleDayIsNewDestination,
+  resolveUpcomingByServiceAndDay,
+  thinRescheduleSlotOffers,
+} from './appointment-intent'
 import { extractDates, extractTimes } from './autobook'
 import { slotBindingFromChoice } from './choice-offer'
 import { inPeriodHHMM, type DayPeriod } from './slot-offer'
@@ -63,7 +69,7 @@ export type RescheduleOutcome = {
   deferredFrame?: DeferredBookingFrame
 }
 
-type UpcomingApt = {
+export type UpcomingApt = {
   id: string
   serviceId: string
   professionalId: string
@@ -80,7 +86,7 @@ function weekdayOf(date: string): number {
 }
 
 /** `{dia}` sem preposição («sexta 06/11»); a preposição vai na frase fixa. */
-function dayText(date: string): string {
+export function dayText(date: string): string {
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOf(date)]} ${d}/${m}`
 }
@@ -113,16 +119,14 @@ export function phraseAskDay(): string {
   return reschedulePhrase('Claro, vamos remarcar. Para qual dia você prefere?')
 }
 
-/** Cancelamento com compromisso futuro — oferece remarcar antes da equipe (baseline S11). */
+/** Cancelamento com compromisso futuro — oferece remarcar; cancelamento só com botão (S24). */
 export function phraseCancelOfferReschedule(serviceName: string): string {
   const withName = reschedulePhrase(
-    `Entendi o imprevisto sobre ${serviceName}. Quer que eu veja outro dia para remarcar? Se for só cancelar, passo para a equipe confirmar.`,
+    `Sobre ${serviceName}: quer que eu veja outro dia para remarcar?`,
   )
   const check = validateClientOutbound(withName, { source: 'phrase', requireSingleQuestion: false })
   if (check.ok) return withName
-  return reschedulePhrase(
-    'Entendi. Quer que eu veja outro dia para remarcar? Se for só cancelar, passo para a equipe confirmar.',
-  )
+  return reschedulePhrase('Quer que eu veja outro dia para remarcar?')
 }
 
 /** (2) Oferece horários no dia. */
@@ -204,13 +208,32 @@ export function isRescheduleIntent(text: string, opts: { hasUpcoming: boolean; p
   return false
 }
 
-export function loadUpcomingAppointment(
+function mapUpcomingRow(row: {
+  id: string
+  service_id: string
+  professional_id: string
+  starts_at: number
+  ends_at: number
+  service_name: string | null
+}): UpcomingApt {
+  return {
+    id: row.id,
+    serviceId: row.service_id,
+    professionalId: row.professional_id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    serviceName: row.service_name ?? 'Atendimento',
+  }
+}
+
+export function loadUpcomingAppointments(
   db: ClinicDb,
   tenantId: string,
   contactId: string,
   now: number,
-): UpcomingApt | null {
-  const row = db.get<{
+  limit = 5,
+): UpcomingApt[] {
+  const rows = db.all<{
     id: string
     service_id: string
     professional_id: string
@@ -222,20 +245,22 @@ export function loadUpcomingAppointment(
      FROM appointments a
      LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
      WHERE a.tenant_id = ? AND a.contact_id = ? AND a.status = 'confirmed' AND a.starts_at > ?
-     ORDER BY a.starts_at ASC LIMIT 1`,
+     ORDER BY a.starts_at ASC LIMIT ?`,
     tenantId,
     contactId,
     now,
+    limit,
   )
-  if (!row) return null
-  return {
-    id: row.id,
-    serviceId: row.service_id,
-    professionalId: row.professional_id,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    serviceName: row.service_name ?? 'Atendimento',
-  }
+  return rows.map(mapUpcomingRow)
+}
+
+export function loadUpcomingAppointment(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  now: number,
+): UpcomingApt | null {
+  return loadUpcomingAppointments(db, tenantId, contactId, now, 1)[0] ?? null
 }
 
 /**
@@ -310,14 +335,21 @@ export async function tryAiReschedule(
   const conv = getConversation(db, tenantId, input.conversationId)
   if (!conv) return null
   const now = clock.nowMs()
-  const apt = loadUpcomingAppointment(db, tenantId, conv.contactId, now)
+  const allUpcoming = loadUpcomingAppointments(db, tenantId, conv.contactId, now)
   const sessionEarly = getScheduleSession(db, tenantId, input.conversationId)
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
   // DEC-129 / ADR-0015: continuidade só com phase remarcando (não lastOffer de marcação nova).
   const priorOffer = priorRescheduleOfferFromFrame(frameEarly)
-  if (!isRescheduleIntent(input.inboundText, { hasUpcoming: Boolean(apt), priorOffer })) {
+  if (!isRescheduleIntent(input.inboundText, { hasUpcoming: allUpcoming.length > 0, priorOffer })) {
     return null
   }
+  const settings = ensureClinicSettings(db, tenantId, clock)
+  const tz = settings.timezone || 'America/Sao_Paulo'
+  const today = clinicCivilDateFromUtc(tz, now)
+  const apt =
+    resolveUpcomingByServiceAndDay(allUpcoming, input.inboundText, db, tenantId, tz, today) ??
+    allUpcoming[0] ??
+    null
   if (!apt) {
     return null
   }
@@ -337,9 +369,6 @@ export async function tryAiReschedule(
     return null
   }
 
-  const settings = ensureClinicSettings(db, tenantId, clock)
-  const tz = settings.timezone || 'America/Sao_Paulo'
-  const today = clinicCivilDateFromUtc(tz, now)
   const service = getService(db, tenantId, apt.serviceId)
   if (!service || !service.active) return null
 
@@ -368,7 +397,13 @@ export async function tryAiReschedule(
     /\b(amanha|hoje|segunda|terca|quarta|quinta|sexta|sabado|domingo|semana|dia\s+\d{1,2})\b/.test(
       inboundFolded,
     )
-  if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando') && !citesNewDay) {
+  if (
+    !date &&
+    frame?.date &&
+    !isCancelMismatchPending(frame.date) &&
+    (priorOffer || frame.phase === 'remarcando') &&
+    !citesNewDay
+  ) {
     date = frame.date
   }
   const times = spokenSlot ? [spokenSlot.time] : [...extractTimes(input.inboundText)]
@@ -385,6 +420,23 @@ export async function tryAiReschedule(
       ...(facts.period ? { period: facts.period } : {}),
       ...(absolute !== undefined ? { date: absolute } : {}),
       phase: 'remarcando',
+    })
+  }
+
+  const aptCivilDate = clinicCivilDateFromUtc(tz, apt.startsAt)
+  if (
+    date === aptCivilDate &&
+    !time &&
+    !priorOffer &&
+    !rescheduleDayIsNewDestination(input.inboundText)
+  ) {
+    saveSession({ serviceId: apt.serviceId, phase: 'remarcando', date: null })
+    return finish({
+      handled: true,
+      appointmentId: apt.id,
+      replyText: phraseAskDay(),
+      notes: `reschedule ${apt.id}: inbound weekday names apt, not new date.`,
+      outbox: [],
     })
   }
 
@@ -417,11 +469,16 @@ export async function tryAiReschedule(
     const dayPeriod = p as DayPeriod
     return list.filter((s) => inPeriodHHMM(dayPeriod, localHHMM(tz, s.startsAt)))
   }
-  let slots = filterByPeriod(avail.slots, period)
+  let slots = filterByPeriod(avail.slots, period).filter((s) => s.startsAt !== apt.startsAt)
+  slots = thinRescheduleSlotOffers(slots, tz, apt)
   let clearedPeriod = false
   // Mesma política que offerNearestSlots: período vazio mas dia com vaga → oferece o dia.
   if (slots.length === 0 && period && avail.slots.length > 0) {
-    slots = avail.slots
+    slots = thinRescheduleSlotOffers(
+      avail.slots.filter((s) => s.startsAt !== apt.startsAt),
+      tz,
+      apt,
+    )
     period = null
     clearedPeriod = true
   }
@@ -497,7 +554,7 @@ export async function tryAiReschedule(
 
   const slot = slots.find((s) => localHHMM(tz, s.startsAt) === time)
   if (!slot) {
-    const altSlots = slots.slice(0, 3)
+    const altSlots = thinRescheduleSlotOffers(slots, tz, apt, { limit: 3 })
     if (altSlots.length > 0) {
       rememberRescheduleOffer(
         deferred,

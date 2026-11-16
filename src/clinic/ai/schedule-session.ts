@@ -224,7 +224,10 @@ function asClock(value: string | null): string | null {
 }
 
 function asDate(value: string | null): string | null {
-  return value != null && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+  if (value == null) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  if (/^cancel-mismatch:\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  return null
 }
 
 function parseJson<T>(raw: string | null, fallback: T): T {

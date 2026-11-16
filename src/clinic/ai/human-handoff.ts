@@ -16,7 +16,7 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import { CLINIC_SCOPE_ID } from '../config/types'
-import { setConversationAssignee } from '../inbox/conversations'
+import { getConversation, setConversationAssignee } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
@@ -24,6 +24,7 @@ import { flagConversationForTeamHandoff } from '../inbox/review-flag'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
+import { isCancelIntent, loadUpcomingAppointment } from './reschedule'
 import {
   HEALTH_RE,
   OFF_TOPIC_RE,
@@ -742,6 +743,7 @@ export function handoffReason(
   text: string,
   clock: Clock,
   turn?: { catalog: { services: import('../config/types').ServiceRow[]; resources: import('../config/types').ResourceRow[] } },
+  opts?: { conversationId?: string },
 ): AiReplyPauseReason | null {
   const body = text.trim()
   if (!body) return null
@@ -767,10 +769,17 @@ export function handoffReason(
   ) {
     return 'off_purpose'
   }
-  if (
-    hits.some((h) => h.label === 'cancelar' || h.label === 'terceiro') ||
-    professionalOutsideService(db, tenantId, body, clock)
-  ) {
+  if (hits.some((h) => h.label === 'cancelar')) {
+    if (opts?.conversationId && isCancelIntent(body)) {
+      const conv = getConversation(db, tenantId, opts.conversationId)
+      if (conv) {
+        const upcoming = loadUpcomingAppointment(db, tenantId, conv.contactId, clock.nowMs())
+        if (upcoming) return null
+      }
+    }
+    return 'human_only'
+  }
+  if (hits.some((h) => h.label === 'terceiro') || professionalOutsideService(db, tenantId, body, clock)) {
     return 'human_only'
   }
   if (RESCHEDULE_RE.test(body)) return 'human_only'
