@@ -4,7 +4,7 @@ import axe from 'axe-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../ui/panel.css'
 import { writeSynthUserId } from '../panel/auth/session'
-import type { ClinicHealth, HealthOverview } from './api'
+import type { AuditEvent, ClinicHealth, HealthOverview } from './api'
 import { AdminApp } from './AdminApp'
 
 const NOW = Date.now()
@@ -61,11 +61,12 @@ type Server = {
   summaryAt: number | null
   requests: Array<{ method: string; url: string }>
   overviewFails: number
+  audit: AuditEvent[]
   refreshResult: ClinicHealth | { status: number; error: string } | null
 }
 
 function mount(clinics: ClinicHealth[], summaryAt: number | null = NOW - 3 * MIN): Server {
-  const server: Server = { clinics, summaryAt, requests: [], overviewFails: 0, refreshResult: null }
+  const server: Server = { clinics, summaryAt, requests: [], overviewFails: 0, audit: [], refreshResult: null }
   const j = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   vi.stubGlobal(
@@ -99,6 +100,7 @@ function mount(clinics: ClinicHealth[], summaryAt: number | null = NOW - 3 * MIN
         }
         return j(overview)
       }
+      if (url.startsWith('/api/platform/audit')) return j({ events: server.audit, nextCursor: null, clinicalAccess: false })
       if (url === '/api/platform/support') return j({ items: [], clinicalAccess: false })
       if (url === '/api/platform/tenants') {
         return j({
@@ -281,7 +283,7 @@ describe('Platform Admin — saúde (#833, DEC-193)', () => {
       expect(within(table).queryByText('Bem Estar Centro')).toBeNull()
       expect(within(table).queryByText('Pele Nova')).toBeNull()
       expect(screen.getByText('Nenhum pedido em aberto.')).toBeTruthy()
-      expect(screen.getByText(/issue #832/)).toBeTruthy()
+      expect(screen.getByText('Ainda não há atividade registada.')).toBeTruthy()
       await checkA11y(container)
       await user.click(screen.getByRole('link', { name: 'Ver a saúde de todas as clínicas' }))
       expect(window.location.pathname).toBe('/admin/saude')

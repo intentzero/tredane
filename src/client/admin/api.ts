@@ -132,6 +132,83 @@ export type SupportItem = {
   remainingMs: number | null
 }
 
+export type AuditCategory = 'clinic' | 'members' | 'support' | 'email'
+export type AuditOutcome = 'success' | 'denied' | 'conflict' | 'error'
+
+export type AuditPerson = { clerkUserId: string; displayName: string | null; email: string | null }
+
+/** Evento de auditoria central: ator, alvo, ação e resultado. Nunca texto de conversa (a auditoria não o guarda). */
+export type AuditEvent = {
+  id: string
+  occurredAt: number
+  action: string
+  objectType: string
+  objectId: string | null
+  outcome: AuditOutcome | string
+  actor: AuditPerson | null
+  subject: AuditPerson | null
+  tenantId: string | null
+  tenantName: string | null
+  supportSessionId: string | null
+  metadata: Record<string, string | number | boolean | null>
+}
+
+export type AuditPage = { events: AuditEvent[]; nextCursor: string | null }
+
+export type AuditQuery = { category?: AuditCategory; days?: 7 | 30 | 90; cursor?: string | null; limit?: number }
+
+/** Métricas de conversa (as mesmas do Review MCP): só agregados, sem texto. */
+export type QualityMetrics = {
+  bookingRate: { episodesWithIntent: number; confirmed: number; rate: number | null }
+  falseConfirmations: { count: number; ids: string[] }
+  attendantCalls: { episodesWithRequest: number; episodesTotal: number; rate: number | null }
+  abandonedConversations: { count: number }
+  messagesToBook: { median: number | null; samples: number; baseline: number }
+  misunderstandingsPerConversation: { mean: number | null; totalTurns: number; episodes: number }
+  attendance: { aiBooked: number; fulfilled: number; fulfillmentRate: number | null; note: string }
+  blindSpots: string[]
+}
+
+export type ShadowVerdict = 'agree' | 'differ' | 'llm_only' | 'rule_only' | 'none'
+
+/** TEMPORÁRIO como a sombra do interpretador (hipótese H1). */
+export type ShadowReport = {
+  temporary: true
+  window: { sinceHours: number; requestedHours: number; clamped: boolean }
+  truncated: boolean
+  summary: { total: number; conversations: number; fields: Record<string, Record<ShadowVerdict, number>> }
+}
+
+export type SampleItem = {
+  id: string
+  tenantId: string
+  tenantName: string | null
+  conversationId: string
+  contactDisplayName: string | null
+  contactPhoneMasked: string | null
+  flagSource: string
+  flagReason: string | null
+  clientComment: string | null
+  clientComments: string[]
+  flaggedAt: number
+  expiresAt: number
+  messageCount: number
+  lastMessageAt: number | null
+  lastMessagePreview: string | null
+}
+
+export type SampleMessage = {
+  id: string
+  seq: number
+  direction: string
+  body: string
+  createdAt: number
+  deliveryState: string | null
+  authorDisplayName: string | null
+}
+
+export type SampleDetail = SampleItem & { messages: SampleMessage[] }
+
 export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
 
 export type AdminTenantDetail = {
@@ -214,6 +291,42 @@ export function createAdminApi(getToken: TokenGetter) {
     async refreshTenantHealth(tenantId: string): Promise<ClinicHealth> {
       return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health/refresh`, { method: 'POST' })).health
     },
+    /** `tenantId` ausente = atividade de toda a plataforma (visão geral). */
+    listAudit(tenantId: string | null, query: AuditQuery = {}, opts?: FetchOpts): Promise<AuditPage> {
+      const params = new URLSearchParams()
+      if (query.category) params.set('category', query.category)
+      if (query.days) params.set('days', String(query.days))
+      if (query.cursor) params.set('cursor', query.cursor)
+      if (query.limit) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const base = tenantId ? `${tenantPath(tenantId)}/audit` : '/api/platform/audit'
+      return request<AuditPage>(qs ? `${base}?${qs}` : base, {}, opts)
+    },
+    async getQualityMetrics(q: { sinceHours: number; tenantId?: string }, opts?: FetchOpts): Promise<QualityMetrics> {
+      const params = new URLSearchParams({ sinceHours: String(q.sinceHours) })
+      if (q.tenantId) params.set('tenantId', q.tenantId)
+      return (await request<{ metrics: QualityMetrics }>(`/api/platform/quality/metrics?${params}`, {}, opts)).metrics
+    },
+    getShadowReport(q: { sinceHours: number; tenantId?: string }, opts?: FetchOpts): Promise<ShadowReport> {
+      const params = new URLSearchParams({ sinceHours: String(q.sinceHours) })
+      if (q.tenantId) params.set('tenantId', q.tenantId)
+      return request<ShadowReport>(`/api/platform/quality/shadow?${params}`, {}, opts)
+    },
+    async listSamples(
+      q: { tenantId?: string; before?: number | null; limit?: number } = {},
+      opts?: FetchOpts,
+    ): Promise<{ samples: SampleItem[]; nextBefore: number | null }> {
+      const params = new URLSearchParams()
+      if (q.tenantId) params.set('tenantId', q.tenantId)
+      if (q.before) params.set('before', String(q.before))
+      if (q.limit) params.set('limit', String(q.limit))
+      const qs = params.toString()
+      return request(`/api/platform/quality/samples${qs ? `?${qs}` : ''}`, {}, opts)
+    },
+    /** Ler o texto fica registado na auditoria (DEC-193). */
+    async getSample(sampleId: string): Promise<SampleDetail> {
+      return (await request<{ sample: SampleDetail }>(`/api/platform/quality/samples/${encodeURIComponent(sampleId)}`)).sample
+    },
     async listSupport(opts?: FetchOpts): Promise<SupportItem[]> {
       return (await request<{ items: SupportItem[] }>('/api/platform/support', {}, opts)).items
     },
@@ -284,6 +397,10 @@ export function adminErrorMessage(err: unknown): string {
       return 'O estado da clínica mudou entretanto. Atualize a página e confira.'
     case 'tenant_not_found':
       return 'Esta clínica já não existe.'
+    case 'review_sample_not_found':
+      return 'Esta amostra já não existe (a retenção é de 30 dias).'
+    case 'invalid_window':
+      return 'O período escolhido não é válido.'
     case 'no_active_owner':
       return 'Esta clínica ainda não tem owner ativa: ninguém pode aprovar o acesso.'
     case 'subject_not_member':
