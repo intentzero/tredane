@@ -47,6 +47,168 @@ export type AdminMember = AdminMembership & {
   email: string | null
 }
 
+export type HealthSituation = 'critical' | 'attention' | 'normal' | 'no_data' | 'inactive'
+
+export type HealthAlert = {
+  kind: string
+  severity: 'info' | 'warning' | 'critical'
+  reason: string
+  value: number | null
+  threshold: number | null
+}
+
+export type HealthCounts = {
+  pendingOutbox: number | null
+  failedOutbox: number | null
+  uncertainOutbound: number | null
+  llmJobsOpen: number | null
+  llmJobsFailed1h: number | null
+  schemaVersion: number | null
+  schemaReady: boolean | null
+}
+
+/** Saúde de uma clínica lida do resumo gravado pelo cron (DEC-193): só contagens e estados. */
+export type ClinicHealth = {
+  tenantId: string
+  name: string
+  tenantStatus: AdminTenantStatus
+  whatsapp: { status: ChannelStatus }
+  situation: HealthSituation
+  /** A última leitura falhou: os números são da última leitura boa. */
+  stale: boolean
+  alerts: HealthAlert[]
+  readAt: number | null
+  lastOkAt: number | null
+  counts: HealthCounts | null
+}
+
+export type HealthOverview = {
+  summaryAt: number | null
+  refreshIntervalMs: number
+  totals: {
+    activeClinics: number
+    critical: number
+    attention: number
+    normal: number
+    noData: number
+    unreachable: number
+    llmJobsOpen: number
+  }
+  clinics: ClinicHealth[]
+}
+
+export type SupportState =
+  | 'awaiting_owner'
+  | 'approved'
+  | 'active'
+  | 'session_expired'
+  | 'ended'
+  | 'revoked'
+  | 'rejected'
+  | 'request_expired'
+  | 'cancelled'
+
+export type SupportPerson = { clerkUserId: string; displayName: string | null; email: string | null }
+
+/** Pedido de suporte com a sessão, se houve (PA-05/PA-10): só metadados, nunca token nem conteúdo. */
+export type SupportItem = {
+  requestId: string
+  tenantId: string
+  tenantName: string
+  actor: SupportPerson | null
+  subject: SupportPerson | null
+  decider: SupportPerson | null
+  revokedBy: SupportPerson | null
+  reason: string
+  scope: string
+  state: SupportState
+  createdAt: number
+  decidedAt: number | null
+  expiresAt: number
+  sessionId: string | null
+  activatedAt: number | null
+  endedAt: number | null
+  durationMs: number | null
+  remainingMs: number | null
+}
+
+export type AuditCategory = 'clinic' | 'members' | 'support' | 'email'
+export type AuditOutcome = 'success' | 'denied' | 'conflict' | 'error'
+
+export type AuditPerson = { clerkUserId: string; displayName: string | null; email: string | null }
+
+/** Evento de auditoria central: ator, alvo, ação e resultado. Nunca texto de conversa (a auditoria não o guarda). */
+export type AuditEvent = {
+  id: string
+  occurredAt: number
+  action: string
+  objectType: string
+  objectId: string | null
+  outcome: AuditOutcome | string
+  actor: AuditPerson | null
+  subject: AuditPerson | null
+  tenantId: string | null
+  tenantName: string | null
+  supportSessionId: string | null
+  metadata: Record<string, string | number | boolean | null>
+}
+
+export type AuditPage = { events: AuditEvent[]; nextCursor: string | null }
+
+export type AuditQuery = { category?: AuditCategory; days?: 7 | 30 | 90; cursor?: string | null; limit?: number }
+
+/** Métricas de conversa (as mesmas do Review MCP): só agregados, sem texto. */
+export type QualityMetrics = {
+  bookingRate: { episodesWithIntent: number; confirmed: number; rate: number | null }
+  falseConfirmations: { count: number; ids: string[] }
+  attendantCalls: { episodesWithRequest: number; episodesTotal: number; rate: number | null }
+  abandonedConversations: { count: number }
+  messagesToBook: { median: number | null; samples: number; baseline: number }
+  misunderstandingsPerConversation: { mean: number | null; totalTurns: number; episodes: number }
+  attendance: { aiBooked: number; fulfilled: number; fulfillmentRate: number | null; note: string }
+  blindSpots: string[]
+}
+
+export type ShadowVerdict = 'agree' | 'differ' | 'llm_only' | 'rule_only' | 'none'
+
+/** TEMPORÁRIO como a sombra do interpretador (hipótese H1). */
+export type ShadowReport = {
+  temporary: true
+  window: { sinceHours: number; requestedHours: number; clamped: boolean }
+  truncated: boolean
+  summary: { total: number; conversations: number; fields: Record<string, Record<ShadowVerdict, number>> }
+}
+
+export type SampleItem = {
+  id: string
+  tenantId: string
+  tenantName: string | null
+  conversationId: string
+  contactDisplayName: string | null
+  contactPhoneMasked: string | null
+  flagSource: string
+  flagReason: string | null
+  clientComment: string | null
+  clientComments: string[]
+  flaggedAt: number
+  expiresAt: number
+  messageCount: number
+  lastMessageAt: number | null
+  lastMessagePreview: string | null
+}
+
+export type SampleMessage = {
+  id: string
+  seq: number
+  direction: string
+  body: string
+  createdAt: number
+  deliveryState: string | null
+  authorDisplayName: string | null
+}
+
+export type SampleDetail = SampleItem & { messages: SampleMessage[] }
+
 export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
 
 export type AdminTenantDetail = {
@@ -119,6 +281,65 @@ export function createAdminApi(getToken: TokenGetter) {
     }): Promise<{ tenant: AdminTenant } & InviteResult> {
       return request('/api/platform/tenants', { method: 'POST', body: JSON.stringify(input) })
     },
+    getHealthOverview(opts?: FetchOpts): Promise<HealthOverview> {
+      return request<HealthOverview>('/api/platform/health', {}, opts)
+    },
+    async getTenantHealth(tenantId: string, opts?: FetchOpts): Promise<ClinicHealth> {
+      return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health`, {}, opts)).health
+    },
+    /** Relê o Durable Object desta clínica agora e grava o resumo. */
+    async refreshTenantHealth(tenantId: string): Promise<ClinicHealth> {
+      return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health/refresh`, { method: 'POST' })).health
+    },
+    /** `tenantId` ausente = atividade de toda a plataforma (visão geral). */
+    listAudit(tenantId: string | null, query: AuditQuery = {}, opts?: FetchOpts): Promise<AuditPage> {
+      const params = new URLSearchParams()
+      if (query.category) params.set('category', query.category)
+      if (query.days) params.set('days', String(query.days))
+      if (query.cursor) params.set('cursor', query.cursor)
+      if (query.limit) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const base = tenantId ? `${tenantPath(tenantId)}/audit` : '/api/platform/audit'
+      return request<AuditPage>(qs ? `${base}?${qs}` : base, {}, opts)
+    },
+    async getQualityMetrics(q: { sinceHours: number; tenantId?: string }, opts?: FetchOpts): Promise<QualityMetrics> {
+      const params = new URLSearchParams({ sinceHours: String(q.sinceHours) })
+      if (q.tenantId) params.set('tenantId', q.tenantId)
+      return (await request<{ metrics: QualityMetrics }>(`/api/platform/quality/metrics?${params}`, {}, opts)).metrics
+    },
+    getShadowReport(q: { sinceHours: number; tenantId?: string }, opts?: FetchOpts): Promise<ShadowReport> {
+      const params = new URLSearchParams({ sinceHours: String(q.sinceHours) })
+      if (q.tenantId) params.set('tenantId', q.tenantId)
+      return request<ShadowReport>(`/api/platform/quality/shadow?${params}`, {}, opts)
+    },
+    async listSamples(
+      q: { tenantId?: string; before?: number | null; limit?: number } = {},
+      opts?: FetchOpts,
+    ): Promise<{ samples: SampleItem[]; nextBefore: number | null }> {
+      const params = new URLSearchParams()
+      if (q.tenantId) params.set('tenantId', q.tenantId)
+      if (q.before) params.set('before', String(q.before))
+      if (q.limit) params.set('limit', String(q.limit))
+      const qs = params.toString()
+      return request(`/api/platform/quality/samples${qs ? `?${qs}` : ''}`, {}, opts)
+    },
+    /** Ler o texto fica registado na auditoria (DEC-193). */
+    async getSample(sampleId: string): Promise<SampleDetail> {
+      return (await request<{ sample: SampleDetail }>(`/api/platform/quality/samples/${encodeURIComponent(sampleId)}`)).sample
+    },
+    async listSupport(opts?: FetchOpts): Promise<SupportItem[]> {
+      return (await request<{ items: SupportItem[] }>('/api/platform/support', {}, opts)).items
+    },
+    async listTenantSupport(tenantId: string, opts?: FetchOpts): Promise<SupportItem[]> {
+      return (await request<{ items: SupportItem[] }>(`${tenantPath(tenantId)}/support`, {}, opts)).items
+    },
+    /** DEC-029: cria o pedido `pending`; sem aprovação de uma owner não há acesso. */
+    async createSupportRequest(input: { tenantId: string; subjectClerkUserId: string; reason: string }) {
+      return request<{ request: { id: string }; emailsSent: number; accessGranted: false }>(
+        '/api/platform/support-requests',
+        { method: 'POST', body: JSON.stringify({ ...input, scope: 'read_diagnostics' }) },
+      )
+    },
     async listMembers(tenantId: string, opts?: FetchOpts): Promise<AdminMember[]> {
       return (await request<{ members: AdminMember[] }>(`${tenantPath(tenantId)}/members`, {}, opts)).members
     },
@@ -176,6 +397,20 @@ export function adminErrorMessage(err: unknown): string {
       return 'O estado da clínica mudou entretanto. Atualize a página e confira.'
     case 'tenant_not_found':
       return 'Esta clínica já não existe.'
+    case 'review_sample_not_found':
+      return 'Esta amostra já não existe (a retenção é de 30 dias).'
+    case 'invalid_window':
+      return 'O período escolhido não é válido.'
+    case 'no_active_owner':
+      return 'Esta clínica ainda não tem owner ativa: ninguém pode aprovar o acesso.'
+    case 'subject_not_member':
+      return 'Esta pessoa já não é membro ativo da clínica. Escolha outra.'
+    case 'verified_email_reader_unavailable':
+      return 'Não foi possível confirmar os e-mails das owners agora. Tente de novo em instantes.'
+    case 'invalid_body':
+      return 'Faltam dados no pedido. Confira a clínica, a pessoa e o motivo.'
+    case 'tenant_not_active':
+      return 'A clínica não está ativa: não há leituras novas.'
     case 'last_owner_protected':
       return 'Não é possível remover a última owner ativa. Adicione ou substitua por outra primeiro.'
     case 'owner_not_found':

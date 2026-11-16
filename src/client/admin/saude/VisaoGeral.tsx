@@ -1,0 +1,191 @@
+import { useEffect, useState } from 'react'
+import type { AdminTenantRow, AuditEvent } from '../api'
+import { AdminLoadError, AdminLoading, PageHeader, Pill } from '../AdminUi'
+import {
+  SITUATION_LABEL,
+  SITUATION_TONE,
+  SUPPORT_LABEL,
+  SUPPORT_OPEN,
+  SUPPORT_TONE,
+  auditActionLabel,
+  auditPerson,
+  healthReasons,
+  tenantDisplayState,
+  formatReading,
+  supportTiming,
+} from '../format'
+import { clinicaHref, navigateAdmin } from '../routes'
+import { useAdminApi } from '../useAdminApi'
+import { useSupport } from '../suporte/useSupport'
+import { summaryIsStale, useHealthOverview } from './useHealthOverview'
+
+/** PA-01 — contadores por estado e clínicas que precisam de atenção. Suporte e atividade chegam em #831/#832. */
+export function VisaoGeral() {
+  const api = useAdminApi()
+  const { load, reload } = useHealthOverview()
+  const { load: support } = useSupport()
+  const [rows, setRows] = useState<AdminTenantRow[] | null>(null)
+  const [rowsError, setRowsError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const [activity, setActivity] = useState<AuditEvent[] | 'error' | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setRowsError(false)
+    api
+      .listTenants({ signal: controller.signal })
+      .then((r) => {
+        if (!controller.signal.aborted) setRows(r)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setRowsError(true)
+      })
+    return () => controller.abort()
+  }, [api, attempt])
+
+  // Atividade recente da plataforma (#832): últimos eventos de auditoria de todas as clínicas.
+  useEffect(() => {
+    const controller = new AbortController()
+    api
+      .listAudit(null, { limit: 5 }, { signal: controller.signal })
+      .then((page) => {
+        if (!controller.signal.aborted) setActivity(page.events)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setActivity('error')
+      })
+    return () => controller.abort()
+  }, [api, attempt])
+
+  if (rowsError || load.phase === 'error') {
+    return <AdminLoadError what="a visão geral" onRetry={() => {
+          reload()
+          setAttempt((n) => n + 1)
+        }} />
+  }
+  if (load.phase === 'loading' || rows === null) return <AdminLoading label="Carregando a visão geral…" />
+
+  const { overview } = load
+  const count = (s: string) => rows.filter((r) => tenantDisplayState(r) === s).length
+  const needAttention = overview.clinics.filter(
+    (c) => c.tenantStatus === 'active' && (c.situation === 'critical' || c.situation === 'attention'),
+  )
+  const go = (href: string) => (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    navigateAdmin(href)
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Visão geral"
+        sub={overview.summaryAt ? `Resumo das ${formatReading(overview.summaryAt)}` : 'Ainda sem leituras de saúde'}
+        actions={<button type="button" className="admin-btn" onClick={reload}>Recarregar</button>}
+      />
+      {summaryIsStale(overview) ? (
+        <div className="admin-note admin-note--warn" role="status">
+          <span>O resumo de saúde está desatualizado: a leitura periódica pode estar parada.</span>
+        </div>
+      ) : null}
+      <div className="admin-stats">
+        <a className="admin-card admin-stat" href="/admin/clinicas" onClick={go('/admin/clinicas')}><b>{count('active')}</b><span>Clínicas ativas</span></a>
+        <a className="admin-card admin-stat" href="/admin/clinicas" onClick={go('/admin/clinicas')}><b>{count('onboarding')}</b><span>Em configuração</span></a>
+        <a className="admin-card admin-stat" href="/admin/clinicas" onClick={go('/admin/clinicas')}><b>{count('suspended')}</b><span>Suspensas</span></a>
+        <a className="admin-card admin-stat" href="/admin/clinicas" onClick={go('/admin/clinicas')}><b>{count('pending_deletion')}</b><span>Exclusão pendente</span></a>
+      </div>
+      <div className="admin-grid">
+        <section className="admin-card admin-card--wide" aria-labelledby="adm-attn">
+          <h2 id="adm-attn" className="admin-card-title">Clínicas que precisam de atenção</h2>
+          {needAttention.length === 0 ? (
+            <p className="admin-muted">Nenhuma clínica ativa com sinais de problema no último resumo.</p>
+          ) : (
+            <div className="admin-table-scroll">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Clínica</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col">Sinais</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {needAttention.map((c) => {
+                    const href = clinicaHref(c.tenantId, 'saude')
+                    return (
+                      <tr key={c.tenantId}>
+                        <th scope="row"><a href={href} onClick={go(href)}>{c.name}</a></th>
+                        <td><Pill tone={SITUATION_TONE[c.situation]}>{SITUATION_LABEL[c.situation]}</Pill></td>
+                        <td>{healthReasons(c).join(' · ') || '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <a href="/admin/saude" onClick={go('/admin/saude')}>Ver a saúde de todas as clínicas</a>
+        </section>
+        <section className="admin-card" aria-labelledby="adm-sup">
+          <h2 id="adm-sup" className="admin-card-title">Suporte</h2>
+          {support.phase === 'ready' ? (
+            (() => {
+              const open = support.items.filter((i) => SUPPORT_OPEN.includes(i.state))
+              return open.length === 0 ? (
+                <p className="admin-muted">Nenhum pedido em aberto.</p>
+              ) : (
+                <div className="admin-rows">
+                  {open.slice(0, 3).map((i) => (
+                    <div key={i.requestId}>
+                      <span>
+                        {i.tenantName}
+                        <span className="admin-muted admin-block">{supportTiming(i)}</span>
+                      </span>
+                      <Pill tone={SUPPORT_TONE[i.state]}>{SUPPORT_LABEL[i.state]}</Pill>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()
+          ) : (
+            <p className="admin-muted">{support.phase === 'loading' ? 'Carregando…' : 'Não foi possível carregar o suporte.'}</p>
+          )}
+          <a href="/admin/suporte" onClick={go('/admin/suporte')}>Abrir suporte</a>
+        </section>
+        <section className="admin-card" aria-labelledby="adm-act">
+          <h2 id="adm-act" className="admin-card-title">Atividade recente da plataforma</h2>
+          {activity === null ? (
+            <p className="admin-muted">Carregando…</p>
+          ) : activity === 'error' ? (
+            <p className="admin-muted">Não foi possível carregar a atividade.</p>
+          ) : activity.length === 0 ? (
+            <p className="admin-muted">Ainda não há atividade registada.</p>
+          ) : (
+            <div className="admin-table-scroll">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Quando</th>
+                    <th scope="col">Ator</th>
+                    <th scope="col">Ação</th>
+                    <th scope="col">Clínica</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activity.map((e) => (
+                    <tr key={e.id}>
+                      <td className="admin-nowrap">{formatReading(e.occurredAt)}</td>
+                      <td>{auditPerson(e.actor)}</td>
+                      <td>{auditActionLabel(e.action)}</td>
+                      <td>{e.tenantName ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
+  )
+}
