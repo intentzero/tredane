@@ -169,6 +169,13 @@
       "when": 1794200000000,
       "tag": "0024_conversation_quality",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1794300000000,
+      "tag": "0025_tenant_health_summary",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import {
   requireClinicPermission,
 } from './authorize'
 import { authErrorResponse, requireAuth, requireTenantAccess, type AuthEnv } from './middleware'
+import { requireVerifiedSuperadmin } from './superadmin'
 
 /**
  * Rotas de identidade e autorização (#21).
@@ -14,13 +15,23 @@ export function createAuthRoutes(): Hono<AuthEnv> {
 
   routes.get('/api/me', requireAuth(), async (c) => {
     const principal = c.get('principal')
+    const services = c.get('authServices')
+    // Platform Admin UI (DEC-192, #828): o cliente só decide se mostra `/admin`.
+    // A autorização real continua em cada rota `/api/platform/*` (`requireSuperadmin`).
+    // Fail closed: qualquer falha de leitura do Clerk → false, nunca true.
+    let isSuperadmin = false
+    try {
+      await requireVerifiedSuperadmin(services.authority, principal.clerkUserId)
+      isSuperadmin = true
+    } catch {
+      isSuperadmin = false
+    }
     c.header('Cache-Control', 'no-store')
     return c.json({
       kind: principal.kind,
       clerkUserId: principal.clerkUserId,
       sessionId: principal.sessionId,
-      // Superadmin só é afirmado em rotas que revalidam privateMetadata.
-      isSuperadmin: false,
+      isSuperadmin,
     })
   })
 

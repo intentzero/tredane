@@ -66,6 +66,49 @@ describe('HTTP — Clerk/tenant auth (#21)', () => {
     }
   })
 
+  it('GET /api/me afirma isSuperadmin só com privateMetadata booleano exato (#828)', async () => {
+    const { app, close, auth } = testApp()
+    try {
+      const expectFlag = async (user: string, expected: boolean) => {
+        const res = await app.request('http://localhost/api/me', auth(user))
+        expect(res.status).toBe(200)
+        const body = await res.json() as { isSuperadmin: boolean }
+        expect(body.isSuperadmin, user).toBe(expected)
+      }
+      await expectFlag('user_synth_superadmin', true)
+      await expectFlag('user_synth_owner_a', false)
+      await expectFlag('user_synth_string_super', false)
+      await expectFlag('user_synth_public_super', false)
+      await expectFlag('user_synth_unknown_user', false)
+    } finally {
+      close()
+    }
+  })
+
+  it('GET /api/me não concede superadmin quando o Clerk falha (#828)', async () => {
+    const boot = bootAdminDb()
+    const services: AuthServices = {
+      sessions: createSyntheticSessionAuthenticator({ authorizedParties: ['http://localhost:5173'] }),
+      authority: createSyntheticAuthorityReader(undefined, {
+        failUserIds: new Set(['user_synth_superadmin']),
+      }),
+      adminDb: asyncFromSync(boot.db),
+    }
+    const app = createApp({
+      authServicesFactory: () => services,
+      syncAdminDbFactory: () => boot.db,
+    })
+    try {
+      const res = await app.request('http://localhost/api/me', {
+        headers: { Authorization: synthAuthHeader('user_synth_superadmin') },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json() as { isSuperadmin: boolean }).isSuperadmin).toBe(false)
+    } finally {
+      boot.close()
+    }
+  })
+
   it('GET /api/me/tenants devolve roles D1 por tenant', async () => {
     const { app, close, auth } = testApp()
     try {

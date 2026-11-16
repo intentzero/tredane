@@ -280,6 +280,7 @@ export async function d1SuspendTenant(
   db: D1Database,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): Promise<{
   tenant: TenantRow
   revokedSupportSessionIds: string[]
@@ -305,7 +306,7 @@ export async function d1SuspendTenant(
     action: 'tenant.suspend',
     objectType: 'tenant',
     objectId: tenantId,
-    metadata: { to: 'suspended' },
+    metadata: { to: 'suspended', ...(reason ? { reason } : {}) },
   })
   const side = await revokeSupportForTenant(db, tenantId, actorClerkUserId, 'tenant_suspend')
   return { tenant: (await d1GetTenant(db, tenantId))!, ...side }
@@ -315,6 +316,7 @@ export async function d1ReactivateTenant(
   db: D1Database,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): Promise<{
   tenant: TenantRow
   preservedRevokedMemberships: number
@@ -353,7 +355,7 @@ export async function d1ReactivateTenant(
     action: 'tenant.reactivate',
     objectType: 'tenant',
     objectId: tenantId,
-    metadata: { to: 'active' },
+    metadata: { to: 'active', ...(reason ? { reason } : {}) },
   })
 
   const afterM = await db
@@ -384,6 +386,7 @@ export async function d1PendingDeletion(
   db: D1Database,
   tenantId: string,
   actorClerkUserId: string,
+  reason?: string,
 ): Promise<{
   tenant: TenantRow
   deletionCommand: DeletionCommandRow
@@ -414,7 +417,7 @@ export async function d1PendingDeletion(
     action: 'tenant.pending_deletion',
     objectType: 'tenant',
     objectId: tenantId,
-    metadata: { to: 'pending_deletion' },
+    metadata: { to: 'pending_deletion', ...(reason ? { reason } : {}) },
   })
   const side = await revokeSupportForTenant(
     db,

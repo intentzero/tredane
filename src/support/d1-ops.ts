@@ -226,6 +226,18 @@ export async function d1CreateSupportRequest(
     throw new ForbiddenError('tenant_not_active', 'Tenant inativo')
   }
 
+  // DEC-194: clínica «em configuração» (sem owner ativa) — ninguém pode aprovar (DEC-029).
+  const activeOwnerRow = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM tenant_memberships
+       WHERE tenant_id = ? AND role = 'owner' AND status = 'active'`,
+    )
+    .bind(input.tenantId)
+    .first<{ n: number }>()
+  if (Number(activeOwnerRow?.n ?? 0) === 0) {
+    throw new ForbiddenError('no_active_owner', 'Clínica sem owner ativa: ninguém pode aprovar o acesso')
+  }
+
   const subject = await db
     .prepare(
       `SELECT status FROM tenant_memberships WHERE tenant_id = ? AND clerk_user_id = ?`,
