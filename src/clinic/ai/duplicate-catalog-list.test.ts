@@ -23,7 +23,6 @@ import {
   CATALOG_AUDIENCE_LIST_BODY,
   CATALOG_AUDIENCE_LIST_BUTTON,
   CATALOG_AUDIENCE_ROW_MASCULINO,
-  catalogNamesBody,
 } from './catalog-consult'
 import { handleChoiceOfferClick } from './choice-offer'
 import { enqueueAutoDraft, getAutoDraftJob, runDueAutoDrafts } from './index'
@@ -115,7 +114,12 @@ function outbound(s: ReturnType<typeof seed>) {
 }
 
 function catalogLists(rows: ReturnType<typeof outbound>) {
-  return rows.filter((m) => /^Temos:\n/.test(m.body) && /Qual você quer\?/.test(m.body))
+  return rows.filter(
+    (m) =>
+      m.body === EXPECTED_LIST &&
+      (m.interactive_json ?? '').includes('Depilação') &&
+      (m.interactive_json ?? '').includes('ch1~'),
+  )
 }
 
 function masculinoRowId(json: string | null): string {
@@ -136,7 +140,7 @@ async function reachAudienceList(s: ReturnType<typeof seed>) {
   return ask!
 }
 
-const EXPECTED_LIST = catalogNamesBody(['Depilação', 'Massagem'])
+const EXPECTED_LIST = 'Qual você quer?'
 
 describe('lista de catálogo única após Escolher Masculino (DEC-142)', () => {
   it('texto «Masculino» após a pergunta manda um só «Temos:»', async () => {
@@ -148,7 +152,7 @@ describe('lista de catálogo única após Escolher Masculino (DEC-142)', () => {
       const lists = catalogLists(outbound(s).slice(before))
       expect(lists).toHaveLength(1)
       expect(lists[0]!.body).toBe(EXPECTED_LIST)
-      expect(lists[0]!.interactive_json).toBeNull()
+      expect(lists[0]!.interactive_json ?? '').toContain('Depilação')
     } finally {
       s.close()
     }

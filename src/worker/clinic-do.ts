@@ -832,13 +832,18 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
       )
-      clinicProposals.reconcileProposalResultOutboundSend(
+      const reconciled = clinicProposals.reconcileProposalResultOutboundSend(
         this.#db,
         caller.tenantId,
         result.value.outbound,
         input.outcome,
         this.#clock,
+        caller,
       )
+      if (reconciled.outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, reconciled.outbox, true)
+        await this.#drain(caller)
+      }
     } catch {
       /* best-effort */
     }

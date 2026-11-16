@@ -9,6 +9,7 @@ import { allowsMultipleVariants } from '../catalog/variant-selection'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
+import { SERVICE_PICK_BODY, SERVICE_PICK_LIST_MIN } from './service-pick-offer'
 import { FAMILY_VOCATIVE_RE, THIRD_PARTY_RE } from './nlu/sensitive'
 import { CATALOG_MISS_STOP } from '../config/option-match-stop'
 import { textCitesSynonym } from '../config/synonyms'
@@ -104,15 +105,9 @@ function wantsSkinGuidance(text: string): boolean {
   return skin && guidance
 }
 
-function skinGuidanceReply(service: ServiceRow, conversationId: string, lista: string): string {
+function skinGuidanceReply(service: ServiceRow, conversationId: string): string {
   const avaliacao = service.name.trim()
-  const ask = sayAct(
-    'perguntar_servico',
-    conversationId,
-    { lista },
-    `Qual serviço você quer? Temos ${lista}.`,
-    { requireInTemplate: ['{lista}'] },
-  )
+  const ask = sayAct('perguntar_servico', conversationId, {}, SERVICE_PICK_BODY)
   return `Pra pele assim, a ${avaliacao} é gratuita e ajuda a indicar o melhor tratamento.\n${ask}`
 }
 
@@ -395,6 +390,9 @@ function preferBaseServiceName(options: BookableOption[], text: string): Bookabl
 }
 
 function askServiceQuestion(conversationId: string, names: string[]): string {
+  if (names.length >= SERVICE_PICK_LIST_MIN) {
+    return sayAct('perguntar_servico', conversationId, {}, SERVICE_PICK_BODY)
+  }
   if (names.length >= 2) {
     const lista = names.join(', ')
     const fb = `Qual serviço você quer? Temos ${lista}.`
@@ -716,12 +714,11 @@ export function resolveBookingObject(input: {
   if (pool.length === 0 && wantsSkinGuidance(text) && !wantsPrice) {
     const av = aestheticEvaluationService(services)
     if (av) {
-      const lista = catalogServiceList(services)
       return {
         kind: 'clarify',
         candidates: listBookableOptions([av]),
         missing: ['servico'],
-        question: skinGuidanceReply(av, cnv, lista),
+        question: skinGuidanceReply(av, cnv),
         handoffReason: null,
         source: 'partial',
         correction: false,

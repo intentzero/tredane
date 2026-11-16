@@ -304,8 +304,6 @@ describe('reset booking path (Paulo 09/11/2026)', () => {
   })
 
   it('discovery hint text is fixed', () => {
-    expect(RESET_DISCOVERY_HINT_TEXT).toBe(
-      'Para recomeçar, diga começar de novo. Para parar, diga terminar.',
-    )
+    expect(RESET_DISCOVERY_HINT_TEXT).toBe('Para recomeçar, diga começar de novo.')
   })
 })

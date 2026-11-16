@@ -49,6 +49,8 @@ export type ChoiceSlot =
   | 'linha'
   | 'variantes'
   | 'horario'
+  /** Escolha de serviço no catálogo (lista/botões). */
+  | 'servico'
   | 'eco'
   /** DEC-178: acumulação multi-zona Mais | Pronto (após toque em Opções). */
   | 'acumular'
@@ -78,6 +80,8 @@ export type ChoiceInteractive = ChoiceInteractiveButtons | ChoiceInteractiveList
 export const VARIANT_LIST_BUTTON_LABEL = 'Opções'
 /** CTA da lista de horários — Confirmado (DEC-134). */
 export const SLOT_LIST_BUTTON_LABEL = 'Horários'
+/** CTA da lista de serviços (regressão P8, 15/11/2026). */
+export const SERVICE_LIST_BUTTON_LABEL = 'Serviços'
 
 /** Eco das zonas em texto livre — Confirmado (DEC-137). Sim não marca (DEC-061). */
 export const ZONE_ECHO_SIM_KEY = 'sim'
@@ -177,6 +181,7 @@ export function parseChoiceId(
     slot !== 'linha' &&
     slot !== 'variantes' &&
     slot !== 'horario' &&
+    slot !== 'servico' &&
     slot !== 'eco' &&
     slot !== 'acumular' &&
     slot !== 'audiencia' &&
@@ -370,6 +375,51 @@ export function buildVariantChoiceInteractive(input: {
   }
 }
 
+export function buildServiceChoiceButtons(
+  catalogVersion: string,
+  services: Array<{ id: string; name: string }>,
+): { interactive: ChoiceInteractiveButtons; pending: BookingFramePending } {
+  const options = services.slice(0, 3)
+  return {
+    interactive: {
+      mode: 'buttons',
+      buttons: options.map((s) => ({
+        id: encodeChoiceId('servico', catalogVersion, s.id),
+        title: clip(s.name, META_BUTTON_TITLE_MAX),
+      })),
+    },
+    pending: pendingForChoiceOffer({
+      slot: 'servico',
+      options: options.map((s) => ({ key: s.id, label: s.name })),
+    }),
+  }
+}
+
+export function buildServiceChoiceList(
+  catalogVersion: string,
+  services: Array<{ id: string; name: string }>,
+): { interactive: ChoiceInteractiveList; pending: BookingFramePending } {
+  const options = services.slice(0, META_LIST_MAX_ROWS)
+  return {
+    interactive: {
+      mode: 'list',
+      button: clip(SERVICE_LIST_BUTTON_LABEL, META_LIST_BUTTON_MAX),
+      sections: [
+        {
+          rows: options.map((s) => ({
+            id: encodeChoiceId('servico', catalogVersion, s.id),
+            title: clip(s.name, META_LIST_ROW_TITLE_MAX),
+          })),
+        },
+      ],
+    },
+    pending: pendingForChoiceOffer({
+      slot: 'servico',
+      options: options.map((s) => ({ key: s.id, label: s.name })),
+    }),
+  }
+}
+
 export function buildSlotChoiceInteractive(input: {
   catalogVersion: string
   slots: Array<{ key: string; label: string; description?: string }>
@@ -524,6 +574,9 @@ function semanticTextForChoice(
     if (key === PERIOD_DAY_TARDE_KEY) return 'de tarde'
     if (key === PERIOD_DAY_OUTRO_DIA_KEY) return 'quero ver outro dia'
     return label
+  }
+  if (slot === 'servico') {
+    return label.trim() || 'quero agendar'
   }
   if (slot === 'variantes') {
     if (key !== TODAS_OPTION_KEY) return label

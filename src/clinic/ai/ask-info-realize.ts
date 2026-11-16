@@ -278,8 +278,53 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
-  // E-02 frio-ish: serviço aberto mas sem pool — pede variantes sem R$.
+  // Serviço em linha (sem variantes no catálogo): cota preço/duração do cadastro.
   if (zones.length === 0) {
+    if (topic === 'price' || topic === 'duration') {
+      const duração = String(service.durationMinutes)
+      if (topic === 'duration') {
+        const quote: AskInfoPolicyAct = {
+          act: 'informar_duracao',
+          vars: { duração },
+          fallback: `${duração} min.`,
+        }
+        const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+        const { entry, stack: after } = popInterrupt(stack)
+        const quoteText = renderAct(quote, conversationId)
+        const replyText = resume
+          ? `${quoteText}\n${renderAct(resume, conversationId)}`
+          : quoteText
+        return {
+          quote,
+          resume,
+          replyText,
+          parked,
+          stack: after,
+          resumedObligation: entry ? resumeParkedObligation(entry) : null,
+        }
+      }
+      const preço =
+        service.priceCents == null ? 'a equipe confirma o valor' : formatBRL(service.priceCents)
+      const quote: AskInfoPolicyAct = {
+        act: 'informar_preco_variante',
+        vars: { variante: service.name, preço, duração: duração },
+        fallback: `${service.name} custa ${preço} e dura ${duração} min.`,
+      }
+      const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+      const { entry, stack: after } = popInterrupt(stack)
+      const quoteText = renderAct(quote, conversationId)
+      const replyText = resume
+        ? `${quoteText}\n${renderAct(resume, conversationId)}`
+        : quoteText
+      return {
+        quote,
+        resume,
+        replyText,
+        parked,
+        stack: after,
+        resumedObligation: entry ? resumeParkedObligation(entry) : null,
+      }
+    }
     const { stack: after } = popInterrupt(stack)
     void after
     return null
