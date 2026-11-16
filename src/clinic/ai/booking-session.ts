@@ -10,6 +10,7 @@ import { clearIdleSuppressed } from '../followup/idle-state'
 import { newId } from '../ids'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
+import { onBookingSessionEndedForQuality } from '../../conversation-metrics/hook'
 import type { BookingFrame } from './schedule-session'
 
 /** Confirmado (Paulo P4, 07/11/2026): 24 h, alinhado à validade do frame DEC-127. */
@@ -434,16 +435,15 @@ export function endBookingSession(
     clock,
   )
 
-  return {
-    session: {
-      ...open,
-      closedAt: now,
-      outcome: input.outcome,
-      dropStep,
-      maxStep: maxStep ?? open.maxStep,
-    },
-    outbox,
+  const closedSession: BookingSessionRow = {
+    ...open,
+    closedAt: now,
+    outcome: input.outcome,
+    dropStep,
+    maxStep: maxStep ?? open.maxStep,
   }
+  onBookingSessionEndedForQuality(db, closedSession, clock)
+  return { session: closedSession, outbox }
 }
 
 const STEP_RANK: Record<BookingSessionStep, number> = {

@@ -135,6 +135,13 @@ import {
   promiseTeamFollowUp,
   textPromisesTeamFollowUp,
 } from './promise-team-follow-up'
+import { auditOutboundForFalseConfirmation } from '../../conversation-metrics/false-confirmation-audit'
+import {
+  normalizeOutboundForRepeatCheck,
+  outboundLooksLikeMisunderstanding,
+} from '../../conversation-metrics/detect'
+import { getConversationQualityCentralDb } from '../../conversation-metrics/hook'
+import { incrementMisunderstandingTurn } from '../../conversation-metrics/session-counters'
 import { createLlmJob, hasDoneLlmJob, hasOpenLlmJobForConversation } from './llm-jobs'
 import { buildLlmShadowQueueMessage } from './llm-queue-types'
 import { buildExtractSnapshot, buildRedactSnapshot } from './llm-snapshot'
@@ -522,6 +529,27 @@ export async function runDueAutoDrafts(
         openSession?.sessionId ??
         null
       const friction = mergeFriction(outcome.autoBook?.friction)
+      if (sessionId) {
+        const replyText = outcome.autoBook?.replyText?.trim() ?? ''
+        const miss =
+          route === 'fallback' ||
+          friction.some((f) => f.flag === 'nao_encontrei') ||
+          (replyText.length > 0 && outboundLooksLikeMisunderstanding(replyText))
+        if (miss) incrementMisunderstandingTurn(db, sessionId)
+        if (replyText.length > 0) {
+          const folded = normalizeOutboundForRepeatCheck(replyText)
+          const prev = db.get<{ body: string }>(
+            `SELECT body FROM messages
+             WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+             ORDER BY created_at DESC LIMIT 1 OFFSET 1`,
+            tenantId,
+            outcome.conversationId,
+          )
+          if (prev && normalizeOutboundForRepeatCheck(prev.body) === folded) {
+            incrementMisunderstandingTurn(db, sessionId)
+          }
+        }
+      }
       emitTurnDecided(
         db,
         {
@@ -1972,6 +2000,17 @@ export async function runDueAutoDrafts(
             clock,
           )
         }
+        void auditOutboundForFalseConfirmation(
+          db,
+          getConversationQualityCentralDb(),
+          {
+            tenantId,
+            conversationId: job.conversationId,
+            messageId: job.messageId,
+            body,
+          },
+          clock,
+        )
         suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err

@@ -29,6 +29,7 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import { endBookingSession } from '../ai/booking-session'
+import { setSessionConfirmedAppointment } from '../../conversation-metrics/session-counters'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { alignOpportunityToAppointments } from '../pipeline/appointment-stage'
 import { ensureClinicSettings } from '../config/settings'
@@ -545,6 +546,9 @@ export function confirmAppointmentInTransaction(
       clock,
     )
     if (ended.outbox) outbox.push(ended.outbox)
+    if (ended.session) {
+      setSessionConfirmedAppointment(db, ended.session.sessionId, id)
+    }
   }
 
   writeOperationalAudit(

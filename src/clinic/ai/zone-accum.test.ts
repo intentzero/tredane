@@ -1,6 +1,6 @@
 /**
- * DEC-178 — acumulação multi-zona: Opções → Mais|Pronto (sem eco Entendi a cada toque).
- * Texto livre + eco DEC-137 mantém-se em paralelo.
+ * DEC-191 — ask de zonas em `varias`: só texto livre + eco DEC-137 (revê DEC-178).
+ * Meta lista não permite multi-seleção; sem «Toque em Opções» órfão.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -15,15 +15,10 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import {
   encodeChoiceId,
-  handleChoiceOfferClick,
   parseChoiceId,
-  SLOT_LIST_BUTTON_LABEL,
   VARIANT_LIST_BUTTON_LABEL,
-  ZONE_ACCUM_MAIS_LABEL,
-  ZONE_ACCUM_PRONTO_LABEL,
 } from './choice-offer'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
-import { getBookingFrame, getScheduleSession } from './schedule-session'
 
 const NOW = Date.UTC(2026, 9, 28, 18, 51)
 
@@ -125,161 +120,22 @@ function outbound(s: ReturnType<typeof seed>) {
   )
 }
 
-function listRowId(interactiveJson: string | null, title: string): string {
-  const parsed = JSON.parse(interactiveJson ?? '{}') as {
-    list?: { sections?: Array<{ rows?: Array<{ id: string; title: string }> }> }
-  }
-  const row = parsed.list?.sections?.flatMap((sec) => sec.rows ?? []).find((r) => r.title === title)
-  expect(row?.id).toBeTruthy()
-  return row!.id
-}
-
-function buttonId(interactiveJson: string | null, title: string): string {
-  const parsed = JSON.parse(interactiveJson ?? '{}') as {
-    buttons?: Array<{ id: string; title: string }>
-  }
-  const btn = parsed.buttons?.find((b) => b.title === title)
-  expect(btn?.id).toBeTruthy()
-  return btn!.id
-}
-
-async function tap(
-  s: ReturnType<typeof seed>,
-  buttonIdValue: string,
-  label: string,
-  key: string,
-) {
-  s.clock.advance(1_000)
-  insertMessage(
-    s.db,
-    {
-      tenantId: s.tenantId,
-      conversationId: s.cnv.id,
-      direction: 'inbound',
-      body: `[Botão] ${label}`,
-      deliveryState: 'received',
-      createdAt: s.clock.nowMs(),
-    },
-    s.clock,
-  )
-  return handleChoiceOfferClick(
-    s.db,
-    s.caller,
-    {
-      tenantId: s.tenantId,
-      conversationId: s.cnv.id,
-      buttonId: buttonIdValue,
-      providerEventKey: key,
-    },
-    s.clock,
-  )
-}
-
-describe('DEC-178 zone accum Mais|Pronto', () => {
-  it('ask zonas em varias traz Opções', async () => {
+describe('DEC-191 zone ask varias: texto livre + eco (revê DEC-178)', () => {
+  it('ask zonas em varias é só texto (sem Opções)', async () => {
     const s = seed()
     try {
       await say(s, 'Quero depilação feminina')
       const ask = outbound(s).at(-1)
       expect(ask?.body).toMatch(/quais zonas/i)
-      expect(ask?.body).toMatch(/Toque em Opções/i)
-      expect(ask?.interactive_json ?? '').toContain(VARIANT_LIST_BUTTON_LABEL)
-      expect(ask?.interactive_json ?? '').not.toContain('Todas')
+      expect(ask?.body).toMatch(/Escreva uma ou várias/i)
+      expect(ask?.body).not.toMatch(/Toque em Opções/i)
+      expect(ask?.interactive_json ?? '').not.toContain(VARIANT_LIST_BUTTON_LABEL)
     } finally {
       s.close()
     }
   })
 
-  it('toque Axila → ack curto + Mais|Pronto (sem Entendi)', async () => {
-    const s = seed()
-    try {
-      await say(s, 'Quero depilação feminina')
-      const ask = outbound(s).at(-1)
-      const axilaId = listRowId(ask?.interactive_json ?? null, 'Axila')
-      const clicked = await tap(s, axilaId, 'Axila', 'accum-axila')
-      expect(clicked.handled).toBe(true)
-      if (!clicked.handled) return
-      const reply = clicked.autoBook?.replyText ?? ''
-      expect(reply).toMatch(/^axila$/i)
-      expect(reply).not.toMatch(/Entendi:|Certo\?/)
-      expect(clicked.autoBook?.interactive?.mode).toBe('buttons')
-      if (clicked.autoBook?.interactive?.mode === 'buttons') {
-        expect(clicked.autoBook.interactive.buttons.map((b) => b.title)).toEqual([
-          ZONE_ACCUM_MAIS_LABEL,
-          ZONE_ACCUM_PRONTO_LABEL,
-        ])
-      }
-      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
-      expect(frame?.pending?.slot).toBe('acumular')
-      expect(frame?.variantIds?.length).toBe(1)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('Mais reabre Opções com «já: axila» e omite Axila', async () => {
-    const s = seed()
-    try {
-      await say(s, 'Quero depilação feminina')
-      const ask = outbound(s).at(-1)
-      const axilaId = listRowId(ask?.interactive_json ?? null, 'Axila')
-      await tap(s, axilaId, 'Axila', 'accum-axila-2')
-      const accum = outbound(s).at(-1)
-      const maisId = buttonId(accum?.interactive_json ?? null, ZONE_ACCUM_MAIS_LABEL)
-      const clicked = await tap(s, maisId, ZONE_ACCUM_MAIS_LABEL, 'accum-mais')
-      expect(clicked.handled).toBe(true)
-      if (!clicked.handled) return
-      expect(clicked.autoBook?.replyText ?? '').toMatch(/^já: axila$/i)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
-      const json = JSON.stringify(clicked.autoBook?.interactive ?? {})
-      expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)
-      expect(json).toContain('Pernas')
-      expect(json).not.toMatch(/"title":"Axila"/)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('Axila → Mais → Pernas → Pronto abre Horários (sem eco Entendi)', async () => {
-    const s = seed()
-    try {
-      await say(s, 'Quero depilação feminina')
-      let last = outbound(s).at(-1)
-      await tap(s, listRowId(last?.interactive_json ?? null, 'Axila'), 'Axila', 'a1')
-      last = outbound(s).at(-1)
-      await tap(s, buttonId(last?.interactive_json ?? null, ZONE_ACCUM_MAIS_LABEL), 'Mais', 'm1')
-      last = outbound(s).at(-1)
-      await tap(s, listRowId(last?.interactive_json ?? null, 'Pernas'), 'Pernas', 'p1')
-      last = outbound(s).at(-1)
-      expect(last?.body).toMatch(/axila, pernas/i)
-      expect(last?.body).not.toMatch(/Entendi:|Certo\?/)
-      const prontoId = buttonId(last?.interactive_json ?? null, ZONE_ACCUM_PRONTO_LABEL)
-      const clicked = await tap(s, prontoId, ZONE_ACCUM_PRONTO_LABEL, 'pronto1')
-      expect(clicked.handled).toBe(true)
-      if (!clicked.handled) return
-      const reply = clicked.autoBook?.replyText ?? ''
-      expect(reply).toMatch(/\d{1,2}:\d{2}/)
-      expect(reply).not.toMatch(/Entendi:/)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
-      if (clicked.autoBook?.interactive?.mode === 'list') {
-        expect(clicked.autoBook.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
-      }
-      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
-      const names = s.db
-        .all<{ id: string; name: string }>(
-          `SELECT id, name FROM service_zones WHERE tenant_id = ?`,
-          s.tenantId,
-        )
-        .filter((z) => session?.variantIds?.includes(z.id))
-        .map((z) => z.name)
-        .sort()
-      expect(names).toEqual(['Axila', 'Pernas'])
-    } finally {
-      s.close()
-    }
-  })
-
-  it('texto livre «axila e pernas» ainda ecoa Entendi (DEC-137)', async () => {
+  it('texto «axila e pernas» ecoa Entendi com Sim|Corrigir', async () => {
     const s = seed()
     try {
       await say(s, 'Quero depilação feminina')
@@ -287,12 +143,30 @@ describe('DEC-178 zone accum Mais|Pronto', () => {
       const reply = result?.autoBook?.replyText ?? ''
       expect(reply).toBe('Entendi: axila, pernas. Certo?')
       expect(result?.autoBook?.interactive?.mode).toBe('buttons')
+      const echo = outbound(s).at(-1)
+      expect(echo?.interactive_json ?? '').toMatch(/Sim|Corrigir/)
+      expect(echo?.interactive_json ?? '').not.toContain(VARIANT_LIST_BUTTON_LABEL)
     } finally {
       s.close()
     }
   })
 
-  it('ids opacos de acumular parseiam', () => {
+  it('«todas» ecoa o conjunto (multi por escrita)', async () => {
+    const s = seed()
+    try {
+      await say(s, 'Quero depilação feminina')
+      const result = await say(s, 'todas')
+      const reply = result?.autoBook?.replyText ?? ''
+      expect(reply).toMatch(/^Entendi: .+\. Certo\?$/)
+      expect(reply).toMatch(/axila/i)
+      expect(reply).toMatch(/pernas/i)
+      expect(result?.autoBook?.interactive?.mode).toBe('buttons')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('ids opacos de acumular parseiam (handler legado)', () => {
     const built = encodeChoiceId('acumular', 'v1', 'mais')
     expect(parseChoiceId(built)).toEqual({ slot: 'acumular', catalogVersion: 'v1', key: 'mais' })
   })

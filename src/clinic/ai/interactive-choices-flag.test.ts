@@ -131,9 +131,9 @@ describe('DEC-133: escolhas interativas sempre ligadas', () => {
 })
 
 /**
- * Regressão: toque M5 (linha) em serviço `varias` → pergunta de zonas + Opções (DEC-178).
+ * Regressão: toque M5 (linha) em serviço `varias` → pergunta de zonas só texto (DEC-191).
  */
-describe('DEC-128 / DEC-178: toque na linha em varias pede zonas com Opções', () => {
+describe('DEC-128 / DEC-191: toque na linha em varias pede zonas só texto', () => {
   function femininaButtonId(interactiveJson: string | null): string {
     const parsed = JSON.parse(interactiveJson ?? '{}') as {
       buttons?: Array<{ id: string; title: string }>
@@ -181,19 +181,20 @@ describe('DEC-128 / DEC-178: toque na linha em varias pede zonas com Opções', 
     return { s, beforeCount, after: s.outbound().slice(beforeCount), result }
   }
 
-  it('após toque Feminina pergunta zonas com lista Opções (DEC-178)', async () => {
+  it('após toque Feminina pergunta zonas só texto (sem Opções)', async () => {
     const { s, after, result } = await afterLineClick()
     try {
       expect(result.handled).toBe(true)
       if (!result.handled) return
       const reply = result.autoBook?.replyText ?? ''
       expect(reply).toMatch(/quais zonas|zonas/i)
-      expect(reply).toMatch(/Toque em Opções|axila e pernas/i)
-      expect(result.autoBook?.interactive?.mode).toBe('list')
+      expect(reply).toMatch(/Escreva uma ou várias|axila e pernas/i)
+      expect(reply).not.toMatch(/Toque em Opções/i)
+      expect(result.autoBook?.interactive ?? null).toBeNull()
       const optionsLists = after.filter((m) =>
         (m.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL),
       )
-      expect(optionsLists.length).toBeGreaterThanOrEqual(1)
+      expect(optionsLists).toHaveLength(0)
     } finally {
       s.close()
     }
