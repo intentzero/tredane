@@ -981,6 +981,21 @@ function isMentionStopToken(word: string): boolean {
   return editDistanceAtMostOne(word, 'feira')
 }
 
+/** Sobra é typo de 1 edição de palavra longa já casada no nome da variante (ex. miofaacial). */
+function leftoverTypoOfMatchedZone(
+  leftover: string,
+  matched: readonly ServiceZoneRow[],
+): boolean {
+  const token = foldZoneName(leftover)
+  if (token.length < 6) return false
+  return matched.some((zone) =>
+    foldZoneName(zone.name)
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 6)
+      .some((w) => editDistanceAtMostOne(token, w)),
+  )
+}
+
 function mentionContentTokens(folded: string): string[] {
   return maskClockSpans(folded)
     .split(/[^a-z0-9]+/)
@@ -1188,6 +1203,19 @@ export function resolveZoneMention(
     }
   }
   const kept = active.filter((z) => hit.has(z.id) || excised.ids.has(z.id))
+  if (
+    failedSegment &&
+    leftoverWord &&
+    kept.length > 0 &&
+    leftoverTypoOfMatchedZone(leftoverWord, kept)
+  ) {
+    return {
+      zones: kept,
+      approx: true,
+      unrecognized: false,
+      leftover: null,
+    }
+  }
   // Sobra após match (lista «e»/vírgula ou parcial no segmento) → pergunta;
   // mantém as zonas casadas (Paulo 10/11/2026 opção 2).
   if (failedSegment && leftoverWord) {

@@ -221,6 +221,21 @@ function synonymCoversTerm(zone: ServiceZoneRow, termFolded: string): boolean {
   return (zone.synonyms ?? []).some((s) => foldName(s) === termFolded)
 }
 
+/** Termo citado na pergunta de cobertura aparece na explicação cadastrada da variante. */
+function catalogExplanationCoversTerm(zone: ServiceZoneRow, termFolded: string): boolean {
+  if (!termFolded || termFolded.length < 3) return false
+  const re = new RegExp(
+    `(?<![a-z0-9])${termFolded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`,
+    'i',
+  )
+  for (const raw of [zone.clientExplanationAudience, zone.clientExplanation]) {
+    const text = raw?.trim()
+    if (!text) continue
+    if (re.test(foldFaqText(text))) return true
+  }
+  return false
+}
+
 export type FaqCatalogAnswer =
   | {
       kind: 'covered'
@@ -266,6 +281,14 @@ export function answerFaqFromCatalog(input: {
         subjectZone: subject,
         coveredTerm: display,
         replyText: `Sim — no cadastro, ${display} faz parte de ${subject.name}.`,
+      }
+    }
+    if (catalogExplanationCoversTerm(subject, objectTerm)) {
+      return {
+        kind: 'covered',
+        subjectZone: subject,
+        coveredTerm: objectTerm,
+        replyText: `Sim — no cadastro, ${objectTerm} faz parte de ${subject.name}.`,
       }
     }
     const mapped = findZoneByAnyAlias(objectTerm, input.zones)
