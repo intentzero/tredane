@@ -17,7 +17,7 @@ import { AI_TIMEOUT_MS, detectStrongInjectionSignals } from '../../ai'
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
-import { isClinicAiAssistEnabled } from '../config/settings'
+import { ensureClinicSettings, isClinicAiAssistEnabled } from '../config/settings'
 import { listServices } from '../config/services'
 import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import { handleIdleTextReply } from '../followup/idle'
@@ -60,11 +60,9 @@ import {
 } from './deferred-booking-frame'
 import type { SendOutboundInput } from '../inbox/types'
 import {
-  AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS,
-  AI_AUTODRAFT_DEBOUNCE_HUB_MS,
-  AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
   autodraftDebounceMs,
-  looksLikeCompleteBookingRequest,
+  interpretTurnForDebounce,
+  shouldEnqueueTypingDuringDebounce,
 } from './debounce'
 import { logPolicyShadow } from './policy-shadow'
 import {
@@ -250,16 +248,26 @@ export function enqueueAutoDraft(
   // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
   // Quadro com serviço ou pedido não é abertura: o debounce curto do hub não aplica.
   const frameForDebounce = getBookingFrame(db, tenantId, input.conversationId)
+  const servicesForHub = activeServicesForHub(db, tenantId)
   const hubOpening = shouldAttachHubOpeningCta({
     turnText: body,
-    services: activeServicesForHub(db, tenantId),
+    services: servicesForHub,
     frame: frameForDebounce,
+  })
+  const tz = ensureClinicSettings(db, tenantId, clock).timezone
+  const interpretation = interpretTurnForDebounce({
+    turnText: body,
+    messageId: input.messageId,
+    today: clinicCivilDateFromUtc(tz, clock.nowMs()),
+    services: listServices(db, tenantId).filter((s) => s.active),
+    pending: frameForDebounce?.pending ?? null,
   })
   const waitMs = autodraftDebounceMs({
     text: body,
     fromInteractive: input.fromInteractive,
     hubOpening,
     pendingSlot: frameForDebounce?.pending?.slot ?? null,
+    interpretation,
   })
   db.run(
     `INSERT INTO ai_autodraft_jobs (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
@@ -274,12 +282,8 @@ export function enqueueAutoDraft(
     now,
     now,
   )
-  // Typing cedo no debounce curto (hub, pending) ou pedido completo 2,5 s (DEC-136 / rsamp_1241995755).
-  if (
-    waitMs === AI_AUTODRAFT_DEBOUNCE_HUB_MS ||
-    waitMs === AI_AUTODRAFT_DEBOUNCE_PENDING_MS ||
-    (waitMs === AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS && looksLikeCompleteBookingRequest(body))
-  ) {
+  // Typing cedo: hub/pending (DEC-111), pedido completo (#813) e interpretador confiante.
+  if (shouldEnqueueTypingDuringDebounce(waitMs, body, interpretation)) {
     try {
       enqueueTypingIndicator(
         db,
