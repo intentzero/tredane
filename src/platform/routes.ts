@@ -37,6 +37,29 @@ import {
 import type { FenceSource } from '../realtime/protocol'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
+import type { MembershipRow } from '../db/admin/memberships'
+import { asyncFromSync, fromD1 } from '../db/admin/async-store'
+import { workerCaller } from '../clinic'
+import { clinicDurableObjectName } from '../clinic/demo/do-name'
+import {
+  AUDIT_CATEGORIES,
+  AUDIT_PERIOD_DAYS,
+  auditClerkIds,
+  listAuditPage,
+  parseCursor,
+  type AuditCategory,
+} from './audit-list'
+import {
+  createD1ReviewCentralStore,
+  createSyncReviewCentralStore,
+} from '../mcp/review-central/tools'
+import { fetchConversationMetricsReport, parseMetricsWindowFromQuery } from '../conversation-metrics/query'
+import { SHADOW_REPORT_ROW_LIMIT } from '../shadow-report/store'
+import { summariseShadowRows } from '../shadow-report/summary'
+import { recordSampleRead, serializeSampleDetail, serializeSampleItem } from './quality'
+import { clerkIdsOf, listSupportItems, type SupportItemRow } from '../support/platform-list'
+import { getHealth, listHealth, refreshTenantHealth } from '../ops/health-summary'
+import type { OpsClinicSnapshot } from '../ops/metrics'
 import { resolveAppBaseUrlFromEnv, resolveEmailTransport, type EmailTransport } from '../email'
 import {
   d1CancelInvitation,
@@ -75,6 +98,8 @@ import {
 import {
   serializeAdminTenantView,
   serializeMembership,
+  serializeHealth,
+  serializeHealthOverview,
   serializePlatformInvitation,
   serializeTenant,
 } from './serialize'
@@ -110,6 +135,15 @@ export type PlatformRouteOptions = {
   clockFactory?: () => Clock
   emailFactory?: (env: WorkerBindings) => EmailTransport
   appBaseUrlFactory?: (env: WorkerBindings) => string
+  /** Leitura do snapshot do DO (saúde, #833); por omissão o Durable Object da clínica. */
+  clinicStubFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => {
+    getOpsSnapshot: (
+      caller: ReturnType<typeof workerCaller>,
+    ) => Promise<Partial<OpsClinicSnapshot> & { tenantId: string }>
+  }
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -515,30 +549,354 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
     }
   })
 
+  const healthDb = (env: WorkerBindings) => {
+    const syncDb = opts.syncAdminDbFactory?.(env) ?? null
+    return syncDb ? asyncFromSync(syncDb) : fromD1(env.DB)
+  }
+  const stubFor = (env: WorkerBindings, tenantId: string) =>
+    opts.clinicStubFactory?.(env, tenantId) ?? env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
+
+  // DEC-193: lê o resumo gravado pelo cron; nunca consulta os Durable Objects a cada visita.
+  routes.get('/api/platform/health', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      c.header('Cache-Control', 'no-store')
+      return c.json(serializeHealthOverview(await listHealth(healthDb(c.env))))
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/tenants/:tenantId/health', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const row = await getHealth(healthDb(c.env), c.req.param('tenantId'))
+      if (!row) return c.json({ error: 'tenant_not_found' }, 404)
+      c.header('Cache-Control', 'no-store')
+      return c.json({ health: serializeHealth(row), refreshIntervalMs: serializeHealthOverview([]).refreshIntervalMs })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** «Atualizar» na aba Saúde: relê o DO desta clínica agora e grava o resumo. */
+  routes.post('/api/platform/tenants/:tenantId/health/refresh', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const tenantId = c.req.param('tenantId')
+      const db = healthDb(c.env)
+      const before = await getHealth(db, tenantId)
+      if (!before) return c.json({ error: 'tenant_not_found' }, 404)
+      if (before.tenantStatus !== 'active') return c.json({ error: 'tenant_not_active' }, 403)
+      const stub = stubFor(c.env, tenantId)
+      await refreshTenantHealth(
+        db,
+        tenantId,
+        (id) => stub.getOpsSnapshot(workerCaller(id)),
+        clockNow().nowMs(),
+      )
+      c.header('Cache-Control', 'no-store')
+      return c.json({
+        health: serializeHealth((await getHealth(db, tenantId))!),
+        refreshIntervalMs: serializeHealthOverview([]).refreshIntervalMs,
+      })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** Nome de quem aparece nos pedidos de suporte, em lote; falha do Clerk → só ids. */
+  const supportPayload = async (
+    c: { env: WorkerBindings; get: (k: 'authServices') => AuthEnv['Variables']['authServices'] },
+    items: SupportItemRow[],
+  ) => {
+    let profiles = new Map<string, { displayName: string | null; email: string | null }>()
+    try {
+      const reader = c.get('authServices').staffProfiles
+      if (reader) profiles = await reader.readStaffProfiles(clerkIdsOf(items))
+    } catch {
+      profiles = new Map()
+    }
+    const person = (id: string | null) =>
+      id ? { clerkUserId: id, displayName: profiles.get(id)?.displayName ?? null, email: profiles.get(id)?.email ?? null } : null
+    return {
+      items: items.map((i) => ({
+        requestId: i.requestId,
+        tenantId: i.tenantId,
+        tenantName: i.tenantName,
+        actor: person(i.actorClerkUserId),
+        subject: person(i.subjectClerkUserId),
+        decider: person(i.deciderClerkUserId),
+        revokedBy: person(i.revokedByClerkUserId),
+        reason: i.reason,
+        scope: i.scope,
+        state: i.state,
+        createdAt: i.createdAt,
+        decidedAt: i.decidedAt,
+        expiresAt: i.expiresAt,
+        sessionId: i.sessionId,
+        activatedAt: i.activatedAt,
+        endedAt: i.endedAt,
+        durationMs: i.durationMs,
+        remainingMs: i.remainingMs,
+      })),
+      clinicalAccess: false as const,
+    }
+  }
+
+  routes.get('/api/platform/support', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.support.request')
+      const items = await listSupportItems(healthDb(c.env), clockNow().nowMs())
+      c.header('Cache-Control', 'no-store')
+      return c.json(await supportPayload(c, items))
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/tenants/:tenantId/support', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.support.request')
+      const tenantId = c.req.param('tenantId')
+      const db = healthDb(c.env)
+      if (!(await db.get(`SELECT id FROM tenants WHERE id = ?`, tenantId))) {
+        return c.json({ error: 'tenant_not_found' }, 404)
+      }
+      const items = await listSupportItems(db, clockNow().nowMs(), { tenantId })
+      c.header('Cache-Control', 'no-store')
+      return c.json(await supportPayload(c, items))
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** Auditoria central, só leitura, por cursor. `tenantId` ausente = atividade de toda a plataforma. */
+  const auditPayload = async (
+    c: {
+      env: WorkerBindings
+      req: { query: (k: string) => string | undefined }
+      get: (k: 'authServices') => AuthEnv['Variables']['authServices']
+    },
+    tenantId?: string,
+  ): Promise<{ status: 200; body: unknown } | { status: 400; body: { error: string } }> => {
+    const category = c.req.query('category')
+    if (category && !(AUDIT_CATEGORIES as readonly string[]).includes(category)) {
+      return { status: 400, body: { error: 'invalid_category' } }
+    }
+    const daysRaw = c.req.query('days')
+    const days = daysRaw ? Number(daysRaw) : undefined
+    if (days !== undefined && !(AUDIT_PERIOD_DAYS as readonly number[]).includes(days)) {
+      return { status: 400, body: { error: 'invalid_days' } }
+    }
+    const limitRaw = c.req.query('limit')
+    const limit = limitRaw ? Number(limitRaw) : undefined
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) {
+      return { status: 400, body: { error: 'invalid_limit' } }
+    }
+    const cursor = parseCursor(c.req.query('cursor'))
+    if (cursor === 'invalid') return { status: 400, body: { error: 'invalid_cursor' } }
+    const page = await listAuditPage(healthDb(c.env), {
+      tenantId,
+      category: category as AuditCategory | undefined,
+      nowMs: clockNow().nowMs(),
+      days,
+      cursor,
+      limit,
+    })
+    // Nome e e-mail pelo Clerk, em lote; falha do Clerk → só ids.
+    let profiles = new Map<string, { displayName: string | null; email: string | null }>()
+    try {
+      const reader = c.get('authServices').staffProfiles
+      if (reader) profiles = await reader.readStaffProfiles(auditClerkIds(page.rows))
+    } catch {
+      profiles = new Map()
+    }
+    const person = (id: string | null) =>
+      id ? { clerkUserId: id, displayName: profiles.get(id)?.displayName ?? null, email: profiles.get(id)?.email ?? null } : null
+    return {
+      status: 200,
+      body: {
+        events: page.rows.map((r) => ({
+          id: r.id,
+          occurredAt: r.occurredAt,
+          action: r.action,
+          objectType: r.objectType,
+          objectId: r.objectId,
+          outcome: r.outcome,
+          actor: person(r.actorClerkUserId),
+          subject: person(r.subjectClerkUserId),
+          tenantId: r.tenantId,
+          tenantName: r.tenantName,
+          supportSessionId: r.supportSessionId,
+          metadata: r.metadata,
+        })),
+        nextCursor: page.nextCursor,
+        clinicalAccess: false,
+      },
+    }
+  }
+
+  routes.get('/api/platform/audit', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const out = await auditPayload(c)
+      c.header('Cache-Control', 'no-store')
+      return c.json(out.body, out.status)
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/tenants/:tenantId/audit', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const tenantId = c.req.param('tenantId')
+      if (!(await healthDb(c.env).get(`SELECT id FROM tenants WHERE id = ?`, tenantId))) {
+        return c.json({ error: 'tenant_not_found' }, 404)
+      }
+      const out = await auditPayload(c, tenantId)
+      c.header('Cache-Control', 'no-store')
+      return c.json(out.body, out.status)
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  // ---- Qualidade da IA (#834, DEC-193): as mesmas funções do Review MCP (DEC-159), em REST. ----
+  const reviewStore = (env: WorkerBindings) => {
+    const syncDb = opts.syncAdminDbFactory?.(env) ?? null
+    return syncDb ? createSyncReviewCentralStore(syncDb) : createD1ReviewCentralStore(env.DB)
+  }
+  const numberParam = (raw: string | undefined): number | undefined | 'invalid' => {
+    if (raw === undefined || raw === '') return undefined
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : 'invalid'
+  }
+
+  routes.get('/api/platform/quality/metrics', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const sinceHours = numberParam(c.req.query('sinceHours'))
+      if (sinceHours === 'invalid') return c.json({ error: 'invalid_window' }, 400)
+      const nowMs = clockNow().nowMs()
+      const window = parseMetricsWindowFromQuery({
+        tenantId: c.req.query('tenantId'),
+        sinceHours,
+        nowMs,
+      })
+      if (!window) return c.json({ error: 'invalid_window' }, 400)
+      const report = await fetchConversationMetricsReport(healthDb(c.env), window, nowMs)
+      c.header('Cache-Control', 'no-store')
+      return c.json({ metrics: report, clinicalAccess: false })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** TEMPORÁRIO como a própria sombra (hipotese-compreensao-llm-primeiro.md §5.3d). A sombra guarda 7 dias. */
+  routes.get('/api/platform/quality/shadow', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const requested = numberParam(c.req.query('sinceHours'))
+      if (requested === 'invalid') return c.json({ error: 'invalid_window' }, 400)
+      const sinceHours = Math.min(Math.max(requested ?? 24, 1), 168)
+      const nowMs = clockNow().nowMs()
+      const tenantId = c.req.query('tenantId')?.trim() || null
+      const store = reviewStore(c.env)
+      const sinceMs = nowMs - sinceHours * 3_600_000
+      const rowsPlus = await store.shadowEvents!({ sinceMs, tenantId, limit: SHADOW_REPORT_ROW_LIMIT + 1 })
+      const truncated = rowsPlus.length > SHADOW_REPORT_ROW_LIMIT
+      const rows = truncated ? rowsPlus.slice(0, SHADOW_REPORT_ROW_LIMIT) : rowsPlus
+      c.header('Cache-Control', 'no-store')
+      return c.json({
+        temporary: true,
+        window: { sinceHours, requestedHours: requested ?? 24, clamped: sinceHours !== (requested ?? 24), fromMs: sinceMs, toMs: nowMs },
+        truncated,
+        summary: summariseShadowRows(rows),
+        clinicalAccess: false,
+      })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/quality/samples', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const before = numberParam(c.req.query('before'))
+      const limit = numberParam(c.req.query('limit'))
+      if (before === 'invalid' || limit === 'invalid') return c.json({ error: 'invalid_params' }, 400)
+      const result = await reviewStore(c.env).list({
+        before: before ?? null,
+        limit,
+        tenantId: c.req.query('tenantId')?.trim() || null,
+        source: c.req.query('source')?.trim() || null,
+        nowMs: clockNow().nowMs(),
+      })
+      c.header('Cache-Control', 'no-store')
+      return c.json({
+        samples: (result.items as Parameters<typeof serializeSampleItem>[0][]).map(serializeSampleItem),
+        nextBefore: result.nextBefore,
+        clinicalAccess: false,
+      })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/quality/samples/:sampleId', requireSuperadmin(), async (c) => {
+    try {
+      const principal = c.get('principal')
+      requirePlatformPermission(principal, 'platform.tenants.read')
+      const nowMs = clockNow().nowMs()
+      const detail = await reviewStore(c.env).get(c.req.param('sampleId'), nowMs)
+      if (!detail) return c.json({ error: 'review_sample_not_found' }, 404)
+      await recordSampleRead(healthDb(c.env), {
+        actorClerkUserId: principal.clerkUserId,
+        tenantId: detail.tenantId,
+        sampleId: detail.id,
+        nowMs,
+      })
+      c.header('Cache-Control', 'no-store')
+      return c.json({ sample: serializeSampleDetail(detail), clinicalAccess: false })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
   routes.get('/api/platform/tenants/:tenantId/members', requireSuperadmin(), async (c) => {
     try {
       const principal = c.get('principal')
       requirePlatformPermission(principal, 'platform.tenants.read')
       const tenantId = c.req.param('tenantId')
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+      let members: MembershipRow[]
       if (syncDb) {
         if (!getTenant(syncDb, tenantId)) return c.json({ error: 'tenant_not_found' }, 404)
-        const members = listMembersForTenant(syncDb, tenantId, { includeRevoked: true })
-        c.header('Cache-Control', 'no-store')
-        return c.json({
-          tenantId,
-          members: members.map(serializeMembership),
-          clinicalAccess: false,
-        })
+        members = listMembersForTenant(syncDb, tenantId, { includeRevoked: true })
+      } else {
+        if (!(await d1GetTenant(c.env.DB, tenantId))) {
+          return c.json({ error: 'tenant_not_found' }, 404)
+        }
+        members = await d1ListMembers(c.env.DB, tenantId)
       }
-      if (!(await d1GetTenant(c.env.DB, tenantId))) {
-        return c.json({ error: 'tenant_not_found' }, 404)
+      // Nome e e-mail vêm do Clerk, em lote. Falha do Clerk não derruba a lista: a UI mostra o id.
+      let profiles = new Map<string, { displayName: string | null; email: string | null }>()
+      try {
+        const reader = c.get('authServices').staffProfiles
+        if (reader) profiles = await reader.readStaffProfiles(members.map((m) => m.clerkUserId))
+      } catch {
+        profiles = new Map()
       }
-      const members = await d1ListMembers(c.env.DB, tenantId)
       c.header('Cache-Control', 'no-store')
       return c.json({
         tenantId,
-        members: members.map(serializeMembership),
+        members: members.map((m) => ({
+          ...serializeMembership(m),
+          displayName: profiles.get(m.clerkUserId)?.displayName ?? null,
+          email: profiles.get(m.clerkUserId)?.email ?? null,
+        })),
         clinicalAccess: false,
       })
     } catch (err) {

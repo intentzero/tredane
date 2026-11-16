@@ -28,7 +28,7 @@
   },
   // DEC-159 — TTL 30 dias das amostras de revisão (cron diário).
   "triggers": {
-    "crons": ["15 4 * * *"]
+    "crons": ["15 4 * * *", "*/10 * * * *"]
   },
   "kv_namespaces": [
     {
@@ -179,7 +179,7 @@
         }
       ],
       "triggers": {
-        "crons": ["15 4 * * *"]
+        "crons": ["15 4 * * *", "*/10 * * * *"]
       },
       "kv_namespaces": [
         {
@@ -269,7 +269,7 @@
         }
       ],
       "triggers": {
-        "crons": ["15 4 * * *"]
+        "crons": ["15 4 * * *", "*/10 * * * *"]
       },
       "kv_namespaces": [
         {
