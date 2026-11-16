@@ -194,14 +194,16 @@ describe('latência debounce (medido nos testes, não estimado)', () => {
     try {
       const services = listServices(s.db, s.tenantId).filter((x) => x.active)
       const confident = say(s, 'Pode ser às 15h')
-      const open = say(s, 'oi ainda estou pensando no procedimento')
+      // #815: «procedimento» casa EXPLAIN → FAQ só léxico (`faqActsOnly`), não é texto aberto.
+      const openPhrase = 'fazem pacote pra noivas no final do ano?'
+      const open = say(s, openPhrase)
       expect(confident.waitMs).toBe(AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS)
       expect(open.waitMs).toBe(AI_AUTODRAFT_DEBOUNCE_MS)
       expect((open.waitMs ?? 0) - (confident.waitMs ?? 0)).toBe(
         AI_AUTODRAFT_DEBOUNCE_MS - AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS,
       )
       const interpOpen = interpretTurnForDebounce({
-        turnText: 'oi ainda estou pensando no procedimento',
+        turnText: openPhrase,
         messageId: 'm',
         today: '2026-10-27',
         services,
