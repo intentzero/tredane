@@ -27,6 +27,17 @@ import { isAuthError } from '../auth/errors'
 import { AuthError } from '../auth/errors'
 import { requestUsesBearer } from '../auth/session'
 import type { AdminDb } from '../db/admin/store'
+import { asyncFromSync, fromD1, type AsyncAdminDb } from '../db/admin/async-store'
+import {
+  consumeSupportHandoffAsync,
+  resolveSupportSessionByTokenAsync,
+} from './d1-session'
+import {
+  activateApprovedSupportSessionAsync,
+  cancelSupportRequestWithServices,
+  endSupportSessionAsync,
+  type AsyncSupportServices,
+} from './service-async'
 import type { WorkerBindings } from '../worker/bindings'
 import {
   resolveAppBaseUrlFromEnv,
@@ -86,6 +97,17 @@ export type SupportRouteOptions = {
   eventPublisherFactory?: (env: WorkerBindings) => ClinicEventPublisher
   verifiedEmailFactory?: (env: WorkerBindings, c: { get: (k: string) => unknown }) => VerifiedEmailReader | null
   onSimulatedTransport?: (transport: SimulatedEmailTransport) => void
+  /** Base assíncrona do ciclo da sessão (#853). Por omissão o D1 (`env.DB`); testes injetam `asyncFromSync`. */
+  asyncAdminDbFactory?: (env: WorkerBindings) => AsyncAdminDb | null
+}
+
+/**
+ * ADR-0017 §7: ativar e trocar o handoff ficam desligados em produção até a revisão de segurança.
+ * Fora de produção (staging, desenvolvimento, testes) estão ligados.
+ */
+export function supportSessionsEnabled(env: { ENVIRONMENT?: string; SUPPORT_SESSIONS_ENABLED?: string } | undefined): boolean {
+  if (env?.ENVIRONMENT !== 'production') return true
+  return env?.SUPPORT_SESSIONS_ENABLED === 'true'
 }
 
 function supportErrorResponse(
@@ -451,6 +473,45 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
     }
   }
 
+  /** Caminho assíncrono (D1 de produção): usado quando não há `AdminDb` síncrono. */
+  function buildAsyncServices(
+    c: { env: WorkerBindings; get: (k: string) => unknown },
+    clock: Clock,
+  ): AsyncSupportServices | null {
+    const db = opts.asyncAdminDbFactory?.(c.env) ?? (c.env?.DB ? fromD1(c.env.DB) : null)
+    if (!db) return null
+    const verifiedEmails = resolveVerifiedEmails(c, opts)
+    if (!verifiedEmails) return null
+    return {
+      db,
+      clock,
+      email: resolveEmail(c.env, opts, clock),
+      appBaseUrl: resolveAppBaseUrl(c.env, opts),
+      verifiedEmails,
+      events: resolveEvents(c.env, opts) ?? noopEvents(),
+    }
+  }
+
+  /** A superadmin cancela o seu pedido enquanto não há sessão ativa (pendente ou aprovado por ativar). */
+  routes.post('/api/platform/support-requests/:id/cancel', requireSuperadmin(), async (c) => {
+    try {
+      const principal = c.get('principal')
+      requirePlatformPermission(principal, 'platform.support.request')
+      const clock = opts.clockFactory?.() ?? systemClock
+      const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+      const db = syncDb ? asyncFromSync(syncDb) : (opts.asyncAdminDbFactory?.(c.env) ?? (c.env?.DB ? fromD1(c.env.DB) : null))
+      if (!db) return c.json({ error: 'support_session_sync_required' }, 503)
+      const request = await cancelSupportRequestWithServices(
+        { db, clock } as AsyncSupportServices,
+        { requestId: c.req.param('id'), actorClerkUserId: principal.clerkUserId },
+      )
+      c.header('Cache-Control', 'no-store')
+      return c.json({ request: serializeSupportRequest(request) })
+    } catch (err) {
+      return supportErrorResponse(c, err)
+    }
+  })
+
   /** DEC-032: ativa sessão 30min — só com pedido approved; devolve handoff único. */
   routes.post(
     '/api/platform/support-requests/:id/activate',
@@ -459,15 +520,20 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
       try {
         const principal = c.get('principal')
         requirePlatformPermission(principal, 'platform.support.request')
+        if (!supportSessionsEnabled(c.env)) return c.json({ error: 'support_sessions_disabled' }, 404)
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+        const asyncServices = services ? null : buildAsyncServices(c, clock)
+        if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
 
-        const result = await activateApprovedSupportSession(services, {
+        const activateInput = {
           requestId: c.req.param('id'),
           actorClerkUserId: principal.clerkUserId,
           actorClerkSessionId: principal.sessionId,
-        })
+        }
+        const result = services
+          ? await activateApprovedSupportSession(services, activateInput)
+          : await activateApprovedSupportSessionAsync(asyncServices!, activateInput)
         c.header('Cache-Control', 'no-store')
         return c.json(
           {
@@ -514,18 +580,23 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
       const handoffCode = typeof body.handoffCode === 'string' ? body.handoffCode.trim() : ''
       if (!handoffCode) return c.json({ error: 'invalid_body' }, 400)
 
+      if (!supportSessionsEnabled(c.env)) return c.json({ error: 'support_sessions_disabled' }, 404)
       const clock = opts.clockFactory?.() ?? systemClock
       const services = buildSyncServices(c, clock)
-      if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+      const asyncServices = services ? null : buildAsyncServices(c, clock)
+      if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
 
-      const consumed = await exchangeSupportHandoff(services, {
+      const handoffInput = {
         handoffCode,
         actorClerkUserId: principal.clerkUserId,
         actorClerkSessionId: principal.sessionId,
         claimedTenantId: typeof body.tenantId === 'string' ? body.tenantId : undefined,
         claimedSubjectClerkUserId:
           typeof body.subjectClerkUserId === 'string' ? body.subjectClerkUserId : undefined,
-      })
+      }
+      const consumed = services
+        ? await exchangeSupportHandoff(services, handoffInput)
+        : await consumeSupportHandoffAsync(asyncServices!.db, clock, handoffInput)
 
       const remainingMs = Math.max(0, consumed.session.expiresAt - clock.nowMs())
       c.header(
@@ -555,18 +626,22 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
 
       const clock = opts.clockFactory?.() ?? systemClock
       const services = buildSyncServices(c, clock)
-      if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+      const asyncServices = services ? null : buildAsyncServices(c, clock)
+      if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
 
       const claimedTenantId = c.req.query('tenantId') || undefined
       const claimedSubject = c.req.query('subjectClerkUserId') || undefined
       try {
-        const session = await loadSupportContextFromCookie(services, {
+        const loadInput = {
           sessionToken: token,
           actorClerkUserId: principal.clerkUserId,
           actorClerkSessionId: principal.sessionId,
           claimedTenantId,
           claimedSubjectClerkUserId: claimedSubject,
-        })
+        }
+        const session = services
+          ? await loadSupportContextFromCookie(services, loadInput)
+          : await resolveSupportSessionByTokenAsync(asyncServices!.db, clock, loadInput)
         assertSupportOperationAllowed(session, 'support.session.read')
         c.header('Cache-Control', 'no-store')
         return c.json({
@@ -664,13 +739,18 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
         const principal = c.get('principal')
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
+        const asyncServices = services ? null : buildAsyncServices(c, clock)
+        if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
 
-        const result = await endSupportSession(services, {
+        const revokeInput = {
           sessionId: c.req.param('sessionId'),
           actorClerkUserId: principal.clerkUserId,
           asOwner: true,
-        })
+        }
+        // Caminho assíncrono: a sessão tem de ser desta clínica **antes** de ser revogada.
+        const result = services
+          ? await endSupportSession(services, revokeInput)
+          : await endSupportSessionAsync(asyncServices!, { ...revokeInput, tenantId: ctx.tenantId })
         if (result.session.tenantId !== ctx.tenantId) {
           throw new ForbiddenError('support_tenant_mismatch', 'Sessão de outro tenant')
         }
@@ -696,12 +776,16 @@ export function createSupportRoutes(opts: SupportRouteOptions = {}): Hono<Suppor
         const principal = c.get('principal')
         const clock = opts.clockFactory?.() ?? systemClock
         const services = buildSyncServices(c, clock)
-        if (!services) return c.json({ error: 'support_session_sync_required' }, 503)
-        const result = await endSupportSession(services, {
+        const asyncServices = services ? null : buildAsyncServices(c, clock)
+        if (!services && !asyncServices) return c.json({ error: 'support_session_sync_required' }, 503)
+        const endInput = {
           sessionId: c.req.param('sessionId'),
           actorClerkUserId: principal.clerkUserId,
           asOwner: false,
-        })
+        }
+        const result = services
+          ? await endSupportSession(services, endInput)
+          : await endSupportSessionAsync(asyncServices!, endInput)
         c.header(
           'Set-Cookie',
           buildSupportClearCookie({ secure: c.env?.ENVIRONMENT !== 'development' }),

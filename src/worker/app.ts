@@ -90,6 +90,7 @@ import { createReviewCentralMcpRoutes } from '../mcp/review-central'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
+import type { AsyncAdminDb } from '../db/admin/async-store'
 import type { ClinicEventPublisher } from '../realtime'
 import type { WorkerBindings } from './bindings'
 import type { ClinicConfigGateway } from '../clinic-config'
@@ -113,6 +114,8 @@ export type CreateAppOptions = {
   wsTicketIssuerFactory?: RealtimeRouteOptions['ticketIssuerFactory']
   /** AdminDb sync para revoke / equipe em testes unitários. */
   syncAdminDbFactory?: (env: WorkerBindings) => AdminDb | null
+  /** Base assíncrona do ciclo de sessões de suporte (#853); testes injetam `asyncFromSync`. */
+  supportAsyncDbFactory?: (env: WorkerBindings) => AsyncAdminDb | null
   /** Relógio injetável (limites temporais de convite). */
   clockFactory?: () => Clock
   /** Transporte de e-mail (simulado por omissão em testes). */
@@ -237,6 +240,7 @@ export function createApp(opts: CreateAppOptions = {}) {
 
   const supportOpts: SupportRouteOptions = {
     syncAdminDbFactory: opts.syncAdminDbFactory,
+    asyncAdminDbFactory: opts.supportAsyncDbFactory,
     clockFactory: opts.clockFactory,
     emailFactory: opts.emailFactory,
     appBaseUrlFactory: opts.appBaseUrlFactory,
