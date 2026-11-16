@@ -75,6 +75,7 @@ function mount(items: SupportItem[], owners: Record<string, number> = { aurora: 
       if (url.includes('/api/auth/client-config')) return j({ authMode: 'synthetic', clerkPublishableKey: null })
       if (url.endsWith('/api/me')) return j({ kind: 'human', clerkUserId: 'u', sessionId: 's', isSuperadmin: true })
       server.requests.push({ method, url, body })
+      if (url.startsWith('/api/platform/audit')) return j({ events: [], nextCursor: null, clinicalAccess: false })
       if (url === '/api/platform/support' && method === 'GET') {
         if (server.listFails > 0) {
           server.listFails -= 1

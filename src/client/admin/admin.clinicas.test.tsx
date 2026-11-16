@@ -149,6 +149,7 @@ function mountServer(rows: Row[]): Server {
           email: i < r.ownerCount ? `owner${i}@example.test` : `att${i}@example.test`,
         })))
       }
+      if (/^\/api\/platform\/tenants\/[^/]+\/audit/.test(url)) return j({ events: [], nextCursor: null, clinicalAccess: false })
       const mm = /^\/api\/platform\/tenants\/([^/]+)\/members$/.exec(url)
       if (mm) {
         const tid = decodeURIComponent(mm[1]!)
@@ -362,7 +363,7 @@ describe('Platform Admin — clínicas (#829)', () => {
       await checkA11y(container)
       await user.click(within(tabs).getByRole('link', { name: 'Auditoria' }))
       expect(window.location.pathname).toBe('/admin/clinicas/aurora/auditoria')
-      expect(await screen.findByText(/issue #832/)).toBeTruthy()
+      expect(await screen.findByRole('group', { name: 'Tipo de evento' })).toBeTruthy()
       expect(screen.getByRole('link', { name: 'Auditoria' }).getAttribute('aria-current')).toBe('page')
     })
 

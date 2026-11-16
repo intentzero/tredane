@@ -132,6 +132,31 @@ export type SupportItem = {
   remainingMs: number | null
 }
 
+export type AuditCategory = 'clinic' | 'members' | 'support' | 'email'
+export type AuditOutcome = 'success' | 'denied' | 'conflict' | 'error'
+
+export type AuditPerson = { clerkUserId: string; displayName: string | null; email: string | null }
+
+/** Evento de auditoria central: ator, alvo, ação e resultado. Nunca texto de conversa (a auditoria não o guarda). */
+export type AuditEvent = {
+  id: string
+  occurredAt: number
+  action: string
+  objectType: string
+  objectId: string | null
+  outcome: AuditOutcome | string
+  actor: AuditPerson | null
+  subject: AuditPerson | null
+  tenantId: string | null
+  tenantName: string | null
+  supportSessionId: string | null
+  metadata: Record<string, string | number | boolean | null>
+}
+
+export type AuditPage = { events: AuditEvent[]; nextCursor: string | null }
+
+export type AuditQuery = { category?: AuditCategory; days?: 7 | 30 | 90; cursor?: string | null; limit?: number }
+
 export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
 
 export type AdminTenantDetail = {
@@ -213,6 +238,17 @@ export function createAdminApi(getToken: TokenGetter) {
     /** Relê o Durable Object desta clínica agora e grava o resumo. */
     async refreshTenantHealth(tenantId: string): Promise<ClinicHealth> {
       return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health/refresh`, { method: 'POST' })).health
+    },
+    /** `tenantId` ausente = atividade de toda a plataforma (visão geral). */
+    listAudit(tenantId: string | null, query: AuditQuery = {}, opts?: FetchOpts): Promise<AuditPage> {
+      const params = new URLSearchParams()
+      if (query.category) params.set('category', query.category)
+      if (query.days) params.set('days', String(query.days))
+      if (query.cursor) params.set('cursor', query.cursor)
+      if (query.limit) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const base = tenantId ? `${tenantPath(tenantId)}/audit` : '/api/platform/audit'
+      return request<AuditPage>(qs ? `${base}?${qs}` : base, {}, opts)
     },
     async listSupport(opts?: FetchOpts): Promise<SupportItem[]> {
       return (await request<{ items: SupportItem[] }>('/api/platform/support', {}, opts)).items

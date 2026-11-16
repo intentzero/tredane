@@ -41,6 +41,14 @@ import type { MembershipRow } from '../db/admin/memberships'
 import { asyncFromSync, fromD1 } from '../db/admin/async-store'
 import { workerCaller } from '../clinic'
 import { clinicDurableObjectName } from '../clinic/demo/do-name'
+import {
+  AUDIT_CATEGORIES,
+  AUDIT_PERIOD_DAYS,
+  auditClerkIds,
+  listAuditPage,
+  parseCursor,
+  type AuditCategory,
+} from './audit-list'
 import { clerkIdsOf, listSupportItems, type SupportItemRow } from '../support/platform-list'
 import { getHealth, listHealth, refreshTenantHealth } from '../ops/health-summary'
 import type { OpsClinicSnapshot } from '../ops/metrics'
@@ -650,6 +658,98 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const items = await listSupportItems(db, clockNow().nowMs(), { tenantId })
       c.header('Cache-Control', 'no-store')
       return c.json(await supportPayload(c, items))
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** Auditoria central, só leitura, por cursor. `tenantId` ausente = atividade de toda a plataforma. */
+  const auditPayload = async (
+    c: {
+      env: WorkerBindings
+      req: { query: (k: string) => string | undefined }
+      get: (k: 'authServices') => AuthEnv['Variables']['authServices']
+    },
+    tenantId?: string,
+  ): Promise<{ status: 200; body: unknown } | { status: 400; body: { error: string } }> => {
+    const category = c.req.query('category')
+    if (category && !(AUDIT_CATEGORIES as readonly string[]).includes(category)) {
+      return { status: 400, body: { error: 'invalid_category' } }
+    }
+    const daysRaw = c.req.query('days')
+    const days = daysRaw ? Number(daysRaw) : undefined
+    if (days !== undefined && !(AUDIT_PERIOD_DAYS as readonly number[]).includes(days)) {
+      return { status: 400, body: { error: 'invalid_days' } }
+    }
+    const limitRaw = c.req.query('limit')
+    const limit = limitRaw ? Number(limitRaw) : undefined
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) {
+      return { status: 400, body: { error: 'invalid_limit' } }
+    }
+    const cursor = parseCursor(c.req.query('cursor'))
+    if (cursor === 'invalid') return { status: 400, body: { error: 'invalid_cursor' } }
+    const page = await listAuditPage(healthDb(c.env), {
+      tenantId,
+      category: category as AuditCategory | undefined,
+      nowMs: clockNow().nowMs(),
+      days,
+      cursor,
+      limit,
+    })
+    // Nome e e-mail pelo Clerk, em lote; falha do Clerk → só ids.
+    let profiles = new Map<string, { displayName: string | null; email: string | null }>()
+    try {
+      const reader = c.get('authServices').staffProfiles
+      if (reader) profiles = await reader.readStaffProfiles(auditClerkIds(page.rows))
+    } catch {
+      profiles = new Map()
+    }
+    const person = (id: string | null) =>
+      id ? { clerkUserId: id, displayName: profiles.get(id)?.displayName ?? null, email: profiles.get(id)?.email ?? null } : null
+    return {
+      status: 200,
+      body: {
+        events: page.rows.map((r) => ({
+          id: r.id,
+          occurredAt: r.occurredAt,
+          action: r.action,
+          objectType: r.objectType,
+          objectId: r.objectId,
+          outcome: r.outcome,
+          actor: person(r.actorClerkUserId),
+          subject: person(r.subjectClerkUserId),
+          tenantId: r.tenantId,
+          tenantName: r.tenantName,
+          supportSessionId: r.supportSessionId,
+          metadata: r.metadata,
+        })),
+        nextCursor: page.nextCursor,
+        clinicalAccess: false,
+      },
+    }
+  }
+
+  routes.get('/api/platform/audit', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const out = await auditPayload(c)
+      c.header('Cache-Control', 'no-store')
+      return c.json(out.body, out.status)
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/tenants/:tenantId/audit', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
+      const tenantId = c.req.param('tenantId')
+      if (!(await healthDb(c.env).get(`SELECT id FROM tenants WHERE id = ?`, tenantId))) {
+        return c.json({ error: 'tenant_not_found' }, 404)
+      }
+      const out = await auditPayload(c, tenantId)
+      c.header('Cache-Control', 'no-store')
+      return c.json(out.body, out.status)
     } catch (err) {
       return adminErrorResponse(c, err)
     }

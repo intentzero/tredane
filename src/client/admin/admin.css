@@ -667,3 +667,32 @@
 .admin-session .admin-muted {
   color: var(--color-primary-ink);
 }
+
+/* Auditoria */
+.admin-inline-field {
+  min-width: 180px;
+}
+
+.admin-nowrap {
+  white-space: nowrap;
+}
+
+.admin-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.admin-audit-detail td {
+  background: var(--color-surface-sunken);
+}
+
+.admin-kv--compact {
+  grid-template-columns: minmax(120px, 200px) 1fr;
+  font-size: var(--font-size-small);
+}

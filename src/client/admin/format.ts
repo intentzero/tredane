@@ -3,6 +3,8 @@ import type {
   AdminTenantStatus,
   ChannelStatus,
   ClinicHealth,
+  AuditCategory,
+  AuditPerson,
   HealthSituation,
   SupportItem,
   SupportPerson,
@@ -187,4 +189,72 @@ export function supportTiming(i: SupportItem): string {
   if (i.state === 'active' && i.remainingMs !== null) return `restam ${formatSpan(i.remainingMs)}`
   if (i.durationMs !== null) return formatSpan(i.durationMs)
   return '—'
+}
+
+export const AUDIT_ACTION_LABEL: Record<string, string> = {
+  'tenant.create': 'Criou a clínica',
+  'tenant.update': 'Editou a clínica',
+  'tenant.suspend': 'Suspendeu a clínica',
+  'tenant.reactivate': 'Reativou a clínica',
+  'tenant.pending_deletion': 'Iniciou a exclusão da clínica',
+  'tenant.deletion_command.enqueue': 'Enfileirou a exclusão',
+  'tenant.purge.step': 'Passo do expurgo',
+  'tenant.purge.memberships_revoked': 'Revogou os acessos no expurgo',
+  'tenant.purge.deadline_alert': 'Alerta de prazo do expurgo',
+  'tenant.purged': 'Clínica expurgada',
+  'owner.assign': 'Atribuiu owner',
+  'owner.promote': 'Promoveu a owner',
+  'owner.demote': 'Despromoveu owner',
+  'owner.remove': 'Removeu owner',
+  'owner.replace': 'Substituiu owner',
+  'membership.activate': 'Ativou membro',
+  'membership.revoke': 'Revogou membro',
+  'invitation.create': 'Enviou convite',
+  'invitation.resend': 'Reenviou convite',
+  'invitation.cancel': 'Cancelou convite',
+  'invitation.accept': 'Aceitou convite',
+  'support.request.create': 'Pediu sessão de suporte',
+  'support.request.approve': 'Aprovou pedido de suporte',
+  'support.request.reject': 'Rejeitou pedido de suporte',
+  'support.request.cancel': 'Cancelou pedido de suporte',
+  'support.request.expire': 'Pedido de suporte expirou',
+  'support.session.activate': 'Ativou sessão de suporte',
+  'support.session.expire': 'Sessão de suporte expirou',
+  'support.session.revoke': 'Revogou sessão de suporte',
+  'support.handoff.consume': 'Entrou na sessão de suporte',
+  'support.termination.request': 'Pediu o fim da sessão de suporte',
+  'support.termination.end': 'Encerrou a sessão a pedido',
+  'support.termination.keep': 'Manteve a sessão de suporte',
+  'support.termination.close_with_session': 'Fechou o pedido de fim com a sessão',
+  'email.delivery.enqueue': 'E-mail enfileirado',
+  'email.delivery.sent': 'E-mail enviado',
+  'whatsapp.connected': 'WhatsApp ligado',
+  'whatsapp.reconnected': 'WhatsApp religado',
+  'whatsapp.disconnected': 'WhatsApp desligado',
+  'whatsapp.interrupted': 'WhatsApp interrompido',
+  'whatsapp.connect_rejected': 'Ligação do WhatsApp recusada',
+}
+
+export const auditActionLabel = (action: string): string => AUDIT_ACTION_LABEL[action] ?? action
+
+export const AUDIT_OUTCOME: Record<string, { label: string; tone: PillTone }> = {
+  success: { label: 'Feito', tone: 'ok' },
+  denied: { label: 'Negado', tone: 'warn' },
+  conflict: { label: 'Conflito', tone: 'warn' },
+  error: { label: 'Falhou', tone: 'bad' },
+}
+
+export const AUDIT_CATEGORIES: ReadonlyArray<{ id: AuditCategory | 'all'; label: string }> = [
+  { id: 'all', label: 'Tudo' },
+  { id: 'clinic', label: 'Clínica' },
+  { id: 'members', label: 'Owners e membros' },
+  { id: 'support', label: 'Suporte' },
+  { id: 'email', label: 'E-mail' },
+]
+
+/** Pessoa ou, quando é um processo interno, «Sistema». */
+export function auditPerson(p: AuditPerson | null): string {
+  if (!p) return '—'
+  if (/^system/i.test(p.clerkUserId)) return 'Sistema'
+  return p.displayName || p.email || p.clerkUserId
 }

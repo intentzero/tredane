@@ -35,6 +35,7 @@ function mockFetch(outcome: () => MeOutcome) {
       const json = (body: unknown) =>
         new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
       if (url === '/api/platform/tenants') return json({ tenants: [] })
+      if (url.startsWith('/api/platform/audit')) return json({ events: [], nextCursor: null, clinicalAccess: false })
       if (url === '/api/platform/support') return json({ items: [], clinicalAccess: false })
       if (url === '/api/platform/health') {
         return json({
