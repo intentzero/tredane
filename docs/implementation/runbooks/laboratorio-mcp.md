@@ -95,4 +95,4 @@ clínica demo e persistem entre sessões: anotar o que se mudou e desfazer no fi
 
 **Teste Paulo:** contacto/conversa protegidos por ids fixos no código (`ctc_…` / `cnv_…`) e waIds extra via secret/env `LAB_RESET_PROTECTED_WAIDS` (staging). Pedir reset com `waId` de um contato protegido é recusado. Fail-closed se a lista de proteção não puder ser avaliada.
 
-Não substitui o reset operacional do painel nem apaga dados no D1 (Review).
+Não substitui o reset operacional do painel nem o «Limpar agenda» do hub Clínica (staging, só compromissos), nem apaga dados no D1 (Review).
