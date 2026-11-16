@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 16/11/2026 — Platform Admin: mocks PA-01 a PA-07 (**Confirmado**, Paulo «aprovado», DEC-192)
+
+- Pasta nova `admin/` com sete telas desktop (1440×900): visão geral, clínicas, nova clínica, detalhe da clínica, suporte, saúde e qualidade da IA. Navegação lateral com as cores `nav` existentes; nenhum token novo.
+- Abas do detalhe da clínica **PA-08 a PA-11** (Membros, Saúde, Suporte, Auditoria), **Confirmadas** (Paulo, 16/11/2026), com spec em `platform-admin.md` §6.1.
+- `check_mocks.py` passa a validar `admin/*.dc.html`; `render_previews.py` e `shot.mjs` geram `admin/previews/`. Só os previews do admin foram gerados nesta alteração.
+
 ## 14/11/2026 — Assistente alinhado ao mock M-74
 
 - Os controlos «Ativar sugestões de resposta», «Aplicar limites de proteção» e «Pausar novas marcações automáticas por botão» passam de caixa de seleção a **interruptor** (`.panel-switch`, o desenho de «Mostrar inativos»).

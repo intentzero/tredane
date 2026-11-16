@@ -52,6 +52,8 @@ DEC-028 substitui DEC-027. O MVP **não exige MFA**, nem para superadmins nem pa
 
 Ver [modelo de dados](../architecture/data-model.md), [identidade e admin](../architecture/identity-and-admin.md), [MVP](../MVP.md) e [decisões](../product/decisions.md).
 
-**Revisitar:** políticas LGPD/retensão, custo do Clerk Backend API, topologia de apps/Workers, capacidades finais do owner, onboarding de usuários e suporte.
+**Topologia da interface (DEC-192, 16/11/2026):** rota `/admin` no mesmo SPA e Worker, bundle carregado à parte; ver [platform-admin.md](../product/platform-admin.md).
+
+**Revisitar:** políticas LGPD/retensão, custo do Clerk Backend API, capacidades finais do owner, onboarding de usuários e suporte.
 
 **Referência:** https://clerk.com/docs/guides/users/extending

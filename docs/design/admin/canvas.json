@@ -1,0 +1,98 @@
+{
+  "v": 3,
+  "title": "Tredane — Platform Admin (desktop)",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "VisaoGeral.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-01 Visão geral",
+      "expand": "fill"
+    },
+    "Clinicas.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-02 Clínicas",
+      "expand": "fill"
+    },
+    "NovaClinica.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-03 Nova clínica",
+      "expand": "fill"
+    },
+    "ClinicaDetalhe.dc.html": {
+      "x": 0,
+      "y": 980,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-04 Detalhe da clínica",
+      "expand": "fill"
+    },
+    "Suporte.dc.html": {
+      "x": 1520,
+      "y": 980,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-05 Suporte",
+      "expand": "fill"
+    },
+    "Saude.dc.html": {
+      "x": 3040,
+      "y": 980,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-06 Saúde",
+      "expand": "fill"
+    },
+    "QualidadeIA.dc.html": {
+      "x": 0,
+      "y": 1960,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-07 Qualidade IA",
+      "expand": "fill"
+    },
+    "ClinicaMembros.dc.html": {
+      "x": 1520,
+      "y": 1960,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-08 Clínica · Membros",
+      "expand": "fill"
+    },
+    "ClinicaSaude.dc.html": {
+      "x": 3040,
+      "y": 1960,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-09 Clínica · Saúde",
+      "expand": "fill"
+    },
+    "ClinicaSuporte.dc.html": {
+      "x": 0,
+      "y": 2940,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-10 Clínica · Suporte",
+      "expand": "fill"
+    },
+    "ClinicaAuditoria.dc.html": {
+      "x": 1520,
+      "y": 2940,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-11 Clínica · Auditoria",
+      "expand": "fill"
+    }
+  }
+}

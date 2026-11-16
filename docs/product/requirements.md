@@ -333,6 +333,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
 | REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |
+| REQ-104–110 | MVP interno | Interface da Platform Admin (DEC-192): acesso, clínicas, estado, suporte, saúde, visão geral e qualidade da IA. Detalhe e aceite em [platform-admin.md](platform-admin.md#5-requisitos). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |
 

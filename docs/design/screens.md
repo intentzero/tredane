@@ -125,6 +125,26 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 - Barra inferior / rail: **Conversas · Acompanhar · Agenda · Clientes** para todos; **Clínica** só para o Responsável (Opção C Confirmada, Paulo 31/10/2026). Owner = 5 itens; attendant = 4. Os mocks M-01 a M-14 antigos mostram 3 abas do Atendente; M-15 mostrava 4 do Responsável — actualizados pela área Clientes (TEL-12).
 - A aba Clínica e as rotas M-15 a M-26 respondem “Você não tem acesso a esta área” para o Atendente, sem dados, e a API nega a ação (REQ-002). Esconder a aba não substitui a autorização no servidor.
 
+## Platform Admin (desktop 1440×900, Confirmado)
+
+Mocks PA-01 a PA-07 **Confirmados** (Paulo, 16/11/2026, «aprovado»); os estados em falta continuam por desenhar. Área interna só para superadmin ([spec](../product/platform-admin.md), [DEC-192](../product/decisions.md)). Desktop primeiro; no celular só precisa funcionar. Ficheiros em `admin/`, previews em `admin/previews/PA-xx-*.png`. Nenhuma tela mostra texto de conversa, contato ou agenda (DEC-018).
+
+| ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
+| --- | --- | --- | --- | --- | --- |
+| PA-01 | `VisaoGeral` | TEL-13 visão geral | JRN-20, JRN-24 · REQ-104, REQ-109 · AC-81, AC-85 | Contadores por estado, alertas abertos, pedidos e sessões de suporte, atividade recente da plataforma | PA-02, PA-04, PA-05, PA-06 |
+| PA-02 | `Clinicas` | TEL-13 clínicas | JRN-21, JRN-22 · REQ-105 · AC-82 | Busca, filtro por estado, tabela com estado, WhatsApp, owner, membros e criação | PA-03, PA-04 |
+| PA-03 | `NovaClinica` | TEL-13 nova clínica | JRN-21 · REQ-006, REQ-105 | Nome, fuso, primeira owner; erro de e-mail no campo | PA-04 |
+| PA-04 | `ClinicaDetalhe` | TEL-13 detalhe (aba Resumo) | JRN-22, JRN-24 · REQ-105, REQ-106, REQ-108 · AC-82, AC-83 | Alerta de saúde, dados, integrações, owners (adicionar, substituir, remover); ações Pedir suporte, Suspender, Excluir | PA-05, PA-06 |
+| PA-05 | `Suporte` | TEL-13 suporte | JRN-23 · REQ-007, REQ-060–066, REQ-107 · AC-84 | Sessão ativa com contador de 30 min e barra, lista de pedidos (aprovado, aguarda owner, ativa, rejeitado) | Clinic App (handoff) |
+| PA-06 | `Saude` | TEL-13 saúde | JRN-24 · REQ-108 · AC-85 | Contagens por clínica: outbox, incertos, jobs de IA, schema, leitura; clínica suspensa e sem resposta | PA-04 |
+| PA-07 | `QualidadeIA` | TEL-13 qualidade IA | JRN-25 · REQ-110 · AC-86 | Métricas agregadas, sombra H1, amostras só com id (Q-PA-01 em aberto) | — |
+| PA-08 | `ClinicaMembros` | TEL-13 detalhe · aba Membros (**Confirmado**, Paulo 16/11/2026) | JRN-22 · REQ-105 · AC-82 | Filtro Ativos/Revogados/Todos, owners com Substituir e Remover, attendants sem ação, linha com nome indisponível do Clerk | PA-04 |
+| PA-09 | `ClinicaSaude` | TEL-13 detalhe · aba Saúde (**Confirmado**, Paulo 16/11/2026) | JRN-24 · REQ-108 · AC-85 | Alertas da clínica com limiar, cartões Envios, WhatsApp, IA, Dados e Volume (Q-PA-04) | PA-06 |
+| PA-10 | `ClinicaSuporte` | TEL-13 detalhe · aba Suporte (**Confirmado**, Paulo 16/11/2026) | JRN-23 · REQ-107 · AC-84 | Histórico de pedidos e sessões da clínica com estado final, quem decidiu e duração | PA-05 |
+| PA-11 | `ClinicaAuditoria` | TEL-13 detalhe · aba Auditoria (**Confirmado**, Paulo 16/11/2026) | JRN-22, JRN-23 · REQ-105 · AC-82 | Filtros de período e tipo, eventos com ator, alvo, resultado e sessão; linha expandida com metadados | — |
+
+Estados que faltam desenhar: carregando, vazio, erro com repetir, sessão expirada, sem flag (rota inexistente), diálogos de suspender e excluir, PA-05 vazio. As abas de PA-04 estão em PA-08 a PA-11 (spec §6.1).
+
 ## Desktop (Proposto, sem mock `M-xx`)
 
 A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; o aceite de usabilidade em aparelho real segue em Q-UX-01. Pendências do épico em [#232](https://github.com/intentzero/tredane/issues/232).

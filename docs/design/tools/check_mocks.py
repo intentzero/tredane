@@ -1,4 +1,4 @@
-"""Verifica se os mocks mobile usam apenas valores de tokens.json.
+"""Verifica se os mocks mobile (e os da Platform Admin em admin/) usam apenas valores de tokens.json.
 
 Uso: python3 docs/design/tools/check_mocks.py
 Confere cores, tamanhos de fonte e raios. Sai com código 1 se achar valor fora da escala.
@@ -16,7 +16,7 @@ ok_radius_exceptions = {3, 4}
 # Cor nunca é o único sinal; o nome da pessoa sempre aparece junto.
 colors |= {'#2563A8', '#E3EDF7', '#1D4F86', '#C2410C', '#FBEDE3', '#8A3410', '#2F7D4F', '#E6F2EA', '#24603D'}
 bad = []
-for f in sorted(glob.glob(os.path.join(ROOT, 'mobile', '*.dc.html')) + glob.glob(os.path.join(ROOT, 'desktop', 'Horarios.dc.html'))):
+for f in sorted(glob.glob(os.path.join(ROOT, 'mobile', '*.dc.html')) + glob.glob(os.path.join(ROOT, 'desktop', 'Horarios.dc.html')) + glob.glob(os.path.join(ROOT, 'admin', '*.dc.html'))):
     s = open(f).read()
     name = os.path.basename(f)
     for c in set(re.findall(r'#[0-9A-Fa-f]{6}\b', s)):

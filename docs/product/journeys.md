@@ -122,6 +122,8 @@
 - **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
 - **Requisitos:** REQ-003/005/006/007/040.
 
+**Interface da Platform Admin (DEC-192, 16/11/2026):** JRN-20 a JRN-25 (abrir a Platform Admin, criar clínica, mudar estado, suporte, saúde, qualidade da IA) estão em [platform-admin.md](platform-admin.md#4-jornadas), **Propostas**.
+
 ## DEC-032 — Sessão de suporte de 30 minutos
 
 A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quando aprovada, a sessão própria de suporte é ativada por **30 minutos** a partir da ativação no servidor. O painel mostra a validade e permite encerramento antecipado pelo superadmin. Após expirar, a Clinic App perde autorização de suporte, API e WebSockets param, e a sessão Clerk continua ativa. Atividade, login, refresh e reconexão não renovam o prazo. DEC-033 exige novo pedido e nova aprovação, sem extensão.

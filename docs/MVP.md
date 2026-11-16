@@ -95,7 +95,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Usuários da Clinic App:** atendente e responsável da clínica. Ambos veem todas as conversas da clínica a que estão associados; um usuário pode ter vários memberships com papéis distintos, selecionando um tenant por contexto/aba. O contato interage pelo WhatsApp; não precisa de conta Tredane. Profissional não tem login no MVP.
 
-**Platform Admin App (novo recorte interno):** superadmin confirmado no backend via `privateMetadata.superadmin === true` pode gerir ciclo de vida de tenants e iniciar sessão de suporte/impersonação como usuário autorizado de um tenant. A impersonação é sempre atribuída ao ator real, limitada pelo papel do alvo e pela política de suporte; não cria privilégio irrestrito de leitura de conteúdos.
+**Platform Admin App (novo recorte interno):** superadmin confirmado no backend via `privateMetadata.superadmin === true` pode gerir ciclo de vida de tenants e iniciar sessão de suporte/impersonação como usuário autorizado de um tenant. A impersonação é sempre atribuída ao ator real, limitada pelo papel do alvo e pela política de suporte; não cria privilégio irrestrito de leitura de conteúdos. **Interface (DEC-192, 16/11/2026):** rota `/admin` no mesmo SPA, desktop primeiro, com clínicas, suporte, saúde e qualidade da IA; spec em [platform-admin.md](product/platform-admin.md).
 
 **Fluxo principal:**
 

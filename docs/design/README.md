@@ -27,6 +27,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | `mobile/previews/M-xx-*.png` | Imagem de cada mock, 390×844, para ver sem rodar nada |
 | `mobile/canvas.json` | Posição e título de cada tela no canvas do editor de design |
 | `desktop/` | Telas largas: exploração antiga (Conversas/`Main`, Pipeline, Agenda, Estados) e propostas recentes (`Entrar`, `ConversasDesktopProposta` · empty/thread). Ver [aviso](#desktop) |
+| `admin/` | **Platform Admin** (DEC-192), mocks **Confirmados** 16/11/2026, desktop primeiro 1440×900: `PA-01` a `PA-11` (Confirmados; PA-08 a PA-11 são as abas do detalhe) em `.dc.html`, `previews/` e `canvas.json`. Índice em [screens.md](screens.md#platform-admin-desktop-1440900-confirmado); spec em [platform-admin.md](../product/platform-admin.md) |
 | [brand/](brand/README.md) | Identidade visual (DEC-050): símbolo, nome, versões, ícone do app, favicon e paleta da marca |
 | `landing/` | Mock aprovado da landing page do piloto (`Main.dc.html`, `Celular.dc.html`) e previews do site implementado; spec em [landing.md](../product/landing.md) |
 | `tools/` | `build_tokens.py` (gera `tokens.css`), `check_contrast.py` (valida contraste), `check_mocks.py` (valida que os mocks só usam tokens), `build_catalog.py` (gera o catálogo), `render_previews.py` (gera os PNG; `expand_dc.mjs` expande os `<sc-for>`/`<sc-if>` dos mocks interativos), `build_brand.py` (gera os ficheiros da marca) |
