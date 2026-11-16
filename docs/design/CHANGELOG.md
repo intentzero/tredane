@@ -16,6 +16,10 @@
 - Tokens v0.10.0: superfícies brancas/menta no claro e verdes profundas no escuro; turquesa em seleção e ações frequentes; novo `accent` coral para Agendar na conversa; âmbar, sucesso e IA conservam seus papéis. CSS do painel, catálogo e `theme-color` escuro atualizados.
 - Mocks mobile e o mock `desktop/Horarios.dc.html` migrados para os valores novos. Previews mobile e de Horários no desktop regenerados. A validação visual das demais telas reais permanece **Em aberto**.
 
+## 16/11/2026 — Platform Admin: mocks migrados para tokens v0.10.0
+
+- Depois do merge com a paleta Coral & Menta (#858), os 19 mocks `admin/*.dc.html` passaram a usar os valores novos da escala (o `#EEEDE7` de fundo foi para `surface.sunken`, o das bordas para `line.divider`). `check_mocks.py` volta a passar. Os previews PNG do admin ainda não foram regenerados.
+
 ## 16/11/2026 — Platform Admin: mocks PA-01 a PA-07 (**Confirmado**, Paulo «aprovado», DEC-192)
 
 - Pasta nova `admin/` com sete telas desktop (1440×900): visão geral, clínicas, nova clínica, detalhe da clínica, suporte, saúde e qualidade da IA. Navegação lateral com as cores `nav` existentes; nenhum token novo.
