@@ -3,7 +3,7 @@
  * Âncora: qui 05/11/2026 (cenário da matriz).
  */
 import { describe, expect, it } from 'vitest'
-import { extractDates, extractTimes, parseTemporal } from './temporal'
+import { extractDates, extractTimes, notBeforeTimeFromText, parseTemporal } from './temporal'
 
 const TODAY = '2026-11-05' // quinta
 
@@ -275,6 +275,11 @@ describe('parseTemporal (#408)', () => {
     expect(extractDates('31/11', TODAY)).toEqual(new Set())
     expect(extractTimes('custa 1500?')).toEqual(new Set())
     expect(extractTimes('15 e 30')).toEqual(new Set(['15:30']))
+  })
+
+  it('S02: notBeforeTimeFromText — «dps das 4» → 16:00', () => {
+    expect(notBeforeTimeFromText('tem mais tarde? tipo dps das 4')).toBe('16:00')
+    expect(notBeforeTimeFromText('pode ser depois das 14h')).toBe('14:00')
   })
 
   it('PR-D: «depois das Nh» não vira relógio pontual; «depois de amanhã» intacto', () => {

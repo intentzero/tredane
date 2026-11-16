@@ -147,6 +147,45 @@ describe('enqueueAutoDraft debounce hub opção C', () => {
     }
   })
 
+  it('pedido completo (dia+serviço) enfileira typing antes do debounce 2,5 s', () => {
+    const s = bootDialogScenario()
+    try {
+      s.clock.advance(1_000)
+      const now = s.clock.nowMs()
+      const msg = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: 'Gostaria de agendar amanhã depilação masculina',
+          externalMessageId: 'wa:msg:wamid.COMPLETE_BOOK',
+          deliveryState: 'received',
+          createdAt: now,
+        },
+        s.clock,
+      )
+      const job = enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: msg.id },
+        s.clock,
+      )
+      expect(job).not.toBeNull()
+      expect(job!.dueAt - job!.createdAt).toBe(AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS)
+      const typing = s.db.get<{ id: string }>(
+        `SELECT id FROM outbox_events
+         WHERE tenant_id = ? AND type = ? AND idempotency_key = ?`,
+        s.tenantId,
+        WHATSAPP_TYPING_INDICATOR_TYPE,
+        'whatsapp.typing_indicator:wamid.COMPLETE_BOOK',
+      )
+      expect(typing).toBeTruthy()
+    } finally {
+      s.close()
+    }
+  })
+
   it('«sim» enfileira typing no tier 2,5 s do interpretador', () => {
     const s = bootDialogScenario()
     try {

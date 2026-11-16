@@ -282,7 +282,7 @@ export function enqueueAutoDraft(
     now,
     now,
   )
-  // Typing cedo no debounce curto (hub, pending, tier 2,5 s com turno fechado).
+  // Typing cedo: hub/pending (DEC-111), pedido completo (#813) e interpretador confiante.
   if (shouldEnqueueTypingDuringDebounce(waitMs, body, interpretation)) {
     try {
       enqueueTypingIndicator(

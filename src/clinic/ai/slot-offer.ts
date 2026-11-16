@@ -371,6 +371,8 @@ export async function offerNearestSlots(input: {
   conversationId?: string
   /** Evita recursão no auto-avanço silencioso (Paulo 09/11/2026). */
   _skipEmptyAdvance?: boolean
+  /** Lab S02: «depois das Nh» — não oferecer horários anteriores no dia pedido. */
+  notBeforeHHMM?: string | null
 }): Promise<OfferNearestSlotsResult> {
   const {
     db,
@@ -388,7 +390,9 @@ export async function offerNearestSlots(input: {
     minGapMinutes = 30,
     conversationId = '',
     _skipEmptyAdvance = false,
+    notBeforeHHMM = null,
   } = input
+  const notBeforeMinute = notBeforeHHMM ? minutesOfHHMM(notBeforeHHMM) : null
   const nowMs = clock.nowMs()
   const earliest = earliestBookableStartsAt(
     nowMs,
@@ -427,6 +431,7 @@ export async function offerNearestSlots(input: {
         .filter((slot) => slot.startsAt >= earliest)
         .map((slot) => ({ slot, time: localHHMM(tz, slot.startsAt) }))
         .filter(({ time }) => !period || inPeriodHHMM(period, time))
+        .filter(({ time }) => notBeforeMinute == null || minutesOfHHMM(time) >= notBeforeMinute)
       const chosen: OfferedSlot[] = []
       let nextMinute: number | null = null
       for (let i = eligible.length - 1; i >= 0 && picked.length + chosen.length < limit; i--) {
@@ -443,6 +448,7 @@ export async function offerNearestSlots(input: {
       if (slot.startsAt < earliest) continue
       const time = localHHMM(tz, slot.startsAt)
       if (period && !inPeriodHHMM(period, time)) continue
+      if (notBeforeMinute != null && minutesOfHHMM(time) < notBeforeMinute) continue
       const minute = minutesOfHHMM(time)
       const prev = lastMinute.get(day)
       if (prev != null && minute - prev < minGapMinutes) continue
