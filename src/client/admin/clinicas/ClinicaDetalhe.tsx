@@ -12,6 +12,7 @@ import {
 import { CLINICA_TABS, clinicaHref, navigateAdmin, type ClinicaTab } from '../routes'
 import { useAdminApi } from '../useAdminApi'
 import { EmptyState } from '../../panel/states/StatusScreens'
+import { MembrosTab } from './MembrosTab'
 import { EditTenantDialog, LifecycleDialog, type LifecycleKind } from './LifecycleDialogs'
 
 type Load =
@@ -21,8 +22,7 @@ type Load =
   | { phase: 'ready'; detail: AdminTenantDetail }
 
 /** Cada aba chega com a sua issue do épico #827; até lá diz o que vem, sem dados inventados. */
-const TAB_PENDING: Record<Exclude<ClinicaTab, 'resumo'>, { issue: string; text: string }> = {
-  membros: { issue: '#830', text: 'Pessoas da clínica, com nome e e-mail, e a gestão de owners.' },
+const TAB_PENDING: Record<Exclude<ClinicaTab, 'resumo' | 'membros'>, { issue: string; text: string }> = {
   saude: { issue: '#833', text: 'Alertas, envios, WhatsApp e jobs de IA desta clínica.' },
   suporte: { issue: '#831', text: 'Pedidos e sessões de suporte desta clínica.' },
   auditoria: { issue: '#832', text: 'Eventos de auditoria desta clínica.' },
@@ -344,18 +344,27 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
               <p className="admin-dialog-error" role="alert">{actionError}</p>
             ) : null}
             <span className="admin-muted">
-              Nomes e a gestão de owners chegam com a aba Membros (#830). Attendants são geridos pela owner na Equipe
-              da clínica.
+              Nomes e a gestão de owners estão na aba Membros. Attendants são geridos pela owner na Equipe da clínica.
             </span>
           </section>
         </div>
+      ) : tab === 'membros' ? (
+        <MembrosTab
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          tenantStatus={tenant.status}
+          invitations={detail.invitations}
+          onChanged={reload}
+        />
       ) : (
         <section className="admin-card" aria-labelledby="adm-tab-pending">
           <h2 id="adm-tab-pending" className="admin-card-title">
             {CLINICA_TABS.find((x) => x.tab === tab)?.label}
           </h2>
-          <p>{TAB_PENDING[tab].text}</p>
-          <p className="admin-muted">Esta aba chega com a issue {TAB_PENDING[tab].issue} do épico #827.</p>
+          <p>{TAB_PENDING[tab as Exclude<ClinicaTab, 'resumo' | 'membros'>].text}</p>
+          <p className="admin-muted">
+            Esta aba chega com a issue {TAB_PENDING[tab as Exclude<ClinicaTab, 'resumo' | 'membros'>].issue} do épico #827.
+          </p>
         </section>
       )}
 

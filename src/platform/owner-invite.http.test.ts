@@ -25,7 +25,7 @@ import {
 
 const SUPER = 'user_synth_superadmin'
 
-function testApp() {
+function testApp(opts: { staffProfiles?: AuthServices['staffProfiles'] } = {}) {
   const boot = bootAdminDb()
   const clock = createControllableClock(3_100_000_000_000)
   const transport = createSimulatedEmailTransport({ clock })
@@ -34,7 +34,7 @@ function testApp() {
     authority: createSyntheticAuthorityReader(),
     adminDb: asyncFromSync(boot.db),
     verifiedEmails: createSyntheticVerifiedEmailReader(),
-    staffProfiles: createSyntheticStaffProfileReader(),
+    staffProfiles: opts.staffProfiles ?? createSyntheticStaffProfileReader(),
   }
   const app = createApp({
     authServicesFactory: () => services,
@@ -378,6 +378,63 @@ describe('HTTP — primeira owner por convite do superadmin (#842, DEC-194)', ()
       })
       expect(res.status).toBe(403)
       expect(await res.json()).toEqual({ error: 'no_active_owner' })
+    } finally {
+      ctx.close()
+    }
+  })
+})
+
+describe('HTTP — membros da clínica na Platform Admin (#830)', () => {
+  type MembersBody = {
+    members: Array<{ clerkUserId: string; role: string; status: string; displayName: string | null; email: string | null }>
+  }
+
+  it('devolve nome e e-mail pelo Clerk, incluindo membros revogados', async () => {
+    const ctx = testApp({
+      staffProfiles: {
+        async readStaffProfiles(ids) {
+          return new Map(ids.map((id) => [id, { displayName: `Nome ${id}`, email: `${id}@example.test` }]))
+        },
+      },
+    })
+    try {
+      const res = await ctx.call(SUPER, '/api/platform/tenants/clinic-demo-a/members')
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as MembersBody
+      expect(body.members.length).toBeGreaterThan(0)
+      for (const m of body.members) {
+        expect(m.displayName).toBe(`Nome ${m.clerkUserId}`)
+        expect(m.email).toBe(`${m.clerkUserId}@example.test`)
+      }
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('se o Clerk falha a lista continua e o nome vem a null', async () => {
+    const ctx = testApp({
+      staffProfiles: {
+        async readStaffProfiles() {
+          throw new Error('clerk_down')
+        },
+      },
+    })
+    try {
+      const res = await ctx.call(SUPER, '/api/platform/tenants/clinic-demo-a/members')
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as MembersBody
+      expect(body.members.length).toBeGreaterThan(0)
+      expect(body.members.every((m) => m.displayName === null && m.email === null)).toBe(true)
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('clínica inexistente dá 404 e quem não é superadmin dá 403', async () => {
+    const ctx = testApp()
+    try {
+      expect((await ctx.call(SUPER, '/api/platform/tenants/nao-existe/members')).status).toBe(404)
+      expect((await ctx.call('user_synth_owner_a', '/api/platform/tenants/clinic-demo-a/members')).status).toBe(403)
     } finally {
       ctx.close()
     }

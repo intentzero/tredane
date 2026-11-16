@@ -41,6 +41,12 @@ export type AdminInvitation = {
   expired: boolean
 }
 
+export type AdminMember = AdminMembership & {
+  /** Do Clerk; `null` se o Clerk não respondeu ou a conta não tem nome. */
+  displayName: string | null
+  email: string | null
+}
+
 export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
 
 export type AdminTenantDetail = {
@@ -113,6 +119,18 @@ export function createAdminApi(getToken: TokenGetter) {
     }): Promise<{ tenant: AdminTenant } & InviteResult> {
       return request('/api/platform/tenants', { method: 'POST', body: JSON.stringify(input) })
     },
+    async listMembers(tenantId: string, opts?: FetchOpts): Promise<AdminMember[]> {
+      return (await request<{ members: AdminMember[] }>(`${tenantPath(tenantId)}/members`, {}, opts)).members
+    },
+    removeOwner(tenantId: string, clerkUserId: string): Promise<unknown> {
+      return request(`${tenantPath(tenantId)}/owners/${encodeURIComponent(clerkUserId)}`, { method: 'DELETE' })
+    },
+    replaceOwner(tenantId: string, fromClerkUserId: string, toClerkUserId: string): Promise<unknown> {
+      return request(`${tenantPath(tenantId)}/owners/replace`, {
+        method: 'POST',
+        body: JSON.stringify({ fromClerkUserId, toClerkUserId }),
+      })
+    },
     inviteOwner(tenantId: string, email: string): Promise<InviteResult> {
       return request(`${tenantPath(tenantId)}/invitations`, { method: 'POST', body: JSON.stringify({ email }) })
     },
@@ -158,6 +176,10 @@ export function adminErrorMessage(err: unknown): string {
       return 'O estado da clínica mudou entretanto. Atualize a página e confira.'
     case 'tenant_not_found':
       return 'Esta clínica já não existe.'
+    case 'last_owner_protected':
+      return 'Não é possível remover a última owner ativa. Adicione ou substitua por outra primeiro.'
+    case 'owner_not_found':
+      return 'Esta pessoa já não é owner ativa. Atualize a página.'
     case 'owner_email_invalid':
       return 'Escreva um e-mail completo, como nome@clinica.com.br.'
     case 'invitation_already_pending':

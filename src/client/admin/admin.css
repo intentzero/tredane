@@ -592,3 +592,20 @@
   gap: 2px;
   overflow-wrap: anywhere;
 }
+
+/* Aba Membros */
+.admin-toolbar-spacer {
+  flex: 1;
+}
+
+.admin-actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.admin-table .admin-block {
+  display: block;
+  font-weight: var(--font-weight-regular);
+}

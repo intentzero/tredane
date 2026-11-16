@@ -37,6 +37,7 @@ import {
 import type { FenceSource } from '../realtime/protocol'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
+import type { MembershipRow } from '../db/admin/memberships'
 import { resolveAppBaseUrlFromEnv, resolveEmailTransport, type EmailTransport } from '../email'
 import {
   d1CancelInvitation,
@@ -521,24 +522,32 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       requirePlatformPermission(principal, 'platform.tenants.read')
       const tenantId = c.req.param('tenantId')
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+      let members: MembershipRow[]
       if (syncDb) {
         if (!getTenant(syncDb, tenantId)) return c.json({ error: 'tenant_not_found' }, 404)
-        const members = listMembersForTenant(syncDb, tenantId, { includeRevoked: true })
-        c.header('Cache-Control', 'no-store')
-        return c.json({
-          tenantId,
-          members: members.map(serializeMembership),
-          clinicalAccess: false,
-        })
+        members = listMembersForTenant(syncDb, tenantId, { includeRevoked: true })
+      } else {
+        if (!(await d1GetTenant(c.env.DB, tenantId))) {
+          return c.json({ error: 'tenant_not_found' }, 404)
+        }
+        members = await d1ListMembers(c.env.DB, tenantId)
       }
-      if (!(await d1GetTenant(c.env.DB, tenantId))) {
-        return c.json({ error: 'tenant_not_found' }, 404)
+      // Nome e e-mail vêm do Clerk, em lote. Falha do Clerk não derruba a lista: a UI mostra o id.
+      let profiles = new Map<string, { displayName: string | null; email: string | null }>()
+      try {
+        const reader = c.get('authServices').staffProfiles
+        if (reader) profiles = await reader.readStaffProfiles(members.map((m) => m.clerkUserId))
+      } catch {
+        profiles = new Map()
       }
-      const members = await d1ListMembers(c.env.DB, tenantId)
       c.header('Cache-Control', 'no-store')
       return c.json({
         tenantId,
-        members: members.map(serializeMembership),
+        members: members.map((m) => ({
+          ...serializeMembership(m),
+          displayName: profiles.get(m.clerkUserId)?.displayName ?? null,
+          email: profiles.get(m.clerkUserId)?.email ?? null,
+        })),
         clinicalAccess: false,
       })
     } catch (err) {

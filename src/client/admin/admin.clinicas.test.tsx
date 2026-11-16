@@ -75,7 +75,19 @@ const inv = (over: Partial<Inv> = {}): Inv => ({
   ...over,
 })
 
+type Mem = {
+  tenantId: string
+  clerkUserId: string
+  role: 'owner' | 'attendant'
+  status: 'active' | 'revoked'
+  createdAt: number
+  revokedAt: number | null
+  displayName: string | null
+  email: string | null
+}
+
 type Server = {
+  members: Record<string, Mem[]>
   invitations: Record<string, Inv[]>
   /** `emailSent` devolvido por criar/reenviar/emitir. */
   emailSent: boolean
@@ -89,6 +101,7 @@ type Server = {
 
 function mountServer(rows: Row[]): Server {
   const server: Server = {
+    members: {},
     invitations: {},
     emailSent: true,
     rows,
@@ -121,6 +134,52 @@ function mountServer(rows: Row[]): Server {
         const invite = inv({ id: 'inv_new', email: String((body as { ownerEmail: string }).ownerEmail) })
         server.invitations[created.id] = [invite]
         return j({ tenant: asTenant(created), invitation: invite, emailSent: server.emailSent }, 201)
+      }
+      const membersOf = (tid: string): Mem[] => {
+        const r = server.rows.find((x) => x.id === tid)
+        if (!r) return []
+        return (server.members[tid] ??= Array.from({ length: r.memberCount }, (_, i) => ({
+          tenantId: tid,
+          clerkUserId: i < r.ownerCount ? `user_owner_${i}` : `user_att_${i}`,
+          role: i < r.ownerCount ? ('owner' as const) : ('attendant' as const),
+          status: 'active' as const,
+          createdAt: T0,
+          revokedAt: null,
+          displayName: i < r.ownerCount ? `Owner ${i}` : `Attendant ${i}`,
+          email: i < r.ownerCount ? `owner${i}@example.test` : `att${i}@example.test`,
+        })))
+      }
+      const mm = /^\/api\/platform\/tenants\/([^/]+)\/members$/.exec(url)
+      if (mm) {
+        const tid = decodeURIComponent(mm[1]!)
+        if (!server.rows.some((x) => x.id === tid)) return j({ error: 'tenant_not_found' }, 404)
+        return j({ tenantId: tid, members: membersOf(tid), clinicalAccess: false })
+      }
+      const om = /^\/api\/platform\/tenants\/([^/]+)\/owners\/([^/]+)$/.exec(url)
+      if (om && method === 'DELETE') {
+        if (server.failNext) {
+          const f = server.failNext
+          server.failNext = null
+          return j({ error: f.error }, f.status)
+        }
+        const tid = decodeURIComponent(om[1]!)
+        const target = membersOf(tid).find((x) => x.clerkUserId === decodeURIComponent(om[2]!))
+        if (target) Object.assign(target, { status: 'revoked', revokedAt: T0 })
+        return j({ owner: target })
+      }
+      const rm = /^\/api\/platform\/tenants\/([^/]+)\/owners\/replace$/.exec(url)
+      if (rm && method === 'POST') {
+        if (server.failNext) {
+          const f = server.failNext
+          server.failNext = null
+          return j({ error: f.error }, f.status)
+        }
+        const tid = decodeURIComponent(rm[1]!)
+        const b = body as { fromClerkUserId: string; toClerkUserId: string }
+        const list = membersOf(tid)
+        Object.assign(list.find((x) => x.clerkUserId === b.fromClerkUserId)!, { status: 'revoked' })
+        Object.assign(list.find((x) => x.clerkUserId === b.toClerkUserId)!, { role: 'owner' })
+        return j({ from: {}, to: {} })
       }
       const im = /^\/api\/platform\/tenants\/([^/]+)\/invitations(?:\/([^/]+)\/(resend|cancel))?$/.exec(url)
       if (im) {
@@ -554,6 +613,187 @@ describe('Platform Admin — clínicas (#829)', () => {
       await open('/admin/clinicas/jardim')
       await screen.findByRole('heading', { level: 1, name: 'Clínica Jardim Sul' })
       expect(screen.queryByLabelText('E-mail da owner')).toBeNull()
+    })
+  })
+  describe('aba Membros (#830)', () => {
+    const goMembros = async (id: string) => {
+      await open(`/admin/clinicas/${id}/membros`)
+      return screen.findByRole('table')
+    }
+    const rowOf = (table: HTMLElement, text: string) =>
+      within(table).getAllByRole('row').find((r) => r.textContent?.includes(text))!
+
+    it('mostra nome e e-mail, papel e estado; só as owners têm ações', async () => {
+      mountServer(seed())
+      const table = await goMembros('aurora')
+      const rows = within(table).getAllByRole('row').slice(1)
+      expect(rows).toHaveLength(4)
+      const owner = rowOf(table, 'Owner 0')
+      expect(owner.textContent).toContain('owner0@example.test')
+      expect(within(owner).getByText('Owner', { selector: '.admin-pill' })).toBeTruthy()
+      expect(within(owner).getByRole('button', { name: 'Substituir' })).toBeTruthy()
+      expect(within(owner).getByRole('button', { name: 'Remover' })).toBeTruthy()
+      const att = rowOf(table, 'Attendant 2')
+      expect(within(att).queryByRole('button')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Ativos 4' })).toBeTruthy()
+    })
+
+    it('sem nome do Clerk mostra o id e «Nome indisponível», sem bloquear', async () => {
+      const server = mountServer(seed())
+      server.members.aurora = [
+        { tenantId: 'aurora', clerkUserId: 'user_2xk9', role: 'attendant', status: 'active', createdAt: T0, revokedAt: null, displayName: null, email: null },
+        { tenantId: 'aurora', clerkUserId: 'user_o', role: 'owner', status: 'active', createdAt: T0, revokedAt: null, displayName: null, email: 'so.email@example.test' },
+      ]
+      const table = await goMembros('aurora')
+      const nameless = rowOf(table, 'user_2xk9')
+      expect(nameless.textContent).toContain('Nome indisponível')
+      expect(rowOf(table, 'so.email@example.test').textContent).not.toContain('Nome indisponível')
+    })
+
+    it('filtros Ativos, Revogados e Todos; revogados não têm ações', async () => {
+      const server = mountServer(seed())
+      server.members.aurora = [
+        { tenantId: 'aurora', clerkUserId: 'u1', role: 'owner', status: 'active', createdAt: T0, revokedAt: null, displayName: 'Ana', email: null },
+        { tenantId: 'aurora', clerkUserId: 'u2', role: 'owner', status: 'active', createdAt: T0, revokedAt: null, displayName: 'Bia', email: null },
+        { tenantId: 'aurora', clerkUserId: 'u3', role: 'owner', status: 'revoked', createdAt: T0, revokedAt: T0, displayName: 'Cris', email: null },
+      ]
+      const user = userEvent.setup()
+      const table = await goMembros('aurora')
+      expect(within(table).queryByText('Cris')).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Revogados 1' }))
+      const only = within(screen.getByRole('table')).getAllByRole('row').slice(1)
+      expect(only).toHaveLength(1)
+      expect(only[0]!.textContent).toContain('Cris')
+      expect(within(only[0]!).queryByRole('button')).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Todos 3' }))
+      expect(within(screen.getByRole('table')).getAllByRole('row').slice(1)).toHaveLength(3)
+    })
+
+    it('a última owner ativa não pode ser removida, e diz porquê', async () => {
+      mountServer(seed())
+      const table = await goMembros('lume')
+      const remove = within(rowOf(table, 'Owner 0')).getByRole('button', { name: 'Remover' }) as HTMLButtonElement
+      expect(remove.disabled).toBe(true)
+      expect(remove.title).toBe('Última owner ativa: não pode ser removida')
+    })
+
+    it('remover owner pede confirmação, chama a API e atualiza a lista', async () => {
+      const server = mountServer(seed())
+      const user = userEvent.setup()
+      const table = await goMembros('aurora')
+      await user.click(within(rowOf(table, 'Owner 1')).getByRole('button', { name: 'Remover' }))
+      const dialog = await screen.findByRole('alertdialog')
+      expect(dialog.textContent).toContain('Remover Owner 1 como owner?')
+      await user.click(within(dialog).getByRole('button', { name: 'Remover owner' }))
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+      expect(server.requests.some((r) => r.method === 'DELETE' && r.url.endsWith('/owners/user_owner_1'))).toBe(true)
+      expect(await screen.findByText('Owner 1 deixou de ser owner.')).toBeTruthy()
+      await waitFor(() => expect(within(screen.getByRole('table')).queryByText('Owner 1')).toBeNull())
+      expect(screen.getByRole('button', { name: 'Revogados 1' })).toBeTruthy()
+    })
+
+    it('erro «última owner» do servidor aparece no diálogo e nada muda', async () => {
+      const server = mountServer(seed())
+      server.failNext = { status: 403, error: 'last_owner_protected' }
+      const user = userEvent.setup()
+      const table = await goMembros('aurora')
+      await user.click(within(rowOf(table, 'Owner 0')).getByRole('button', { name: 'Remover' }))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Remover owner' }))
+      expect(await within(dialog).findByRole('alert')).toBeTruthy()
+      expect(dialog.textContent).toContain('Não é possível remover a última owner ativa')
+      expect(dialog.textContent).not.toContain('last_owner_protected')
+      // Com o diálogo aberto o resto da página fica oculto às tecnologias de apoio: usa-se o nó guardado.
+      expect(within(table).getByText('Owner 0')).toBeTruthy()
+    })
+
+    it('substituir: só attendants como candidatos, escolha obrigatória, e envia de→para', async () => {
+      const server = mountServer(seed())
+      const user = userEvent.setup()
+      const table = await goMembros('aurora')
+      await user.click(within(rowOf(table, 'Owner 0')).getByRole('button', { name: 'Substituir' }))
+      const dialog = await screen.findByRole('alertdialog')
+      const select = within(dialog).getByLabelText(/Substituir por/)
+      expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual([
+        'Escolher…',
+        'Attendant 2',
+        'Attendant 3',
+      ])
+      await user.click(within(dialog).getByRole('button', { name: 'Substituir owner' }))
+      expect(await within(dialog).findByText('Escolha quem passa a ser owner.')).toBeTruthy()
+      expect(server.requests.some((r) => r.url.endsWith('/owners/replace'))).toBe(false)
+      await user.selectOptions(select, 'user_att_3')
+      await user.click(within(dialog).getByRole('button', { name: 'Substituir owner' }))
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+      expect(server.requests.find((r) => r.url.endsWith('/owners/replace'))?.body).toEqual({
+        fromClerkUserId: 'user_owner_0',
+        toClerkUserId: 'user_att_3',
+      })
+      expect(await screen.findByText(/a nova owner foi promovida/)).toBeTruthy()
+    })
+
+    it('sem attendants não há quem promover: Substituir fica desativado', async () => {
+      mountServer(seed())
+      const table = await goMembros('lume')
+      const lone = rowOf(table, 'Owner 0')
+      expect((within(lone).getByRole('button', { name: 'Substituir' }) as HTMLButtonElement).disabled).toBe(false)
+      cleanup()
+      const server = mountServer(seed())
+      server.members.aurora = [
+        { tenantId: 'aurora', clerkUserId: 'u1', role: 'owner', status: 'active', createdAt: T0, revokedAt: null, displayName: 'Só Owner', email: null },
+      ]
+      const t2 = await goMembros('aurora')
+      const btn = within(rowOf(t2, 'Só Owner')).getByRole('button', { name: 'Substituir' }) as HTMLButtonElement
+      expect(btn.disabled).toBe(true)
+      expect(btn.title).toBe('Não há attendants para promover')
+    })
+
+    it('adicionar owner: valida o e-mail e envia o convite; diz quando o e-mail não saiu', async () => {
+      const server = mountServer(seed())
+      const user = userEvent.setup()
+      await goMembros('aurora')
+      await user.click(screen.getByRole('button', { name: 'Adicionar owner' }))
+      const dialog = await screen.findByRole('dialog')
+      await user.type(within(dialog).getByLabelText(/E-mail da owner/), 'sem-arroba')
+      await user.click(within(dialog).getByRole('button', { name: 'Enviar convite' }))
+      expect(await within(dialog).findByText(/Escreva um e-mail completo/)).toBeTruthy()
+      expect(server.requests.some((r) => r.url.endsWith('/invitations'))).toBe(false)
+
+      server.emailSent = false
+      await user.clear(within(dialog).getByLabelText(/E-mail da owner/))
+      await user.type(within(dialog).getByLabelText(/E-mail da owner/), 'nova@example.test')
+      await user.click(within(dialog).getByRole('button', { name: 'Enviar convite' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(server.requests.find((r) => r.url.endsWith('/invitations'))?.body).toEqual({ email: 'nova@example.test' })
+      expect(await screen.findByText(/mas o e-mail não saiu/)).toBeTruthy()
+    })
+
+    it('convite de owner em curso aparece na tabela como «Convite enviado»', async () => {
+      const server = mountServer(seed())
+      server.invitations.jardim = [inv()]
+      const table = await goMembros('jardim')
+      const row = rowOf(table, 'dona@example.test')
+      expect(within(row).getByText('Convite enviado')).toBeTruthy()
+      expect(row.textContent).toContain('Ainda não aceitou')
+      expect(within(row).queryByRole('button')).toBeNull()
+    })
+
+    it('clínica em exclusão pendente não oferece ações nem «Adicionar owner»', async () => {
+      mountServer(seed())
+      const table = await goMembros('pele')
+      expect(within(table).queryByRole('button', { name: 'Remover' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Adicionar owner' })).toBeNull()
+    })
+
+    it('acessibilidade: a aba e o diálogo não têm violações', async () => {
+      mountServer(seed())
+      const user = userEvent.setup()
+      const { container } = await open('/admin/clinicas/aurora/membros')
+      const table = await screen.findByRole('table')
+      await checkA11y(container)
+      await user.click(within(rowOf(table, 'Owner 0')).getByRole('button', { name: 'Substituir' }))
+      await screen.findByRole('alertdialog')
+      await checkA11y(document.body)
     })
   })
 })
