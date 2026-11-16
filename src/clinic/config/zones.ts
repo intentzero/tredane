@@ -463,9 +463,8 @@ export function quoteVisit(
       'a mesma visita não mistura variante masculina e feminina',
     )
   }
-  chosen.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pt-BR'))
   const priced = priceVisit(
-    chosen,
+    [...chosen].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pt-BR')),
     listCombos(db, tenantId, service.id).map((c) => ({ ...c })),
   )
   return {
@@ -1020,9 +1019,58 @@ function stripZoneWords(text: string, zone: ServiceZoneRow): string {
   return rest
 }
 
+/** Ordem estável por lista de ids (quadro / eco / proposta). Omite ids desconhecidos. */
+export function orderZonesByIds<T extends { id: string }>(
+  zones: readonly T[],
+  ids: readonly string[],
+): T[] {
+  const byId = new Map(zones.map((z) => [z.id, z]))
+  const out: T[] = []
+  const seen = new Set<string>()
+  for (const id of ids) {
+    if (seen.has(id)) continue
+    const row = byId.get(id)
+    if (row) {
+      out.push(row)
+      seen.add(id)
+    }
+  }
+  return out
+}
+
+/** Ordem em que as zonas aparecem no texto da cliente (eco DEC-137 / P11). */
+export function sortZonesByMentionOrder(
+  text: string,
+  zones: readonly ServiceZoneRow[],
+): ServiceZoneRow[] {
+  if (zones.length <= 1) return [...zones]
+  const folded = foldZoneName(text)
+  const scored = zones.map((zone) => {
+    const name = foldZoneName(zone.name.trim())
+    let pos = folded.indexOf(name)
+    if (pos < 0) {
+      for (const syn of zone.synonyms ?? []) {
+        const p = folded.indexOf(foldZoneName(syn.trim()))
+        if (p >= 0) {
+          pos = p
+          break
+        }
+      }
+    }
+    return { zone, pos: pos < 0 ? Number.MAX_SAFE_INTEGER : pos }
+  })
+  scored.sort(
+    (a, b) =>
+      a.pos - b.pos ||
+      a.zone.sortOrder - b.zone.sortOrder ||
+      a.zone.name.localeCompare(b.zone.name, 'pt-BR'),
+  )
+  return scored.map((row) => row.zone)
+}
+
 export type ZoneMentionResolution = {
   /**
-   * Zonas aceites neste turno, na ordem do âmbito.
+   * Zonas aceites neste turno, na ordem em que a cliente as citou.
    * Com `unrecognized`, mantém o que casou (Paulo 10/11/2026 opção 2) —
    * a sobra bloqueia Horários, mas não descarta o enunciado inteiro.
    */
@@ -1202,7 +1250,8 @@ export function resolveZoneMention(
       approx = true
     }
   }
-  const kept = active.filter((z) => hit.has(z.id) || excised.ids.has(z.id))
+  let kept = active.filter((z) => hit.has(z.id) || excised.ids.has(z.id))
+  kept = sortZonesByMentionOrder(text, kept)
   if (
     failedSegment &&
     leftoverWord &&
