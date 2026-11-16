@@ -409,6 +409,26 @@ export function createPanelApi(getToken: TokenGetter) {
       return { status: res.status, body }
     },
 
+    /** STAGING-ONLY: apaga todos os compromissos da clínica (servidor 404 fora de staging). */
+    async clearClinicAppointments(
+      tenantId: string,
+      confirmName: string,
+      opts?: FetchOpts,
+    ): Promise<{ status: number; body: unknown }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/staging/clear-appointments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmName }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      const body: unknown = await res.json().catch(() => null)
+      return { status: res.status, body }
+    },
+
     async interruptWhatsappDev(
       tenantId: string,
       reason?: string,
