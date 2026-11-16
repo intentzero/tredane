@@ -228,6 +228,7 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   'support.termination.close_with_session': 'Fechou o pedido de fim com a sessão',
   'email.delivery.enqueue': 'E-mail enfileirado',
   'email.delivery.sent': 'E-mail enviado',
+  'review.sample.read': 'Leu uma amostra de revisão',
   'whatsapp.connected': 'WhatsApp ligado',
   'whatsapp.reconnected': 'WhatsApp religado',
   'whatsapp.disconnected': 'WhatsApp desligado',
@@ -257,4 +258,32 @@ export function auditPerson(p: AuditPerson | null): string {
   if (!p) return '—'
   if (/^system/i.test(p.clerkUserId)) return 'Sistema'
   return p.displayName || p.email || p.clerkUserId
+}
+
+export const SHADOW_FIELD_LABEL: Record<string, string> = {
+  service: 'Serviço',
+  variants: 'Variantes',
+  line: 'Linha',
+  professional: 'Profissional',
+  date: 'Data',
+  period: 'Período',
+  time: 'Hora',
+  option: 'Opção',
+}
+
+/** 0,63 → «63 %»; sem dados → «—». */
+export function formatRate(rate: number | null | undefined): string {
+  return rate === null || rate === undefined ? '—' : `${Math.round(rate * 100)} %`
+}
+
+export const SAMPLE_SOURCE_LABEL: Record<string, string> = {
+  client: 'Cliente',
+  staff: 'Equipe',
+  auto: 'Automática',
+}
+
+export const REVIEW_DIRECTION_LABEL: Record<string, string> = {
+  inbound: 'Cliente',
+  outbound: 'Clínica',
+  system: 'Sistema',
 }
