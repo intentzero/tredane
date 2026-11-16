@@ -19,6 +19,7 @@ import {
   type ConsumedHandoff,
   type SupportRequestRow,
   type SupportSessionRow,
+  type SupportTerminationRow,
 } from '../db/admin/support'
 
 const REQUEST_SELECT = `
@@ -426,4 +427,246 @@ export async function cancelSupportRequestAsync(
     now,
   })
   return (await getSupportRequestAsync(db, input.requestId))!
+}
+
+
+/** Owner: sessões ativas da clínica (as que passaram do prazo expiram aqui, sem renovar). */
+export async function listActiveSupportSessionsForTenantAsync(
+  db: AsyncAdminDb,
+  clock: Clock,
+  tenantId: string,
+): Promise<SupportSessionRow[]> {
+  const rows = await db.all<{ id: string }>(
+    `SELECT id FROM support_sessions WHERE tenant_id = ? AND status = 'active' ORDER BY activated_at DESC`,
+    tenantId,
+  )
+  const out: SupportSessionRow[] = []
+  for (const r of rows) {
+    const s = await expireSupportSessionIfNeededAsync(db, clock, r.id)
+    if (s.status === 'active') out.push(s)
+  }
+  return out
+}
+
+/** DEC-036: o aviso é só do subject. */
+export async function getActiveSupportSessionForSubjectAsync(
+  db: AsyncAdminDb,
+  clock: Clock,
+  tenantId: string,
+  subjectClerkUserId: string,
+): Promise<SupportSessionRow | undefined> {
+  const row = await db.get<{ id: string }>(
+    `SELECT id FROM support_sessions
+     WHERE tenant_id = ? AND subject_clerk_user_id = ? AND status = 'active'
+     ORDER BY activated_at DESC LIMIT 1`,
+    tenantId,
+    subjectClerkUserId,
+  )
+  if (!row) return undefined
+  const s = await expireSupportSessionIfNeededAsync(db, clock, row.id)
+  return s.status === 'active' ? s : undefined
+}
+
+type TerminationRaw = {
+  id: string
+  support_session_id: string
+  tenant_id: string
+  requested_by_subject_clerk_user_id: string
+  requested_at: number
+  status: string
+  decided_by_owner_clerk_user_id: string | null
+  decided_at: number | null
+}
+
+export async function getSupportTerminationRequestAsync(
+  db: AsyncAdminDb,
+  id: string,
+): Promise<SupportTerminationRow | undefined> {
+  const row = await db.get<TerminationRaw>(
+    `SELECT id, support_session_id, tenant_id, requested_by_subject_clerk_user_id,
+            requested_at, status, decided_by_owner_clerk_user_id, decided_at
+     FROM support_termination_requests WHERE id = ?`,
+    id,
+  )
+  if (!row) return undefined
+  return {
+    id: row.id,
+    supportSessionId: row.support_session_id,
+    tenantId: row.tenant_id,
+    requestedBySubjectClerkUserId: row.requested_by_subject_clerk_user_id,
+    requestedAt: row.requested_at,
+    status: row.status as SupportTerminationRow['status'],
+    decidedByOwnerClerkUserId: row.decided_by_owner_clerk_user_id,
+    decidedAt: row.decided_at,
+  }
+}
+
+/**
+ * DEC-037: o subject pede o fim da sessão. Só um pedido pendente por sessão: o `INSERT … SELECT` condicional
+ * é a barreira (sem índice único no esquema); quem perde a corrida recebe o pedido já existente.
+ */
+export async function requestSupportTerminationAsync(
+  db: AsyncAdminDb,
+  clock: Clock,
+  input: { sessionId: string; subjectClerkUserId: string },
+): Promise<{ id: string; status: string; created: boolean }> {
+  let session = await getSupportSessionAsync(db, input.sessionId)
+  if (!session) throw new NotFoundError('support_session_not_found', 'Sessão inexistente')
+  session = await expireSupportSessionIfNeededAsync(db, clock, session.id)
+  if (session.status !== 'active') throw new ConflictError('support_session_not_active', 'Sessão não ativa')
+  if (session.subjectClerkUserId !== input.subjectClerkUserId) {
+    throw new ForbiddenError('not_session_subject', 'Apenas o subject pode pedir encerramento')
+  }
+  const member = await db.get<{ ok: number }>(
+    `SELECT 1 AS ok FROM tenant_memberships WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active'`,
+    session.tenantId,
+    input.subjectClerkUserId,
+  )
+  if (!member) throw new ForbiddenError('subject_not_member', 'Subject sem membership ativo')
+
+  const now = clock.nowMs()
+  const id = newId('str')
+  const inserted = await db.run(
+    `INSERT INTO support_termination_requests (
+       id, support_session_id, tenant_id, requested_by_subject_clerk_user_id,
+       requested_at, status, decided_by_owner_clerk_user_id, decided_at
+     )
+     SELECT ?, s.id, s.tenant_id, ?, ?, 'pending', NULL, NULL
+     FROM support_sessions s
+     WHERE s.id = ? AND s.status = 'active'
+       AND NOT EXISTS (
+         SELECT 1 FROM support_termination_requests t
+         WHERE t.support_session_id = s.id AND t.status = 'pending'
+       )`,
+    id,
+    input.subjectClerkUserId,
+    now,
+    input.sessionId,
+  )
+  if (inserted.changes === 1) {
+    await audit(db, {
+      actorClerkUserId: input.subjectClerkUserId,
+      subjectClerkUserId: input.subjectClerkUserId,
+      tenantId: session.tenantId,
+      action: 'support.termination.request',
+      objectType: 'support_termination_request',
+      objectId: id,
+      supportSessionId: input.sessionId,
+      now,
+    })
+    return { id, status: 'pending', created: true }
+  }
+  const existing = await db.get<{ id: string; status: string }>(
+    `SELECT id, status FROM support_termination_requests WHERE support_session_id = ? AND status = 'pending'`,
+    input.sessionId,
+  )
+  if (existing) return { id: existing.id, status: existing.status, created: false }
+  throw new ConflictError('support_session_not_active', 'Sessão não ativa')
+}
+
+/** DEC-037: o owner decide Encerrar (revoga, DEC-034) ou Manter (sem pausa nem extensão do prazo). */
+export async function decideSupportTerminationAsync(
+  db: AsyncAdminDb,
+  clock: Clock,
+  input: { terminationRequestId: string; ownerClerkUserId: string; decision: 'end' | 'keep' },
+): Promise<{ termination: SupportTerminationRow; session: SupportSessionRow }> {
+  const preview = await getSupportTerminationRequestAsync(db, input.terminationRequestId)
+  if (!preview) throw new NotFoundError('termination_request_not_found', 'Pedido de encerramento inexistente')
+  const owner = await db.get<{ ok: number }>(
+    `SELECT 1 AS ok FROM tenant_memberships m INNER JOIN tenants t ON t.id = m.tenant_id
+     WHERE m.tenant_id = ? AND m.clerk_user_id = ? AND m.role = 'owner' AND m.status = 'active' AND t.status = 'active'`,
+    preview.tenantId,
+    input.ownerClerkUserId,
+  )
+  if (!owner) throw new ForbiddenError('owner_required', 'Owner ativo do tenant exigido')
+  if (preview.status !== 'pending') {
+    throw new ConflictError('termination_not_pending', 'Pedido de encerramento não pendente')
+  }
+
+  const now = clock.nowMs()
+  let session = (await getSupportSessionAsync(db, preview.supportSessionId))!
+  if (session.status === 'active' && now >= session.expiresAt) {
+    session = await expireSupportSessionIfNeededAsync(db, clock, session.id)
+    // A expiração já fechou o pedido (closed_with_session): a decisão chega tarde.
+    const after = await getSupportTerminationRequestAsync(db, preview.id)
+    if (!after || after.status !== 'pending') {
+      throw new ConflictError('termination_not_pending', 'Pedido de encerramento não pendente')
+    }
+  }
+
+  if (input.decision === 'keep') {
+    if (session.status !== 'active') throw new ConflictError('support_session_not_active', 'Sessão não ativa')
+    const declined = await db.run(
+      `UPDATE support_termination_requests
+       SET status = 'declined', decided_by_owner_clerk_user_id = ?, decided_at = ?
+       WHERE id = ? AND status = 'pending'`,
+      input.ownerClerkUserId,
+      now,
+      preview.id,
+    )
+    if (declined.changes !== 1) throw new ConflictError('termination_decide_conflict', 'Decisão concorrente negada')
+    await audit(db, {
+      actorClerkUserId: input.ownerClerkUserId,
+      subjectClerkUserId: session.subjectClerkUserId,
+      tenantId: session.tenantId,
+      action: 'support.termination.keep',
+      objectType: 'support_termination_request',
+      objectId: preview.id,
+      supportSessionId: session.id,
+      now,
+    })
+    return {
+      termination: (await getSupportTerminationRequestAsync(db, preview.id))!,
+      session: (await getSupportSessionAsync(db, session.id))!,
+    }
+  }
+
+  const accepted = await db.run(
+    `UPDATE support_termination_requests
+     SET status = 'accepted', decided_by_owner_clerk_user_id = ?, decided_at = ?
+     WHERE id = ? AND status = 'pending'`,
+    input.ownerClerkUserId,
+    now,
+    preview.id,
+  )
+  if (accepted.changes !== 1) throw new ConflictError('termination_decide_conflict', 'Decisão concorrente negada')
+
+  if (session.status === 'active') {
+    const revoked = await db.run(
+      `UPDATE support_sessions
+       SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?, handoff_hash = NULL
+       WHERE id = ? AND status = 'active'`,
+      now,
+      input.ownerClerkUserId,
+      now,
+      session.id,
+    )
+    if (revoked.changes === 1) {
+      await audit(db, {
+        actorClerkUserId: input.ownerClerkUserId,
+        subjectClerkUserId: session.subjectClerkUserId,
+        tenantId: session.tenantId,
+        action: 'support.session.revoke',
+        objectType: 'support_session',
+        objectId: session.id,
+        supportSessionId: session.id,
+        metadata: { reason: 'termination_accepted' },
+        now,
+      })
+    }
+  }
+  await audit(db, {
+    actorClerkUserId: input.ownerClerkUserId,
+    subjectClerkUserId: session.subjectClerkUserId,
+    tenantId: session.tenantId,
+    action: 'support.termination.end',
+    objectType: 'support_termination_request',
+    objectId: preview.id,
+    supportSessionId: session.id,
+    now,
+  })
+  return {
+    termination: (await getSupportTerminationRequestAsync(db, preview.id))!,
+    session: (await getSupportSessionAsync(db, session.id))!,
+  }
 }
