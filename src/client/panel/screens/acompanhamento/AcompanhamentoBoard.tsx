@@ -226,8 +226,11 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
             const name = contactLabel(card.contact.displayName, card.contact.waId)
             const isAttendanceTwin = card.cardKind === 'open_attendance'
             const aptCount = card.futureAppointmentCount ?? 0
+            const needsPerson = card.needsPerson === true
             const meta = [
-              card.assigneeDisplayName ?? 'Sem responsável',
+              needsPerson
+                ? 'Precisa de alguém'
+                : (card.assigneeDisplayName ?? 'Sem responsável'),
               relativeTime(card.lastInteractionAt),
               isAttendanceTwin
                 ? 'Atendimento em curso'
@@ -240,7 +243,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
             return (
               <article
                 key={card.boardKey ?? card.id}
-                className="panel-card-lg"
+                className={`panel-card-lg${needsPerson ? ' acomp-card--needs-person' : ''}`}
                 aria-label={`${name}. ${meta}`}
                 data-card-kind={card.cardKind ?? 'cycle'}
               >
