@@ -17,7 +17,7 @@ import {
   moveOpportunityStageOp,
 } from '../pipeline'
 import { retireActiveProposal } from '../proposals/proposals'
-import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
+import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/interactive-limits'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import {
