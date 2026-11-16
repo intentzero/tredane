@@ -440,7 +440,7 @@ export function InboxContactScreen({
       {data.contact.blockedAt == null ? (
         <div className="ic-shortcuts">
           <Button
-            className="panel-btn-primary ic-shortcut"
+            className="panel-btn-primary panel-btn-accent ic-shortcut"
             onPress={() => {
               // DEC-162: Contato aberto numa conversa ativa — Agendar no contexto da conversa
               // (painel desktop / folha no celular), sem abandonar a thread pela área Agenda.

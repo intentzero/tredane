@@ -3368,6 +3368,26 @@ button.panel-auth-inline-link {
   background: var(--color-primary-ink);
 }
 
+/* Entrada no Agendar: o mesmo destaque em Conversas, Agenda, Clientes e Acompanhar. */
+.panel-btn-accent {
+  background-color: var(--color-accent-fill);
+  border-color: var(--color-accent-fill);
+  color: var(--color-accent-on-fill);
+}
+
+@media (hover: hover) {
+  .panel-btn-accent:hover {
+    background-color: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+  }
+}
+
+.panel-btn-accent:active,
+.panel-btn-accent[data-pressed] {
+  background-color: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
 .panel-btn-secondary {
   background: var(--color-surface-card);
   border-color: var(--color-line-control);
@@ -3415,6 +3435,11 @@ button.panel-auth-inline-link {
   background: var(--color-line-disabled);
   color: var(--color-text-secondary);
   cursor: not-allowed;
+}
+
+.panel-btn-accent:disabled,
+.panel-btn-accent[data-disabled] {
+  border-color: var(--color-line-disabled);
 }
 
 .panel-btn-secondary:disabled,
@@ -6634,13 +6659,24 @@ button.panel-auth-inline-link {
   padding: 0 var(--space-5);
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-fill);
-  color: var(--color-primary-on-fill);
+  background: var(--color-accent-fill);
+  color: var(--color-accent-on-fill);
   font: inherit;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
   box-shadow: 0 6px 16px rgba(20, 38, 37, 0.25);
   cursor: pointer;
+}
+
+@media (hover: hover) {
+  .agenda-fab:hover {
+    background: var(--color-accent-hover);
+  }
+}
+
+.agenda-fab:active,
+.agenda-fab[data-pressed] {
+  background: var(--color-accent-hover);
 }
 
 .agenda-fab[data-focus-visible] {
@@ -9852,7 +9888,7 @@ button.panel-auth-inline-link {
   --chat-wall: #efeae2;
   --chat-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%234A4130' stroke-opacity='.085' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z'/%3E%3Cpath d='M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13'/%3E%3Cpath d='M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z'/%3E%3Crect x='14' y='80' width='28' height='25' rx='4'/%3E%3Cpath d='M14 89h28M21 76v7M35 76v7M22 97h4'/%3E%3Cpath d='M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z'/%3E%3Ccircle cx='124' cy='146' r='3.5'/%3E%3Ccircle cx='124' cy='137' r='5'/%3E%3Ccircle cx='132.5' cy='146' r='5'/%3E%3Ccircle cx='124' cy='155' r='5'/%3E%3Ccircle cx='115.5' cy='146' r='5'/%3E%3Ccircle cx='62' cy='70' r='3'/%3E%3Ccircle cx='150' cy='30' r='2'/%3E%3Ccircle cx='34' cy='140' r='2'/%3E%3Cpath d='M126 50l6 6M132 50l-6 6M40 150c4-6 10-6 14 0s10 6 14 0M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3'/%3E%3C/g%3E%3C/svg%3E");
   --chat-in: var(--color-surface-card);
-  --chat-out: #d9f2ee;
+  --chat-out: var(--color-primary-tint);
   --chat-tick: #2a7fbf;
   --chat-shadow: rgba(11, 20, 26, 0.13);
   /* DEC-161 (11/11/2026): fundo liso; a textura de 01/11 sai. */
@@ -9862,7 +9898,7 @@ button.panel-auth-inline-link {
 :root[data-theme='dark'] .inbox-thread {
   --chat-wall: #0b1413;
   --chat-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.05' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z'/%3E%3Cpath d='M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13'/%3E%3Cpath d='M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z'/%3E%3Crect x='14' y='80' width='28' height='25' rx='4'/%3E%3Cpath d='M14 89h28M21 76v7M35 76v7M22 97h4'/%3E%3Cpath d='M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z'/%3E%3Ccircle cx='124' cy='146' r='3.5'/%3E%3Ccircle cx='124' cy='137' r='5'/%3E%3Ccircle cx='132.5' cy='146' r='5'/%3E%3Ccircle cx='124' cy='155' r='5'/%3E%3Ccircle cx='115.5' cy='146' r='5'/%3E%3Ccircle cx='62' cy='70' r='3'/%3E%3Ccircle cx='150' cy='30' r='2'/%3E%3Ccircle cx='34' cy='140' r='2'/%3E%3Cpath d='M126 50l6 6M132 50l-6 6M40 150c4-6 10-6 14 0s10 6 14 0M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3'/%3E%3C/g%3E%3C/svg%3E");
-  --chat-out: #163a38;
+  --chat-out: var(--color-primary-tint);
   --chat-tick: #6cc4f0;
   --chat-shadow: rgba(0, 0, 0, 0.4);
 }
@@ -9871,7 +9907,7 @@ button.panel-auth-inline-link {
   :root:not([data-theme='light']) .inbox-thread {
     --chat-wall: #0b1413;
     --chat-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.05' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z'/%3E%3Cpath d='M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13'/%3E%3Cpath d='M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z'/%3E%3Crect x='14' y='80' width='28' height='25' rx='4'/%3E%3Cpath d='M14 89h28M21 76v7M35 76v7M22 97h4'/%3E%3Cpath d='M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z'/%3E%3Ccircle cx='124' cy='146' r='3.5'/%3E%3Ccircle cx='124' cy='137' r='5'/%3E%3Ccircle cx='132.5' cy='146' r='5'/%3E%3Ccircle cx='124' cy='155' r='5'/%3E%3Ccircle cx='115.5' cy='146' r='5'/%3E%3Ccircle cx='62' cy='70' r='3'/%3E%3Ccircle cx='150' cy='30' r='2'/%3E%3Ccircle cx='34' cy='140' r='2'/%3E%3Cpath d='M126 50l6 6M132 50l-6 6M40 150c4-6 10-6 14 0s10 6 14 0M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3'/%3E%3C/g%3E%3C/svg%3E");
-    --chat-out: #163a38;
+    --chat-out: var(--color-primary-tint);
     --chat-tick: #6cc4f0;
     --chat-shadow: rgba(0, 0, 0, 0.4);
   }
