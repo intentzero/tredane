@@ -30,7 +30,7 @@ function summarizePlan(result: ClinicCatalogImportResult): string {
   const updates = result.items.filter((i) => i.action === 'update').length
   const parts = [
     `${creates} a criar`,
-    `${updates} a actualizar`,
+    `${updates} a atualizar`,
     `${result.warnings.length} aviso${result.warnings.length === 1 ? '' : 's'}`,
   ]
   return parts.join(' · ')
@@ -139,7 +139,7 @@ export function CatalogTransferCard({ tenantId, api, generation, onApplied }: Pr
       <p className="clinic-footnote">
         Copia a configuração de serviços (com variantes, sinónimos e combos) e/ou profissionais
         para um ficheiro JSON, ou traz de volta com pré-visualização antes de gravar. Não inclui
-        salas, agenda, contactos nem WhatsApp. Nomes de profissionais são dados pessoais — guarde
+        salas, agenda, contatos nem WhatsApp. Nomes de profissionais são dados pessoais — guarde
         o ficheiro com cuidado.
       </p>
       <div className="clinic-stack" role="group" aria-label="O que incluir">
@@ -157,7 +157,7 @@ export function CatalogTransferCard({ tenantId, api, generation, onApplied }: Pr
           isDisabled={busy || !canRun}
           onPress={() => void onExport()}
         >
-          {busy ? 'A trabalhar…' : 'Exportar JSON'}
+          {busy ? 'Exportando…' : 'Exportar JSON'}
         </Button>
         <Button
           className="panel-btn-secondary"
