@@ -779,6 +779,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
   }
 
+  /** Best-effort: fecha `proposal_send` cuja proposta/conversa já avançou. */
+  #resolveSupersededProposalSend(tenantId: string, conversationId: string | null | undefined) {
+    if (!conversationId) return
+    try {
+      clinicProposals.resolveSupersededProposalSendPendings(
+        this.#db,
+        tenantId,
+        this.#clock,
+        conversationId,
+      )
+    } catch {
+      /* best-effort */
+    }
+  }
+
   /**
    * Status Meta (#32/#33): dedup inbound_events + reconciliação monotónica de outbound.
    */
@@ -799,6 +814,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       input,
       this.#clock,
     )
+    // sent/delivered/read do envio da proposta fecha o «Aguardando aceitação Meta».
+    this.#resolveSupersededProposalSend(caller.tenantId, result.value.message?.conversationId)
     if (result.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
@@ -854,6 +871,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     } catch {
       /* best-effort */
     }
+    // Proposta que já avançou não fica com «Aguardando aceitação Meta» (16/11/2026).
+    this.#resolveSupersededProposalSend(caller.tenantId, result.value.outbound.conversationId)
     if (result.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)

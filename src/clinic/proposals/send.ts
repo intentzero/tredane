@@ -270,6 +270,10 @@ export function sendProposalToWhatsAppOp(
   }
 }
 
+function isProposalAwaitingSend(state: AppointmentProposalRow['state']): boolean {
+  return state === 'preparada' || state === 'envio_pendente' || state === 'envio_incerto'
+}
+
 /**
  * Reconcilia resultado Meta do envio da proposta (chamado a partir de applyOutboundSendResult).
  * succeeded → enviada + provider message id; uncertain → envio_incerto; failed → pendente H7.
@@ -317,7 +321,19 @@ function reconcileByOutbound(
   )
 
   if (outcome === 'succeeded') {
-    proposal = markProposalSent(db, tenantId, proposal.id, clock)
+    // O resultado Meta pode chegar depois do Confirmar (fila de resultados):
+    // confirmada→enviada é transição inválida e rebentava aqui, deixando o
+    // pendente «Aguardando aceitação Meta» aberto para sempre (16/11/2026).
+    if (isProposalAwaitingSend(proposal.state)) {
+      proposal = markProposalSent(db, tenantId, proposal.id, clock)
+    }
+    resolvePendingByProposalKind(db, tenantId, proposal.id, 'proposal_send', clock)
+    return proposal
+  }
+
+  if (!isProposalAwaitingSend(proposal.state) && proposal.state !== 'enviada') {
+    // Proposta já consumida (confirmada, substituída, …): resultado tardio não
+    // reabre alerta nem regride o estado.
     resolvePendingByProposalKind(db, tenantId, proposal.id, 'proposal_send', clock)
     return proposal
   }

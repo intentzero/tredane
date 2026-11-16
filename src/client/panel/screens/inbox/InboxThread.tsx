@@ -1424,14 +1424,25 @@ export function InboxThread({
   // Menos de 1 h para fechar a janela: a pílula passa a aviso.
   const windowSoon = closesAt != null && closesAt - Date.now() < 60 * 60 * 1000;
   // DEC-161: estado de atendimento + alerta de handoff num só cartão, junto ao compositor.
-  const needsPerson = (detail.pendingCommunications ?? []).filter(
+  // «Precisa de alguém» usa o mesmo critério do servidor que a lista, os
+  // contadores e o Acompanhar (NEEDS_PERSON_SQL → `detail.needsPerson`).
+  // Outros pendentes (envio da proposta / resultado) são «Comunicação pendente»
+  // e não marcam a conversa como precisando de alguém (bug 16/11/2026).
+  const openPending = (detail.pendingCommunications ?? []).filter(
     (c) => c.status === "alerted" || c.status === "open",
   );
+  const needsAlert = detail.needsPerson === true && detail.status !== "closed";
+  const teamPending = openPending.filter((c) => c.kind === "alter_awaiting_team");
+  const otherPending = openPending.filter((c) => c.kind !== "alter_awaiting_team");
   const canAssume = !isMine && detail.status !== "closed";
+  const needsSinceCandidates = needsAlert
+    ? [
+        ...teamPending.map((c) => c.alertedAt ?? c.startedAt),
+        ...(detail.aiReplyPause ? [detail.aiReplyPause.at] : []),
+      ]
+    : [];
   const needsSince =
-    needsPerson.length > 0
-      ? Math.min(...needsPerson.map((c) => c.alertedAt ?? c.startedAt))
-      : null;
+    needsSinceCandidates.length > 0 ? Math.min(...needsSinceCandidates) : null;
   const needsMinutes =
     needsSince != null
       ? Math.max(1, Math.round((Date.now() - needsSince) / 60000))
@@ -1453,35 +1464,48 @@ export function InboxThread({
     canAssume &&
     !detail.assigneeClerkUserId &&
     !windowOpen &&
-    needsPerson.length === 0;
+    !needsAlert &&
+    otherPending.length === 0;
   const composerShown =
     !blocked && detail.status !== "closed" && !unassignedClosed;
   // Assumir em linha colada ao compositor (proposta A, 12/11/2026): 44 px em
   // vez do cartão flutuante. Alerta e «sem responsável» mantêm o botão cheio.
-  const needsAlert = needsPerson.length > 0;
+  const pendingNotice = otherPending.length > 0;
   const handoffStrip =
-    !unassignedClosed && (needsAlert || canAssume) ? (
+    !unassignedClosed && (needsAlert || pendingNotice || canAssume) ? (
       <div
         className={`inbox-handoff${needsAlert ? " inbox-handoff--alert" : ""}${composerShown ? "" : " inbox-handoff--solo"}`}
         role={needsAlert ? "alert" : "status"}
         {...(needsAlert ? { "data-testid": "pending-comm-panel" } : {})}
       >
-        {needsAlert ? null : (
+        {needsAlert || pendingNotice ? null : (
           <span
             className={`inbox-handoff-dot${detail.assigneeClerkUserId ? "" : " inbox-handoff-dot--none"}`}
             aria-hidden
           />
         )}
         <div className="inbox-handoff-text">
-          {needsAlert ? (
+          {needsAlert || pendingNotice ? (
             <>
-              <strong>
-                Precisa de alguém
-                {needsMinutes != null ? ` · há ${needsMinutes} min` : ""}
-              </strong>
-              {needsPerson.map((c) => (
-                <p key={c.id}>{c.detailText || c.kind}</p>
-              ))}
+              {needsAlert ? (
+                <>
+                  <strong>
+                    Precisa de alguém
+                    {needsMinutes != null ? ` · há ${needsMinutes} min` : ""}
+                  </strong>
+                  {teamPending.map((c) => (
+                    <p key={c.id}>{c.detailText || c.kind}</p>
+                  ))}
+                </>
+              ) : null}
+              {pendingNotice ? (
+                <div data-testid="pending-comm-notice">
+                  <strong>Comunicação pendente</strong>
+                  {otherPending.map((c) => (
+                    <p key={c.id}>{c.detailText || c.kind}</p>
+                  ))}
+                </div>
+              ) : null}
             </>
           ) : (
             <p
