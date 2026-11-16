@@ -1,5 +1,10 @@
 # Histórico do design
 
+## 17/11/2026 — Platform Admin: PA-07 revisto e PA-12 novo (DEC-193)
+
+- **PA-07** passa a refletir os dados reais: oito cartões de métricas (falsa confirmação a vermelho se > 0), sombra H1 por campo com Concorda, Diverge, Só LLM e Só regra, e amostras com telefone mascarado que abrem a conversa. Antes mostrava só ids e valores fictícios.
+- **PA-12** (novo, **Proposto**): diálogo com o texto da conversa de uma amostra de revisão, comentários da cliente e o aviso de leitura auditada (Q-PA-01, DEC-193).
+
 ## 16/11/2026 — Platform Admin: mocks PA-01 a PA-07 (**Confirmado**, Paulo «aprovado», DEC-192)
 
 - Pasta nova `admin/` com sete telas desktop (1440×900): visão geral, clínicas, nova clínica, detalhe da clínica, suporte, saúde e qualidade da IA. Navegação lateral com as cores `nav` existentes; nenhum token novo.

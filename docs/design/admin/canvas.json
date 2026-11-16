@@ -93,6 +93,14 @@
       "h": 900,
       "title": "PA-11 Clínica · Auditoria",
       "expand": "fill"
+    },
+    "QualidadeIAAmostra.dc.html": {
+      "x": 1520,
+      "y": 1960,
+      "w": 1440,
+      "h": 900,
+      "title": "PA-12 Qualidade IA · Amostra",
+      "expand": "fill"
     }
   }
 }

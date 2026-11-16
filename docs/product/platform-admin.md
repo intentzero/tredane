@@ -110,7 +110,7 @@ Mocks **Confirmados** (Paulo, 16/11/2026) em [`docs/design/admin/`](../design/ad
 | PA-04 | Detalhe da clínica (abas Resumo, Membros, Saúde, Suporte, Auditoria) | `GET/PATCH .../:id`, `suspend`, `reactivate`, `DELETE`, `members`, `owners*`, `.../health`, `.../support`, `GET .../:id/audit` | — (todas as abas implementadas: #829, #830, #833, #831, #832) |
 | PA-05 | Suporte | `GET /api/platform/support`, `GET .../tenants/:id/support`, `POST /api/platform/support-requests` | **Pedir e listar: PR #854 (#831).** Ativar, entrar, encerrar e cancelar pedido: #853 (no D1 de produção essas rotas dão 503; a Clinic App não lê o cookie de suporte) |
 | PA-06 | Saúde global | `GET /api/platform/health` (resumo gravado pelo cron, DEC-193); `GET .../tenants/:id/health`; `POST .../health/refresh` | — (implementado em #833/PR #851) |
-| PA-07 | Qualidade IA | `GET /api/f6/ops/conversation-metrics`; MCP review-central | Rotas REST `/api/platform/quality/*` sobre as funções do MCP |
+| PA-07, PA-12 | Qualidade IA e amostra aberta | `GET /api/platform/quality/{metrics,shadow,samples,samples/:id}` — as mesmas funções do Review MCP (DEC-159) | — (implementado em #834) |
 | PA-08 a PA-11 | Abas Membros, Saúde, Suporte e Auditoria do detalhe | ver 6.1 | ver 6.1 |
 
 Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão expirada; PA-04 e PA-06 também «clínica sem resposta».
@@ -147,7 +147,7 @@ Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão exp
 
 | ID | Pergunta | Opções | Decide | Bloqueia |
 | --- | --- | --- | --- | --- |
-| Q-PA-01 | **Resolvida (Paulo, 16/11/2026: «sim»):** PA-07 mostra o texto das amostras de revisão, como o Review MCP já faz ao superadmin (DEC-159). | Opção (b). Descartada: só ids. | Paulo | O mock PA-07 aprovado mostra só ids e precisa de ajuste (abrir amostra com as mensagens) antes de #834 |
+| Q-PA-01 | **Resolvida (Paulo, 16/11/2026: «sim»):** PA-07 mostra o texto das amostras de revisão, como o Review MCP já faz ao superadmin (DEC-159). | Opção (b). Descartada: só ids. | Paulo | **Implementado no PR #(qualidade IA, #834):** PA-07 revisto e PA-12 novo; o telefone sai mascarado e cada leitura de texto fica na auditoria (`review.sample.read`) |
 | Q-PA-02 | **Resolvida (Paulo, 16/11/2026):** a saúde global lê um **resumo periódico gravado no D1** (cron), não o DO a cada pedido. | Opção (b). Descartada: fan-out aos DOs a pedido. | Paulo | PA-06 e PA-01 mostram a hora do resumo; PA-09 (clínica) pode atualizar o snapshot da própria clínica a pedido |
 | Q-PA-03 | Aviso de aprovação de suporte em tempo real para o superadmin | polling 30 s (proposto) ou canal próprio | Paulo | Não bloqueia o primeiro corte |
 | Q-PA-04 | **Ainda em aberto; o PR #851 (#833) não mostra volume.** A aba Saúde pode mostrar volume (contatos, mensagens, marcações, anexos) da clínica? | (a) sim, só números, como o snapshot já faz; (b) não, só sinais de falha | Paulo | Mock PA-09 |

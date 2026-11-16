@@ -84,27 +84,26 @@ td small{display:block;font-size:13px;color:#566160}
       <div style="display:flex;gap:12px"><span class="input" style="width:200px;justify-content:space-between">Todas as clínicas</span><div class="seg" role="group" aria-label="Período"><span>24 h</span><span aria-pressed="true">7 dias</span><span>30 dias</span></div></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
-      <div class="card stat"><b>412</b><span>Conversas com IA</span></div>
-      <div class="card stat"><b>63%</b><span>Chegaram a horário confirmado</span></div>
-      <div class="card stat"><b>11%</b><span>Passaram para a equipe</span></div>
-      <div class="card stat"><b>2</b><span>Falsas confirmações</span></div>
+      <div class="card stat"><b>100</b><span>Conversas de marcação</span></div><div class="card stat"><b>63 %</b><span>Chegaram a horário confirmado (63 de 100)</span></div><div class="card stat"><b>11 %</b><span>Pediram a equipe (11)</span></div><div class="card stat"><b>0</b><span>Falsas confirmações (deve ser 0)</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+      <div class="card stat"><b>5</b><span>Mensagens até marcar, mediana (referência 6)</span></div><div class="card stat"><b>0.40</b><span>Incompreensões por conversa</span></div><div class="card stat"><b>9</b><span>Conversas abandonadas</span></div><div class="card stat"><b>75 %</b><span>Comparecimento das marcações da IA (15 de 20)</span></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
       <section class="card"><div style="display:flex;align-items:center;gap:8px"><h2 class="ch" style="flex:1">Sombra do interpretador (H1)</h2><span class="pill ai"><i></i>Temporário</span></div>
-        <table><thead><tr><th>Campo</th><th class="num">Concorda</th><th class="num">Só LLM</th><th class="num">Diverge</th></tr></thead><tbody>
-          <tr><td>Serviço</td><td class="num">81%</td><td class="num">14%</td><td class="num">5%</td></tr>
-          <tr><td>Zonas</td><td class="num">74%</td><td class="num">17%</td><td class="num">9%</td></tr>
-          <tr><td>Data e hora</td><td class="num">88%</td><td class="num">6%</td><td class="num">6%</td></tr>
+        <table><thead><tr><th>Campo</th><th class="num">Concorda</th><th class="num">Diverge</th><th class="num">Só LLM</th><th class="num">Só regra</th></tr></thead><tbody>
+          <tr><td>Serviço</td><td class="num">81 %</td><td class="num">5 %</td><td class="num">14 %</td><td class="num">0 %</td></tr>
+          <tr><td>Período</td><td class="num">74 %</td><td class="num">9 %</td><td class="num">17 %</td><td class="num">0 %</td></tr>
+          <tr><td>Hora</td><td class="num">88 %</td><td class="num">6 %</td><td class="num">6 %</td><td class="num">0 %</td></tr>
         </tbody></table>
-        <span class="sub">1.284 turnos no período · fonte get_interpreter_shadow_report</span>
+        <span class="sub">1284 turnos em 300 conversas · percentagens sobre os turnos em que o campo apareceu · a sombra só guarda 7 dias</span>
       </section>
-      <section class="card"><div style="display:flex;align-items:center;gap:8px"><h2 class="ch" style="flex:1">Amostras para revisão</h2><span class="pill neu">9 abertas</span></div>
+      <section class="card"><div style="display:flex;align-items:center;gap:8px"><h2 class="ch" style="flex:1">Amostras para revisão</h2></div>
         <table><thead><tr><th>Amostra</th><th>Clínica</th><th>Origem</th><th>Quando</th></tr></thead><tbody>
-          <tr><td>rs_41a…</td><td>Clínica Aurora</td><td>Cliente</td><td>hoje 13:20</td></tr>
-          <tr><td>rs_3f9…</td><td>Espaço Lume</td><td>Automática</td><td>hoje 10:02</td></tr>
-          <tr><td>rs_3c0…</td><td>Studio Vila Nova</td><td>Cliente</td><td>ontem</td></tr>
+          <tr><td><a href="#" style="font-weight:500">Ana Exemplo · ••••0001</a><small>nao_encontrei · 2 mensagens</small></td><td>Clínica Aurora</td><td>Cliente</td><td>hoje 13:20</td></tr>
+          <tr><td><a href="#" style="font-weight:500">Cliente · ••••0002</a><small>sem motivo · 6 mensagens</small></td><td>Espaço Lume</td><td>Automática</td><td>hoje 10:02</td></tr>
         </tbody></table>
-        <div class="note" style="background:#FFF7EA;color:#6E4200"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Texto das conversas não aparece aqui. Leitura completa pelo Review MCP. <b style="font-weight:600">Em aberto Q-PA-01.</b></span></div>
+        <div class="note" style="background:#FFF7EA;color:#6E4200"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Abrir uma amostra mostra texto de conversa real (DEC-193) e fica registado na auditoria. O telefone da cliente aparece mascarado.</span></div>
       </section>
     </div>
   </main>
