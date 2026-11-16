@@ -74,10 +74,11 @@ describe('NeedsPersonAlerts — shell A+E', () => {
         generation={1}
       />,
     )
-    await waitFor(() =>
-      expect(screen.getByTestId('needs-person-strip')).toBeTruthy(),
-    )
-    expect(document.title).toBe('Precisa de alguém · Tredane')
+    await waitFor(() => {
+      expect(screen.getByTestId('needs-person-strip')).toBeTruthy()
+      // Título sai num useEffect após o refresh async — não inferir da faixa no DOM.
+      expect(document.title).toBe('Precisa de alguém · Tredane')
+    })
   })
 
   it('usa contagem no título quando N > 1', async () => {
@@ -88,10 +89,10 @@ describe('NeedsPersonAlerts — shell A+E', () => {
         generation={1}
       />,
     )
-    await waitFor(() =>
-      expect(screen.getByTestId('needs-person-strip')).toBeTruthy(),
-    )
-    expect(document.title).toBe('(3) Precisa de alguém · Tredane')
+    await waitFor(() => {
+      expect(screen.getByTestId('needs-person-strip')).toBeTruthy()
+      expect(document.title).toBe('(3) Precisa de alguém · Tredane')
+    })
   })
 
   it('esconde a faixa se a única conversa à espera é a aberta', async () => {
