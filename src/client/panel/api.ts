@@ -2736,7 +2736,7 @@ export type PipelineOpportunity = {
   missingAppointment: boolean
   linkedAppointment: PipelineLinkedAppointment | null
   /** Reserva por bloco em aberto (activa ou vencida sem hora). */
-  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+marcação aberta. */
+  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+atendimento aberto. */
   cardKind?: 'cycle' | 'open_attendance'
   /** Chave no quadro (gémeo = `${id}:attendance`). */
   boardKey?: string
@@ -2744,6 +2744,8 @@ export type PipelineOpportunity = {
   futureAppointmentCount?: number
   /** Conversação com sessão/proposta/quadro de marcação activo. */
   hasOpenAttendance?: boolean
+  /** DEC-156 — mesmo critério do Conversas; chip no quadro Acompanhar. */
+  needsPerson?: boolean
 }
 
 export type PipelineStageHistory = {
