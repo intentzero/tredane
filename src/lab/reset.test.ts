@@ -26,7 +26,9 @@ const NOW = Date.UTC(2026, 10, 16, 15, 0)
 const HOUR = 3_600_000
 const WA_SYNTH_A = '550000000201'
 const WA_SYNTH_B = '550000000202'
+const WA_SYNTH_C = '550000000401'
 const WA_PROTECTED_ENV = '550000000301'
+const CONTACT_CONV_ONLY = 'ctc_synth_conv_only'
 
 function seedContactGraph(
   db: ReturnType<typeof bootClinicDb>['db'],
@@ -153,6 +155,41 @@ describe('lab_reset — Teste Paulo proteções', () => {
       expect(JSON.stringify(db.get(`SELECT * FROM appointments WHERE id = ?`, `apt_${protectedId}`))).toBe(snap)
       expect(db.get(`SELECT id FROM contacts WHERE id = ?`, protectedId)).toBeTruthy()
       expect(db.get(`SELECT id FROM appointments WHERE id = ?`, 'apt_ctc_synth_clear')).toBeFalsy()
+    } finally {
+      close()
+    }
+  })
+
+  it('protege só pela conversa cnv_… sem contact id nem waId na lista', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const tenantId = STAGING_TESTE_PAULO_TENANT_ID
+      const caller = workerCaller(tenantId, 'lab:test')
+      const protectedConv = PAULO_PROTECTED_CONVERSATION_IDS[0]!
+      expect(PAULO_PROTECTED_CONTACT_IDS).not.toContain(CONTACT_CONV_ONLY)
+      seedContactGraph(db, clock, tenantId, CONTACT_CONV_ONLY, WA_SYNTH_C, protectedConv)
+      seedContactGraph(db, clock, tenantId, 'ctc_synth_clear_conv', WA_SYNTH_B)
+      const snapshots = {
+        contact: JSON.stringify(db.get(`SELECT * FROM contacts WHERE id = ?`, CONTACT_CONV_ONLY)),
+        conv: JSON.stringify(db.get(`SELECT * FROM conversations WHERE id = ?`, protectedConv)),
+        appt: JSON.stringify(db.get(`SELECT * FROM appointments WHERE id = ?`, `apt_${CONTACT_CONV_ONLY}`)),
+        prop: JSON.stringify(db.get(`SELECT * FROM appointment_proposals WHERE id = ?`, `prop_${CONTACT_CONV_ONLY}`)),
+        msg: JSON.stringify(db.get(`SELECT * FROM messages WHERE id = ?`, `msg_${CONTACT_CONV_ONLY}`)),
+      }
+      labResetAgenda(db, caller, clock, { dryRun: false, protectionEnv: {} })
+      expect(JSON.stringify(db.get(`SELECT * FROM contacts WHERE id = ?`, CONTACT_CONV_ONLY))).toBe(snapshots.contact)
+      expect(JSON.stringify(db.get(`SELECT * FROM conversations WHERE id = ?`, protectedConv))).toBe(snapshots.conv)
+      expect(JSON.stringify(db.get(`SELECT * FROM appointments WHERE id = ?`, `apt_${CONTACT_CONV_ONLY}`))).toBe(
+        snapshots.appt,
+      )
+      expect(JSON.stringify(db.get(`SELECT * FROM appointment_proposals WHERE id = ?`, `prop_${CONTACT_CONV_ONLY}`))).toBe(
+        snapshots.prop,
+      )
+      expect(JSON.stringify(db.get(`SELECT * FROM messages WHERE id = ?`, `msg_${CONTACT_CONV_ONLY}`))).toBe(
+        snapshots.msg,
+      )
+      expect(db.get(`SELECT id FROM contacts WHERE id = ?`, 'ctc_synth_clear_conv')).toBeFalsy()
     } finally {
       close()
     }

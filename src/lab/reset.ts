@@ -72,6 +72,29 @@ function listConversationIds(db: ClinicDb, tenantId: string, contactId: string):
     .map((r) => r.id)
 }
 
+function contactHasProtectedConversation(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  protection: LabResetProtection,
+): boolean {
+  return listConversationIds(db, tenantId, contactId).some((id) =>
+    isProtectedConversationId(protection, id),
+  )
+}
+
+function isContactFullyProtected(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  protection: LabResetProtection,
+): boolean {
+  return (
+    isProtectedContactId(protection, contactId)
+    || contactHasProtectedConversation(db, tenantId, contactId, protection)
+  )
+}
+
 function eligibleContacts(
   db: ClinicDb,
   tenantId: string,
@@ -79,13 +102,13 @@ function eligibleContacts(
   scopeContactId: string | null,
 ): string[] {
   if (scopeContactId) {
-    if (isProtectedContactId(protection, scopeContactId)) return []
+    if (isContactFullyProtected(db, tenantId, scopeContactId, protection)) return []
     return [scopeContactId]
   }
   return db
     .all<{ id: string }>(`SELECT id FROM contacts WHERE tenant_id = ?`, tenantId)
     .map((r) => r.id)
-    .filter((id) => !isProtectedContactId(protection, id))
+    .filter((id) => !isContactFullyProtected(db, tenantId, id, protection))
 }
 
 function countAppointments(
@@ -197,20 +220,34 @@ function countSchedulingConversationState(
   return total
 }
 
+function listFullyProtectedContactIds(
+  db: ClinicDb,
+  tenantId: string,
+  protection: LabResetProtection,
+): string[] {
+  return db
+    .all<{ id: string }>(`SELECT id FROM contacts WHERE tenant_id = ?`, tenantId)
+    .map((r) => r.id)
+    .filter((id) => isContactFullyProtected(db, tenantId, id, protection))
+}
+
 function countProtectedSkipped(
   db: ClinicDb,
   tenantId: string,
   protection: LabResetProtection,
   scopeContactId: string | null,
-  nowMs: number,
 ): number {
-  let total = 0
-  const protectedContacts = [...protection.contactIds]
+  const protectedContacts = listFullyProtectedContactIds(db, tenantId, protection)
   if (protectedContacts.length === 0) return 0
-  const ph = protectedContacts.map(() => '?').join(', ')
-  if (scopeContactId && scopeContactId !== protectedContacts[0] && !protection.contactIds.has(scopeContactId)) {
+  if (
+    scopeContactId
+    && !protectedContacts.includes(scopeContactId)
+    && !isContactFullyProtected(db, tenantId, scopeContactId, protection)
+  ) {
     return 0
   }
+  let total = 0
+  const ph = protectedContacts.map(() => '?').join(', ')
   const ap = db.get<{ n: number }>(
     `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND contact_id IN (${ph})`,
     tenantId,
@@ -219,26 +256,7 @@ function countProtectedSkipped(
   total += Number(ap?.n ?? 0)
   total += countForContacts(db, 'appointment_proposals', tenantId, protectedContacts)
   total += countForContacts(db, 'schedule_holds', tenantId, protectedContacts)
-  for (const convId of protection.conversationIds) {
-    if (tableExists(db, 'conversations')) {
-      const row = db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND id = ?`,
-        tenantId,
-        convId,
-      )
-      total += Number(row?.n ?? 0)
-    }
-    for (const table of ['messages', 'booking_sessions', 'schedule_sessions'] as const) {
-      if (!tableExists(db, table)) continue
-      const row = db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM ${table} WHERE tenant_id = ? AND conversation_id = ?`,
-        tenantId,
-        convId,
-      )
-      total += Number(row?.n ?? 0)
-    }
-  }
-  void nowMs
+  total += countSchedulingConversationState(db, tenantId, protectedContacts, new Set())
   return total
 }
 
@@ -381,7 +399,11 @@ export function labResetAgenda(
 
   const scopeContactId = waIdFilter ? contactIdForWa(db, tenantId, waIdFilter) : null
   if (waIdFilter) {
-    assertWaIdFilterAllowed(protection, waIdFilter, scopeContactId)
+    assertWaIdFilterAllowed(protection, waIdFilter, scopeContactId, {
+      contactHasProtectedConversation: scopeContactId
+        ? contactHasProtectedConversation(db, tenantId, scopeContactId, protection)
+        : false,
+    })
     if (!scopeContactId) {
       const empty: LabResetDeletedCounts = {
         appointmentsPast: 0,
@@ -419,7 +441,7 @@ export function labResetAgenda(
     holds: countForContacts(db, 'schedule_holds', tenantId, contactIds),
     schedulingConversation: countSchedulingConversationState(db, tenantId, contactIds, protection.conversationIds),
   }
-  const protectedSkipped = countProtectedSkipped(db, tenantId, protection, scopeContactId, nowMs)
+  const protectedSkipped = countProtectedSkipped(db, tenantId, protection, scopeContactId)
   const totalWouldDelete =
     deleted.appointmentsPast +
     deleted.appointmentsFuture +

@@ -115,11 +115,15 @@ export function assertWaIdFilterAllowed(
   protection: LabResetProtection,
   waId: string,
   resolvedContactId: string | null,
+  opts?: { contactHasProtectedConversation?: boolean },
 ): void {
   if (isProtectedWaId(protection, waId)) {
     throw new LabResetProtectionError('waId indicado está protegido; reset recusado.')
   }
   if (resolvedContactId && isProtectedContactId(protection, resolvedContactId)) {
     throw new LabResetProtectionError('Contato do waId está protegido; reset recusado.')
+  }
+  if (opts?.contactHasProtectedConversation) {
+    throw new LabResetProtectionError('Contato com conversa protegida; reset recusado.')
   }
 }
