@@ -8,7 +8,7 @@ import {
 } from '../constants'
 import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
-import { loadContactSummary } from '../inbox/conversations'
+import { conversationNeedsPerson, loadContactSummary } from '../inbox/conversations'
 import type { ClinicDb, SqlValue } from '../store'
 import {
   boardKeyFor,
@@ -143,6 +143,7 @@ function toListItem(
     now,
   )
   const openAtt = hasOpenAttendance(db, opp.tenantId, opp.conversationId, clock)
+  const needsPerson = conversationNeedsPerson(db, opp.tenantId, opp.conversationId)
   const base: OpportunityListItem = {
     ...opp,
     contact,
@@ -153,6 +154,7 @@ function toListItem(
     boardKey: boardKeyFor({ id: opp.id, cardKind: 'cycle' }),
     futureAppointmentCount,
     hasOpenAttendance: openAtt,
+    needsPerson,
   }
   return base
 }
@@ -172,9 +174,10 @@ function loadOpenAgendado(
 }
 
 /**
- * DEC-187: com Agendado + horários futuros + atendimento aberto, projecta
- * cartão gémeo em Em atendimento / Horário proposto. Ao confirmar a nova
- * marcação o gémeo some (merge no Agendado).
+ * DEC-187: com Agendado + horários futuros + atendimento aberto (sessão,
+ * proposta, quadro, handoff ou inbound pós-confirmação), projecta cartão
+ * gémeo em Em atendimento / Horário proposto. Ao confirmar a nova marcação
+ * o gémeo some (merge no Agendado).
  */
 function expandBoardCards(
   db: ClinicDb,

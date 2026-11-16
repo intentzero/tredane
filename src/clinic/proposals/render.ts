@@ -280,6 +280,8 @@ export type ProposalResultBodyOpts = {
    * Passar `false` só quando o follow-up não é enviado.
    */
   omitDoubtFallback?: boolean
+  /** Horário civil do compromisso substituído (remarcação DEC-091 / lab S23). */
+  replacedStartsAt?: number | null
 }
 
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
@@ -296,9 +298,16 @@ export function renderProposalResultBody(
       const service = zoneLabel(proposal.serviceName, opts.zones ?? [])
       const bookedWhen = formatBookedWhen(proposal)
       const omitDoubt = opts.omitDoubtFallback !== false
+      const rescheduled =
+        proposal.replacesAppointmentId != null &&
+        opts.replacedStartsAt != null &&
+        Number.isFinite(opts.replacedStartsAt)
+      const head = rescheduled
+        ? `Remarcado: de ${formatBookedWhenAt(proposal.timezone, opts.replacedStartsAt!)} para ${bookedWhen}`
+        : `Agendado: ${service} · ${bookedWhen}`
       return (
-        `Agendado: ${service} · ${bookedWhen}` +
-        (proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
+        head +
+        (!rescheduled && proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
         (location ? ` Local: ${location}.` : '') +
         (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)

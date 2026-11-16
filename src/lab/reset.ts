@@ -19,6 +19,13 @@ import {
   type LabResetProtection,
   type LabResetProtectionEnv,
 } from './reset-protected'
+import {
+  countInList,
+  LAB_RESET_IN_CHUNK_SIZE,
+  selectIdsInList,
+} from './reset-sql'
+
+export { LAB_RESET_IN_CHUNK_SIZE }
 
 export type LabResetInput = {
   dryRun?: boolean
@@ -117,23 +124,11 @@ function countAppointments(
   contactIds: string[],
   nowMs: number,
 ): { past: number; future: number } {
-  if (contactIds.length === 0) return { past: 0, future: 0 }
-  const placeholders = contactIds.map(() => '?').join(', ')
-  const past = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM appointments
-     WHERE tenant_id = ? AND contact_id IN (${placeholders}) AND starts_at <= ?`,
-    tenantId,
-    ...contactIds,
-    nowMs,
-  )
-  const future = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM appointments
-     WHERE tenant_id = ? AND contact_id IN (${placeholders}) AND starts_at > ?`,
-    tenantId,
-    ...contactIds,
-    nowMs,
-  )
-  return { past: Number(past?.n ?? 0), future: Number(future?.n ?? 0) }
+  if (!tableExists(db, 'appointments') || contactIds.length === 0) return { past: 0, future: 0 }
+  return {
+    past: countInList(db, 'appointments', tenantId, 'contact_id', contactIds, ' AND starts_at <= ?', [nowMs]),
+    future: countInList(db, 'appointments', tenantId, 'contact_id', contactIds, ' AND starts_at > ?', [nowMs]),
+  }
 }
 
 function countForContacts(
@@ -143,13 +138,7 @@ function countForContacts(
   contactIds: string[],
 ): number {
   if (!tableExists(db, table) || contactIds.length === 0) return 0
-  const placeholders = contactIds.map(() => '?').join(', ')
-  const row = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM ${table} WHERE tenant_id = ? AND contact_id IN (${placeholders})`,
-    tenantId,
-    ...contactIds,
-  )
-  return Number(row?.n ?? 0)
+  return countInList(db, table, tenantId, 'contact_id', contactIds)
 }
 
 function countSchedulingConversationState(
@@ -159,18 +148,10 @@ function countSchedulingConversationState(
   protectedConvIds: Set<string>,
 ): number {
   if (contactIds.length === 0) return 0
-  const convPlaceholders = contactIds.map(() => '?').join(', ')
-  const convs = db
-    .all<{ id: string }>(
-      `SELECT id FROM conversations
-       WHERE tenant_id = ? AND contact_id IN (${convPlaceholders})`,
-      tenantId,
-      ...contactIds,
-    )
-    .map((r) => r.id)
-    .filter((id) => !protectedConvIds.has(id))
+  const convs = selectIdsInList(db, 'conversations', tenantId, 'contact_id', contactIds).filter(
+    (id) => !protectedConvIds.has(id),
+  )
   if (convs.length === 0) return 0
-  const convPh = convs.map(() => '?').join(', ')
   let total = 0
   for (const table of [
     'messages',
@@ -190,19 +171,8 @@ function countSchedulingConversationState(
     if (table === 'opportunities' || table === 'scheduling_intents') {
       total += countForContacts(db, table, tenantId, contactIds)
       if (table === 'opportunities' && tableExists(db, 'opportunity_stage_history')) {
-        const opps = db.all<{ id: string }>(
-          `SELECT id FROM opportunities WHERE tenant_id = ? AND contact_id IN (${convPlaceholders})`,
-          tenantId,
-          ...contactIds,
-        )
-        for (const o of opps) {
-          const h = db.get<{ n: number }>(
-            `SELECT COUNT(*) AS n FROM opportunity_stage_history WHERE tenant_id = ? AND opportunity_id = ?`,
-            tenantId,
-            o.id,
-          )
-          total += Number(h?.n ?? 0)
-        }
+        const oppIds = selectIdsInList(db, 'opportunities', tenantId, 'contact_id', contactIds)
+        total += countInList(db, 'opportunity_stage_history', tenantId, 'opportunity_id', oppIds)
       }
       continue
     }
@@ -210,12 +180,7 @@ function countSchedulingConversationState(
       total += convs.length
       continue
     }
-    const row = db.get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM ${table} WHERE tenant_id = ? AND conversation_id IN (${convPh})`,
-      tenantId,
-      ...convs,
-    )
-    total += Number(row?.n ?? 0)
+    total += countInList(db, table, tenantId, 'conversation_id', convs)
   }
   return total
 }
@@ -247,17 +212,47 @@ function countProtectedSkipped(
     return 0
   }
   let total = 0
-  const ph = protectedContacts.map(() => '?').join(', ')
-  const ap = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND contact_id IN (${ph})`,
-    tenantId,
-    ...protectedContacts,
-  )
-  total += Number(ap?.n ?? 0)
+  total += countInList(db, 'appointments', tenantId, 'contact_id', protectedContacts)
   total += countForContacts(db, 'appointment_proposals', tenantId, protectedContacts)
   total += countForContacts(db, 'schedule_holds', tenantId, protectedContacts)
   total += countSchedulingConversationState(db, tenantId, protectedContacts, new Set())
   return total
+}
+
+function deleteVisitSnapshots(db: ClinicDb, tenantId: string, ownerKind: string, ownerId: string): void {
+  if (tableExists(db, 'visit_zone_snapshots')) {
+    db.run(
+      `DELETE FROM visit_zone_snapshots WHERE tenant_id = ? AND owner_kind = ? AND owner_id = ?`,
+      tenantId,
+      ownerKind,
+      ownerId,
+    )
+  }
+  if (tableExists(db, 'visit_combo_snapshots')) {
+    db.run(
+      `DELETE FROM visit_combo_snapshots WHERE tenant_id = ? AND owner_kind = ? AND owner_id = ?`,
+      tenantId,
+      ownerKind,
+      ownerId,
+    )
+  }
+}
+
+function deleteAppointmentChildren(db: ClinicDb, tenantId: string, appointmentId: string): void {
+  deleteVisitSnapshots(db, tenantId, 'appointment', appointmentId)
+  if (tableExists(db, 'appointment_allocations')) {
+    db.run(
+      `DELETE FROM appointment_allocations WHERE tenant_id = ? AND appointment_id = ?`,
+      tenantId,
+      appointmentId,
+    )
+  }
+  if (tableExists(db, 'appointment_events')) {
+    db.run(`DELETE FROM appointment_events WHERE tenant_id = ? AND appointment_id = ?`, tenantId, appointmentId)
+  }
+  if (tableExists(db, 'appointment_commands')) {
+    db.run(`DELETE FROM appointment_commands WHERE tenant_id = ? AND appointment_id = ?`, tenantId, appointmentId)
+  }
 }
 
 function purgeContact(
@@ -280,14 +275,48 @@ function purgeContact(
 
   if (tableExists(db, 'pending_communications')) {
     db.run(`DELETE FROM pending_communications WHERE tenant_id = ? AND contact_id = ?`, tenantId, contactId)
+    for (const conversationId of conversationIds) {
+      db.run(
+        `DELETE FROM pending_communications WHERE tenant_id = ? AND conversation_id = ?`,
+        tenantId,
+        conversationId,
+      )
+    }
+  }
+
+  const proposalIds = tableExists(db, 'appointment_proposals')
+    ? db
+        .all<{ id: string }>(
+          `SELECT id FROM appointment_proposals WHERE tenant_id = ? AND contact_id = ?`,
+          tenantId,
+          contactId,
+        )
+        .map((r) => r.id)
+    : []
+  for (const proposalId of proposalIds) {
+    deleteVisitSnapshots(db, tenantId, 'proposal', proposalId)
   }
   if (tableExists(db, 'appointment_proposals')) {
     db.run(`DELETE FROM appointment_proposals WHERE tenant_id = ? AND contact_id = ?`, tenantId, contactId)
   }
 
+  if (tableExists(db, 'scheduling_intents')) {
+    db.run(`DELETE FROM scheduling_intents WHERE tenant_id = ? AND contact_id = ?`, tenantId, contactId)
+  }
+
   for (const conversationId of conversationIds) {
+    const messageIds = db
+      .all<{ id: string }>(
+        `SELECT id FROM messages WHERE tenant_id = ? AND conversation_id = ?`,
+        tenantId,
+        conversationId,
+      )
+      .map((r) => r.id)
     if (tableExists(db, 'attachments')) {
       db.run(`DELETE FROM attachments WHERE tenant_id = ? AND conversation_id = ?`, tenantId, conversationId)
+      for (const messageId of messageIds) {
+        db.run(`DELETE FROM attachments WHERE tenant_id = ? AND message_id = ?`, tenantId, messageId)
+      }
     }
     if (tableExists(db, 'outbound_messages')) {
       db.run(`DELETE FROM outbound_messages WHERE tenant_id = ? AND conversation_id = ?`, tenantId, conversationId)
@@ -319,9 +348,6 @@ function purgeContact(
   if (tableExists(db, 'opportunities')) {
     db.run(`DELETE FROM opportunities WHERE tenant_id = ? AND contact_id = ?`, tenantId, contactId)
   }
-  if (tableExists(db, 'scheduling_intents')) {
-    db.run(`DELETE FROM scheduling_intents WHERE tenant_id = ? AND contact_id = ?`, tenantId, contactId)
-  }
 
   const apptIds = db
     .all<{ id: string }>(
@@ -331,15 +357,7 @@ function purgeContact(
     )
     .map((r) => r.id)
   for (const appointmentId of apptIds) {
-    if (tableExists(db, 'appointment_allocations')) {
-      db.run(`DELETE FROM appointment_allocations WHERE tenant_id = ? AND appointment_id = ?`, tenantId, appointmentId)
-    }
-    if (tableExists(db, 'appointment_events')) {
-      db.run(`DELETE FROM appointment_events WHERE tenant_id = ? AND appointment_id = ?`, tenantId, appointmentId)
-    }
-    if (tableExists(db, 'appointment_commands')) {
-      db.run(`DELETE FROM appointment_commands WHERE tenant_id = ? AND appointment_id = ?`, tenantId, appointmentId)
-    }
+    deleteAppointmentChildren(db, tenantId, appointmentId)
   }
   if (tableExists(db, 'appointments')) {
     db.run(`DELETE FROM appointments WHERE tenant_id = ? AND contact_id = ?`, tenantId, contactId)
@@ -363,15 +381,24 @@ function purgeContact(
 }
 
 function purgeOrphanTenantRows(db: ClinicDb, tenantId: string, protection: LabResetProtection): void {
-  if (tableExists(db, 'appointments')) {
-    db.run(
-      `DELETE FROM appointments WHERE tenant_id = ? AND (contact_id IS NULL OR contact_id = '')`,
-      tenantId,
-    )
-  }
   for (const convId of protection.conversationIds) {
     void convId
   }
+  if (!tableExists(db, 'appointments')) return
+  const orphanIds = db
+    .all<{ id: string }>(
+      `SELECT id FROM appointments
+       WHERE tenant_id = ? AND (contact_id IS NULL OR contact_id = '')`,
+      tenantId,
+    )
+    .map((r) => r.id)
+  for (const appointmentId of orphanIds) {
+    deleteAppointmentChildren(db, tenantId, appointmentId)
+  }
+  db.run(
+    `DELETE FROM appointments WHERE tenant_id = ? AND (contact_id IS NULL OR contact_id = '')`,
+    tenantId,
+  )
 }
 
 export function labResetAgenda(

@@ -21,6 +21,7 @@ export type DialogueObligationKind =
   | 'choose_audience'
   | 'choose_period'
   | 'choose_alter'
+  | 'choose_cancel_appointment'
 
 export type DialogueObligation = {
   kind: DialogueObligationKind
@@ -39,6 +40,7 @@ const SLOT_TO_KIND: Record<ChoiceSlot, DialogueObligationKind> = {
   audiencia: 'choose_audience',
   periodo: 'choose_period',
   alter: 'choose_alter',
+  marcacao: 'choose_cancel_appointment',
 }
 
 const KIND_CHOICE: ReadonlySet<DialogueObligationKind> = new Set([
@@ -49,6 +51,7 @@ const KIND_CHOICE: ReadonlySet<DialogueObligationKind> = new Set([
   'choose_audience',
   'choose_period',
   'choose_alter',
+  'choose_cancel_appointment',
 ])
 
 export function isChoiceSlot(slot: string): slot is ChoiceSlot {
@@ -61,7 +64,8 @@ export function isChoiceSlot(slot: string): slot is ChoiceSlot {
     slot === 'audiencia' ||
     slot === 'periodo' ||
     slot === 'alter' ||
-    slot === 'servico'
+    slot === 'servico' ||
+    slot === 'marcacao'
   )
 }
 

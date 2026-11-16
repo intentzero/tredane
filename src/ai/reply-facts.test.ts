@@ -4,7 +4,14 @@
  * DEC-118: freeSlots/upcoming passam como agendaFacts locais, não no payload ao gateway.
  */
 import { describe, expect, it } from 'vitest'
-import { allowedPricesCents, claimsBooking, pricesInText, timesInText, validateReplyFacts } from './reply-facts'
+import {
+  allowedPricesCents,
+  claimsBooking,
+  clientTimes,
+  pricesInText,
+  timesInText,
+  validateReplyFacts,
+} from './reply-facts'
 import type { AiAgendaFacts, AiContextPayload } from './types'
 
 /** Quinta 05/11/2026 (cenário de referência da matriz). */
@@ -157,5 +164,14 @@ describe('horários (I-08, J-08)', () => {
   it('DEC-118: sem agendaFacts locais, HH:MM inventada é recusada', () => {
     expect(validateReplyFacts('Amanhã tenho 10:00.', ctx(), null).ok).toBe(false)
     expect(validateReplyFacts('Amanhã tenho 10:00.', ctx(), AGENDA).ok).toBe(true)
+  })
+})
+
+describe('clientTimes — meio dia e meia', () => {
+  it('«meio dia e meia» é 12:30; «meio dia» sozinho é 12:00', () => {
+    expect(clientTimes('meio dia e meia ta bom sim')).toContain('12:30')
+    expect(clientTimes('meio dia e meia ta bom sim')).not.toContain('12:00')
+    expect(clientTimes('meio dia')).toContain('12:00')
+    expect(clientTimes('meio dia')).not.toContain('12:30')
   })
 })

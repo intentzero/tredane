@@ -409,6 +409,26 @@ export function createPanelApi(getToken: TokenGetter) {
       return { status: res.status, body }
     },
 
+    /** STAGING-ONLY: apaga todos os compromissos da clínica (servidor 404 fora de staging). */
+    async clearClinicAppointments(
+      tenantId: string,
+      confirmName: string,
+      opts?: FetchOpts,
+    ): Promise<{ status: number; body: unknown }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/staging/clear-appointments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmName }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      const body: unknown = await res.json().catch(() => null)
+      return { status: res.status, body }
+    },
+
     async interruptWhatsappDev(
       tenantId: string,
       reason?: string,
@@ -2736,7 +2756,7 @@ export type PipelineOpportunity = {
   missingAppointment: boolean
   linkedAppointment: PipelineLinkedAppointment | null
   /** Reserva por bloco em aberto (activa ou vencida sem hora). */
-  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+marcação aberta. */
+  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+atendimento aberto. */
   cardKind?: 'cycle' | 'open_attendance'
   /** Chave no quadro (gémeo = `${id}:attendance`). */
   boardKey?: string
@@ -2744,6 +2764,8 @@ export type PipelineOpportunity = {
   futureAppointmentCount?: number
   /** Conversação com sessão/proposta/quadro de marcação activo. */
   hasOpenAttendance?: boolean
+  /** DEC-156 — mesmo critério do Conversas; chip no quadro Acompanhar. */
+  needsPerson?: boolean
 }
 
 export type PipelineStageHistory = {

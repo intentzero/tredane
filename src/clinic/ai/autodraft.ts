@@ -114,9 +114,12 @@ import {
   RESCHEDULE_RE,
 } from './nlu/sensitive'
 import {
+  handleCancelIntentAutodraft,
+  tryCancelAutodraftContinuation,
+} from './cancel-flow'
+import {
   isCancelIntent,
   isRescheduleIntent,
-  phraseCancelOfferReschedule,
   tryAiReschedule,
 } from './reschedule'
 import { isConversationPaused } from './protection'
@@ -1169,34 +1172,38 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    if (isCancelIntent(turnText) && upcoming) {
+    const cancelCapability = deps.autoBookPaused !== true
+    const cancelContinuation = tryCancelAutodraftContinuation(
+      db,
+      tenantId,
+      job.conversationId,
+      turnText,
+      clock,
+    )
+    if (cancelContinuation.handled) {
       await signalTyping()
-      const body = phraseCancelOfferReschedule(upcoming.serviceName)
-      const teamAlert = promiseTeamFollowUp(
-        db,
-        tenantId,
-        {
-          conversationId: job.conversationId,
-          detailText: 'Pedido de cancelamento com compromisso futuro; oferecida remarcação.',
-          messageId: job.messageId,
-        },
-        clock,
-      )
-      let replyOutbox: OutboxRow[] = [...teamAlert.outbox]
+      let replyOutbox: OutboxRow[] = []
       try {
         const sent = sendOutboundMessageOp(
           db,
           caller,
-          {
-            conversationId: job.conversationId,
-            body,
-            clientRequestId: `ai-cancel-reschedule-offer:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
+          withDeferredFrame(
+            {
+              conversationId: job.conversationId,
+              body: cancelContinuation.replyText,
+              ...(cancelContinuation.interactive
+                ? { interactive: cancelContinuation.interactive }
+                : {}),
+              clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelContinuation.reason}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            cancelContinuation.deferredFrame,
+            clock,
+          ),
           clock,
         )
-        replyOutbox = [...replyOutbox, ...sent.outbox]
+        replyOutbox = sent.outbox
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
       }
@@ -1205,12 +1212,60 @@ export async function runDueAutoDrafts(
         ...job,
         status: 'skipped',
         suggestion: null,
-        reason: 'cancel_offer_reschedule',
+        reason: cancelContinuation.reason,
         replyOutbox,
       })
       continue
     }
-    const reason = handoffReason(db, tenantId, turnText, clock, turn)
+    if (isCancelIntent(turnText) && upcoming && conv) {
+      const cancelStart = handleCancelIntentAutodraft(
+        db,
+        tenantId,
+        job.conversationId,
+        conv.contactId,
+        turnText,
+        clock,
+        { capability: cancelCapability },
+      )
+      if (cancelStart.handled) {
+        await signalTyping()
+        let replyOutbox: OutboxRow[] = []
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            withDeferredFrame(
+              {
+                conversationId: job.conversationId,
+                body: cancelStart.replyText,
+                ...(cancelStart.interactive ? { interactive: cancelStart.interactive } : {}),
+                clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelStart.reason}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              cancelStart.deferredFrame,
+              clock,
+            ),
+            clock,
+          )
+          replyOutbox = sent.outbox
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: cancelStart.reason,
+          replyOutbox,
+        })
+        continue
+      }
+    }
+    const reason = handoffReason(db, tenantId, turnText, clock, turn, {
+      conversationId: job.conversationId,
+    })
     if (reason) {
       await signalTyping()
       // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).
