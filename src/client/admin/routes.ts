@@ -2,7 +2,21 @@
 
 export type AdminArea = 'visao-geral' | 'clinicas' | 'suporte' | 'saude' | 'qualidade-ia'
 
-export type AdminRoute = { kind: 'area'; area: AdminArea } | { kind: 'not-found' }
+export type ClinicaTab = 'resumo' | 'membros' | 'saude' | 'suporte' | 'auditoria'
+
+export const CLINICA_TABS: ReadonlyArray<{ tab: ClinicaTab; label: string }> = [
+  { tab: 'resumo', label: 'Resumo' },
+  { tab: 'membros', label: 'Membros' },
+  { tab: 'saude', label: 'Saúde' },
+  { tab: 'suporte', label: 'Suporte' },
+  { tab: 'auditoria', label: 'Auditoria' },
+]
+
+export type AdminRoute =
+  | { kind: 'area'; area: AdminArea }
+  /** Detalhe da clínica (PA-04): a aba fica na URL para poder ser partilhada. */
+  | { kind: 'clinica'; tenantId: string; tab: ClinicaTab }
+  | { kind: 'not-found' }
 
 export const ADMIN_AREAS: ReadonlyArray<{ area: AdminArea; label: string; href: string }> = [
   { area: 'visao-geral', label: 'Visão geral', href: '/admin' },
@@ -27,7 +41,27 @@ export function resolveAdminRoute(pathname: string): AdminRoute | null {
   if (!isAdminPath(pathname)) return null
   const path = normalize(pathname)
   const hit = ADMIN_AREAS.find((a) => a.href === path)
-  return hit ? { kind: 'area', area: hit.area } : { kind: 'not-found' }
+  if (hit) return { kind: 'area', area: hit.area }
+  const m = /^\/admin\/clinicas\/([^/]+)(?:\/([^/]+))?$/.exec(path)
+  if (m) {
+    let tenantId: string
+    try {
+      tenantId = decodeURIComponent(m[1]!)
+    } catch {
+      return { kind: 'not-found' }
+    }
+    if (!tenantId) return { kind: 'not-found' }
+    // «resumo» é a aba por omissão: `/admin/clinicas/:id/resumo` não existe (uma só URL por aba).
+    if (m[2] === undefined) return { kind: 'clinica', tenantId, tab: 'resumo' }
+    const tab = CLINICA_TABS.find((t) => t.tab === m[2] && t.tab !== 'resumo')?.tab
+    if (tab) return { kind: 'clinica', tenantId, tab }
+  }
+  return { kind: 'not-found' }
+}
+
+export function clinicaHref(tenantId: string, tab: ClinicaTab = 'resumo'): string {
+  const base = `/admin/clinicas/${encodeURIComponent(tenantId)}`
+  return tab === 'resumo' ? base : `${base}/${tab}`
 }
 
 export function adminHref(area: AdminArea): string {

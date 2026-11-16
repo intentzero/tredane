@@ -44,14 +44,18 @@ import {
   d1GetTenant,
   d1ListAudit,
   d1ListMembers,
-  d1ListTenants,
   d1PendingDeletion,
   d1ReactivateTenant,
   d1RemoveOwner,
   d1SuspendTenant,
   d1UpdateTenant,
 } from './d1-ops'
-import { stubIntegrationStatus } from './integration-status'
+import {
+  d1ListTenantOverview,
+  d1ReadIntegrationStatus,
+  listTenantOverview,
+  readIntegrationStatus,
+} from './overview'
 import {
   serializeAdminTenantView,
   serializeMembership,
@@ -61,6 +65,25 @@ import {
 type PlatformEnv = {
   Bindings: WorkerBindings
   Variables: AuthEnv['Variables']
+}
+
+const MAX_REASON_LENGTH = 300
+
+/** Motivo opcional no corpo (a UI exige-o; a API mantém-se compatível). Lança se for longo demais. */
+async function readReason(c: { req: { json: () => Promise<unknown> } }): Promise<string | undefined> {
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return undefined
+  }
+  const raw = (body as { reason?: unknown } | null)?.reason
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'string') throw new Error('reason_invalid')
+  const reason = raw.trim()
+  if (!reason) return undefined
+  if (reason.length > MAX_REASON_LENGTH) throw new Error('reason_too_long')
+  return reason
 }
 
 export type PlatformRouteOptions = {
@@ -96,36 +119,26 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const principal = c.get('principal')
       requirePlatformPermission(principal, 'platform.tenants.read')
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
-      const tenants = syncDb
-        ? syncDb
-            .all<{
-              id: string
-              name: string
-              timezone: string
-              status: string
-              created_at: number
-              updated_at: number
-              suspended_at: number | null
-              pending_deletion_at: number | null
-            }>(
-              `SELECT id, name, timezone, status, created_at, updated_at, suspended_at, pending_deletion_at
-               FROM tenants ORDER BY id`,
-            )
-            .map((t) =>
-              serializeTenant({
-                id: t.id,
-                name: t.name,
-                timezone: t.timezone,
-                status: t.status as 'active' | 'suspended' | 'pending_deletion',
-                createdAt: t.created_at,
-                updatedAt: t.updated_at,
-                suspendedAt: t.suspended_at,
-                pendingDeletionAt: t.pending_deletion_at,
-              }),
-            )
-        : (await d1ListTenants(c.env.DB)).map(serializeTenant)
+      const rows = syncDb ? listTenantOverview(syncDb) : await d1ListTenantOverview(c.env.DB)
       c.header('Cache-Control', 'no-store')
-      return c.json({ tenants })
+      // Campos de `serializeTenant` + contagens e estado do WhatsApp (sem número, sem conteúdo).
+      return c.json({
+        tenants: rows.map((r) => ({
+          ...serializeTenant({
+            id: r.id,
+            name: r.name,
+            timezone: r.timezone,
+            status: r.status,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+            suspendedAt: r.suspendedAt,
+            pendingDeletionAt: r.pendingDeletionAt,
+          }),
+          ownerCount: r.ownerCount,
+          memberCount: r.memberCount,
+          whatsapp: r.whatsapp,
+        })),
+      })
     } catch (err) {
       return adminErrorResponse(c, err)
     }
@@ -191,7 +204,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           serializeAdminTenantView({
             tenant,
             members,
-            integration: stubIntegrationStatus(),
+            integration: readIntegrationStatus(syncDb, tenantId),
             deletionCommand: getOpenDeletionCommand(syncDb, tenantId) ?? null,
             recentAudit: audit.map((e) => ({
               id: e.id,
@@ -214,7 +227,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         serializeAdminTenantView({
           tenant,
           members,
-          integration: stubIntegrationStatus(),
+          integration: await d1ReadIntegrationStatus(c.env.DB, tenantId),
           deletionCommand: await d1GetOpenDeletionCommand(c.env.DB, tenantId),
           recentAudit: audit,
         }),
@@ -255,6 +268,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const principal = c.get('principal')
       requirePlatformPermission(principal, 'platform.tenants.write')
       const tenantId = c.req.param('tenantId')
+      const reason = await readReason(c)
       const invalidator =
         opts.invalidatorFactory?.(c.env) ?? createDoInvalidator(c.env)
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
@@ -264,6 +278,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           tenantId,
           actorClerkUserId: principal.clerkUserId,
           source: 'tenant_suspend' satisfies FenceSource,
+          reason,
         })
         c.header('Cache-Control', 'no-store')
         return c.json({
@@ -276,7 +291,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         })
       }
 
-      const lifecycle = await d1SuspendTenant(c.env.DB, tenantId, principal.clerkUserId)
+      const lifecycle = await d1SuspendTenant(c.env.DB, tenantId, principal.clerkUserId, reason)
       const notified = await invalidator.applyTenantSuspended({
         tenantId,
         source: 'tenant_suspend',
@@ -300,6 +315,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const principal = c.get('principal')
       requirePlatformPermission(principal, 'platform.tenants.write')
       const tenantId = c.req.param('tenantId')
+      const reason = await readReason(c)
       const invalidator =
         opts.invalidatorFactory?.(c.env) ?? createDoInvalidator(c.env)
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
@@ -309,6 +325,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           tenantId,
           actorClerkUserId: principal.clerkUserId,
           source: 'tenant_reactivate' satisfies FenceSource,
+          reason,
         })
         c.header('Cache-Control', 'no-store')
         return c.json({
@@ -320,7 +337,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         })
       }
 
-      const lifecycle = await d1ReactivateTenant(c.env.DB, tenantId, principal.clerkUserId)
+      const lifecycle = await d1ReactivateTenant(c.env.DB, tenantId, principal.clerkUserId, reason)
       const clear = invalidator.applyTenantReactivated
       const notified = clear
         ? await clear({ tenantId, source: 'tenant_reactivate' })
@@ -343,6 +360,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const principal = c.get('principal')
       requirePlatformPermission(principal, 'platform.tenants.write')
       const tenantId = c.req.param('tenantId')
+      const reason = await readReason(c)
       const invalidator =
         opts.invalidatorFactory?.(c.env) ?? createDoInvalidator(c.env)
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
@@ -352,6 +370,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           tenantId,
           actorClerkUserId: principal.clerkUserId,
           source: 'tenant_pending_deletion' satisfies FenceSource,
+          reason,
         })
         // CI/unit: binding / env ausente → no-op; máquina sync continua a ser o driver.
         const workflow = await startTenantPurgeWorkflow(c.env?.TENANT_PURGE, {
@@ -374,7 +393,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         })
       }
 
-      const lifecycle = await d1PendingDeletion(c.env.DB, tenantId, principal.clerkUserId)
+      const lifecycle = await d1PendingDeletion(c.env.DB, tenantId, principal.clerkUserId, reason)
       const notified = await invalidator.applyTenantSuspended({
         tenantId,
         source: 'tenant_pending_deletion',

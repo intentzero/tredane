@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { SignOutButton } from '../panel/auth/ClerkBridge'
 import { ADMIN_AREAS, navigateAdmin, resolveAdminRoute, type AdminArea, type AdminRoute } from './routes'
 import { AdminNotFound } from './AdminStates'
+import { ClinicaDetalhe } from './clinicas/ClinicaDetalhe'
+import { ClinicasList } from './clinicas/ClinicasList'
 
 const ICONS: Record<AdminArea, LucideIcon> = {
   'visao-geral': LayoutDashboard,
@@ -13,16 +15,11 @@ const ICONS: Record<AdminArea, LucideIcon> = {
 }
 
 /** Cada área chega com a sua issue do épico #827; até lá mostra só o que vem a seguir. */
-const PENDING: Record<AdminArea, { title: string; issue: string; text: string }> = {
+const PENDING: Record<Exclude<AdminArea, 'clinicas'>, { title: string; issue: string; text: string }> = {
   'visao-geral': {
     title: 'Visão geral',
     issue: '#833',
     text: 'Clínicas por estado, alertas e suporte pendente.',
-  },
-  clinicas: {
-    title: 'Clínicas',
-    issue: '#829',
-    text: 'Lista, nova clínica, detalhe e ciclo de vida.',
   },
   suporte: {
     title: 'Suporte',
@@ -56,7 +53,8 @@ function useAdminRoute(): AdminRoute {
 
 export default function AdminShell() {
   const route = useAdminRoute()
-  const current = route.kind === 'area' ? route.area : null
+  const current: AdminArea | null =
+    route.kind === 'area' ? route.area : route.kind === 'clinica' ? 'clinicas' : null
 
   return (
     <div className="admin-shell">
@@ -98,6 +96,10 @@ export default function AdminShell() {
       <main className="admin-main">
         {route.kind === 'not-found' ? (
           <AdminNotFound />
+        ) : route.kind === 'clinica' ? (
+          <ClinicaDetalhe key={route.tenantId} tenantId={route.tenantId} tab={route.tab} />
+        ) : route.area === 'clinicas' ? (
+          <ClinicasList />
         ) : (
           <section aria-labelledby="admin-area-title" className="admin-pending">
             <h1 id="admin-area-title">{PENDING[route.area].title}</h1>
