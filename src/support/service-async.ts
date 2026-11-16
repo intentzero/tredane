@@ -12,8 +12,13 @@ import type { ClinicEventPublisher } from '../realtime'
 import {
   activateSupportSessionAsync,
   cancelSupportRequestAsync,
+  decideSupportTerminationAsync,
+  getSupportSessionAsync,
+  getSupportTerminationRequestAsync,
+  requestSupportTerminationAsync,
   revokeSupportSessionAsync,
 } from './d1-session'
+import { ConflictError, NotFoundError } from '../db/admin/errors'
 
 export type AsyncSupportServices = {
   db: AsyncAdminDb
@@ -195,4 +200,81 @@ export async function cancelSupportRequestWithServices(
   input: { requestId: string; actorClerkUserId: string },
 ): Promise<SupportRequestRow> {
   return cancelSupportRequestAsync(services.db, services.clock, input)
+}
+
+export async function subjectRequestTerminationAsync(
+  services: AsyncSupportServices,
+  input: { sessionId: string; subjectClerkUserId: string; tenantId: string },
+) {
+  const session = await getSupportSessionAsync(services.db, input.sessionId)
+  if (!session || session.tenantId !== input.tenantId) {
+    throw new NotFoundError('support_session_not_found', 'Sessão inexistente')
+  }
+  const termination = await requestSupportTerminationAsync(services.db, services.clock, {
+    sessionId: input.sessionId,
+    subjectClerkUserId: input.subjectClerkUserId,
+  })
+  let realtimeNotified = false
+  if (termination.created) {
+    const published = await services.events.publishTenantEvent({
+      tenantId: input.tenantId,
+      type: 'support.termination.requested',
+      entityType: 'support_termination_request',
+      entityId: termination.id,
+      audience: 'owners',
+      eventId: `str:req:${termination.id}`,
+      payload: {
+        terminationRequestId: termination.id,
+        sessionId: input.sessionId,
+        subjectClerkUserId: input.subjectClerkUserId,
+        status: termination.status,
+      },
+    })
+    realtimeNotified = published.ok
+  }
+  return { termination, realtimeNotified }
+}
+
+export async function ownerDecideTerminationAsync(
+  services: AsyncSupportServices,
+  input: { tenantId: string; terminationRequestId: string; ownerClerkUserId: string; decision: 'end' | 'keep'; sessionId?: string },
+) {
+  const preview = await getSupportTerminationRequestAsync(services.db, input.terminationRequestId)
+  if (!preview || preview.tenantId !== input.tenantId) {
+    throw new NotFoundError('termination_request_not_found', 'Pedido inexistente')
+  }
+  if (input.sessionId && preview.supportSessionId !== input.sessionId) {
+    throw new ConflictError('termination_session_mismatch', 'Sessão não corresponde')
+  }
+  const result = await decideSupportTerminationAsync(services.db, services.clock, {
+    terminationRequestId: input.terminationRequestId,
+    ownerClerkUserId: input.ownerClerkUserId,
+    decision: input.decision,
+  })
+  const type = input.decision === 'end' ? 'support.session.ended' : 'support.termination.kept'
+  const published = await services.events.publishTenantEvent({
+    tenantId: input.tenantId,
+    type,
+    entityType: 'support_session',
+    entityId: result.session.id,
+    audience: 'owners_and_subject',
+    eventId: `${type}:${result.session.id}:${result.termination.id}:${result.termination.decidedAt ?? 0}`,
+    payload: {
+      sessionId: result.session.id,
+      terminationRequestId: result.termination.id,
+      status: result.session.status,
+      terminationStatus: result.termination.status,
+      subjectClerkUserId: result.session.subjectClerkUserId,
+      actorClerkUserId: result.session.actorClerkUserId,
+      decidedByOwnerClerkUserId: input.ownerClerkUserId,
+      decision: input.decision,
+      expiresAt: result.session.expiresAt,
+    },
+  })
+  return {
+    termination: result.termination,
+    session: result.session,
+    realtimeNotified: published.ok,
+    endEmailsSent: 0,
+  }
 }

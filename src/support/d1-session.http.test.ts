@@ -411,3 +411,143 @@ describe('HTTP — ciclo da sessão de suporte no caminho assíncrono (D1), #853
     }
   })
 })
+
+describe('HTTP — término pedido pelo subject, decisão do owner, lista e aviso no caminho assíncrono (D1), #853 PR 1b', () => {
+  const base = '/api/tenants/clinic-demo-a/support-sessions'
+  const requestEnd = (ctx: Ctx, sessionId: string, user = SUBJECT) =>
+    ctx.call(user, `${base}/${sessionId}/termination-requests`, { method: 'POST' })
+  const decide = (ctx: Ctx, sessionId: string, terminationId: string, decision: unknown, user = OWNER_A) =>
+    ctx.call(user, `${base}/${sessionId}/termination-requests/${terminationId}/decision`, { method: 'POST', json: { decision } })
+  const statusOf = (ctx: Ctx, id: string) =>
+    ctx.boot.db.get<{ status: string }>(`SELECT status FROM support_sessions WHERE id = ?`, id)?.status
+
+  it('lista do owner: só sessões ativas da clínica; quem não é owner é recusado; expirada sai da lista', async () => {
+    const ctx = testApp()
+    try {
+      const { sessionId } = await activeSession(ctx)
+      const list = await ctx.call(OWNER_A, base)
+      expect(list.status).toBe(200)
+      expect((await json(list)).sessions.map((s: Json) => s.id)).toEqual([sessionId])
+      expect((await ctx.call(SUBJECT, base)).status).toBe(403)
+      ctx.clock.advance(SUPPORT_SESSION_TTL_MS + 1)
+      expect((await json(await ctx.call(OWNER_A, base))).sessions).toEqual([])
+      expect(statusOf(ctx, sessionId)).toBe('expired')
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('aviso: só o subject vê a sessão ativa; o owner e quem não está envolvido vêem active:false', async () => {
+    const ctx = testApp()
+    try {
+      expect(await json(await ctx.call(SUBJECT, `${base}/notice`))).toMatchObject({ active: false })
+      const { sessionId } = await activeSession(ctx)
+      const mine = await json(await ctx.call(SUBJECT, `${base}/notice`))
+      expect(mine).toMatchObject({ active: true, session: { id: sessionId } })
+      expect(mine.ttlRemainingMs).toBeGreaterThan(0)
+      expect(JSON.stringify(mine)).not.toMatch(/token|handoff/i)
+      expect(await json(await ctx.call(OWNER_A, `${base}/notice`))).toMatchObject({ active: false })
+      ctx.clock.advance(SUPPORT_SESSION_TTL_MS + 1)
+      expect(await json(await ctx.call(SUBJECT, `${base}/notice`))).toMatchObject({ active: false })
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('pedir o fim: o subject cria um pedido (201), repetir devolve o mesmo (200); outros são recusados', async () => {
+    const ctx = testApp()
+    try {
+      const { sessionId } = await activeSession(ctx)
+      const first = await requestEnd(ctx, sessionId)
+      expect(first.status).toBe(201)
+      const body = await json(first)
+      expect(body.terminationRequest).toMatchObject({ status: 'pending', created: true })
+      expect(ctx.published.map((p) => p.type)).toContain('support.termination.requested')
+      const again = await requestEnd(ctx, sessionId)
+      expect(again.status).toBe(200)
+      expect((await json(again)).terminationRequest.id).toBe(body.terminationRequest.id)
+      const pending = ctx.boot.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM support_termination_requests WHERE support_session_id = ? AND status = 'pending'`, sessionId)
+      expect(pending?.n).toBe(1)
+      // Um owner que não é o subject não pede o fim em nome dele; sessão inexistente dá 404.
+      const notSubject = await requestEnd(ctx, sessionId, OWNER_A)
+      expect([notSubject.status, (await json(notSubject)).error]).toEqual([403, 'not_session_subject'])
+      expect((await requestEnd(ctx, 'ssn_nao_existe')).status).toBe(404)
+      const audit = listAuditForTenant(ctx.boot.db, 'clinic-demo-a', { limit: 50 }).filter((e) => e.action === 'support.termination.request')
+      expect(audit).toHaveLength(1)
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('decisão «manter»: a sessão continua ativa e o prazo não muda (DEC-037)', async () => {
+    const ctx = testApp()
+    try {
+      const { sessionId } = await activeSession(ctx)
+      const before = ctx.boot.db.get<{ expires_at: number }>(`SELECT expires_at FROM support_sessions WHERE id = ?`, sessionId)!.expires_at
+      const tid = (await json(await requestEnd(ctx, sessionId))).terminationRequest.id
+      const res = await decide(ctx, sessionId, tid, 'keep')
+      expect(res.status).toBe(200)
+      const body = await json(res)
+      expect(body.termination.status).toBe('declined')
+      expect(body.session.status).toBe('active')
+      expect(body.session.expiresAt).toBe(before)
+      expect(ctx.published.map((p) => p.type)).toContain('support.termination.kept')
+      expect(statusOf(ctx, sessionId)).toBe('active')
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('decisão «encerrar»: aceita o pedido, revoga a sessão e o cookie deixa de servir', async () => {
+    const ctx = testApp()
+    try {
+      const { sessionId } = await activeSession(ctx)
+      const tid = (await json(await requestEnd(ctx, sessionId))).terminationRequest.id
+      const res = await decide(ctx, sessionId, tid, 'end')
+      expect(res.status).toBe(200)
+      const body = await json(res)
+      expect(body.termination.status).toBe('accepted')
+      expect(body.session).toMatchObject({ status: 'revoked' })
+      expect(statusOf(ctx, sessionId)).toBe('revoked')
+      expect(ctx.published.map((p) => p.type)).toContain('support.session.ended')
+      const actions = listAuditForTenant(ctx.boot.db, 'clinic-demo-a', { limit: 50 }).map((e) => e.action)
+      expect(actions).toEqual(expect.arrayContaining(['support.termination.end', 'support.session.revoke']))
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('decisão recusada: repetida, por quem não é owner, valor inválido, pedido de outra clínica ou sessão trocada', async () => {
+    const ctx = testApp()
+    try {
+      const { sessionId } = await activeSession(ctx)
+      const tid = (await json(await requestEnd(ctx, sessionId))).terminationRequest.id
+      const err = async (res: Response) => [res.status, (await json(res)).error]
+      expect((await decide(ctx, sessionId, tid, 'end', SUBJECT)).status).toBe(403)
+      expect((await decide(ctx, sessionId, tid, 'talvez')).status).toBe(400)
+      expect((await decide(ctx, sessionId, 'str_nao_existe', 'end')).status).toBe(404)
+      expect((await decide(ctx, 'ssn_outra', tid, 'keep')).status).toBe(409)
+      expect(statusOf(ctx, sessionId)).toBe('active')
+      expect((await decide(ctx, sessionId, tid, 'keep')).status).toBe(200)
+      expect(await err(await decide(ctx, sessionId, tid, 'end'))).toEqual([409, 'termination_not_pending'])
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('a sessão que expira fecha o pedido pendente e a decisão tardia dá 409', async () => {
+    const ctx = testApp()
+    try {
+      const { sessionId } = await activeSession(ctx)
+      const tid = (await json(await requestEnd(ctx, sessionId))).terminationRequest.id
+      ctx.clock.advance(SUPPORT_SESSION_TTL_MS + 1)
+      const res = await decide(ctx, sessionId, tid, 'end')
+      expect([res.status, (await json(res)).error]).toEqual([409, 'termination_not_pending'])
+      const row = ctx.boot.db.get<{ status: string }>(`SELECT status FROM support_termination_requests WHERE id = ?`, tid)
+      expect(row?.status).toBe('closed_with_session')
+      expect(statusOf(ctx, sessionId)).toBe('expired')
+    } finally {
+      ctx.close()
+    }
+  })
+})
