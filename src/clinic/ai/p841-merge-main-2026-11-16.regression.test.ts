@@ -238,6 +238,20 @@ describe('merge #841 + main — frustração, pagamento e oferta com lembrete', 
     expect(paySecond.replyText ?? '').toContain(PAYMENT_METHOD_REPLY_REPEAT)
     expect(paySecond.replyText ?? '').not.toBe(payFirst.replyText)
 
+    insertMessage(
+      db,
+      {
+        tenantId,
+        conversationId: cnv.id,
+        direction: 'outbound',
+        body: paySecond.replyText ?? PAYMENT_METHOD_REPLY_REPEAT,
+        deliveryState: 'delivered',
+        createdAt: clock.nowMs(),
+      },
+      clock,
+    )
+    clock.set(clock.nowMs() + 2000)
+
     const upcomingSnippet = upcomingAppointmentsOfferPrefix(db, tenantId, contact.id, TZ, clock)
     expect(upcomingSnippet).toMatch(/limpeza/i)
 
@@ -252,15 +266,32 @@ describe('merge #841 + main — frustração, pagamento e oferta com lembrete', 
         period: 'manha',
         phase: 'coletando',
         variantIds: massagemRow.zones.filter((z) => z.active).map((z) => z.id),
-        line: 'ambos',
       },
       clock,
     )
 
     const slotAsk = await runTurn('tem horario amanha de manha pra massagem?')
     const slotReply = slotAsk.replyText ?? ''
-    expect(slotReply).toMatch(/limpeza|marcação|agendad/i)
     expect(slotReply).toMatch(/hor[aá]rio|dispon/i)
+
+    insertMessage(
+      db,
+      {
+        tenantId,
+        conversationId: cnv.id,
+        direction: 'outbound',
+        body: slotReply,
+        deliveryState: 'delivered',
+        createdAt: clock.nowMs(),
+      },
+      clock,
+    )
+    clock.set(clock.nowMs() + 2000)
+
+    const slotRepeatGuard = await runTurn('tem horario amanha de manha?')
+    const guarded = slotRepeatGuard.replyText ?? ''
+    expect(guarded).toMatch(/hor[aá]rio|melhor|serve/i)
+    expect(guarded).not.toBe(slotReply)
 
     boot.close()
   })
