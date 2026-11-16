@@ -50,6 +50,68 @@ function localHHMM(tz: string, ms: number): string {
   return `${hh}:${mm}`
 }
 
+export type ContactFutureAppointment = {
+  startsAt: number
+  serviceLabel: string
+}
+
+/** Compromissos confirmados futuros do contato (ordenados pelo início). */
+export function listFutureContactAppointments(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  clock: Clock,
+  limit = 5,
+): ContactFutureAppointment[] {
+  const rows = db.all<Row>(
+    `SELECT starts_at, service_id
+     FROM appointments
+     WHERE tenant_id = ? AND contact_id = ? AND status = 'confirmed' AND starts_at > ?
+     ORDER BY starts_at LIMIT ?`,
+    tenantId,
+    contactId,
+    clock.nowMs(),
+    limit,
+  )
+  const services = listServices(db, tenantId)
+  return rows.map((row) => {
+    const svc = services.find((s) => s.id === row.service_id)
+    return {
+      startsAt: row.starts_at,
+      serviceLabel: svc?.name?.trim() || 'procedimento',
+    }
+  })
+}
+
+function formatFutureAppointmentLine(
+  tz: string,
+  appt: ContactFutureAppointment,
+  today: string,
+): string {
+  const date = clinicCivilDateFromUtc(tz, appt.startsAt)
+  const when = dayTextPt(date, today)
+  const dayPart = when === 'hoje' || when === 'amanhã' ? when : `na ${when}`
+  return `${appt.serviceLabel} ${dayPart} às ${localHHMM(tz, appt.startsAt)}`
+}
+
+/** Lembrete antes de ofertar horários quando já há marcação futura (outro dia ou serviço). */
+export function upcomingAppointmentsOfferPrefix(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  tz: string,
+  clock: Clock,
+): string | null {
+  const appts = listFutureContactAppointments(db, tenantId, contactId, clock)
+  if (appts.length === 0) return null
+  const today = clinicCivilDateFromUtc(tz, clock.nowMs())
+  const lista = appts.map((a) => formatFutureAppointmentLine(tz, a, today)).join('; ')
+  if (appts.length === 1) {
+    return `Você já tem ${lista}. É para outro horário ou serviço?\n\n`
+  }
+  return `Você já tem: ${lista}. É para outro horário ou serviço?\n\n`
+}
+
 /** Compromisso confirmado do contato no dia civil pedido (futuro ou hoje). */
 export function findContactAppointmentOnDate(
   db: ClinicDb,

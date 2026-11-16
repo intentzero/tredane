@@ -135,7 +135,8 @@ export function timesInText(text: string): TimeHit[] {
 export function clientTimes(text: string): Set<string> {
   const out = new Set(timesInText(text).map((h) => h.time))
   const t = fold(text)
-  if (/\bmeio[\s-]?dia\b/.test(t)) out.add('12:00')
+  if (/\bmeio[\s-]?dia\s+e\s+meia\b/.test(t)) out.add('12:30')
+  else if (/\bmeio[\s-]?dia\b/.test(t)) out.add('12:00')
   for (const m of t.matchAll(/\b(?:as\s+)?([1-9]|1[0-2])\s+(?:horas?\s+)?da\s+(tarde|noite|manha)\b/g)) {
     let h = Number(m[1])
     if ((m[2] === 'tarde' || m[2] === 'noite') && h < 12) h += 12
