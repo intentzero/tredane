@@ -112,7 +112,12 @@ import {
   hasStopRequest,
   RESCHEDULE_RE,
 } from './nlu/sensitive'
-import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
+import {
+  isCancelIntent,
+  isRescheduleIntent,
+  phraseCancelOfferReschedule,
+  tryAiReschedule,
+} from './reschedule'
 import { isConversationPaused } from './protection'
 import { filledSlots, getBookingFrame, getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
@@ -1127,6 +1132,47 @@ export async function runDueAutoDrafts(
       })
       continue
     }
+    if (isCancelIntent(turnText) && upcoming) {
+      await signalTyping()
+      const body = phraseCancelOfferReschedule(upcoming.serviceName)
+      const teamAlert = promiseTeamFollowUp(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          detailText: 'Pedido de cancelamento com compromisso futuro; oferecida remarcação.',
+          messageId: job.messageId,
+        },
+        clock,
+      )
+      let replyOutbox: OutboxRow[] = [...teamAlert.outbox]
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body,
+            clientRequestId: `ai-cancel-reschedule-offer:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = [...replyOutbox, ...sent.outbox]
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'cancel_offer_reschedule',
+        replyOutbox,
+      })
+      continue
+    }
     const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {
       await signalTyping()
@@ -1160,6 +1206,7 @@ export async function runDueAutoDrafts(
           conversationId: job.conversationId,
           reason,
           clientRequestId: `ai-handoff:${job.messageId}`,
+          inboundText: turnText,
         },
         clock,
       )

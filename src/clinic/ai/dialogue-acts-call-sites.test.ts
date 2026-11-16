@@ -185,6 +185,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não consegui enviar a confirmação da remarcação para \$\{dayText\(date\)\} às \$\{time\}\. $/,
   /^Ainda não está remarcado: a equipe vai te responder em seguida\.$/,
   /^Recebi seu pedido de remarcar \$\{serviceName\} para \$\{dayText\(date\)\} às \$\{time\}\. $/,
+  /^Entendi o imprevisto sobre \$\{serviceName\}\. Quer que eu veja outro dia para remarcar\? Se for só cancelar, passo para a equipe confirmar\.$/,
+  /^Entendi\. Quer que eu veja outro dia para remarcar\? Se for só cancelar, passo para a equipe confirmar\.$/,
   // DEC-131: variante sem nome do serviço quando o nome tem termo proibido
   /^Recebi seu pedido de remarcar\. Ainda não está remarcado: a equipe confirma e já te retorna\.$/,
   /^Ainda não está remarcado: a equipe confirma e já te retorna\.$/,

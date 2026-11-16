@@ -24,7 +24,7 @@ import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
-import { HUMAN_HANDOFF_TEXT, readAiReplyPause } from './human-handoff'
+import { readAiReplyPause } from './human-handoff'
 import { forbiddenClientTermsIn } from './client-copy'
 import { validateClientOutbound } from './outbound-validate'
 import { SLOT_LIST_BUTTON_LABEL } from './choice-offer'
@@ -32,6 +32,7 @@ import { getBookingFrame, saveBookingFrame } from './schedule-session'
 import {
   isRescheduleIntent,
   phraseAskDay,
+  phraseCancelOfferReschedule,
   phraseDayFull,
   phraseOfferSlots,
   phraseOwnerPaused,
@@ -516,13 +517,13 @@ describe('DEC-091/129 reagendamento conversacional', () => {
     }
   })
 
-  it('cancelar continua handoff humano', async () => {
+  it('cancelar com compromisso oferece remarcar (baseline P4 15/11)', async () => {
     const s = seed()
     try {
       s.say('inbound', 'Quero cancelar o horário')
       const out = await s.run()
-      expect(out.reason).toBe('human_handoff')
-      expect(s.lastOutbound()).toBe(HUMAN_HANDOFF_TEXT)
+      expect(out.reason).toBe('cancel_offer_reschedule')
+      expect(s.lastOutbound()).toBe(phraseCancelOfferReschedule('Depilação'))
     } finally {
       s.close()
     }

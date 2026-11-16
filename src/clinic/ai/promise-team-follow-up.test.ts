@@ -97,7 +97,7 @@ describe('promiseTeamFollowUp', () => {
         },
         clock,
       )
-      expect(first).toEqual({ opened: true, already: false, paused: false })
+      expect(first).toEqual({ opened: true, already: false, paused: false, outbox: expect.any(Array) })
       expect(readAiReplyPause(db, tenantId, cnv.id)).toBeNull()
       expect(
         listConversations(db, tenantId, { filter: 'needs_person' }).items.some(
@@ -116,7 +116,7 @@ describe('promiseTeamFollowUp', () => {
         },
         clock,
       )
-      expect(second).toEqual({ opened: false, already: true, paused: false })
+      expect(second).toEqual({ opened: false, already: true, paused: false, outbox: expect.any(Array) })
       const pending = db.all<{ n: number }>(
         `SELECT COUNT(*) AS n FROM pending_communications
          WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,

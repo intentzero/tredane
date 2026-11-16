@@ -112,3 +112,10 @@ export function shouldResumeVariantAsk(parked: ParkedInterrupt): boolean {
     parked.obligation == null
   )
 }
+
+/** FAQ mid-zonas com escolha já iniciada (acumular/variantes/eco) — retoma sem limpar o quadro. */
+export function shouldResumeZoneChoiceAfterFaq(parked: ParkedInterrupt): boolean {
+  if (!parked.snapshot.serviceId) return false
+  const slot = parked.snapshot.pending?.slot
+  return slot === 'variantes' || slot === 'acumular' || slot === 'eco' || slot === 'linha'
+}

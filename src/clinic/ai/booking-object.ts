@@ -245,6 +245,26 @@ export function listBookableOptions(services: readonly ServiceRow[]): BookableOp
   return out
 }
 
+export function findExplicitServiceInText(
+  text: string,
+  services: readonly ServiceRow[],
+): ServiceRow | null {
+  const hits: Array<{ service: ServiceRow; rank: number }> = []
+  for (const service of services) {
+    if (!service.active) continue
+    const h = serviceNameHit(text, service.name, service.synonyms)
+    if (h === 'exact') hits.push({ service, rank: 3 })
+    else if (h === 'fuzzy') hits.push({ service, rank: 2 })
+    else if (h === 'partial') hits.push({ service, rank: 1 })
+  }
+  if (hits.length === 0) return null
+  hits.sort((a, b) => b.rank - a.rank)
+  const top = hits[0]!.rank
+  const tied = hits.filter((h) => h.rank === top)
+  if (tied.length > 1) return null
+  return hits[0]!.service
+}
+
 function serviceNameHit(
   text: string,
   name: string,

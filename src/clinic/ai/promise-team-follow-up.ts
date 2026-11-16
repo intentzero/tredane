@@ -4,6 +4,8 @@
  * Não chama `notifyHumanHandoff`. Copy DEC-125/129 permanece nos call-sites.
  */
 import type { Clock } from '../../db/clock'
+import type { OutboxRow } from '../outbox'
+import { flagConversationForTeamHandoff } from '../inbox/review-flag'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import type { ClinicDb } from '../store'
 import { readAiReplyPause } from './human-handoff'
@@ -27,7 +29,7 @@ export function textPromisesTeamFollowUp(text: string): boolean {
     return false
   }
   if (
-    /\b(ja\s+te\s+retorna|vai\s+te\s+responder|te\s+responde|em\s+seguida|vai\s+verificar|envia\s+outra\s+opcao|em\s+breve)\b/.test(
+    /\b(ja\s+te\s+retorna|vai\s+te\s+responder|te\s+responde|em\s+seguida|vai\s+verificar|envia\s+outra\s+opcao|em\s+breve|deixei\s+seu\s+pedido)\b/.test(
       folded,
     )
   ) {
@@ -51,14 +53,14 @@ export function promiseTeamFollowUp(
     messageId?: string | null
   },
   clock: Clock,
-): { opened: boolean; already: boolean; paused: boolean } {
+): { opened: boolean; already: boolean; paused: boolean; outbox: OutboxRow[] } {
   const paused = readAiReplyPause(db, tenantId, input.conversationId) != null
   const conv = db.get<{ contact_id: string }>(
     `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
     tenantId,
     input.conversationId,
   )
-  if (!conv) return { opened: false, already: false, paused }
+  if (!conv) return { opened: false, already: false, paused, outbox: [] }
 
   const open = db.get<{ id: string }>(
     `SELECT id FROM pending_communications
@@ -93,7 +95,14 @@ export function promiseTeamFollowUp(
       tenantId,
       row.id,
     )
-    return { opened: true, already: false, paused }
+    const flagged = flagConversationForTeamHandoff(
+      db,
+      tenantId,
+      input.conversationId,
+      clock,
+      detail.slice(0, 200),
+    )
+    return { opened: true, already: false, paused, outbox: flagged.outbox }
   }
 
   db.run(
@@ -110,5 +119,12 @@ export function promiseTeamFollowUp(
     tenantId,
     open.id,
   )
-  return { opened: false, already: true, paused }
+  const flagged = flagConversationForTeamHandoff(
+    db,
+    tenantId,
+    input.conversationId,
+    clock,
+    detail.slice(0, 200),
+  )
+  return { opened: false, already: true, paused, outbox: flagged.outbox }
 }
