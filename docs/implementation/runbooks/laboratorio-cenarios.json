@@ -160,7 +160,7 @@
         {"say": "ok 👍"}
       ],
       "expect": {"booked": true},
-      "baseline20261115": {"booked": false, "clientTurns": 4, "notes": "'sim' -> fallback; 'ok 👍' -> pede para tocar em Confirmar"}
+      "baseline20261115": {"booked": false, "clientTurns": 4, "notes": "'sim'/'ok 👍' -> «Para confirmar, toca em Confirmar 👇» só botão Confirmar (DEC-061)"}
     },
     {
       "id": "S08a-saude",

@@ -50,6 +50,7 @@ export function serializeOpportunity(o: OpportunityRow | OpportunityListItem) {
       boardKey: o.boardKey ?? o.id,
       futureAppointmentCount: o.futureAppointmentCount ?? 0,
       hasOpenAttendance: o.hasOpenAttendance === true,
+      needsPerson: o.needsPerson === true,
     }
   }
   return base

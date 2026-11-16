@@ -161,6 +161,8 @@ export function InboxRealtimeProvider({
       if (badgeTimer) clearTimeout(badgeTimer)
       badgeTimer = setTimeout(() => {
         badgeTimer = null
+        // Faixa/título do shell (DEC-156 A+E) — sem segundo WebSocket.
+        window.dispatchEvent(new Event('tredane:needs-person-refresh'))
         api
           .listInboxConversations(tenantId, { limit: 1 })
           .then((res) => {

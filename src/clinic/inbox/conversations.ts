@@ -19,7 +19,8 @@ import type {
  * «Precisa de alguém» (DEC-083 / DEC-156): alerta aberto, ou IA pausada sem
  * responsável humano. Assumir (`clearedAwaitingTeam`) limpa o badge; pausa pode ficar.
  */
-const NEEDS_PERSON_SQL = `(
+/** Partilhado com o quadro Acompanhar (DEC-187 / DEC-156). */
+export const NEEDS_PERSON_SQL = `(
   EXISTS (
     SELECT 1 FROM pending_communications p
     WHERE p.tenant_id = c.tenant_id AND p.conversation_id = c.id
@@ -33,6 +34,23 @@ const NEEDS_PERSON_SQL = `(
     )
   )
 )`
+
+/** Mesmo critério do chip/lista Conversas (DEC-083 / DEC-156). */
+export function conversationNeedsPerson(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  assertClinicSchemaReady(db)
+  const row = db.get<{ n: number }>(
+    `SELECT 1 AS n FROM conversations c
+     WHERE c.tenant_id = ? AND c.id = ? AND c.status != 'closed'
+       AND ${NEEDS_PERSON_SQL}`,
+    tenantId,
+    conversationId,
+  )
+  return row != null
+}
 
 /** Job de rascunho automático ainda vivo (debounce ou a gerar). */
 const AI_DRAFTING_SQL = `EXISTS (

@@ -165,6 +165,11 @@ function PanelRouter() {
       area={route.area}
       tenantId={route.tenantId}
       immersiveOnPhone={route.area === 'conversas' && route.section === 'thread'}
+      openConversationId={
+        route.area === 'conversas' && route.section === 'thread'
+          ? (route.conversationId ?? null)
+          : null
+      }
     >
       {route.area === 'clinica' ? (
         <ClinicArea
