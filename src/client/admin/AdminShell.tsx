@@ -8,6 +8,8 @@ import { ClinicasList } from './clinicas/ClinicasList'
 import { NovaClinica } from './clinicas/NovaClinica'
 import { SaudeGlobal } from './saude/SaudeGlobal'
 import { VisaoGeral } from './saude/VisaoGeral'
+import { QualidadeIA } from './qualidade/QualidadeIA'
+import { SuporteGlobal } from './suporte/SuporteGlobal'
 
 const ICONS: Record<AdminArea, LucideIcon> = {
   'visao-geral': LayoutDashboard,
@@ -15,20 +17,6 @@ const ICONS: Record<AdminArea, LucideIcon> = {
   suporte: LifeBuoy,
   saude: Activity,
   'qualidade-ia': Sparkles,
-}
-
-/** Cada área chega com a sua issue do épico #827; até lá mostra só o que vem a seguir. */
-const PENDING: Record<Exclude<AdminArea, 'clinicas' | 'visao-geral' | 'saude'>, { title: string; issue: string; text: string }> = {
-  suporte: {
-    title: 'Suporte',
-    issue: '#831',
-    text: 'Pedidos e sessões de suporte de todas as clínicas.',
-  },
-  'qualidade-ia': {
-    title: 'Qualidade IA',
-    issue: '#834',
-    text: 'Métricas agregadas, sombra do interpretador e amostras para revisão.',
-  },
 }
 
 function useAdminRoute(): AdminRoute {
@@ -103,12 +91,10 @@ export default function AdminShell() {
           <VisaoGeral />
         ) : route.area === 'saude' ? (
           <SaudeGlobal />
+        ) : route.area === 'suporte' ? (
+          <SuporteGlobal />
         ) : (
-          <section aria-labelledby="admin-area-title" className="admin-pending">
-            <h1 id="admin-area-title">{PENDING[route.area].title}</h1>
-            <p>{PENDING[route.area].text}</p>
-            <p className="admin-muted">Esta área chega com a issue {PENDING[route.area].issue} do épico #827.</p>
-          </section>
+          <QualidadeIA />
         )}
       </main>
     </div>
