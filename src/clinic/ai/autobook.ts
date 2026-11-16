@@ -1090,7 +1090,7 @@ export async function tryAiAutoBook(
             'perguntar_servico',
             input.conversationId,
             { lista: names.join(', ') },
-            `Qual serviço você quer? Temos ${names.join(', ')}.`,
+            'Qual serviço você quer? Temos ${lista}.',
           )
         : sayAct(
             'perguntar_servico',

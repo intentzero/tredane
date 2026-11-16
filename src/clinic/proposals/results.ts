@@ -320,11 +320,17 @@ export function reconcileProposalResultOutboundSend(
     appointmentId &&
     fresh.conversationId
   ) {
+    const agCreated =
+      db.get<{ created_at: number }>(`SELECT created_at FROM messages WHERE id = ?`, outbound.messageId)
+        ?.created_at ?? clock.nowMs()
+    const followClock: Clock = {
+      nowMs: () => Math.max(clock.nowMs(), agCreated + 1),
+    }
     const follow = sendPostBookingFollowupOp(
       db,
       caller,
       { conversationId: fresh.conversationId, appointmentId },
-      clock,
+      followClock,
     )
     if (follow.status === 'queued') outbox = follow.outbox
   }
