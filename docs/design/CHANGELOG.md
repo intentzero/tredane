@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 16/11/2026 — Paleta do painel Coral & Menta (**Confirmado**)
+
+- Paulo aprovou o [mock do app](paleta-app/README.md) com «gostei, implementa». Revisão de DEC-041/050/164 registada em [decisions.md](../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026).
+- Tokens v0.10.0: superfícies brancas/menta no claro e verdes profundas no escuro; turquesa em seleção e ações frequentes; novo `accent` coral para Agendar na conversa; âmbar, sucesso e IA conservam seus papéis. CSS do painel, catálogo e `theme-color` escuro atualizados.
+- Mocks mobile e o mock `desktop/Horarios.dc.html` migrados para os valores novos. Previews mobile e de Horários no desktop regenerados. A validação visual das demais telas reais permanece **Em aberto**.
+
 ## 16/11/2026 — «Precisa de alguém» no shell + título do separador (DEC-156 A+E)
 
 - Faixa persistente montada no `PanelShell` (qualquer área), não só em Conversas/Acompanhar.

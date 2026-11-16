@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system v0.3.1 Confirmado, substituído em tamanhos pela v0.4.0 compacta (tipografia do WhatsApp Web, controles 28–36px) **Confirmada** ([DEC-081](../product/decisions.md)); em aparelho de toque os controles sobem para 36–48px (tokens v0.8.0, [DEC-168](../product/decisions.md)), ver [CHANGELOG.md](CHANGELOG.md); aprovado pelo responsável pelo produto ([DEC-041](../product/decisions.md), cor de marca em [DEC-050](../product/decisions.md), fonte Roboto em [DEC-073](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system **Confirmado**, com paleta do painel v0.10.0 aprovada por Paulo em 16/11/2026 ([revisão visual](../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026)). A escala compacta da v0.4.0 ([DEC-081](../product/decisions.md)) e os tamanhos de toque da v0.8.0 ([DEC-168](../product/decisions.md)) continuam; ver [CHANGELOG.md](CHANGELOG.md). Origem: [DEC-041](../product/decisions.md), identidade [DEC-050](../product/decisions.md), Roboto [DEC-073](../product/decisions.md); biblioteca-base React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)). Os estados funcionais dos mocks seguem a respectiva decisão, indicada em [screens.md](screens.md). Esta pasta registra os mocks de UI/UX do painel; eles ilustram a [especificação de UI/UX](../product/ux-ui.md), sem a substituir.
 
 ## Ordem de autoridade
 
@@ -19,7 +19,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | --- | --- |
 | [screens.md](screens.md) | Índice das telas: ID (M-01 a M-39), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
 | [components.md](components.md) | Componentes recorrentes (cabeçalho, barra inferior, chips, balão, estado de envio, bloco de IA, folha inferior, formulário etc.) e regras gerais de implementação |
-| [tokens.json](tokens.json) · `tokens.css` | Tokens v0.3.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
+| [tokens.json](tokens.json) · `tokens.css` | Tokens v0.10.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
 | [catalog/index.html](catalog/index.html) | Catálogo: tokens e componentes com todos os estados (abra no navegador) |
 | [icons.md](icons.md) | Inventário de ícones e proposta de biblioteca |
 | [CHANGELOG.md](CHANGELOG.md) | Histórico de tokens e mocks, com a regra de conversão da consolidação 0.1 → 0.2 |
@@ -29,6 +29,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | `desktop/` | Telas largas: exploração antiga (Conversas/`Main`, Pipeline, Agenda, Estados) e propostas recentes (`Entrar`, `ConversasDesktopProposta` · empty/thread). Ver [aviso](#desktop) |
 | [brand/](brand/README.md) | Identidade visual (DEC-050): símbolo, nome, versões, ícone do app, favicon e paleta da marca |
 | `landing/` | Mocks históricos (`Main.dc.html`, `Celular.dc.html`) e [paleta Coral & Menta aprovada em 16/11/2026](landing/paleta-viva/README.md), com comparação e previews da implementação; spec em [landing.md](../product/landing.md) |
+| [paleta-app/](paleta-app/README.md) | **Confirmado (16/11/2026):** comparação interativa que originou os tokens v0.10.0 do painel em claro/escuro |
 | `tools/` | `build_tokens.py` (gera `tokens.css`), `check_contrast.py` (valida contraste), `check_mocks.py` (valida que os mocks só usam tokens), `build_catalog.py` (gera o catálogo), `render_previews.py` (gera os PNG; `expand_dc.mjs` expande os `<sc-for>`/`<sc-if>` dos mocks interativos), `build_brand.py` (gera os ficheiros da marca) |
 
 ## Como ver os mocks

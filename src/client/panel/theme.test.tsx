@@ -41,7 +41,7 @@ describe('tema do painel (DEC-098)', () => {
     applyThemePreference('system')
     expect(resolveTheme('system')).toBe('dark')
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
-    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#162423')
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#182628')
   })
 
   it('escolha explícita vence o aparelho e fica salva; voltar a Sistema limpa', () => {

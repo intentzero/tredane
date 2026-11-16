@@ -1,0 +1,9 @@
+# Estudo de paleta para o app — 16/11/2026
+
+**Confirmado** por Paulo em 16/11/2026 («gostei, implementa»), após rever a proposta para o app alinhada com a [landing Coral & Menta](../../product/landing.md#exploração-de-paleta-coral--menta--16112026). [Abrir mock interativo](PaletaApp.html); alternar **Atual / Proposta** e **Claro / Escuro**. [Preview claro desktop](light-desktop.png) · [claro celular](light-celular.png) · [escuro desktop](dark-desktop.png) · [escuro celular](dark-celular.png).
+
+O painel usa os [tokens v0.10.0](../tokens.json), revistos após DEC-041/050/098/164. A mudança preserva a função das cores: turquesa para seleção e navegação, coral somente para **Agendar** na conversa, turquesa escuro nas ações frequentes, âmbar para atenção, verde para sucesso, lavanda para IA. Superfícies ficam mais claras no tema claro e mais verdes no escuro. A marca Confluência é a existente. Os exemplos de Lívia, Júlia e Carla são fictícios.
+
+O mock ilustra a caixa de conversas e uma conversa em desktop/celular, mas é uma **composição estática de estudo de cores**; não representa a versão atual de cada tela nem implementa fluxo. A revisão está registada em [decisions.md](../../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026). Os tokens claros/escuros e a ação Agendar foram implementados no painel. **Em aberto:** validar percursos reais de calendário, formulário, Pix e gráficos em celular e desktop; o mock por si não valida todas as telas. A landing publicada e os ficheiros da marca permanecem como aprovados.
+
+**Verificação do mock:** HTML local autocontido, sem dados reais; axe-core WCAG 2 A/AA, 2.1 AA e 2.2 AA em 1440 e 390 px, em claro/escuro; sem rolagem horizontal a 390 px. Não é aceite de acessibilidade do app.

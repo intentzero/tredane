@@ -1452,7 +1452,7 @@ button.panel-auth-inline-link {
 }
 
 .clinic-banner-ok {
-  background: var(--color-success-tint, #eaf6ef);
+  background: var(--color-success-tint, #EAF5EF);
   border-color: var(--color-line-border);
   color: var(--color-success-ink, #1f7a4d);
 }
@@ -1767,7 +1767,7 @@ button.panel-auth-inline-link {
   gap: var(--space-2);
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  border: var(--size-border-width) solid #b3d1d1;
+  border: var(--size-border-width) solid #A2D9CB;
   background: var(--color-primary-tint);
   font-size: var(--font-size-small);
 }
@@ -1777,7 +1777,7 @@ button.panel-auth-inline-link {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--color-surface-card);
-  border: var(--size-border-width) solid #b3d1d1;
+  border: var(--size-border-width) solid #A2D9CB;
   color: var(--color-primary-ink);
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
@@ -1813,7 +1813,7 @@ button.panel-auth-inline-link {
   padding: 10px 12px;
   border-radius: var(--radius-md);
   background: var(--color-primary-tint);
-  border: var(--size-border-width) solid #b3d1d1;
+  border: var(--size-border-width) solid #A2D9CB;
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -1957,7 +1957,7 @@ button.panel-auth-inline-link {
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--color-primary-tint);
-  color: var(--color-primary-ink, #0a4547);
+  color: var(--color-primary-ink, #00665F);
   font-size: var(--font-size-small);
 }
 
@@ -1995,7 +1995,7 @@ button.panel-auth-inline-link {
   margin: 0;
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--color-danger-tint, #fdecec);
+  background: var(--color-danger-tint, #FDF1F0);
   color: var(--color-danger-ink, #b42318);
   font-size: var(--font-size-small);
 }
@@ -2303,9 +2303,9 @@ button.panel-auth-inline-link {
 }
 
 .inbox-notice-ok {
-  background: var(--color-primary-tint, #eef2ff);
+  background: var(--color-primary-tint, #D6F4E8);
   color: var(--color-text-primary);
-  border: var(--size-border-width) solid var(--color-primary-border, #c7d2fe);
+  border: var(--size-border-width) solid var(--color-primary-border, #A2D9CB);
 }
 
 .inbox-contact-danger {
@@ -2655,7 +2655,7 @@ button.panel-auth-inline-link {
 .acomp-banner-error {
   margin: 0;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-danger-tint, #fef3f2);
+  background: var(--color-danger-tint, #FDF1F0);
   color: var(--color-danger-ink);
   font-size: var(--font-size-caption, 0.875rem);
 }
@@ -2674,12 +2674,12 @@ button.panel-auth-inline-link {
   margin: var(--space-3) var(--space-4);
   padding: var(--space-3);
   border-radius: var(--radius-lg, 12px);
-  background: var(--color-warning-tint, #fff8eb);
+  background: var(--color-warning-tint, #FFF7EA);
   color: var(--color-text-primary);
 }
 
 .acomp-alert-ok {
-  background: var(--color-primary-tint, #e7f1f1);
+  background: var(--color-primary-tint, #D6F4E8);
 }
 
 .acomp-alert p {
@@ -3180,7 +3180,7 @@ button.panel-auth-inline-link {
 .panel-muted-sm {
   display: block;
   font-size: 14px;
-  color: var(--color-text-secondary, #566160);
+  color: var(--color-text-secondary, #435A53);
 }
 
 .panel-checkbox {
@@ -3223,7 +3223,7 @@ button.panel-auth-inline-link {
 
 .panel-muted {
   margin: 0;
-  color: var(--color-text-secondary, #424b4a);
+  color: var(--color-text-secondary, #52645F);
   font-size: 16px;
 }
 
@@ -7211,9 +7211,9 @@ button.panel-auth-inline-link {
 }
 
 .conferir-summary[data-tone='ok'] {
-  background: var(--color-success-tint, #e7f1f1);
-  border-color: var(--color-primary-base, #0e5a5c);
-  color: var(--color-primary-ink, #0a4547);
+  background: var(--color-success-tint, #D6F4E8);
+  border-color: var(--color-primary-base, #007F78);
+  color: var(--color-primary-ink, #00665F);
 }
 
 .conferir-summary strong {
@@ -10865,18 +10865,18 @@ button.panel-auth-inline-link {
 
 .inbox-thread-header .panel-header-action--primary,
 .conversas-3col .inbox-thread-header .panel-header-action--primary {
-  border-color: var(--color-primary-base);
+  border-color: var(--color-accent-fill);
   border-radius: var(--radius-lg);
-  background: var(--color-primary-fill);
-  color: var(--color-primary-on-fill);
+  background: var(--color-accent-fill);
+  color: var(--color-accent-on-fill);
   padding: 0 var(--space-4) 0 var(--space-3);
   gap: var(--space-2);
 }
 
 .inbox-thread-header .panel-header-action--primary[data-hovered],
 .conversas-3col .inbox-thread-header .panel-header-action--primary[data-hovered] {
-  background: var(--color-primary-ink);
-  border-color: var(--color-primary-ink);
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
 }
 
 .inbox-thread-header .panel-header-action--primary[aria-pressed='true'] {

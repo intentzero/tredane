@@ -4,7 +4,7 @@ export type ThemePreference = 'system' | 'light' | 'dark'
 export const THEME_STORAGE_KEY = 'tredane-theme'
 
 /** Mesmas cores de `meta[name=theme-color]` que a barra do sistema deve mostrar (cabeçalho = surface.card). */
-const THEME_COLOR = { light: '#FFFFFF', dark: '#162423' } as const
+const THEME_COLOR = { light: '#FFFFFF', dark: '#182628' } as const
 
 export function isThemePreference(v: unknown): v is ThemePreference {
   return v === 'system' || v === 'light' || v === 'dark'
