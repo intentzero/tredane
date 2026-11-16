@@ -192,17 +192,38 @@ function collectWeekdays(
   return { dates, relative, hits }
 }
 
+function nextMondayCivil(today: string): string {
+  const dow = weekdayOf(today)
+  const daysToNextMonday = ((1 - dow + 7) % 7) || 7
+  return addDays(today, daysToNextMonday)
+}
+
+/** Segunda–sábado da próxima semana civil (sem domingo). */
+export function nextWeekSearchDays(today: string): string[] {
+  const monday = nextMondayCivil(today)
+  return [0, 1, 2, 3, 4, 5].map((n) => addDays(monday, n))
+}
+
+const NEXT_WEEK_RE = /\b(?:semana que vem|proxima semana)\b/
+
+export function wantsNextWeekWithoutWeekday(text: string): boolean {
+  const folded = norm(text)
+  if (!NEXT_WEEK_RE.test(folded)) return false
+  for (const [re] of WEEKDAY_NAMES) {
+    if (re.test(folded)) return false
+  }
+  return true
+}
+
 function collectRelativeDays(folded: string, today: string): { dates: string[]; relative: string[] } {
   const dates: string[] = []
   const relative: string[] = []
   if (/\bdepois de amanha\b/.test(folded)) dates.push(addDays(today, 2))
   else if (/\bamanha\b/.test(folded)) dates.push(addDays(today, 1))
   if (/\bhoje\b/.test(folded)) dates.push(today)
-  if (/\bsemana que vem\b/.test(folded)) {
+  if (NEXT_WEEK_RE.test(folded)) {
     relative.push('semana_que_vem')
-    const dow = weekdayOf(today)
-    const daysToNextMonday = ((1 - dow + 7) % 7) || 7
-    dates.push(addDays(today, daysToNextMonday))
+    dates.push(nextMondayCivil(today))
   }
   return { dates, relative }
 }
@@ -223,12 +244,23 @@ function mergeDates(
   return { dates: [...new Set([...explicit, ...weekdays.dates, ...relative])].sort(), dateConflict: false }
 }
 
-/** Mesmos limiares que `periodFromHHMM` (slot-offer): <12 manhã, <18 tarde, senão noite. */
+/** Alinhado a `inPeriodHHMM` (tarde ≥ 13:00). */
 function periodFromHour(hour: number): Period {
   if (hour < 12) return 'manha'
+  if (hour < 13) return 'manha'
   if (hour < 18) return 'tarde'
   return 'noite'
 }
+
+/** Cumprimentos não filtram período («Boa tarde, quero marcar…»). */
+function stripGreetingPeriodFalsePositives(folded: string): string {
+  return folded
+    .replace(/\b(?:bom dia|boa tarde|boa noite)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const DEPOIS_ALMOCO_RE = /\b(?:depois|apos|dps)\s+(?:do|de)\s+almoco\b/
 
 /**
  * «depois das 18h» / «depois das 20» (Lab #8 / PR-D sombra): preferência de
@@ -246,6 +278,9 @@ export function depoisDasClockRe(): RegExp {
 export function notBeforeTimeFromText(text: string): string | null {
   const folded = norm(text).replace(/\bmais tarde\b/g, ' ')
   let notBefore: string | null = null
+  if (DEPOIS_ALMOCO_RE.test(folded)) {
+    notBefore = '13:00'
+  }
   for (const m of folded.matchAll(depoisDasClockRe())) {
     const hour = Number(m[1])
     if (Number.isNaN(hour) || hour > 23) continue
@@ -261,7 +296,8 @@ function maskDepoisDasSpans(folded: string): string {
   return folded.replace(depoisDasClockRe(), (m) => ' '.repeat(m.length))
 }
 
-function parsePeriods(folded: string): Period[] {
+function parsePeriods(foldedRaw: string): Period[] {
+  const folded = stripGreetingPeriodFalsePositives(foldedRaw)
   const out: Period[] = []
   const add = (p: Period) => {
     if (!out.includes(p)) out.push(p)
@@ -269,6 +305,7 @@ function parsePeriods(folded: string): Period[] {
   if (/\bmanha\b/.test(folded)) add('manha')
   if (/\btarde\b/.test(folded)) add('tarde')
   if (/\bnoite\b/.test(folded)) add('noite')
+  if (DEPOIS_ALMOCO_RE.test(folded)) add('tarde')
   for (const m of folded.matchAll(depoisDasClockRe())) {
     const hour = Number(m[1])
     if (Number.isNaN(hour) || hour > 23) continue

@@ -401,7 +401,11 @@ describe('S09b — silêncio após «12 e 30 ue»', () => {
         confirmationMessageIdOverride: inbound.id,
       })
       expect((out.replyText ?? '').trim().length).toBeGreaterThan(0)
-      expect(out.replyText ?? '').toMatch(/Confirmar/i)
+      expect(out.replyText ?? '').toMatch(/Para confirmar, toca em Confirmar/)
+      const buttons =
+        out.interactive?.mode === 'buttons' ? (out.interactive.buttons ?? []) : []
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0]?.title).toBe('Confirmar')
     } finally {
       s.close()
     }

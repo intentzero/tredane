@@ -392,9 +392,9 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
       )}
 
       {stagingCard ? (
-        // DEC-163: ferramenta de staging recolhida no fim, longe do uso diário.
+        // DEC-163: ferramentas de staging recolhidas no fim, longe do uso diário.
         <details className="hub-staging">
-          <summary>Staging: repor a clínica ao estado inicial</summary>
+          <summary>Staging: ferramentas de teste</summary>
           {stagingCard}
         </details>
       ) : null}

@@ -122,6 +122,22 @@ describe('ClinicHub — progresso', () => {
     expect(screen.queryByText(/recepcionista/i)).toBeNull()
     expect(screen.getByRole('button', { name: /Equipe/ })).toBeTruthy()
   })
+
+  it('ferramentas de staging só aparecem quando stagingCard é passado', () => {
+    const { rerender } = render(
+      <ClinicHub tenantId="clinic-demo-a" snap={snap({ missing: [] })} />,
+    )
+    expect(screen.queryByText('Staging: ferramentas de teste')).toBeNull()
+    rerender(
+      <ClinicHub
+        tenantId="clinic-demo-a"
+        snap={snap({ missing: [] })}
+        stagingCard={<p>Limpar agenda de teste</p>}
+      />,
+    )
+    expect(screen.getByText('Staging: ferramentas de teste')).toBeTruthy()
+    expect(screen.getByText('Limpar agenda de teste')).toBeTruthy()
+  })
 })
 
 describe('modelos do WhatsApp', () => {

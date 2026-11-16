@@ -86,6 +86,7 @@ import { DIALOG_NOW_MS } from './scenario'
 import { CC_DIALOG_CASES } from './cc-cases'
 import { FL_DIALOG_CASES } from './fl-cases'
 import { ZONAS_DIALOG_CASES } from './zonas-cases'
+import { LAB_2026_11_16_CASES } from './lab-2026-11-16-cases'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
@@ -3451,5 +3452,6 @@ P0_DIALOG_CASES.push(...CC_DIALOG_CASES)
 // A-25..A-27: zonas em texto livre e telemetria do funil (DEC-143, #588/#589).
 // A-27 (antes A-24 neste PR): renumerado após #597 ocupar A-24 (Massagem ≠ variante).
 P0_DIALOG_CASES.push(...ZONAS_DIALOG_CASES)
+P0_DIALOG_CASES.push(...LAB_2026_11_16_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)

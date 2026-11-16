@@ -57,6 +57,8 @@ export function checkInvariants(
     allowSilentPause?: boolean
     /** Cliques válidos no Confirmar executados no diálogo (cada um pode criar um compromisso). */
     confirmClicks?: number
+    /** Compromissos já existentes antes do diálogo (ex. `prepare` com seed sintético). */
+    baselineAppointments?: number
   } = {},
 ): InvResult[] {
   const out: InvResult[] = []
@@ -66,10 +68,12 @@ export function checkInvariants(
   // INV-01: nenhum compromisso sem clique válido no Confirmar (DEC-061). Cada clique
   // executado pode criar no máximo um compromisso.
   const clicks = opts.confirmClicks ?? 0
+  const baseline = opts.baselineAppointments ?? 0
+  const created = s.appointmentCount() - baseline
   out.push({
     id: 'INV-01',
-    ok: s.appointmentCount() <= clicks,
-    detail: s.appointmentCount() > clicks ? `${s.appointmentCount()} appointments / ${clicks} clique(s)` : undefined,
+    ok: created <= clicks,
+    detail: created > clicks ? `${s.appointmentCount()} appointments / ${clicks} clique(s)` : undefined,
   })
 
   // INV-02: todo preço dito está no catálogo (linha, variante, soma na mesma linha, combo, sinal).
