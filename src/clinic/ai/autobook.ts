@@ -47,7 +47,9 @@ import { sendProposalToWhatsAppOp } from '../proposals/send'
 import {
   proposalConfirmNudgeClientRequestId,
   sendProposalConfirmNudgeOp,
+  PROPOSAL_CONFIRM_NUDGE_LEAD,
   shouldReofferProposalOnAffirmText,
+  shouldReofferProposalOnRepeatedSlot,
 } from '../proposals/text-confirm-nudge'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { openPendingCommunication } from '../proposals/pending-communication'
@@ -133,7 +135,7 @@ import {
   whichKind,
   zonesForAudienceLine,
 } from './variant-line'
-import { extractDates, extractTimes, norm } from './nlu/temporal'
+import { extractDates, extractTimes, norm, notBeforeTimeFromText } from './nlu/temporal'
 import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { validateClientOutbound } from './outbound-validate'
@@ -1076,6 +1078,7 @@ export async function tryAiAutoBook(
     ? input.turnTextOverride.trim()
     : clientTurn.map((m) => m.body).join('\n')
   turnTextForFriction = turnText
+  const notBeforeHHMM = notBeforeTimeFromText(turnText)
 
   // ADR-0015 / #472: revalidar ids se catalogVersion divergir (também sem TurnContext).
   syncBookingFrameWithCatalog(
@@ -1219,6 +1222,7 @@ export async function tryAiAutoBook(
           period: (frameReject.period as DayPeriod | null) ?? null,
           limit: 3,
           conversationId: input.conversationId,
+          notBeforeHHMM,
         })
         const interactive = applyOfferSideEffects(
           deferred,
@@ -1402,6 +1406,7 @@ export async function tryAiAutoBook(
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
+            notBeforeHHMM,
           })
           slotInteractive = applyOfferSideEffects(
             deferred,
@@ -1549,6 +1554,7 @@ export async function tryAiAutoBook(
             order: slotOrderFromText(turnText),
             limit: 3,
             conversationId: input.conversationId,
+            notBeforeHHMM,
           })
           slotInteractive = applyOfferSideEffects(
             deferred,
@@ -2433,47 +2439,78 @@ export async function tryAiAutoBook(
   const ready =
     Boolean(det.service && date && time) &&
     (det.ok || (det.status === 'needs_info' && missing.length === 0))
+  const reofferCtx = {
+    open: openProposal,
+    turnText,
+    swap,
+    zoneEcho,
+    turnServiceId: det.service?.id ?? session?.serviceId ?? frame?.serviceId ?? null,
+    turnDate: date ?? null,
+    turnTime: time ?? null,
+    tz,
+  }
   if (
-    shouldReofferProposalOnAffirmText({
-      open: openProposal,
-      turnText,
-      swap,
-      zoneEcho,
-      turnServiceId: det.service?.id ?? session?.serviceId ?? frame?.serviceId ?? null,
-      turnDate: date ?? null,
-      turnTime: time ?? null,
-      tz,
-    })
+    shouldReofferProposalOnAffirmText(reofferCtx) ||
+    shouldReofferProposalOnRepeatedSlot(reofferCtx)
   ) {
-    const nudge = sendProposalConfirmNudgeOp(
-      db,
-      caller,
-      {
-        proposal: openProposal!,
-        conversationId: input.conversationId,
-        clientRequestId: proposalConfirmNudgeClientRequestId(
-          openProposal!.id,
-          openProposal!.version,
-          confirmation.id,
-        ),
-      },
-      clock,
-    )
-    if (nudge.status === 'queued') {
-      const propDate = clinicCivilDateFromUtc(tz, openProposal!.startsAt)
-      const propTime = localHHMM(tz, openProposal!.startsAt)
-      return finish({
-        ...none('requires_button', {
-          confirmationMessageId: confirmation.id,
-          serviceId: openProposal!.serviceId,
-          date: propDate,
-          time: propTime,
-        }),
-        replyText: nudge.lead,
-        interactive: nudge.interactive,
-        outbox: nudge.outbox,
-        notes: 'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
-      })
+  const open = openProposal!
+    if (open.state === 'enviada') {
+      const nudge = sendProposalConfirmNudgeOp(
+        db,
+        caller,
+        {
+          proposal: open,
+          conversationId: input.conversationId,
+          clientRequestId: proposalConfirmNudgeClientRequestId(
+            open.id,
+            open.version,
+            confirmation.id,
+          ),
+        },
+        clock,
+      )
+      if (nudge.status === 'queued') {
+        const propDate = clinicCivilDateFromUtc(tz, open.startsAt)
+        const propTime = localHHMM(tz, open.startsAt)
+        return finish({
+          ...none('requires_button', {
+            confirmationMessageId: confirmation.id,
+            serviceId: open.serviceId,
+            date: propDate,
+            time: propTime,
+          }),
+          replyText: nudge.lead,
+          interactive: nudge.interactive,
+          outbox: nudge.outbox,
+          notes:
+            'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
+        })
+      }
+    } else {
+      const resent = sendProposalToWhatsAppOp(
+        db,
+        caller,
+        { proposalId: open.id },
+        clock,
+      )
+      if (resent.status === 'queued' || resent.status === 'already_sent') {
+        const propDate = clinicCivilDateFromUtc(tz, open.startsAt)
+        const propTime = localHHMM(tz, open.startsAt)
+        return finish({
+          ...none('requires_button', {
+            confirmationMessageId: confirmation.id,
+            serviceId: open.serviceId,
+            date: propDate,
+            time: propTime,
+          }),
+          replyText: PROPOSAL_CONFIRM_NUDGE_LEAD,
+          ...(resent.status === 'queued'
+            ? { outbox: resent.outbox, interactive: { mode: 'buttons', buttons: resent.interactive.buttons } }
+            : {}),
+          notes:
+            'DEC-061: short affirmative with open sent proposal → re-offer Confirmar button (baseline item 1).',
+        })
+      }
     }
   }
   if (!ready || !det.service || !date || !time) {
@@ -2782,6 +2819,7 @@ export async function tryAiAutoBook(
               order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
+              notBeforeHHMM,
             })
             logPolicyShadow({
               tenantId,
@@ -3128,6 +3166,7 @@ export async function tryAiAutoBook(
               order: slotOrderFromText(turnText),
               limit: 3,
               conversationId: input.conversationId,
+              notBeforeHHMM,
             })
             logPolicyShadow({
               tenantId,
@@ -3483,6 +3522,48 @@ export async function tryAiAutoBook(
   const label = `${svc.name} · ${dayText(date)} às ${time}`
   const found = { ...base, serviceId: svc.id, date, time }
 
+  const openActive = getActiveProposalForConversation(
+    db,
+    tenantId,
+    input.conversationId,
+    clock,
+  )
+  if (
+    openActive &&
+    openActive.state === 'enviada' &&
+    !openActive.confirmSuspended &&
+    openActive.serviceId === svc.id &&
+    clinicCivilDateFromUtc(tz, openActive.startsAt) === date &&
+    localHHMM(tz, openActive.startsAt) === time
+  ) {
+    const nudge = sendProposalConfirmNudgeOp(
+      db,
+      caller,
+      {
+        proposal: openActive,
+        conversationId: input.conversationId,
+        clientRequestId: proposalConfirmNudgeClientRequestId(
+          openActive.id,
+          openActive.version,
+          confirmation.id,
+        ),
+      },
+      clock,
+    )
+    if (nudge.status === 'queued') {
+      return finish({
+        ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+        proposalId: openActive.id,
+        proposalVersion: openActive.version,
+        replyText: nudge.lead,
+        interactive: nudge.interactive,
+        outbox: nudge.outbox,
+        notes:
+          'Aguarda o clique da cliente; texto livre («sim») não marca.',
+      })
+    }
+  }
+
   // S2 / DEC-061: texto livre NUNCA marca. Com capacidade ligada, monta+envia proposta versionada
   // (botão WhatsApp); o clique (S5) é que marca ou inicia Pix. Sem capacidade → só nota à atendente.
   const avail = await queryAutomaticAvailability(
@@ -3661,6 +3742,47 @@ export async function tryAiAutoBook(
     const status: AutoBookStatus = svc.requiresSignal ? 'needs_signal' : 'requires_button'
     const delivered = sent.status === 'queued' || sent.status === 'already_sent'
     if (delivered) deferred.discard()
+    if (delivered && sent.outbox.length === 0) {
+      const existing = getActiveProposalForConversation(
+        db,
+        tenantId,
+        input.conversationId,
+        clock,
+      )
+      if (
+        existing &&
+        existing.state === 'enviada' &&
+        localHHMM(tz, existing.startsAt) === time &&
+        clinicCivilDateFromUtc(tz, existing.startsAt) === date
+      ) {
+        const nudge = sendProposalConfirmNudgeOp(
+          db,
+          caller,
+          {
+            proposal: existing,
+            conversationId: input.conversationId,
+            clientRequestId: proposalConfirmNudgeClientRequestId(
+              existing.id,
+              existing.version,
+              confirmation.id,
+            ),
+          },
+          clock,
+        )
+        if (nudge.status === 'queued') {
+          return finish({
+            ...none(status, found),
+            proposalId: existing.id,
+            proposalVersion: existing.version,
+            replyText: nudge.lead,
+            interactive: nudge.interactive,
+            outbox: nudge.outbox,
+            notes:
+              'Aguarda o clique da cliente; texto livre («sim») não marca.',
+          })
+        }
+      }
+    }
     const sendNote = delivered
       ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
         'Aguarda o clique da cliente; texto livre («sim») não marca.'

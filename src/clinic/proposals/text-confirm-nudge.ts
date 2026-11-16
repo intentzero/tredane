@@ -58,6 +58,35 @@ export type ReofferProposalOnAffirmInput = {
   tz: string
 }
 
+export type ReofferProposalOnRepeatedSlotInput = {
+  open: AppointmentProposalRow | null | undefined
+  turnText: string
+  turnServiceId?: string | null
+  turnDate?: string | null
+  turnTime?: string | null
+  tz: string
+}
+
+/** Cliente repete o horário já proposto («12 e 30») sem ser afirmação curta — lab S09b. */
+export function shouldReofferProposalOnRepeatedSlot(
+  input: ReofferProposalOnRepeatedSlotInput,
+): input is ReofferProposalOnRepeatedSlotInput & { open: AppointmentProposalRow } {
+  const open = input.open
+  if (!open || open.confirmSuspended) return false
+  if (open.state !== 'enviada' && open.state !== 'envio_pendente' && open.state !== 'envio_incerto') {
+    return false
+  }
+  if (isProposalAffirmativeText(input.turnText)) return false
+  if (input.turnServiceId && input.turnServiceId !== open.serviceId) return false
+  const propDate = clinicCivilDateFromUtc(input.tz, open.startsAt)
+  const propTime = localHHMM(input.tz, open.startsAt)
+  const turnTimes = [...extractTimes(input.turnText)]
+  if (turnTimes.length !== 1 || turnTimes[0] !== propTime) return false
+  if (input.turnDate && input.turnDate !== propDate) return false
+  if (input.turnTime && input.turnTime !== propTime) return false
+  return true
+}
+
 export function shouldReofferProposalOnAffirmText(
   input: ReofferProposalOnAffirmInput,
 ): input is ReofferProposalOnAffirmInput & { open: AppointmentProposalRow } {
