@@ -1,6 +1,6 @@
 # ADR-0017 — Como a Clinic App aceita uma sessão de suporte
 
-- **Estado:** **Proposto** (17/11/2026, ao planear a [#853](https://github.com/intentzero/tredane/issues/853)). Nada aqui é decisão confirmada: **a direção e as perguntas Q-SUP-01 a Q-SUP-04 aguardam o Paulo** (DEC-195). Revê e concretiza o «Fluxo técnico proposto» da [ADR-0007](0007-support-impersonation.md), cujos pontos de cookie, CSRF e handoff «devem passar por revisão de segurança antes do deployment real».
+- **Estado:** **Direção Confirmada** (Paulo, 17/11/2026, «Aprovada»; DEC-195), ao planear a [#853](https://github.com/intentzero/tredane/issues/853). **As perguntas Q-SUP-01 a Q-SUP-04 continuam em aberto**: o PR 1 (porte para o D1) não depende delas; Q-SUP-01 e Q-SUP-02 bloqueiam o PR 2, Q-SUP-03 o PR 5 e Q-SUP-04 o uso em produção. Os valores «proposto» da tabela não são respostas. Revê e concretiza o «Fluxo técnico proposto» da [ADR-0007](0007-support-impersonation.md), cujos pontos de cookie, CSRF e handoff «devem passar por revisão de segurança antes do deployment real».
 - **Relacionados:** [ADR-0006](0006-clerk-platform-admin.md), [ADR-0007](0007-support-impersonation.md), [ADR-0011](0011-owner-approval-for-support.md), [platform-admin.md](../product/platform-admin.md), DEC-029 a DEC-037.
 
 ## Problema (o que o código faz hoje)
