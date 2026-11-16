@@ -235,8 +235,26 @@ function periodFromHour(hour: number): Period {
  * faixa, não relógio pontual. Não casa «depois de amanhã» (exige das?/da + dígito).
  * Função nova a cada uso: o flag `g` partilha `lastIndex` se reutilizarmos a mesma RegExp.
  */
-function depoisDasClockRe(): RegExp {
+export function depoisDasClockRe(): RegExp {
   return /\b(?:depois|dps)\s+das?\s+([01]?\d|2[0-3])(?:\s*h(?:rs|s)?(?:\s*([0-5]\d))?|:([0-5]\d))?\b/g
+}
+
+/**
+ * Lab S02: «dps das 4» / «depois das 14h» → só ofertar slots ≥ esse relógio no mesmo dia.
+ * Horas 1–7 contam como tarde (16:00–19:00), como em `parsePeriods`.
+ */
+export function notBeforeTimeFromText(text: string): string | null {
+  const folded = norm(text).replace(/\bmais tarde\b/g, ' ')
+  let notBefore: string | null = null
+  for (const m of folded.matchAll(depoisDasClockRe())) {
+    const hour = Number(m[1])
+    if (Number.isNaN(hour) || hour > 23) continue
+    const minutes = m[3] != null ? Number(m[3]) : m[2] != null ? Number(m[2]) : 0
+    const h = hour >= 1 && hour <= 7 ? hour + 12 : hour
+    const candidate = `${String(h).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+    if (!notBefore || candidate > notBefore) notBefore = candidate
+  }
+  return notBefore
 }
 
 function maskDepoisDasSpans(folded: string): string {

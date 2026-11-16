@@ -6,6 +6,7 @@
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { isCatalogInfoAsk } from './booking-intent-text'
+import { extractTimes } from './nlu/temporal'
 import {
   CONSECUTIVE_MISUNDERSTANDING_THRESHOLD,
   readMisunderstandingStreak,
@@ -66,18 +67,27 @@ export function detectTurnMisunderstanding(input: {
   priorOutboundBody: string | null
 }): TurnMisunderstandingReason | null {
   const { inboundBody, outboundBody, priorOutboundBody } = input
-  if (priorOutboundBody && outboundBodiesDuplicate(outboundBody, priorOutboundBody)) {
-    return 'duplicate_outbound'
-  }
-  if (outboundIgnoredPriceAsk(inboundBody, outboundBody)) return 'ignored_price'
-  if (inboundSignalsFrustration(inboundBody)) return 'client_frustration'
+  const inboundHasClock =
+    [...extractTimes(inboundBody)].length > 0 || /\b\d{1,2}:\d{2}\b/.test(inboundBody)
   if (
-    /\b\d{1,2}:\d{2}\b/.test(inboundBody) &&
+    inboundHasClock &&
     outboundIsAskTimeLoop(outboundBody) &&
     !/\bR\$\b/.test(outboundBody)
   ) {
     return 'ask_time_loop'
   }
+  if (priorOutboundBody && outboundBodiesDuplicate(outboundBody, priorOutboundBody)) {
+    // S04: segunda pergunta de preço com resposta válida + reoferta não é loop.
+    if (
+      isCatalogInfoAsk(inboundBody) &&
+      /\bR\$\s*\d|[\d.,]+\s*reais?\b/i.test(outboundBody)
+    ) {
+      return null
+    }
+    return 'duplicate_outbound'
+  }
+  if (outboundIgnoredPriceAsk(inboundBody, outboundBody)) return 'ignored_price'
+  if (inboundSignalsFrustration(inboundBody)) return 'client_frustration'
   return null
 }
 
