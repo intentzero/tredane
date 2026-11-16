@@ -734,6 +734,20 @@ describe('detectExplicitConfirmation', () => {
     })
     expect(r).toMatchObject({ ok: true, time: '15:00', date: '2026-10-29' })
   })
+  it('Sim do eco não herda hora antiga do histórico da cliente (rsamp_1241995755)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      clientTexts: ['[Botão] Sim'],
+      previousClinicText: 'Entendi: axila, pernas, íntima. Certo?',
+      historyTexts: ['Gostaria de agendar amanhã para depilação masculina'],
+      clientHistoryTexts: [
+        'Gostaria de agendar amanhã para depilação masculina',
+        'As 15:30',
+      ],
+    })
+    expect(r.time).toBeUndefined()
+    expect(r.missing).toContain('horario')
+  })
   it('«Quero todas» não herda 09:00 da cópia da clínica (atalho de zonas)', () => {
     const r = detectExplicitConfirmation({
       ...base,

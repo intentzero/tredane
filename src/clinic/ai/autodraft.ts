@@ -60,9 +60,11 @@ import {
 } from './deferred-booking-frame'
 import type { SendOutboundInput } from '../inbox/types'
 import {
+  AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS,
   AI_AUTODRAFT_DEBOUNCE_HUB_MS,
   AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
   autodraftDebounceMs,
+  looksLikeCompleteBookingRequest,
 } from './debounce'
 import { logPolicyShadow } from './policy-shadow'
 import {
@@ -267,8 +269,12 @@ export function enqueueAutoDraft(
     now,
     now,
   )
-  // Typing cedo no debounce curto (hub ou resposta a pending).
-  if (waitMs === AI_AUTODRAFT_DEBOUNCE_HUB_MS || waitMs === AI_AUTODRAFT_DEBOUNCE_PENDING_MS) {
+  // Typing cedo no debounce curto (hub, pending) ou pedido completo 2,5 s (DEC-136 / rsamp_1241995755).
+  if (
+    waitMs === AI_AUTODRAFT_DEBOUNCE_HUB_MS ||
+    waitMs === AI_AUTODRAFT_DEBOUNCE_PENDING_MS ||
+    (waitMs === AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS && looksLikeCompleteBookingRequest(body))
+  ) {
     try {
       enqueueTypingIndicator(
         db,
