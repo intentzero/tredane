@@ -38,6 +38,11 @@ export {
   type ClinicAbuseLimitsRow,
 } from './abuse-limits'
 export type * from './types'
+export { isOpeningDayAsk, OPENING_DAY_ASK_RE } from './opening-day-ask'
+export {
+  existingAppointmentPrefix,
+  findContactAppointmentOnDate,
+} from './contact-appointment-hint'
 export {
   enqueueAutoDraft,
   enqueueLatestUnansweredInbound,
