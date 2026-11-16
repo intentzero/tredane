@@ -136,7 +136,14 @@ import {
   whichKind,
   zonesForAudienceLine,
 } from './variant-line'
-import { extractDates, extractTimes, norm, notBeforeTimeFromText } from './nlu/temporal'
+import {
+  extractDates,
+  extractTimes,
+  nextWeekSearchDays,
+  norm,
+  notBeforeTimeFromText,
+  wantsNextWeekWithoutWeekday,
+} from './nlu/temporal'
 import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { validateClientOutbound } from './outbound-validate'
@@ -1085,6 +1092,19 @@ export async function tryAiAutoBook(
     : clientTurn.map((m) => m.body).join('\n')
   turnTextForFriction = turnText
   const notBeforeHHMM = notBeforeTimeFromText(turnText)
+  const clientTodayCivil = () => clinicCivilDateFromUtc(tz, confirmation.created_at)
+  const nextWeekOnly = wantsNextWeekWithoutWeekday(turnText)
+  const weekSearchDays = nextWeekOnly ? nextWeekSearchDays(clientTodayCivil()) : null
+  const explicitPreferHHMM = (() => {
+    const t = [...extractTimes(turnText)]
+    return t.length === 1 ? t[0]! : null
+  })()
+  const offerSlotSearchExtras = (currentDate: string | null | undefined) => ({
+    notBeforeHHMM,
+    searchDays: weekSearchDays,
+    preferHHMM: explicitPreferHHMM,
+    ...(nextWeekOnly && !currentDate && weekSearchDays?.[0] ? { date: weekSearchDays[0] } : {}),
+  })
 
   // ADR-0015 / #472: revalidar ids se catalogVersion divergir (também sem TurnContext).
   syncBookingFrameWithCatalog(
@@ -1229,7 +1249,7 @@ export async function tryAiAutoBook(
           limit: 3,
           conversationId: input.conversationId,
           contactId: conv.contactId,
-          notBeforeHHMM,
+          ...offerSlotSearchExtras(frameReject.date ?? null),
         })
         const interactive = applyOfferSideEffects(
           deferred,
@@ -1414,7 +1434,7 @@ export async function tryAiAutoBook(
             limit: 3,
             conversationId: input.conversationId,
             contactId: conv.contactId,
-            notBeforeHHMM,
+            ...offerSlotSearchExtras(frameInFunnel.date ?? null),
           })
           slotInteractive = applyOfferSideEffects(
             deferred,
@@ -1606,7 +1626,7 @@ export async function tryAiAutoBook(
             limit: 3,
             conversationId: input.conversationId,
             contactId: conv.contactId,
-            notBeforeHHMM,
+            ...offerSlotSearchExtras(framePay.date ?? null),
           })
           slotInteractive = applyOfferSideEffects(
             deferred,
@@ -2048,6 +2068,13 @@ export async function tryAiAutoBook(
   // reemite proposta no dia antigo (rsamp_fa7f138). Det.time do histórico («As 1330»)
   // também precisa cair; ver dropStickyTimeAfterDayRemap abaixo.
   let dropStickyTimeAfterDayRemap = false
+  if (nextWeekOnly && !ordinalOptionReply) {
+    const monday = weekSearchDays?.[0]
+    if (monday) {
+      date = date ?? monday
+      missing = missing.filter((item) => item !== 'dia')
+    }
+  }
   // rsamp_f3b49 / TR-528: «Na sexta na parte da manhã» após oferta de «amanhã à tarde»
   // — detectExplicitConfirmation não devolve dia (sem serviço no turno), o sticky
   // amanhã ficava, e só o período remapeava → «amanhã de manhã».
@@ -2417,6 +2444,20 @@ export async function tryAiAutoBook(
   }
   // Relógio neste turno (ex. «às 15») sobrevive ao remap de dia.
   if (!time && clockFromTurn) time = clockFromTurn
+  if (
+    time &&
+    (clockFromTurn || pendingTimeOverride || input.boundSlot || swap?.time) &&
+    det.service
+  ) {
+    missing = missing.filter((item) => item !== 'horario')
+    det = {
+      ...det,
+      time,
+      ...(date ? { date } : {}),
+      status: missing.length === 0 ? 'requires_button' : det.status,
+      ok: missing.length === 0 ? true : det.ok,
+    }
+  }
   // Hora pedida sem dia no quadro: o dia é o da proposta aberta, para a vaga
   // ser conferida sem gravar a hora nova (#577).
   // Após remap de dia (rsamp_fa7f138) a proposta antiga já caiu — não herdar o dia dela.
@@ -2880,7 +2921,7 @@ export async function tryAiAutoBook(
               limit: 3,
               conversationId: input.conversationId,
               contactId: conv.contactId,
-              notBeforeHHMM,
+              ...offerSlotSearchExtras(date ?? null),
             })
             logPolicyShadow({
               tenantId,
@@ -3228,7 +3269,7 @@ export async function tryAiAutoBook(
               limit: 3,
               conversationId: input.conversationId,
               contactId: conv.contactId,
-              notBeforeHHMM,
+              ...offerSlotSearchExtras(date ?? null),
             })
             logPolicyShadow({
               tenantId,

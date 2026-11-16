@@ -8,6 +8,7 @@ import {
   dayOfferLabelPt,
   dayTextPt,
   dayWithPrepPt,
+  inPeriodHHMM,
   periodFromHHMM,
   pickNearbySameDay,
   minutesOfHHMM,
@@ -184,6 +185,13 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     expect(periodFromHHMM('19:30')).toBe('noite')
   })
 
+  it('S01: período tarde começa às 13:00 (12:00 não entra)', () => {
+    expect(inPeriodHHMM('tarde', '12:00')).toBe(false)
+    expect(inPeriodHHMM('tarde', '12:30')).toBe(false)
+    expect(inPeriodHHMM('tarde', '13:00')).toBe(true)
+    expect(inPeriodHHMM('manha', '11:30')).toBe(true)
+  })
+
   it('pickNearbySameDay ordena por proximidade e fica no período da tarde', () => {
     const tz = 'America/Sao_Paulo'
     // Sexta 06/11/2026: slots fictícios em epoch (UTC = SP+3 no horário de verão? Nov=−3).
@@ -199,7 +207,7 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     ]
     const nearby = pickNearbySameDay(slots, '16:00', tz, { period: 'tarde', limit: 3 })
     expect(nearby).toEqual(['15:30', '15:00', '14:00'])
-    expect(nearby.every((t) => minutesOfHHMM(t) >= 12 * 60)).toBe(true)
+    expect(nearby.every((t) => minutesOfHHMM(t) >= 13 * 60)).toBe(true)
     expect(nearby).not.toContain('09:00')
   })
 

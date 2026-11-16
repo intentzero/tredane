@@ -611,7 +611,7 @@ describe('sombra no turno real (runDueAutoDrafts)', () => {
     const ev = on.events[0]!
     expect(ev.mainModelCalled).toBe(false)
     expect(ev.fields?.service).toBe('agree')
-    expect(ev.fields?.period).toBe('llm_only')
+    expect(ev.fields?.period).toBe('agree')
 
     expect(on.status).toEqual(off.status)
     expect(on.replies).toEqual(off.replies)

@@ -3,7 +3,14 @@
  * Âncora: qui 05/11/2026 (cenário da matriz).
  */
 import { describe, expect, it } from 'vitest'
-import { extractDates, extractTimes, notBeforeTimeFromText, parseTemporal } from './temporal'
+import {
+  extractDates,
+  extractTimes,
+  nextWeekSearchDays,
+  notBeforeTimeFromText,
+  parseTemporal,
+  wantsNextWeekWithoutWeekday,
+} from './temporal'
 
 const TODAY = '2026-11-05' // quinta
 
@@ -280,6 +287,46 @@ describe('parseTemporal (#408)', () => {
   it('S02: notBeforeTimeFromText — «dps das 4» → 16:00', () => {
     expect(notBeforeTimeFromText('tem mais tarde? tipo dps das 4')).toBe('16:00')
     expect(notBeforeTimeFromText('pode ser depois das 14h')).toBe('14:00')
+  })
+
+  it('S09a: «depois do almoço» → não antes de 13:00', () => {
+    expect(notBeforeTimeFromText('quinta depois do almoço')).toBe('13:00')
+    const p = parseTemporal('quinta depois do almoço', { civilDate: '2026-11-16' })
+    expect(p.periods).toEqual(['tarde'])
+    expect(p.times).toEqual([])
+    expect(p.dates).toEqual(['2026-11-19'])
+  })
+
+  it('cumprimento «boa tarde» não filtra período', () => {
+    expect(parseTemporal('Boa tarde, quero botox', { civilDate: '2026-11-16' }).periods).toEqual([])
+    expect(parseTemporal('quinta à tarde', { civilDate: '2026-11-16' }).periods).toEqual(['tarde'])
+  })
+
+  it('S02: «semana que vem» / «próxima semana» — janela segunda–sábado', () => {
+    expect(parseTemporal('quero marcar semana que vem', { civilDate: '2026-11-16' }).relative).toEqual([
+      'semana_que_vem',
+    ])
+    expect(nextWeekSearchDays('2026-11-16')).toEqual([
+      '2026-11-23',
+      '2026-11-24',
+      '2026-11-25',
+      '2026-11-26',
+      '2026-11-27',
+      '2026-11-28',
+    ])
+    expect(wantsNextWeekWithoutWeekday('massagem semana que vem')).toBe(true)
+    expect(wantsNextWeekWithoutWeekday('massagem segunda semana que vem')).toBe(false)
+    expect(parseTemporal('próxima semana de manhã', { civilDate: '2026-11-05' }).dates).toEqual(['2026-11-09'])
+  })
+
+  it('S06: «amanhã 12:30» extrai data e hora', () => {
+    expect(parseTemporal('amanha 12:30', { civilDate: '2026-11-17' })).toEqual(
+      expect.objectContaining({
+        dates: ['2026-11-18'],
+        times: ['12:30'],
+      }),
+    )
+    expect(extractTimes('meio dia e meia')).toEqual(new Set(['12:30']))
   })
 
   it('PR-D: «depois das Nh» não vira relógio pontual; «depois de amanhã» intacto', () => {
