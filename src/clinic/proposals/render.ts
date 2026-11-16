@@ -15,14 +15,10 @@ import {
   isHumanTeamOfferAllowed,
 } from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
+import { PROPOSAL_BODY_MAX, PROPOSAL_BUTTON_TITLE_MAX } from './interactive-limits'
 
 export { formatBookedWhenAt } from '../scheduling/format-booked-when'
-
-/** Limite Cloud API para título de botão reply. */
-export const PROPOSAL_BUTTON_TITLE_MAX = 20
-
-/** Limite Cloud API para corpo de mensagem interactive. */
-export const PROPOSAL_BODY_MAX = 1024
+export { PROPOSAL_BODY_MAX, PROPOSAL_BUTTON_TITLE_MAX } from './interactive-limits'
 
 export const PROPOSAL_BUTTON_TITLES = {
   confirm: 'Confirmar',
