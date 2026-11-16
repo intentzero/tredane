@@ -99,6 +99,7 @@ function mount(clinics: ClinicHealth[], summaryAt: number | null = NOW - 3 * MIN
         }
         return j(overview)
       }
+      if (url === '/api/platform/support') return j({ items: [], clinicalAccess: false })
       if (url === '/api/platform/tenants') {
         return j({
           tenants: server.clinics.map((c, i) => ({
@@ -279,7 +280,7 @@ describe('Platform Admin — saúde (#833, DEC-193)', () => {
       expect(rows).toHaveLength(3)
       expect(within(table).queryByText('Bem Estar Centro')).toBeNull()
       expect(within(table).queryByText('Pele Nova')).toBeNull()
-      expect(screen.getByText(/issue #831/)).toBeTruthy()
+      expect(screen.getByText('Nenhum pedido em aberto.')).toBeTruthy()
       expect(screen.getByText(/issue #832/)).toBeTruthy()
       await checkA11y(container)
       await user.click(screen.getByRole('link', { name: 'Ver a saúde de todas as clínicas' }))

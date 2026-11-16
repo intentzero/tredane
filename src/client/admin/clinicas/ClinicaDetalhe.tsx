@@ -13,6 +13,7 @@ import { CLINICA_TABS, clinicaHref, navigateAdmin, type ClinicaTab } from '../ro
 import { useAdminApi } from '../useAdminApi'
 import { EmptyState } from '../../panel/states/StatusScreens'
 import { SaudeTab } from '../saude/SaudeTab'
+import { SuporteTab } from '../suporte/SuporteTab'
 import { MembrosTab } from './MembrosTab'
 import { EditTenantDialog, LifecycleDialog, type LifecycleKind } from './LifecycleDialogs'
 
@@ -23,8 +24,7 @@ type Load =
   | { phase: 'ready'; detail: AdminTenantDetail }
 
 /** Cada aba chega com a sua issue do épico #827; até lá diz o que vem, sem dados inventados. */
-const TAB_PENDING: Record<Exclude<ClinicaTab, 'resumo' | 'membros' | 'saude'>, { issue: string; text: string }> = {
-  suporte: { issue: '#831', text: 'Pedidos e sessões de suporte desta clínica.' },
+const TAB_PENDING: Record<Exclude<ClinicaTab, 'resumo' | 'membros' | 'saude' | 'suporte'>, { issue: string; text: string }> = {
   auditoria: { issue: '#832', text: 'Eventos de auditoria desta clínica.' },
 }
 
@@ -356,6 +356,13 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
           invitations={detail.invitations}
           onChanged={reload}
         />
+      ) : tab === 'suporte' ? (
+        <SuporteTab
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          tenantStatus={tenant.status}
+          hasActiveOwner={activeOwners.length > 0}
+        />
       ) : tab === 'saude' ? (
         <SaudeTab tenantId={tenant.id} tenantStatus={tenant.status} whatsapp={detail.integration.whatsapp} />
       ) : (
@@ -363,9 +370,9 @@ export function ClinicaDetalhe({ tenantId, tab }: { tenantId: string; tab: Clini
           <h2 id="adm-tab-pending" className="admin-card-title">
             {CLINICA_TABS.find((x) => x.tab === tab)?.label}
           </h2>
-          <p>{TAB_PENDING[tab as Exclude<ClinicaTab, 'resumo' | 'membros' | 'saude'>].text}</p>
+          <p>{TAB_PENDING[tab as Exclude<ClinicaTab, 'resumo' | 'membros' | 'saude' | 'suporte'>].text}</p>
           <p className="admin-muted">
-            Esta aba chega com a issue {TAB_PENDING[tab as Exclude<ClinicaTab, 'resumo' | 'membros' | 'saude'>].issue} do épico #827.
+            Esta aba chega com a issue {TAB_PENDING[tab as Exclude<ClinicaTab, 'resumo' | 'membros' | 'saude' | 'suporte'>].issue} do épico #827.
           </p>
         </section>
       )}

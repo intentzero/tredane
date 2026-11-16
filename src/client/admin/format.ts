@@ -1,4 +1,13 @@
-import type { AdminTenantRow, AdminTenantStatus, ChannelStatus, ClinicHealth, HealthSituation } from './api'
+import type {
+  AdminTenantRow,
+  AdminTenantStatus,
+  ChannelStatus,
+  ClinicHealth,
+  HealthSituation,
+  SupportItem,
+  SupportPerson,
+  SupportState,
+} from './api'
 
 /** Estado mostrado ao operador. «Em configuração» não existe no D1: é ativa sem nenhuma owner ativa. */
 export type TenantDisplayState = 'active' | 'onboarding' | 'suspended' | 'pending_deletion'
@@ -124,4 +133,58 @@ export function healthReasons(c: ClinicHealth): string[] {
     out.push(`${n.llmJobsFailed1h} job(s) de IA falhado(s) na última hora`)
   }
   return out
+}
+
+export const SUPPORT_LABEL: Record<SupportState, string> = {
+  awaiting_owner: 'Aguarda owner',
+  approved: 'Aprovado',
+  active: 'Ativa',
+  session_expired: 'Expirou',
+  ended: 'Encerrada',
+  revoked: 'Revogada',
+  rejected: 'Rejeitado',
+  request_expired: 'Pedido expirou',
+  cancelled: 'Cancelado',
+}
+
+export const SUPPORT_TONE: Record<SupportState, PillTone> = {
+  awaiting_owner: 'warn',
+  approved: 'ok',
+  active: 'info',
+  session_expired: 'neutral',
+  ended: 'neutral',
+  revoked: 'bad',
+  rejected: 'bad',
+  request_expired: 'neutral',
+  cancelled: 'neutral',
+}
+
+/** Estados em que o pedido ainda anda (filtro «Abertos»). */
+export const SUPPORT_OPEN: readonly SupportState[] = ['awaiting_owner', 'approved', 'active']
+
+export const personLabel = (p: SupportPerson | null): string => p?.displayName || p?.email || p?.clerkUserId || '—'
+
+/** «18 min», «2 h», «21 h» — arredonda para cima nos minutos e para baixo nas horas. */
+export function formatSpan(ms: number): string {
+  const min = Math.ceil(ms / 60_000)
+  if (min < 60) return `${Math.max(1, min)} min`
+  return `${Math.floor(ms / 3_600_000)} h`
+}
+
+/** Linha secundária do estado: quem decidiu ou quem encerrou, e quando. */
+export function supportDetail(i: SupportItem): string | null {
+  if (i.state === 'approved' || i.state === 'rejected') {
+    return i.decider ? `por ${personLabel(i.decider)}${i.decidedAt ? `, ${formatReading(i.decidedAt)}` : ''}` : null
+  }
+  if (i.state === 'revoked') return i.revokedBy ? `por ${personLabel(i.revokedBy)}` : null
+  if (i.state === 'ended') return 'pelo operador'
+  return null
+}
+
+/** Prazo ou duração conforme o estado. */
+export function supportTiming(i: SupportItem): string {
+  if (i.state === 'awaiting_owner' && i.remainingMs !== null) return `expira em ${formatSpan(i.remainingMs)}`
+  if (i.state === 'active' && i.remainingMs !== null) return `restam ${formatSpan(i.remainingMs)}`
+  if (i.durationMs !== null) return formatSpan(i.durationMs)
+  return '—'
 }

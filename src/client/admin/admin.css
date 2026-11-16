@@ -656,3 +656,14 @@
   flex: 1;
   color: var(--color-text-secondary);
 }
+
+/* Suporte */
+.admin-session {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.admin-session .admin-muted {
+  color: var(--color-primary-ink);
+}

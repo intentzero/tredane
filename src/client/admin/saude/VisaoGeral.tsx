@@ -1,15 +1,27 @@
 import { useEffect, useState } from 'react'
 import type { AdminTenantRow } from '../api'
 import { AdminLoadError, AdminLoading, PageHeader, Pill } from '../AdminUi'
-import { SITUATION_LABEL, SITUATION_TONE, healthReasons, tenantDisplayState, formatReading } from '../format'
+import {
+  SITUATION_LABEL,
+  SITUATION_TONE,
+  SUPPORT_LABEL,
+  SUPPORT_OPEN,
+  SUPPORT_TONE,
+  healthReasons,
+  tenantDisplayState,
+  formatReading,
+  supportTiming,
+} from '../format'
 import { clinicaHref, navigateAdmin } from '../routes'
 import { useAdminApi } from '../useAdminApi'
+import { useSupport } from '../suporte/useSupport'
 import { summaryIsStale, useHealthOverview } from './useHealthOverview'
 
 /** PA-01 — contadores por estado e clínicas que precisam de atenção. Suporte e atividade chegam em #831/#832. */
 export function VisaoGeral() {
   const api = useAdminApi()
   const { load, reload } = useHealthOverview()
+  const { load: support } = useSupport()
   const [rows, setRows] = useState<AdminTenantRow[] | null>(null)
   const [rowsError, setRowsError] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -99,7 +111,29 @@ export function VisaoGeral() {
         </section>
         <section className="admin-card" aria-labelledby="adm-sup">
           <h2 id="adm-sup" className="admin-card-title">Suporte</h2>
-          <p className="admin-muted">Pedidos e sessões de suporte chegam com a issue #831 do épico #827.</p>
+          {support.phase === 'ready' ? (
+            (() => {
+              const open = support.items.filter((i) => SUPPORT_OPEN.includes(i.state))
+              return open.length === 0 ? (
+                <p className="admin-muted">Nenhum pedido em aberto.</p>
+              ) : (
+                <div className="admin-rows">
+                  {open.slice(0, 3).map((i) => (
+                    <div key={i.requestId}>
+                      <span>
+                        {i.tenantName}
+                        <span className="admin-muted admin-block">{supportTiming(i)}</span>
+                      </span>
+                      <Pill tone={SUPPORT_TONE[i.state]}>{SUPPORT_LABEL[i.state]}</Pill>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()
+          ) : (
+            <p className="admin-muted">{support.phase === 'loading' ? 'Carregando…' : 'Não foi possível carregar o suporte.'}</p>
+          )}
+          <a href="/admin/suporte" onClick={go('/admin/suporte')}>Abrir suporte</a>
         </section>
         <section className="admin-card" aria-labelledby="adm-act">
           <h2 id="adm-act" className="admin-card-title">Atividade recente da plataforma</h2>

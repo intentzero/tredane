@@ -41,6 +41,7 @@ import type { MembershipRow } from '../db/admin/memberships'
 import { asyncFromSync, fromD1 } from '../db/admin/async-store'
 import { workerCaller } from '../clinic'
 import { clinicDurableObjectName } from '../clinic/demo/do-name'
+import { clerkIdsOf, listSupportItems, type SupportItemRow } from '../support/platform-list'
 import { getHealth, listHealth, refreshTenantHealth } from '../ops/health-summary'
 import type { OpsClinicSnapshot } from '../ops/metrics'
 import { resolveAppBaseUrlFromEnv, resolveEmailTransport, type EmailTransport } from '../email'
@@ -583,6 +584,72 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         health: serializeHealth((await getHealth(db, tenantId))!),
         refreshIntervalMs: serializeHealthOverview([]).refreshIntervalMs,
       })
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  /** Nome de quem aparece nos pedidos de suporte, em lote; falha do Clerk → só ids. */
+  const supportPayload = async (
+    c: { env: WorkerBindings; get: (k: 'authServices') => AuthEnv['Variables']['authServices'] },
+    items: SupportItemRow[],
+  ) => {
+    let profiles = new Map<string, { displayName: string | null; email: string | null }>()
+    try {
+      const reader = c.get('authServices').staffProfiles
+      if (reader) profiles = await reader.readStaffProfiles(clerkIdsOf(items))
+    } catch {
+      profiles = new Map()
+    }
+    const person = (id: string | null) =>
+      id ? { clerkUserId: id, displayName: profiles.get(id)?.displayName ?? null, email: profiles.get(id)?.email ?? null } : null
+    return {
+      items: items.map((i) => ({
+        requestId: i.requestId,
+        tenantId: i.tenantId,
+        tenantName: i.tenantName,
+        actor: person(i.actorClerkUserId),
+        subject: person(i.subjectClerkUserId),
+        decider: person(i.deciderClerkUserId),
+        revokedBy: person(i.revokedByClerkUserId),
+        reason: i.reason,
+        scope: i.scope,
+        state: i.state,
+        createdAt: i.createdAt,
+        decidedAt: i.decidedAt,
+        expiresAt: i.expiresAt,
+        sessionId: i.sessionId,
+        activatedAt: i.activatedAt,
+        endedAt: i.endedAt,
+        durationMs: i.durationMs,
+        remainingMs: i.remainingMs,
+      })),
+      clinicalAccess: false as const,
+    }
+  }
+
+  routes.get('/api/platform/support', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.support.request')
+      const items = await listSupportItems(healthDb(c.env), clockNow().nowMs())
+      c.header('Cache-Control', 'no-store')
+      return c.json(await supportPayload(c, items))
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.get('/api/platform/tenants/:tenantId/support', requireSuperadmin(), async (c) => {
+    try {
+      requirePlatformPermission(c.get('principal'), 'platform.support.request')
+      const tenantId = c.req.param('tenantId')
+      const db = healthDb(c.env)
+      if (!(await db.get(`SELECT id FROM tenants WHERE id = ?`, tenantId))) {
+        return c.json({ error: 'tenant_not_found' }, 404)
+      }
+      const items = await listSupportItems(db, clockNow().nowMs(), { tenantId })
+      c.header('Cache-Control', 'no-store')
+      return c.json(await supportPayload(c, items))
     } catch (err) {
       return adminErrorResponse(c, err)
     }

@@ -97,6 +97,41 @@ export type HealthOverview = {
   clinics: ClinicHealth[]
 }
 
+export type SupportState =
+  | 'awaiting_owner'
+  | 'approved'
+  | 'active'
+  | 'session_expired'
+  | 'ended'
+  | 'revoked'
+  | 'rejected'
+  | 'request_expired'
+  | 'cancelled'
+
+export type SupportPerson = { clerkUserId: string; displayName: string | null; email: string | null }
+
+/** Pedido de suporte com a sessão, se houve (PA-05/PA-10): só metadados, nunca token nem conteúdo. */
+export type SupportItem = {
+  requestId: string
+  tenantId: string
+  tenantName: string
+  actor: SupportPerson | null
+  subject: SupportPerson | null
+  decider: SupportPerson | null
+  revokedBy: SupportPerson | null
+  reason: string
+  scope: string
+  state: SupportState
+  createdAt: number
+  decidedAt: number | null
+  expiresAt: number
+  sessionId: string | null
+  activatedAt: number | null
+  endedAt: number | null
+  durationMs: number | null
+  remainingMs: number | null
+}
+
 export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
 
 export type AdminTenantDetail = {
@@ -179,6 +214,19 @@ export function createAdminApi(getToken: TokenGetter) {
     async refreshTenantHealth(tenantId: string): Promise<ClinicHealth> {
       return (await request<{ health: ClinicHealth }>(`${tenantPath(tenantId)}/health/refresh`, { method: 'POST' })).health
     },
+    async listSupport(opts?: FetchOpts): Promise<SupportItem[]> {
+      return (await request<{ items: SupportItem[] }>('/api/platform/support', {}, opts)).items
+    },
+    async listTenantSupport(tenantId: string, opts?: FetchOpts): Promise<SupportItem[]> {
+      return (await request<{ items: SupportItem[] }>(`${tenantPath(tenantId)}/support`, {}, opts)).items
+    },
+    /** DEC-029: cria o pedido `pending`; sem aprovação de uma owner não há acesso. */
+    async createSupportRequest(input: { tenantId: string; subjectClerkUserId: string; reason: string }) {
+      return request<{ request: { id: string }; emailsSent: number; accessGranted: false }>(
+        '/api/platform/support-requests',
+        { method: 'POST', body: JSON.stringify({ ...input, scope: 'read_diagnostics' }) },
+      )
+    },
     async listMembers(tenantId: string, opts?: FetchOpts): Promise<AdminMember[]> {
       return (await request<{ members: AdminMember[] }>(`${tenantPath(tenantId)}/members`, {}, opts)).members
     },
@@ -236,6 +284,14 @@ export function adminErrorMessage(err: unknown): string {
       return 'O estado da clínica mudou entretanto. Atualize a página e confira.'
     case 'tenant_not_found':
       return 'Esta clínica já não existe.'
+    case 'no_active_owner':
+      return 'Esta clínica ainda não tem owner ativa: ninguém pode aprovar o acesso.'
+    case 'subject_not_member':
+      return 'Esta pessoa já não é membro ativo da clínica. Escolha outra.'
+    case 'verified_email_reader_unavailable':
+      return 'Não foi possível confirmar os e-mails das owners agora. Tente de novo em instantes.'
+    case 'invalid_body':
+      return 'Faltam dados no pedido. Confira a clínica, a pessoa e o motivo.'
     case 'tenant_not_active':
       return 'A clínica não está ativa: não há leituras novas.'
     case 'last_owner_protected':
