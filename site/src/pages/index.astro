@@ -6,7 +6,7 @@ import { Image } from 'astro:assets'
 import shotConversas from '../assets/app/conversas.png'
 import shotConversa from '../assets/app/conversa.png'
 import shotAgenda from '../assets/app/agenda.png'
-// Antes de publicar, preencher os itens [A DEFINIR] (DEC-044, LP-AC-05).
+// Itens com «PENDENTE: Paulo» na página ainda dependem do responsável pelo produto (DEC-044).
 // Toda afirmação desta página precisa de uma decisão confirmada (docs/product/landing.md).
 // Mensagem de 05/11/2026: a clínica cresce e a Tredane é a parceira do lado (docs/product/landing.md).
 // Endereços só aparecem quando configurados com valor real, sem .example (padrão do PR #547).
@@ -37,26 +37,26 @@ const flower = [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="${petal
 const trust = [
  { icon: 'book' as const, title: 'Fala o que você ensinou.', text: 'Preço, duração e explicação são os seus. O que ela não sabe, pergunta para a equipe.' },
  { icon: 'pointer' as const, title: 'Quem escolhe o horário é a cliente.', text: 'Só marca quando ela toca em Confirmar. Um «pode ser» escrito não marca.' },
- { icon: 'bell' as const, title: 'Na hora certa, chama a sua equipe.', text: 'Assunto de saúde, remarcação ou «quero falar com alguém»: passa para uma pessoa.' },
+ { icon: 'bell' as const, title: 'Na hora certa, chama a sua equipe.', text: 'Saúde, remarcação delicada ou pedido de uma pessoa: passa para a equipe, no mesmo painel.' },
 ]
 const faq = [
- { q: 'Isso me ajuda a faturar mais?', a: 'A ideia é essa: cada cliente recebe o preço e os horários enquanto ainda está com vontade de marcar. E o sinal por Pix segura o horário nos serviços que você escolher.' },
+ { q: 'Isso me ajuda a faturar mais?', a: 'A ideia é responder com o seu preço e mostrar horários livres enquanto a cliente ainda quer marcar. No piloto medimos junto com a clínica o que muda no dia a dia — sem prometer resultado financeiro.' },
  { q: 'Funciona com várias profissionais e salas?', a: 'Funciona. A agenda confere profissional, sala e intervalo antes de mostrar qualquer horário.' },
- { q: 'Preciso trocar o número da clínica?', a: 'O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com a nossa ajuda.' },
+ { q: 'Preciso trocar o número da clínica?', a: 'Não necessariamente. No piloto conversamos sobre o número antes de conectar; a clínica participa da configuração com a nossa ajuda.' },
  { q: 'O que a IA responde sozinha?', a: 'O que é rotina: preço, duração, explicação do serviço e horários livres, com as frases e o cadastro da clínica. Saúde, remarcação, cancelamento e qualquer pedido para falar com alguém vão para a equipe.' },
  { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, onde a equipe mais atende.' },
- { q: 'Quanto custa?', a: '[PREÇO E CONDIÇÕES A DEFINIR]' },
+ { q: 'Quanto custa?', a: 'Em piloto. Condições para clínicas pioneiras em definição. PENDENTE: Paulo (preço e condições comerciais).' },
 ]
 ---
 <Base
- title="Tredane — a parceira da sua clínica no WhatsApp"
- description="Sua clínica cresce. E você tem uma parceira do lado. O Tredane responde cada cliente no WhatsApp com o seu preço, mostra os horários livres e marca quando ela confirma."
+ title="Tredane — atendimento da clínica no WhatsApp"
+ description="Para clínicas de estética e depilação: do «oi» ao horário marcado, com o preço e a duração cadastrados, horários que cabem de verdade e confirmação pela cliente. Em piloto."
 >
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
 <header class="topbar">
 <div class="wrap">
-<a class="brand" href="#topo" aria-label="Tredane, início"><img src="/tredane-horizontal-escuro.svg" alt="Tredane" width="120" height="26" /></a>
+<a class="brand" href="#topo" aria-label="Tredane, início"><img src="/tredane-horizontal-cor.svg" alt="Tredane" width="120" height="26" /></a>
 <nav class="nav" aria-label="Seções">
 <a href="#ajuda">Como ajuda</a>
 <a href="#conversa">Na prática</a>
@@ -76,9 +76,9 @@ const faq = [
 <svg class="silk" aria-hidden="true" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-width="1.2"><g stroke="#F2B596" opacity=".3" set:html={silkWarm} /><g stroke="#9FD3D1" opacity=".26" set:html={silkCool} /></svg>
 <div class="wrap hero-grid">
 <div class="hero-copy">
-<p class="chip"><span class="dot"></span><span class="chip-long">Piloto aberto · clínicas de estética e depilação</span><span class="chip-short">Piloto aberto · estética e depilação</span></p>
-<h1 class="h1">Sua clínica cresce. <em>E você tem uma parceira do lado.</em></h1>
-<p class="lead">O Tredane responde cada cliente no WhatsApp com o seu preço, mostra os horários livres e marca quando ela confirma. Você só vê a agenda enchendo.</p>
+<p class="chip"><span class="dot"></span><span class="chip-long">Em piloto · clínicas de estética e depilação</span><span class="chip-short">Em piloto · estética e depilação</span></p>
+<h1 class="h1">O atendimento da sua clínica no WhatsApp, <em>do «oi» ao horário marcado.</em></h1>
+<p class="lead">Para clínicas que atendem e marcam pelo WhatsApp: responde com o preço e a duração que você cadastrou, mostra só horários que cabem de verdade e marca quando a cliente toca em Confirmar.</p>
 <div class="cta-row">
 <a class="btn btn-apricot" href={ctaHref}>{hasWhatsapp && <Icon name="message" size={20} stroke={2.2} />}Quero minha agenda cheia</a>
 <a class="hero-link" href="#conversa">Ver na prática</a>
@@ -95,9 +95,9 @@ const faq = [
 </div>
 <div class="wrap">
 <ul class="proof plain">
-<li>WhatsApp oficial</li>
+<li>Atendimento no WhatsApp</li>
 <li>O preço é sempre o seu</li>
-<li>Sinal por Pix direto na sua conta</li>
+<li>Remarcação e cancelamento vão para a equipe</li>
 </ul>
 <p class="fine">Telas do aplicativo, com nomes e valores fictícios.</p>
 </div>
@@ -147,7 +147,7 @@ const faq = [
 <h2 class="h3s">Marcou, pagou o sinal, garantiu.</h2>
 <p class="lead">Nos serviços que você escolher, a cliente paga o sinal ali mesmo na conversa. O dinheiro cai direto na sua conta. O Tredane não toca nele.</p>
 <div class="mini-grid">
-<div><h3>Valor por serviço</h3><p>Fixo ou percentual, só onde você quiser.</p></div>
+<div><h3>Valor por serviço</h3><p>Só nos serviços em que você quiser usar sinal.</p></div>
 <div><h3>Regras à vista</h3><p>A cliente lê a política de cancelamento antes de pagar.</p></div>
 </div>
 </div>
@@ -170,7 +170,7 @@ const faq = [
 <svg class="silk" aria-hidden="true" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-width="1.2"><g stroke="#9FD3D1" set:html={silkCool} /></svg>
 <div class="panel-top reveal">
 <div class="stack" style="gap: 16px;"><p class="eyebrow">Pode confiar</p><h2 class="h3s">Uma parceira que joga do seu lado.</h2></div>
-<p class="lead">Fala com as frases da clínica e nunca decide pela cliente. Se ela pergunta se fala com um robô, ouve a verdade. E a responsável pausa as marcações automáticas com um botão.</p>
+<p class="lead">Não inventa preço, não decide pela cliente e diz a verdade se perguntarem se é um robô. Saúde, remarcação delicada ou pedido de uma pessoa vão para a equipe.</p>
 </div>
 <ul class="feats plain">
 {trust.map((f) => (
@@ -193,7 +193,7 @@ const faq = [
 <li class="reveal"><Icon name="zap" size={22} /><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
 <li class="reveal"><Icon name="phone" size={22} /><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>
 <li class="reveal"><Icon name="users" size={22} /><strong>Papéis claros.</strong> A responsável configura; as atendentes atendem.</li>
-<li class="reveal"><Icon name="shield" size={22} /><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação, por 30 minutos.</li>
+<li class="reveal"><Icon name="shield" size={22} /><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação e escopo definido com você.</li>
 </ul>
 </div>
 <div class="team-shot reveal">
@@ -212,20 +212,27 @@ const faq = [
 <svg class="flower" aria-hidden="true" viewBox="0 0 400 400" fill="none" stroke-width="1.2" set:html={flower} />
 <div class="pilot-top panel-inner">
 <div class="pilot-copy reveal">
-<p class="eyebrow">Piloto aberto</p>
+<p class="eyebrow">Em piloto</p>
 <h2 class="h2">Sua clínica merece crescer. Vamos começar?</h2>
-<p class="lead">A gente conecta o WhatsApp, cadastra seus serviços com você e fica por perto nos primeiros passos.</p>
+<p class="pilot-status" role="status"><strong>Estado atual:</strong> em piloto.</p>
+<p class="lead">Condições para clínicas pioneiras em definição. No piloto, conectamos o WhatsApp com você, cadastramos serviços juntos e acompanhamos os primeiros passos.</p>
 {(hasWhatsapp || hasContact) ? (
 <div class="cta-row">
 {hasWhatsapp && <a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>}
 {hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-dark'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
 </div>
-) : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
-<span class="fine">Condições do piloto: [A DEFINIR]</span>
+) : (
+<p class="pilot-pending">
+<!-- PENDENTE Paulo: número e mensagem wa.me do WhatsApp comercial do Tredane -->
+<span class="pendente">PENDENTE: Paulo</span> — canal de contato do piloto (WhatsApp ou e-mail) será publicado aqui.
+</p>
+)}
+<span class="fine">Condições para clínicas pioneiras em definição.</span>
 </div>
 <div class="pilot-person reveal">
-<span class="pilot-photo" aria-hidden="true">[foto]</span>
-<p><strong>[A DEFINIR: nome de quem acompanha o piloto]</strong><span>Fica com a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
+<!-- PENDENTE Paulo: nome e foto de quem acompanha o piloto -->
+<span class="pilot-photo pilot-photo-empty" aria-hidden="true"></span>
+<p><strong class="pendente">PENDENTE: Paulo</strong><span>Nome e foto de quem acompanha o piloto.</span><span>Fica com a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
 </div>
 </div>
 <div class="grid2 pilot-lists">

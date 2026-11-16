@@ -5,7 +5,13 @@
  * - Contato bloqueado: usa `contacts.blocked_at` (já existente).
  * - Pausa da resposta automática (DEC-083): `conversations.ai_reply_paused_at`.
  */
+import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
+import {
+  parallelHandoffAllowsAutomation,
+  readAiReplyPause,
+  type AiReplyPauseReason,
+} from './human-handoff'
 
 export type ProtectionVerdict =
   | { allowed: true }
@@ -29,6 +35,7 @@ export function checkConversationProtection(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
+  clock?: Clock,
 ): ProtectionVerdict {
   try {
     const row = db.get<{ blocked_at: number | null }>(
@@ -40,7 +47,14 @@ export function checkConversationProtection(
     )
     if (!row) return { allowed: false, reason: 'not_found' }
     if (row.blocked_at != null) return { allowed: false, reason: 'contact_blocked' }
-    if (isConversationPaused(db, tenantId, conversationId)) return { allowed: false, reason: 'conversation_paused' }
+    if (isConversationPaused(db, tenantId, conversationId)) {
+      const pause = readAiReplyPause(db, tenantId, conversationId)
+      const reason = (pause?.reason ?? 'off_purpose') as AiReplyPauseReason
+      if (clock && parallelHandoffAllowsAutomation(db, tenantId, conversationId, clock, reason)) {
+        return { allowed: true }
+      }
+      return { allowed: false, reason: 'conversation_paused' }
+    }
     return { allowed: true }
   } catch {
     return { allowed: false, reason: 'check_failed' }

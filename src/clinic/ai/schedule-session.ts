@@ -224,7 +224,10 @@ function asClock(value: string | null): string | null {
 }
 
 function asDate(value: string | null): string | null {
-  return value != null && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+  if (value == null) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  if (/^cancel-mismatch:\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  return null
 }
 
 function parseJson<T>(raw: string | null, fallback: T): T {
@@ -290,11 +293,14 @@ export function scheduleFactsFromText(text: string): {
   for (const [re, label] of dayRules) {
     if (re.test(scan)) days.push(label)
   }
-  const forPeriod = fold(text).replace(/\bmais tarde\b/g, ' ')
+  const forPeriod = fold(text)
+    .replace(/\bmais tarde\b/g, ' ')
+    .replace(/\b(?:bom dia|boa tarde|boa noite)\b/g, ' ')
   const periods: SchedulePeriod[] = []
   if (/\bmanha\b/.test(forPeriod)) periods.push('manha')
   if (/\btarde\b/.test(forPeriod)) periods.push('tarde')
   if (/\bnoite\b/.test(forPeriod)) periods.push('noite')
+  if (/\b(?:depois|apos|dps)\s+(?:do|de)\s+almoco\b/.test(forPeriod)) periods.push('tarde')
   const out: { dayLabel?: ScheduleDayLabel; period?: SchedulePeriod } = {}
   if (days.length === 1) out.dayLabel = days[0]
   if (periods.length === 1) out.period = periods[0]

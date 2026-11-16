@@ -7,6 +7,8 @@ import { AiAssistCard } from './AiAssistCard'
 import { ClientConfirmsCard } from './ClientConfirmsCard'
 import { ForecastPlaceCard } from './ForecastPlaceCard'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
+import { CatalogTransferCard } from './CatalogTransferCard'
+import { StagingClearAppointmentsCard } from './StagingClearAppointmentsCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
@@ -351,15 +353,34 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             tenantId={tenantId}
             snap={snap}
             showAssistant={isOwner}
-            stagingCard={
-              isOwner && isStagingHostname() && active.phase === 'ready' ? (
-                <StagingResetCard
+            catalogTransferCard={
+              isOwner ? (
+                <CatalogTransferCard
                   tenantId={tenantId}
-                  clinicName={active.context.name}
                   api={api}
                   generation={generation}
-                  onDone={() => void reload()}
+                  onApplied={() => void reload()}
                 />
+              ) : null
+            }
+            stagingCard={
+              isOwner && isStagingHostname() && active.phase === 'ready' ? (
+                <>
+                  <StagingClearAppointmentsCard
+                    tenantId={tenantId}
+                    clinicName={active.context.name}
+                    api={api}
+                    generation={generation}
+                    onDone={() => void reload()}
+                  />
+                  <StagingResetCard
+                    tenantId={tenantId}
+                    clinicName={active.context.name}
+                    api={api}
+                    generation={generation}
+                    onDone={() => void reload()}
+                  />
+                </>
               ) : null
             }
           />

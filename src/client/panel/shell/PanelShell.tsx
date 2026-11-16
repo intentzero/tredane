@@ -9,6 +9,7 @@ import {
   LoadingState,
 } from '../states/StatusScreens'
 import { useTenant } from '../tenant/TenantContext'
+import { NeedsPersonAlerts } from '../screens/inbox/NeedsPersonAlerts'
 import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScreen'
 import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
@@ -27,9 +28,21 @@ type Props = {
   hideNav?: boolean
   /** Conversa aberta: no celular fica em tela cheia, sem barra inferior (ux-ui.md). */
   immersiveOnPhone?: boolean
+  /**
+   * DEC-161 / DEC-156: thread aberta — se for a única «Precisa de alguém»,
+   * a faixa do shell some (o cartão da conversa já avisa).
+   */
+  openConversationId?: string | null
 }
 
-export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone }: Props) {
+export function PanelShell({
+  area,
+  tenantId,
+  children,
+  hideNav,
+  immersiveOnPhone,
+  openConversationId = null,
+}: Props) {
   const { active, selectTenant, listState, generation } = useTenant()
   const { api } = useAuthSession()
   const { conn: waConn } = useWhatsapp(api, tenantId, generation)
@@ -173,6 +186,15 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
           tenantId={ctx.tenantId}
           conn={waConn}
           isOwner={isOwner}
+        />
+      ) : null}
+
+      {!avisosOnly && api ? (
+        <NeedsPersonAlerts
+          tenantId={ctx.tenantId}
+          api={api}
+          generation={generation}
+          openConversationId={openConversationId}
         />
       ) : null}
 

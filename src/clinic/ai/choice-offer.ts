@@ -59,6 +59,8 @@ export type ChoiceSlot =
   | 'periodo'
   /** Alterar detalhes → menu Horário|Serviço|Variantes (Paulo 09/11/2026). */
   | 'alter'
+  /** Escolher qual marcação cancelar (lista como Horários). */
+  | 'marcacao'
 
 export type ChoiceInteractiveButtons = {
   mode: 'buttons'
@@ -186,7 +188,8 @@ export function parseChoiceId(
     slot !== 'acumular' &&
     slot !== 'audiencia' &&
     slot !== 'periodo' &&
-    slot !== 'alter'
+    slot !== 'alter' &&
+    slot !== 'marcacao'
   ) {
     return null
   }
@@ -416,6 +419,43 @@ export function buildServiceChoiceList(
     pending: pendingForChoiceOffer({
       slot: 'servico',
       options: options.map((s) => ({ key: s.id, label: s.name })),
+    }),
+  }
+}
+
+/** Lista de marcações a cancelar — mesmo CTA e formato da lista Horários (Paulo 16/11/2026). */
+export function buildCancelAppointmentChoiceInteractive(input: {
+  catalogVersion: string
+  appointments: Array<{ id: string; serviceName: string; whenLabel: string }>
+}): { interactive: ChoiceInteractiveList; pending: BookingFramePending } {
+  const options = input.appointments.slice(0, META_LIST_MAX_ROWS).map((a) => {
+    const when = a.whenLabel.trim()
+    const title = clip(a.serviceName.trim() || 'Marcação', META_LIST_ROW_TITLE_MAX)
+    const distinctWhen = when && when !== title ? when : ''
+    return {
+      key: a.id,
+      label: `${a.serviceName} · ${when}`,
+      ...(distinctWhen ? { description: clip(distinctWhen, META_LIST_ROW_DESCRIPTION_MAX) } : {}),
+      title,
+    }
+  })
+  return {
+    interactive: {
+      mode: 'list',
+      button: clip(SLOT_LIST_BUTTON_LABEL, META_LIST_BUTTON_MAX),
+      sections: [
+        {
+          rows: options.map((o) => ({
+            id: encodeChoiceId('marcacao', input.catalogVersion, o.key),
+            title: o.title,
+            ...(o.description ? { description: o.description } : {}),
+          })),
+        },
+      ],
+    },
+    pending: pendingForChoiceOffer({
+      slot: 'marcacao',
+      options: options.map((o) => ({ key: o.key, label: o.label })),
     }),
   }
 }
@@ -768,6 +808,62 @@ export async function handleChoiceOfferClick(
   const parsedChoice = parseChoiceId(input.buttonId)
   if (!parsedChoice) {
     return { handled: false, reason: 'not_choice_id' }
+  }
+
+  // Escolha de marcação a cancelar (lista Horários).
+  if (parsedChoice.slot === 'marcacao') {
+    cancelAutoDraft(db, input.tenantId, input.conversationId)
+    const validated = validateChoiceAgainstFrame(
+      db,
+      input.tenantId,
+      input.conversationId,
+      input.buttonId,
+      clock.nowMs(),
+    )
+    if (!validated.ok || validated.slot !== 'marcacao') {
+      return finishChoiceClick(
+        db,
+        caller,
+        input,
+        clock,
+        {
+          outcome: 'stale_cleared',
+          outbox: [],
+          reason: validated.ok ? 'slot_mismatch' : validated.reason,
+        },
+        { startedMs: clickStartedMs },
+      )
+    }
+    const { handleCancelAppointmentChoiceClick } = await import('./cancel-flow')
+    const click = handleCancelAppointmentChoiceClick(
+      db,
+      caller,
+      {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        appointmentId: validated.key,
+        providerEventKey: input.providerEventKey,
+      },
+      clock,
+    )
+    if (!click.handled) {
+      return finishChoiceClick(
+        db,
+        caller,
+        input,
+        clock,
+        { outcome: 'stale_cleared', outbox: [], reason: 'unknown_option' },
+        { startedMs: clickStartedMs },
+      )
+    }
+    return finishChoiceClick(
+      db,
+      caller,
+      input,
+      clock,
+      { outcome: 'applied', outbox: click.outbox },
+      { startedMs: clickStartedMs },
+    )
   }
 
   // DEC-142: lista Feminino/Masculino do catálogo. Não entra no autobook nem no Flow.

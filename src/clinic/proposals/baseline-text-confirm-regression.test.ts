@@ -1,5 +1,5 @@
 /**
- * Baseline conversacional 15/11/2026 — itens 1, 9, 10 (cenarios S02, S07a/b, S01).
+ * Regressão laboratório — confirmação por texto com proposta aberta (S02, S07b, S09b; DEC-061).
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -122,9 +122,60 @@ describe('baseline 15/11 — confirmação por texto (S07b)', () => {
         )
         .map((r) => r.body)
       expect(bodies.some((b) => b.includes(PROPOSAL_CONFIRM_NUDGE_LEAD))).toBe(true)
-      expect(bodies.some((b) => /equipe validar|Não consigo confirmar|deixar sua solicitação/i.test(b))).toBe(
+      expect(bodies.some((b) => /Show!|equipe validar|Não consigo confirmar|deixar sua solicitação/i.test(b))).toBe(
         false,
       )
+      const buttons =
+        out[0]?.autoBook?.interactive?.mode === 'buttons'
+          ? (out[0].autoBook.interactive.buttons ?? [])
+          : []
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0]?.title).toBe('Confirmar')
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it.each([
+    ['isso pode confirmar', 'S02'],
+    ['ok aguardo entao obg', 'S02'],
+    ['ok 👍', 'S07b'],
+  ])('lab %s — afirmativa %j reoferta 1× Confirmar sem marcar', async (text, lab) => {
+    expect(lab).toMatch(/^S/)
+    const s = seed()
+    try {
+      const startsAt = Date.UTC(2026, 10, 18, 16, 0)
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          startsAt,
+        },
+        s.clock,
+      )
+      markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+      const out = await say(s, text)
+      expect(appointmentCount(s)).toBe(0)
+      expect(out[0]?.autoBook?.status).toBe('requires_button')
+      expect(out[0]?.autoBook?.replyText).toBe(PROPOSAL_CONFIRM_NUDGE_LEAD)
+      expect(
+        out[0]?.autoBook?.interactive?.mode === 'buttons' ? out[0].autoBook.interactive.buttons : [],
+      ).toHaveLength(1)
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it('sem proposta aberta — «sim» não dispara nudge', async () => {
+    const s = seed()
+    try {
+      const out = await say(s, 'sim')
+      expect(appointmentCount(s)).toBe(0)
+      expect(out[0]?.autoBook?.replyText ?? '').not.toBe(PROPOSAL_CONFIRM_NUDGE_LEAD)
     } finally {
       s.close()
     }

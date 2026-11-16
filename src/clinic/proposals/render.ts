@@ -15,14 +15,10 @@ import {
   isHumanTeamOfferAllowed,
 } from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
+import { PROPOSAL_BODY_MAX, PROPOSAL_BUTTON_TITLE_MAX } from './interactive-limits'
 
 export { formatBookedWhenAt } from '../scheduling/format-booked-when'
-
-/** Limite Cloud API para título de botão reply. */
-export const PROPOSAL_BUTTON_TITLE_MAX = 20
-
-/** Limite Cloud API para corpo de mensagem interactive. */
-export const PROPOSAL_BODY_MAX = 1024
+export { PROPOSAL_BODY_MAX, PROPOSAL_BUTTON_TITLE_MAX } from './interactive-limits'
 
 export const PROPOSAL_BUTTON_TITLES = {
   confirm: 'Confirmar',
@@ -280,6 +276,8 @@ export type ProposalResultBodyOpts = {
    * Passar `false` só quando o follow-up não é enviado.
    */
   omitDoubtFallback?: boolean
+  /** Horário civil do compromisso substituído (remarcação DEC-091 / lab S23). */
+  replacedStartsAt?: number | null
 }
 
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
@@ -296,9 +294,16 @@ export function renderProposalResultBody(
       const service = zoneLabel(proposal.serviceName, opts.zones ?? [])
       const bookedWhen = formatBookedWhen(proposal)
       const omitDoubt = opts.omitDoubtFallback !== false
+      const rescheduled =
+        proposal.replacesAppointmentId != null &&
+        opts.replacedStartsAt != null &&
+        Number.isFinite(opts.replacedStartsAt)
+      const head = rescheduled
+        ? `Remarcado: de ${formatBookedWhenAt(proposal.timezone, opts.replacedStartsAt!)} para ${bookedWhen}`
+        : `Agendado: ${service} · ${bookedWhen}`
       return (
-        `Agendado: ${service} · ${bookedWhen}` +
-        (proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
+        head +
+        (!rescheduled && proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
         (location ? ` Local: ${location}.` : '') +
         (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)

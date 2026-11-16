@@ -90,7 +90,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-80 | `ServicoOpcoesAgrupadas` | TEL-09 serviço (**Confirmado**, DEC-176) | JRN-08 · REQ-052 · DEC-078, DEC-079 | Opções agrupadas pelo nome: tempo e preço por público, sinônimos ou «Sem sinônimos», **Mudar todos…**, nota do modo e «Como fica na agenda» com exemplo | M-16, M-81 |
 | M-81 | `ServicoEditarOpcao` | TEL-09 serviço (**Confirmado**, DEC-176) | JRN-08 · REQ-052 · DEC-079, DEC-110 | Folha da opção: nome e sinônimos comuns; uma linha por público (caixa, minutos, preço com prefixo **R$** e máscara BR); **Remover zona…**, **Cancelar**, **Aplicar** | M-80 |
 | M-82 | `desktop/ServicosPalavras` | TEL-09 lista de Serviços (**Confirmado**, DEC-176) | JRN-08 · DEC-110, DEC-141 | «O que a IA reconhece»: palavras não reconhecidas no topo; cada nome do catálogo com as suas palavras, procura e aviso de palavra repetida | M-63, M-72 |
-| M-83 | `desktop/AcompanhamentoQuadro` | TEL-03 quadro (**Confirmado**, DEC-184, 14/11/2026) | JRN-03, JRN-04 · REQ-023 · DEC-040, DEC-165 | Quadro desktop com cartões em elevação E1 (selecionado em E2 com anel), avatar com iniciais, data da marcação em chip, «IA» em chip, «Parado» em chip de aviso, ponto de etapa no título e coluna vazia tracejada; barra de busca e filtros como hoje |
+| M-83 | `desktop/AcompanhamentoQuadro` | TEL-03 quadro (**Confirmado**, DEC-184, 14/11/2026; coluna vazia revista DEC-187 16/11) | JRN-03, JRN-04 · REQ-023 · DEC-040, DEC-165 | Quadro desktop com cartões em elevação E1 (selecionado em E2 com anel), avatar com iniciais, data da marcação em chip, «IA» em chip, «Parado» em chip de aviso, ponto de etapa no título; coluna vazia só com cabeçalho + contagem 0 (sem «Ninguém aqui»); barra de busca e filtros como hoje |
 | M-41 | `BloquearContato` | TEL-01 conversa | JRN-02 | Diálogo central de confirmação: o que acontece (mensagens novas não aparecem, ninguém responde, conversa encerrada; histórico e horários ficam), motivo opcional (só a equipe vê), **Bloquear contato** e **Cancelar**. **Proposto** (27/10/2026) | M-40, M-42 |
 | M-42 | `ContatoBloqueado` | TEL-01 conversa | JRN-02 | Conversa de contato bloqueado: cabeçalho «Bloqueado por Ana · hoje, 19:20», evento «Ana bloqueou este contato» e, no lugar do compositor, aviso com **Desbloquear**. **Proposto** (27/10/2026) | M-41, M-02 |
 | M-43 | `RascunhoCartao` | §6.3 IA | JRN-02 · REQ-022 | Rascunho da IA no compositor como cartão de largura total: cabeçalho «Rascunho da IA · revise antes de enviar» com tela cheia e descartar, texto em parágrafos curtos, rodapé **Outra**, **Nota** (recolhida) e **Enviar**. **Proposto** (27/10/2026) | M-02, M-30 |
@@ -101,6 +101,12 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-49 | `HorarioEditarDia` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 · AC-38 | Folha «Quarta»: aberto/fechado, faixas com intervalo, «Usar este horário também em» (chips de dias), quem atende neste dia, **Aplicar a N dias** (só altera o rascunho) | M-17 |
 | M-50 | `HorarioNovaFolga` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 · AC-38 | Folha «Folga ou fechamento»: «Quem fica fora» em multi-seleção, motivo em dropdown (único para todos), período, dia inteiro, aviso de compromissos afetados por pessoa, **Salvar para N pessoas** | M-17, M-51 |
 | M-51 | `HorarioNovaFolgaQuem` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 | Lista de «Quem fica fora» aberta (`aria-multiselectable`): Clínica inteira exclusiva, pessoas com cor e ponto, «N selecionadas», **Concluir** | M-50 |
+
+## Exploração da landing — paleta
+
+| Arquivo | Estado e origem | O que mostra | Critérios |
+| --- | --- | --- | --- |
+| [PaletaViva.dc.html](landing/paleta-viva/PaletaViva.dc.html) · [desktop](landing/paleta-viva/previews/desktop.png) · [celular](landing/paleta-viva/previews/celular.png) | **Confirmado**, Paulo em 16/11/2026, «gosto, implementa»; [especificação](../product/landing.md#exploração-de-paleta-coral--menta--16112026) | Landing completa com coral/turquesa, fundos menta/pêssego e alternador Atual/Proposta; snapshot do código local, sem mudar o painel | Contraste de texto ≥ 4,5:1; sem overflow em 360/390/1440 px; mesma estrutura e conteúdo; paleta aprovada; publicação **Em aberto** |
 
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
 

@@ -409,6 +409,71 @@ export function createPanelApi(getToken: TokenGetter) {
       return { status: res.status, body }
     },
 
+    /** STAGING-ONLY: apaga todos os compromissos da clínica (servidor 404 fora de staging). */
+    async clearClinicAppointments(
+      tenantId: string,
+      confirmName: string,
+      opts?: FetchOpts,
+    ): Promise<{ status: number; body: unknown }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/staging/clear-appointments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmName }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      const body: unknown = await res.json().catch(() => null)
+      return { status: res.status, body }
+    },
+
+    /** Exportação JSON do catálogo (owner). */
+    async exportClinicCatalog(
+      tenantId: string,
+      scopes: { services: boolean; professionals: boolean },
+      opts?: FetchOpts,
+    ): Promise<ClinicCatalogTransferDocument> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/catalog/export`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scopes),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicCatalogTransferDocument
+    },
+
+    /** Importação do catálogo (owner). dryRun default true no servidor. */
+    async importClinicCatalog(
+      tenantId: string,
+      input: {
+        document: ClinicCatalogTransferDocument | Record<string, unknown>
+        dryRun: boolean
+        services?: boolean
+        professionals?: boolean
+      },
+      opts?: FetchOpts,
+    ): Promise<ClinicCatalogImportResult> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/catalog/import`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicCatalogImportResult
+    },
+
     async interruptWhatsappDev(
       tenantId: string,
       reason?: string,
@@ -2736,7 +2801,7 @@ export type PipelineOpportunity = {
   missingAppointment: boolean
   linkedAppointment: PipelineLinkedAppointment | null
   /** Reserva por bloco em aberto (activa ou vencida sem hora). */
-  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+marcação aberta. */
+  /** DEC-187: ciclo real ou gémeo de atendimento com Agendado+atendimento aberto. */
   cardKind?: 'cycle' | 'open_attendance'
   /** Chave no quadro (gémeo = `${id}:attendance`). */
   boardKey?: string
@@ -2744,6 +2809,8 @@ export type PipelineOpportunity = {
   futureAppointmentCount?: number
   /** Conversação com sessão/proposta/quadro de marcação activo. */
   hasOpenAttendance?: boolean
+  /** DEC-156 — mesmo critério do Conversas; chip no quadro Acompanhar. */
+  needsPerson?: boolean
 }
 
 export type PipelineStageHistory = {
@@ -2946,6 +3013,37 @@ export type ClinicBlock = {
   reason: string
   note: string | null
   createdAt: number
+}
+
+/** JSON portátil do catálogo (export/import owner). */
+export type ClinicCatalogTransferDocument = {
+  format: 'tredane.clinic-catalog'
+  version: number
+  exportedAt: string
+  sourceTenantId: string
+  scopes: { services: boolean; professionals: boolean }
+  professionals: unknown[]
+  services: unknown[]
+  personalDataNote: string
+}
+
+export type ClinicCatalogImportResult = {
+  dryRun: boolean
+  scopes: { services: boolean; professionals: boolean }
+  items: Array<{
+    scope: 'professionals' | 'services'
+    action: 'create' | 'update' | 'skip'
+    sourceId: string
+    targetId: string | null
+    name: string
+    detail?: string
+  }>
+  warnings: Array<{ code: string; message: string; sourceId?: string }>
+  idMap: {
+    professionals: Record<string, string>
+    services: Record<string, string>
+    zones: Record<string, string>
+  }
 }
 
 export type ClinicConfigReadiness = {

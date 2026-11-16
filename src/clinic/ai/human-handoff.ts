@@ -16,7 +16,7 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import { CLINIC_SCOPE_ID } from '../config/types'
-import { setConversationAssignee } from '../inbox/conversations'
+import { getConversation, setConversationAssignee } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
@@ -24,6 +24,7 @@ import { flagConversationForTeamHandoff } from '../inbox/review-flag'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
+import { isCancelIntent, loadUpcomingAppointment } from './reschedule'
 import {
   HEALTH_RE,
   OFF_TOPIC_RE,
@@ -34,6 +35,7 @@ import {
   hasPolicyQuestion,
   hasStopRequest,
   wantsHumanPause,
+  wantsHumanText,
 } from './nlu/sensitive'
 import { MISUNDERSTANDING_ESCALATION_TEXT } from './misunderstanding-streak'
 import { endBookingSession, getOpenBookingSession } from './booking-session'
@@ -45,6 +47,7 @@ import {
 } from '../../conversation-metrics/attendant-metrics'
 import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
+import { isCatalogInfoAsk, isShortBookingAffirm } from './booking-intent-text'
 
 const PERIOD_LABEL: Record<string, string> = {
   manha: 'manhã',
@@ -333,6 +336,41 @@ export function replyAfterHoursHumanRequest(
   return { outbox }
 }
 
+const BOOKING_PROGRESS_WHILE_PAUSED_RE =
+  /\b(quero|queria|gostaria|marcar|agendar|remarcar|botox|hor[aá]rio|vaga|axila|pernas?|depila|massagem|drenagem|feminin|masculin|zonas?)\b/i
+
+const SERVICE_AVAILABILITY_WHILE_PAUSED_RE =
+  /\b(?:tem|fazem|faz|voc[eê]s\s+t[eê]m|vcs\s+t[eê]m)\b[^.?\n]{0,48}\b(?:massagem|drenagem|depila|botox|servi[cç]o)/i
+
+const DAY_TIME_WHILE_PAUSED_RE =
+  /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
+
+const CLOCK_WHILE_PAUSED_RE =
+  /(?:^|[^a-z0-9])(?:[aà]s\s+\d{1,2}(?:h(?:rs|s)?(?:\d{2})?)?|\d{1,2}[:h]\d{2}|\d{3,4})\b/i
+
+/** Cliente insiste só em humano, sem seguir o agendamento (lab S03a / regressão 16/11). */
+export const HUMAN_ONLY_ESCALATION_RE =
+  /\b(?:s[oó]|somente|apenas)\s+(?:quero|queria|gostaria|preciso)(?:\s+de)?\s+(?:falar\s+(?:com\s+)?)?(?:uma\s+)?(?:pessoa|humano|humana|atendente|algu[eé]m|equipe)\b/i
+
+export function wantsHumanOnlyEscalation(text: string): boolean {
+  const body = text.trim()
+  if (!body) return false
+  return HUMAN_ONLY_ESCALATION_RE.test(body) || HUMAN_ONLY_ESCALATION_RE.test(foldEscalation(body))
+}
+
+function foldEscalation(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function hasBookingFrameProgress(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const frame = getBookingFrame(db, tenantId, conversationId)
+  return Boolean(frame?.serviceId || frame?.line || frame?.variantIds?.length || frame?.date || frame?.time)
+}
+
 /** Pausas automáticas que podem retomar com intenção clara de marcar (baseline P4). */
 export function inboundWarrantsHandoffResume(
   text: string,
@@ -342,7 +380,75 @@ export function inboundWarrantsHandoffResume(
   if (!body) return false
   if (reason === 'customer_requested' || reason === 'human_only') return false
   if (reason !== 'off_purpose') return false
-  return /\b(quero|queria|gostaria|marcar|agendar|remarcar|botox|hor[aá]rio|vaga)\b/i.test(body)
+  return BOOKING_PROGRESS_WHILE_PAUSED_RE.test(body)
+}
+
+/**
+ * Em horário de equipe: manter alerta/pausa DEC-083 mas continuar automação
+ * de agendamento ou catálogo (regressão S03a / S08a, staging 16/11).
+ */
+export function inboundWarrantsParallelHandoffAutomation(
+  text: string,
+  reason: AiReplyPauseReason,
+  opts: {
+    db: ClinicDb
+    tenantId: string
+    conversationId: string
+    fromInteractive?: boolean
+  },
+): boolean {
+  const body = text.trim()
+  if (!body) return false
+  if (wantsHumanOnlyEscalation(body)) return false
+  if (opts.fromInteractive) return true
+  const frameProgress = hasBookingFrameProgress(opts.db, opts.tenantId, opts.conversationId)
+  const openSession = getOpenBookingSession(opts.db, opts.tenantId, opts.conversationId) != null
+
+  if (reason === 'customer_requested') {
+    if (wantsHumanText(body) && !BOOKING_PROGRESS_WHILE_PAUSED_RE.test(body) && !isShortBookingAffirm(body)) {
+      return false
+    }
+    if (openSession || frameProgress) return true
+    if (isShortBookingAffirm(body) || isCatalogInfoAsk(body)) return true
+    if (
+      BOOKING_PROGRESS_WHILE_PAUSED_RE.test(body) ||
+      DAY_TIME_WHILE_PAUSED_RE.test(body) ||
+      CLOCK_WHILE_PAUSED_RE.test(body)
+    ) {
+      return true
+    }
+    return false
+  }
+
+  if (reason === 'off_purpose') {
+    if (inboundWarrantsHandoffResume(body, reason)) return true
+    if (isCatalogInfoAsk(body) || SERVICE_AVAILABILITY_WHILE_PAUSED_RE.test(body)) return true
+    return false
+  }
+
+  return false
+}
+
+const PARALLEL_HANDOFF_AUTOMATION_REASONS = new Set<AiReplyPauseReason>([
+  'customer_requested',
+  'off_purpose',
+])
+
+/** Autobook/confirmação automática com alerta de equipe aberto (só expediente). */
+export function parallelHandoffAllowsAutomation(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+  reason: AiReplyPauseReason,
+): boolean {
+  if (!PARALLEL_HANDOFF_AUTOMATION_REASONS.has(reason)) return false
+  if (!isHumanTeamOfferAllowed(db, tenantId, clock)) return false
+  if (reason === 'customer_requested') return true
+  return (
+    getOpenBookingSession(db, tenantId, conversationId) != null ||
+    hasBookingFrameProgress(db, tenantId, conversationId)
+  )
 }
 
 /** Evita silêncio após handoff quando a cliente escreve de novo. */
@@ -742,6 +848,7 @@ export function handoffReason(
   text: string,
   clock: Clock,
   turn?: { catalog: { services: import('../config/types').ServiceRow[]; resources: import('../config/types').ResourceRow[] } },
+  opts?: { conversationId?: string },
 ): AiReplyPauseReason | null {
   const body = text.trim()
   if (!body) return null
@@ -767,10 +874,17 @@ export function handoffReason(
   ) {
     return 'off_purpose'
   }
-  if (
-    hits.some((h) => h.label === 'cancelar' || h.label === 'terceiro') ||
-    professionalOutsideService(db, tenantId, body, clock)
-  ) {
+  if (hits.some((h) => h.label === 'cancelar')) {
+    if (opts?.conversationId && isCancelIntent(body)) {
+      const conv = getConversation(db, tenantId, opts.conversationId)
+      if (conv) {
+        const upcoming = loadUpcomingAppointment(db, tenantId, conv.contactId, clock.nowMs())
+        if (upcoming) return null
+      }
+    }
+    return 'human_only'
+  }
+  if (hits.some((h) => h.label === 'terceiro') || professionalOutsideService(db, tenantId, body, clock)) {
     return 'human_only'
   }
   if (RESCHEDULE_RE.test(body)) return 'human_only'
