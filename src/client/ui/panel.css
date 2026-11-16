@@ -10229,6 +10229,31 @@ button.panel-auth-inline-link {
     font-size: 0.89rem;
   }
 
+  /* Cabeçalho como no WhatsApp Web: 59 px, avatar de 40 px, 16 px nas laterais. */
+  .inbox-thread > .inbox-thread-header,
+  .conversas-3col .inbox-thread > .inbox-thread-header {
+    min-height: 59px;
+    padding-block: 0;
+    padding-inline: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .inbox-thread-header .inbox-avatar--sm {
+    width: var(--size-avatar-md);
+    height: var(--size-avatar-md);
+    font-size: var(--font-size-small);
+  }
+}
+
+/* Desktop largo: a conversa respira como no WhatsApp Web (~5 % de cada lado, até 64 px). */
+@media (min-width: 1024px) {
+  .inbox-timeline {
+    padding-inline: clamp(var(--space-3), 5%, 64px);
+  }
+}
+
+@media (min-width: 768px) {
+
   .inbox-dock > .inbox-composer:not(.inbox-ai-card) {
     min-height: 52px;
   }
