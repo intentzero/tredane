@@ -27,7 +27,12 @@ import {
 import type { WorkerBindings } from '../worker/bindings'
 import type { LabStateResult, LabTurnResult } from './turn'
 import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
-import { assertLabResetAllowed, LabResetGuardError } from './reset-guards'
+import {
+  assertLabResetAllowed,
+  LabResetGuardError,
+  resolveLabResetTenantId,
+} from './reset-guards'
+import { LabResetProtectionError } from './reset-protected'
 
 const SERVER_INFO = { name: 'tredane-lab', version: '1.0.0' }
 
@@ -240,13 +245,18 @@ export const LAB_TOOLS = [
   {
     name: 'lab_reset',
     description:
-      'Cancela marcações futuras confirmadas e encerra propostas/holds pendentes na clínica demo (só staging). Por defeito dryRun=true: devolve contagens e ids sem alterar. Histórico passado e conversas mantêm-se.',
+      'Hard reset da agenda e estado conversacional no Clinic DO (só staging). Apaga marcações (passadas e futuras), propostas, holds e conversas no âmbito do tenant ou de um waId. Proteções obrigatórias no tenant Teste Paulo. dryRun=true por defeito.',
     inputSchema: {
       type: 'object',
       properties: {
+        tenantId: {
+          type: 'string',
+          description:
+            'Omitido: demo (tenant_dec0de000000000000000001). Teste Paulo: tenant_b40dc579540c30130840b9ac.',
+        },
         dryRun: {
           type: 'boolean',
-          description: 'true (padrão): só lista o que seria afetado; false aplica soft-cancel.',
+          description: 'true (padrão): contagens sem alterar; false aplica DELETE no DO.',
         },
         waId: WA_ID_PROP,
       },
@@ -266,18 +276,30 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
   const args: Args = rawArgs && typeof rawArgs === 'object' ? (rawArgs as Args) : {}
   if (name === 'lab_reset') {
     try {
-      assertLabResetAllowed(env, DEMO_CLINIC_TENANT_ID)
+      const tenantId = resolveLabResetTenantId(args.tenantId)
+      assertLabResetAllowed(env, tenantId)
+      let waFilter: string | undefined
+      if (args.waId !== undefined && args.waId !== null && args.waId !== '') {
+        const filtered = resolveLabWaId(args.waId)
+        if (!filtered) {
+          return toolErrorResult('waId inválido: usar 5500 + 8 a 11 dígitos.')
+        }
+        waFilter = filtered
+      }
+      const dryRun = args.dryRun !== false
+      const resetStub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(tenantId)))
+      const resetCaller = workerCaller(tenantId, `lab:${actor}`)
+      return toolTextResult(
+        await resetStub.labReset(resetCaller, {
+          dryRun,
+          ...(waFilter ? { waId: waFilter } : {}),
+        }),
+      )
     } catch (err) {
-      if (err instanceof LabResetGuardError) {
+      if (err instanceof LabResetGuardError || err instanceof LabResetProtectionError) {
         return toolErrorResult(err.message, { code: err.code })
       }
       throw err
-    }
-    if (args.waId !== undefined && args.waId !== null && args.waId !== '') {
-      const filtered = resolveLabWaId(args.waId)
-      if (!filtered) {
-        return toolErrorResult('waId inválido: usar 5500 + 8 a 11 dígitos.')
-      }
     }
   }
   const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(DEMO_CLINIC_TENANT_ID)))
@@ -359,19 +381,6 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
           return toolErrorResult('enabled (boolean) obrigatório.')
         }
         return toolTextResult(await stub.labConfig(caller, 'ai_assist', { enabled: args.enabled }))
-      case 'lab_reset': {
-        const dryRun = args.dryRun !== false
-        const waFilter =
-          args.waId !== undefined && args.waId !== null && args.waId !== ''
-            ? (resolveLabWaId(args.waId) ?? undefined)
-            : undefined
-        return toolTextResult(
-          await stub.labReset(caller, {
-            dryRun,
-            ...(waFilter ? { waId: waFilter } : {}),
-          }),
-        )
-      }
       default:
         return toolErrorResult(`Ferramenta desconhecida: ${name}`)
     }

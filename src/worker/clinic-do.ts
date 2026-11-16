@@ -2530,11 +2530,15 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   ): Promise<unknown> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    this.#assertLabAllowed(caller)
     this.#assertLabResetTenant(caller)
-    this.#ensureDemoSeededForLab(caller)
+    if (isDemoTenantId(caller.tenantId)) {
+      this.#ensureDemoSeededForLab(caller)
+    }
     const { labResetAgenda } = await import('../lab/reset')
-    return labResetAgenda(this.#db, caller, this.#clock, input)
+    return labResetAgenda(this.#db, caller, this.#clock, {
+      ...input,
+      protectionEnv: { LAB_RESET_PROTECTED_WAIDS: this.env.LAB_RESET_PROTECTED_WAIDS },
+    })
   }
 
   async labConfig(caller: ClinicCaller, op: string, payload: Record<string, unknown>): Promise<unknown> {

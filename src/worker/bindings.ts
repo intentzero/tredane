@@ -82,6 +82,8 @@ export type WorkerBindings = {
   DEMO_SEED_TOKEN?: string
   /** STAGING-ONLY (DEC-186): `true` habilita o MCP de laboratório (exige ENVIRONMENT=staging + OAUTH_KV; auth OAuth de superadmin). */
   LAB_ENABLED?: string
+  /** Staging: waIds extra protegidos em `lab_reset` (Teste Paulo), lista separada por vírgulas. */
+  LAB_RESET_PROTECTED_WAIDS?: string
   /** Teto diário de turnos do laboratório (padrão 400; proxy do orçamento de LLM, DEC-186). */
   LAB_MAX_TURNS_DAILY?: string
   /** Segredo HMAC para tokens efémeros de download de anexos (#34). */

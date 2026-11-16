@@ -1,8 +1,9 @@
 /**
  * Guardas de `lab_reset` (DEC-186): default-deny antes de tocar dados.
  */
-import { DEMO_CLINIC_TENANT_ID, LAB_FORBIDDEN_TENANT_IDS } from '../clinic/demo/ids'
+import { DEMO_CLINIC_TENANT_ID } from '../clinic/demo/ids'
 import type { WorkerBindings } from '../worker/bindings'
+import { LAB_RESET_ALLOWED_TENANT_IDS } from './reset-protected'
 
 export class LabResetGuardError extends Error {
   readonly code = 'lab_reset_refused'
@@ -12,7 +13,7 @@ export class LabResetGuardError extends Error {
   }
 }
 
-const LAB_RESET_ALLOWED_TENANT_ID = DEMO_CLINIC_TENANT_ID
+const ALLOWED = new Set<string>(LAB_RESET_ALLOWED_TENANT_IDS)
 
 export function assertLabResetEnvironment(
   env: Pick<WorkerBindings, 'ENVIRONMENT'> | undefined,
@@ -30,14 +31,22 @@ export function assertLabResetTenant(tenantId: string | null | undefined): void 
   if (!tenantId || typeof tenantId !== 'string') {
     throw new LabResetGuardError('Tenant indeterminado; lab_reset recusado.')
   }
-  if (LAB_FORBIDDEN_TENANT_IDS.has(tenantId)) {
-    throw new LabResetGuardError('lab_reset recusado: tenant da Clínica Teste Paulo não é permitido.')
-  }
-  if (tenantId !== LAB_RESET_ALLOWED_TENANT_ID) {
+  if (!ALLOWED.has(tenantId)) {
     throw new LabResetGuardError(
-      `lab_reset só para a clínica demo do laboratório (${LAB_RESET_ALLOWED_TENANT_ID}).`,
+      `lab_reset só para tenants autorizados (${LAB_RESET_ALLOWED_TENANT_IDS.join(', ')}).`,
     )
   }
+}
+
+export function resolveLabResetTenantId(raw: unknown): string {
+  if (raw === undefined || raw === null || raw === '') {
+    return DEMO_CLINIC_TENANT_ID
+  }
+  if (typeof raw !== 'string' || !raw.startsWith('tenant_')) {
+    throw new LabResetGuardError('tenantId inválido.')
+  }
+  assertLabResetTenant(raw)
+  return raw
 }
 
 export function assertLabResetAllowed(

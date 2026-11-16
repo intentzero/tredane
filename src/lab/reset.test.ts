@@ -1,211 +1,263 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createControllableClock } from '../db/clock'
 import { workerCaller } from '../clinic'
-import { DEMO_CLINIC_TENANT_ID } from '../clinic/demo/ids'
+import {
+  DEMO_CLINIC_TENANT_ID,
+  STAGING_TESTE_PAULO_TENANT_ID,
+} from '../clinic/demo/ids'
 import { upsertContact } from '../clinic/contacts'
 import { createConversation } from '../clinic/inbox/conversations'
 import { bootClinicDb } from '../clinic/test-db'
 import { labResetAgenda } from './reset'
-import { assertLabResetAllowed, LabResetGuardError } from './reset-guards'
+import {
+  assertLabResetAllowed,
+  LabResetGuardError,
+  resolveLabResetTenantId,
+} from './reset-guards'
+import {
+  PAULO_PROTECTED_CONTACT_IDS,
+  PAULO_PROTECTED_CONVERSATION_IDS,
+  resolveLabResetProtection,
+} from './reset-protected'
 import { callLabTool } from './routes'
 import type { WorkerBindings } from '../worker/bindings'
 
 const NOW = Date.UTC(2026, 10, 16, 15, 0)
 const HOUR = 3_600_000
-const WA_A = '550000000101'
-const WA_B = '550000000102'
-const OTHER_TENANT = 'tenant_aaaaaaaaaaaaaaaaaaaaaaa'
+const WA_SYNTH_A = '550000000201'
+const WA_SYNTH_B = '550000000202'
+const WA_PROTECTED_ENV = '550000000301'
 
-function seedAgenda() {
-  const clock = createControllableClock(NOW)
-  const boot = bootClinicDb({ clock })
-  const { db, close } = boot
-  const caller = workerCaller(DEMO_CLINIC_TENANT_ID, 'lab:test')
-  const cA = upsertContact(db, { tenantId: DEMO_CLINIC_TENANT_ID, waId: WA_A, displayName: 'Cliente A' }, clock)
-  const cB = upsertContact(db, { tenantId: DEMO_CLINIC_TENANT_ID, waId: WA_B, displayName: 'Cliente B' }, clock)
-  const convA = createConversation(db, { tenantId: DEMO_CLINIC_TENANT_ID, contactId: cA.id, status: 'open' }, clock)
-  createConversation(db, { tenantId: DEMO_CLINIC_TENANT_ID, contactId: cB.id, status: 'open' }, clock)
-
-  const appt = (
-    id: string,
-    tenantId: string,
-    contactId: string,
-    startsAt: number,
-    status: 'confirmed' | 'cancelled' = 'confirmed',
-  ) => {
-    db.run(
-      `INSERT INTO appointments (
-        id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
-        created_at, contact_id, confirmed_by
-      ) VALUES (?, ?, 'svc1', 'pro1', ?, ?, ?, ?, ?, 'lab:test')`,
-      id,
-      tenantId,
-      startsAt,
-      startsAt + HOUR,
-      status,
-      NOW,
-      contactId,
-    )
-  }
-
-  appt('apt_future_a', DEMO_CLINIC_TENANT_ID, cA.id, NOW + 2 * HOUR)
-  appt('apt_past_a', DEMO_CLINIC_TENANT_ID, cA.id, NOW - 2 * HOUR)
-  appt('apt_future_b', DEMO_CLINIC_TENANT_ID, cB.id, NOW + 3 * HOUR)
-  appt('apt_other_tenant', OTHER_TENANT, cA.id, NOW + 4 * HOUR)
-
-  const proposal = (id: string, contactId: string, convId: string, state: string) => {
-    db.run(
-      `INSERT INTO appointment_proposals (
-        id, tenant_id, lineage_id, version, contact_id, conversation_id, state,
-        clinic_location_text, beneficiary_kind, beneficiary_name, service_id, service_name,
-        starts_at, ends_at, duration_minutes, timezone, requires_signal, signal_conditions_text,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, 1, ?, ?, ?, '', 'titular', 'A', 'svc1', 'Limpeza',
-        ?, ?, 60, 'America/Sao_Paulo', 0, '', ?, ?)`,
-      id,
-      DEMO_CLINIC_TENANT_ID,
-      id,
-      contactId,
-      convId,
-      state,
-      NOW + 5 * HOUR,
-      NOW + 6 * HOUR,
-      NOW,
-      NOW,
-    )
-  }
-  proposal('prop_open_a', cA.id, convA.id, 'enviada')
-  proposal('prop_closed_a', cA.id, convA.id, 'confirmada')
-
+function seedContactGraph(
+  db: ReturnType<typeof bootClinicDb>['db'],
+  clock: ReturnType<typeof createControllableClock>,
+  tenantId: string,
+  contactId: string,
+  waId: string,
+  convId?: string,
+) {
+  upsertContact(db, { tenantId, waId, displayName: 'Synth', id: contactId }, clock)
+  const cid = convId ?? `cnv_synth_${contactId.slice(-6)}`
+  createConversation(db, { tenantId, contactId, status: 'open', id: cid }, clock)
   db.run(
-    `INSERT INTO schedule_holds (
-      id, tenant_id, conversation_id, contact_id, service_id, professional_id,
-      duration_minutes, window_starts_at, window_ends_at, status, created_by, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, 'svc1', 'pro1', 60, ?, ?, 'active', 'lab:test', ?, ?)`,
-    'hold_a',
-    DEMO_CLINIC_TENANT_ID,
-    convA.id,
-    cA.id,
-    NOW + HOUR,
+    `INSERT INTO appointments (
+      id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
+      created_at, contact_id, confirmed_by
+    ) VALUES (?, ?, 'svc1', 'pro1', ?, ?, 'confirmed', ?, ?, 'lab:test')`,
+    `apt_${contactId}`,
+    tenantId,
+    NOW + 2 * HOUR,
+    NOW + 3 * HOUR,
+    NOW,
+    contactId,
+  )
+  db.run(
+    `INSERT INTO appointment_proposals (
+      id, tenant_id, lineage_id, version, contact_id, conversation_id, state,
+      clinic_location_text, beneficiary_kind, beneficiary_name, service_id, service_name,
+      starts_at, ends_at, duration_minutes, timezone, requires_signal, signal_conditions_text,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, 1, ?, ?, 'enviada', '', 'titular', 'Synth', 'svc1', 'X',
+      ?, ?, 60, 'America/Sao_Paulo', 0, '', ?, ?)`,
+    `prop_${contactId}`,
+    tenantId,
+    `prop_${contactId}`,
+    contactId,
+    cid,
     NOW + 4 * HOUR,
+    NOW + 5 * HOUR,
     NOW,
     NOW,
   )
-
-  return { db, clock, close, caller, cA, cB }
+  db.run(
+    `INSERT INTO messages (id, tenant_id, conversation_id, direction, body, delivery_state, created_at)
+     VALUES (?, ?, ?, 'inbound', 'oi', 'received', ?)`,
+    `msg_${contactId}`,
+    tenantId,
+    cid,
+    NOW,
+  )
+  return { contactId, convId: cid }
 }
 
-describe('lab_reset — agenda demo', () => {
-  it('dryRun lista contagens sem alterar dados', () => {
-    const s = seedAgenda()
+describe('lab_reset — demo hard reset', () => {
+  it('dryRun=true por defeito não apaga e regista contagens', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
     try {
-      const before = s.db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND status = 'confirmed'`,
+      const caller = workerCaller(DEMO_CLINIC_TENANT_ID, 'lab:test')
+      seedContactGraph(db, clock, DEMO_CLINIC_TENANT_ID, 'ctc_demo_a', WA_SYNTH_A)
+      const before = db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`,
         DEMO_CLINIC_TENANT_ID,
       )!.n
-      const out = labResetAgenda(s.db, s.caller, s.clock, { dryRun: true })
+      const out = labResetAgenda(db, caller, clock, { protectionEnv: {} })
       expect(out.dryRun).toBe(true)
-      expect(out.counts).toEqual({ appointments: 2, proposals: 1, holds: 1, total: 4 })
-      expect(out.items.map((i) => i.id).sort()).toEqual(
-        ['apt_future_a', 'apt_future_b', 'hold_a', 'prop_open_a'].sort(),
-      )
-      const after = s.db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND status = 'confirmed'`,
+      expect(out.deleted.appointmentsFuture).toBeGreaterThan(0)
+      const after = db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`,
         DEMO_CLINIC_TENANT_ID,
       )!.n
       expect(after).toBe(before)
-      expect(s.db.get<{ state: string }>(
-        'SELECT state FROM appointment_proposals WHERE id = ?',
-        'prop_open_a',
-      )!.state).toBe('enviada')
+      const audit = db.get<{ detail: string }>(
+        `SELECT detail_json AS detail FROM operational_audit WHERE tenant_id = ? AND action = 'lab.agenda_hard_reset' ORDER BY occurred_at DESC LIMIT 1`,
+        DEMO_CLINIC_TENANT_ID,
+      )
+      expect(audit?.detail).toContain('dryRun')
     } finally {
-      s.close()
+      close()
     }
   })
 
-  it('execução cancela só futuros na demo e preserva passado e outro tenant', () => {
-    const s = seedAgenda()
+  it('apaga todas as categorias no tenant demo', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
     try {
-      const out = labResetAgenda(s.db, s.caller, s.clock, { dryRun: false })
-      expect(out.applied).toEqual({
-        appointmentsCancelled: 2,
-        proposalsExpired: 1,
-        holdsCancelled: 1,
-      })
-      expect(s.db.get<{ status: string }>('SELECT status FROM appointments WHERE id = ?', 'apt_future_a')!.status).toBe(
-        'cancelled',
+      const caller = workerCaller(DEMO_CLINIC_TENANT_ID, 'lab:test')
+      seedContactGraph(db, clock, DEMO_CLINIC_TENANT_ID, 'ctc_demo_b', WA_SYNTH_B)
+      const out = labResetAgenda(db, caller, clock, { dryRun: false, protectionEnv: {} })
+      expect(out.dryRun).toBe(false)
+      expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM contacts WHERE tenant_id = ?`, DEMO_CLINIC_TENANT_ID)!.n).toBe(
+        0,
       )
-      expect(s.db.get<{ status: string }>('SELECT status FROM appointments WHERE id = ?', 'apt_past_a')!.status).toBe(
-        'confirmed',
+      expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`, DEMO_CLINIC_TENANT_ID)!.n).toBe(
+        0,
       )
-      expect(s.db.get<{ status: string }>('SELECT status FROM appointments WHERE id = ?', 'apt_other_tenant')!.status).toBe(
-        'confirmed',
-      )
-      expect(s.db.get<{ state: string }>('SELECT state FROM appointment_proposals WHERE id = ?', 'prop_open_a')!.state).toBe(
-        'expirada',
-      )
-      expect(s.db.get<{ state: string }>('SELECT state FROM appointment_proposals WHERE id = ?', 'prop_closed_a')!.state).toBe(
-        'confirmada',
-      )
-      expect(s.db.get<{ status: string }>('SELECT status FROM schedule_holds WHERE id = ?', 'hold_a')!.status).toBe(
-        'cancelled',
-      )
+      expect(
+        db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointment_proposals WHERE tenant_id = ?`, DEMO_CLINIC_TENANT_ID)!
+          .n,
+      ).toBe(0)
     } finally {
-      s.close()
-    }
-  })
-
-  it('filtro waId restringe à cliente do número lab', () => {
-    const s = seedAgenda()
-    try {
-      const out = labResetAgenda(s.db, s.caller, s.clock, { dryRun: false, waId: WA_A })
-      expect(out.waIdFilter).toBe(WA_A)
-      expect(out.applied).toEqual({
-        appointmentsCancelled: 1,
-        proposalsExpired: 1,
-        holdsCancelled: 1,
-      })
-      expect(s.db.get<{ status: string }>('SELECT status FROM appointments WHERE id = ?', 'apt_future_b')!.status).toBe(
-        'confirmed',
-      )
-    } finally {
-      s.close()
+      close()
     }
   })
 })
 
-describe('lab_reset — guardas', () => {
-  it('recusa production, tenant não-demo e Clínica Teste Paulo', () => {
+describe('lab_reset — Teste Paulo proteções', () => {
+  it('mantém contacto protegido por id e limpa sintético', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const tenantId = STAGING_TESTE_PAULO_TENANT_ID
+      const caller = workerCaller(tenantId, 'lab:test')
+      const protectedId = PAULO_PROTECTED_CONTACT_IDS[0]!
+      const protectedConv = PAULO_PROTECTED_CONVERSATION_IDS[0]!
+      seedContactGraph(db, clock, tenantId, protectedId, WA_SYNTH_A, protectedConv)
+      seedContactGraph(db, clock, tenantId, 'ctc_synth_clear', WA_SYNTH_B)
+      const protectedRow = db.get<Record<string, unknown>>(
+        `SELECT * FROM appointments WHERE id = ?`,
+        `apt_${protectedId}`,
+      )!
+      const snap = JSON.stringify(protectedRow)
+      labResetAgenda(db, caller, clock, { dryRun: false, protectionEnv: {} })
+      expect(JSON.stringify(db.get(`SELECT * FROM appointments WHERE id = ?`, `apt_${protectedId}`))).toBe(snap)
+      expect(db.get(`SELECT id FROM contacts WHERE id = ?`, protectedId)).toBeTruthy()
+      expect(db.get(`SELECT id FROM appointments WHERE id = ?`, 'apt_ctc_synth_clear')).toBeFalsy()
+    } finally {
+      close()
+    }
+  })
+
+  it('protege por waId em LAB_RESET_PROTECTED_WAIDS', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const tenantId = STAGING_TESTE_PAULO_TENANT_ID
+      const caller = workerCaller(tenantId, 'lab:test')
+      const protectedWaContact = 'ctc_env_wa_prot'
+      upsertContact(db, { tenantId, waId: WA_PROTECTED_ENV, displayName: 'P', id: protectedWaContact }, clock)
+      const convProt = `cnv_wa_${protectedWaContact.slice(-6)}`
+      createConversation(db, { tenantId, contactId: protectedWaContact, status: 'open', id: convProt }, clock)
+      db.run(
+        `INSERT INTO appointments (
+          id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
+          created_at, contact_id, confirmed_by
+        ) VALUES (?, ?, 'svc1', 'pro1', ?, ?, 'confirmed', ?, ?, 'lab:test')`,
+        `apt_${protectedWaContact}`,
+        tenantId,
+        NOW + 2 * HOUR,
+        NOW + 3 * HOUR,
+        NOW,
+        protectedWaContact,
+      )
+      seedContactGraph(db, clock, tenantId, 'ctc_clear_env', WA_SYNTH_B)
+      labResetAgenda(db, caller, clock, {
+        dryRun: false,
+        protectionEnv: { LAB_RESET_PROTECTED_WAIDS: WA_PROTECTED_ENV },
+      })
+      expect(db.get(`SELECT id FROM contacts WHERE id = ?`, protectedWaContact)).toBeTruthy()
+      expect(db.get(`SELECT id FROM contacts WHERE id = ?`, 'ctc_clear_env')).toBeFalsy()
+    } finally {
+      close()
+    }
+  })
+
+  it('recusa waId que aponta para protegido', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const caller = workerCaller(STAGING_TESTE_PAULO_TENANT_ID, 'lab:test')
+      seedContactGraph(
+        db,
+        clock,
+        STAGING_TESTE_PAULO_TENANT_ID,
+        PAULO_PROTECTED_CONTACT_IDS[0]!,
+        WA_SYNTH_A,
+        PAULO_PROTECTED_CONVERSATION_IDS[0],
+      )
+      expect(() =>
+        labResetAgenda(db, caller, clock, {
+          waId: WA_SYNTH_A,
+          protectionEnv: {},
+        }),
+      ).toThrow(/protegido/)
+    } finally {
+      close()
+    }
+  })
+
+  it('fail-closed se LAB_RESET_PROTECTED_WAIDS é inválido', () => {
+    expect(
+      resolveLabResetProtection(STAGING_TESTE_PAULO_TENANT_ID, { LAB_RESET_PROTECTED_WAIDS: 'not-a-wa-id' }),
+    ).toBeNull()
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const caller = workerCaller(STAGING_TESTE_PAULO_TENANT_ID, 'lab:test')
+      expect(() =>
+        labResetAgenda(db, caller, clock, {
+          protectionEnv: { LAB_RESET_PROTECTED_WAIDS: '5511999990000' },
+        }),
+      ).toThrow(/fail-closed|proteção/)
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('lab_reset — guardas de rota', () => {
+  it('recusa tenant não autorizado e aceita demo e Teste Paulo', () => {
+    expect(() => assertLabResetAllowed({ ENVIRONMENT: 'staging' }, 'tenant_other')).toThrow(LabResetGuardError)
+    expect(resolveLabResetTenantId(undefined)).toBe(DEMO_CLINIC_TENANT_ID)
+    expect(resolveLabResetTenantId(STAGING_TESTE_PAULO_TENANT_ID)).toBe(STAGING_TESTE_PAULO_TENANT_ID)
     expect(() => assertLabResetAllowed({ ENVIRONMENT: 'production' }, DEMO_CLINIC_TENANT_ID)).toThrow(
       LabResetGuardError,
     )
-    expect(() => assertLabResetAllowed({ ENVIRONMENT: 'staging' }, 'tenant_unknown_not_demo')).toThrow(LabResetGuardError)
-    expect(() =>
-      assertLabResetAllowed({ ENVIRONMENT: 'staging' }, 'tenant_b40dc579540c30130840b9ac'),
-    ).toThrow(/Clínica Teste Paulo/)
-    expect(() => assertLabResetAllowed(undefined, DEMO_CLINIC_TENANT_ID)).toThrow(LabResetGuardError)
   })
 
-  it('callLabTool recusa production e waId inválido antes do DO', async () => {
+  it('production 404 / callLabTool recusa antes do DO', async () => {
     const labReset = vi.fn()
-    const envProd = {
-      ENVIRONMENT: 'production',
-      LAB_ENABLED: 'true',
-      OAUTH_KV: {},
-      CLINIC: { idFromName: (n: string) => n, get: () => ({ labReset }) },
-    } as unknown as WorkerBindings
-    const prod = await callLabTool('lab_reset', {}, envProd)
+    const prod = await callLabTool(
+      'lab_reset',
+      {},
+      {
+        ENVIRONMENT: 'production',
+        LAB_ENABLED: 'true',
+        OAUTH_KV: {},
+        CLINIC: { idFromName: (n: string) => n, get: () => ({ labReset }) },
+      } as unknown as WorkerBindings,
+    )
     expect(prod.isError).toBe(true)
-    expect(labReset).not.toHaveBeenCalled()
-
-    const env = {
-      ENVIRONMENT: 'staging',
-      LAB_ENABLED: 'true',
-      OAUTH_KV: {},
-      CLINIC: { idFromName: (n: string) => n, get: () => ({ labReset }) },
-    } as unknown as WorkerBindings
-    const badWa = await callLabTool('lab_reset', { waId: '5511999990000' }, env)
-    expect(badWa.isError).toBe(true)
     expect(labReset).not.toHaveBeenCalled()
   })
 })

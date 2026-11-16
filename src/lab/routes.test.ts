@@ -173,7 +173,7 @@ describe('MCP de laboratório (DEC-186)', () => {
   })
 
   it('lab_reset chama labReset no DO com dryRun true por defeito', async () => {
-    const labReset = vi.fn().mockResolvedValue({ dryRun: true, counts: { total: 0 } })
+    const labReset = vi.fn().mockResolvedValue({ dryRun: true, totalWouldDelete: 0 })
     const env = envWith({ labReset })
     const res = await post(env, call('lab_reset', {}))
     expect(res.status).toBe(200)
@@ -181,8 +181,11 @@ describe('MCP de laboratório (DEC-186)', () => {
       expect.objectContaining({ tenantId: 'tenant_dec0de000000000000000001' }),
       { dryRun: true },
     )
-    await post(env, call('lab_reset', { dryRun: false }))
-    expect(labReset).toHaveBeenLastCalledWith(expect.anything(), { dryRun: false })
+    await post(env, call('lab_reset', { tenantId: 'tenant_b40dc579540c30130840b9ac', dryRun: false }))
+    expect(labReset).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tenantId: 'tenant_b40dc579540c30130840b9ac' }),
+      { dryRun: false },
+    )
   })
 
   it('não há ferramenta para apagar', async () => {
