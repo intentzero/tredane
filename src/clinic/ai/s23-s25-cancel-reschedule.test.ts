@@ -146,7 +146,7 @@ describe('S23 — remarcação end-to-end', () => {
         conversationId: 'cnv',
         state: 'confirmada',
         clinicLocationText: '',
-        beneficiaryKind: 'contact',
+        beneficiaryKind: 'titular',
         beneficiaryName: 'X',
         serviceId: 'svc',
         serviceName: 'Microagulhamento',
@@ -174,7 +174,8 @@ describe('S23 — remarcação end-to-end', () => {
         resultKind: null,
         tempoCeu: 'tanto_faz',
         tempoTemperatura: 'tanto_faz',
-        tempoAlert: 'tanto_faz',
+        tempoCelsius: null,
+        confirmSuspended: false,
         createdAt: 0,
         updatedAt: 0,
       },
@@ -216,6 +217,7 @@ describe('S24 — cancelamento só com botão', () => {
         s.clock,
       )
       expect(first.handled).toBe(true)
+      if (!first.handled) return
       expect(first.replyText).toMatch(/remarcar/i)
       expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.rescheduleAppointmentId).toBe(booked.value.id)
 
@@ -227,6 +229,7 @@ describe('S24 — cancelamento só com botão', () => {
         s.clock,
       )
       expect(second.handled).toBe(true)
+      if (!second.handled) return
       expect(second.interactive?.buttons[0]?.title).toBe('Cancelar marcação')
 
       const click = handleCancelConfirmButtonClick(
