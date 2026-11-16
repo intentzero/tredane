@@ -87,6 +87,25 @@ describe('isCatalogClarificationAsk (DEC-177)', () => {
 })
 
 describe('answerFaqFromCatalog (DEC-177)', () => {
+  it('«inclui virilha» com explicação cadastrada → covered (determinístico)', () => {
+    const withExplain = {
+      ...intima,
+      synonyms: [],
+      clientExplanation: 'Inclui virilha e ânus no feminino.',
+    }
+    const r = answerFaqFromCatalog({
+      text: 'A íntima inclui a virilha?',
+      conversationId: 'cnv',
+      service,
+      zones: [withExplain, axila],
+    })
+    expect(r.kind).toBe('covered')
+    if (r.kind === 'covered') {
+      expect(r.replyText).toMatch(/virilha/i)
+      expect(r.replyText).toMatch(/faz parte de Intima/i)
+    }
+  })
+
   it('sinónimo sob íntima → resposta afirmativa de cadastro', () => {
     const r = answerFaqFromCatalog({
       text: 'A íntima inclui anus?',
