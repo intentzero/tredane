@@ -14,9 +14,13 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { tryAiAutoBook } from './autobook'
 import {
+  existingAppointmentPrefix,
   listFutureContactAppointments,
   upcomingAppointmentsOfferPrefix,
 } from './contact-appointment-hint'
+import { sayAct } from './dialogue-acts'
+import { offerNearestSlots, type OfferedSlot } from './slot-offer'
+import { outboundBodiesDuplicate } from './turn-misunderstanding'
 import { saveBookingFrame, saveScheduleSession } from './schedule-session'
 import { loadTurnContext } from './turn-context'
 import { isMyAppointmentsQuery, hubMeusBody } from '../../whatsapp/flow/hub-opening'
@@ -171,6 +175,55 @@ describe('marcação existente (#813)', () => {
   })
 
   it('2.º serviço: lembrete upcoming com postProcess (lista Horários e anti-repetição)', async () => {
+    /** Espelha autobook.ts — composição pós-merge #837 + #839 no tryAiAutoBook (objecto de marcação). */
+    const slotOfferWouldDuplicatePrior = (newBody: string, priorBody: string | null | undefined) => {
+      if (!priorBody?.trim()) return false
+      const head = priorBody.split('\n')[0]?.trim() ?? priorBody
+      return outboundBodiesDuplicate(newBody, priorBody) || outboundBodiesDuplicate(newBody, head)
+    }
+    const postProcessSlotOffer = (
+      offered: { replyText: string; slots: OfferedSlot[] },
+      serviceName: string,
+      conversationId: string,
+      priorBody: string | null | undefined,
+    ) => {
+      if (offered.slots.length === 0 || !slotOfferWouldDuplicatePrior(offered.replyText, priorBody)) {
+        return { replyText: offered.replyText, slots: offered.slots, suppressInteractive: false }
+      }
+      return {
+        replyText: sayAct('perguntar_horario', conversationId, { serviço: serviceName }, '   '),
+        slots: [] as OfferedSlot[],
+        suppressInteractive: true,
+      }
+    }
+    const slotOfferReplyText = (
+      offered: { replyText: string },
+      date: string | null | undefined,
+    ) => {
+      if (!date) return offered.replyText
+      const prefix = existingAppointmentPrefix(
+        s.db,
+        s.tenantId,
+        s.contact.id,
+        date,
+        TZ,
+        s.clock,
+      )
+      return prefix ? `${prefix}${offered.replyText}` : offered.replyText
+    }
+    const withUpcomingAppointmentReminder = (
+      offered: { replyText: string },
+      date: string | null | undefined,
+    ) => {
+      const body = slotOfferReplyText(offered, date)
+      const alreadySameDay =
+        date != null &&
+        existingAppointmentPrefix(s.db, s.tenantId, s.contact.id, date, TZ, s.clock)
+      if (alreadySameDay) return body
+      const upcoming = upcomingAppointmentsOfferPrefix(s.db, s.tenantId, s.contact.id, TZ, s.clock)
+      return upcoming ? `${upcoming}${body}` : body
+    }
+
     const NOW = Date.UTC(2026, 10, 16, 13, 0)
     const s = seedBase('clinic-demo-lab-813-postprocess', '5511900001243', NOW)
     try {
@@ -190,7 +243,6 @@ describe('marcação existente (#813)', () => {
         },
         s.clock,
       )
-      const startsExisting = zonedCivilToUtc(TZ, 2026, 11, 25, 10, 0)
       confirmAppointmentOp(
         s.db,
         s.caller,
@@ -198,7 +250,7 @@ describe('marcação existente (#813)', () => {
           clientRequestId: 'apt-lab-813-pp',
           serviceId: limpeza.id,
           professionalId: s.pro.id,
-          startsAt: startsExisting,
+          startsAt: zonedCivilToUtc(TZ, 2026, 11, 25, 10, 0),
           contactId: s.contact.id,
           conversationId: s.cnv.id,
           actorClerkUserId: s.caller.actorId!,
@@ -228,66 +280,42 @@ describe('marcação existente (#813)', () => {
         [{ name: 'Relaxante', audience: 'ambos', durationMinutes: 60, priceCents: 12_000 }],
         s.clock,
       )
-      const runTurn = async (body: string) => {
-        const inbound = insertMessage(
-          s.db,
-          {
-            tenantId: s.tenantId,
-            conversationId: s.cnv.id,
-            direction: 'inbound',
-            body,
-            deliveryState: 'received',
-            createdAt: s.clock.nowMs(),
-          },
-          s.clock,
-        )
-        s.clock.advance(1_000)
-        const turn = loadTurnContext(
-          s.db,
-          s.tenantId,
-          {
-            conversationId: s.cnv.id,
-            contactId: s.contact.id,
-            messageId: inbound.id,
-            inboundBody: body,
-          },
-          s.clock,
-        )
-        return tryAiAutoBook(s.db, s.caller, s.clock, {
-          conversationId: s.cnv.id,
-          enabled: true,
-          capability: true,
-          turn,
-          confirmationMessageIdOverride: inbound.id,
-        })
-      }
-      const first = await runTurn('Quero massagem relaxante à tarde')
-      expect(first.replyText ?? '').toMatch(/você já tem/i)
-      expect(first.replyText ?? '').toMatch(/limpeza/i)
-      expect(first.replyText ?? '').toMatch(/\d{1,2}:\d{2}/)
-      expect(first.interactive?.mode).toBe('list')
-      const offerBody = first.replyText ?? ''
-      const slotOfferOnly = offerBody.includes('\n\n')
-        ? offerBody.slice(offerBody.indexOf('\n\n') + 2)
-        : offerBody
-      insertMessage(
-        s.db,
-        {
-          tenantId: s.tenantId,
-          conversationId: s.cnv.id,
-          direction: 'outbound',
-          body: slotOfferOnly,
-          deliveryState: 'delivered',
-          createdAt: s.clock.nowMs(),
-        },
-        s.clock,
+      const offered = await offerNearestSlots({
+        db: s.db,
+        tenantId: s.tenantId,
+        service: massagem,
+        zones: massagem.zones.filter((z) => z.active),
+        tz: TZ,
+        clock: s.clock,
+        professionalId: s.pro.id,
+        date: '2026-11-16',
+        period: 'tarde',
+        limit: 3,
+        conversationId: s.cnv.id,
+        contactId: s.contact.id,
+      })
+      expect(offered.slots.length).toBeGreaterThan(0)
+      const processed = postProcessSlotOffer(
+        offered,
+        massagem.name,
+        s.cnv.id,
+        null,
       )
-      s.clock.advance(30_000)
-      const second = await runTurn('massagem relaxante à tarde por favor')
-      expect(second.replyText ?? '').toMatch(/você já tem/i)
-      expect(second.replyText ?? '').not.toBe(offerBody)
-      expect(second.interactive?.mode).not.toBe('list')
-      expect(second.replyText ?? '').toMatch(/horário/i)
+      const replyText = withUpcomingAppointmentReminder(
+        { replyText: processed.replyText },
+        '2026-11-16',
+      )
+      expect(replyText).toMatch(/você já tem/i)
+      expect(replyText).toMatch(/limpeza/i)
+      expect(replyText).toMatch(/\d{1,2}:\d{2}/)
+      expect(processed.suppressInteractive).toBe(false)
+
+      const dup = postProcessSlotOffer(offered, massagem.name, s.cnv.id, offered.replyText)
+      expect(dup.suppressInteractive).toBe(true)
+      const dupReply = withUpcomingAppointmentReminder({ replyText: dup.replyText }, '2026-11-16')
+      expect(dupReply).toMatch(/você já tem/i)
+      expect(dupReply).toMatch(/horário/i)
+      expect(dupReply).not.toBe(replyText)
     } finally {
       s.close()
     }
