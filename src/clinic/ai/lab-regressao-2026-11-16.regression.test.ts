@@ -265,15 +265,18 @@ describe('marcação existente (#813)', () => {
       expect(first.replyText ?? '').toMatch(/você já tem/i)
       expect(first.replyText ?? '').toMatch(/limpeza/i)
       expect(first.replyText ?? '').toMatch(/\d{1,2}:\d{2}/)
-      expect(first.interactive?.button).toBe('Horários')
+      expect(first.interactive?.mode).toBe('list')
       const offerBody = first.replyText ?? ''
+      const slotOfferOnly = offerBody.includes('\n\n')
+        ? offerBody.slice(offerBody.indexOf('\n\n') + 2)
+        : offerBody
       insertMessage(
         s.db,
         {
           tenantId: s.tenantId,
           conversationId: s.cnv.id,
           direction: 'outbound',
-          body: offerBody,
+          body: slotOfferOnly,
           deliveryState: 'delivered',
           createdAt: s.clock.nowMs(),
         },

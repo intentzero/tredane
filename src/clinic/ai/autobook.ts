@@ -3220,7 +3220,7 @@ export async function tryAiAutoBook(
                   preferred,
                   rememberOfferFrame,
                 )
-            replyText = slotOfferReplyText(
+            replyText = withUpcomingAppointmentReminder(
               { replyText: processedDet.replyText },
               db,
               tenantId,
@@ -3278,7 +3278,7 @@ export async function tryAiAutoBook(
                     preferred,
                     rememberOfferFrame,
                   )
-              replyText = slotOfferReplyText(
+              replyText = withUpcomingAppointmentReminder(
                 { replyText: processedFallback.replyText },
                 db,
                 tenantId,
