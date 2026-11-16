@@ -21,6 +21,7 @@ import {
 } from './reset-protected'
 import { callLabTool } from './routes'
 import type { WorkerBindings } from '../worker/bindings'
+import { seedLabResetFkGraph, snapshotFkRows } from './reset-fk-fixture'
 
 const NOW = Date.UTC(2026, 10, 16, 15, 0)
 const HOUR = 3_600_000
@@ -296,5 +297,136 @@ describe('lab_reset — guardas de rota', () => {
     )
     expect(prod.isError).toBe(true)
     expect(labReset).not.toHaveBeenCalled()
+  })
+})
+describe('lab_reset — limites SQL e FK', () => {
+  const BULK_N = 120
+
+  function openDbWithVariableCap() {
+    const clock = createControllableClock(NOW)
+    const { db, close, raw } = bootClinicDb({ clock })
+    raw.exec('PRAGMA max_variable_number = 100')
+    return { clock, db, close }
+  }
+
+  it('dryRun e reset real com >100 contactos (max_variable_number=100)', () => {
+    const { clock, db, close } = openDbWithVariableCap()
+    try {
+      const tenantId = DEMO_CLINIC_TENANT_ID
+      const caller = workerCaller(tenantId, 'lab:test')
+      for (let i = 0; i < BULK_N; i++) {
+        const contactId = `ctc_bulk_${String(i).padStart(4, '0')}`
+        const waId = `5500002${String(i).padStart(6, '0')}`
+        seedContactGraph(db, clock, tenantId, contactId, waId)
+      }
+      const dry = labResetAgenda(db, caller, clock, { protectionEnv: {} })
+      expect(dry.dryRun).toBe(true)
+      expect(dry.deleted.appointmentsFuture).toBe(BULK_N)
+      const live = labResetAgenda(db, caller, clock, { dryRun: false, protectionEnv: {} })
+      expect(live.dryRun).toBe(false)
+      expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM contacts WHERE tenant_id = ?`, tenantId)!.n).toBe(0)
+    } finally {
+      close()
+    }
+  })
+
+  it('dryRun e reset real com >100 conversas por contacto-eligible', () => {
+    const { clock, db, close } = openDbWithVariableCap()
+    try {
+      const tenantId = DEMO_CLINIC_TENANT_ID
+      const caller = workerCaller(tenantId, 'lab:test')
+      const holder = 'ctc_bulk_holder'
+      upsertContact(db, { tenantId, waId: '550000000501', displayName: 'H', id: holder }, clock)
+      for (let i = 0; i < BULK_N; i++) {
+        createConversation(
+          db,
+          { tenantId, contactId: holder, status: 'open', id: `cnv_bulk_${String(i).padStart(4, '0')}` },
+          clock,
+        )
+        db.run(
+          `INSERT INTO messages (id, tenant_id, conversation_id, direction, body, delivery_state, created_at)
+           VALUES (?, ?, ?, 'inbound', 'x', 'received', ?)`,
+          `msg_bulk_${i}`,
+          tenantId,
+          `cnv_bulk_${String(i).padStart(4, '0')}`,
+          NOW,
+        )
+      }
+      const dry = labResetAgenda(db, caller, clock, { protectionEnv: {} })
+      expect(dry.deleted.schedulingConversation).toBeGreaterThan(BULK_N)
+      labResetAgenda(db, caller, clock, { dryRun: false, protectionEnv: {} })
+      expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ?`, tenantId)!.n).toBe(0)
+    } finally {
+      close()
+    }
+  })
+
+  it('apaga grafo FK completo e mantém protegido (compromissos órfãos com alocações)', () => {
+    const clock = createControllableClock(NOW)
+    const { db, close, raw } = bootClinicDb({ clock })
+    raw.exec('PRAGMA foreign_keys = ON')
+    try {
+      const tenantId = STAGING_TESTE_PAULO_TENANT_ID
+      const caller = workerCaller(tenantId, 'lab:test')
+      const protectedId = PAULO_PROTECTED_CONTACT_IDS[0]!
+      const protectedConv = PAULO_PROTECTED_CONVERSATION_IDS[0]!
+      const protectedWa = '550000000601'
+      const protectedSnap = snapshotFkRows(
+        db,
+        tenantId,
+        seedLabResetFkGraph(db, clock, tenantId, protectedId, protectedWa, protectedConv, NOW),
+      )
+      const eligibleIds = seedLabResetFkGraph(
+        db,
+        clock,
+        tenantId,
+        'ctc_fk_eligible',
+        '550000000602',
+        'cnv_fk_eligible',
+        NOW,
+      )
+      db.run(
+        `INSERT INTO appointments (
+          id, tenant_id, service_id, professional_id, starts_at, ends_at, status, created_at
+        ) VALUES ('apt_orphan', ?, 'svc1', 'pro1', ?, ?, 'confirmed', ?)`,
+        tenantId,
+        NOW,
+        NOW + 3_600_000,
+        NOW,
+      )
+      db.run(
+        `INSERT INTO appointment_allocations (
+          id, tenant_id, appointment_id, resource_kind, resource_id, occupied_from, occupied_until)
+         VALUES ('alc_orphan', ?, 'apt_orphan', 'professional', 'pro1', ?, ?)`,
+        tenantId,
+        NOW,
+        NOW + 3_600_000,
+      )
+      labResetAgenda(db, caller, clock, { dryRun: false, protectionEnv: {} })
+      const afterProtected = snapshotFkRows(db, tenantId, {
+        contactId: protectedId,
+        convId: protectedConv,
+        msgId: `msg_${protectedId}`,
+        outId: `out_${protectedId}`,
+        attId: `att_${protectedId}`,
+        propId: `prop_${protectedId}`,
+        oppId: `opp_${protectedId}`,
+        holdId: `hold_${protectedId}`,
+        apptId: `apt_${protectedId}`,
+        siId: `si_${protectedId}`,
+        pcId: `pc_${protectedId}`,
+      })
+      for (const key of Object.keys(protectedSnap) as (keyof typeof protectedSnap)[]) {
+        expect(JSON.stringify(afterProtected[key])).toBe(JSON.stringify(protectedSnap[key]))
+      }
+      const afterEligible = snapshotFkRows(db, tenantId, eligibleIds)
+      for (const row of Object.values(afterEligible)) {
+        expect(row).toBeFalsy()
+      }
+      expect(db.get(`SELECT id FROM appointments WHERE id = 'apt_orphan'`)).toBeFalsy()
+      expect(raw.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    } finally {
+      close()
+    }
   })
 })
