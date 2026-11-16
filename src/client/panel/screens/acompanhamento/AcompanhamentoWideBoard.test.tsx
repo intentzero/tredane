@@ -132,7 +132,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     })
   })
 
-  it('cartão: avatar com iniciais, ponto de etapa no título e coluna vazia com texto (DEC-184)', async () => {
+  it('cartão: avatar com iniciais, ponto de etapa no título; coluna vazia sem «Ninguém aqui»', async () => {
     mount()
     const board = await screen.findByRole('group', { name: 'Quadro por etapa' })
     const maria = within(board).getByRole('button', { name: 'Abrir Maria Souza' })
@@ -141,7 +141,9 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     const dots = Array.from(board.querySelectorAll('.acomp-col-dot')).map((d) => d.getAttribute('data-stage'))
     expect(dots).toEqual(['novo_contato', 'em_atendimento', 'horario_proposto', 'agendado', 'concluido'])
     const empty = within(board).getByRole('region', { name: 'Horário proposto, 0' })
-    expect(within(empty).getByText('Ninguém aqui').className).toContain('acomp-col-empty')
+    expect(within(empty).queryByText('Ninguém aqui')).toBeNull()
+    expect(empty.querySelector('.acomp-col-empty')).toBeNull()
+    expect(within(empty).getByText('0')).toBeTruthy()
   })
 
   it('cartão: data da marcação em chip, «IA» em chip e «Parado» com texto (DEC-184)', async () => {

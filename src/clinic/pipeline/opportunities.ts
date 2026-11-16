@@ -172,9 +172,10 @@ function loadOpenAgendado(
 }
 
 /**
- * DEC-187: com Agendado + horários futuros + atendimento aberto, projecta
- * cartão gémeo em Em atendimento / Horário proposto. Ao confirmar a nova
- * marcação o gémeo some (merge no Agendado).
+ * DEC-187: com Agendado + horários futuros + atendimento aberto (sessão,
+ * proposta, quadro, handoff ou inbound pós-confirmação), projecta cartão
+ * gémeo em Em atendimento / Horário proposto. Ao confirmar a nova marcação
+ * o gémeo some (merge no Agendado).
  */
 function expandBoardCards(
   db: ClinicDb,

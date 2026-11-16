@@ -58,7 +58,10 @@ export type OpportunityListItem = OpportunityRow & {
   boardKey: string
   /** Horários futuros confirmados do contacto (badge no Agendado). */
   futureAppointmentCount: number
-  /** True quando a conversa tem sessão/proposta/quadro de marcação activo. */
+  /**
+   * True com sessão/proposta/quadro activo, handoff (IA pausada) ou inbound
+   * novo após a última confirmação (DEC-187, revisão 16/11/2026).
+   */
   hasOpenAttendance: boolean
 }
 

@@ -8,6 +8,7 @@ import {
 } from '../config'
 import { upsertContact } from '../contacts'
 import { createConversation } from '../inbox/conversations'
+import { appendInboundToConversation } from '../inbox'
 import { workerCaller } from '../index'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
@@ -222,6 +223,68 @@ describe('DEC-187 — cartão gémeo de atendimento + merge Agendado', () => {
       expect(cards[0]?.stage).toBe('agendado')
       expect(cards[0]?.futureAppointmentCount).toBe(2)
       expect(after.items.some((i) => i.boardKey === `${opp.id}:attendance`)).toBe(false)
+    } finally {
+      close()
+    }
+  })
+
+  it('Agendado + inbound após confirmação (nova conversa) projecta gémeo Em atendimento', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { tenantId, caller, pro, room, svc } = seedClinic(db, clock)
+      const contact = upsertContact(
+        db,
+        { tenantId, waId: '5511900002666', displayName: 'Paulo Twin' },
+        clock,
+      )
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      const opp = ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv.id },
+        clock,
+      ).opportunity
+      confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-inbound-dual-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+
+      expect(
+        listOpportunitiesOp(db, caller, {}, clock).items.filter((i) => i.id === opp.id),
+      ).toHaveLength(1)
+
+      clock.advance(60_000)
+      appendInboundToConversation(
+        db,
+        {
+          tenantId,
+          contactId: contact.id,
+          providerEventKey: 'wa:twin:after-book:1',
+          body: 'Oi, tem estacionamento?',
+        },
+        clock,
+      )
+
+      const dual = listOpportunitiesOp(db, caller, {}, clock)
+      const cards = dual.items.filter((i) => i.id === opp.id)
+      expect(cards.map((c) => c.cardKind).sort()).toEqual(['cycle', 'open_attendance'])
+      const twin = cards.find((c) => c.cardKind === 'open_attendance')!
+      expect(twin.stage).toBe('em_atendimento')
+      expect(twin.boardKey).toBe(`${opp.id}:attendance`)
+      expect(cards.find((c) => c.cardKind === 'cycle')?.stage).toBe('agendado')
+      expect(dual.counts.find((c) => c.stage === 'em_atendimento')?.count).toBeGreaterThanOrEqual(1)
     } finally {
       close()
     }

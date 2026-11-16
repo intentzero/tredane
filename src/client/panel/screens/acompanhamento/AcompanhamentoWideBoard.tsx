@@ -1,4 +1,4 @@
-import { CalendarDays, CircleAlert, CircleCheck, Search } from 'lucide-react'
+import { CalendarDays, CircleAlert, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
@@ -324,87 +324,80 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                 <span className="acomp-col-count">{cards.length}</span>
               </h2>
               <div className="acomp-col-list">
-                {cards.length === 0 ? (
-                  <p className="acomp-col-empty">
-                    <CircleCheck aria-hidden size={20} strokeWidth={1.8} />
-                    Ninguém aqui
-                  </p>
-                ) : (
-                  cards.map((card) => {
-                    const name = contactLabel(card.contact.displayName, card.contact.waId)
-                    const isAttendanceTwin = card.cardKind === 'open_attendance'
-                    const aptCount = card.futureAppointmentCount ?? 0
-                    const stalled =
-                      STALL_STAGES.includes(card.stage) &&
-                      card.lastInteractionAt != null &&
-                      now - card.lastInteractionAt > 2 * DAY
-                    return (
-                      <button
-                        key={card.boardKey ?? card.id}
-                        type="button"
-                        className={`acomp-card${openId === card.id ? ' acomp-card--open' : ''}`}
-                        aria-label={`Abrir ${name}`}
-                        aria-expanded={openId === card.id}
-                        aria-controls="acomp-panel"
-                        data-card-kind={card.cardKind ?? 'cycle'}
-                        onClick={(e) => openCard(card, e.currentTarget)}
-                      >
-                        <span className="acomp-card-top">
+                {cards.map((card) => {
+                  const name = contactLabel(card.contact.displayName, card.contact.waId)
+                  const isAttendanceTwin = card.cardKind === 'open_attendance'
+                  const aptCount = card.futureAppointmentCount ?? 0
+                  const stalled =
+                    STALL_STAGES.includes(card.stage) &&
+                    card.lastInteractionAt != null &&
+                    now - card.lastInteractionAt > 2 * DAY
+                  return (
+                    <button
+                      key={card.boardKey ?? card.id}
+                      type="button"
+                      className={`acomp-card${openId === card.id ? ' acomp-card--open' : ''}`}
+                      aria-label={`Abrir ${name}`}
+                      aria-expanded={openId === card.id}
+                      aria-controls="acomp-panel"
+                      data-card-kind={card.cardKind ?? 'cycle'}
+                      onClick={(e) => openCard(card, e.currentTarget)}
+                    >
+                      <span className="acomp-card-top">
+                        <span
+                          className={`inbox-avatar inbox-avatar--sm inbox-avatar--${avatarTone(name)}`}
+                          aria-hidden
+                        >
+                          {initials(name)}
+                        </span>
+                        <span className="acomp-card-name">{name}</span>
+                        {!isAttendanceTwin && card.stage === 'agendado' && aptCount > 1 ? (
                           <span
-                            className={`inbox-avatar inbox-avatar--sm inbox-avatar--${avatarTone(name)}`}
-                            aria-hidden
+                            className="acomp-apt-count"
+                            title={`${aptCount} horários confirmados`}
+                            aria-label={`${aptCount} horários confirmados`}
                           >
-                            {initials(name)}
+                            {aptCount}
                           </span>
-                          <span className="acomp-card-name">{name}</span>
-                          {!isAttendanceTwin && card.stage === 'agendado' && aptCount > 1 ? (
-                            <span
-                              className="acomp-apt-count"
-                              title={`${aptCount} horários confirmados`}
-                              aria-label={`${aptCount} horários confirmados`}
-                            >
-                              {aptCount}
-                            </span>
-                          ) : null}
-                          <span className="acomp-card-time">{relativeTime(card.lastInteractionAt)}</span>
+                        ) : null}
+                        <span className="acomp-card-time">{relativeTime(card.lastInteractionAt)}</span>
+                      </span>
+                      {isAttendanceTwin ? (
+                        <span className="acomp-card-line">Atendimento em curso</span>
+                      ) : card.linkedAppointment?.startsAt != null &&
+                        !card.missingAppointment &&
+                        !card.linkedAppointment.changeReason ? (
+                        <span className="acomp-card-when">
+                          <CalendarDays aria-hidden size={13} strokeWidth={2.2} />
+                          {appointmentLine(card.linkedAppointment.startsAt, false)}
                         </span>
-                        {isAttendanceTwin ? (
-                          <span className="acomp-card-line">Atendimento em curso</span>
-                        ) : card.linkedAppointment?.startsAt != null &&
-                          !card.missingAppointment &&
-                          !card.linkedAppointment.changeReason ? (
-                          <span className="acomp-card-when">
-                            <CalendarDays aria-hidden size={13} strokeWidth={2.2} />
-                            {appointmentLine(card.linkedAppointment.startsAt, false)}
-                          </span>
-                        ) : (
-                          <span className="acomp-card-line">
-                            {appointmentLine(
-                              card.linkedAppointment?.startsAt,
-                              card.missingAppointment,
-                              card.linkedAppointment?.changeReason,
-                            )}
-                          </span>
-                        )}
-                        <span className="acomp-card-foot">
-                          {isAiActorId(card.assigneeClerkUserId) ? (
-                            <span className="acomp-chip-ai">IA</span>
-                          ) : card.assigneeDisplayName ? (
-                            <span>{card.assigneeDisplayName}</span>
-                          ) : (
-                            <span className="acomp-card-unassigned">Sem responsável</span>
+                      ) : (
+                        <span className="acomp-card-line">
+                          {appointmentLine(
+                            card.linkedAppointment?.startsAt,
+                            card.missingAppointment,
+                            card.linkedAppointment?.changeReason,
                           )}
-                          {stalled ? (
-                            <span className="acomp-card-late">
-                              <CircleAlert aria-hidden size={13} strokeWidth={2.4} />
-                              Parado
-                            </span>
-                          ) : null}
                         </span>
-                      </button>
-                    )
-                  })
-                )}
+                      )}
+                      <span className="acomp-card-foot">
+                        {isAiActorId(card.assigneeClerkUserId) ? (
+                          <span className="acomp-chip-ai">IA</span>
+                        ) : card.assigneeDisplayName ? (
+                          <span>{card.assigneeDisplayName}</span>
+                        ) : (
+                          <span className="acomp-card-unassigned">Sem responsável</span>
+                        )}
+                        {stalled ? (
+                          <span className="acomp-card-late">
+                            <CircleAlert aria-hidden size={13} strokeWidth={2.4} />
+                            Parado
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </section>
           )

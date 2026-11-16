@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 16/11/2026 — Acompanhar: coluna vazia sem «Ninguém aqui» (DEC-187)
+
+- Quadro largo: coluna a 0 fica só com cabeçalho + contagem (sem caixa tracejada / «Ninguém aqui»). Mock M-83 `desktop/AcompanhamentoQuadro.dc.html` alinhado; preview PNG antigo ainda mostra o placeholder (fonte `.dc.html` prevalece).
+
 ## 14/11/2026 — Assistente alinhado ao mock M-74
 
 - Os controlos «Ativar sugestões de resposta», «Aplicar limites de proteção» e «Pausar novas marcações automáticas por botão» passam de caixa de seleção a **interruptor** (`.panel-switch`, o desenho de «Mostrar inativos»).
