@@ -1,6 +1,6 @@
 :root {
   font-family: Roboto, "Helvetica Neue", Helvetica, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: var(--color-text-primary, #142625);
+  color: var(--color-text-primary, #203632);
   background: var(--color-surface-card, #FFFFFF); /* = cabeçalho; iOS pinta a área da barra de estado com o fundo do root */
   color-scheme: light dark;
   font-synthesis: none;

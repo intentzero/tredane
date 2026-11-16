@@ -102,7 +102,9 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-50 | `HorarioNovaFolga` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 · AC-38 | Folha «Folga ou fechamento»: «Quem fica fora» em multi-seleção, motivo em dropdown (único para todos), período, dia inteiro, aviso de compromissos afetados por pessoa, **Salvar para N pessoas** | M-17, M-51 |
 | M-51 | `HorarioNovaFolgaQuem` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 | Lista de «Quem fica fora» aberta (`aria-multiselectable`): Clínica inteira exclusiva, pessoas com cor e ponto, «N selecionadas», **Concluir** | M-50 |
 
-## Exploração da landing — paleta
+## Explorações de paleta
+
+**Painel, Confirmado (Paulo, 16/11/2026, «gostei, implementa»):** [mock de paleta do app](paleta-app/PaletaApp.html) e [nota de escopo](paleta-app/README.md). Ilustra TEL-01 Conversas (JRN-01/02, REQ-010–018) em desktop e celular; os tokens v0.10.0 estão implementados. Não substitui mocks funcionais nem critérios de aceite. A validação dos percursos reais em todas as telas continua **Em aberto**.
 
 | Arquivo | Estado e origem | O que mostra | Critérios |
 | --- | --- | --- | --- |

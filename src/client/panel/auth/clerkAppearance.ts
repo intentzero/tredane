@@ -15,7 +15,7 @@
  *   fundo transparente e marca Tredane fora do Clerk (`BrandHorizontal`)
  *
  * OTP no SignIn: Clerk aplica opacidade baixa a `colorBorder`. Com
- * `--color-line-border` (#E1E3E0) as 6 casas ficam quase invisíveis —
+ * `--color-line-border` (#D6E6DE) as 6 casas ficam quase invisíveis —
  * `otpCodeFieldInput` usa a borda de controlo (3:1, DEC-041) e o anel teal.
  *
  * Access mode Invite-only: o create via API falha; `ClerkSignUp` mostra erro

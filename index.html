@@ -20,9 +20,9 @@
         var t = localStorage.getItem('tredane-theme')
         if (t === 'light' || t === 'dark') {
           document.documentElement.setAttribute('data-theme', t)
-          if (t === 'dark') {
-            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#162423')
-          }
+        }
+        if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#182628')
         }
       } catch (e) {}
     </script>
