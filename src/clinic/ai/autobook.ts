@@ -85,6 +85,7 @@ import {
   shouldAppendHumanHelpHint,
   wasHumanHelpHintSent,
 } from './human-help-hint'
+import { existingAppointmentPrefix } from './contact-appointment-hint'
 import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
@@ -556,7 +557,8 @@ const SHORT_SLOT_PICK_AFFIRM =
   /^(sim|pode ser|pode marcar|pode agendar|pode|confirmo|confirmado|confirma|fechado|combinado|isso|ok|okay|perfeito|beleza|blz|otimo|bora|certo|perfeito|serve|fica bom|esta otimo|ta bom|ta otimo)([\s,!.?]|$)/i
 
 export function isShortSlotPickAffirmation(text: string): boolean {
-  const c = norm(text).trim()
+  const stripped = text.replace(/^\[bot[aã]o\]\s*/i, '').trim()
+  const c = norm(stripped).trim()
   if (claimsCatalogShortcut(text)) return false
   if (extractTimes(text).size > 0) return false
   return SHORT_SLOT_PICK_AFFIRM.test(c)
@@ -669,13 +671,16 @@ export function detectExplicitConfirmation(input: {
       missing.push('horario')
       return undefined
     }
-    for (const text of clientHistory) {
-      const found = [...extractTimes(text)]
-      if (found.length === 1) return found[0]
-      if (found.length > 1) {
-        ambiguous = true
-        missing.push('horario')
-        return undefined
+    // rsamp_1241995755: Sim/Certo do eco não herda hora de turnos antigos («As 15:30»).
+  if (!isShortSlotPickAffirmation(client)) {
+      for (const text of clientHistory) {
+        const found = [...extractTimes(text)]
+        if (found.length === 1) return found[0]
+        if (found.length > 1) {
+          ambiguous = true
+          missing.push('horario')
+          return undefined
+        }
       }
     }
     missing.push('horario')
@@ -771,6 +776,20 @@ function localHHMM(tz: string, ms: number): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(ms))
+}
+
+function slotOfferReplyText(
+  offered: { replyText: string },
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  date: string | null | undefined,
+  tz: string,
+  clock: Clock,
+): string {
+  if (!date) return offered.replyText
+  const prefix = existingAppointmentPrefix(db, tenantId, contactId, date, tz, clock)
+  return prefix ? `${prefix}${offered.replyText}` : offered.replyText
 }
 
 function signalAmountCents(svc: ServiceRow, priceCents: number | null = svc.priceCents): number | null {
@@ -2150,6 +2169,10 @@ export async function tryAiAutoBook(
     const dayLabel = ordinalOptionReply ? undefined : turnFacts.dayLabel
     if (!dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
+    const turnClock = (() => {
+      const t = [...extractTimes(turnText)]
+      return t.length === 1 ? t[0]! : null
+    })()
   const absolute =
     dayLabel != null
       ? [...extractDates(turnText, today)][0] ??
@@ -2167,6 +2190,7 @@ export async function tryAiAutoBook(
           ? { period: null }
           : {}),
       ...(absolute !== undefined ? { date: absolute } : {}),
+      ...(dayLabel && !turnClock ? { clockTime: null } : {}),
       pending: null,
       lastOffer: null,
     })
@@ -2303,13 +2327,9 @@ export async function tryAiAutoBook(
   }
   let time = dropStickyTimeAfterDayRemap ? undefined : det.time
   const shortPickAffirm = isShortSlotPickAffirmation(turnText)
-  const timeStatedByClient = Boolean(
-    clockFromTurn ||
-      pendingTimeOverride ||
-      input.boundSlot ||
-      (shortPickAffirm && det.time) ||
-      Boolean(swap?.time),
-  )
+  const prevClinicTimes = extractTimes(prevClinic?.body ?? '')
+  const timeFromClinicOffer =
+    shortPickAffirm && prevClinicTimes.size === 1 ? [...prevClinicTimes][0] : null
   if (
     !dropStickyTimeAfterDayRemap &&
     !time &&
@@ -2320,6 +2340,19 @@ export async function tryAiAutoBook(
     time = session.clockTime
     missing = missing.filter((item) => item !== 'horario')
   }
+  const timeFromSessionEcho =
+    zoneEcho === 'confirm' &&
+    Boolean(session?.serviceId && det.service && session.serviceId === det.service.id) &&
+    session?.clockTime &&
+    time === session.clockTime
+  const timeStatedByClient = Boolean(
+    clockFromTurn ||
+      pendingTimeOverride ||
+      input.boundSlot ||
+      timeFromSessionEcho ||
+      (timeFromClinicOffer && det.time === timeFromClinicOffer) ||
+      Boolean(swap?.time),
+  )
   if (time && !timeStatedByClient) {
     time = undefined
     det = {
@@ -2805,7 +2838,15 @@ export async function tryAiAutoBook(
               preferred,
               rememberOfferFrame,
             )
-            replyText = offered.replyText
+            replyText = slotOfferReplyText(
+              offered,
+              db,
+              tenantId,
+              conv.contactId,
+              date,
+              tz,
+              clock,
+            )
           } else {
             const fb = `Qual horário fica melhor para ${det.service.name}?`
             replyText = sayAct(
@@ -3147,7 +3188,15 @@ export async function tryAiAutoBook(
               preferred,
               rememberOfferFrame,
             )
-            replyText = offered.replyText
+            replyText = slotOfferReplyText(
+              offered,
+              db,
+              tenantId,
+              conv.contactId,
+              date,
+              tz,
+              clock,
+            )
             }
             }
           }

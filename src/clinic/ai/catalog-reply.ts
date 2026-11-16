@@ -55,6 +55,7 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, parseTemporal } from './nlu/temporal'
+import { isOpeningDayAsk } from './opening-day-ask'
 
 /**
  * Expediente / horário de abertura — não confundir com «quero um horário».
@@ -315,7 +316,7 @@ export function catalogReply(
   }
   const cnv = opts.conversationId ?? ''
   const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
-  if (HOURS.test(body) && !PRICE.test(body)) {
+  if ((HOURS.test(body) || isOpeningDayAsk(body)) && !PRICE.test(body)) {
     const resources = opts.turn?.catalog.resources ?? listResources(db, tenantId, clock)
     const pros = new Set(
       resources.filter((r) => r.kind === 'professional').map((r) => r.id),

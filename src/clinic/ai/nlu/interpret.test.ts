@@ -49,6 +49,16 @@ describe('interpretTurn (#416)', () => {
     expect(r.acts).toContain('informar_preco')
   })
 
+  it('rsamp_1241995755: «atende no domingo» → informar_horario_funcionamento', () => {
+    const r = interpretTurn({
+      turnText: 'Gostaria saber se você atende j no o domingo?',
+      messageId: 'msg_dom',
+      today: '2026-11-15',
+      services: [],
+    })
+    expect(r.acts).toContain('informar_horario_funcionamento')
+    expect(r.acts).not.toContain('desconhecido')
+  })
   it('reconhece preço e serviço com cobertura alta', () => {
     const svc = service({ id: 'svc_1', name: 'Limpeza de pele' })
     const r = interpretTurn({

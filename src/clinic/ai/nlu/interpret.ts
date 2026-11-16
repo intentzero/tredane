@@ -9,6 +9,7 @@ import type { BookingFramePending } from '../schedule-session'
 import { citesServiceName } from '../schedule-choice'
 import { classifySensitive } from './sensitive'
 import { extractDates, extractTimes, parseTemporal, norm } from './temporal'
+import { isOpeningDayAsk } from '../opening-day-ask'
 
 export const COVERAGE_THRESHOLD = 0.55
 
@@ -69,7 +70,8 @@ export type TurnInterpretation = {
 }
 
 const PRICE = /\b(pre[cç]o|custa|valor|quanto|qnto|qto)\b/i
-const HOURS = /\b(hor[aá]rio de funcionamento|que horas|abrem|funcionam|atendem)\b/i
+const HOURS =
+  /\b(hor[aá]rio de funcionamento|que horas|abrem|funcionam|atendem)\b/i
 const LOCAL = /\b(onde fica|endere[cç]o|localiza[cç][aã]o|como chegar|maps?|google)\b/i
 const EXPLAIN = /\b(como funciona|o que [eé]|explica|procedimento)\b/i
 const GREET = /^(oi|ol[aá]|bom dia|boa tarde|boa noite|oie|opa)[\s!.?]*$/i
@@ -229,7 +231,7 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     acts.push('informar_preco')
     markTokens(PRICE)
   }
-  if (HOURS.test(text)) {
+  if (HOURS.test(text) || isOpeningDayAsk(text)) {
     acts.push('informar_horario_funcionamento')
     markTokens(HOURS)
   }
