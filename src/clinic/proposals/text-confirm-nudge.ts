@@ -1,6 +1,6 @@
 /**
  * DEC-061: texto livre («sim», «confirmo», 👍) não marca. Com proposta aberta,
- * reoferta o botão Confirmar com copy natural (baseline 15/11/2026 P1).
+ * reoferta só o botão Confirmar (DEC-061, Paulo 16/11/2026).
  */
 import type { Clock } from '../../db/clock'
 import { extractTimes, norm } from '../ai/nlu/temporal'
@@ -16,7 +16,8 @@ import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { localHHMM } from '../ai/slot-offer'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
-import { getProposal } from './proposals'
+import { queryAvailability } from '../scheduling/query'
+import { expireProposalIfNeeded, getProposal } from './proposals'
 import { renderProposalInteractive } from './render'
 import type { AppointmentProposalRow } from './types'
 
@@ -27,7 +28,7 @@ const RESCHEDULE = /\b(reagend\w*|remarc\w*|desmarc\w*|cancel\w*|mudar|trocar|ad
 const HESITATION_PHRASE =
   /\b(vou ver|vou pensar|talvez|nao sei|depois eu vejo|mais tarde)\b/
 
-export const PROPOSAL_CONFIRM_NUDGE_LEAD = 'Show! Pra fechar o horário, toque em Confirmar aqui embaixo 👇'
+export const PROPOSAL_CONFIRM_NUDGE_LEAD = 'Para confirmar, toca em Confirmar 👇'
 
 /** Resposta curta de confirmação com proposta `enviada` aberta — não marca (DEC-061). */
 export function isProposalAffirmativeText(text: string): boolean {
@@ -112,6 +113,27 @@ export function proposalConfirmNudgeClientRequestId(
   return `proposal.confirm_nudge:${proposalId}:v${version}:${inboundKey}`
 }
 
+function proposalSlotStillBookable(
+  db: ClinicDb,
+  tenantId: string,
+  proposal: AppointmentProposalRow,
+  clock: Clock,
+): boolean {
+  const date = clinicCivilDateFromUtc(proposal.timezone, proposal.startsAt)
+  const want = localHHMM(proposal.timezone, proposal.startsAt)
+  const team = queryAvailability(
+    db,
+    tenantId,
+    {
+      serviceId: proposal.serviceId,
+      date,
+      ...(proposal.professionalId ? { professionalId: proposal.professionalId } : {}),
+    },
+    clock,
+  )
+  return team.slots.some((s) => localHHMM(proposal.timezone, s.startsAt) === want)
+}
+
 export type SendProposalConfirmNudgeResult =
   | {
       status: 'queued'
@@ -136,8 +158,13 @@ export function sendProposalConfirmNudgeOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
-  const fresh = getProposal(db, meta.tenantId, input.proposal.id)
+  const fresh =
+    expireProposalIfNeeded(db, meta.tenantId, input.proposal.id, clock) ??
+    getProposal(db, meta.tenantId, input.proposal.id)
   if (!fresh || fresh.state !== 'enviada' || fresh.confirmSuspended) {
+    return { status: 'skipped_no_proposal' }
+  }
+  if (!proposalSlotStillBookable(db, meta.tenantId, fresh, clock)) {
     return { status: 'skipped_no_proposal' }
   }
 
@@ -151,6 +178,10 @@ export function sendProposalConfirmNudgeOp(
 
   const validUntilMs = fresh.expiresAt ?? clock.nowMs() + APPOINTMENT_PROPOSAL_VALIDITY_MS
   const interactive = renderProposalInteractive(fresh, db, { validUntilMs, clock })
+  const confirmButtons = interactive.buttons.filter((b) => b.action === 'confirm')
+  if (confirmButtons.length !== 1) {
+    return { status: 'skipped_no_proposal' }
+  }
   const sendCaller = caller.actorId
     ? caller
     : workerCaller(meta.tenantId, 'system:proposal-nudge')
@@ -165,13 +196,13 @@ export function sendProposalConfirmNudgeOp(
       authorClerkUserId: 'system:proposal-nudge',
       authorDisplayName: 'IA',
       interactive: {
-        buttons: interactive.buttons.map((b) => ({ id: b.id, title: b.title })),
+        buttons: confirmButtons.map((b) => ({ id: b.id, title: b.title })),
       },
     },
     clock,
   )
 
-  const buttons = interactive.buttons.map((b) => ({ id: b.id, title: b.title }))
+  const buttons = confirmButtons.map((b) => ({ id: b.id, title: b.title }))
   return {
     status: 'queued',
     lead: PROPOSAL_CONFIRM_NUDGE_LEAD,

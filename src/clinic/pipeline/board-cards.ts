@@ -4,11 +4,16 @@
  * Agendado permanece e nasce um cartão gémeo de atendimento. Quando a nova
  * marcação confirma, a sessão/proposta fecha e o gémeo desaparece (merge no
  * Agendado); o cartão Agendado mostra quantos horários futuros o contacto tem.
+ *
+ * Confirmado (Paulo, 16/11/2026): «atendimento aberto» também cobre fio activo
+ * após Agendado sem `booking_sessions` — inbound novo depois da confirmação,
+ * «Precisa de alguém» / handoff (mesmo critério DEC-156) ou quadro em `remarcando`.
  */
 import type { Clock } from '../../db/clock'
 import { getOpenBookingSession } from '../ai/booking-session'
 import { getBookingFrame } from '../ai/schedule-session'
 import type { OpportunityStage } from '../constants'
+import { conversationNeedsPerson } from '../inbox/conversations'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { OpportunityListItem } from './types'
@@ -20,6 +25,7 @@ const ACTIVE_FRAME_PHASES = new Set([
   'ofertado',
   'proposto',
   'pix_pendente',
+  'remarcando',
 ])
 
 /** Horários futuros confirmados do contacto (cliente). */
@@ -40,8 +46,40 @@ export function countFutureConfirmedAppointmentsForContact(
 }
 
 /**
+ * Cliente voltou a escrever depois da última confirmação de horário nesta
+ * conversa (ex.: nova conversa / FAQ / «quero outro» ainda sem sessão).
+ */
+export function hasInboundAfterLatestBookingConfirm(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  nowMs: number,
+): boolean {
+  const latest = db.get<{ confirmed_at: number | null }>(
+    `SELECT MAX(confirmed_at) AS confirmed_at FROM appointments
+     WHERE tenant_id = ? AND conversation_id = ? AND status = 'confirmed' AND ends_at > ?`,
+    tenantId,
+    conversationId,
+    nowMs,
+  )
+  const confirmedAt = latest?.confirmed_at
+  if (confirmedAt == null) return false
+  const inbound = db.get<{ id: string }>(
+    `SELECT id FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
+       AND created_at > ?
+     LIMIT 1`,
+    tenantId,
+    conversationId,
+    confirmedAt,
+  )
+  return inbound != null
+}
+
+/**
  * Atendimento/marcação em curso na conversa: sessão de booking aberta,
- * proposta activa, ou quadro de marcação fora de idle/pausado/remarcando.
+ * proposta activa, quadro de marcação activo (incl. remarcando),
+ * «Precisa de alguém» (DEC-156), ou inbound novo após a última confirmação.
  */
 export function hasOpenAttendance(
   db: ClinicDb,
@@ -53,6 +91,10 @@ export function hasOpenAttendance(
   if (getActiveProposalForConversation(db, tenantId, conversationId, clock)) return true
   const frame = getBookingFrame(db, tenantId, conversationId)
   if (frame && ACTIVE_FRAME_PHASES.has(frame.phase)) return true
+  if (conversationNeedsPerson(db, tenantId, conversationId)) return true
+  if (hasInboundAfterLatestBookingConfirm(db, tenantId, conversationId, clock.nowMs())) {
+    return true
+  }
   return false
 }
 

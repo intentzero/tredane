@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
-import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
@@ -165,6 +165,126 @@ describe('marcação existente (#813)', () => {
       expect(prefix).toMatch(/você já tem/i)
       expect(prefix).toMatch(/limpeza/i)
       expect(prefix).toMatch(/10:00/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('2.º serviço: lembrete upcoming com postProcess (lista Horários e anti-repetição)', async () => {
+    const NOW = Date.UTC(2026, 10, 16, 13, 0)
+    const s = seedBase('clinic-demo-lab-813-postprocess', '5511900001243', NOW)
+    try {
+      const limpeza = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Limpeza de pele profunda',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 18_000,
+          variantKind: null,
+          variantKindPlural: null,
+          variantSelection: 'uma',
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const startsExisting = zonedCivilToUtc(TZ, 2026, 11, 25, 10, 0)
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'apt-lab-813-pp',
+          serviceId: limpeza.id,
+          professionalId: s.pro.id,
+          startsAt: startsExisting,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+        },
+        s.clock,
+      )
+      const massagem = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 12_000,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [{ name: 'Relaxante', audience: 'ambos', durationMinutes: 60, priceCents: 12_000 }],
+        s.clock,
+      )
+      const runTurn = async (body: string) => {
+        const inbound = insertMessage(
+          s.db,
+          {
+            tenantId: s.tenantId,
+            conversationId: s.cnv.id,
+            direction: 'inbound',
+            body,
+            deliveryState: 'received',
+            createdAt: s.clock.nowMs(),
+          },
+          s.clock,
+        )
+        s.clock.advance(1_000)
+        const turn = loadTurnContext(
+          s.db,
+          s.tenantId,
+          {
+            conversationId: s.cnv.id,
+            contactId: s.contact.id,
+            messageId: inbound.id,
+            inboundBody: body,
+          },
+          s.clock,
+        )
+        return tryAiAutoBook(s.db, s.caller, s.clock, {
+          conversationId: s.cnv.id,
+          enabled: true,
+          capability: true,
+          turn,
+          confirmationMessageIdOverride: inbound.id,
+        })
+      }
+      const first = await runTurn('Quero massagem relaxante à tarde')
+      expect(first.replyText ?? '').toMatch(/você já tem/i)
+      expect(first.replyText ?? '').toMatch(/limpeza/i)
+      expect(first.replyText ?? '').toMatch(/\d{1,2}:\d{2}/)
+      expect(first.interactive?.button).toBe('Horários')
+      const offerBody = first.replyText ?? ''
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'outbound',
+          body: offerBody,
+          deliveryState: 'delivered',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      s.clock.advance(30_000)
+      const second = await runTurn('massagem relaxante à tarde por favor')
+      expect(second.replyText ?? '').toMatch(/você já tem/i)
+      expect(second.replyText ?? '').not.toBe(offerBody)
+      expect(second.interactive?.mode).not.toBe('list')
+      expect(second.replyText ?? '').toMatch(/horário/i)
     } finally {
       s.close()
     }

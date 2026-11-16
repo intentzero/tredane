@@ -58,8 +58,13 @@ export type OpportunityListItem = OpportunityRow & {
   boardKey: string
   /** Horários futuros confirmados do contacto (badge no Agendado). */
   futureAppointmentCount: number
-  /** True quando a conversa tem sessão/proposta/quadro de marcação activo. */
+  /**
+   * True com sessão/proposta/quadro activo, «Precisa de alguém» (DEC-156)
+   * ou inbound novo após a última confirmação (DEC-187, revisão 16/11/2026).
+   */
   hasOpenAttendance: boolean
+  /** Mesmo critério do Conversas (DEC-083 / DEC-156) — feedback no quadro. */
+  needsPerson: boolean
 }
 
 export type OpportunityDetail = OpportunityListItem & {
