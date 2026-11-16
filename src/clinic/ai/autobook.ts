@@ -1156,7 +1156,7 @@ export async function tryAiAutoBook(
   })
   if (input.enabled === false) return finish(none('disabled'))
   // Proteção (#182): contato bloqueado ou conversa em pausa → nenhuma ação nova.
-  const guard = checkConversationProtection(db, tenantId, input.conversationId)
+  const guard = checkConversationProtection(db, tenantId, input.conversationId, clock)
   if (!guard.allowed) return finish(none('blocked', { notes: `Ação automática negada (${guard.reason}).` }))
   const conv = getConversation(db, tenantId, input.conversationId)
   if (!conv) return finish(none('not_confirmed'))

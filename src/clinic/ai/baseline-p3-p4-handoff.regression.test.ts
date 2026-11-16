@@ -24,6 +24,7 @@ import { resolveBookingObject } from './booking-object'
 import {
   afterHoursHumanRequestBody,
   inboundWarrantsHandoffResume,
+  isHumanTeamOfferAllowed,
   notifyHumanHandoff,
   readAiReplyPause,
   replyAfterHoursHumanRequest,
@@ -213,7 +214,13 @@ describe('baseline P4 — falsos positivos e silêncio', () => {
         s.cnv.id,
       )
       expect(outbound?.body?.trim().length).toBeGreaterThan(0)
-      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      // Em expediente: retoma o funil sem limpar o alerta off_purpose (paralelo S08a).
+      const pause = readAiReplyPause(s.db, s.tenantId, s.cnv.id)
+      if (isHumanTeamOfferAllowed(s.db, s.tenantId, s.clock)) {
+        expect(pause?.reason).toBe('off_purpose')
+      } else {
+        expect(pause).toBeNull()
+      }
     } finally {
       s.close()
     }
