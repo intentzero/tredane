@@ -2774,6 +2774,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicRetention.resetClinicOperationalData(this.#db, caller, this.#clock)
   }
 
+  /** STAGING-ONLY: apaga todos os compromissos da clínica (painel / clear-appointments). */
+  async clearClinicAppointments(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicRetention.clearClinicAppointments(this.#db, caller, this.#clock)
+  }
+
   async wipeClinicOperationalData(caller: ClinicCaller) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
