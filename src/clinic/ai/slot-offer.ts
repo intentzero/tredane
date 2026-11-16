@@ -271,10 +271,21 @@ export function pickNearbySameDay(
     .filter((s) => s.time !== requestedHHMM)
     .filter((s) => inPeriodHHMM(period, s.time))
     .filter((s) => (opts.nowMs == null ? true : s.startsAt > opts.nowMs))
-    .map((s) => ({ ...s, dist: Math.abs(s.minute - target) }))
-    .sort((a, b) => a.dist - b.dist || a.minute - b.minute)
+    .map((s) => ({
+      ...s,
+      dist: Math.abs(s.minute - target),
+      after: s.minute >= target,
+    }))
+    .sort(
+      (a, b) =>
+        (a.after === b.after ? 0 : a.after ? -1 : 1) ||
+        a.dist - b.dist ||
+        a.minute - b.minute,
+    )
+  const afterSlots = scored.filter((s) => s.after)
+  const pool = afterSlots.length > 0 ? afterSlots : scored
   const out: string[] = []
-  for (const s of scored) {
+  for (const s of pool) {
     if (out.includes(s.time)) continue
     out.push(s.time)
     if (out.length >= limit) break
@@ -373,6 +384,8 @@ export async function offerNearestSlots(input: {
   _skipEmptyAdvance?: boolean
   /** Lab S02: «depois das Nh» — não oferecer horários anteriores no dia pedido. */
   notBeforeHHMM?: string | null
+  /** Hora pedida no turno: se indisponível no dia, nomeia a ocupação (lab S06). */
+  requestedHHMM?: string | null
 }): Promise<OfferNearestSlotsResult> {
   const {
     db,
@@ -391,6 +404,7 @@ export async function offerNearestSlots(input: {
     conversationId = '',
     _skipEmptyAdvance = false,
     notBeforeHHMM = null,
+    requestedHHMM = null,
   } = input
   const notBeforeMinute = notBeforeHHMM ? minutesOfHHMM(notBeforeHHMM) : null
   const nowMs = clock.nowMs()
@@ -612,6 +626,40 @@ export async function offerNearestSlots(input: {
   // Dia já pedido e a oferta ficou nesse dia: sem «próximos… para {serviço}» (Paulo 08/11/2026).
   const dayConstrained =
     Boolean(date) && picked.length > 0 && picked.every((slot) => slot.date === date)
+  if (dayConstrained && date && requestedHHMM) {
+    const daySlots = await slotsOnDay(
+      db,
+      tenantId,
+      service,
+      zones,
+      date,
+      clock,
+      forecast,
+      professionalId,
+    )
+    const hasRequested = daySlots.slots.some(
+      (slot) => slot.startsAt >= earliest && localHHMM(tz, slot.startsAt) === requestedHHMM,
+    )
+    if (!hasRequested && daySlots.slots.length > 0) {
+      return {
+        slots: picked,
+        replyText: await occupiedSlotAlternativesReply({
+          db,
+          tenantId,
+          service,
+          zones,
+          tz,
+          clock,
+          forecast,
+          professionalId,
+          date,
+          time: requestedHHMM,
+          sameDaySlots: daySlots.slots,
+          conversationId,
+        }),
+      }
+    }
+  }
   if (dayConstrained) {
     const diaBase = dayOfferLabelPt(date!, today)
     const dia = period ? `${diaBase} ${periodWordPt(period)}` : diaBase

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { zonedCivilToUtc } from '../scheduling/timezone'
 import {
   DIALOGUE_ACTS,
   renderEveryVariant,
@@ -212,6 +213,17 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
       { startsAt: day + 19 * 3600_000 }, // 16:00 SP
     ]
     expect(pickNearbySameDay(slots, '16:00', tz)).not.toContain('16:00')
+  })
+
+  it('pickNearbySameDay prefere horários depois do pedido no mesmo período (lab S02)', () => {
+    const tz = 'America/Sao_Paulo'
+    const slots = ['13:30', '17:30', '17:45', '18:00'].map((t) => {
+      const [h, m] = t.split(':').map(Number) as [number, number]
+      return { startsAt: zonedCivilToUtc(tz, 2026, 11, 16, h, m) }
+    })
+    const nearby = pickNearbySameDay(slots, '16:30', tz, { period: 'tarde', limit: 3 })
+    expect(nearby[0]).toBe('17:30')
+    expect(nearby).not.toContain('13:30')
   })
 
   it('dayWithPrepPt leva a preposição e hoje/amanhã', () => {
