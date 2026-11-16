@@ -263,6 +263,25 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
+  // Serviço linha única sem variantIds no quadro (ex. drenagem «Sessão» em oferta — S04).
+  if (topic === 'price' && !quoteZones && zones.length === 1) {
+    const quote = quoteSingleVariant(zones[0]!)
+    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const { entry, stack: after } = popInterrupt(stack)
+    const quoteText = renderAct(quote, conversationId)
+    const replyText = resume
+      ? `${quoteText}\n${renderAct(resume, conversationId)}`
+      : quoteText
+    return {
+      quote,
+      resume,
+      replyText,
+      parked,
+      stack: after,
+      resumedObligation: entry ? resumeParkedObligation(entry) : null,
+    }
+  }
+
   // Serviço aberto sem variante (ask-tipo / «Quais zonas?»): tabela + re-pergunta.
   // A re-pergunta vive no mesmo acto `informar_preco_tabela` (resume embutido).
   if (zones.length > 0 && shouldResumeVariantAsk(parked)) {
@@ -278,36 +297,36 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
     }
   }
 
-  // Serviço em linha (sem variantes no catálogo): cota preço/duração do cadastro.
+  // Serviço em linha (sem variantes no catálogo) ou preço só no cadastro (#808 S04 + C-03).
   if (zones.length === 0) {
-    if (topic === 'price' || topic === 'duration') {
-      const duração = String(service.durationMinutes)
-      if (topic === 'duration') {
-        const quote: AskInfoPolicyAct = {
-          act: 'informar_duracao',
-          vars: { duração },
-          fallback: `${duração} min.`,
-        }
-        const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
-        const { entry, stack: after } = popInterrupt(stack)
-        const quoteText = renderAct(quote, conversationId)
-        const replyText = resume
-          ? `${quoteText}\n${renderAct(resume, conversationId)}`
-          : quoteText
-        return {
-          quote,
-          resume,
-          replyText,
-          parked,
-          stack: after,
-          resumedObligation: entry ? resumeParkedObligation(entry) : null,
-        }
+    const duração = String(service.durationMinutes)
+    if (topic === 'duration') {
+      const quote: AskInfoPolicyAct = {
+        act: 'informar_duracao',
+        vars: { duração },
+        fallback: `${duração} min.`,
       }
+      const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+      const { entry, stack: after } = popInterrupt(stack)
+      const quoteText = renderAct(quote, conversationId)
+      const replyText = resume
+        ? `${quoteText}\n${renderAct(resume, conversationId)}`
+        : quoteText
+      return {
+        quote,
+        resume,
+        replyText,
+        parked,
+        stack: after,
+        resumedObligation: entry ? resumeParkedObligation(entry) : null,
+      }
+    }
+    if (topic === 'price') {
       const preço =
         service.priceCents == null ? 'a equipe confirma o valor' : formatBRL(service.priceCents)
       const quote: AskInfoPolicyAct = {
         act: 'informar_preco_variante',
-        vars: { variante: service.name, preço, duração: duração },
+        vars: { variante: service.name, preço, duração },
         fallback: `${service.name} custa ${preço} e dura ${duração} min.`,
       }
       const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null

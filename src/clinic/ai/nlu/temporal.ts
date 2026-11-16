@@ -236,7 +236,7 @@ function periodFromHour(hour: number): Period {
  * Função nova a cada uso: o flag `g` partilha `lastIndex` se reutilizarmos a mesma RegExp.
  */
 function depoisDasClockRe(): RegExp {
-  return /\bdepois\s+das?\s+([01]?\d|2[0-3])(?:\s*h(?:rs|s)?(?:\s*([0-5]\d))?|:([0-5]\d))?\b/g
+  return /\b(?:depois|dps)\s+das?\s+([01]?\d|2[0-3])(?:\s*h(?:rs|s)?(?:\s*([0-5]\d))?|:([0-5]\d))?\b/g
 }
 
 function maskDepoisDasSpans(folded: string): string {
@@ -254,7 +254,9 @@ function parsePeriods(folded: string): Period[] {
   for (const m of folded.matchAll(depoisDasClockRe())) {
     const hour = Number(m[1])
     if (Number.isNaN(hour) || hour > 23) continue
-    add(periodFromHour(hour))
+    // «depois das 4» no WhatsApp = tarde (16h), não 04:00.
+    if (hour >= 1 && hour <= 7) add('tarde')
+    else add(periodFromHour(hour))
   }
   return out
 }
@@ -397,6 +399,14 @@ export function parseTimes(
   }
 
   for (const m of folded.matchAll(/(?<![\d/])(?<!r\$\s*)\b([01]\d|2[0-3])([0-5]\d)\b(?![\d/,])/g)) {
+    note(m)
+    add(Number(m[1]), Number(m[2]))
+  }
+
+  // «12h30» / «12 hrs 30» (S06/S09b WhatsApp informal).
+  for (const m of folded.matchAll(
+    /\b([01]?\d|2[0-3])\s*h(?:rs|s)?\s*([0-5]\d)\b/g,
+  )) {
     note(m)
     add(Number(m[1]), Number(m[2]))
   }
