@@ -99,6 +99,7 @@ describe('MCP de laboratório (DEC-186)', () => {
       'lab_config_windows',
       'lab_config_block',
       'lab_config_ai_assist',
+      'lab_reset',
     ])
   })
 
@@ -169,6 +170,19 @@ describe('MCP de laboratório (DEC-186)', () => {
       zones: [{ name: 'Intima', audience: 'feminino' }],
     })
     expect(labConfig.mock.calls[8]![2]).toEqual({ enabled: true })
+  })
+
+  it('lab_reset chama labReset no DO com dryRun true por defeito', async () => {
+    const labReset = vi.fn().mockResolvedValue({ dryRun: true, counts: { total: 0 } })
+    const env = envWith({ labReset })
+    const res = await post(env, call('lab_reset', {}))
+    expect(res.status).toBe(200)
+    expect(labReset).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant_dec0de000000000000000001' }),
+      { dryRun: true },
+    )
+    await post(env, call('lab_reset', { dryRun: false }))
+    expect(labReset).toHaveBeenLastCalledWith(expect.anything(), { dryRun: false })
   })
 
   it('não há ferramenta para apagar', async () => {

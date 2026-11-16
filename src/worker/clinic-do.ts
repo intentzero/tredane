@@ -12,6 +12,7 @@ import { isDevelopmentEnv } from '../security/env-gate'
 import { clinicDurableObjectName, isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
 import { shedDueAlarmBacklog } from './clinic-do-alarm-shed'
 import { labMaxTurnsDaily } from '../lab/gate'
+import { assertLabResetEnvironment, assertLabResetTenant } from '../lab/reset-guards'
 import {
   collectLabTurnAfterLlm,
   labDay,
@@ -2522,6 +2523,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
    * operações que reutilizam os métodos do painel (validação, auditoria e eventos iguais).
    * Sem apagar serviços ou salas: desativar chega para ajustar um teste.
    */
+  /** DEC-186 — repõe agenda futura da demo (marcações, propostas e holds pendentes). */
+  async labReset(
+    caller: ClinicCaller,
+    input: { dryRun?: boolean; waId?: string },
+  ): Promise<unknown> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    this.#assertLabAllowed(caller)
+    this.#assertLabResetTenant(caller)
+    this.#ensureDemoSeededForLab(caller)
+    const { labResetAgenda } = await import('../lab/reset')
+    return labResetAgenda(this.#db, caller, this.#clock, input)
+  }
+
   async labConfig(caller: ClinicCaller, op: string, payload: Record<string, unknown>): Promise<unknown> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -2592,6 +2607,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (!isDemoTenantId(caller.tenantId) || this.env.ENVIRONMENT !== 'staging') {
       throw new TenantMismatchError('laboratório só para a clínica demo em staging')
     }
+  }
+
+  #assertLabResetTenant(caller: ClinicCaller): void {
+    assertLabResetEnvironment(this.env)
+    assertLabResetTenant(caller.tenantId)
   }
 
   async seedInboxDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {

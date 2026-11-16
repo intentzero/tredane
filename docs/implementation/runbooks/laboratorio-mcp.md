@@ -56,6 +56,7 @@ callback `cursor://` ou agents). Sem `return_to`, o `forceRedirect` do painel ia
 | `lab_say` | A cliente envia texto; a IA responde já (sem esperar o debounce). Devolve as mensagens novas e `tappable` (botões/lista a tocar). |
 | `lab_tap` | A cliente toca num botão ou numa linha de lista (`buttonId` e `title` vêm de `options`/`tappable`; `kind: "list"` para listas). Só o botão Confirmar marca (DEC-061). |
 | `lab_state` | Contato, conversa, mensagens, propostas, jobs da IA e marcações da clínica. Só leitura. |
+| `lab_reset` | Cancela marcações **futuras** confirmadas e encerra propostas/holds **pendentes** na demo (soft-cancel; histórico passado mantém-se). Por defeito `dryRun: true` — devolve contagens e ids sem alterar. `dryRun: false` aplica. `waId` opcional (só prefixo `5500…`) limita à cliente. Recusado fora de staging ou fora do tenant demo. |
 
 `waId` omitido usa `550000000001`; outro número (`5500…`) é outra cliente, com conversa própria.
 
@@ -86,3 +87,12 @@ eventos em tempo real). Lista fechada, sem apagar:
 
 Fora desta fase: apagar serviços ou salas (desativar chega), Pix e cobrança, e «repor seed». Alterações ficam na
 clínica demo e persistem entre sessões: anotar o que se mudou e desfazer no fim do teste.
+
+## Repor agenda (`lab_reset`)
+
+Para esvaziar marcações futuras e propostas/holds pendentes sem apagar conversas nem configuração:
+
+1. `lab_reset` (dry run) — confirma contagens;
+2. `lab_reset` com `dryRun: false` — aplica soft-cancel (`appointments` → `cancelled`; propostas abertas → `expirada`; holds ativos → `cancelled`).
+
+Não substitui o reset operacional do painel (que apaga toda a camada operacional). O tenant alvo é sempre `tenant_dec0de000000000000000001` (`DEMO_CLINIC_TENANT_ID`); a Clínica Teste Paulo e qualquer outro tenant são recusados antes de tocar dados.

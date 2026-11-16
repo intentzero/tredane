@@ -27,6 +27,7 @@ import {
 import type { WorkerBindings } from '../worker/bindings'
 import type { LabStateResult, LabTurnResult } from './turn'
 import { isLabEnabled, labMaxTurnsDaily, resolveLabWaId } from './gate'
+import { assertLabResetAllowed, LabResetGuardError } from './reset-guards'
 
 const SERVER_INFO = { name: 'tredane-lab', version: '1.0.0' }
 
@@ -236,6 +237,23 @@ export const LAB_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
+  {
+    name: 'lab_reset',
+    description:
+      'Cancela marcações futuras confirmadas e encerra propostas/holds pendentes na clínica demo (só staging). Por defeito dryRun=true: devolve contagens e ids sem alterar. Histórico passado e conversas mantêm-se.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dryRun: {
+          type: 'boolean',
+          description: 'true (padrão): só lista o que seria afetado; false aplica soft-cancel.',
+        },
+        waId: WA_ID_PROP,
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true },
+  },
 ] as const
 
 type Args = Record<string, unknown>
@@ -246,6 +264,22 @@ function str(v: unknown, max: number): string | null {
 
 export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBindings, actor = 'mcp') {
   const args: Args = rawArgs && typeof rawArgs === 'object' ? (rawArgs as Args) : {}
+  if (name === 'lab_reset') {
+    try {
+      assertLabResetAllowed(env, DEMO_CLINIC_TENANT_ID)
+    } catch (err) {
+      if (err instanceof LabResetGuardError) {
+        return toolErrorResult(err.message, { code: err.code })
+      }
+      throw err
+    }
+    if (args.waId !== undefined && args.waId !== null && args.waId !== '') {
+      const filtered = resolveLabWaId(args.waId)
+      if (!filtered) {
+        return toolErrorResult('waId inválido: usar 5500 + 8 a 11 dígitos.')
+      }
+    }
+  }
   const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(DEMO_CLINIC_TENANT_ID)))
   const caller = workerCaller(DEMO_CLINIC_TENANT_ID, `lab:${actor}`)
   const waId = resolveLabWaId(args.waId)
@@ -325,6 +359,19 @@ export async function callLabTool(name: string, rawArgs: unknown, env: WorkerBin
           return toolErrorResult('enabled (boolean) obrigatório.')
         }
         return toolTextResult(await stub.labConfig(caller, 'ai_assist', { enabled: args.enabled }))
+      case 'lab_reset': {
+        const dryRun = args.dryRun !== false
+        const waFilter =
+          args.waId !== undefined && args.waId !== null && args.waId !== ''
+            ? (resolveLabWaId(args.waId) ?? undefined)
+            : undefined
+        return toolTextResult(
+          await stub.labReset(caller, {
+            dryRun,
+            ...(waFilter ? { waId: waFilter } : {}),
+          }),
+        )
+      }
       default:
         return toolErrorResult(`Ferramenta desconhecida: ${name}`)
     }
