@@ -47,6 +47,7 @@ export type ExtractModelResult = {
   model: string | null
   inputTokens: number | null
   outputTokens: number | null
+  thinkingTokens?: number | null
   latencyMs: number | null
   code?: string
 }

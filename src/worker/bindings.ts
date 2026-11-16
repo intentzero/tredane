@@ -108,6 +108,11 @@ export type WorkerBindings = {
    * extrator por turno de texto livre, só para medir. Omisso = desligada.
    */
   AI_INTERPRETER_SHADOW?: string
+  /**
+   * Proposta H9: modo de thinking do extrator (`off` | `minimal`). Omisso = gateway/modelo default.
+   * Não definido em wrangler — só secret/var explícito em staging para experimento.
+   */
+  AI_EXTRACTOR_THINKING_MODE?: string
   /** S7 (#178): «on» liga os limites de abuso (padrão desligado). Valores: ABUSE_LIMIT_* (Proposto). */
   ABUSE_LIMITS?: string
   CF_ACCOUNT_ID?: string

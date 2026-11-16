@@ -79,6 +79,8 @@ export type DecideSuggestionInput = {
 export type AiAssistDeps = {
   adapter: import('../../ai/contract').AiProviderAdapter
   mode: 'synthetic' | 'gateway'
+  /** Proposta H9: `default` = não envia campo thinking no pedido Anthropic. */
+  extractorThinkingMode?: import('../../ai/thinking').AiThinkingMode
   /** AI_MODE=gateway mas sem chaves → simulado (aviso no painel). */
   syntheticFallback?: boolean
   /** Nome da clínica (D1) para o contexto. */

@@ -23,6 +23,21 @@ export type TurnRoute =
   | 'fallback'
   | `skip:${string}`
 
+/** Soma métricas nullable (só input/output/thinking em turn_decided). */
+export function sumNullableMetrics(
+  ...values: Array<number | null | undefined>
+): number | null {
+  let seen = false
+  let sum = 0
+  for (const v of values) {
+    if (v != null) {
+      seen = true
+      sum += v
+    }
+  }
+  return seen ? sum : null
+}
+
 export type TurnDecidedPayload = {
   tenantId: string
   conversationId: string
@@ -74,7 +89,7 @@ export type TurnDecidedPayload = {
     decision: number | null
     send: number | null
   }
-  tokens: { input: number | null; output: number | null }
+  tokens: { input: number | null; output: number | null; thinking: number | null }
 }
 
 const BODY_LEAK =

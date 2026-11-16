@@ -129,6 +129,7 @@ import {
 } from './booking-session'
 import {
   emitTurnDecided,
+  sumNullableMetrics,
   routeFromAutodraftOutcome,
   variantsChangedInTurn,
   zonesAskedBeforeTurn,
@@ -511,6 +512,13 @@ export async function runDueAutoDrafts(
         fallbackSent?: boolean
         decisionMs?: number
         sendMs?: number
+        extractorUsage?: {
+          inputTokens: number | null
+          outputTokens: number | null
+          thinkingTokens: number | null
+          latencyMs: number | null
+          model: string | null
+        }
       } = {},
     ): void => {
       // DEC-188: turno ainda à espera da fila — sem ai.turn_decided.
@@ -584,16 +592,26 @@ export async function runDueAutoDrafts(
               (outcome.suggestion?.status === 'failed' &&
                 outcome.suggestion.warningCodes.includes('output_rejected')),
           ),
-          model: outcome.suggestion?.model ?? null,
+          model: outcome.suggestion?.model ?? extra.extractorUsage?.model ?? null,
           latencyMs: {
             debounce: debounceMs,
-            model: outcome.suggestion?.requestMeta.latencyMs ?? null,
+            model: sumNullableMetrics(
+              extra.extractorUsage?.latencyMs,
+              outcome.suggestion?.requestMeta.latencyMs,
+            ),
             decision: extra.decisionMs ?? null,
             send: extra.sendMs ?? null,
           },
           tokens: {
-            input: outcome.suggestion?.requestMeta.inputTokens ?? null,
-            output: outcome.suggestion?.requestMeta.outputTokens ?? null,
+            input: sumNullableMetrics(
+              extra.extractorUsage?.inputTokens,
+              outcome.suggestion?.requestMeta.inputTokens,
+            ),
+            output: sumNullableMetrics(
+              extra.extractorUsage?.outputTokens,
+              outcome.suggestion?.requestMeta.outputTokens,
+            ),
+            thinking: sumNullableMetrics(extra.extractorUsage?.thinkingTokens),
           },
         },
         clock,
@@ -1447,6 +1465,15 @@ export async function runDueAutoDrafts(
     let autoBook: AutoBookOutcome | undefined
     let modelCalled = false
     let modelCalls = 0
+    let extractorUsage:
+      | {
+          inputTokens: number | null
+          outputTokens: number | null
+          thinkingTokens: number | null
+          latencyMs: number | null
+          model: string | null
+        }
+      | undefined
     let generateError: string | null = null
     let liveTurn = turn
 
@@ -1559,6 +1586,13 @@ export async function runDueAutoDrafts(
         if (extracted.modelCalled) {
           modelCalled = true
           modelCalls += 1
+          extractorUsage = {
+            inputTokens: extracted.inputTokens,
+            outputTokens: extracted.outputTokens,
+            thinkingTokens: extracted.thinkingTokens,
+            latencyMs: extracted.latencyMs,
+            model: extracted.model,
+          }
           // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
           recordModelCallTowardDailyCap(db, tenantId, clock)
         }
@@ -2141,6 +2175,7 @@ export async function runDueAutoDrafts(
         textDiscarded,
         fallbackSent,
         decisionMs: Math.max(0, clock.nowMs() - jobStarted),
+        extractorUsage,
       },
     )
   }

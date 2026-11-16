@@ -17,6 +17,12 @@ export {
 } from './budgets'
 export { buildSystemPrompt, buildUserContent, formatBRL } from './prompt'
 export {
+  parseThinkingMode,
+  thinkingPayloadForMode,
+  AI_THINKING_MINIMAL_BUDGET_TOKENS,
+  type AiThinkingMode,
+} from './thinking'
+export {
   EXTRACTOR_STABLE_SYSTEM,
   EXTRACT_TOOL_NAME,
   buildExtractTool,

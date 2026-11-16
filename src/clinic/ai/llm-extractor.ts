@@ -65,6 +65,7 @@ export type ValidatedExtraction = {
   model: string | null
   inputTokens: number | null
   outputTokens: number | null
+  thinkingTokens: number | null
   latencyMs: number | null
 }
 
@@ -350,6 +351,10 @@ export async function callExtractorModel(
     tools: [tool],
     toolChoice: { type: 'tool', name: EXTRACT_TOOL_NAME },
     promptCache: true,
+    thinkingMode:
+      deps.extractorThinkingMode && deps.extractorThinkingMode !== 'default'
+        ? deps.extractorThinkingMode
+        : undefined,
   })
   return { gen, raw: gen.ok ? parseRaw(gen.text) : null }
 }
@@ -389,6 +394,7 @@ export async function runRestrictedExtractor(
       model: null,
       inputTokens: null,
       outputTokens: null,
+      thinkingTokens: null,
       latencyMs: null,
     }
   }
@@ -409,6 +415,7 @@ export async function runRestrictedExtractor(
       model: gen.model,
       inputTokens: null,
       outputTokens: null,
+      thinkingTokens: null,
       latencyMs: gen.latencyMs,
     }
   }
@@ -422,6 +429,7 @@ export async function runRestrictedExtractor(
       model: gen.model,
       inputTokens: gen.inputTokens,
       outputTokens: gen.outputTokens,
+      thinkingTokens: gen.thinkingTokens ?? null,
       latencyMs: gen.latencyMs,
     }
   }
@@ -492,6 +500,7 @@ export async function runRestrictedExtractor(
     model: gen.model,
     inputTokens: gen.inputTokens,
     outputTokens: gen.outputTokens,
+    thinkingTokens: gen.thinkingTokens ?? null,
     latencyMs: gen.latencyMs,
   }
 }

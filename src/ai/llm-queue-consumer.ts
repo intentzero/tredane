@@ -15,6 +15,7 @@ import {
   buildExtractTool,
   buildExtractorUserContent,
   buildExceptionUserContent,
+  parseThinkingMode,
   resolveAiMode,
   type AiContextPayload,
   type AiGenerateResult,
@@ -152,6 +153,10 @@ async function callExtract(
     tools: [tool],
     toolChoice: { type: 'tool', name: EXTRACT_TOOL_NAME },
     promptCache: true,
+    thinkingMode: (() => {
+      const mode = parseThinkingMode(env.AI_EXTRACTOR_THINKING_MODE)
+      return mode === 'default' ? undefined : mode
+    })(),
   })
   return toExtractResult(gen)
 }
@@ -176,6 +181,7 @@ function toExtractResult(gen: AiGenerateResult): ExtractModelResult {
     model: gen.model,
     inputTokens: gen.inputTokens,
     outputTokens: gen.outputTokens,
+    thinkingTokens: gen.thinkingTokens,
     latencyMs: gen.latencyMs,
   }
 }

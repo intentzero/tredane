@@ -209,6 +209,8 @@ export type AiGenerateInput = {
   userContentOverride?: string
   /** Anthropic prompt caching no bloco estável (CA-05). */
   promptCache?: boolean
+  /** Proposta H9: só entra no body quando ≠ `default`. */
+  thinkingMode?: import('./thinking').AiThinkingMode
 }
 
 export type AiGenerateSuccess = {
@@ -220,6 +222,8 @@ export type AiGenerateSuccess = {
   /** Métricas sem conteúdo pessoal. */
   inputTokens: number | null
   outputTokens: number | null
+  /** Tokens de thinking quando o gateway os expõe (senão null). */
+  thinkingTokens?: number | null
   /** Nome da ferramenta quando a saída veio de tool_use (extrator). */
   toolName?: string | null
 }

@@ -6,6 +6,8 @@ import {
   AI_TIMEOUT_MS,
 } from '../budgets'
 import { buildSystemPrompt, buildUserContent } from '../prompt'
+import { logLlmUsage } from '../llm-usage-log'
+import { thinkingPayloadForMode } from '../thinking'
 import type {
   AiGenerateInput,
   AiGenerateResult,
@@ -125,6 +127,8 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       body.tools = tools
       if (input.toolChoice) body.tool_choice = input.toolChoice
     }
+    const thinking = thinkingPayloadForMode(input.thinkingMode)
+    if (thinking) body.thinking = thinking
 
     const started = Date.now()
     const timeoutMs = Math.min(input.timeoutMs, AI_TIMEOUT_MS)
@@ -186,16 +190,35 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       }
 
       const usage = extractUsage(data)
-      return {
-        ok: true,
+      const success = {
+        ok: true as const,
         text,
         provider: this.providerId,
         model,
         latencyMs,
         inputTokens: usage.input,
         outputTokens: usage.output,
+        thinkingTokens: usage.thinking,
         toolName: tool?.name ?? null,
       }
+      logLlmUsage({
+        purpose:
+          input.profile === 'extract'
+            ? 'extract'
+            : input.profile === 'exception'
+              ? 'exception'
+              : input.kind === 'summary'
+                ? 'summary'
+                : 'reply',
+        provider: this.providerId,
+        model,
+        latencyMs,
+        inputTokens: usage.input,
+        outputTokens: usage.output,
+        thinkingTokens: usage.thinking,
+        ok: true,
+      })
+      return success
     } catch (err) {
       const latencyMs = Date.now() - started
       const aborted = err instanceof Error && err.name === 'AbortError'
@@ -294,13 +317,31 @@ function extractAnthropicToolUse(
   return null
 }
 
-function extractUsage(data: unknown): { input: number | null; output: number | null } {
-  if (!data || typeof data !== 'object') return { input: null, output: null }
-  const usage = (data as { usage?: { input_tokens?: unknown; output_tokens?: unknown } })
-    .usage
-  if (!usage) return { input: null, output: null }
+function extractUsage(data: unknown): {
+  input: number | null
+  output: number | null
+  thinking: number | null
+} {
+  if (!data || typeof data !== 'object') return { input: null, output: null, thinking: null }
+  const usage = (data as {
+    usage?: {
+      input_tokens?: unknown
+      output_tokens?: unknown
+      thinking_tokens?: unknown
+      cache_creation_input_tokens?: unknown
+      cache_read_input_tokens?: unknown
+    }
+  }).usage
+  if (!usage) return { input: null, output: null, thinking: null }
+  const thinkingRaw =
+    typeof usage.thinking_tokens === 'number'
+      ? usage.thinking_tokens
+      : typeof (usage as { reasoning_tokens?: unknown }).reasoning_tokens === 'number'
+        ? (usage as { reasoning_tokens: number }).reasoning_tokens
+        : null
   return {
     input: typeof usage.input_tokens === 'number' ? usage.input_tokens : null,
     output: typeof usage.output_tokens === 'number' ? usage.output_tokens : null,
+    thinking: thinkingRaw,
   }
 }

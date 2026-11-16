@@ -120,6 +120,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
         latencyMs: latency,
         inputTokens: Math.ceil((systemPrompt.length + userContent.length) / 4),
         outputTokens: Math.ceil(text.length / 4),
+        thinkingTokens: null,
         toolName: input.tools?.[0]?.name ?? 'extract_turn_slots',
       }
     }
@@ -143,6 +144,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       latencyMs: latency,
       inputTokens: Math.ceil((systemPrompt.length + userContent.length) / 4),
       outputTokens: Math.ceil((input.kind === 'summary' ? text : wrapped).length / 4),
+      thinkingTokens: null,
     }
   }
 

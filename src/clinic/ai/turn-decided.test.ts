@@ -15,10 +15,18 @@ import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import {
   assertTurnDecidedMinimized,
   emitTurnDecided,
+  sumNullableMetrics,
   variantsChangedInTurn,
   zonesAskedBeforeTurn,
   type TurnDecidedPayload,
 } from './turn-decided'
+
+describe('sumNullableMetrics', () => {
+  it('soma só valores presentes', () => {
+    expect(sumNullableMetrics(null, 10, undefined, 5)).toBe(15)
+    expect(sumNullableMetrics(null, null)).toBeNull()
+  })
+})
 
 const NOW = Date.UTC(2026, 10, 5, 13, 0)
 
@@ -41,7 +49,7 @@ function samplePayload(over: Partial<TurnDecidedPayload> = {}): TurnDecidedPaylo
     friction: [],
     model: 'claude-haiku-5-5',
     latencyMs: { debounce: 7000, model: 12, decision: 20, send: 5 },
-    tokens: { input: 100, output: 20 },
+    tokens: { input: 100, output: 20, thinking: null },
     ...over,
   }
 }

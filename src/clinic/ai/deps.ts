@@ -1,6 +1,7 @@
 import {
   buildAiAdapter,
   isSyntheticFallback,
+  parseThinkingMode,
   resolveAiMode,
   type AiGatewayConfig,
   type SimulatedAiOptions,
@@ -36,6 +37,8 @@ export type AiAssistRpcDeps = {
   abuseLimits?: AbuseLimits
   /** Sombra do interpretador LLM; só mede (ver `interpreter-shadow.ts`). */
   interpreterShadow?: boolean
+  /** Proposta H9 — extrator: `default` | `off` | `minimal`. */
+  extractorThinkingMode?: import('../../ai/thinking').AiThinkingMode
 }
 
 /** Capacidade de proposta e clique. Sempre ligada; a pausa da owner é o desligamento. */
@@ -64,6 +67,9 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     autoBookPaused: rpc.autoBookPaused === true,
     ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
     ...(rpc.interpreterShadow ? { interpreterShadow: true } : {}),
+    ...(rpc.extractorThinkingMode && rpc.extractorThinkingMode !== 'default'
+      ? { extractorThinkingMode: rpc.extractorThinkingMode }
+      : {}),
   }
 }
 
@@ -76,11 +82,14 @@ export function rpcDepsFromEnv(env: {
   AI_GATEWAY_BYOK_ALIAS?: string
   ABUSE_LIMITS?: string
   AI_INTERPRETER_SHADOW?: string
+  AI_EXTRACTOR_THINKING_MODE?: string
   [key: `ABUSE_LIMIT_${string}`]: string | undefined
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
+  const extractorThinkingMode = parseThinkingMode(env.AI_EXTRACTOR_THINKING_MODE)
   return {
     mode,
+    ...(extractorThinkingMode !== 'default' ? { extractorThinkingMode } : {}),
     ...(interpreterShadowEnabled(env.AI_INTERPRETER_SHADOW) ? { interpreterShadow: true } : {}),
     abuseLimits: abuseLimitsFromEnv(env as Record<string, string | undefined>),
     gateway: {
