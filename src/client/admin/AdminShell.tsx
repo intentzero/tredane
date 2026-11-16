@@ -5,6 +5,7 @@ import { ADMIN_AREAS, navigateAdmin, resolveAdminRoute, type AdminArea, type Adm
 import { AdminNotFound } from './AdminStates'
 import { ClinicaDetalhe } from './clinicas/ClinicaDetalhe'
 import { ClinicasList } from './clinicas/ClinicasList'
+import { NovaClinica } from './clinicas/NovaClinica'
 
 const ICONS: Record<AdminArea, LucideIcon> = {
   'visao-geral': LayoutDashboard,
@@ -54,7 +55,11 @@ function useAdminRoute(): AdminRoute {
 export default function AdminShell() {
   const route = useAdminRoute()
   const current: AdminArea | null =
-    route.kind === 'area' ? route.area : route.kind === 'clinica' ? 'clinicas' : null
+    route.kind === 'area'
+      ? route.area
+      : route.kind === 'clinica' || route.kind === 'clinica-nova'
+        ? 'clinicas'
+        : null
 
   return (
     <div className="admin-shell">
@@ -96,6 +101,8 @@ export default function AdminShell() {
       <main className="admin-main">
         {route.kind === 'not-found' ? (
           <AdminNotFound />
+        ) : route.kind === 'clinica-nova' ? (
+          <NovaClinica />
         ) : route.kind === 'clinica' ? (
           <ClinicaDetalhe key={route.tenantId} tenantId={route.tenantId} tab={route.tab} />
         ) : route.area === 'clinicas' ? (

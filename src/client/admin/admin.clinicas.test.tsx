@@ -53,7 +53,32 @@ function asTenant(r: Row) {
   return tenant
 }
 
+type Inv = {
+  id: string
+  email: string
+  role: 'owner'
+  status: 'pending' | 'cancelled'
+  issuedAt: number
+  expiresAt: number
+  lastResentAt: number | null
+  expired: boolean
+}
+const inv = (over: Partial<Inv> = {}): Inv => ({
+  id: 'inv_1',
+  email: 'dona@example.test',
+  role: 'owner',
+  status: 'pending',
+  issuedAt: T0,
+  expiresAt: T0 + 7 * 86_400_000,
+  lastResentAt: null,
+  expired: false,
+  ...over,
+})
+
 type Server = {
+  invitations: Record<string, Inv[]>
+  /** `emailSent` devolvido por criar/reenviar/emitir. */
+  emailSent: boolean
   rows: Row[]
   requests: Array<{ method: string; url: string; body: unknown }>
   /** Resposta forçada para o próximo pedido que não seja GET. */
@@ -63,7 +88,15 @@ type Server = {
 }
 
 function mountServer(rows: Row[]): Server {
-  const server: Server = { rows, requests: [], failNext: null, listFails: 0, me: { isSuperadmin: true } }
+  const server: Server = {
+    invitations: {},
+    emailSent: true,
+    rows,
+    requests: [],
+    failNext: null,
+    listFails: 0,
+    me: { isSuperadmin: true },
+  }
   const j = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   vi.stubGlobal(
@@ -77,6 +110,40 @@ function mountServer(rows: Row[]): Server {
         return j({ kind: 'human', clerkUserId: 'u', sessionId: 's', isSuperadmin: server.me.isSuperadmin })
       }
       server.requests.push({ method, url, body })
+      if (url === '/api/platform/tenants' && method === 'POST') {
+        if (server.failNext) {
+          const f = server.failNext
+          server.failNext = null
+          return j({ error: f.error }, f.status)
+        }
+        const created = row({ id: 'nova-id', name: String((body as { name: string }).name), ownerCount: 0, memberCount: 0 })
+        server.rows.push(created)
+        const invite = inv({ id: 'inv_new', email: String((body as { ownerEmail: string }).ownerEmail) })
+        server.invitations[created.id] = [invite]
+        return j({ tenant: asTenant(created), invitation: invite, emailSent: server.emailSent }, 201)
+      }
+      const im = /^\/api\/platform\/tenants\/([^/]+)\/invitations(?:\/([^/]+)\/(resend|cancel))?$/.exec(url)
+      if (im) {
+        const tid = decodeURIComponent(im[1]!)
+        if (server.failNext) {
+          const f = server.failNext
+          server.failNext = null
+          return j({ error: f.error }, f.status)
+        }
+        const list = (server.invitations[tid] ??= [])
+        if (!im[2]) {
+          const created = inv({ id: `inv_${list.length + 2}`, email: String((body as { email: string }).email) })
+          server.invitations[tid] = list.filter((x) => x.expired === false).concat(created)
+          return j({ invitation: created, emailSent: server.emailSent }, 201)
+        }
+        const target = list.find((x) => x.id === decodeURIComponent(im[2]!))
+        if (!target) return j({ error: 'invitation_not_found' }, 404)
+        if (im[3] === 'cancel') {
+          server.invitations[tid] = list.filter((x) => x.id !== target.id)
+          return j({ invitation: { ...target, status: 'cancelled' } })
+        }
+        return j({ invitation: target, emailSent: server.emailSent })
+      }
       if (url === '/api/platform/tenants') {
         if (server.listFails > 0) {
           server.listFails -= 1
@@ -107,6 +174,7 @@ function mountServer(rows: Row[]): Server {
             pix: { status: 'not_configured', note: 'Adaptador Pix simulado' },
           },
           deletionCommand: null,
+          invitations: server.invitations[id] ?? [],
           clinicalAccess: false,
         })
       }
@@ -363,6 +431,129 @@ describe('Platform Admin — clínicas (#829)', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Salvar' }))
       expect(await within(dialog).findByText('Escreva o nome da clínica.')).toBeTruthy()
       expect(server.requests.some((r) => r.method === 'PATCH')).toBe(false)
+    })
+  })
+  describe('convite de owner (DEC-194, #842)', () => {
+    it('Nova clínica: valida os campos, envia nome, fuso e e-mail e abre o detalhe', async () => {
+      const server = mountServer(seed())
+      const user = userEvent.setup()
+      await open('/admin/clinicas')
+      await user.click(await screen.findByRole('link', { name: 'Nova clínica' }))
+      expect(window.location.pathname).toBe('/admin/clinicas/nova')
+      await user.click(await screen.findByRole('button', { name: 'Criar clínica' }))
+      expect(await screen.findByText('Escreva o nome da clínica.')).toBeTruthy()
+      expect(screen.getByText(/Escreva um e-mail completo/)).toBeTruthy()
+      expect(server.requests.some((r) => r.method === 'POST')).toBe(false)
+
+      await user.type(screen.getByLabelText(/^Nome da clínica/), '  Clínica Nova  ')
+      await user.type(screen.getByLabelText(/^E-mail/), 'dona@example.test')
+      await user.click(screen.getByRole('button', { name: 'Criar clínica' }))
+      await waitFor(() => expect(window.location.pathname).toBe('/admin/clinicas/nova-id'))
+      expect(server.requests.find((r) => r.method === 'POST')?.body).toEqual({
+        name: 'Clínica Nova',
+        timezone: 'America/Sao_Paulo',
+        ownerEmail: 'dona@example.test',
+      })
+      expect(await screen.findByRole('heading', { level: 1, name: 'Clínica Nova' })).toBeTruthy()
+      expect(screen.getAllByText('Em configuração').length).toBeGreaterThan(0)
+      expect(screen.getByText('dona@example.test')).toBeTruthy()
+      expect(screen.getByText(/Convite pendente · expira em/)).toBeTruthy()
+    })
+
+    it('Nova clínica: erro do servidor mostra a frase e mantém o formulário preenchido', async () => {
+      const server = mountServer(seed())
+      server.failNext = { status: 400, error: 'owner_email_invalid' }
+      const user = userEvent.setup()
+      const { container } = await open('/admin/clinicas/nova')
+      await user.type(await screen.findByLabelText('Nome da clínica'), 'Clínica X')
+      await user.type(screen.getByLabelText('E-mail'), 'a@b.co')
+      await user.click(screen.getByRole('button', { name: 'Criar clínica' }))
+      expect(await screen.findByText('Escreva um e-mail completo, como nome@clinica.com.br.')).toBeTruthy()
+      expect(window.location.pathname).toBe('/admin/clinicas/nova')
+      expect((screen.getByLabelText('Nome da clínica') as HTMLInputElement).value).toBe('Clínica X')
+      await checkA11y(container)
+    })
+
+    it('detalhe «em configuração» com convite: mostra e-mail e prazo; reenviar confirma o envio', async () => {
+      const server = mountServer(seed())
+      server.invitations.jardim = [inv()]
+      const user = userEvent.setup()
+      await open('/admin/clinicas/jardim')
+      expect(await screen.findByText('dona@example.test')).toBeTruthy()
+      expect(screen.getByText(/Convite pendente · expira em 27\/10\/2026/)).toBeTruthy()
+      expect(screen.getByText(/\(convite em curso\)/)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Convidar owner' })).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Reenviar' }))
+      expect(await screen.findByText('Convite reenviado para dona@example.test.')).toBeTruthy()
+      expect(server.requests.some((r) => r.url.endsWith('/invitations/inv_1/resend'))).toBe(true)
+    })
+
+    it('se o e-mail não saiu, diz isso em vez de afirmar que foi enviado', async () => {
+      const server = mountServer(seed())
+      server.invitations.jardim = [inv()]
+      server.emailSent = false
+      const user = userEvent.setup()
+      await open('/admin/clinicas/jardim')
+      await user.click(await screen.findByRole('button', { name: 'Reenviar' }))
+      expect(await screen.findByText(/mas o e-mail não saiu/)).toBeTruthy()
+    })
+
+    it('intervalo de reenvio devolve a frase e não muda o convite', async () => {
+      const server = mountServer(seed())
+      server.invitations.jardim = [inv()]
+      server.failNext = { status: 409, error: 'invitation_resend_cooldown' }
+      const user = userEvent.setup()
+      await open('/admin/clinicas/jardim')
+      await user.click(await screen.findByRole('button', { name: 'Reenviar' }))
+      expect(await screen.findByText('Aguarde 10 minutos para reenviar este convite.')).toBeTruthy()
+      expect(screen.getByText('dona@example.test')).toBeTruthy()
+    })
+
+    it('cancelar o convite tira-o da lista e passa a oferecer «Convidar owner»', async () => {
+      const server = mountServer(seed())
+      server.invitations.jardim = [inv()]
+      const user = userEvent.setup()
+      await open('/admin/clinicas/jardim')
+      await user.click(await screen.findByRole('button', { name: 'Cancelar convite' }))
+      expect(await screen.findByText('Convite para dona@example.test cancelado.')).toBeTruthy()
+      await waitFor(() => expect(screen.queryByText(/Convite pendente/)).toBeNull())
+      expect(await screen.findByRole('button', { name: 'Convidar owner' })).toBeTruthy()
+    })
+
+    it('convite expirado oferece «Emitir novo convite» para o mesmo e-mail', async () => {
+      const server = mountServer(seed())
+      server.invitations.jardim = [inv({ expired: true })]
+      const user = userEvent.setup()
+      await open('/admin/clinicas/jardim')
+      expect(await screen.findByText(/Convite expirado em/)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Reenviar' })).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Emitir novo convite' }))
+      expect(await screen.findByText('Novo convite enviado para dona@example.test.')).toBeTruthy()
+      expect(server.requests.find((r) => r.url.endsWith('/invitations') && r.method === 'POST')?.body).toEqual({
+        email: 'dona@example.test',
+      })
+    })
+
+    it('sem owner e sem convite: formulário «Convidar owner»; com owner ou suspensa não aparece', async () => {
+      const server = mountServer(seed())
+      const user = userEvent.setup()
+      await open('/admin/clinicas/jardim')
+      await user.type(await screen.findByLabelText('E-mail da owner'), 'nova.owner@example.test')
+      await user.click(screen.getByRole('button', { name: 'Convidar owner' }))
+      expect(await screen.findByText('Convite enviado para nova.owner@example.test.')).toBeTruthy()
+      expect(server.requests.find((r) => r.url.endsWith('/invitations') && r.method === 'POST')?.body).toEqual({
+        email: 'nova.owner@example.test',
+      })
+      cleanup()
+      mountServer(seed())
+      await open('/admin/clinicas/aurora')
+      await screen.findByRole('heading', { level: 1, name: 'Clínica Aurora' })
+      expect(screen.queryByLabelText('E-mail da owner')).toBeNull()
+      cleanup()
+      mountServer(seed().map((r) => (r.id === 'jardim' ? { ...r, status: 'suspended' as const } : r)))
+      await open('/admin/clinicas/jardim')
+      await screen.findByRole('heading', { level: 1, name: 'Clínica Jardim Sul' })
+      expect(screen.queryByLabelText('E-mail da owner')).toBeNull()
     })
   })
 })

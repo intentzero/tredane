@@ -16,6 +16,8 @@ export type AdminRoute =
   | { kind: 'area'; area: AdminArea }
   /** Detalhe da clínica (PA-04): a aba fica na URL para poder ser partilhada. */
   | { kind: 'clinica'; tenantId: string; tab: ClinicaTab }
+  /** PA-03: nova clínica com convite de owner (DEC-194). */
+  | { kind: 'clinica-nova' }
   | { kind: 'not-found' }
 
 export const ADMIN_AREAS: ReadonlyArray<{ area: AdminArea; label: string; href: string }> = [
@@ -42,6 +44,7 @@ export function resolveAdminRoute(pathname: string): AdminRoute | null {
   const path = normalize(pathname)
   const hit = ADMIN_AREAS.find((a) => a.href === path)
   if (hit) return { kind: 'area', area: hit.area }
+  if (path === '/admin/clinicas/nova') return { kind: 'clinica-nova' }
   const m = /^\/admin\/clinicas\/([^/]+)(?:\/([^/]+))?$/.exec(path)
   if (m) {
     let tenantId: string

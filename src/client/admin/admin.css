@@ -559,3 +559,36 @@
     flex-direction: row-reverse;
   }
 }
+
+/* PA-03 e convite pendente */
+.admin-form {
+  max-width: 640px;
+  gap: var(--space-4);
+}
+
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.admin-invite-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.admin-invite-row .admin-invite-info {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}

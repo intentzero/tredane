@@ -29,6 +29,20 @@ export type AdminMembership = {
   revokedAt: number | null
 }
 
+export type AdminInvitation = {
+  id: string
+  email: string
+  role: 'owner' | 'attendant'
+  status: 'pending' | 'accepted' | 'cancelled' | 'expired'
+  issuedAt: number
+  expiresAt: number
+  lastResentAt: number | null
+  /** Pendente com prazo vencido: o link já não serve; falta emitir um novo. */
+  expired: boolean
+}
+
+export type InviteResult = { invitation: AdminInvitation; emailSent: boolean }
+
 export type AdminTenantDetail = {
   tenant: AdminTenant
   members: AdminMembership[]
@@ -38,6 +52,7 @@ export type AdminTenantDetail = {
     pix: { status: ChannelStatus; note: string }
   }
   deletionCommand: { id: string; status: string; requestedAt: number } | null
+  invitations: AdminInvitation[]
   clinicalAccess: false
 }
 
@@ -90,6 +105,30 @@ export function createAdminApi(getToken: TokenGetter) {
         await request<{ tenant: AdminTenant }>(tenantPath(id), { method: 'PATCH', body: JSON.stringify(patch) })
       ).tenant
     },
+    /** DEC-194: cria a clínica sem owner ativa e convida a primeira owner por e-mail. */
+    createTenantWithOwnerInvite(input: {
+      name: string
+      timezone: string
+      ownerEmail: string
+    }): Promise<{ tenant: AdminTenant } & InviteResult> {
+      return request('/api/platform/tenants', { method: 'POST', body: JSON.stringify(input) })
+    },
+    inviteOwner(tenantId: string, email: string): Promise<InviteResult> {
+      return request(`${tenantPath(tenantId)}/invitations`, { method: 'POST', body: JSON.stringify({ email }) })
+    },
+    resendInvitation(tenantId: string, invitationId: string): Promise<InviteResult> {
+      return request(`${tenantPath(tenantId)}/invitations/${encodeURIComponent(invitationId)}/resend`, {
+        method: 'POST',
+      })
+    },
+    async cancelInvitation(tenantId: string, invitationId: string): Promise<AdminInvitation> {
+      return (
+        await request<{ invitation: AdminInvitation }>(
+          `${tenantPath(tenantId)}/invitations/${encodeURIComponent(invitationId)}/cancel`,
+          { method: 'POST' },
+        )
+      ).invitation
+    },
     async suspendTenant(id: string, reason: string): Promise<AdminTenant> {
       return (await request<{ tenant: AdminTenant }>(`${tenantPath(id)}/suspend`, withReason(reason))).tenant
     },
@@ -119,6 +158,18 @@ export function adminErrorMessage(err: unknown): string {
       return 'O estado da clínica mudou entretanto. Atualize a página e confira.'
     case 'tenant_not_found':
       return 'Esta clínica já não existe.'
+    case 'owner_email_invalid':
+      return 'Escreva um e-mail completo, como nome@clinica.com.br.'
+    case 'invitation_already_pending':
+      return 'Já existe um convite pendente para este e-mail.'
+    case 'invitation_resend_cooldown':
+      return 'Aguarde 10 minutos para reenviar este convite.'
+    case 'invitation_resend_quota':
+      return 'Limite de reenvios atingido. Tente de novo mais tarde.'
+    case 'invitation_expired':
+      return 'O convite expirou. Emita um convite novo.'
+    case 'invitation_not_pending':
+      return 'Este convite já não está pendente. Atualize a página.'
     case 'reason_too_long':
       return 'O motivo tem mais de 300 caracteres.'
     case 'permission_denied':
