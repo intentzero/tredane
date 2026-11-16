@@ -143,6 +143,11 @@
         "clientTurns": 6,
         "doErrors": 3,
         "notes": "tap 'Sim' em axila+pernas -> 'Durable Object exceeded its CPU time limit' 3/3"
+      },
+      "baseline20261116": {
+        "booked": false,
+        "clientTurns": 5,
+        "notes": "handoff em horário de equipe pausava a IA; «Posso continuar…» sem processar zonas (regressão ae6ccd78)"
       }
     },
     {
@@ -470,6 +475,11 @@
         "booked": false,
         "clientTurns": 2,
         "notes": "handoff + silencio total no passo 2"
+      },
+      "baseline20261116": {
+        "booked": false,
+        "clientTurns": 2,
+        "notes": "passo 2 só handoff_paused_ack (lab ae6ccd78); alvo: catálogo massagem/drenagem com alerta aberto"
       }
     },
     {

@@ -70,6 +70,7 @@ import {
   handoffReason,
   humanTeamOfferButtons,
   inboundWarrantsHandoffResume,
+  inboundWarrantsParallelHandoffAutomation,
   isHumanTeamOfferAllowed,
   notifyHumanHandoff,
   type AiReplyPauseReason,
@@ -237,7 +238,17 @@ export function enqueueAutoDraft(
   if (isConversationPaused(db, tenantId, input.conversationId) && !isReviewFlagRequest(body)) {
     const pause = readAiReplyPause(db, tenantId, input.conversationId)
     const reason = (pause?.reason ?? 'off_purpose') as AiReplyPauseReason
+    const teamOpen = isHumanTeamOfferAllowed(db, tenantId, clock)
+    const parallelAutomation =
+      teamOpen &&
+      inboundWarrantsParallelHandoffAutomation(body, reason, {
+        db,
+        tenantId,
+        conversationId: input.conversationId,
+        fromInteractive: input.fromInteractive,
+      })
     if (
+      !parallelAutomation &&
       !inboundWarrantsHandoffResume(body, reason) &&
       !shouldAcknowledgeWhileHandoffPaused(reason)
     ) {
@@ -692,10 +703,22 @@ export async function runDueAutoDrafts(
     }
     if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
     if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
+    let parallelHandoffAutomationActive = false
     const aiPause = readAiReplyPause(db, tenantId, job.conversationId)
     if (aiPause) {
       const pauseReason = aiPause.reason as AiReplyPauseReason
-      if (inboundWarrantsHandoffResume(inboundBody, pauseReason)) {
+      const teamOpen = isHumanTeamOfferAllowed(db, tenantId, clock)
+      const parallelAutomation =
+        teamOpen &&
+        inboundWarrantsParallelHandoffAutomation(inboundBody, pauseReason, {
+          db,
+          tenantId,
+          conversationId: job.conversationId,
+        })
+      if (parallelAutomation) {
+        parallelHandoffAutomationActive = true
+        /* alerta/equipe mantidos; automação de agendamento ou catálogo segue abaixo */
+      } else if (inboundWarrantsHandoffResume(inboundBody, pauseReason)) {
         const resumeOutbox = resumeAiReply(db, tenantId, job.conversationId, clock)
         if (resumeOutbox.length > 0) {
           // evento de retomada — não conta como resposta à cliente
@@ -1311,7 +1334,7 @@ export async function runDueAutoDrafts(
     // a frase desse passo sai sem o CTA (Paulo, 07/11/2026).
     // Gate ops = `prepareBookingFlowOffer`.
     // Remarcar / cancelar / serviço nomeado já foram tratados acima ou caem no funil.
-    if (deps.prepareBookingFlowOffer) {
+    if (deps.prepareBookingFlowOffer && !parallelHandoffAutomationActive) {
       if (
         shouldAttachHubOpeningCta({
           turnText,
