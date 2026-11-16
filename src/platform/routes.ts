@@ -4,10 +4,11 @@
  * Superadmin verificado no backend; sem acesso clínico implícito.
  */
 import { Hono } from 'hono'
-import { systemClock } from '../db/clock'
+import { systemClock, type Clock } from '../db/clock'
 import {
   assignOwner,
   createTenantWithOwner,
+  listPendingInvitationsForTenant,
   getOpenDeletionCommand,
   getTenant,
   listAuditForTenant,
@@ -36,6 +37,21 @@ import {
 import type { FenceSource } from '../realtime/protocol'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
+import { resolveAppBaseUrlFromEnv, resolveEmailTransport, type EmailTransport } from '../email'
+import {
+  d1CancelInvitation,
+  d1CreateClinicWithOwnerInvitation,
+  d1CreateInvitation,
+  d1ListTeam,
+  d1ResendInvitation,
+} from '../team/d1-ops'
+import {
+  cancelOwnerInvite,
+  createClinicWithOwnerInvite,
+  inviteOwnerByEmail,
+  resendOwnerInvite,
+  type OwnerInviteServices,
+} from './owner-invite'
 import { startTenantPurgeWorkflow } from '../retention/workflow-start'
 import {
   d1AssignOwner,
@@ -59,6 +75,7 @@ import {
 import {
   serializeAdminTenantView,
   serializeMembership,
+  serializePlatformInvitation,
   serializeTenant,
 } from './serialize'
 
@@ -89,7 +106,13 @@ async function readReason(c: { req: { json: () => Promise<unknown> } }): Promise
 export type PlatformRouteOptions = {
   invalidatorFactory?: (env: WorkerBindings) => ClinicAccessInvalidator
   syncAdminDbFactory?: (env: WorkerBindings) => AdminDb | null
+  /** Convite da primeira owner (DEC-194): relógio, e-mail e URL base, como na Equipe. */
+  clockFactory?: () => Clock
+  emailFactory?: (env: WorkerBindings) => EmailTransport
+  appBaseUrlFactory?: (env: WorkerBindings) => string
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function adminErrorResponse(
   c: { json: (body: unknown, status?: number) => Response },
@@ -113,6 +136,17 @@ function adminErrorResponse(
 
 export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<PlatformEnv> {
   const routes = new Hono<PlatformEnv>()
+  const clockNow = (): Clock => opts.clockFactory?.() ?? systemClock
+  const emailFor = (env: WorkerBindings): EmailTransport =>
+    opts.emailFactory?.(env) ?? resolveEmailTransport(env, { clock: clockNow() })
+  const baseUrlFor = (env: WorkerBindings): string =>
+    opts.appBaseUrlFactory?.(env) ?? resolveAppBaseUrlFromEnv(env)
+  const inviteServices = (env: WorkerBindings, db: AdminDb): OwnerInviteServices => ({
+    db,
+    clock: clockNow(),
+    email: emailFor(env),
+    appBaseUrl: baseUrlFor(env),
+  })
 
   routes.get('/api/platform/tenants', requireSuperadmin(), async (c) => {
     try {
@@ -154,24 +188,80 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         timezone?: string
         id?: string
         ownerClerkUserId?: string
+        ownerEmail?: string
       }>()
-      if (!body?.name?.trim() || !body?.ownerClerkUserId?.trim()) {
+      const ownerEmail = body?.ownerEmail?.trim()
+      const ownerClerkUserId = body?.ownerClerkUserId?.trim()
+      if (ownerEmail && ownerClerkUserId) return c.json({ error: 'owner_ambiguous' }, 400)
+      const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+
+      // DEC-194: primeira owner por convite emitido pelo superadmin — a clínica nasce sem owner ativa.
+      if (ownerEmail) {
+        if (!body?.name?.trim()) return c.json({ error: 'name_and_owner_required' }, 400)
+        if (!EMAIL_RE.test(ownerEmail)) return c.json({ error: 'owner_email_invalid' }, 400)
+        const input = {
+          id: body.id,
+          name: body.name,
+          timezone: body.timezone,
+          ownerEmail,
+          actorClerkUserId: principal.clerkUserId,
+        }
+        const now = clockNow().nowMs()
+        if (syncDb) {
+          const created = await createClinicWithOwnerInvite(inviteServices(c.env, syncDb), input)
+          c.header('Cache-Control', 'no-store')
+          return c.json(
+            {
+              tenant: serializeTenant(created.tenant),
+              invitation: serializePlatformInvitation(created.invitation, now),
+              emailSent: created.emailSent,
+              deliveryJobId: created.deliveryJobId,
+            },
+            201,
+          )
+        }
+        const created = await d1CreateClinicWithOwnerInvitation(c.env.DB, emailFor(c.env), {
+          ...input,
+          appBaseUrl: baseUrlFor(c.env),
+          now,
+        })
+        c.header('Cache-Control', 'no-store')
+        return c.json(
+          {
+            tenant: serializeTenant({
+              id: created.tenant.id,
+              name: created.tenant.name,
+              timezone: created.tenant.timezone,
+              status: 'active',
+              createdAt: created.tenant.createdAt,
+              updatedAt: created.tenant.createdAt,
+              suspendedAt: null,
+              pendingDeletionAt: null,
+            }),
+            invitation: serializePlatformInvitation(created.invitation, now),
+            emailSent: created.emailSent,
+            deliveryJobId: created.deliveryJobId,
+          },
+          201,
+        )
+      }
+
+      if (!body?.name?.trim() || !ownerClerkUserId) {
         return c.json({ error: 'name_and_owner_required' }, 400)
       }
-      const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
       const created = syncDb
         ? createTenantWithOwner(syncDb, systemClock, {
             id: body.id,
             name: body.name,
             timezone: body.timezone,
-            ownerClerkUserId: body.ownerClerkUserId,
+            ownerClerkUserId,
             actorClerkUserId: principal.clerkUserId,
           })
         : await d1CreateTenantWithOwner(c.env.DB, {
             id: body.id,
             name: body.name,
             timezone: body.timezone,
-            ownerClerkUserId: body.ownerClerkUserId,
+            ownerClerkUserId,
             actorClerkUserId: principal.clerkUserId,
           })
       c.header('Cache-Control', 'no-store')
@@ -206,6 +296,8 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
             members,
             integration: readIntegrationStatus(syncDb, tenantId),
             deletionCommand: getOpenDeletionCommand(syncDb, tenantId) ?? null,
+            invitations: listPendingInvitationsForTenant(syncDb, tenantId),
+            nowMs: clockNow().nowMs(),
             recentAudit: audit.map((e) => ({
               id: e.id,
               action: e.action,
@@ -229,6 +321,8 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           members,
           integration: await d1ReadIntegrationStatus(c.env.DB, tenantId),
           deletionCommand: await d1GetOpenDeletionCommand(c.env.DB, tenantId),
+          invitations: (await d1ListTeam(c.env.DB, tenantId, clockNow().nowMs())).invitations,
+          nowMs: clockNow().nowMs(),
           recentAudit: audit,
         }),
       )
@@ -451,6 +545,114 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       return adminErrorResponse(c, err)
     }
   })
+
+  routes.post('/api/platform/tenants/:tenantId/invitations', requireSuperadmin(), async (c) => {
+    try {
+      const principal = c.get('principal')
+      requirePlatformPermission(principal, 'platform.owners.manage')
+      const tenantId = c.req.param('tenantId')
+      const body = await c.req.json<{ email?: string }>().catch(() => ({}) as { email?: string })
+      const email = body?.email?.trim()
+      if (!email || !EMAIL_RE.test(email)) return c.json({ error: 'owner_email_invalid' }, 400)
+      const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+      const now = clockNow().nowMs()
+      const sent = syncDb
+        ? await inviteOwnerByEmail(inviteServices(c.env, syncDb), {
+            tenantId,
+            email,
+            actorClerkUserId: principal.clerkUserId,
+          })
+        : await d1CreateInvitation(c.env.DB, emailFor(c.env), {
+            tenantId,
+            email,
+            issuedByClerkUserId: principal.clerkUserId,
+            appBaseUrl: baseUrlFor(c.env),
+            now,
+            role: 'owner',
+            asPlatformAdmin: true,
+          })
+      c.header('Cache-Control', 'no-store')
+      return c.json(
+        {
+          invitation: serializePlatformInvitation(sent.invitation, now),
+          emailSent: sent.emailSent,
+          deliveryJobId: sent.deliveryJobId,
+        },
+        201,
+      )
+    } catch (err) {
+      return adminErrorResponse(c, err)
+    }
+  })
+
+  routes.post(
+    '/api/platform/tenants/:tenantId/invitations/:invitationId/resend',
+    requireSuperadmin(),
+    async (c) => {
+      try {
+        const principal = c.get('principal')
+        requirePlatformPermission(principal, 'platform.owners.manage')
+        const tenantId = c.req.param('tenantId')
+        const invitationId = c.req.param('invitationId')
+        const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+        const now = clockNow().nowMs()
+        const sent = syncDb
+          ? await resendOwnerInvite(inviteServices(c.env, syncDb), {
+              tenantId,
+              invitationId,
+              actorClerkUserId: principal.clerkUserId,
+            })
+          : await d1ResendInvitation(c.env.DB, emailFor(c.env), {
+              invitationId,
+              tenantId,
+              actorClerkUserId: principal.clerkUserId,
+              appBaseUrl: baseUrlFor(c.env),
+              now,
+              asPlatformAdmin: true,
+            })
+        c.header('Cache-Control', 'no-store')
+        return c.json({
+          invitation: serializePlatformInvitation(sent.invitation, now),
+          emailSent: sent.emailSent,
+          deliveryJobId: sent.deliveryJobId,
+        })
+      } catch (err) {
+        return adminErrorResponse(c, err)
+      }
+    },
+  )
+
+  routes.post(
+    '/api/platform/tenants/:tenantId/invitations/:invitationId/cancel',
+    requireSuperadmin(),
+    async (c) => {
+      try {
+        const principal = c.get('principal')
+        requirePlatformPermission(principal, 'platform.owners.manage')
+        const tenantId = c.req.param('tenantId')
+        const invitationId = c.req.param('invitationId')
+        const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
+        const now = clockNow().nowMs()
+        const invitation = syncDb
+          ? cancelOwnerInvite(inviteServices(c.env, syncDb), {
+              tenantId,
+              invitationId,
+              actorClerkUserId: principal.clerkUserId,
+            })
+          : await d1CancelInvitation(c.env.DB, {
+              invitationId,
+              tenantId,
+              actorClerkUserId: principal.clerkUserId,
+              now,
+              asPlatformAdmin: true,
+            })
+        c.header('Cache-Control', 'no-store')
+        return c.json({ invitation: serializePlatformInvitation(invitation, now) })
+      } catch (err) {
+        return adminErrorResponse(c, err)
+      }
+    },
+  )
 
   routes.post('/api/platform/tenants/:tenantId/owners', requireSuperadmin(), async (c) => {
     try {

@@ -11,7 +11,7 @@ import { ConflictError, NotFoundError } from './errors'
 import { assertAdminSchemaReady } from './gate'
 import { newId, normalizeEmail } from './ids'
 import type { MembershipRole } from '../schema'
-import { requireActiveOwner, upsertMembershipInTx } from './memberships'
+import { requireActiveOwner, requireActiveTenant, upsertMembershipInTx } from './memberships'
 import type { AdminDb } from './store'
 
 export type InvitationRole = Extract<MembershipRole, 'owner' | 'attendant'>
@@ -68,7 +68,7 @@ function mapInvitation(row: {
   }
 }
 
-function getInvitation(db: AdminDb, id: string): InvitationRow | undefined {
+export function getInvitation(db: AdminDb, id: string): InvitationRow | undefined {
   const row = db.get<{
     id: string
     tenant_id: string
@@ -99,6 +99,70 @@ export type IssuedInvitation = {
   rawToken: string
 }
 
+/**
+ * Insere o convite dentro de uma transação já aberta (`db.immediate` do chamador).
+ * Partilhado por `createInvitation` e pela criação de clínica com convite de owner (DEC-194).
+ */
+export function insertInvitationInTx(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    email: string
+    issuedByClerkUserId: string
+    role: InvitationRole
+    tokenHash: string
+  },
+): InvitationRow {
+  const now = clock.nowMs()
+  const email = normalizeEmail(input.email)
+  const id = newId('inv')
+  // Convite vencido continua «pending» até alguém o tocar; não pode bloquear um novo (DEC-194).
+  db.run(
+    `UPDATE tenant_invitations SET status = 'expired'
+     WHERE tenant_id = ? AND normalized_email = ? AND status = 'pending' AND expires_at <= ?`,
+    input.tenantId,
+    email,
+    now,
+  )
+  const pending = db.get<{ id: string }>(
+    `SELECT id FROM tenant_invitations
+     WHERE tenant_id = ? AND normalized_email = ? AND status = 'pending'`,
+    input.tenantId,
+    email,
+  )
+  if (pending) {
+    throw new ConflictError('invitation_already_pending', 'Já existe convite pendente para este e-mail')
+  }
+
+  db.run(
+    `INSERT INTO tenant_invitations (
+      id, tenant_id, normalized_email, role, issued_by_clerk_user_id, token_hash,
+      status, issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
+      cancelled_at, cancelled_by_clerk_user_id, last_resent_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
+    id,
+    input.tenantId,
+    email,
+    input.role,
+    input.issuedByClerkUserId,
+    input.tokenHash,
+    now,
+    now + INVITATION_TTL_MS,
+  )
+
+  writeAudit(db, clock, {
+    actorClerkUserId: input.issuedByClerkUserId,
+    tenantId: input.tenantId,
+    action: 'invitation.create',
+    objectType: 'tenant_invitation',
+    objectId: id,
+    outcome: 'success',
+    metadata: { email, role: input.role },
+  })
+  return getInvitation(db, id)!
+}
+
 export async function createInvitation(
   db: AdminDb,
   clock: Clock,
@@ -108,56 +172,30 @@ export async function createInvitation(
     issuedByClerkUserId: string
     /** DEC-103: default attendant; owner permitido na Equipe. */
     role?: InvitationRole
+    /**
+     * DEC-194: emitido pelo superadmin (rota `requireSuperadmin`), sem ser owner da clínica.
+     * Nunca vem do corpo do pedido — só do código das rotas `/api/platform/*`.
+     */
+    asPlatformAdmin?: boolean
   },
 ): Promise<IssuedInvitation> {
   assertAdminSchemaReady(db)
-  requireActiveOwner(db, input.tenantId, input.issuedByClerkUserId)
+  if (input.asPlatformAdmin) requireActiveTenant(db, input.tenantId)
+  else requireActiveOwner(db, input.tenantId, input.issuedByClerkUserId)
   const role: InvitationRole = input.role === 'owner' ? 'owner' : 'attendant'
-  const now = clock.nowMs()
-  const email = normalizeEmail(input.email)
   const rawToken = generateOpaqueToken()
   const tokenHash = await hashToken(rawToken)
-  const id = newId('inv')
 
-  return db.immediate(() => {
-    const pending = db.get<{ id: string }>(
-      `SELECT id FROM tenant_invitations
-       WHERE tenant_id = ? AND normalized_email = ? AND status = 'pending'`,
-      input.tenantId,
-      email,
-    )
-    if (pending) {
-      throw new ConflictError('invitation_already_pending', 'Já existe convite pendente para este e-mail')
-    }
-
-    db.run(
-      `INSERT INTO tenant_invitations (
-        id, tenant_id, normalized_email, role, issued_by_clerk_user_id, token_hash,
-        status, issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
-        cancelled_at, cancelled_by_clerk_user_id, last_resent_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
-      id,
-      input.tenantId,
-      email,
-      role,
-      input.issuedByClerkUserId,
-      tokenHash,
-      now,
-      now + INVITATION_TTL_MS,
-    )
-
-    writeAudit(db, clock, {
-      actorClerkUserId: input.issuedByClerkUserId,
+  return db.immediate(() => ({
+    invitation: insertInvitationInTx(db, clock, {
       tenantId: input.tenantId,
-      action: 'invitation.create',
-      objectType: 'tenant_invitation',
-      objectId: id,
-      outcome: 'success',
-      metadata: { email, role },
-    })
-
-    return { invitation: getInvitation(db, id)!, rawToken }
-  })
+      email: input.email,
+      issuedByClerkUserId: input.issuedByClerkUserId,
+      role,
+      tokenHash,
+    }),
+    rawToken,
+  }))
 }
 
 /**
@@ -170,15 +208,18 @@ export async function resendInvitation(
   input: {
     invitationId: string
     actorClerkUserId: string
+    /** DEC-194: superadmin (rota `requireSuperadmin`); ver `createInvitation`. */
+    asPlatformAdmin?: boolean
   },
 ): Promise<IssuedInvitation> {
   assertAdminSchemaReady(db)
   const now = clock.nowMs()
 
-  // Leitura prévia só para autorizar owner; a rotação é condicional na transação.
+  // Leitura prévia só para autorizar; a rotação é condicional na transação.
   const preview = getInvitation(db, input.invitationId)
   if (!preview) throw new NotFoundError('invitation_not_found', 'Convite inexistente')
-  requireActiveOwner(db, preview.tenantId, input.actorClerkUserId)
+  if (input.asPlatformAdmin) requireActiveTenant(db, preview.tenantId)
+  else requireActiveOwner(db, preview.tenantId, input.actorClerkUserId)
 
   const rawToken = generateOpaqueToken()
   const tokenHash = await hashToken(rawToken)
@@ -258,12 +299,13 @@ export async function resendInvitation(
 export function cancelInvitation(
   db: AdminDb,
   clock: Clock,
-  input: { invitationId: string; actorClerkUserId: string },
+  input: { invitationId: string; actorClerkUserId: string; asPlatformAdmin?: boolean },
 ): InvitationRow {
   assertAdminSchemaReady(db)
   const preview = getInvitation(db, input.invitationId)
   if (!preview) throw new NotFoundError('invitation_not_found', 'Convite inexistente')
-  requireActiveOwner(db, preview.tenantId, input.actorClerkUserId)
+  if (input.asPlatformAdmin) requireActiveTenant(db, preview.tenantId)
+  else requireActiveOwner(db, preview.tenantId, input.actorClerkUserId)
   const now = clock.nowMs()
 
   return db.immediate(() => {

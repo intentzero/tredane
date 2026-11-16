@@ -218,6 +218,9 @@ export function createApp(opts: CreateAppOptions = {}) {
   const platformOpts: PlatformRouteOptions = {
     invalidatorFactory: opts.invalidatorFactory,
     syncAdminDbFactory: opts.syncAdminDbFactory,
+    clockFactory: opts.clockFactory,
+    emailFactory: opts.emailFactory,
+    appBaseUrlFactory: opts.appBaseUrlFactory,
   }
   app.route('/', createPlatformRoutes(platformOpts))
 

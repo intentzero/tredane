@@ -1,4 +1,5 @@
 import type { DeletionCommandRow } from '../db/admin/deletion-commands'
+import type { InvitationRow } from '../db/admin/invitations'
 import type { MembershipRow } from '../db/admin/memberships'
 import type { TenantRow } from '../db/admin/tenants'
 import type { TenantIntegrationStatus } from './integration-status'
@@ -27,6 +28,21 @@ export function serializeMembership(m: MembershipRow) {
   }
 }
 
+/** Convite pendente visto pela Platform Admin: nunca o token, nem quem o emitiu além do id. */
+export function serializePlatformInvitation(i: InvitationRow, nowMs: number) {
+  return {
+    id: i.id,
+    email: i.normalizedEmail,
+    role: i.role,
+    status: i.status,
+    issuedAt: i.issuedAt,
+    expiresAt: i.expiresAt,
+    lastResentAt: i.lastResentAt,
+    /** `pending` com prazo vencido: o aceite já é recusado; falta só reenviar. */
+    expired: i.status === 'pending' && nowMs >= i.expiresAt,
+  }
+}
+
 export function serializeDeletionCommand(c: DeletionCommandRow) {
   return {
     id: c.id,
@@ -43,6 +59,8 @@ export function serializeAdminTenantView(input: {
   members: MembershipRow[]
   integration: TenantIntegrationStatus
   deletionCommand?: DeletionCommandRow | null
+  invitations?: InvitationRow[]
+  nowMs?: number
   recentAudit: Array<{
     id: string
     action: string
@@ -62,6 +80,7 @@ export function serializeAdminTenantView(input: {
     deletionCommand: input.deletionCommand
       ? serializeDeletionCommand(input.deletionCommand)
       : null,
+    invitations: (input.invitations ?? []).map((i) => serializePlatformInvitation(i, input.nowMs ?? Date.now())),
     recentAudit: input.recentAudit.map((e) => ({
       id: e.id,
       action: e.action,
