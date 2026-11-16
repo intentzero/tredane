@@ -40,6 +40,11 @@ export {
 export type * from './types'
 export { isOpeningDayAsk, OPENING_DAY_ASK_RE } from './opening-day-ask'
 export {
+  buildOpeningHoursReply,
+  isOpeningHoursFaqAsk,
+  openingHoursMixedWithBooking,
+} from './opening-hours-reply'
+export {
   existingAppointmentPrefix,
   findContactAppointmentOnDate,
 } from './contact-appointment-hint'
