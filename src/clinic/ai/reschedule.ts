@@ -19,7 +19,9 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import {
+  filterUpcomingByServiceMention,
   isCancelMismatchPending,
+  pickUpcomingByCitedClock,
   rescheduleDayIsNewDestination,
   resolveUpcomingByServiceAndDay,
   thinRescheduleSlotOffers,
@@ -36,7 +38,13 @@ import {
 import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { validateClientOutbound } from './outbound-validate'
 import { checkConversationProtection } from './protection'
-import { getBookingFrame, getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
+import {
+  getBookingFrame,
+  getScheduleSession,
+  saveBookingFrame,
+  saveScheduleSession,
+  scheduleFactsFromText,
+} from './schedule-session'
 import {
   createDeferredBookingFrame,
   offerFramePatch,
@@ -322,7 +330,13 @@ export async function tryAiReschedule(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const today = clinicCivilDateFromUtc(tz, now)
+  const stickyAptId =
+    frameEarly?.phase === 'remarcando' ? frameEarly.rescheduleAppointmentId ?? null : null
+  const stickyApt = stickyAptId
+    ? allUpcoming.find((a) => a.id === stickyAptId) ?? null
+    : null
   const apt =
+    stickyApt ??
     resolveUpcomingByServiceAndDay(allUpcoming, input.inboundText, db, tenantId, tz, today) ??
     allUpcoming[0] ??
     null
@@ -343,6 +357,20 @@ export async function tryAiReschedule(
       frameEarly.phase === 'proposto')
   if (midNewBooking && !EXPLICIT.test(input.inboundText)) {
     return null
+  }
+
+  if (!stickyApt) {
+    saveBookingFrame(
+      db,
+      tenantId,
+      input.conversationId,
+      {
+        serviceId: apt.serviceId,
+        rescheduleAppointmentId: apt.id,
+        phase: 'remarcando',
+      },
+      clock,
+    )
   }
 
   const service = getService(db, tenantId, apt.serviceId)
@@ -383,7 +411,22 @@ export async function tryAiReschedule(
     date = frame.date
   }
   const times = spokenSlot ? [spokenSlot.time] : [...extractTimes(input.inboundText)]
-  const time = times.length === 1 ? times[0] : undefined
+  let time = times.length === 1 ? times[0] : undefined
+  const poolForPick = filterUpcomingByServiceMention(allUpcoming, input.inboundText, db, tenantId)
+  if (
+    poolForPick.length > 1 &&
+    pickUpcomingByCitedClock(poolForPick, input.inboundText, tz)?.id === apt.id &&
+    time &&
+    EXPLICIT.test(input.inboundText)
+  ) {
+    const aptDate = clinicCivilDateFromUtc(tz, apt.startsAt)
+    const aptTime = localHHMM(tz, apt.startsAt)
+    const pickDay =
+      date ?? [...extractDates(input.inboundText, today)][0] ?? (/\bhoje\b/i.test(input.inboundText) ? today : undefined)
+    if (pickDay === aptDate && time === aptTime) {
+      time = undefined
+    }
+  }
   let period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
   // Hora explícita («13h») não fica presa ao período sticky («de manhã»).
   if (time) period = null

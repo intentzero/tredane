@@ -19,6 +19,7 @@ import {
   CANCEL_MISMATCH_DATE_PREFIX,
   filterUpcomingByServiceMention,
   isCancelMismatchPending,
+  pickUpcomingByCitedClock,
 } from './appointment-intent'
 import { extractDates } from './autobook'
 import {
@@ -44,6 +45,14 @@ const AUTODRAFT_ACTOR_NAME = 'IA'
 
 const INSIST_CANCEL_ONLY =
   /\b(s[oó]\s+cancel\w*|s[oó]\s+desist\w*|cancela\s+mesmo|n[aã]o\s+quero\s+remarc\w*|sem\s+remarc\w*|pode\s+cancelar|quero\s+cancelar\s+mesmo)\b/i
+
+/** Resposta curta à oferta de remarcar antes do cancelamento (staging 16/11/2026). */
+const BARE_CANCEL_AFTER_OFFER =
+  /^(?:quero\s+)?cancel(?:ar|amento)?(?:\s+mesmo)?[.!\s]*$/i
+
+function isBareCancelAfterOffer(text: string): boolean {
+  return BARE_CANCEL_AFTER_OFFER.test(text.trim())
+}
 
 const DECLINE_RESCHEDULE =
   /\b(n[aã]o\s+quero\s+remarc\w*|n[aã]o\s+quero\s+reagend\w*|sem\s+remarc\w*|s[oó]\s+cancel\w*|cancela\s+mesmo)\b/i
@@ -129,6 +138,8 @@ export function resolveCancelTargetAppointment(
   if (namedDate) {
     const onDay = upcoming.filter((a) => matchDate(a, namedDate))
     if (onDay.length === 1) return { kind: 'single', apt: onDay[0]! }
+    const byTime = pickUpcomingByCitedClock(onDay, inboundText, tz)
+    if (byTime) return { kind: 'single', apt: byTime }
     if (onDay.length > 1) {
       const listed = listFallback(onDay)
       return {
@@ -278,7 +289,7 @@ export function tryCancelAutodraftContinuation(
     return { handled: false }
   }
 
-  if (isInsistCancelOnly(inboundText)) {
+  if (isInsistCancelOnly(inboundText) || isBareCancelAfterOffer(inboundText)) {
     return {
       handled: true,
       replyText: cancelConfirmOfferBody(apt, tz),

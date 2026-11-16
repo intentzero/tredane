@@ -22,6 +22,9 @@ import { listServices } from '../config/services'
 import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import { handleIdleTextReply } from '../followup/idle'
 import { runIdleContinueChoiceResume } from '../followup/idle-continue-resume'
+import { POST_BOOKING_BODY } from '../followup/post-booking'
+import { pickTerminarFarewell } from '../followup/terminar-farewell'
+import { suppressFollowupsAfterClientEnd } from '../followup/suppress-after-end'
 import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
@@ -107,6 +110,7 @@ import {
 } from '../inbox/review-flag'
 import {
   classifySensitive,
+  FAREWELL_RE,
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
   hasStopRequest,
@@ -416,6 +420,32 @@ function reclaimOrphanGenerating(db: ClinicDb, tenantId: string, now: number): v
   )
 }
 
+function isFlowPlaceholderInbound(body: string): boolean {
+  return /^\[Flow\](?:\s|$)/i.test(body.trim())
+}
+
+function conversationAwaitingPostBookingFarewell(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const rows = db.all<{ body: string }>(
+    `SELECT body FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+     ORDER BY created_at DESC LIMIT 8`,
+    tenantId,
+    conversationId,
+  )
+  let sawPostBooking = false
+  let sawAgendado = false
+  for (const row of rows) {
+    const b = row.body.trim()
+    if (b === POST_BOOKING_BODY) sawPostBooking = true
+    if (/^(?:Agendado|Remarcado):/i.test(b)) sawAgendado = true
+  }
+  return sawPostBooking && sawAgendado
+}
+
 /** Processa os jobs vencidos. Chamado pelo alarme do DO. */
 export async function runDueAutoDrafts(
   db: ClinicDb,
@@ -638,6 +668,39 @@ export async function runDueAutoDrafts(
     // depois (ou antes) do choice handler — Paulo 09/11 staging.
     if (isInteractiveReplyBody(inboundBody)) {
       skip('interactive_reply_button')
+      continue
+    }
+    // Placeholder técnico do WhatsApp Flow — não é pedido de equipe.
+    if (isFlowPlaceholderInbound(inboundBody)) {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const hours = clinicTodayOpenState(db, tenantId, clock)
+        const body = hubOpeningBody(deps.clinicName, hours)
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body,
+            clientRequestId: `ai-flow-placeholder:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'flow_placeholder',
+        replyOutbox,
+      })
       continue
     }
     // DEC-157 / DEC-166: «avaliar» / «feedback» (+ comentário opcional) no
@@ -1286,6 +1349,43 @@ export async function runDueAutoDrafts(
         suggestion: null,
         reason: 'human_handoff',
         replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    if (
+      FAREWELL_RE.test(turnText.trim()) &&
+      conversationAwaitingPostBookingFarewell(db, tenantId, job.conversationId)
+    ) {
+      await signalTyping()
+      const settings = ensureClinicSettings(db, tenantId, clock)
+      const tz = settings.timezone || 'America/Sao_Paulo'
+      const farewell = pickTerminarFarewell({ timezone: tz, nowMs: clock.nowMs() })
+      const endOutbox = suppressFollowupsAfterClientEnd(db, tenantId, job.conversationId, clock)
+      let replyOutbox: OutboxRow[] = [...endOutbox]
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: farewell,
+            clientRequestId: `ai-post-booking-farewell:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = [...replyOutbox, ...sent.outbox]
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'post_booking_farewell',
+        replyOutbox,
       })
       continue
     }
