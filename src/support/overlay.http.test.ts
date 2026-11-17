@@ -185,6 +185,44 @@ describe('overlay de suporte — o que funciona', () => {
     }
   })
 
+  it('quem viu o quê: cada conversa e cada contato abertos ficam com o id, e nunca com texto', async () => {
+    const ctx = testApp()
+    try {
+      await seedInbox(ctx)
+      const { cookie, session } = await openSupport(ctx)
+      const convs = (await json(await ctx.call(SUPER, `/api/tenants/${A}/inbox/conversations`, { cookie, session }))).conversations as Json[]
+      expect(convs.length).toBeGreaterThan(1)
+      const [c1, c2] = [convs[0]!, convs[1]!]
+      // Duas conversas diferentes, e a primeira duas vezes no mesmo minuto.
+      for (const c of [c1, c2, c1]) await ctx.call(SUPER, `/api/tenants/${A}/inbox/conversations/${c.id}`, { cookie, session })
+      await ctx.call(SUPER, `/api/tenants/${A}/inbox/contacts/${c1.contact.id}`, { cookie, session })
+      const meta = ctx.auditOf(A, 'support.access').map((r) => JSON.parse(r.metadataJson!) as Json)
+      const opened = meta.filter((m) => m.targetId)
+      expect(opened.map((m) => `${m.targetType}:${m.targetId}`).sort()).toEqual(
+        [`conversation:${c1.id}`, `conversation:${c2.id}`, `contact:${c1.contact.id}`].sort(),
+      )
+      // A lista não tem alvo; só os detalhes.
+      expect(meta.filter((m) => m.route === 'inbox.conversations').every((m) => m.targetId === undefined)).toBe(true)
+      // Nenhum texto de mensagem, nome ou telefone no registo.
+      const raw = JSON.stringify(ctx.auditOf(A, 'support.access'))
+      expect(raw).not.toMatch(/waId|displayName|"body"|preview/)
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('um id fora do formato não vai para a auditoria (fica «invalid»)', async () => {
+    const ctx = testApp()
+    try {
+      const { cookie, session } = await openSupport(ctx)
+      await ctx.call(SUPER, `/api/tenants/${A}/inbox/conversations/${encodeURIComponent('x'.repeat(300) + '<script>')}`, { cookie, session })
+      const meta = ctx.auditOf(A, 'support.access').map((r) => JSON.parse(r.metadataJson!) as Json)
+      expect(meta.find((m) => m.targetType === 'conversation')!.targetId).toBe('invalid')
+    } finally {
+      ctx.close()
+    }
+  })
+
   it('cada leitura fica auditada, agregada por sessão, rota e minuto', async () => {
     const ctx = testApp()
     try {

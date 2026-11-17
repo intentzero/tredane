@@ -50,6 +50,32 @@ export function matchSupportTicketRoute(method: string, pathname: string): strin
   return method === 'POST' && SUPPORT_TICKET_RE.test(pathname) ? 'realtime.ticket' : null
 }
 
+/** O que uma leitura de detalhe abriu: tipo e id (nunca texto). Rotas de lista não têm alvo. */
+export type SupportReadTarget = { type: 'conversation' | 'contact'; id: string }
+
+const TARGET_RES: ReadonlyArray<{ type: SupportReadTarget['type']; re: RegExp }> = [
+  { type: 'conversation', re: /^\/api\/tenants\/[^/]+\/inbox\/conversations\/([^/]+)$/ },
+  { type: 'contact', re: /^\/api\/tenants\/[^/]+\/inbox\/contacts\/([^/]+)$/ },
+]
+const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/
+
+/** Id da conversa/contato aberto numa rota de detalhe (#882). Id fora do formato esperado fica `invalid`: não vai para a auditoria. */
+export function supportReadTarget(method: string, pathname: string): SupportReadTarget | null {
+  if (method !== 'GET') return null
+  for (const t of TARGET_RES) {
+    const m = t.re.exec(pathname)
+    if (!m) continue
+    let raw = m[1]!
+    try {
+      raw = decodeURIComponent(raw)
+    } catch {
+      /* mantém o bruto */
+    }
+    return { type: t.type, id: SAFE_ID.test(raw) ? raw : 'invalid' }
+  }
+  return null
+}
+
 export type SupportOverlayServices = {
   adminDb: AsyncAdminDb
   authority: AuthorityReader
@@ -58,7 +84,11 @@ export type SupportOverlayServices = {
 
 const MINUTE = 60_000
 
-/** Uma entrada por (sessão, rota, minuto, resultado): auditoria útil sem inundar o `central_audit_events`. */
+/**
+ * Uma entrada por (sessão, rota, alvo, minuto, resultado): auditoria útil sem inundar o `central_audit_events`.
+ * Nas rotas de detalhe o alvo (id da conversa ou do contato, #882) entra na chave e nos metadados: responde a
+ * «quem viu esta conversa». Nunca guarda texto nem telefone.
+ */
 export async function recordSupportAccess(
   db: AsyncAdminDb,
   input: {
@@ -67,10 +97,13 @@ export async function recordSupportAccess(
     method: string
     outcome: 'success' | 'denied'
     nowMs: number
+    target?: SupportReadTarget | null
   },
 ): Promise<void> {
   const minute = Math.floor(input.nowMs / MINUTE)
-  const id = `aud_sac_${input.session.id}_${input.outcome}_${input.method}_${input.route}_${minute}`.slice(0, 190)
+  const targetKey = input.target ? `_${input.target.type}_${input.target.id}` : ''
+  // O minuto fica sempre inteiro no fim: o corte só atinge o que vem de rotas desconhecidas (tentativas bloqueadas).
+  const id = `${`aud_sac_${input.session.id}_${input.outcome}_${input.method}_${input.route}${targetKey}`.slice(0, 170)}_${minute}`
   await db.run(
     `INSERT INTO central_audit_events (
        id, occurred_at, actor_clerk_user_id, subject_clerk_user_id, tenant_id,
@@ -86,7 +119,11 @@ export async function recordSupportAccess(
     input.session.id,
     input.outcome,
     input.session.id,
-    JSON.stringify({ route: input.route, method: input.method }),
+    JSON.stringify(
+      input.target
+        ? { route: input.route, method: input.method, targetType: input.target.type, targetId: input.target.id }
+        : { route: input.route, method: input.method },
+    ),
   )
 }
 
