@@ -140,7 +140,7 @@ describe('refresh e leitura do resumo (DEC-193)', () => {
     const boot = bootAdminDb()
     try {
       const db = asyncFromSync(boot.db)
-      const old: Record<string, unknown> = snap()
+      const old: Record<string, unknown> & { tenantId: string } = snap()
       for (const k of ['contactCount', 'messageCount', 'appointmentCount', 'attachmentMetaCount']) delete old[k]
       await refreshTenantHealth(db, 'clinic-demo-a', async () => old, NOW)
       expect((await getHealth(db, 'clinic-demo-a'))!.summary).toMatchObject({ contactCount: null, messageCount: null })
