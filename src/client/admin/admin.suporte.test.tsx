@@ -6,6 +6,9 @@ import '../ui/panel.css'
 import { writeSynthUserId } from '../panel/auth/session'
 import type { SupportItem } from './api'
 import { AdminApp } from './AdminApp'
+import { openClinicApp } from './suporte/openClinic'
+
+vi.mock('./suporte/openClinic', () => ({ openClinicApp: vi.fn() }))
 
 const NOW = Date.now()
 const MIN = 60_000
@@ -49,6 +52,8 @@ type Server = {
   items: SupportItem[]
   requests: Array<{ method: string; url: string; body: unknown }>
   failNext: { status: number; error: string } | null
+  /** Falha de uma das ações novas (cancel, activate, handoff, end), uma vez. */
+  failAction: { path: RegExp; status: number; error: string } | null
   listFails: number
   owners: Record<string, number>
 }
@@ -63,7 +68,7 @@ const MEMBERS: Record<string, Array<{ id: string; name: string | null; email: st
 }
 
 function mount(items: SupportItem[], owners: Record<string, number> = { aurora: 1, lume: 1, vila: 1, bem: 1 }): Server {
-  const server: Server = { items, requests: [], failNext: null, listFails: 0, owners }
+  const server: Server = { items, requests: [], failNext: null, failAction: null, listFails: 0, owners }
   const j = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   vi.stubGlobal(
@@ -82,6 +87,15 @@ function mount(items: SupportItem[], owners: Record<string, number> = { aurora: 
           return j({ error: 'boom' }, 503)
         }
         return j({ items: server.items, clinicalAccess: false })
+      }
+      if (method === 'POST' && /^\/api\/(platform\/support-requests\/[^/]+\/(cancel|activate)|support\/handoff|platform\/support-sessions\/[^/]+\/end)$/.test(url)) {
+        if (server.failAction && server.failAction.path.test(url)) {
+          const f = server.failAction
+          server.failAction = null
+          return j({ error: f.error }, f.status)
+        }
+        if (url.endsWith('/activate')) return j({ session: { id: 's_new' }, handoffCode: 'hand_off_code', accessGranted: false }, 201)
+        return j({ ok: true })
       }
       if (url === '/api/platform/support-requests' && method === 'POST') {
         if (server.failNext) {
@@ -169,6 +183,7 @@ describe('Platform Admin — suporte (#831)', () => {
   })
   afterEach(() => {
     cleanup()
+    vi.mocked(openClinicApp).mockClear()
     vi.unstubAllGlobals()
   })
 
@@ -219,13 +234,95 @@ describe('Platform Admin — suporte (#831)', () => {
       expect(within(screen.getByRole('table')).getAllByRole('row').slice(1)).toHaveLength(5)
     })
 
-    it('não oferece botões que o servidor não suporta e diz o que falta', async () => {
-      mount(seed())
-      await open('/admin/suporte')
-      const table = await screen.findByRole('table')
-      expect(within(table).queryByRole('button')).toBeNull()
-      expect(screen.queryByRole('button', { name: /Entrar|Encerrar|Cancelar pedido/ })).toBeNull()
-      expect(screen.getByText(/Ativar, entrar e encerrar uma sessão ainda não estão disponíveis/)).toBeTruthy()
+    describe('ações da linha (PR 5)', () => {
+      const act = (table: HTMLElement, text: string) => within(rowOf(table, text))
+
+      it('cada estado oferece só o que faz sentido, e os encerrados nada', async () => {
+        mount(seed())
+        await open('/admin/suporte')
+        const table = await screen.findByRole('table')
+        const names = (text: string) => act(table, text).queryAllByRole('button').map((b) => b.textContent)
+        expect(names('WhatsApp não recebe')).toEqual(['Cancelar pedido'])
+        expect(names('Serviço sem zonas')).toEqual(['Entrar', 'Cancelar pedido'])
+        expect(names('Agenda não mostra sala 2')).toEqual(['Abrir', 'Encerrar'])
+        for (const closed of ['Revisar importação', 'Teste rejeitado', 'Revogada pela owner', 'Encerrada pelo operador', 'Ninguém decidiu']) {
+          expect(names(closed)).toEqual([])
+        }
+        expect(screen.queryByText(/ainda não estão disponíveis/)).toBeNull()
+      })
+
+      it('Entrar pede confirmação, ativa, troca o código pelo cookie e abre a clínica', async () => {
+        const server = mount(seed())
+        const user = userEvent.setup()
+        await open('/admin/suporte')
+        const table = await screen.findByRole('table')
+        await user.click(act(table, 'Serviço sem zonas').getByRole('button', { name: /Entrar/ }))
+        const dialog = await screen.findByRole('dialog')
+        expect(within(dialog).getByText(/30 minutos, sem prorrogação/)).toBeTruthy()
+        // Nada acontece antes de confirmar.
+        expect(server.requests.some((r) => /activate|handoff/.test(r.url))).toBe(false)
+        await user.click(within(dialog).getByRole('button', { name: 'Entrar agora' }))
+        await waitFor(() => expect(openClinicApp).toHaveBeenCalledWith('aurora'))
+        const calls = server.requests.filter((r) => r.method === 'POST').map((r) => r.url)
+        expect(calls).toEqual(['/api/platform/support-requests/r2/activate', '/api/support/handoff'])
+        // O código vai só no corpo da troca e nunca para um URL.
+        expect(server.requests.find((r) => r.url === '/api/support/handoff')!.body).toEqual({ handoffCode: 'hand_off_code' })
+      })
+
+      it('se a troca do código falhar, não navega, diz que a sessão começou e deixa encerrá-la', async () => {
+        const server = mount(seed())
+        server.failAction = { path: /handoff/, status: 409, error: 'handoff_consume_conflict' }
+        const user = userEvent.setup()
+        await open('/admin/suporte')
+        const table = await screen.findByRole('table')
+        await user.click(act(table, 'Serviço sem zonas').getByRole('button', { name: /Entrar/ }))
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Entrar agora' }))
+        expect((await screen.findAllByText(/A sessão já começou/)).length).toBeGreaterThan(0)
+        expect(openClinicApp).not.toHaveBeenCalledWith('aurora')
+      })
+
+      it('Encerrar e Cancelar pedido confirmam antes de chamar o servidor', async () => {
+        const server = mount(seed())
+        const user = userEvent.setup()
+        await open('/admin/suporte')
+        const table = await screen.findByRole('table')
+        await user.click(act(table, 'Agenda não mostra sala 2').getByRole('button', { name: /Encerrar/ }))
+        expect(server.requests.some((r) => /\/end$/.test(r.url))).toBe(false)
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Encerrar sessão' }))
+        await waitFor(() => expect(server.requests.some((r) => r.url === '/api/platform/support-sessions/s3/end')).toBe(true))
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+        await user.click(act(await screen.findByRole('table'), 'WhatsApp não recebe').getByRole('button', { name: /Cancelar pedido/ }))
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar pedido' }))
+        await waitFor(() => expect(server.requests.some((r) => r.url === '/api/platform/support-requests/r1/cancel')).toBe(true))
+      })
+
+      it('«Voltar» não faz nada e um erro do servidor aparece em português dentro do diálogo', async () => {
+        const server = mount(seed())
+        server.failAction = { path: /\/cancel$/, status: 403, error: 'not_request_actor' }
+        const user = userEvent.setup()
+        await open('/admin/suporte')
+        const table = await screen.findByRole('table')
+        await user.click(act(table, 'WhatsApp não recebe').getByRole('button', { name: /Cancelar pedido/ }))
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Voltar' }))
+        expect(screen.queryByRole('dialog')).toBeNull()
+        expect(server.requests.some((r) => /cancel/.test(r.url))).toBe(false)
+        await user.click(act(table, 'WhatsApp não recebe').getByRole('button', { name: /Cancelar pedido/ }))
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar pedido' }))
+        expect((await screen.findByRole('alert')).textContent).toMatch(/Só quem fez o pedido/)
+      })
+
+      it('Abrir navega para a clínica sem chamar o servidor', async () => {
+        const server = mount(seed())
+        const user = userEvent.setup()
+        await open('/admin/suporte')
+        const table = await screen.findByRole('table')
+        const before = server.requests.length
+        await user.click(act(table, 'Agenda não mostra sala 2').getByRole('button', { name: /Abrir/ }))
+        expect(openClinicApp).toHaveBeenCalledWith('vila')
+        expect(server.requests.filter((r) => r.method === 'POST')).toHaveLength(0)
+        expect(server.requests.length).toBe(before)
+      })
     })
 
     it('o nome da clínica leva à aba Suporte dela', async () => {

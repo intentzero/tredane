@@ -9,9 +9,18 @@ import {
   supportTiming,
 } from '../format'
 import { clinicaHref, navigateAdmin } from '../routes'
+import { SupportActions } from './SupportActions'
 
 /** Tabela partilhada por PA-05 (todas as clínicas) e PA-10 (uma clínica). */
-export function SupportTable({ items, showClinic }: { items: SupportItem[]; showClinic: boolean }) {
+export function SupportTable({
+  items,
+  showClinic,
+  onChanged,
+}: {
+  items: SupportItem[]
+  showClinic: boolean
+  onChanged: (message: string) => void
+}) {
   return (
     <div className="admin-card admin-card--flush">
       <div className="admin-table-scroll">
@@ -23,6 +32,7 @@ export function SupportTable({ items, showClinic }: { items: SupportItem[]; show
               <th scope="col">Motivo</th>
               <th scope="col">Estado</th>
               <th scope="col">Prazo / duração</th>
+              <th scope="col">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -58,6 +68,9 @@ export function SupportTable({ items, showClinic }: { items: SupportItem[]; show
                     {detail ? <span className="admin-muted admin-block">{detail}</span> : null}
                   </td>
                   <td>{supportTiming(i)}</td>
+                  <td>
+                    <SupportActions item={i} onChanged={onChanged} />
+                  </td>
                 </tr>
               )
             })}

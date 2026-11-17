@@ -4,7 +4,6 @@ import { AdminLoadError, AdminLoading } from '../AdminUi'
 import { SUPPORT_OPEN, formatSpan, personLabel } from '../format'
 import { EmptyState } from '../../panel/states/StatusScreens'
 import { RequestSupportDialog } from './RequestSupportDialog'
-import { SUPPORT_SCOPE_NOTE } from './SuporteGlobal'
 import { SupportTable } from './SupportTable'
 import { useSupport } from './useSupport'
 
@@ -61,11 +60,17 @@ export function SuporteTab({ tenantId, tenantName, tenantStatus, hasActiveOwner 
       {items.length === 0 ? (
         <EmptyState title="Sem pedidos de suporte" description={`Ainda não houve pedidos de suporte para ${tenantName}.`} />
       ) : (
-        <SupportTable items={items} showClinic={false} />
+        <SupportTable
+          items={items}
+          showClinic={false}
+          onChanged={(message) => {
+            setNotice(message)
+            reload()
+          }}
+        />
       )}
       <span className="admin-muted">
-        Cada sessão dura no máximo 30 minutos e precisa de aprovação de uma owner ativa (DEC-029, DEC-032).{' '}
-        {SUPPORT_SCOPE_NOTE}
+        Cada sessão dura no máximo 30 minutos e precisa de aprovação de uma owner ativa (DEC-029, DEC-032).
       </span>
       <RequestSupportDialog
         open={dialog}
