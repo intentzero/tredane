@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hubOpeningBody } from '../whatsapp/flow/hub-opening'
+import { hubOpeningBody } from './hub'
 import { clientWebOfferBody, clientWebOfferInteractive, clientWebUrl, CLIENT_WEB_OFFER_SENTENCE, isHttpsBase } from './offer'
 
 describe('oferta do link no chat', () => {

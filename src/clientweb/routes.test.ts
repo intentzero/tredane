@@ -88,7 +88,7 @@ describe('rotas públicas da página web da cliente', () => {
       expect(res.headers.get('referrer-policy')).toBe('no-referrer')
       expect(res.headers.get('x-robots-tag')).toBe('noindex')
       const body = await res.json()
-      expect(body).toMatchObject({ ok: true, purpose: 'home', appointmentId: null })
+      expect(body).toMatchObject({ ok: true, purpose: 'home', appointmentId: null, serviceId: null })
       expect(JSON.stringify(body)).not.toMatch(/clinic-a|ctc-1|cnv-1/)
     } finally {
       close()

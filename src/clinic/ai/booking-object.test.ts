@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { extractServices } from './autobook'
 import { hasSchedulingAvailabilityIntent } from './booking-intent-text'
 import {
   catalogMissHint,
@@ -117,26 +116,6 @@ describe('booking-object', () => {
     expect(result.variantIds.sort()).toEqual(['z-axila-f', 'z-intima-f'].sort())
   })
 
-  it.each([
-    ['tem limpeza hoje?', 'svc-limpeza'],
-    ['quero limpeza de pele', 'svc-limpeza'],
-    ['limpeza de pele profunda amanhã', 'svc-limpeza-profunda'],
-    ['profunda de limpeza de pele', 'svc-limpeza-profunda'],
-  ] as const)('prefixo de nome «%s» → serviço %s (F-08)', (text, serviceId) => {
-    const resolved = resolveBookingObject({ text, services: EVAL_BOOKING_CATALOG })
-    const extracted = extractServices(text, EVAL_BOOKING_CATALOG)
-    expect(extracted.map((s) => s.id).sort()).toEqual(
-      resolved.serviceId ? [resolved.serviceId].sort() : extracted.map((s) => s.id).sort(),
-    )
-    // Ambos concordam no serviço escolhido quando há um único candidato claro.
-    if (resolved.serviceId) expect(resolved.serviceId).toBe(serviceId)
-    expect(extracted.some((s) => s.id === serviceId)).toBe(true)
-    // «limpeza» sozinha não deve empatar com a profunda.
-    if (!/profunda/.test(text)) {
-      expect(extracted.every((s) => s.id !== 'svc-limpeza-profunda')).toBe(true)
-    }
-  })
-
   it('stopwords pt-BR não viram pedido inexistente («favor», «seria»)', () => {
     expect(
       catalogMissHint('Boa tarde Gostaria agendar um horário dia 13/11 por favor', EVAL_BOOKING_CATALOG),
@@ -201,21 +180,5 @@ describe('booking-object', () => {
     expect(hit.kind).toBe('clarify')
     expect(hit.missing).toContain('servico')
     expect(hit.question).toMatch(/serviço/i)
-  })
-
-  it('#509 «Quero depilar» casa Depilação quando o sinónimo está na ficha', () => {
-    const base = EVAL_BOOKING_CATALOG.find((s) => s.name === 'Depilação')
-    expect(base).toBeTruthy()
-    const withSyn = [
-      ...EVAL_BOOKING_CATALOG.filter((s) => s.id !== base!.id),
-      { ...base!, synonyms: ['depilar'] },
-    ]
-    expect(extractServices('Quero depilar', withSyn).map((s) => s.id)).toEqual([base!.id])
-    const resolved = resolveBookingObject({ text: 'Quero depilar', services: withSyn })
-    expect(resolved.serviceId).toBe(base!.id)
-    // Sem o sinónimo na ficha, não inventa o match.
-    expect(extractServices('Quero depilar', EVAL_BOOKING_CATALOG).map((s) => s.id)).not.toContain(
-      base!.id,
-    )
   })
 })

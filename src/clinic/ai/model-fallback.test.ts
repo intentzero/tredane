@@ -106,7 +106,7 @@ function seed() {
   return { db, caller, tenantId, clock, cnv, say, close: boot.close }
 }
 
-async function runWith(adapter: SimulatedAiAdapter, body = 'oi, tudo bem?') {
+async function runWith(adapter: SimulatedAiAdapter, body = 'vocês aceitam cartão de crédito?') {
   const s = seed()
   const message = s.say(body)
   enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: message.id }, s.clock)

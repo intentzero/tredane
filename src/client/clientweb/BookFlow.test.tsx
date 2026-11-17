@@ -39,7 +39,7 @@ const SLOTS = [
 
 type Calls = Array<{ url: string; method: string; body: Record<string, unknown> | null }>
 
-function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[] } = {}) {
+function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[]; exchange?: unknown } = {}) {
   const calls: Calls = []
   vi.stubGlobal(
     'fetch',
@@ -48,7 +48,7 @@ function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[] 
       const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
       calls.push({ url, method: init?.method ?? 'GET', body })
       const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status })
-      if (url.endsWith('/api/c/exchange')) return json({ ok: true })
+      if (url.endsWith('/api/c/exchange')) return json(opts.exchange ?? { ok: true })
       if (url.endsWith('/api/c/state')) return json(STATE)
       if (url.endsWith('/api/c/catalog')) return json(CATALOG)
       if (url.endsWith('/api/c/availability')) {
@@ -82,6 +82,27 @@ async function openBooking() {
 }
 
 describe('agendar pela página (C-02 a C-06)', () => {
+  it('link de agendar com serviço reconhecido no chat (DEC-202): abre direto no horário desse serviço', async () => {
+    const calls = mockApi({ exchange: { ok: true, purpose: 'agendar', appointmentId: null, serviceId: 'svc-limpeza' } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Quando?' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Qual serviço?' })).toBeNull()
+    expect(screen.getByText(/Limpeza de pele · 45 min/)).toBeTruthy()
+    expect(calls.some((c) => c.url.endsWith('/api/c/availability'))).toBe(true)
+  })
+
+  it('serviço do chat que depende de género continua a perguntar «Para quem é?» primeiro', async () => {
+    mockApi({ exchange: { ok: true, purpose: 'agendar', appointmentId: null, serviceId: 'svc-laser' } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Para quem é?' })).toBeTruthy()
+  })
+
+  it('serviço do chat que já não existe no catálogo abre a escolha de serviço', async () => {
+    mockApi({ exchange: { ok: true, purpose: 'agendar', appointmentId: null, serviceId: 'svc-removido' } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Para quem é?' })).toBeTruthy()
+  })
+
   it('serviço sem zonas: escolhe, escolhe a hora, revê e confirma — pedidos só com ids do catálogo', async () => {
     const calls = mockApi()
     const user = await openBooking()

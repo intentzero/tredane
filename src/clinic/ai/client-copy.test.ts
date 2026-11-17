@@ -11,7 +11,6 @@ import {
   renderProposalResultBody,
 } from '../proposals/render'
 import type { AppointmentProposalRow } from '../proposals/types'
-import { askZonesReply } from './autobook'
 import {
   DEFAULT_OPTION_KIND_PLURAL,
   FORBIDDEN_CLIENT_TERM_PATTERNS,
@@ -112,8 +111,6 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
           { id: 'z1', name: 'Axila', audience: 'feminino', durationMinutes: 15, priceCents: 5000 },
         ]),
       ],
-      ['askZonesReply', askZonesReply(`as ${DEFAULT_OPTION_KIND_PLURAL}`, ['Axila', 'Buço'], '14:00')],
-      ['askZonesReply zonas', askZonesReply('as zonas', ['Axila'], '10:00')],
       ['zoneNotFoundAskReply', zoneNotFoundAskReply('cotovelo', ['Axila', 'Pernas'])],
       ['proposal body', interactive.body],
       ['proposal booked', renderProposalResultBody(proposal, 'booked')],

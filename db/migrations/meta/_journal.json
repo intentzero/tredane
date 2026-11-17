@@ -197,6 +197,20 @@
       "when": 1794600000000,
       "tag": "0028_client_web_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1794700000000,
+      "tag": "0029_client_web_link_service",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1794800000000,
+      "tag": "0030_drop_interpreter_shadow_events",
+      "breakpoints": true
     }
   ]
 }

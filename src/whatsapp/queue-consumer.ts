@@ -40,13 +40,6 @@ import {
 } from './media-ingest'
 import type { MetaMediaAdapter } from './media'
 import { assertTenantAcceptsClinicalIngest } from '../retention/guards'
-import { createD1FlowOps } from './flow/flow-d1'
-import {
-  consumeFlowToken,
-  getFlowToken,
-  isFlowTokenUsable,
-} from './flow/tokens'
-import { parseNfmResponseJson } from './flow/nfm-reply'
 import { INBOUND_INLINE_BUDGET_MS } from './webhook-routes'
 
 import { clinicDurableObjectName } from '../clinic/demo/do-name'
@@ -80,9 +73,6 @@ export type QueueConsumerDeps = {
     handleProposalButtonClick?: (
       ...args: Parameters<ClinicDurableObject['handleProposalButtonClick']>
     ) => ReturnType<ClinicDurableObject['handleProposalButtonClick']> | Promise<unknown>
-    handleFlowNfmReply?: (
-      ...args: Parameters<ClinicDurableObject['handleFlowNfmReply']>
-    ) => ReturnType<ClinicDurableObject['handleFlowNfmReply']> | Promise<unknown>
   } & Partial<OutboundSendClinicStub>
   metaAdapter?: MetaAdapter
   mediaAdapter?: MetaMediaAdapter
@@ -179,188 +169,12 @@ export async function processWhatsappMessage(
         phoneNumberId: msg.phoneNumberId,
       })
     } else if (msg.kind === 'nfm_reply') {
-      // #514 / ADR-0016: fecho do Flow → quadro + proposta (não marca).
-      // #538: consumir token no 1.º fecho aceite; passar catalogVersion do token.
-      if (!msg.waId || !msg.responseJson) {
-        log({
-          level: 'warn',
-          event: 'queue.invalid_nfm_reply_shape',
-          detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
-        })
-        if (deps.syncAdminDb) {
-          markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
-            skipped: 'invalid_shape',
-          })
-        } else {
-          const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
-          await ops.markProcessed(msg.receiptId, { skipped: 'invalid_shape' })
-        }
-        return 'ack'
-      }
-
-      const nfmParams = parseNfmResponseJson(msg.responseJson)
-      let tokenCatalogVersion: string | undefined
-      if (nfmParams?.flowToken) {
-        const rejectToken = async (reason: string) => {
-          log({
-            level: 'info',
-            event: 'queue.flow_token_unusable',
-            detail: { receiptId: msg.receiptId, tenantId: msg.tenantId, reason },
-          })
-          if (deps.syncAdminDb) {
-            markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
-              skipped: reason,
-            })
-          } else {
-            const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
-            await ops.markProcessed(msg.receiptId, { skipped: reason })
-          }
-        }
-        if (deps.syncAdminDb) {
-          const row = getFlowToken(deps.syncAdminDb, nfmParams.flowToken)
-          if (!row || !isFlowTokenUsable(row, clock.nowMs())) {
-            await rejectToken('flow_token_consumed')
-            return 'ack'
-          }
-          // Isolamento: token de outra clínica não entra neste DO.
-          if (row.tenantId !== msg.tenantId || row.bindingId !== msg.bindingId) {
-            await rejectToken('flow_token_tenant_mismatch')
-            return 'ack'
-          }
-          tokenCatalogVersion = row.catalogVersion
-          // Claim antes de processar — 2.º nfm não repropõe (T08 / #538).
-          consumeFlowToken(deps.syncAdminDb, nfmParams.flowToken, clock)
-        } else {
-          const flowOps = createD1FlowOps(deps.env.DB, clock)
-          const row = await flowOps.getToken(nfmParams.flowToken)
-          if (!row || !isFlowTokenUsable(row, clock.nowMs())) {
-            await rejectToken('flow_token_consumed')
-            return 'ack'
-          }
-          if (row.tenantId !== msg.tenantId || row.bindingId !== msg.bindingId) {
-            await rejectToken('flow_token_tenant_mismatch')
-            return 'ack'
-          }
-          tokenCatalogVersion = row.catalogVersion
-          await flowOps.consumeToken(nfmParams.flowToken)
-        }
-      }
-
-      const ingested = (await stub.ingestMessage(
-        caller,
-        {
-          providerEventKey: msg.providerEventKey,
-          waId: msg.waId,
-          displayName: msg.displayName,
-          body: '[Flow]',
-          occurredAtMs: msg.providerTimestamp ?? undefined,
-        },
-        { drain: true, fanout: true },
-      )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
-
-      if (
-        ingested &&
-        ingested.conversationId &&
-        typeof stub.handleFlowNfmReply === 'function'
-      ) {
-        // Fumo staging 04/11/2026: ack (C16) + typing *antes* do tryAiAutoBook.
-        // O DO é single-thread — se o claim Meta do ack esperar o autobook, a
-        // cliente fica em vácuo e reabre o Flow. Envio inline fora do DO.
-        const nfmInput = {
-          tenantId: msg.tenantId,
-          conversationId: ingested.conversationId,
-          providerEventKey: msg.providerEventKey,
-          responseJson: msg.responseJson,
-          contextMessageId: msg.contextMessageId ?? null,
-          catalogVersion: tokenCatalogVersion,
-        }
-        const ackPhase = (await stub.handleFlowNfmReply(caller, {
-          ...nfmInput,
-          phase: 'ack',
-        })) as Awaited<ReturnType<ClinicDurableObject['handleFlowNfmReply']>>
-        for (const dispatch of ackPhase.inlineDispatches ?? []) {
-          try {
-            await processClinicOutboxMessage(dispatch, {
-              env: deps.env,
-              mode: 'inline',
-              clinicStub: () => stub as OutboundSendClinicStub,
-              metaAdapter: deps.metaAdapter,
-              clock,
-              log,
-            })
-          } catch (err) {
-            log({
-              level: 'warn',
-              event: 'queue.flow_ack_inline_failed',
-              detail: {
-                receiptId: msg.receiptId,
-                tenantId: msg.tenantId,
-                eventId: dispatch.eventId,
-                error: err instanceof Error ? err.message.slice(0, 120) : 'inline_failed',
-              },
-            })
-          }
-        }
-        if (ackPhase.needsProposal) {
-          const propPhase = (await stub.handleFlowNfmReply(caller, {
-            ...nfmInput,
-            phase: 'proposal',
-          })) as Awaited<ReturnType<ClinicDurableObject['handleFlowNfmReply']>>
-          for (const dispatch of propPhase.inlineDispatches ?? []) {
-            try {
-              await processClinicOutboxMessage(dispatch, {
-                env: deps.env,
-                mode: 'inline',
-                clinicStub: () => stub as OutboundSendClinicStub,
-                metaAdapter: deps.metaAdapter,
-                clock,
-                log,
-              })
-            } catch (err) {
-              log({
-                level: 'warn',
-                event: 'queue.flow_proposal_inline_failed',
-                detail: {
-                  receiptId: msg.receiptId,
-                  tenantId: msg.tenantId,
-                  eventId: dispatch.eventId,
-                  error:
-                    err instanceof Error ? err.message.slice(0, 120) : 'inline_failed',
-                },
-              })
-            }
-          }
-        }
-      }
-
-      const isNewMessage = Boolean(
-        ingested &&
-          !ingested.suppressedTombstone &&
-          !ingested.duplicate &&
-          ingested.messageId,
-      )
-      if (
-        !ingested?.suppressedTombstone &&
-        (ingested?.createdConversation || isNewMessage) &&
-        ingested?.conversationId
-      ) {
-        const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
-        await maybeNotifyNewConversationPush({
-          env: deps.env,
-          clock,
-          syncAdminDb: deps.syncAdminDb,
-          tenantId: msg.tenantId,
-          conversationId: ingested.conversationId,
-          createdConversation: Boolean(ingested.createdConversation),
-          newMessage: isNewMessage,
-          humanAttended: Boolean(ingested.humanAttended),
-          contactLabel: ingested.contactLabel ?? null,
-          badgeCount: ingested.unreadConversations,
-          suppressUserIds: ingested.activeViewerUserIds,
-          log,
-          receiptId: msg.receiptId,
-        })
-      }
+      // DEC-202: o Flow foi removido. Um fecho tardio de um Flow já enviado é recebido e ignorado.
+      log({
+        level: 'info',
+        event: 'queue.nfm_reply_ignored',
+        detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
+      })
     } else if (msg.kind === 'button_reply' || msg.kind === 'list_reply') {
       // S4→S5 + M5 (#415): clique autenticado (botão ou lista).
       // Reentrega após commit-antes-do-ack: ainda chama o handler (duplicate ingest).

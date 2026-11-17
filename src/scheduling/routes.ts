@@ -104,7 +104,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGatew
     previewHold: (caller, input) => stub.previewClinicHold(caller, input),
     createHold: (caller, input) => stub.createClinicHold(caller, input),
     listHolds: (caller, input) => stub.listClinicHolds(caller, input),
-    createAndSendProposal: (caller, input) => stub.createAndSendStaffProposal(caller, input),
+    sendClientWebLink: (caller, input) => stub.sendClientWebLinkFromStaff(caller, input),
   }
 }
 
@@ -275,71 +275,37 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
   })
 
   /**
-   * DEC-061 (Paulo, 31/10/2026): Agendar envia proposta versionada com botões.
-   * Não cria compromisso nem muda etapa — só o clique da cliente marca.
+   * DEC-202: a equipe envia o link «Abrir agenda» à cliente. Não marca nada: a cliente escolhe
+   * e confirma na página (ADR-0018). Só com conversa e dentro da janela de 24 h.
    */
-  app.post('/api/tenants/:tenantId/appointment-proposals', ...tenant, async (c) => {
+  app.post('/api/tenants/:tenantId/client-web-links', ...tenant, async (c) => {
     try {
       const ctx = c.get('tenantContext')!
       requireClinicPermission(ctx, 'clinic.agenda.operate')
       const body = await c.req.json<{
-        clientRequestId?: string
-        contactId?: string
         conversationId?: string
-        serviceId?: string
-        professionalId?: string | null
-        startsAt?: number
-        endsAt?: number
-        durationMinutes?: number
-        zoneIds?: unknown
+        purpose?: string
+        serviceId?: string | null
+        appointmentId?: string | null
       }>()
-      if (!body.contactId?.trim() || !body.conversationId?.trim()) {
-        throw new ValidationError(
-          'proposal_requires_conversation',
-          'contactId e conversationId são obrigatórios',
-        )
+      if (!body.conversationId?.trim()) {
+        throw new ValidationError('missing_body', 'conversationId é obrigatório')
       }
-      if (!body.serviceId?.trim()) {
-        throw new ValidationError('missing_service', 'serviceId é obrigatório')
-      }
-      if (!Number.isFinite(body.startsAt)) {
-        throw new ValidationError('missing_body', 'startsAt é obrigatório')
+      const purpose = body.purpose ?? 'agendar'
+      if (purpose !== 'agendar' && purpose !== 'remarcar' && purpose !== 'cancelar') {
+        throw new ValidationError('missing_body', 'purpose inválido')
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
-      const result = await gw.createAndSendProposal(
+      const result = await gw.sendClientWebLink(
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
         {
-          clientRequestId: body.clientRequestId?.trim(),
-          contactId: body.contactId.trim(),
           conversationId: body.conversationId.trim(),
-          serviceId: body.serviceId.trim(),
-          professionalId: body.professionalId ?? null,
-          startsAt: body.startsAt!,
-          endsAt: body.endsAt,
-          durationMinutes: body.durationMinutes,
-          zoneIds: parseZoneIds(body.zoneIds),
+          purpose,
+          serviceId: body.serviceId?.trim() || null,
+          appointmentId: body.appointmentId?.trim() || null,
         },
       )
-      const p = result.proposal
-      return c.json(
-        {
-          appointmentCreated: false as const,
-          sendStatus: result.sendStatus,
-          proposal: {
-            id: p.id,
-            version: p.version,
-            state: p.state,
-            serviceName: p.serviceName,
-            startsAt: p.startsAt,
-            endsAt: p.endsAt,
-            expiresAt: p.expiresAt,
-            requiresSignal: p.requiresSignal,
-            resultKind: p.resultKind,
-            sendProviderMessageId: p.sendProviderMessageId,
-          },
-        },
-        201,
-      )
+      return c.json(result, result.status === 'sent' ? 201 : 200)
     } catch (err) {
       return schedulingErrorResponse(c, err)
     }

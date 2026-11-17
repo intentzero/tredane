@@ -76,7 +76,7 @@ jobs:
               docs/design/*) design=true ;;
               site/*) site=true ;;
               db/*) d1=true ;;
-              src/clinic/ai/*|src/whatsapp/flow/*|src/clinic/proposals/*|docs/implementation/avaliacao/*) scorecard=true ;;
+              src/clinic/ai/*|src/clientweb/*|src/clinic/proposals/*|docs/implementation/avaliacao/*) scorecard=true ;;
             esac
             if ! is_lite "$f"; then
               full=true

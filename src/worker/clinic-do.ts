@@ -1,6 +1,7 @@
 import { readOpenMeteo } from '../clinic/tempo/open-meteo'
 import { tempoWarningsAt, withTempoWarnings } from '../clinic/tempo/warnings'
-import { countUnreadConversations, touchConversationMessage } from '../clinic/inbox/conversations'
+import { countUnreadConversations, getConversation, touchConversationMessage } from '../clinic/inbox/conversations'
+import { messagingWindowForConversation } from '../clinic/inbox/window'
 import { isHumanAttendedConversation } from '../push/human-attended'
 import { insertMessage } from '../clinic/inbox/messages'
 import { insertOutboxEvent } from '../clinic/outbox'
@@ -73,6 +74,7 @@ import {
   type IngestContactMessageInput,
   type OutboxRow,
   workerCaller,
+  writeOperationalAudit,
 } from '../clinic'
 import type {
   AssignConversationInput,
@@ -137,7 +139,6 @@ import type {
   SuggestReplyInput,
   SummarizeInput,
 } from '../clinic/ai'
-import { recordBookingSessionFlow } from '../clinic/ai/booking-session'
 import {
   HUMAN_HANDOFF_BUTTON_ID,
   isHumanTeamOfferAllowed,
@@ -147,35 +148,19 @@ import {
   resumeAiReply,
   sweepDueHandoffTimeouts,
 } from '../clinic/ai/human-handoff'
-import {
-  escalateChoiceClickDeliveryToTeam,
-  hasChoiceClickBookingDelivery,
-  releaseChoiceClickEscalationAfterBooking,
-} from '../clinic/ai/interactive-click-guard'
-import {
-  handleChoiceOfferClick,
-  isChoiceOfferId,
-} from '../clinic/ai/choice-offer'
-import { handleFaqContinueButtonClick } from '../clinic/ai/faq-clarification'
-import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
-import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
+import { parseLegacyFunnelButton } from '../clientweb/legacy-buttons'
+import { loadUpcomingAppointments } from '../clinic/ai/upcoming'
+import type { SendOutboundInteractiveInput } from '../clinic/inbox/types'
 import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
 import { isClientWebEnabled } from '../clientweb/flag'
 import {
-  clientWebOfferBody,
   clientWebOfferInteractive,
-  clientWebPurposeBody,
+  clientWebRouteBody,
   clientWebUrl,
   isHttpsBase,
   type PrepareClientWebOffer,
 } from '../clientweb/offer'
-import { issueClientWebLink, revokeClientWebSessions } from '../clientweb/links'
-import {
-  isClientWebEnabledForClinic,
-  readClientWebSetting,
-  setClientWebEnabledOp,
-  type ClientWebClinicSetting,
-} from '../clientweb/settings'
+import { issueClientWebLink } from '../clientweb/links'
 import {
   cancelFromWeb,
   cancelReceiptBody,
@@ -195,31 +180,16 @@ import {
   type ClientWebCatalog,
   type ClientWebSlotsResult,
 } from '../clientweb/booking'
-import { parseFlowSessionJson } from '../whatsapp/flow/tokens'
-import {
-  isWhatsappFlowConfigured,
-  prepareBookingFlowOfferFromEnv,
-  type PrepareBookingFlowOffer,
-} from '../whatsapp/flow'
-import {
-  type FlowBookingSnapshot,
-  type FlowCatalogService,
-  type FlowSlotOption,
-} from '../whatsapp/flow/screens'
-import { readCatalogVersion } from '../clinic/ai/turn-context'
-import { enqueueTypingIndicatorForLatestInbound } from '../clinic/ai/typing-indicator'
 import {
   clearBookingFrame,
   saveBookingFrame,
 } from '../clinic/ai/schedule-session'
-import { handleCancelConfirmButtonClick } from '../clinic/ai/cancel-flow'
 import { cancelAutoDraft } from '../clinic/ai/autodraft'
 import {
   handleIdleButtonClick,
   nextIdleDueAt,
   sweepDueIdleConversations,
 } from '../clinic/followup/idle'
-import { runIdleContinueChoiceResume } from '../clinic/followup/idle-continue-resume'
 import { handleReviewFlagAckButtonClick } from '../clinic/followup/review-ack'
 import { nextOpenAppointmentEndAt, sweepEndedAppointments } from '../clinic/pipeline/appointment-stage'
 import {
@@ -237,7 +207,6 @@ import {
 import type { SqlInvocationStats } from '../clinic'
 import { fromD1 } from '../db/admin/async-store'
 import { setConversationQualityCentralDb } from '../conversation-metrics/hook'
-import { insertInterpreterShadowEvent } from '../shadow-report/store'
 import {
   appendRealtimeEvent,
   closeAllSockets,
@@ -958,61 +927,69 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
-   * Agendar / Revisar (atendente): cria proposta versionada e envia botões WhatsApp (DEC-061).
-   * Não confirma horário nem muda etapa — só o clique da cliente marca.
+   * DEC-202: a equipe envia o link «Abrir agenda» à cliente (em vez da proposta com Confirmar).
+   * Não marca nada: a cliente escolhe e confirma na página. Só dentro da janela de 24 h.
    */
-  async createAndSendStaffProposal(
+  async sendClientWebLinkFromStaff(
     caller: ClinicCaller,
-    input: clinicProposals.CreateAndSendStaffProposalInput,
-  ) {
+    input: {
+      conversationId: string
+      purpose?: 'agendar' | 'remarcar' | 'cancelar'
+      serviceId?: string | null
+      appointmentId?: string | null
+    },
+  ): Promise<{ status: 'sent' | 'window_closed' | 'unavailable' | 'not_found' }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    const result = clinicProposals.createAndSendStaffProposalOp(
+    const tenantId = caller.tenantId
+    const conv = getConversation(this.#db, tenantId, input.conversationId)
+    if (!conv) return { status: 'not_found' }
+    if (!messagingWindowForConversation(this.#db, tenantId, input.conversationId, this.#clock.nowMs()).open) {
+      return { status: 'window_closed' }
+    }
+    const prepare = this.#prepareClientWebOffer()
+    const purpose = input.purpose ?? 'agendar'
+    const offered = prepare
+      ? await prepare({
+          tenantId,
+          conversationId: input.conversationId,
+          purpose,
+          appointmentId: input.appointmentId ?? null,
+          serviceId: input.serviceId ?? null,
+        })
+      : null
+    if (!offered) return { status: 'unavailable' }
+    const serviceName = input.serviceId
+      ? (clinicConfig.getService(this.#db, tenantId, input.serviceId)?.name ?? null)
+      : null
+    const sent = clinicInbox.sendOutboundMessageOp(
       this.#db,
       caller,
-      input,
+      {
+        conversationId: input.conversationId,
+        body: clientWebRouteBody({ purpose, serviceName }),
+        interactive: offered,
+        clientRequestId: `staff-web-link:${input.conversationId}:${this.#clock.nowMs()}`,
+        authorClerkUserId: PROPOSAL_SEND_ACTOR,
+        authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
+      },
       this.#clock,
     )
-    if (result.outbox.length > 0) {
-      await this.#fanoutOutboxes(caller, result.outbox, true)
-      await this.#drain(caller)
-    }
-    return {
-      appointmentCreated: false as const,
-      sendStatus: result.sendStatus,
-      proposal: result.proposal,
-    }
-  }
-
-  /**
-   * #514 / ADR-0016: leitura de catálogo + horas para o endpoint Flow.
-   * Não grava BookingFrame nem marca.
-   * Sessão = snapshot do token (sem overlay do BookingFrame do DO — #537).
-   * catalogVersion mid-flow: ADR §7 / #539.
-   */
-  async flowDataExchange(input: {
-    tenantId: string
-    conversationId: string
-    catalogVersion: string
-    frame: FlowBookingSnapshot
-  }): Promise<{
-    catalog: FlowCatalogService[]
-    slots: FlowSlotOption[]
-    frame: FlowBookingSnapshot
-    catalogMismatch: boolean
-    clearedFields: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
-    visitTotalLine: string | null
-  }> {
-    this.#ensureReady()
-    const caller = workerCaller(input.tenantId)
-    this.#assertInstanceTenant(caller)
-    return flowDataExchangeLocal({
-      db: this.#db,
-      tenantId: input.tenantId,
-      clock: this.#clock,
-      catalogVersion: input.catalogVersion,
-      frame: input.frame,
-    })
+    writeOperationalAudit(
+      this.#db,
+      {
+        tenantId,
+        actor: caller.actorId ?? 'staff',
+        action: 'client_web.link_sent_by_staff',
+        objectType: 'conversation',
+        objectId: input.conversationId,
+        detail: { purpose, serviceId: input.serviceId ?? null },
+      },
+      this.#clock,
+    )
+    await this.#fanoutOutboxes(caller, sent.outbox, true)
+    await this.#drain(caller)
+    return { status: 'sent' }
   }
 
   /**
@@ -1029,39 +1006,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     return readClientWebState(this.#db, this.#clock, input)
   }
 
-  /** Página ligada: interruptor global (env) e interruptor da owner nesta clínica. */
-  #clientWebOn(tenantId: string): boolean {
-    return (
-      isClientWebEnabled(this.env as WorkerBindings) && isClientWebEnabledForClinic(this.#db, tenantId)
-    )
-  }
-
-  /** Interruptor da owner (DEC-199): leitura. */
-  async getClientWebSetting(caller: ClinicCaller): Promise<ClientWebClinicSetting & { available: boolean }> {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    return {
-      ...readClientWebSetting(this.#db, caller.tenantId),
-      // A owner só vê o interruptor útil se a plataforma tiver a página ligada neste ambiente.
-      available: isClientWebEnabled(this.env as WorkerBindings),
-    }
-  }
-
-  /** Interruptor da owner (DEC-199): liga ou desliga. A permissão é verificada na rota. */
-  async setClientWebEnabled(caller: ClinicCaller, input: { enabled: boolean }): Promise<ClientWebClinicSetting> {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const setting = setClientWebEnabledOp(this.#db, caller, input, this.#clock)
-    if (!input.enabled) {
-      // Desligar fecha as sessões abertas já (a página deixa de servir).
-      const d1 = (this.env as WorkerBindings).DB
-      if (d1) await revokeClientWebSessions(d1, this.#clock, { tenantId: caller.tenantId })
-    }
-    return setting
+  /** Página ligada: sempre, salvo o interruptor de emergência do ambiente (DEC-202). */
+  #clientWebOn(): boolean {
+    return isClientWebEnabled(this.env as WorkerBindings)
   }
 
   /** Página web da cliente (ADR-0018): catálogo marcável e horizonte. Só leitura. */
@@ -1069,7 +1020,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     return readClientWebCatalog(this.#db, input.tenantId, this.#clock)
   }
 
@@ -1087,7 +1038,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     return listClientWebSlots(this.#db, input.tenantId, this.#clock, {
       serviceId: input.serviceId,
@@ -1115,7 +1066,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = findRecentWebBooking(this.#db, caller.tenantId, this.#clock, input, input)
     if (already) return { status: 'booked', appointment: already }
@@ -1206,7 +1157,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     return listRescheduleSlots(this.#db, input.tenantId, this.#clock, input, input)
   }
@@ -1223,7 +1174,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = rescheduleAlreadyAt(this.#db, caller.tenantId, this.#clock, input, input)
     if (already) return { status: 'booked', appointment: already }
@@ -1294,7 +1245,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const caller = workerCaller(input.tenantId, WEB_CANCEL_ACTOR)
     this.#assertInstanceTenant(caller)
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
@@ -1335,7 +1286,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
     // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn(input.tenantId)) return null
+    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const clientRequestId = `web-ask-team:${input.conversationId}:${this.#clock.nowMs()}`
     if (!isHumanTeamOfferAllowed(this.#db, caller.tenantId, this.#clock)) {
@@ -1364,135 +1315,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
-   * #514: nfm_reply → quadro com provenance `flow` + proposta versionada.
-   * Não marca (DEC-061).
-   *
-   * Fases (fumo staging 04/11/2026): `ack` grava C16 + typing e devolve
-   * `inlineDispatches` para o consumer chamar a Meta *fora* do DO — senão o
-   * claim de `whatsapp.send` espera o `tryAiAutoBook` (DO single-thread) e a
-   * cliente fica em vácuo. `proposal` monta o cartão Confirmar depois.
-   */
-  async handleFlowNfmReply(
-    caller: ClinicCaller,
-    input: {
-      tenantId: string
-      conversationId: string
-      providerEventKey: string
-      responseJson: string
-      contextMessageId?: string | null
-      catalogVersion?: string
-      phase?: 'ack' | 'proposal' | 'all'
-    },
-  ) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    bindOrAssertTenant(this.#db, caller, this.#clock)
-    const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
-      this.#db,
-      caller.tenantId,
-      this.#clock,
-    )
-    const capability = clinicAi.autoBookCapability() && !autoBookPaused
-    const catalogVersion =
-      input.catalogVersion ?? readCatalogVersion(this.#db, caller.tenantId)
-    const collectedSendRows: OutboxRow[] = []
-    const result = await handleFlowNfmReply(
-      this.#db,
-      caller,
-      {
-        tenantId: input.tenantId,
-        conversationId: input.conversationId,
-        providerEventKey: input.providerEventKey,
-        responseJson: input.responseJson,
-        catalogVersion,
-        capability,
-        phase: input.phase ?? 'all',
-        flushOutbound: async (rows) => {
-          if (rows.length === 0) return
-          const sendIds = new Set(
-            rows
-              .filter(
-                (r) =>
-                  r.type === 'whatsapp.send' ||
-                  r.type === 'whatsapp.typing_indicator',
-              )
-              .map((r) => r.id),
-          )
-          for (const r of rows) {
-            if (sendIds.has(r.id)) collectedSendRows.push(r)
-          }
-          await this.#fanoutOutboxes(caller, rows, true)
-          // Atraso no fallback da fila: o consumer envia em linha já (como painel).
-          await this.#drain(
-            caller,
-            sendIds.size > 0
-              ? {
-                  delayed: sendIds,
-                  delaySeconds: OUTBOUND_INLINE_FALLBACK_DELAY_S,
-                }
-              : undefined,
-          )
-        },
-      },
-      this.#clock,
-    )
-    if (result.outbox.length > 0) {
-      const sendIds = new Set(
-        result.outbox
-          .filter(
-            (r) =>
-              r.type === 'whatsapp.send' || r.type === 'whatsapp.typing_indicator',
-          )
-          .map((r) => r.id),
-      )
-      for (const r of result.outbox) {
-        if (sendIds.has(r.id) && !collectedSendRows.some((x) => x.id === r.id)) {
-          collectedSendRows.push(r)
-        }
-      }
-      await this.#fanoutOutboxes(caller, result.outbox, true)
-      await this.#drain(
-        caller,
-        sendIds.size > 0
-          ? { delayed: sendIds, delaySeconds: OUTBOUND_INLINE_FALLBACK_DELAY_S }
-          : undefined,
-      )
-    }
-    // DEC-155: hub Equipe / cancelar (e outros handoffs do Flow) agenda o timeout 30 min.
-    await this.#scheduleNextHandoffTimeout(caller.tenantId)
-    const inlineDispatches: ClinicOutboxQueueMessage[] = collectedSendRows.map((row) => ({
-      source: 'clinic_outbox',
-      tenantId: caller.tenantId,
-      eventId: row.id,
-      type: row.type,
-      idempotencyKey: row.idempotencyKey,
-      entity: { type: row.aggregateType, id: row.aggregateId },
-      occurredAt: row.occurredAt,
-      payload: JSON.parse(row.payloadJson) as Record<string, unknown>,
-    }))
-    return {
-      handled: result.handled,
-      outcome: result.outcome,
-      reason: result.reason,
-      needsProposal: Boolean(result.needsProposal),
-      inlineDispatches,
-    }
-  }
-
-  /**
-   * S4→S5: processa button_reply da proposta.
-   * Alterar → invalida e abre menu IA (Horário|Serviço|Variantes); sem handoff.
-   * Confirmar → executeProposalConfirmOp (book ou Pix uma vez).
-   * «Falar com a equipe» → handoff (DEC-083).
+   * Clique em botão do WhatsApp. DEC-202: os botões do funil antigo (listas M5, cartão de proposta,
+   * cancelar no chat, «Continuar» do FAQ) respondem com o link «Abrir agenda» e nunca marcam,
+   * remarcam nem cancelam; «Falar com a equipe» passa à equipe (DEC-083).
    */
   async handleProposalButtonClick(
     caller: ClinicCaller,
     input: ProposalButtonClickInput,
-    opts?: {
-      /** Override de capacidade (testes); default = ligada, salvo pausa da owner. */
-      capability?: boolean
-      pixDeps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter }
-    },
   ) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -1530,420 +1359,167 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#scheduleNextHandoffTimeout(caller.tenantId)
       return { handled: true, action: 'human' as const, paused: true as const }
     }
-    // M5 (#415) / DEC-128 — toque em linha/variantes/horários (não marca; DEC-061).
-    if (input.conversationId && isChoiceOfferId(input.buttonId)) {
-      const turnStartedMs = this.#clock.nowMs()
-      // DEC-136: typing fora do caminho crítico (fanout WS opcional).
-      void (async () => {
-        const typingStartedMs = this.#clock.nowMs()
-        try {
-          const typingOb = enqueueTypingIndicatorForLatestInbound(
-            this.#db,
-            caller.tenantId,
-            input.conversationId,
-            this.#clock,
-          )
-          if (typingOb) {
-            await this.#fanoutOutboxes(caller, [typingOb], true)
-            await this.#drain(caller)
-          }
-          console.log(
-            JSON.stringify({
-              level: 'info',
-              event: 'do.choice_click_timing',
-              tenantId: caller.tenantId,
-              conversationId: input.conversationId,
-              phase: 'typing',
-              durationMs: this.#clock.nowMs() - typingStartedMs,
-            }),
-          )
-        } catch (err) {
-          console.warn(
-            JSON.stringify({
-              level: 'warn',
-              event: 'whatsapp_typing.flush_failed',
-              tenantId: caller.tenantId,
-              error: err instanceof Error ? err.message : 'unknown',
-            }),
-          )
-        }
-      })()
-      const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
+    const conversationId = input.conversationId
+    if (!conversationId) return { handled: false as const }
+    // DEC-202: os botões do funil antigo que ainda estão no WhatsApp (listas M5, Alterar, Confirmar,
+    // cancelar no chat, «Continuar» do FAQ) respondem com o link «Abrir agenda» e nunca marcam,
+    // remarcam nem cancelam.
+    const legacy = parseLegacyFunnelButton(input.buttonId)
+    // O «Falar com a equipe» do cartão de proposta continua a passar à equipe.
+    if (legacy?.kind === 'proposal' && legacy.action === 'human') {
+      const handoff = notifyHumanHandoff(
         this.#db,
         caller.tenantId,
-        this.#clock,
-      )
-      const capability = clinicAi.autoBookCapability() && !autoBookPaused
-      const choiceStartedMs = this.#clock.nowMs()
-      const choice = await handleChoiceOfferClick(
-        this.#db,
-        caller,
         {
-          tenantId: caller.tenantId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          buttonTitle: input.buttonTitle,
-          contextMessageId: input.contextMessageId,
-          providerEventKey: input.providerEventKey,
-          capability,
-          prepareBookingFlowOffer: this.#prepareBookingFlowOffer(),
+          conversationId,
+          reason: 'customer_requested',
+          clientRequestId: `handoff.proposal:${input.providerEventKey ?? conversationId}`,
         },
         this.#clock,
       )
-      const choiceMs = this.#clock.nowMs() - choiceStartedMs
-      if (choice.handled) {
-        const dispatched = choice.outbox.length > 0
-        let fanoutMs = 0
-        let drainMs = 0
-        if (dispatched) {
-          const fanoutStartedMs = this.#clock.nowMs()
-          await this.#fanoutOutboxes(caller, choice.outbox, true)
-          fanoutMs = this.#clock.nowMs() - fanoutStartedMs
-          const drainStartedMs = this.#clock.nowMs()
-          await this.#drain(caller)
-          drainMs = this.#clock.nowMs() - drainStartedMs
-        }
-        console.log(
-          JSON.stringify({
-            level: 'info',
-            event: 'whatsapp.interactive_click_dispatched',
-            tenantId: caller.tenantId,
-            conversationId: input.conversationId,
-            buttonId: input.buttonId,
-            outcome: choice.outcome,
-            reason: choice.reason ?? null,
-            outboxQueued: choice.outbox.length,
-            dispatched,
-            fallbackSent: choice.fallbackSent === true,
-            silentPrevented: choice.silentPrevented === true,
-            timingMs: {
-              turn: this.#clock.nowMs() - turnStartedMs,
-              choice: choiceMs,
-              fanout: fanoutMs,
-              drain: drainMs,
-            },
-          }),
+      if (handoff.outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, handoff.outbox, true)
+        await this.#drain(caller)
+      }
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+      return { handled: true, action: 'human' as const, paused: true as const }
+    }
+    const legacyPurpose: 'agendar' | 'cancelar' | null = legacy
+      ? legacy.kind === 'cancel_confirm'
+        ? 'cancelar'
+        : 'agendar'
+      : null
+    if (legacyPurpose) {
+      const outbox = await this.#offerWebLinkInChat(caller, conversationId, legacyPurpose, input.providerEventKey)
+      cancelAutoDraft(this.#db, caller.tenantId, conversationId)
+      if (outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, outbox, true)
+        await this.#drain(caller)
+      }
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+      return { handled: true, action: 'web_link' as const }
+    }
+    // Follow-ups que não dependem do funil: ack de revisão, idle, pós-preço e pós-agendamento.
+    // «Continuar» e «Marcar outro» passam a enviar o link; «Terminar» mantém-se.
+    const followups = [
+      handleReviewFlagAckButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      ),
+      handleIdleButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      ),
+      handlePriceFollowupButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      ),
+      handlePostBookingButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      ),
+    ]
+    for (const done of followups) {
+      if (!done.handled) continue
+      const outbox = [...done.outbox]
+      if (done.action === 'continue' || done.action === 'another') {
+        outbox.push(...(await this.#offerWebLinkInChat(caller, conversationId, 'agendar', input.providerEventKey)))
+      }
+      if (outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, outbox, true)
+        await this.#drain(caller)
+      }
+      const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
+      if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
+      return { handled: true, action: done.action }
+    }
+    return { handled: false as const }
+  }
+
+  /**
+   * DEC-202: envia ao chat o link «Abrir agenda» com o propósito certo. Pausa da owner ou sem link
+   * possível (sem número ativo, base sem https) → passa à equipe. Devolve o outbox a despachar.
+   */
+  async #offerWebLinkInChat(
+    caller: ClinicCaller,
+    conversationId: string,
+    purpose: 'agendar' | 'remarcar' | 'cancelar',
+    eventKey?: string | null,
+  ): Promise<OutboxRow[]> {
+    const key = eventKey ?? `${purpose}:${this.#clock.nowMs()}`
+    const prepare = this.#prepareClientWebOffer()
+    const paused = clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
+    let offered: SendOutboundInteractiveInput | null = null
+    if (prepare && !paused) {
+      try {
+        const conv = this.#db.get<{ contact_id: string }>(
+          `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
+          caller.tenantId,
+          conversationId,
         )
-        if (
-          input.queueFallbackResume === true &&
-          !hasChoiceClickBookingDelivery(
-            this.#db,
-            caller.tenantId,
-            input.providerEventKey,
-            input.conversationId,
-          )
-        ) {
-          const esc = escalateChoiceClickDeliveryToTeam(
-            this.#db,
-            caller.tenantId,
-            {
-              conversationId: input.conversationId,
-              providerEventKey: input.providerEventKey,
-            },
-            this.#clock,
-          )
-          if (esc.outbox.length > 0) {
-            await this.#fanoutOutboxes(caller, esc.outbox, true)
-            await this.#drain(caller)
-          }
-        }
-        return {
-          handled: true,
-          action: 'choice' as const,
-          outcome: choice.outcome,
-          reason: choice.reason,
-        }
-      }
-    }
-    // TRE-29 — ack «avaliar»/«feedback» («Continuar» / «Terminar»).
-    if (input.conversationId) {
-      const reviewAck = handleReviewFlagAckButtonClick(
-        this.#db,
-        {
+        const future = conv
+          ? loadUpcomingAppointments(this.#db, caller.tenantId, conv.contact_id, this.#clock.nowMs(), 2)
+          : []
+        offered = await prepare({
           tenantId: caller.tenantId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          providerEventKey: input.providerEventKey,
-        },
-        this.#clock,
-      )
-      if (reviewAck.handled) {
-        if (reviewAck.resumeChoice) {
-          const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
-            this.#db,
-            caller.tenantId,
-            this.#clock,
-          )
-          const capability = clinicAi.autoBookCapability() && !autoBookPaused
-          const resumed = await runIdleContinueChoiceResume(
-            this.#db,
-            caller,
-            {
-              tenantId: caller.tenantId,
-              conversationId: input.conversationId,
-              resume: reviewAck.resumeChoice,
-              providerEventKey: input.providerEventKey,
-              capability,
-            },
-            this.#clock,
-          )
-          reviewAck.outbox.push(...resumed)
-        }
-        if (reviewAck.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, reviewAck.outbox, true)
-          await this.#drain(caller)
-        }
-        const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
-        if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
-        return { handled: true, action: reviewAck.action }
+          conversationId,
+          purpose,
+          appointmentId: purpose !== 'agendar' && future.length === 1 ? (future[0]?.id ?? null) : null,
+        })
+      } catch {
+        offered = null
       }
     }
-    // DEC-087 — idle («Prosseguir» / «Terminar»).
-    if (input.conversationId) {
-      const idle = handleIdleButtonClick(
-        this.#db,
-        {
-          tenantId: caller.tenantId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          providerEventKey: input.providerEventKey,
-        },
-        this.#clock,
-      )
-      if (idle.handled) {
-        if (idle.resumeChoice) {
-          const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
-            this.#db,
-            caller.tenantId,
-            this.#clock,
-          )
-          const capability = clinicAi.autoBookCapability() && !autoBookPaused
-          const resumed = await runIdleContinueChoiceResume(
-            this.#db,
-            caller,
-            {
-              tenantId: caller.tenantId,
-              conversationId: input.conversationId,
-              resume: idle.resumeChoice,
-              providerEventKey: input.providerEventKey,
-              capability,
-            },
-            this.#clock,
-          )
-          idle.outbox.push(...resumed)
-        }
-        if (idle.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, idle.outbox, true)
-          await this.#drain(caller)
-        }
-        const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
-        if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
-        return { handled: true, action: idle.action }
+    if (offered) {
+      try {
+        const sent = clinicInbox.sendOutboundMessageOp(
+          this.#db,
+          caller,
+          {
+            conversationId,
+            body: clientWebRouteBody({ purpose }),
+            interactive: offered,
+            clientRequestId: `ai-web-${purpose}:${key}`,
+            authorClerkUserId: 'system:ai-autodraft',
+            authorDisplayName: 'Assistente',
+          },
+          this.#clock,
+        )
+        return sent.outbox
+      } catch {
+        // Fora da janela de 24 h ou envio recusado: passa à equipe.
       }
     }
-    // DEC-177 — FAQ sem detalhe («Continuar» → reabre zonas; não marca).
-    if (input.conversationId) {
-      const faqContinue = handleFaqContinueButtonClick(
-        this.#db,
-        caller,
-        {
-          tenantId: caller.tenantId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          providerEventKey: input.providerEventKey,
-          services: clinicConfig.listServices(this.#db, caller.tenantId),
-          authorClerkUserId: 'system:ai-autodraft',
-          authorDisplayName: 'Assistente',
-        },
-        this.#clock,
-      )
-      if (faqContinue.handled) {
-        if (faqContinue.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, faqContinue.outbox, true)
-          await this.#drain(caller)
-        }
-        return { handled: true, action: 'faq_continue' as const }
-      }
-    }
-    // T3 — pós-preço («Marcar outro» / «Terminar»).
-    if (input.conversationId) {
-      const price = handlePriceFollowupButtonClick(
-        this.#db,
-        {
-          tenantId: caller.tenantId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          providerEventKey: input.providerEventKey,
-        },
-        this.#clock,
-      )
-      if (price.handled) {
-        if (price.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, price.outbox, true)
-          await this.#drain(caller)
-        }
-        return { handled: true, action: price.action }
-      }
-    }
-    // DEC-086 / T3 — pós-agendamento («Marcar outro» / «Terminar»).
-    if (input.conversationId) {
-      const post = handlePostBookingButtonClick(
-        this.#db,
-        {
-          tenantId: caller.tenantId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          providerEventKey: input.providerEventKey,
-        },
-        this.#clock,
-      )
-      if (post.handled) {
-        if (post.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, post.outbox, true)
-          await this.#drain(caller)
-        }
-        return { handled: true, action: post.action }
-      }
-    }
-    let contactId = input.contactId?.trim() ?? ''
-    if (!contactId && input.conversationId) {
-      const conv = this.#db.get<{ contact_id: string }>(
-        `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
-        caller.tenantId,
-        input.conversationId,
-      )
-      contactId = conv?.contact_id ?? ''
-    }
-    if (input.conversationId && contactId) {
-      const cancelClick = handleCancelConfirmButtonClick(
-        this.#db,
-        caller,
-        {
-          tenantId: caller.tenantId,
-          contactId,
-          conversationId: input.conversationId,
-          buttonId: input.buttonId,
-          providerEventKey: input.providerEventKey,
-        },
-        this.#clock,
-      )
-      if (cancelClick.handled) {
-        cancelAutoDraft(this.#db, caller.tenantId, input.conversationId)
-        if (cancelClick.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, cancelClick.outbox, true)
-          await this.#drain(caller)
-        }
-        return { handled: true, action: 'cancel_appointment' as const }
-      }
-    }
-    const click = clinicProposals.handleProposalButtonClick(
+    return notifyHumanHandoff(
       this.#db,
-      { ...input, contactId },
+      caller.tenantId,
+      { conversationId, reason: 'human_only', clientRequestId: `ai-web-handoff:${key}` },
       this.#clock,
-    )
-    const outboxes: OutboxRow[] = []
-    if ('outbox' in click && click.outbox.length > 0) {
-      outboxes.push(...click.outbox)
-    }
-
-    let execution: Awaited<
-      ReturnType<typeof clinicProposals.executeProposalConfirmOp>
-    > | null = null
-
-    // Alterar detalhes → menu IA (sem pausa / sem equipe).
-    if (
-      click.handled &&
-      'action' in click &&
-      click.action === 'alter' &&
-      'reoffer' in click &&
-      click.reoffer
-    ) {
-      const { beginAlterDetailsMenu } = await import('../clinic/ai/alter-details')
-      const menu = beginAlterDetailsMenu(
-        this.#db,
-        caller,
-        click.proposal.conversationId,
-        this.#clock,
-        {
-          providerEventKey: input.providerEventKey,
-          proposal: click.proposal,
-        },
-      )
-      if (menu.outbox.length > 0) outboxes.push(...menu.outbox)
-    }
-
-    if (
-      click.handled &&
-      'action' in click &&
-      click.action === 'confirm' &&
-      'handoff' in click
-    ) {
-      const autoBookPaused =
-        clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
-      const capability =
-        opts?.capability ??
-        (clinicAi.autoBookCapability() && !autoBookPaused)
-      let pixAdapter = opts?.pixDeps?.simulatedAdapter
-      const proposal = click.handoff.proposal
-      const needsPix =
-        click.handoff.authorization.allowed &&
-        proposal?.requiresSignal === true
-      if (needsPix && !pixAdapter) {
-        const env = this.env as WorkerBindings
-        const pixMode = (env.PIX_MODE ?? 'synthetic').toLowerCase()
-        const environment =
-          pixMode === 'live' ? 'live' : pixMode === 'sandbox' ? 'sandbox' : 'synthetic'
-        try {
-          const built = await clinicPix.buildClinicPixAdapter(
-            this.#db,
-            caller.tenantId,
-            opts?.pixDeps ?? {
-              sealKeys: pixSealKeys(env),
-              environment,
-            },
-          )
-          pixAdapter = built.adapter
-        } catch {
-          pixAdapter = undefined
-        }
-      }
-      execution = await clinicProposals.executeProposalConfirmOp(
-        this.#db,
-        caller,
-        {
-          handoff: click.handoff,
-          capability,
-          providerEventKey: input.providerEventKey,
-          contextMessageId: input.contextMessageId,
-          senderContactId: contactId || null,
-        },
-        this.#clock,
-        pixAdapter ? { pixAdapter } : {},
-      )
-      if (execution.outbox.length > 0) outboxes.push(...execution.outbox)
-      if (execution.status === 'booked') {
-        // P8: Confirmar desfaz a escalação «toque sem confirmação» (não o pedido de equipe).
-        outboxes.push(
-          ...releaseChoiceClickEscalationAfterBooking(
-            this.#db,
-            caller.tenantId,
-            input.conversationId,
-            this.#clock,
-          ),
-        )
-      }
-      if (execution.status === 'pix_signal') {
-        await this.#scheduleNextPixExpiry(caller)
-      }
-    }
-
-    if (outboxes.length > 0) {
-      await this.#fanoutOutboxes(caller, outboxes, true)
-      await this.#drain(caller)
-    }
-    // DEC-155: proposta «Falar com a equipe» (e outros handoffs neste path) agenda o timeout.
-    await this.#scheduleNextHandoffTimeout(caller.tenantId)
-    return { click, execution }
+    ).outbox
   }
 
   /** Interrupção via webhook Meta (#32) — espelho DO + evento WS. */
@@ -2643,7 +2219,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   ) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    const deps = this.#aiAssistDepsWithFlow(
+    const deps = this.#aiAssistDeps(
       clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
     )
     const outcome = applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
@@ -2708,7 +2284,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         jobId: r.id,
         conversationId: r.conversation_id,
         messageId: r.message_id,
-        purpose: r.purpose as 'extract' | 'redact',
+        purpose: 'redact' as const,
         idempotencyKey: r.idempotency_key,
       }))
   }
@@ -3824,21 +3400,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async upsertClinicService(caller: ClinicCaller, input: UpsertServiceInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    const before =
-      input.id != null ? clinicConfig.getService(this.#db, caller.tenantId, input.id) : null
     const row = clinicConfig.upsertServiceOp(this.#db, caller, input, this.#clock)
-    // DEC-149: best-effort — tokens Flow vivem no D1; frames/propostas já limpos no SQLite.
-    if (before?.variantSelection === 'varias' && row.variantSelection === 'uma') {
-      try {
-        await this.#expireFlowTokensForServiceUma(caller.tenantId, row.id)
-      } catch (err) {
-        console.warn('flow_token_expire_uma_failed', {
-          tenantId: caller.tenantId,
-          serviceId: row.id,
-          err: err instanceof Error ? err.message : String(err),
-        })
-      }
-    }
     await this.#fanoutConfigEvent(
       caller,
       input.id ? 'config.service_updated' : 'config.service_created',
@@ -5159,29 +4721,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return this.#clinicNameCache
   }
 
-  /** DEC-149 — invalida tokens Flow em voo do serviço após `varias` → `uma`. */
-  async #expireFlowTokensForServiceUma(tenantId: string, serviceId: string): Promise<void> {
-    const now = this.#clock.nowMs()
-    const result = await this.env.DB.prepare(
-      `SELECT token, session_json FROM whatsapp_flow_tokens
-       WHERE tenant_id = ? AND replaced_by IS NULL AND consumed_at IS NULL AND expires_at > ?`,
-    )
-      .bind(tenantId, now)
-      .all<{ token: string; session_json: string | null }>()
-    const rows = result.results ?? []
-    for (const row of rows) {
-      const session = parseFlowSessionJson(row.session_json)
-      if (session.serviceId !== serviceId) continue
-      await this.env.DB.prepare(
-        `UPDATE whatsapp_flow_tokens
-         SET consumed_at = ?, expires_at = ?
-         WHERE token = ? AND consumed_at IS NULL`,
-      )
-        .bind(now, now, row.token)
-        .run()
-    }
-  }
-
   async #aiRpcDeps(tenantId: string, rpcDeps?: AiAssistRpcDeps): Promise<AiAssistRpcDeps> {
     const base = rpcDeps ?? this.#aiDepsOverride ?? clinicAi.rpcDepsFromEnv(this.env)
     const env = this.#abuseEnv()
@@ -5218,45 +4757,15 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   /** Processa rascunhos automáticos vencidos (alarme). Público para testes. */
   /**
-   * Oferta de abertura do hub. Página web da cliente (DEC-196) quando ligada na plataforma e pela owner
-   * nesta clínica; senão a oferta Flow (ADR-0016) quando os secrets existem; senão null → M5.
+   * DEC-202: emite o link pessoal da página web da cliente e devolve o botão «Abrir agenda» com o
+   * propósito pedido (e a marcação ou o serviço alvo, se houver). `null` = sem link possível
+   * (sem número ativo, base sem https, página desligada no ambiente): quem chama passa à equipe.
    */
-  #prepareBookingFlowOffer(): PrepareBookingFlowOffer | undefined {
-    const env = this.env as WorkerBindings
-    const web = this.#prepareClientWebOffer()
-    const flow: PrepareBookingFlowOffer | undefined =
-      isWhatsappFlowConfigured(env) && env.DB
-        ? (input) =>
-            prepareBookingFlowOfferFromEnv({
-              env: env as WorkerBindings & { DB: D1Database },
-              clock: this.#clock,
-              tenantId: input.tenantId,
-              conversationId: input.conversationId,
-              catalogVersion: input.catalogVersion,
-              session: input.session,
-              body: input.body,
-              // T3: skipped/sent → outbox booking_session.flow (mesmo SQLite T1/T2).
-              analytics: {
-                db: this.#db,
-                attemptId: input.analyticsAttemptId ?? null,
-              },
-            })
-        : undefined
-    if (!web) return flow
-    // Sem link possível (sem binding ativo, base não https…) cai no Flow, se existir, e depois no M5.
-    return async (input) => (await web(input)) ?? (flow ? await flow(input) : null)
-  }
-
-  /**
-   * Remarcar e cancelar no chat (Fase 5): emite o link com a finalidade e, se a cliente só tem uma
-   * marcação futura, a marcação alvo. `null` = sem oferta (o caminho conversacional segue).
-   */
-  #prepareClientWebPurposeOffer(): PrepareClientWebOffer | undefined {
+  #prepareClientWebOffer(): PrepareClientWebOffer | undefined {
     const env = this.env as WorkerBindings
     if (!env.DB || !isClientWebEnabled(env) || !isHttpsBase(env.APP_BASE_URL)) return undefined
     const baseUrl = env.APP_BASE_URL
     return async (input) => {
-      if (!this.#clientWebOn(input.tenantId)) return null
       const conv = this.#db.get<{ contact_id: string }>(
         'SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?',
         input.tenantId,
@@ -5268,99 +4777,30 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         .bind(input.tenantId)
         .first<{ id: string }>()
       if (!binding) return null
+      // Só se pré-escolhe um serviço que ainda esteja ativo no catálogo.
+      const serviceId =
+        input.serviceId &&
+        clinicConfig.listServices(this.#db, input.tenantId).some((s) => s.id === input.serviceId && s.active)
+          ? input.serviceId
+          : null
       const link = await issueClientWebLink(env.DB!, this.#clock, {
         tenantId: input.tenantId,
         bindingId: binding.id,
         contactId: conv.contact_id,
         conversationId: input.conversationId,
         purpose: input.purpose,
-        appointmentId: input.appointmentId,
+        appointmentId: input.appointmentId ?? null,
+        serviceId,
       })
-      return {
-        body: clientWebPurposeBody(input.purpose),
-        interactive: clientWebOfferInteractive(clientWebUrl(baseUrl, link.token)),
-      }
+      return clientWebOfferInteractive(clientWebUrl(baseUrl, link.token))
     }
   }
 
-  /** Emite o link pessoal e devolve o botão «Abrir agenda». `null` = sem oferta (o chat continua). */
-  #prepareClientWebOffer(): PrepareBookingFlowOffer | undefined {
-    const env = this.env as WorkerBindings
-    if (!env.DB || !isClientWebEnabled(env) || !isHttpsBase(env.APP_BASE_URL)) return undefined
-    const baseUrl = env.APP_BASE_URL
-    return async (input) => {
-      if (!this.#clientWebOn(input.tenantId)) return null
-      const conv = this.#db.get<{ contact_id: string }>(
-        'SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?',
-        input.tenantId,
-        input.conversationId,
-      )
-      if (!conv) return null
-      const binding = await env.DB!
-        .prepare(`SELECT id FROM whatsapp_phone_bindings WHERE tenant_id = ? AND status = 'active' LIMIT 1`)
-        .bind(input.tenantId)
-        .first<{ id: string }>()
-      if (!binding) return null
-      const link = await issueClientWebLink(env.DB!, this.#clock, {
-        tenantId: input.tenantId,
-        bindingId: binding.id,
-        contactId: conv.contact_id,
-        conversationId: input.conversationId,
-        purpose: 'home',
-      })
-      return {
-        // Não é um flow_token: um marcador, para o analytics não confundir com o Flow.
-        flowToken: 'client_web',
-        body: clientWebOfferBody(input.body),
-        interactive: clientWebOfferInteractive(clientWebUrl(baseUrl, link.token)),
-      }
-    }
-  }
-
-  /**
-   * T3: primeira abertura do Flow (`opened_at` no D1) → `booking_session.flow`
-   * com o mesmo `sessionId` T1/T2 da conversa (se já houver sessão aberta).
-   */
-  async recordFlowOpened(input: {
-    tenantId: string
-    conversationId: string
-    flowToken: string
-  }): Promise<{ sessionId: string | null }> {
-    this.#ensureReady()
-    const caller = workerCaller(input.tenantId)
-    this.#assertInstanceTenant(caller)
-    const { sessionId } = recordBookingSessionFlow(
-      this.#db,
-      input.tenantId,
-      input.conversationId,
-      { flowState: 'opened', flowToken: input.flowToken },
-      this.#clock,
-    )
-    return { sessionId }
-  }
-
-  #aiAssistDepsWithFlow(
+  #aiAssistDeps(
     base: ReturnType<typeof clinicAi.toAiAssistDeps>,
   ): ReturnType<typeof clinicAi.toAiAssistDeps> {
-    const prepare = this.#prepareBookingFlowOffer()
-    let out = base
-    if (prepare) out = { ...out, prepareBookingFlowOffer: prepare }
-    const webPurpose = this.#prepareClientWebPurposeOffer()
-    if (webPurpose) out = { ...out, prepareClientWebOffer: webPurpose }
-    // TEMPORÁRIO: sombra H1 grava no D1 central (Review MCP). Com LLM_OUT_OF_DO
-    // a chamada Claude da sombra vai na fila (sibling `llm_shadow`); o sink no DO
-    // só serve o caminho inline (tenants sem out-of-DO). Demo deixa de forçar off
-    // após N turnos LLM estáveis (DEC-188).
-    const d1 = (this.env as WorkerBindings).DB
-    if (base.interpreterShadow && d1) {
-      out = {
-        ...out,
-        interpreterShadow: true,
-        interpreterShadowSink: (event) =>
-          insertInterpreterShadowEvent(fromD1(d1), event, this.#clock.nowMs()),
-      }
-    }
-    return out
+    const web = this.#prepareClientWebOffer()
+    return web ? { ...base, prepareClientWebOffer: web } : base
   }
 
   async runAutoDrafts(
@@ -5385,7 +4825,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       timer?.addPhase(name, ms)
     }
     try {
-      const deps = this.#aiAssistDepsWithFlow(
+      const deps = this.#aiAssistDeps(
         clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
       )
       const llmOut = llmOutOfDoEnabled(this.env, caller.tenantId)
@@ -5437,7 +4877,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
       )
       for (const o of outcomes) {
-        const queued = [...(o.autoBook?.outbox ?? []), ...(o.replyOutbox ?? [])]
+        const queued = [...(o.replyOutbox ?? [])]
         if (queued.length > 0) {
           const fanoutStartedMs = this.#clock.nowMs()
           await this.#fanoutOutboxes(caller, queued, true)
@@ -5449,9 +4889,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         await this.#emitAiDraftEvent(caller, o.conversationId, {
           state: o.status === 'awaiting_llm' ? 'generating' : o.status,
           suggestionId: o.suggestion?.id ?? null,
-          autoBook: o.autoBook
-            ? { status: o.autoBook.status, appointmentId: o.autoBook.appointmentId ?? null }
-            : null,
+          autoBook: null,
         })
       }
     } catch (err) {

@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest'
+import { isGreetingOnly, routeToClientWeb, servicesCitedInText, type RouteServiceHint } from './route-intent'
+
+const services: RouteServiceHint[] = [
+  { id: 'dep', name: 'Depilação', active: true, synonyms: ['depilar'], zones: [{ name: 'Axila', active: true }, { name: 'Pernas', active: true }] },
+  { id: 'mas', name: 'Massagem', active: true, zones: [] },
+  { id: 'masrel', name: 'Massagem relaxante', active: true, zones: [] },
+  { id: 'lim', name: 'Limpeza de pele', active: true, zones: [] },
+  { id: 'old', name: 'Peeling antigo', active: false, zones: [] },
+]
+const route = (text: string, hasUpcoming = false) => routeToClientWeb({ text, services, hasUpcoming })
+
+describe('encaminhamento do chat para a página (DEC-202)', () => {
+  it('marcar com serviço único reconhecido leva o serviço', () => {
+    expect(route('Quero marcar massagem relaxante amanhã às 10h')).toEqual({ purpose: 'agendar', serviceId: 'masrel', noUpcoming: false })
+    expect(route('quero agendar limpeza de pele')).toMatchObject({ purpose: 'agendar', serviceId: 'lim' })
+    expect(route('tem horário para depilação sexta?')).toMatchObject({ purpose: 'agendar', serviceId: 'dep' })
+  })
+
+  it('serviço pela zona, pelo sinónimo e com plural leve', () => {
+    expect(route('quero marcar axilas')).toMatchObject({ purpose: 'agendar', serviceId: 'dep' })
+    expect(route('quero depilar amanhã')).toMatchObject({ purpose: 'agendar', serviceId: 'dep' })
+  })
+
+  it('o nome curto contido no longo não conta como ambíguo', () => {
+    expect(servicesCitedInText(services, 'massagem relaxante').map((s) => s.id)).toEqual(['masrel'])
+    expect(servicesCitedInText(services, 'uma massagem').map((s) => s.id)).toEqual(['mas'])
+  })
+
+  it('pedido de marcar sem serviço único abre sem serviço', () => {
+    expect(route('quero marcar')).toEqual({ purpose: 'agendar', serviceId: null, noUpcoming: false })
+    expect(route('tem vaga amanhã?')).toMatchObject({ purpose: 'agendar', serviceId: null })
+    expect(route('quero marcar massagem e depilação')).toMatchObject({ purpose: 'agendar', serviceId: null })
+  })
+
+  it('serviço inativo não é reconhecido', () => {
+    expect(route('quero marcar peeling antigo')).toMatchObject({ purpose: 'agendar', serviceId: null })
+  })
+
+  it('remarcar e cancelar dependem de haver marcação futura', () => {
+    expect(route('quero remarcar', true)).toEqual({ purpose: 'remarcar', serviceId: null, noUpcoming: false })
+    expect(route('preciso cancelar minha marcação', true)).toEqual({ purpose: 'cancelar', serviceId: null, noUpcoming: false })
+    expect(route('quero remarcar', false)).toEqual({ purpose: 'agendar', serviceId: null, noUpcoming: true })
+    expect(route('quero cancelar', false)).toEqual({ purpose: 'agendar', serviceId: null, noUpcoming: true })
+  })
+
+  it('perguntas de informação não são pedido de marcar', () => {
+    expect(route('quanto custa a massagem?')).toBeNull()
+    expect(route('quanto tempo dura a limpeza de pele?')).toBeNull()
+    expect(route('o que é peeling?')).toBeNull()
+    expect(route('onde fica a clínica?')).toBeNull()
+    expect(route('vocês fazem botox?')).toBeNull()
+  })
+
+  it('pergunta condicional sobre cancelamento é política, não cancelamento', () => {
+    expect(route('Se eu precisar cancelar, tem multa?', true)).toBeNull()
+  })
+
+  it('cumprimento puro', () => {
+    expect(isGreetingOnly('Oi')).toBe(true)
+    expect(isGreetingOnly('bom dia, tudo bem?')).toBe(true)
+    expect(isGreetingOnly('oi, quero marcar')).toBe(false)
+  })
+})

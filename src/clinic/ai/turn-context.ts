@@ -12,7 +12,7 @@ import type { ClinicSettingsRow, ResourceRow, ServiceRow, ServiceZoneRow } from 
 import { listMessages } from '../inbox/messages'
 import type { MessageRow } from '../inbox/types'
 import type { ClinicDb } from '../store'
-import { loadUpcomingAppointment } from './reschedule'
+import { loadUpcomingAppointment } from './upcoming'
 import {
   getScheduleSession,
   syncBookingFrameWithCatalog,

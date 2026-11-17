@@ -12,7 +12,7 @@ describe('harness L2 dry-run (#417 · DEC-117)', () => {
       const report = await runL2Suite({
         mode: 'dry-run',
         n: 2,
-        caseIds: ['A-01', 'G-01', 'H-04'],
+        caseIds: ['GU-01', 'G-01', 'H-04'],
         withJudge: true,
         commit: 'test',
       })
@@ -21,7 +21,7 @@ describe('harness L2 dry-run (#417 · DEC-117)', () => {
       expect(report.truncated).toBe(false)
       expect(report.budget.ceilingUsd).toBe(10)
       expect(report.budget.spentUsd).toBeLessThan(10)
-      expect(report.casesRun).toEqual(['A-01', 'G-01', 'H-04'])
+      expect(report.casesRun).toEqual(['GU-01', 'G-01', 'H-04'])
       expect(report.casesSkipped).toEqual([])
       for (const r of report.results) {
         expect(r.repetitions).toHaveLength(2)
@@ -42,7 +42,7 @@ describe('harness L2 dry-run (#417 · DEC-117)', () => {
     const report = await runL2Suite({
       mode: 'dry-run',
       n: 3,
-      caseIds: ['A-01', 'A-02', 'B-01', 'C-01', 'G-01'],
+      caseIds: ['GU-01', 'A-02', 'B-01', 'C-01', 'G-01'],
       budgetUsd: 1e-12,
       withJudge: false,
       estimatePerRepUsd: 1,

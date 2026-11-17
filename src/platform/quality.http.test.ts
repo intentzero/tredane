@@ -15,9 +15,6 @@ import { fetchConversationMetricsReport } from '../conversation-metrics/query'
 import type { ConversationQualityEpisodeRow } from '../conversation-metrics/types'
 import { upsertReviewSampleSync, REVIEW_SAMPLE_TTL_MS } from '../review-samples'
 import type { ReviewSampleSnapshot } from '../review-samples'
-import { insertInterpreterShadowEvent, listInterpreterShadowEvents } from '../shadow-report/store'
-import { summariseShadowRows } from '../shadow-report/summary'
-import type { InterpreterShadowEvent } from '../clinic/ai/interpreter-shadow'
 import { maskPhone } from './quality'
 
 const SUPER = 'user_synth_superadmin'
@@ -61,34 +58,6 @@ const episode = (over: Partial<ConversationQualityEpisodeRow> & Pick<Conversatio
   falseConfirmation: false,
   aiAppointmentFulfillment: null,
   expiresAt: NOW + 90 * 24 * HOUR,
-  ...over,
-})
-
-const NONE = { service: 'none', variants: 'none', line: 'none', professional: 'none', date: 'none', period: 'none', time: 'none', option: 'none' } as const
-const shadow = (over: Partial<InterpreterShadowEvent> = {}): InterpreterShadowEvent => ({
-  level: 'info',
-  event: 'ai.interpreter_shadow',
-  tenantId: 'clinic-demo-a',
-  conversationId: 'cnv_1',
-  messageId: 'msg_1',
-  status: 'ok',
-  mainModelCalled: false,
-  reusedMainCall: false,
-  pendingSlot: null,
-  ruleCoverage: 0.3,
-  ruleActs: ['marcar'],
-  llmActs: ['marcar'],
-  fields: { ...NONE, service: 'agree', period: 'llm_only' },
-  diverged: true,
-  llmOnly: ['period'],
-  differ: [],
-  variantCount: { rule: 0, llm: 0 },
-  strictDiscarded: ['period'],
-  relaxedRejected: [],
-  model: 'claude-haiku-5-5',
-  latencyMs: 1000,
-  inputTokens: 1000,
-  outputTokens: 100,
   ...over,
 })
 
@@ -143,28 +112,6 @@ describe('HTTP — qualidade da IA na Platform Admin (#834, AC-86)', () => {
       for (const q of ['sinceHours=0', 'sinceHours=abc', 'sinceHours=99999']) {
         expect((await ctx.call(SUPER, `/api/platform/quality/metrics?${q}`)).status, q).toBe(400)
       }
-    } finally {
-      ctx.close()
-    }
-  })
-
-  it('sombra: o resumo coincide com o do MCP, está marcada como temporária e o teto é 7 dias', async () => {
-    const ctx = testApp()
-    try {
-      await insertInterpreterShadowEvent(ctx.db, shadow({ messageId: 'a' }), NOW - HOUR)
-      await insertInterpreterShadowEvent(ctx.db, shadow({ messageId: 'b', fields: { ...NONE, service: 'differ' }, llmOnly: [], differ: ['service'] }), NOW - 2 * HOUR)
-      const res = await ctx.call(SUPER, '/api/platform/quality/shadow?sinceHours=24')
-      expect(res.status).toBe(200)
-      const body = await json(res)
-      expect(body.temporary).toBe(true)
-      expect(body.window).toMatchObject({ sinceHours: 24, clamped: false })
-      expect(body.summary.total).toBe(2)
-      const rows = await listInterpreterShadowEvents(ctx.db, { sinceMs: NOW - 24 * HOUR, tenantId: null, limit: 5001 })
-      expect(body.summary).toEqual(JSON.parse(JSON.stringify(summariseShadowRows(rows))))
-      // 30 dias pedidos → a sombra só guarda 7: diz-se que foi limitada.
-      const clamped = await json(await ctx.call(SUPER, '/api/platform/quality/shadow?sinceHours=720'))
-      expect(clamped.window).toMatchObject({ sinceHours: 168, requestedHours: 720, clamped: true })
-      expect((await ctx.call(SUPER, '/api/platform/quality/shadow?sinceHours=x')).status).toBe(400)
     } finally {
       ctx.close()
     }
@@ -232,7 +179,7 @@ describe('HTTP — qualidade da IA na Platform Admin (#834, AC-86)', () => {
     try {
       const { sampleId } = upsertReviewSampleSync(ctx.boot.db, sample(), NOW)
       for (const user of ['user_synth_owner_a', 'user_synth_string_super', 'user_synth_public_super']) {
-        for (const p of ['/api/platform/quality/metrics', '/api/platform/quality/shadow', '/api/platform/quality/samples', `/api/platform/quality/samples/${sampleId}`]) {
+        for (const p of ['/api/platform/quality/metrics', '/api/platform/quality/samples', `/api/platform/quality/samples/${sampleId}`]) {
           expect((await ctx.call(user, p)).status, `${user} ${p}`).toBe(403)
         }
       }

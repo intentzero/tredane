@@ -50,11 +50,6 @@ export {
   type SendProposalResult,
 } from './send'
 export {
-  createAndSendStaffProposalOp,
-  type CreateAndSendStaffProposalInput,
-  type CreateAndSendStaffProposalResult,
-} from './staff-send'
-export {
   sendProposalResultMessageOp,
   reconcileProposalResultOutboundSend,
   type SendProposalResultOutcome,

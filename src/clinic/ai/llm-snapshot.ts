@@ -5,30 +5,10 @@
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import type { ClinicDb } from '../store'
-import { ensureClinicSettings } from '../config/settings'
-import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { buildAiContextPayload } from './context'
-import {
-  catalogNamesFromServices,
-  type ExtractorRaw,
-} from './llm-extractor'
-import { DEFAULT_INTERPRETER_FALLBACK, shouldRunFallbackExtractor } from './interpreter-fallback'
-import { interpretTurn, type TurnInterpretation } from './nlu/interpret'
-import { getBookingFrame, type BookingFramePending } from './schedule-session'
+import { getBookingFrame } from './schedule-session'
 import type { AiAssistDeps } from './types'
 import type { TurnContext } from './turn-context'
-
-export type ExtractSnapshot = {
-  purpose: 'extract'
-  conversationId: string
-  messageId: string
-  turnText: string
-  today: string
-  frameVersion: number
-  pending: BookingFramePending | null
-  catalog: ReturnType<typeof catalogNamesFromServices>
-  base: TurnInterpretation
-}
 
 export type RedactSnapshot = {
   purpose: 'redact'
@@ -39,17 +19,6 @@ export type RedactSnapshot = {
   /** Contexto DEC-120 já montado no DO (Worker não lê SQLite). */
   context: unknown
   computedFacts?: string
-}
-
-export type ExtractModelResult = {
-  ok: boolean
-  text: string
-  raw: ExtractorRaw | null
-  model: string | null
-  inputTokens: number | null
-  outputTokens: number | null
-  latencyMs: number | null
-  code?: string
 }
 
 export type RedactModelResult = {
@@ -69,42 +38,6 @@ export function frameVersionOf(
 ): number {
   const frame = getBookingFrame(db, tenantId, conversationId)
   return frame?.updatedAt ?? 0
-}
-
-export function buildExtractSnapshot(
-  db: ClinicDb,
-  tenantId: string,
-  turn: TurnContext,
-  clock: Clock,
-  deps: AiAssistDeps,
-): ExtractSnapshot | null {
-  const settings = turn.settings ?? ensureClinicSettings(db, tenantId, clock)
-  const today = clinicCivilDateFromUtc(settings.timezone || 'America/Sao_Paulo', clock.nowMs())
-  const frame = getBookingFrame(db, tenantId, turn.conversationId)
-  const professionals = [...turn.catalog.professionalsByService.values()].flat()
-  const uniquePros = new Map(professionals.map((p) => [p.id, p]))
-  const proList = [...uniquePros.values()]
-  const base = interpretTurn({
-    turnText: turn.turnText,
-    messageId: turn.messageId,
-    today,
-    services: turn.catalog.services,
-    pending: frame?.pending ?? null,
-    professionals: proList,
-  })
-  const config = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK
-  if (!shouldRunFallbackExtractor(base, turn.turnText, config)) return null
-  return {
-    purpose: 'extract',
-    conversationId: turn.conversationId,
-    messageId: turn.messageId,
-    turnText: turn.turnText,
-    today,
-    frameVersion: frame?.updatedAt ?? 0,
-    pending: frame?.pending ?? null,
-    catalog: catalogNamesFromServices(turn.catalog.services, proList),
-    base,
-  }
 }
 
 export async function buildRedactSnapshot(

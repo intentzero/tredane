@@ -7,7 +7,7 @@
  */
 import type { Clock } from '../db/clock'
 import type { ClinicDb } from '../clinic/store'
-import { loadUpcomingAppointments } from '../clinic/ai/reschedule'
+import { loadUpcomingAppointments } from '../clinic/ai/upcoming'
 import { clientWebFirstName } from './first-name'
 import { hasPaidSignal } from './manage'
 

@@ -98,38 +98,8 @@ function makeApi(opts: { emptyFirstDay?: boolean; service?: Record<string, unkno
     confirmAppointment: vi.fn(async () => ({ id: 'apt_1' })),
     confirmWithoutSignal: vi.fn(async () => ({ appointmentId: 'apt_2' })),
     createPixCharge: vi.fn(async () => ({ charge: { amountCents: 9000 }, whatsappSendError: null })),
-    createAndSendProposal: vi.fn(
-      async (): Promise<{
-        appointmentCreated: false
-        sendStatus: 'queued' | 'already_sent' | 'handed_off_closed_window'
-        proposal: {
-          id: string
-          version: number
-          state: string
-          serviceName: string
-          startsAt: number
-          endsAt: number
-          expiresAt: number | null
-          requiresSignal: boolean
-          resultKind: string | null
-          sendProviderMessageId: string | null
-        }
-      }> => ({
-        appointmentCreated: false,
-        sendStatus: 'queued',
-        proposal: {
-          id: 'aprop_1',
-          version: 1,
-          state: 'envio_pendente',
-          serviceName: 'Limpeza',
-          startsAt: 0,
-          endsAt: 0,
-          expiresAt: null,
-          requiresSignal: false,
-          resultKind: null,
-          sendProviderMessageId: null,
-        },
-      }),
+    sendClientWebLink: vi.fn(
+      async (): Promise<{ status: 'sent' | 'window_closed' | 'unavailable' | 'not_found' }> => ({ status: 'sent' }),
     ),
     confirmPixAlertSlot: vi.fn(),
     sendInboxMessage: vi.fn(async () => ({})),
@@ -170,8 +140,8 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('status').textContent).toContain('Sol fraco neste horário')
     expect(within(dialog).getByRole('status').textContent).toContain('Abaixo de 24 °C neste horário')
-    expect(within(dialog).getByRole('button', { name: 'Enviar proposta' }).hasAttribute('disabled')).toBe(true)
-    expect(api.createAndSendProposal).not.toHaveBeenCalled()
+    expect(within(dialog).getByRole('button', { name: 'Enviar link de agenda' }).hasAttribute('disabled')).toBe(true)
+    expect(api.sendClientWebLink).not.toHaveBeenCalled()
     expect(api.confirmAppointment).not.toHaveBeenCalled()
   })
 
@@ -200,7 +170,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     expect(screen.getByRole('button', { name: 'Revisar' }).hasAttribute('disabled')).toBe(false)
   })
 
-  it('DEC-061: com conversa envia proposta versionada e não confirma o horário', async () => {
+  it('DEC-202: com conversa envia o link da página e não confirma o horário', async () => {
     const api = makeApi()
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
@@ -209,54 +179,38 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('heading', { name: 'Revisar' })).toBeTruthy()
     expect(within(dialog).getByText('Marina Souza')).toBeTruthy()
-    expect(within(dialog).getByText(/botões Confirmar e Alterar detalhes/)).toBeTruthy()
+    expect(within(dialog).getByText(/botão «Abrir agenda» já neste serviço/)).toBeTruthy()
     expect(within(dialog).queryByRole('checkbox')).toBeNull()
     expect(within(dialog).queryByRole('textbox')).toBeNull()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
-    expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
-    expect(api.createAndSendProposal).toHaveBeenCalledWith(
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar link de agenda' }))
+    expect(await screen.findByRole('heading', { name: 'Link enviado' })).toBeTruthy()
+    expect(api.sendClientWebLink).toHaveBeenCalledWith(
       't1',
       expect.objectContaining({
-        contactId: 'c1',
         conversationId: 'conv_1',
+        purpose: 'agendar',
         serviceId: 'svc_limpeza',
       }),
       expect.anything(),
     )
     expect(api.confirmAppointment).not.toHaveBeenCalled()
     expect(api.sendInboxMessage).not.toHaveBeenCalled()
-    expect(screen.getByText('Aguarda confirmação no WhatsApp')).toBeTruthy()
+    expect(screen.getByText('Aguarda a cliente na página')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Voltar à conversa' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Ver na agenda' })).toBeNull()
   })
 
-  it('janela de 24 h fechada: ainda oferece enviar proposta (handoff)', async () => {
+  it('janela de 24 h fechada: o link não sai e a equipe vê o motivo', async () => {
     const api = makeApi({ windowOpen: false })
-    api.createAndSendProposal.mockResolvedValueOnce({
-      appointmentCreated: false as const,
-      sendStatus: 'handed_off_closed_window' as const,
-      proposal: {
-        id: 'aprop_2',
-        version: 1,
-        state: 'envio_pendente',
-        serviceName: 'Limpeza',
-        startsAt: 0,
-        endsAt: 0,
-        expiresAt: null,
-        requiresSignal: false,
-        resultKind: null,
-        sendProviderMessageId: null,
-      },
-    })
+    api.sendClientWebLink.mockResolvedValueOnce({ status: 'window_closed' })
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
     fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/janela de 24 h está fechada/)).toBeTruthy()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
-    expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
-    expect(screen.getByText(/Proposta preparada · janela fechada/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar link de agenda' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('janela de 24 h')
     expect(api.confirmAppointment).not.toHaveBeenCalled()
   })
 
@@ -277,7 +231,8 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     await pickTime()
     fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Marcar já/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('Nada foi reservado')
     expect(alert.textContent).toContain('Suas escolhas foram mantidas')
@@ -285,7 +240,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     expect(screen.getByRole('button', { name: /Limpeza/ }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('button', { name: 'Dra. Ana' }).getAttribute('aria-pressed')).toBe('true')
     expect(api.confirmAppointment).not.toHaveBeenCalled()
-    expect(api.createAndSendProposal).not.toHaveBeenCalled()
+    expect(api.sendClientWebLink).not.toHaveBeenCalled()
   })
 
   it('dia sem horários oferece «Próximo livre»', async () => {
@@ -308,9 +263,9 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('heading', { name: 'Revisar' })).toBeTruthy()
     expect(within(dialog).getByText(/Sinal Pix de/)).toBeTruthy()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
-    expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
-    expect(api.createAndSendProposal).toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar link de agenda' }))
+    expect(await screen.findByRole('heading', { name: 'Link enviado' })).toBeTruthy()
+    expect(api.sendClientWebLink).toHaveBeenCalled()
     expect(api.createPixCharge).not.toHaveBeenCalled()
     expect(api.confirmWithoutSignal).not.toHaveBeenCalled()
   })
@@ -350,7 +305,7 @@ describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
     expect(navigatePanel).not.toHaveBeenCalled()
   })
 
-  it('depois de enviar proposta, «Voltar à conversa» fecha o painel sem trocar de área', async () => {
+  it('depois de enviar o link, «Voltar à conversa» fecha o painel sem trocar de área', async () => {
     const onClose = vi.fn()
     const api = makeApi()
     renderEmbedded(api, onClose)
@@ -358,11 +313,11 @@ describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
     await pickTime()
     fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
-    await screen.findByRole('heading', { name: 'Proposta enviada' })
-    expect(api.createAndSendProposal).toHaveBeenCalledWith(
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar link de agenda' }))
+    await screen.findByRole('heading', { name: 'Link enviado' })
+    expect(api.sendClientWebLink).toHaveBeenCalledWith(
       't1',
-      expect.objectContaining({ conversationId: 'conv_1', contactId: 'c1' }),
+      expect.objectContaining({ conversationId: 'conv_1' }),
       expect.anything(),
     )
     expect(api.confirmAppointment).not.toHaveBeenCalled()
@@ -451,7 +406,7 @@ describe('AgendarScreen — painel único', () => {
     expect(screen.getByRole('button', { name: 'Reservar bloco' })).toBeTruthy()
   })
 
-  it('«Marcar já» confirma direto, avisa pelo WhatsApp e não envia proposta', async () => {
+  it('«Marcar já» confirma direto, avisa pelo WhatsApp e não envia o link', async () => {
     const api = makeApi()
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
@@ -462,10 +417,10 @@ describe('AgendarScreen — painel único', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
     await waitFor(() => expect(api.confirmAppointment).toHaveBeenCalled())
     await waitFor(() => expect(api.sendInboxMessage).toHaveBeenCalled())
-    expect(api.createAndSendProposal).not.toHaveBeenCalled()
+    expect(api.sendClientWebLink).not.toHaveBeenCalled()
   })
 
-  it('serviço com sinal Pix não oferece «Marcar já» (só proposta)', async () => {
+  it('serviço com sinal Pix não oferece «Marcar já» (só o link)', async () => {
     const api = makeApi({ service: { requiresSignal: true, signalKind: 'fixed', signalFixedCents: 9000 } })
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
@@ -474,7 +429,7 @@ describe('AgendarScreen — painel único', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByRole('radio', { name: /Marcar já/ })).toBeNull()
     expect(within(dialog).queryByRole('radiogroup', { name: 'Como concluir' })).toBeNull()
-    expect(within(dialog).getByRole('button', { name: 'Enviar proposta' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Enviar link de agenda' })).toBeTruthy()
   })
 
   it('serviço com variantes não oferece o bloco (DEC-150)', async () => {

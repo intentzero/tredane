@@ -54,8 +54,6 @@ import {
   createSyncReviewCentralStore,
 } from '../mcp/review-central/tools'
 import { fetchConversationMetricsReport, parseMetricsWindowFromQuery } from '../conversation-metrics/query'
-import { SHADOW_REPORT_ROW_LIMIT } from '../shadow-report/store'
-import { summariseShadowRows } from '../shadow-report/summary'
 import { recordSampleRead, serializeSampleDetail, serializeSampleItem } from './quality'
 import { clerkIdsOf, listSupportItems, type SupportItemRow } from '../support/platform-list'
 import { getHealth, listHealth, refreshTenantHealth } from '../ops/health-summary'
@@ -789,33 +787,6 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const report = await fetchConversationMetricsReport(healthDb(c.env), window, nowMs)
       c.header('Cache-Control', 'no-store')
       return c.json({ metrics: report, clinicalAccess: false })
-    } catch (err) {
-      return adminErrorResponse(c, err)
-    }
-  })
-
-  /** TEMPORÁRIO como a própria sombra (hipotese-compreensao-llm-primeiro.md §5.3d). A sombra guarda 7 dias. */
-  routes.get('/api/platform/quality/shadow', requireSuperadmin(), async (c) => {
-    try {
-      requirePlatformPermission(c.get('principal'), 'platform.tenants.read')
-      const requested = numberParam(c.req.query('sinceHours'))
-      if (requested === 'invalid') return c.json({ error: 'invalid_window' }, 400)
-      const sinceHours = Math.min(Math.max(requested ?? 24, 1), 168)
-      const nowMs = clockNow().nowMs()
-      const tenantId = c.req.query('tenantId')?.trim() || null
-      const store = reviewStore(c.env)
-      const sinceMs = nowMs - sinceHours * 3_600_000
-      const rowsPlus = await store.shadowEvents!({ sinceMs, tenantId, limit: SHADOW_REPORT_ROW_LIMIT + 1 })
-      const truncated = rowsPlus.length > SHADOW_REPORT_ROW_LIMIT
-      const rows = truncated ? rowsPlus.slice(0, SHADOW_REPORT_ROW_LIMIT) : rowsPlus
-      c.header('Cache-Control', 'no-store')
-      return c.json({
-        temporary: true,
-        window: { sinceHours, requestedHours: requested ?? 24, clamped: sinceHours !== (requested ?? 24), fromMs: sinceMs, toMs: nowMs },
-        truncated,
-        summary: summariseShadowRows(rows),
-        clinicalAccess: false,
-      })
     } catch (err) {
       return adminErrorResponse(c, err)
     }

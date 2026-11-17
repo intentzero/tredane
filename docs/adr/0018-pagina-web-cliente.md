@@ -1,6 +1,6 @@
 # ADR-0018 — Página web da cliente aberta a partir do WhatsApp
 
-- **Estado:** **Proposto**. A direção está **Confirmada** (Paulo, 17/11/2026): DEC-196 (a página substitui o Flow), DEC-197 (confirma na própria página), DEC-198 (cancela e remarca sozinha, também com sinal) e DEC-199 (uso único = troca única por sessão curta). Este ADR é o desenho de engenharia e ainda não foi revisto pelo Paulo; os valores e as rotas abaixo ficam **Propostos**.
+- **Estado:** **Proposto**. A direção está **Confirmada** (Paulo, 17/11/2026): **DEC-202** (o chat não marca, não remarca e não cancela; a página fica sempre ligada; a equipe também envia o link), DEC-196 (a página substitui o Flow), DEC-197 (confirma na própria página), DEC-198 (cancela e remarca sozinha, também com sinal) e DEC-199 (uso único = troca única por sessão curta). Este ADR é o desenho de engenharia e ainda não foi revisto pelo Paulo; os valores e as rotas abaixo ficam **Propostos**.
 - **Origem:** planeamento de 17/11/2026 sobre uma alternativa determinística ao agendamento puramente conversacional.
 - **Relacionados:** [ADR-0016](0016-whatsapp-flow-agendamento.md) (Flow, **suspenso** pela DEC-196; o desenho do `flow_token` é a base), [ADR-0012](0012-clinic-durable-object-sqlite.md), [ADR-0015](0015-estado-persistente-da-conversa.md), DEC-061, DEC-104, DEC-138, DEC-044.
 - **Escopo:** rotas, token, sessão, proposta no canal web, isolamento por componente, eventos, testes. **Não** é implementação.
@@ -187,11 +187,21 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 2. Um erro de rede ou de D1 em `/api/c/state` mostra «Não foi possível abrir a agenda»; uma clínica suspensa mostra o aviso de «link já usado», que não é exato. Texto próprio por decidir.
 3. GATE-04 (LGPD), TMPL-05 (fora das 24 h) e a revisão de segurança curta.
 
+## 7b. DEC-202: o chat só informa e encaminha (17/11/2026, **Confirmado**)
+
+- **Encaminhamento (`src/clientweb/route-intent.ts`, léxico puro, sem LLM):** cumprimento → `home`; pedido de marcar ou de vaga → `agendar`; «remarcar» ou «cancelar» com marcação futura → `remarcar` ou `cancelar` (com a marcação alvo se só houver uma); sem marcação futura → `agendar` com «Não encontrei marcações…». Perguntas de informação (preço, duração, o que é, onde fica) e perguntas condicionais sobre política não são pedido de marcar. Um **único** serviço reconhecido (nome, sinónimo ou zona; o nome longo ganha ao curto contido) pré-escolhe o serviço no link (`client_web_links.service_id`, migração `0029`); a página salta a lista se o serviço está ativo e não depende de género, senão pergunta «Para quem é?» e, se já não existe, abre a escolha de serviço.
+- **Sempre ligada:** sai o interruptor da owner (tabela `clinic_client_web`, migração de clínica `0074`, rotas `config/client-web`, cartão do painel). `CLIENT_WEB_ENABLED` fica só como interruptor de emergência do ambiente.
+- **Pausa da owner:** o pedido passa à equipe (frase fixa e alerta «Precisa de alguém»), sem link; a página mostra as marcações e bloqueia agendar, remarcar e cancelar com «Falar com a equipe». Sem link possível (sem número ativo, base sem https) ou fora das 24 h o chat também passa à equipe; o template fora das 24 h continua **Em aberto** (TMPL-05, gate Meta).
+- **Botões antigos no WhatsApp** (listas M5, Confirmar/Alterar de propostas, cancelar no chat, «Continuar» do FAQ, «Marcar outro», «Prosseguir»): respondem com o link e nunca marcam; o «Falar com a equipe» do cartão de proposta continua a passar à equipe (`src/clientweb/legacy-buttons.ts`).
+- **Equipe:** `POST /api/tenants/:id/client-web-links` (`clinic.agenda.operate`) e o RPC `sendClientWebLinkFromStaff` enviam o link com o botão «Abrir agenda» (auditoria `client_web.link_sent_by_staff`); o painel Agendar passa de «Enviar proposta» a «Enviar link de agenda». O horário escolhido no painel não fica reservado.
+- **Removido:** `autobook`, `choice-offer`, reagendar e cancelar por conversa, `alter-details`, extrator LLM e job `extract` da fila, sombra do interpretador (tabela por migração `0030`, rota `/api/platform/quality/shadow`, ferramenta `get_interpreter_shadow_report`), `src/whatsapp/flow/` e as rotas do Flow, `staff-send`. As tabelas e o quadro de estado da conversa (`BookingFrame`, sessão de agendamento) ficam sem escritor do funil e saem numa limpeza de dados separada.
+- **Limites e riscos:** as respostas com link não passam pela quota `autoDraftsPerContact` (não geram rascunho); a quota por contacto e a limitação de pedidos às rotas públicas continuam. Cada link novo invalida o anterior da conversa.
+
 ## 8. Em aberto
 
 1. Valores de 60 e 30 min (DEC-199). Quem decide: Paulo; bloqueia a Fase 1.
 2. Validade do crédito do sinal (DEC-198). Quem decide: Paulo; bloqueia o cancelamento com sinal.
 3. Domínio e nome da página. Quem decide: Paulo; bloqueia o envio real do link.
-4. Interruptor da owner por clínica, desligado por defeito.
+4. (**Fechado pela DEC-202**: sem interruptor da owner; a página fica sempre ligada.)
 5. Quando saem as listas M5 e o código do Flow (limpeza separada, DEC-196).
 6. Horizonte máximo de datas: **Confirmado** como configuração da clínica pela owner (DEC-201), ainda não implementada. **Em aberto:** valor padrão e opções. Bloqueia a Fase 2 (a página precisa do valor, ou de um fixo provisório).

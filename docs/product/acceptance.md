@@ -342,7 +342,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 ### AC-86 — Qualidade da IA com os números do MCP
 
-**Dado** o mesmo período e clínica; **quando** o superadmin abre a qualidade da IA; **então** as métricas e o relatório sombra coincidem com `get_conversation_metrics` e `get_interpreter_shadow_report` do Review MCP. **Requisitos:** REQ-110.
+**Dado** o mesmo período e clínica; **quando** o superadmin abre a qualidade da IA; **então** as métricas coincidem com `get_conversation_metrics` do Review MCP (o relatório da sombra foi removido, DEC-202). **Requisitos:** REQ-110.
 
 
 ### AC-87 — Link: abrir não gasta, trocar gasta uma vez

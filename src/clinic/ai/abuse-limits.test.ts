@@ -143,7 +143,7 @@ describe('S7: rascunhos automáticos por contato', () => {
       const limits = on({ autoDraftsPerContact: 2 })
       const statuses: string[] = []
       for (let i = 0; i < 5; i++) {
-        s.inbound('a', `mensagem ${i}`)
+        s.inbound('a', `vocês aceitam cartão? (${i})`)
         const out = await s.drain(limits)
         statuses.push(out[0]!.status === 'skipped' ? out[0]!.reason! : out[0]!.status)
       }
@@ -151,7 +151,7 @@ describe('S7: rascunhos automáticos por contato', () => {
       expect(statuses.slice(2)).toEqual(Array(3).fill('abuse_limit:autoDraftsPerContact'))
       expect(s.audits()).toBe(1)
       // Outro contato da mesma clínica segue normal.
-      s.inbound('b', 'Oi, tem horário?')
+      s.inbound('b', 'Vocês têm estacionamento?')
       expect((await s.drain(limits))[0]!.status).toBe('ready')
       // Contato não é bloqueado.
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM contacts WHERE blocked_at IS NOT NULL`)!.n).toBe(0)
@@ -165,12 +165,12 @@ describe('S7: rascunhos automáticos por contato', () => {
     try {
       s.addContact('a', '5511900000103')
       const limits = on({ autoDraftsPerContact: 1 })
-      s.inbound('a', 'oi')
+      s.inbound('a', 'vocês aceitam cartão?')
       expect((await s.drain(limits))[0]!.status).toBe('ready')
-      s.inbound('a', 'oi de novo')
+      s.inbound('a', 'vocês têm estacionamento?')
       expect((await s.drain(limits))[0]!.status).toBe('skipped')
       s.clock.advance(24 * HOUR)
-      s.inbound('a', 'oi amanhã')
+      s.inbound('a', 'vocês atendem aos domingos?')
       expect((await s.drain(limits))[0]!.status).toBe('ready')
     } finally {
       s.close()
@@ -182,7 +182,7 @@ describe('S7: rascunhos automáticos por contato', () => {
     try {
       s.addContact('a', '5511900000104')
       for (let i = 0; i < 4; i++) {
-        s.inbound('a', `m${i}`)
+        s.inbound('a', `vocês aceitam cartão? (${i})`)
         expect((await s.drain(on({ enabled: false, autoDraftsPerContact: 1 })))[0]!.status).toBe('ready')
       }
       expect(s.audits()).toBe(0)

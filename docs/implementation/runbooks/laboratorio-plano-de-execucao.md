@@ -1,7 +1,7 @@
 # Laboratório conversacional: plano de execução para um agente
 
 **Estado:** Proposto (14/11/2026). Escrito para um agente que não viu a conversa de origem. Pré-requisito: ler
-`laboratorio-mcp.md` (ferramentas e limites, DEC-186) e `sombra-interpretador-relatorio.md`.
+`laboratorio-mcp.md` (ferramentas e limites, DEC-186). **Nota (DEC-202):** o funil de marcação do chat e a sombra do interpretador foram removidos; os passos que dependem deles ficam sem objeto.
 
 ## Regras que o agente não pode quebrar
 
@@ -39,23 +39,9 @@ resposta literal. Comparar staging **antes** da fusão do PR com o comportamento
 
 Saída: uma tabela frase → resposta literal → o que o PR muda, no comentário do respetivo PR.
 
-## Passo 3 — bateria para medir H1 (compreensão LLM-primeiro)
+## Passo 3 — bateria para medir H1 (removido pela DEC-202)
 
-Objetivo: gerar turnos de texto livre para a sombra do interpretador, para o relatório
-`get_interpreter_shadow_report` (Review MCP) comparar léxico e LLM. **Não prova qual acerta**; é a lista do que rever.
-
-1. `lab_config_get` para saber serviços, variantes e zonas reais da demo.
-2. Montar 30 a 50 frases em 6 famílias, cada uma com 3 a 5 variantes: período («de manhã», «fim da tarde»), dia
-   («amanhã», «sexta», «dia 20»), serviço por nome parcial ou sinónimo, variantes/zonas em texto livre («axila e
-   pernas»), correções a meio («na verdade prefiro…») e erros de escrita. Usar um `waId` por frase para não contaminar
-   o quadro.
-3. Correr com `lab_say` (e `lab_tap` quando a resposta traz opções). Registar por turno: frase, resposta, se avançou.
-4. Esperar alguns minutos e pedir o relatório da sombra; juntar os números à tabela. Rotular à mão só as divergências
-   («contradizem-se» e «só o modelo leu»), com o `waId` do laboratório.
-
-Saída: documento curto com contagens por campo, 10 exemplos rotulados de divergência e a leitura honesta do limite
-(frases escritas por nós, não de clientes reais; DEC-143 segue em aberto). Atualizar
-`docs/architecture/hipotese-compreensao-llm-primeiro.md` **só com números**, sem concluir H1.
+A sombra do interpretador e o extrator foram removidos; não há o que medir. O passo fica só como registo.
 
 ## Passo 4 — cenários de configuração (opcional)
 

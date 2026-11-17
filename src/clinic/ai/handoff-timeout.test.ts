@@ -13,7 +13,6 @@ import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { saveBookingFrame } from './schedule-session'
 import {
   AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK,
   HANDOFF_TIMEOUT_RESUME_TEXT,
@@ -248,51 +247,7 @@ describe('DEC-155 handoff timeout', () => {
 })
 
 describe('DEC-155 fora do expediente', () => {
-  it('cnv_b8df6c59165f4668 seq34: fora do horário reoferece lista pendente após o aviso', () => {
-    const s = seed(TZ_CLOSED)
-    try {
-      const catalogVersion = 'cv_after_hours_reoffer'
-      const offerAt = s.clock.nowMs() - 120_000
-      saveBookingFrame(
-        s.db,
-        s.tenantId,
-        s.cnv.id,
-        {
-          serviceId: s.svc.id,
-          catalogVersion,
-          pending: {
-            slot: 'horario',
-            messageId: 'msg_slots_ah',
-            options: [{ key: '2026-11-17T14:00', label: 'terça 17/11 14:00' }],
-          },
-        },
-        s.clock,
-      )
-      s.db.run(
-        `INSERT INTO messages (id, tenant_id, conversation_id, direction, body, delivery_state, created_at)
-         VALUES ('msg_slots_ah', ?, ?, 'outbound', ?, 'delivered', ?)`,
-        s.tenantId,
-        s.cnv.id,
-        'Terça 17/11 às 14:00?',
-        offerAt,
-      )
-      const reply = replyAfterHoursHumanRequest(
-        s.db,
-        s.tenantId,
-        { conversationId: s.cnv.id, clientRequestId: 'after-hours-reoffer' },
-        s.clock,
-      )
-      const sends = reply.outbox.filter((o) => o.type === 'whatsapp.send')
-      expect(sends.length).toBeGreaterThanOrEqual(2)
-      const bodies = sends.map((o) => String(payloadOf(o as { payloadJson: string }).body ?? '')).join('\n---\n')
-      expect(bodies).toMatch(/Deixei seu pedido para a equipe/)
-      expect(bodies).toMatch(/Retomando de onde paramos|14:00|ter[cç]a/i)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('pedido de equipe fora do horário: copy de abertura + IA activa', () => {
+    it('pedido de equipe fora do horário: copy de abertura + IA activa', () => {
     const s = seed(TZ_CLOSED)
     try {
       expect(isHumanTeamOfferAllowed(s.db, s.tenantId, s.clock)).toBe(false)

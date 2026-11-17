@@ -1,5 +1,7 @@
 # Hipótese: compreensão por LLM primeiro, política explícita — e o experimento que a testa
 
+> **Encerrada pela [DEC-202](../product/decisions.md) (Paulo, 17/11/2026).** O chat deixou de marcar, remarcar e cancelar; o extrator, a sombra do interpretador, o Flow e o funil foram removidos, e a hipótese H1 perdeu o objeto. O texto abaixo fica como registo histórico.
+
 **Estado:** **Proposto** no conjunto (análise de engenharia, 13/11/2026). **Fatia H1 só-serviço Confirmada** pela **DEC-190** (Paulo, 15/11/2026): aplicar `service` do modelo com id validado no catálogo quando o léxico deixou esse campo vazio — sem H1 completo nem relaxar `line`. O resto (H2–H4, LLM-first global) continua Proposto. Complementa o [núcleo determinístico](nucleo-deterministico-conversacional.md) e o [modelo híbrido](conversational-hybrid-model.md). Todos os exemplos são fictícios.
 
 **Para quem lê isto:** um agente ou pessoa que vai mexer em `src/clinic/ai/` e precisa de saber o que se está a testar, o que **não** se pode assumir já decidido e como o experimento funciona.
@@ -193,7 +195,7 @@ Com a sombra ligada, o Durable Object grava cada evento num registo mínimo no *
 
 **Lista de remoção** (quando a H1 estiver decidida; tudo está marcado «TEMPORÁRIO»):
 
-0. Apagar o runbook `docs/implementation/runbooks/sombra-interpretador-relatorio.md`, a sua linha no `AGENTS.md` e a frase sobre a ferramenta nas `instructions` do `initialize` (`src/mcp/review-central/routes.ts`).
+0. (Feito pela DEC-202: tudo desta lista foi removido, incluindo a tabela por migração `0030`.) Apagar o runbook `docs/implementation/runbooks/sombra-interpretador-relatorio.md`, a sua linha no `AGENTS.md` e a frase sobre a ferramenta nas `instructions` do `initialize` (`src/mcp/review-central/routes.ts`).
 
 1. Apagar `src/shadow-report/` (armazenamento, resumo e testes).
 2. Em `src/mcp/review-central/tools.ts`: a ferramenta `SHADOW_REPORT_TOOL`, o `case 'get_interpreter_shadow_report'`, o campo `shadowEvents` do `ReviewCentralStore` e as duas linhas das fábricas; repor a lista de três ferramentas em `http.test.ts`.

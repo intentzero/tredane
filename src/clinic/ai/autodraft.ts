@@ -2,15 +2,14 @@
  * Rascunho automático da IA a cada mensagem da cliente (aprovado por Paulo, 27/10/2026).
  * - Debounce adaptativo DEC-111: 0 s botão/lista, 2–3 s pedido completo,
  *   300 ms abertura do hub (opção C, 04/11/2026), 7 s texto aberto.
- * - Ordem CA-03 (#413) + M6 (#416): interpretar → extrator se cobertura baixa →
- *   decidir (autobook) → redator de exceção só para pergunta aberta (DEC-104).
- * - O caminho automático não usa o prompt monolítico de `src/ai/prompt.ts`.
- * - Quando dia, horário e serviço ficam claros, o backend envia a proposta e não manda
- *   a pergunta «Confirma…?» (autobook.ts), salvo pausa da owner.
- * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar, com o botão
- *   de falar com a equipe. Injeção e assunto fora do agendamento pausam a IA
- *   (DEC-083). Modelo falhou / saída rejeitada / falha do redator de exceção →
- *   frase DEC-107 + alerta à equipe, sem pausar a IA (#404 / #489).
+ * - DEC-202: o chat não marca, não remarca e não cancela. Pedido de marcar, remarcar,
+ *   cancelar ou de vaga recebe uma frase fixa e o botão «Abrir agenda» (página web da
+ *   cliente, ADR-0018); com a pausa da owner ou sem link possível, passa à equipe.
+ * - A IA só informa: catálogo, horário, preço, FAQ e, para pergunta aberta, o redator de
+ *   exceção com validador (DEC-104).
+ * - O texto da IA sai sozinho, sem clique em Enviar, com o botão de falar com a equipe.
+ *   Injeção e assunto fora do agendamento pausam a IA (DEC-083). Modelo falhou / saída
+ *   rejeitada → frase DEC-107 + alerta à equipe, sem pausar a IA (#404 / #489).
  */
 import { AI_ACTOR_ID, AI_ACTOR_NAME } from '../ai-actor'
 import { AI_TIMEOUT_MS, detectStrongInjectionSignals } from '../../ai'
@@ -21,7 +20,6 @@ import { ensureClinicSettings, isClinicAiAssistEnabled } from '../config/setting
 import { listServices } from '../config/services'
 import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import { handleIdleTextReply } from '../followup/idle'
-import { runIdleContinueChoiceResume } from '../followup/idle-continue-resume'
 import { POST_BOOKING_BODY } from '../followup/post-booking'
 import { pickTerminarFarewell } from '../followup/terminar-farewell'
 import { suppressFollowupsAfterClientEnd } from '../followup/suppress-after-end'
@@ -29,46 +27,25 @@ import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { isHumanStaffAuthor } from '../inbox/human-prefix'
 import { sendOutboundMessageOp } from '../inbox/operations'
-import { toSendInteractive } from './choice-offer'
+import { clientWebOfferBody, clientWebRouteBody } from '../../clientweb/offer'
+import { isGreetingOnly, routeToClientWeb } from '../../clientweb/route-intent'
 import {
-  maybeReplaceM5WithFlow,
-  sessionFromBookingFrame,
-} from '../../whatsapp/flow/offer-live'
-import {
-  activeServicesForHub,
   clinicTodayOpenState,
   hubMeusBody,
   hubOpeningBody,
   isMyAppointmentsQuery,
-  shouldAttachHubOpeningCta,
-} from '../../whatsapp/flow/hub-opening'
-import { FLOW_COPY } from '../../whatsapp/flow/copy'
+} from '../../clientweb/hub'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
-import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
-import type { AutoBookOutcome } from './autobook'
-import {
-  isMidFunnelServiceCorrection,
-  looksLikeServiceCorrection,
-  resolveNamedServiceInTurn,
-} from './autobook'
-import { runBookingTurn } from './run-booking-turn'
-import { classifyCrossCuttingAct } from './booking-turn-gate'
-import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
+import { catalogListReply } from './catalog-list'
 import { catalogReply } from './catalog-reply'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
-import {
-  createDeferredBookingFrame,
-  type DeferredBookingFrame,
-} from './deferred-booking-frame'
-import type { SendOutboundInput } from '../inbox/types'
 import {
   autodraftDebounceMs,
   interpretTurnForDebounce,
   shouldEnqueueTypingDuringDebounce,
 } from './debounce'
-import { logPolicyShadow } from './policy-shadow'
 import {
   AI_TRANSPARENCY_TEXT,
   handoffReason,
@@ -84,13 +61,6 @@ import {
   resumeAiReply,
   shouldAcknowledgeWhileHandoffPaused,
 } from './human-handoff'
-import { resetMisunderstandingStreak } from './misunderstanding-streak'
-import {
-  bumpMisunderstandingStreak,
-  detectTurnMisunderstanding,
-  lastOutboundBody,
-  maybeEscalateMisunderstanding,
-} from './turn-misunderstanding'
 import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
@@ -115,21 +85,12 @@ import {
   FAREWELL_RE,
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
+  hasSoftDeclineRequest,
   hasStopRequest,
-  RESCHEDULE_RE,
 } from './nlu/sensitive'
-import {
-  handleCancelIntentAutodraft,
-  tryCancelAutodraftContinuation,
-} from './cancel-flow'
-import {
-  isCancelIntent,
-  isRescheduleIntent,
-  loadUpcomingAppointments,
-  tryAiReschedule,
-} from './reschedule'
+import { loadUpcomingAppointments } from './upcoming'
 import { isConversationPaused } from './protection'
-import { filledSlots, getBookingFrame, getScheduleSession } from './schedule-session'
+import { filledSlots, getBookingFrame } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import {
@@ -144,12 +105,10 @@ import {
   zonesAskedBeforeTurn,
 } from './turn-decided'
 import { mergeFriction } from './turn-friction'
-import { loadTurnContext, readCatalogVersion } from './turn-context'
+import { loadTurnContext } from './turn-context'
 import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
-import { runRestrictedExtractor } from './llm-extractor'
-import { runInterpreterShadow, type InterpreterShadowTask } from './interpreter-shadow'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { generateExceptionReply } from './exception-reply'
 import {
@@ -163,19 +122,8 @@ import {
 } from '../../conversation-metrics/detect'
 import { getConversationQualityCentralDb } from '../../conversation-metrics/hook'
 import { incrementMisunderstandingTurn } from '../../conversation-metrics/session-counters'
-import { createLlmJob, hasDoneLlmJob, hasOpenLlmJobForConversation } from './llm-jobs'
-import { buildLlmShadowQueueMessage } from './llm-queue-types'
-import { buildExtractSnapshot, buildRedactSnapshot } from './llm-snapshot'
-
-/** ADR-0015: anexa afterPersist do frame diferido ao envio outbound. */
-function withDeferredFrame(
-  input: SendOutboundInput,
-  deferred: DeferredBookingFrame | undefined,
-  clock: Clock,
-): SendOutboundInput {
-  if (!deferred?.hasWork) return input
-  return { ...input, afterPersist: deferred.toAfterPersist(clock) }
-}
+import { createLlmJob, hasOpenLlmJobForConversation } from './llm-jobs'
+import { buildRedactSnapshot } from './llm-snapshot'
 
 export const AUTODRAFT_ACTOR_ID = AI_ACTOR_ID
 const AUTODRAFT_ACTOR_NAME = AI_ACTOR_NAME
@@ -268,12 +216,7 @@ export function enqueueAutoDraft(
   // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
   // Quadro com serviço ou pedido não é abertura: o debounce curto do hub não aplica.
   const frameForDebounce = getBookingFrame(db, tenantId, input.conversationId)
-  const servicesForHub = activeServicesForHub(db, tenantId)
-  const hubOpening = shouldAttachHubOpeningCta({
-    turnText: body,
-    services: servicesForHub,
-    frame: frameForDebounce,
-  })
+  const hubOpening = isGreetingOnly(body)
   const tz = ensureClinicSettings(db, tenantId, clock).timezone
   const interpretation = interpretTurnForDebounce({
     turnText: body,
@@ -355,8 +298,6 @@ export type AutoDraftOutcome = {
   status: 'ready' | 'failed' | 'skipped' | 'superseded' | 'cap_reached' | 'awaiting_llm'
   suggestion: AiSuggestionRow | null
   reason?: string
-  /** Tentativa de agendamento pela IA (só com rascunho pronto). */
-  autoBook?: AutoBookOutcome
   /** Texto da IA enviado sem clique, quando não houve proposta. */
   replyOutbox?: OutboxRow[]
   /** Job enfileirado na `tredane-llm-*` (DEC-188). */
@@ -508,8 +449,6 @@ export async function runDueAutoDrafts(
 
   const out: AutoDraftOutcome[] = []
   const alarmTurnStartedMs = now
-  /** Sombra do interpretador: corre depois de todas as respostas deste alarme. */
-  const shadowTasks: InterpreterShadowTask[] = []
   for (const job of due) {
     const elapsedMs = clock.nowMs() - alarmTurnStartedMs
     if (elapsedMs >= AUTODRAFT_ALARM_BUDGET_MS) {
@@ -580,8 +519,8 @@ export async function runDueAutoDrafts(
       const route = routeFromAutodraftOutcome({
         status: outcome.status,
         reason: outcome.reason,
-        proposalId: outcome.autoBook?.proposalId ?? null,
-        deterministicReply: Boolean(outcome.autoBook?.replyText?.trim()),
+        proposalId: null,
+        deterministicReply: false,
         fallbackSent: extra.fallbackSent,
         modelCalled: modelCalls > 0 || extra.modelCalled,
         textDiscarded: extra.textDiscarded,
@@ -595,9 +534,9 @@ export async function runDueAutoDrafts(
         touchBookingSessionOnTurn(db, tenantId, outcome.conversationId, step) ??
         openSession?.sessionId ??
         null
-      const friction = mergeFriction(outcome.autoBook?.friction)
+      const friction = mergeFriction(undefined)
       if (sessionId) {
-        const replyText = outcome.autoBook?.replyText?.trim() ?? ''
+        const replyText = ''
         const miss =
           route === 'fallback' ||
           friction.some((f) => f.flag === 'nao_encontrei') ||
@@ -775,7 +714,6 @@ export async function runDueAutoDrafts(
     }
     if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
     if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
-    let parallelHandoffAutomationActive = false
     const aiPause = readAiReplyPause(db, tenantId, job.conversationId)
     if (aiPause) {
       const pauseReason = aiPause.reason as AiReplyPauseReason
@@ -788,7 +726,6 @@ export async function runDueAutoDrafts(
           conversationId: job.conversationId,
         })
       if (parallelAutomation) {
-        parallelHandoffAutomationActive = true
         /* alerta/equipe mantidos; automação de agendamento ou catálogo segue abaixo */
       } else if (inboundWarrantsHandoffResume(inboundBody, pauseReason)) {
         const resumeOutbox = resumeAiReply(db, tenantId, job.conversationId, clock)
@@ -831,47 +768,111 @@ export async function runDueAutoDrafts(
       clock,
     )
     const turnText = turn.turnText
-    // Sombra do interpretador (Proposto): colhe o turno logo que o contexto é lido, ANTES dos
-    // ramos determinísticos abaixo (catálogo, hub, pergunta de tipo, preço…) que respondem e
-    // fazem `continue`. Colhida mais à frente, só via os turnos que chegam ao extrator e perdia
-    // a maioria. Só mede; a saída do extrator do caminho real junta-se depois, se houver.
-    // Com LLM_OUT_OF_DO: não recolhe de novo no resume após extract (já enfileirou no 1.º passo).
-    const shadowAlreadyQueued =
-      Boolean(deps.llmOutOfDo) &&
-      hasDoneLlmJob(db, tenantId, {
-        conversationId: job.conversationId,
-        messageId: job.messageId,
-        purpose: 'extract',
-      })
-    const frameForShadow = getBookingFrame(db, tenantId, job.conversationId)
-    const shadowTask: InterpreterShadowTask | null =
-      deps.interpreterShadow &&
-      turnText.trim() &&
-      !isInteractiveReplyBody(turnText) &&
-      !shadowAlreadyQueued
-        ? {
+    const hasUpcoming = Boolean(turn.upcoming)
+    /**
+     * DEC-202: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda» com o
+     * propósito certo e, se reconheceu um serviço único, com ele. Sem link possível (pausa da owner,
+     * sem número ativo, base sem https, envio recusado) passa à equipe.
+     */
+    const sendWebRoute = async (
+      route: { purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'; serviceId: string | null; noUpcoming: boolean },
+      reasonLabel: string,
+      bodyOverride?: string,
+    ): Promise<void> => {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      let sentOk = false
+      let reasonOut = reasonLabel
+      const paused = deps.autoBookPaused === true
+      if (route.purpose === 'home' && paused && bodyOverride) {
+        // Cumprimento com a pausa da owner: só a abertura, sem link.
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            {
+              conversationId: job.conversationId,
+              body: bodyOverride,
+              clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            clock,
+          )
+          replyOutbox = sent.outbox
+          sentOk = true
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+      } else if (!paused && deps.prepareClientWebOffer) {
+        let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
+        try {
+          const future = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 2)
+          offered = await deps.prepareClientWebOffer({
             tenantId,
             conversationId: job.conversationId,
-            messageId: job.messageId,
-            turnText,
-            today: clinicCivilDateFromUtc(turn.settings.timezone || 'America/Sao_Paulo', clock.nowMs()),
-            services: turn.catalog.services,
-            professionals: [
-              ...new Map(
-                [...turn.catalog.professionalsByService.values()].flat().map((p) => [p.id, p]),
-              ).values(),
-            ],
-            pending: frameForShadow?.pending ?? null,
-            // PR-E: léxico da sombra vê serviço/linha do quadro (F1 multi-zona).
-            frameServiceId: frameForShadow?.serviceId ?? null,
-            frameLine: frameForShadow?.line ?? null,
-            mainRaw: null,
-            mainModelCalled: false,
+            purpose: route.purpose,
+            appointmentId:
+              (route.purpose === 'remarcar' || route.purpose === 'cancelar') && future.length === 1
+                ? (future[0]?.id ?? null)
+                : null,
+            serviceId: route.serviceId,
+          })
+        } catch {
+          offered = null
+        }
+        if (offered) {
+          const serviceName = route.serviceId
+            ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
+            : null
+          const body =
+            bodyOverride ??
+            clientWebRouteBody({
+              purpose: route.purpose === 'home' ? 'agendar' : route.purpose,
+              serviceName,
+              noUpcoming: route.noUpcoming,
+            })
+          try {
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body,
+                interactive: offered,
+                clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            replyOutbox = sent.outbox
+            sentOk = true
+          } catch (err) {
+            if (!(err instanceof ClinicError)) throw err
           }
-        : null
-    if (shadowTask) shadowTasks.push(shadowTask)
-    // DEC-087: texto livre «Terminar» / «Prosseguir» após o prompt idle — mesmo
-    // settleIdle do botão (#620). Ingest já pode ter reiniciado idle_phase.
+        }
+      }
+      if (!sentOk) {
+        const handoff = notifyHumanHandoff(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            reason: 'human_only',
+            clientRequestId: `ai-web-handoff:${job.messageId}`,
+            inboundText: turnText,
+          },
+          clock,
+        )
+        replyOutbox = handoff.outbox
+        reasonOut = 'human_handoff'
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({ ...job, status: 'skipped', suggestion: null, reason: reasonOut, replyOutbox })
+    }
+    // DEC-087: texto livre «Terminar» / «Prosseguir» após o prompt idle. «Prosseguir» já não retoma
+    // um funil (DEC-202): oferece o link «Abrir agenda».
     {
       const idleText = handleIdleTextReply(
         db,
@@ -884,29 +885,17 @@ export async function runDueAutoDrafts(
         clock,
       )
       if (idleText.handled) {
-        cancelAutoDraft(db, tenantId, job.conversationId)
-        let replyOutbox = idleText.outbox
-        if (idleText.action === 'continue' && idleText.resumeChoice) {
-          const resumed = await runIdleContinueChoiceResume(
-            db,
-            caller,
-            {
-              tenantId,
-              conversationId: job.conversationId,
-              resume: idleText.resumeChoice,
-              providerEventKey: job.messageId,
-              capability: deps.autoBookPaused !== true,
-            },
-            clock,
-          )
-          replyOutbox = [...replyOutbox, ...resumed]
+        if (idleText.action === 'continue') {
+          await sendWebRoute({ purpose: 'agendar', serviceId: null, noUpcoming: false }, 'idle_continue_text')
+          continue
         }
+        cancelAutoDraft(db, tenantId, job.conversationId)
         record({
           ...job,
           status: 'skipped',
           suggestion: null,
-          reason: idleText.action === 'end' ? 'idle_end_text' : 'idle_continue_text',
-          replyOutbox,
+          reason: 'idle_end_text',
+          replyOutbox: idleText.outbox,
         })
         continue
       }
@@ -983,183 +972,6 @@ export async function runDueAutoDrafts(
         replyOutbox,
       })
       continue
-    }
-    // DEC-091: remarcação com compromisso futuro — antes do handoff e do funil de zonas.
-    const upcoming = turn.upcoming
-    /**
-     * Página web da cliente (ADR-0018, Fase 5): remarcar e cancelar oferecem o link «Abrir agenda».
-     * Só com a página ligada (gancho presente), a automação não pausada pela owner e a cliente com
-     * compromisso futuro. Com uma só marcação futura o link abre direto nela. Devolve `true` se saiu.
-     */
-    const offerClientWebLink = async (purpose: 'remarcar' | 'cancelar'): Promise<boolean> => {
-      if (!deps.prepareClientWebOffer || deps.autoBookPaused === true || !conv) return false
-      let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
-      try {
-        const future = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 2)
-        offered = await deps.prepareClientWebOffer({
-          tenantId,
-          conversationId: job.conversationId,
-          purpose,
-          appointmentId: future.length === 1 ? (future[0]?.id ?? null) : null,
-        })
-      } catch {
-        offered = null
-      }
-      if (!offered) return false
-      await signalTyping()
-      let replyOutbox: OutboxRow[] = []
-      try {
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          {
-            conversationId: job.conversationId,
-            body: offered.body,
-            interactive: offered.interactive,
-            clientRequestId: `ai-web-${purpose}:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
-          clock,
-        )
-        replyOutbox = sent.outbox
-      } catch (err) {
-        if (!(err instanceof ClinicError)) throw err
-        // Fora da janela ou envio recusado: segue o caminho conversacional.
-        return false
-      }
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: purpose === 'remarcar' ? 'web_reschedule_link' : 'web_cancel_link',
-        replyOutbox,
-      })
-      return true
-    }
-    if (
-      !isCancelIntent(turnText) &&
-      isRescheduleIntent(turnText, { hasUpcoming: Boolean(upcoming), priorOffer: false })
-    ) {
-      // Página web da cliente: com compromisso futuro, o link substitui a conversa de remarcar.
-      if (upcoming && (await offerClientWebLink('remarcar'))) continue
-      const reschedule = await tryAiReschedule(db, caller, clock, {
-        conversationId: job.conversationId,
-        inboundText: turnText,
-        capability: deps.autoBookPaused !== true,
-        abuseLimits: deps.abuseLimits,
-        forecast: deps.forecast,
-      })
-      if (reschedule) {
-        let replyOutbox: OutboxRow[] = [...reschedule.outbox]
-        if (reschedule.replyText.trim()) {
-          await signalTyping()
-          try {
-            const sent = sendOutboundMessageOp(
-              db,
-              caller,
-              withDeferredFrame(
-                {
-                  conversationId: job.conversationId,
-                  body: reschedule.replyText,
-                  interactive: (() => { const buttons = humanTeamOfferButtons(db, tenantId, clock); return buttons.length > 0 ? { buttons } : undefined })(),
-                  clientRequestId: `ai-reschedule:${job.messageId}`,
-                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
-                },
-                reschedule.deferredFrame,
-                clock,
-              ),
-              clock,
-            )
-            replyOutbox = [...replyOutbox, ...sent.outbox]
-          } catch (err) {
-            if (!(err instanceof ClinicError)) throw err
-          }
-        }
-        cancelAutoDraft(db, tenantId, job.conversationId)
-        record({
-          ...job,
-          status: 'skipped',
-          suggestion: null,
-          reason: 'reschedule_flow',
-          replyOutbox,
-        })
-        continue
-      }
-      // Pedido explícito de remarcar sem fluxo aplicável → equipe.
-      // SOFT_DAY mid marcação nova: tryAiReschedule devolve null de propósito
-      // (não sobrescrever o frame) — cair no funil de booking, não handoff.
-      if (RESCHEDULE_RE.test(turnText)) {
-        await signalTyping()
-        const handoff = notifyHumanHandoff(
-          db,
-          tenantId,
-          {
-            conversationId: job.conversationId,
-            reason: 'human_only',
-            clientRequestId: `ai-handoff:${job.messageId}`,
-          },
-          clock,
-        )
-        cancelAutoDraft(db, tenantId, job.conversationId)
-        record({
-          ...job,
-          status: 'skipped',
-          suggestion: null,
-          reason: 'human_handoff',
-          replyOutbox: handoff.outbox,
-        })
-        continue
-      }
-    }
-    // Continuação da oferta de remarcação (escolha de horário / outro dia).
-    if (upcoming) {
-      const cont = await tryAiReschedule(db, caller, clock, {
-        conversationId: job.conversationId,
-        inboundText: turnText,
-        capability: deps.autoBookPaused !== true,
-        abuseLimits: deps.abuseLimits,
-        forecast: deps.forecast,
-      })
-      if (cont) {
-        let replyOutbox: OutboxRow[] = [...cont.outbox]
-        if (cont.replyText.trim()) {
-          await signalTyping()
-          try {
-            const sent = sendOutboundMessageOp(
-              db,
-              caller,
-              withDeferredFrame(
-                {
-                  conversationId: job.conversationId,
-                  body: cont.replyText,
-                  interactive: (() => { const buttons = humanTeamOfferButtons(db, tenantId, clock); return buttons.length > 0 ? { buttons } : undefined })(),
-                  clientRequestId: `ai-reschedule:${job.messageId}`,
-                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
-                },
-                cont.deferredFrame,
-                clock,
-              ),
-              clock,
-            )
-            replyOutbox = [...replyOutbox, ...sent.outbox]
-          } catch (err) {
-            if (!(err instanceof ClinicError)) throw err
-          }
-        }
-        cancelAutoDraft(db, tenantId, job.conversationId)
-        record({
-          ...job,
-          status: 'skipped',
-          suggestion: null,
-          reason: 'reschedule_flow',
-          replyOutbox,
-        })
-        continue
-      }
     }
     // CF-04 / E-06: pergunta condicional → política cadastrada, sem pausa.
     // DEC-180: texto de sinal = mesmo efectivo que cobrança/Recebimento.
@@ -1295,101 +1107,7 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    const cancelCapability = deps.autoBookPaused !== true
-    const cancelContinuation = tryCancelAutodraftContinuation(
-      db,
-      tenantId,
-      job.conversationId,
-      turnText,
-      clock,
-    )
-    if (cancelContinuation.handled) {
-      await signalTyping()
-      let replyOutbox: OutboxRow[] = []
-      try {
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          withDeferredFrame(
-            {
-              conversationId: job.conversationId,
-              body: cancelContinuation.replyText,
-              ...(cancelContinuation.interactive
-                ? { interactive: cancelContinuation.interactive }
-                : {}),
-              clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelContinuation.reason}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            },
-            cancelContinuation.deferredFrame,
-            clock,
-          ),
-          clock,
-        )
-        replyOutbox = sent.outbox
-      } catch (err) {
-        if (!(err instanceof ClinicError)) throw err
-      }
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: cancelContinuation.reason,
-        replyOutbox,
-      })
-      continue
-    }
-    if (isCancelIntent(turnText) && upcoming && conv) {
-      if (await offerClientWebLink('cancelar')) continue
-      const cancelStart = handleCancelIntentAutodraft(
-        db,
-        tenantId,
-        job.conversationId,
-        conv.contactId,
-        turnText,
-        clock,
-        { capability: cancelCapability },
-      )
-      if (cancelStart.handled) {
-        await signalTyping()
-        let replyOutbox: OutboxRow[] = []
-        try {
-          const sent = sendOutboundMessageOp(
-            db,
-            caller,
-            withDeferredFrame(
-              {
-                conversationId: job.conversationId,
-                body: cancelStart.replyText,
-                ...(cancelStart.interactive ? { interactive: cancelStart.interactive } : {}),
-                clientRequestId: `ai-cancel-flow:${job.messageId}:${cancelStart.reason}`,
-                authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                authorDisplayName: AUTODRAFT_ACTOR_NAME,
-              },
-              cancelStart.deferredFrame,
-              clock,
-            ),
-            clock,
-          )
-          replyOutbox = sent.outbox
-        } catch (err) {
-          if (!(err instanceof ClinicError)) throw err
-        }
-        cancelAutoDraft(db, tenantId, job.conversationId)
-        record({
-          ...job,
-          status: 'skipped',
-          suggestion: null,
-          reason: cancelStart.reason,
-          replyOutbox,
-        })
-        continue
-      }
-    }
-    const reason = handoffReason(db, tenantId, turnText, clock, turn, {
-      conversationId: job.conversationId,
-    })
+    const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {
       await signalTyping()
       // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).
@@ -1436,9 +1154,12 @@ export async function runDueAutoDrafts(
       })
       continue
     }
+    // «Terminar» e desistências educadas (DEC-147/152) fecham com a despedida; o agradecimento depois
+    // de um agendamento também.
     if (
-      FAREWELL_RE.test(turnText.trim()) &&
-      conversationAwaitingPostBookingFarewell(db, tenantId, job.conversationId)
+      hasSoftDeclineRequest(sensitiveHits) ||
+      (FAREWELL_RE.test(turnText.trim()) &&
+        conversationAwaitingPostBookingFarewell(db, tenantId, job.conversationId))
     ) {
       await signalTyping()
       const settings = ensureClinicSettings(db, tenantId, clock)
@@ -1480,7 +1201,7 @@ export async function runDueAutoDrafts(
       await signalTyping()
       const body = conv.contactId
         ? hubMeusBody(db, tenantId, conv.contactId, clock)
-        : FLOW_COPY.hubMeusNone
+        : hubMeusBody(db, tenantId, '', clock)
       let replyOutbox: OutboxRow[] = []
       try {
         const sent = sendOutboundMessageOp(
@@ -1509,120 +1230,59 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    // DEC-142: consulta de catálogo antes do hub e do modelo. «quero outro serviço»
-    // também casaria a abertura do Flow; a lista Feminino/Masculino não é esse CTA.
-    const catalogConsult = planCatalogConsult({
-      text: turnText,
-      frame: getBookingFrame(db, tenantId, job.conversationId),
-      services: turn.catalog.services,
-      catalogVersion: turn.catalog.version || readCatalogVersion(db, tenantId),
-      hasActiveProposal:
-        getActiveProposalForConversation(db, tenantId, job.conversationId, clock) != null,
-    })
-    if (catalogConsult) {
+    // DEC-142 / DEC-202: «quais serviços?» é informação: lista em texto, sem estado nem botões de escolha.
+    // Antes do encaminhamento para o link, para «ver os serviços» não virar pedido de marcar.
+    const catalogListText = catalogListReply(turnText, turn.catalog.services)
+    if (catalogListText) {
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
       try {
-        const sent = deliverCatalogConsult(db, caller, clock, {
-          conversationId: job.conversationId,
-          clientRequestId: `ai-catalog-consult:${job.messageId}`,
-          authorClerkUserId: AUTODRAFT_ACTOR_ID,
-          authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          action: catalogConsult,
-        })
+        const buttons = humanTeamOfferButtons(db, tenantId, clock)
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: catalogListText,
+            interactive: buttons.length > 0 ? { buttons } : undefined,
+            clientRequestId: `ai-catalog-list:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
         replyOutbox = sent.outbox
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
       }
       cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: 'catalog_consult',
-        replyOutbox,
-      })
+      record({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_consult', replyOutbox })
       continue
     }
-    // TR-306 hub: cumprimento / pedido vago, e só com o quadro vazio → CTA
-    // «Abrir opções» (antes do catálogo, para «quero marcar» não cair no
-    // clarify com «Falar com a equipe»). Com serviço ou pedido já no quadro,
-    // a frase desse passo sai sem o CTA (Paulo, 07/11/2026).
-    // Gate ops = `prepareBookingFlowOffer`.
-    // Remarcar / cancelar / serviço nomeado já foram tratados acima ou caem no funil.
-    if (deps.prepareBookingFlowOffer && !parallelHandoffAutomationActive) {
-      if (
-        shouldAttachHubOpeningCta({
-          turnText,
-          services: activeServicesForHub(db, tenantId),
-          frame: getBookingFrame(db, tenantId, job.conversationId),
-        })
-      ) {
-        await signalTyping()
-        let replyOutbox: OutboxRow[] = []
-        try {
-          const hours = clinicTodayOpenState(db, tenantId, clock)
-          const body = hubOpeningBody(deps.clinicName, hours)
-          const offered = await deps.prepareBookingFlowOffer({
-            tenantId,
-            conversationId: job.conversationId,
-            catalogVersion: readCatalogVersion(db, tenantId),
-            body,
-            // T3: idempotência de offer_skipped sem token.
-            analyticsAttemptId: job.messageId,
-          })
-          if (offered) {
-            const sent = sendOutboundMessageOp(
-              db,
-              caller,
-              {
-                conversationId: job.conversationId,
-                body: offered.body,
-                interactive: offered.interactive,
-                clientRequestId: `ai-hub-open:${job.messageId}`,
-                authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                authorDisplayName: AUTODRAFT_ACTOR_NAME,
-              },
-              clock,
-            )
-            replyOutbox = sent.outbox
-            cancelAutoDraft(db, tenantId, job.conversationId)
-            record({
-              ...job,
-              status: 'skipped',
-              suggestion: null,
-              reason: 'hub_opening',
-              replyOutbox,
-            })
-            continue
-          }
-        } catch (err) {
-          if (!(err instanceof ClinicError)) throw err
-        }
-        // Sem Flow / falha → segue catálogo / modelo (chat recurso).
+    // DEC-202: cumprimento, pedido de marcar, remarcar, cancelar ou de vaga → link «Abrir agenda»
+    // (ou equipe). Léxico puro; o LLM nunca oferece horas nem monta propostas.
+    {
+      const greeting = isGreetingOnly(turnText)
+      const route = greeting
+        ? ({ purpose: 'home', serviceId: null, noUpcoming: false } as const)
+        : routeToClientWeb({ text: turnText, services: turn.catalog.services, hasUpcoming })
+      if (route) {
+        const hubBody = greeting
+          ? hubOpeningBody(deps.clinicName, clinicTodayOpenState(db, tenantId, clock))
+          : undefined
+        await sendWebRoute(
+          route,
+          greeting ? 'hub_opening' : `web_${route.purpose}_link`,
+          hubBody ? (deps.autoBookPaused === true ? hubBody : clientWebOfferBody(hubBody)) : undefined,
+        )
+        continue
       }
     }
-    // P1 / DEC-C1: ask_info mid-funnel realiza-se no gate (`runBookingTurn`),
-    // não em catalogReply — evita dependência de leftover suppress.
-    const midFrame = getBookingFrame(db, tenantId, job.conversationId)
-    const midFunnelAskInfo =
-      Boolean(midFrame?.serviceId) &&
-      classifyCrossCuttingAct({ text: turnText }).kind === 'ask_info'
-    // DEC-190: se o extrator pode preencher serviço (léxico none), o clarify
-    // «É X…?» cede ao extract — catalog só FAQ / outros caminhos.
-    const preferExtractService =
-      !midFrame?.serviceId &&
-      !midFunnelAskInfo &&
-      buildExtractSnapshot(db, tenantId, turn, clock, deps) != null
-    const catalogDeferred = createDeferredBookingFrame()
-    const catalogText = midFunnelAskInfo
-      ? null
-      : catalogReply(db, tenantId, turnText, clock, {
-          conversationId: job.conversationId,
-          turn,
-          deferredFrame: catalogDeferred,
-          preferExtractService,
-        })
+    // Informação: horário, endereço, preço, duração, quem faz, FAQ (DEC-104). Marcar já saiu acima.
+    const catalogText = catalogReply(db, tenantId, turnText, clock, {
+      conversationId: job.conversationId,
+      turn,
+    })
     if (catalogText) {
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
@@ -1637,18 +1297,14 @@ export async function runDueAutoDrafts(
         const sent = sendOutboundMessageOp(
           db,
           caller,
-          withDeferredFrame(
-            {
-              conversationId: job.conversationId,
-              body: catalogText,
-              interactive: catalogButtons.length > 0 ? { buttons: catalogButtons } : undefined,
-              clientRequestId: `ai-catalog:${job.messageId}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            },
-            catalogDeferred,
-            clock,
-          ),
+          {
+            conversationId: job.conversationId,
+            body: catalogText,
+            interactive: catalogButtons.length > 0 ? { buttons: catalogButtons } : undefined,
+            clientRequestId: `ai-catalog:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
           clock,
         )
         replyOutbox = sent.outbox
@@ -1691,233 +1347,13 @@ export async function runDueAutoDrafts(
     await signalTyping()
     await opts.onStart?.(job)
 
-    // CA-03 (#413) + M6 (#416): extrator restrito → decidir → redator de exceção.
+    // DEC-202: sem funil. Pergunta aberta fora do catálogo → redator de exceção (DEC-104), com
+    // validador; falha → frase DEC-107 e alerta, sem pausar a IA.
     let suggestion: AiSuggestionRow | null = null
-    let autoBook: AutoBookOutcome | undefined
     let modelCalled = false
     let modelCalls = 0
-    let generateError: string | null = null
-    let liveTurn = turn
-
-    // Lab H1: «prefiro peeling» com Horários abertos — o extrator LLM no DO demo
-    // estoura CPU antes do mid-funnel determinístico. Saltar quando a troca já
-    // casa sticky ≠ serviço nomeado com sinal de correção.
-    const activeServices = listServices(db, tenantId).filter((s) => s.active)
-    const stickyForSwap =
-      getBookingFrame(db, tenantId, job.conversationId)?.serviceId ??
-      getScheduleSession(db, tenantId, job.conversationId)?.serviceId ??
-      null
-    const namedSwapService = resolveNamedServiceInTurn(turnText, activeServices)
-    const correctionNamesService =
-      looksLikeServiceCorrection(turnText) && namedSwapService != null
-    // Qualquer «prefiro / na verdade …» que nomeia um serviço do catálogo: zero LLM
-    // (extrator + redator). Lab H1 com Horários abertos morria no CPU do DO.
-    const skipExtractorForServiceSwap =
-      correctionNamesService ||
-      isMidFunnelServiceCorrection({
-        text: turnText,
-        stickyServiceId: stickyForSwap,
-        services: activeServices,
-      })
-    if (skipExtractorForServiceSwap) {
-      console.info(
-        JSON.stringify({
-          level: 'info',
-          event: 'ai.extractor_skipped',
-          tenantId,
-          conversationId: job.conversationId,
-          reason: 'mid_funnel_service_correction',
-          stickyServiceId: stickyForSwap,
-          namedServiceId: namedSwapService?.id ?? null,
-        }),
-      )
-    } else if (
-      hasDoneLlmJob(db, tenantId, {
-        conversationId: job.conversationId,
-        messageId: job.messageId,
-        purpose: 'extract',
-      })
-    ) {
-      // DEC-188: extract já aplicado via Queue; slots estão no frame.
-      opts.onTurnPhase?.('extractor', 0)
-    } else if (deps.llmOutOfDo) {
-      const snapshot = buildExtractSnapshot(db, tenantId, liveTurn, clock, deps)
-      if (snapshot) {
-        const created = createLlmJob(
-          db,
-          tenantId,
-          {
-            conversationId: job.conversationId,
-            messageId: job.messageId,
-            purpose: 'extract',
-            frameVersion: snapshot.frameVersion,
-            snapshot,
-          },
-          clock,
-        )
-        if (deps.enqueueLlmJob) {
-          try {
-            await deps.enqueueLlmJob(created.queueMessage)
-          } catch (err) {
-            console.warn(
-              JSON.stringify({
-                level: 'warn',
-                event: 'llm.enqueue_failed',
-                tenantId,
-                purpose: 'extract',
-                error: err instanceof Error ? err.message : 'unknown',
-              }),
-            )
-            // Sem fila → DEC-107 (não silêncio).
-            const fb = notifyModelFallback(
-              db,
-              tenantId,
-              { conversationId: job.conversationId, messageId: job.messageId },
-              clock,
-            )
-            cancelAutoDraft(db, tenantId, job.conversationId)
-            record({
-              ...job,
-              status: 'failed',
-              suggestion: null,
-              reason: 'llm_enqueue_failed',
-              replyOutbox: fb.outbox,
-            })
-            continue
-          }
-        }
-        record({
-          ...job,
-          status: 'awaiting_llm',
-          suggestion: null,
-          reason: 'extract',
-          llmQueueMessage: created.queueMessage,
-        })
-        continue
-      }
-    } else {
-      try {
-        const extractorStarted = clock.nowMs()
-        const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
-        opts.onTurnPhase?.('extractor', clock.nowMs() - extractorStarted)
-        if (shadowTask) {
-          // A sombra reutiliza a saída do extrator do caminho real em vez de chamar outra vez.
-          shadowTask.mainRaw = extracted.raw ?? null
-          shadowTask.mainModelCalled = extracted.modelCalled
-        }
-        if (extracted.modelCalled) {
-          modelCalled = true
-          modelCalls += 1
-          // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
-          recordModelCallTowardDailyCap(db, tenantId, clock)
-        }
-        if (extracted.applied) {
-          liveTurn = loadTurnContext(
-            db,
-            tenantId,
-            {
-              conversationId: job.conversationId,
-              contactId: conv.contactId,
-              messageId: job.messageId,
-              inboundBody,
-            },
-            clock,
-          )
-        }
-      } catch (err) {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'ai.extractor_error',
-            tenantId,
-            error: err instanceof Error ? err.message : 'unknown',
-          }),
-        )
-      }
-    }
-
-    try {
-      let capability = deps.autoBookPaused !== true
-      let limitNote: string | null = null
-      if (capability && deps.abuseLimits?.enabled && contactId) {
-        const decision = checkAutomationQuota(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking' }, clock)
-        if (!decision.allowed) {
-          recordLimitReached(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking', decision }, clock)
-          capability = false
-          limitNote = decision.message
-        }
-      }
-      const bookingStarted = clock.nowMs()
-      autoBook = await runBookingTurn(db, caller, clock, {
-        conversationId: job.conversationId,
-        enabled: true,
-        capability,
-        abuseLimits: deps.abuseLimits,
-        forecast: deps.forecast,
-        turn: liveTurn,
-      })
-      opts.onTurnPhase?.('run_booking_turn', clock.nowMs() - bookingStarted)
-      if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
-    } catch (err) {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'ai.autobook_error',
-          tenantId,
-          error: err instanceof Error ? err.message : 'unknown',
-        }),
-      )
-      // Lab H1: se o mid-funnel falhar, NÃO cair no redator LLM (CPU DO →
-      // aiOutcomes []). Frase determinística do serviço novo.
-      if (
-        correctionNamesService &&
-        namedSwapService &&
-        !(autoBook?.replyText && autoBook.replyText.trim())
-      ) {
-        autoBook = {
-          status: 'needs_info',
-          missing: ['dia', 'horario'],
-          confirmationMessageId: job.messageId,
-          serviceId: namedSwapService.id,
-          replyText: `Qual horário fica melhor para ${namedSwapService.name}?`,
-          notes: `mid_funnel_service_correction_fallback: ${err instanceof Error ? err.message : 'unknown'}`,
-          outbox: [],
-        }
-      }
-    }
-
-    // Mesmo sem throw: autobook pode devolver none sem texto — evita LLM na troca
-    // (Lab: silêncio / aiOutcomes [] após CPU no redator).
-    if (
-      correctionNamesService &&
-      namedSwapService &&
-      !(autoBook?.replyText && autoBook.replyText.trim()) &&
-      !autoBook?.proposalId
-    ) {
-      autoBook = {
-        status: 'needs_info',
-        missing: ['dia', 'horario'],
-        confirmationMessageId: job.messageId,
-        serviceId: namedSwapService.id,
-        replyText: `Qual horário fica melhor para ${namedSwapService.name}?`,
-        notes: 'mid_funnel_service_correction_fallback: empty_autobook',
-        outbox: [],
-      }
-    }
-
-    const deterministicReplyEarly = Boolean(autoBook?.replyText && autoBook.replyText.trim())
-    const proposalDeliveredEarly =
-      Boolean(autoBook?.proposalId) && !deterministicReplyEarly
-    const needsOpenReply = !deterministicReplyEarly && !proposalDeliveredEarly
-
-    logPolicyShadow({
-      tenantId,
-      conversationId: job.conversationId,
-      phase: 'ca03',
-      current: { action: 'model' },
-      proposed: { action: needsOpenReply ? 'model' : 'skip_model', detail: needsOpenReply ? 'exception' : undefined },
-    })
-
+    const liveTurn = turn
+    const needsOpenReply = true
     if (needsOpenReply) {
       if (getAiDailyUsage(db, tenantId, clock).capReached) {
         cancelAutoDraft(db, tenantId, job.conversationId)
@@ -2025,7 +1461,6 @@ export async function runDueAutoDrafts(
         } else {
           // DEC-104 + DEC-107 (#489): frase de fallback e alerta alter_awaiting_team,
           // sem pausar a IA. Pausa completa fica para DEC-083.
-          generateError = exception.rejection ?? 'exception_rejected'
           suggestion = insertSuggestion(db, {
             tenantId,
             conversationId: job.conversationId,
@@ -2066,7 +1501,6 @@ export async function runDueAutoDrafts(
           })
           continue
         }
-        generateError = code
         modelCalled = true
         suggestion = insertSuggestion(db, {
           tenantId,
@@ -2096,42 +1530,6 @@ export async function runDueAutoDrafts(
           createdAt: clock.nowMs(),
         })
       }
-    } else if (autoBook && (autoBook.proposalId || autoBook.replyText != null || autoBook.notes)) {
-      const proposalDelivered =
-        Boolean(autoBook.proposalId) && !(autoBook.replyText && autoBook.replyText.trim())
-      const text = proposalDelivered ? '' : (autoBook.replyText ?? '')
-      const notes = generateError
-        ? [autoBook.notes, `Geração do modelo falhou (${generateError}); seguiu o caminho determinístico.`]
-            .filter(Boolean)
-            .join('\n')
-        : (autoBook.notes ?? '')
-      suggestion = insertSuggestion(db, {
-        tenantId,
-        conversationId: job.conversationId,
-        kind: 'reply',
-        status: 'pending',
-        provider: 'none',
-        model: 'none',
-        suggestedText: text,
-        internalNotes: notes,
-        warningCodes: [],
-        warningLabels: [],
-        sourceRefs: [],
-        requestMeta: {
-          latencyMs: 0,
-          inputTokens: null,
-          outputTokens: null,
-          messageCount: 0,
-          mode: deps.mode,
-        },
-        errorCode: null,
-        requestedByClerkUserId: AUTODRAFT_ACTOR_ID,
-        requestedByDisplayName: 'Rascunho automático',
-        parentSuggestionId: null,
-        replyToMessageId: null,
-        origin: 'auto',
-        createdAt: clock.nowMs(),
-      })
     }
 
     // Chegou outra mensagem durante a decisão/geração → descarta este; o job novo segue.
@@ -2147,191 +1545,55 @@ export async function runDueAutoDrafts(
     }
     cancelAutoDraft(db, tenantId, job.conversationId)
 
-    if (
-      suggestion &&
-      autoBook &&
-      needsOpenReply &&
-      (autoBook.proposalId || autoBook.replyText != null || autoBook.notes)
-    ) {
-      if (generateError) {
-        autoBook = {
-          ...autoBook,
-          notes: [autoBook.notes, `Geração do modelo falhou (${generateError}); seguiu o caminho determinístico.`]
-            .filter(Boolean)
-            .join('\n'),
-        }
-      }
-      const deterministic = Boolean(autoBook.replyText != null && autoBook.replyText !== '')
-      const proposalDelivered =
-        Boolean(autoBook.proposalId) && !(autoBook.replyText && autoBook.replyText.trim())
-      const text = proposalDelivered
-        ? ''
-        : (autoBook.replyText ?? (suggestion.status === 'pending' ? suggestion.suggestedText : ''))
-      const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]
-        .filter(Boolean)
-        .join('\n')
-      if (deterministic && suggestion.status === 'failed') {
-        db.run(
-          `UPDATE ai_suggestions
-           SET status = 'pending', suggested_text = ?, internal_notes = ?, error_code = NULL, updated_at = ?
-           WHERE tenant_id = ? AND id = ?`,
-          text,
-          notes,
-          clock.nowMs(),
-          tenantId,
-          suggestion.id,
-        )
-      } else {
-        db.run(
-          `UPDATE ai_suggestions SET suggested_text = ?, internal_notes = ?, updated_at = ?
-           WHERE tenant_id = ? AND id = ?`,
-          text,
-          notes,
-          clock.nowMs(),
-          tenantId,
-          suggestion.id,
-        )
-      }
-      suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
-    }
-
     let replyOutbox: OutboxRow[] | undefined
-    let turnMisunderstood = false
     const draftText = suggestion?.suggestedText.trim() ?? ''
     const injectionSuspected =
       Boolean(suggestion?.warningCodes.includes('injection_suspected')) &&
       detectStrongInjectionSignals(turnText)
-    const deterministicReply = Boolean(autoBook?.replyText && autoBook.replyText.trim())
-    const proposalDelivered =
-      Boolean(autoBook?.proposalId) && !deterministicReply
-    if (injectionSuspected && suggestion && !deterministicReply && !proposalDelivered) {
-      const bookingOpen = Boolean(
-        getScheduleSession(db, tenantId, job.conversationId)?.serviceId || autoBook?.serviceId,
+    if (injectionSuspected && suggestion) {
+      const handoff = notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          reason: 'off_purpose',
+          clientRequestId: `ai-handoff:${suggestion.id}`,
+        },
+        clock,
       )
-      if (!bookingOpen) {
-        const handoff = notifyHumanHandoff(
-          db,
-          tenantId,
-          {
-            conversationId: job.conversationId,
-            reason: 'off_purpose',
-            clientRequestId: `ai-handoff:${suggestion.id}`,
-          },
-          clock,
-        )
-        replyOutbox = handoff.outbox
-      }
-    } else if (suggestion?.status === 'pending' && draftText && !proposalDelivered) {
+      replyOutbox = handoff.outbox
+    } else if (suggestion?.status === 'pending' && draftText) {
       try {
-        // Race S5: Agendado/`Posso ajudar` podem ter saído durante extrator/autobook.
+        // Race S5: Agendado/`Posso ajudar` podem ter saído durante o redator.
         if (lastMessageDirection(db, tenantId, job.conversationId) !== 'inbound') {
-          if (suggestion) markSuggestionSuperseded(db, tenantId, suggestion.id, clock.nowMs())
+          markSuggestionSuperseded(db, tenantId, suggestion.id, clock.nowMs())
           record({
             ...job,
             status: 'skipped',
-            suggestion: suggestion ? getSuggestion(db, tenantId, suggestion.id) : null,
+            suggestion: getSuggestion(db, tenantId, suggestion.id),
             reason: 'already_answered',
-            autoBook,
           })
           continue
         }
-        const replyPreQueued = Boolean(autoBook?.outbox?.some((row) => row.type === 'whatsapp.send'))
-        let body = draftText
-        if (deterministicReply && replyPreQueued) {
-          body = ''
-        }
-        if (deterministicReply && body.trim()) {
-          const priorOutbound = lastOutboundBody(db, tenantId, job.conversationId)
-          const misReason = detectTurnMisunderstanding({
-            inboundBody: turnText,
-            outboundBody: body,
-            priorOutboundBody: priorOutbound,
-          })
-          if (misReason) {
-            turnMisunderstood = true
-            const streak = bumpMisunderstandingStreak(
-              db,
-              tenantId,
-              job.conversationId,
-              clock,
-            )
-            if (misReason === 'duplicate_outbound') {
-              body = ''
-            }
-            const esc = maybeEscalateMisunderstanding(
-              db,
-              tenantId,
-              { conversationId: job.conversationId, messageId: job.messageId, streak },
-              clock,
-            )
-            if (esc.escalate) {
-              body = ''
-              replyOutbox = [...(replyOutbox ?? []), ...esc.outbox]
-            }
-          }
-        }
-        let interactive = deterministicReply
-          ? toSendInteractive(autoBook?.interactive ?? null)
-          : (() => {
-              const buttons = humanTeamOfferButtons(db, tenantId, clock)
-              return buttons.length > 0 ? { buttons } : null
-            })()
-        if (deterministicReply) {
-          const frameNow =
-            autoBook?.deferredFrame?.peekFrame(db, tenantId, job.conversationId) ??
-            getBookingFrame(db, tenantId, job.conversationId)
-          try {
-            const replaced = await maybeReplaceM5WithFlow({
-              choice: autoBook?.interactive ?? null,
-              replyBody: body,
-              prepare: deps.prepareBookingFlowOffer,
-              tenantId,
-              conversationId: job.conversationId,
-              catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, tenantId),
-              session: sessionFromBookingFrame(frameNow),
-              deferred: autoBook?.deferredFrame,
-            })
-            interactive = replaced.interactive
-            body = replaced.body
-          } catch (err) {
-            // Lab H1: mid-funnel «prefiro peeling» com Horários abertos — prepare Flow
-            // pode falhar e o catch externo engolia o turno (silêncio, aiOutcomes []).
-            // Mantém a lista M5 determinística.
-            console.warn(
-              JSON.stringify({
-                level: 'warn',
-                event: 'ai.flow_replace_failed',
-                tenantId,
-                conversationId: job.conversationId,
-                error: err instanceof Error ? err.message : 'unknown',
-              }),
-            )
-          }
-        }
-        const sent = body.trim()
-          ? sendOutboundMessageOp(
-              db,
-              caller,
-              withDeferredFrame(
-                {
-                  conversationId: job.conversationId,
-                  body,
-                  interactive,
-                  clientRequestId: `ai-reply:${suggestion.id}`,
-                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
-                  aiSuggestionId: suggestion.id,
-                },
-                autoBook?.deferredFrame,
-                clock,
-              ),
-              clock,
-            )
-          : { outbox: [] as OutboxRow[] }
+        const body = draftText
+        const buttons = humanTeamOfferButtons(db, tenantId, clock)
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body,
+            interactive: buttons.length > 0 ? { buttons } : null,
+            clientRequestId: `ai-reply:${suggestion.id}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            aiSuggestionId: suggestion.id,
+          },
+          clock,
+        )
         replyOutbox = [...(replyOutbox ?? []), ...sent.outbox]
         // TR-487: redator / frase DEC-125 que promete equipe → alerta sem pausa.
-        // Determinístico autobook/reschedule já abre o alerta no próprio call-site.
-        if (!deterministicReply && textPromisesTeamFollowUp(body)) {
+        if (textPromisesTeamFollowUp(body)) {
           promiseTeamFollowUp(
             db,
             tenantId,
@@ -2359,10 +1621,9 @@ export async function runDueAutoDrafts(
         if (!(err instanceof ClinicError)) throw err
       }
     }
-    const tookInjectionPath = injectionSuspected && !deterministicReply && !proposalDelivered
     let hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     let fallbackSent = false
-    if (!tookInjectionPath && !hasOutbound && !proposalDelivered && !deterministicReply) {
+    if (!injectionSuspected && !hasOutbound) {
       // DEC-107 (#489): falha do redator / modelo → frase fixa + alerta, IA activa.
       const fallback = notifyModelFallback(
         db,
@@ -2374,54 +1635,21 @@ export async function runDueAutoDrafts(
       fallbackSent = fallback.sent || fallback.already
       hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     }
-    if ((proposalDelivered || deterministicReply) && hasOutbound && !turnMisunderstood) {
-      resetMisunderstandingStreak(db, tenantId, job.conversationId, clock)
-    }
-    const textDiscarded =
-      modelCalled &&
-      (deterministicReply || proposalDelivered || suggestion?.status === 'failed')
     record(
       {
         ...job,
         status: suggestion?.status === 'failed' ? 'failed' : 'ready',
         suggestion,
-        autoBook,
         replyOutbox,
       },
       {
         modelCalled,
         modelCalls,
-        textDiscarded,
+        textDiscarded: modelCalled && suggestion?.status === 'failed',
         fallbackSent,
         decisionMs: Math.max(0, clock.nowMs() - jobStarted),
       },
     )
-  }
-  // As respostas já saíram; a sombra só mede. Com LLM_OUT_OF_DO enfileira sibling
-  // `llm_shadow` (Claude fora do DO); senão corre inline com teto do alarme.
-  for (const task of shadowTasks) {
-    const started = clock.nowMs()
-    try {
-      if (deps.llmOutOfDo && deps.enqueueLlmJob) {
-        await deps.enqueueLlmJob(buildLlmShadowQueueMessage(task))
-      } else {
-        if (clock.nowMs() - alarmTurnStartedMs >= AUTODRAFT_ALARM_BUDGET_MS) break
-        await runInterpreterShadow(deps, task)
-      }
-    } catch (err) {
-      // Medição nunca afecta o atendimento.
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'ai.interpreter_shadow_enqueue_failed',
-          tenantId: task.tenantId,
-          conversationId: task.conversationId,
-          messageId: task.messageId,
-          error: err instanceof Error ? err.message : 'unknown',
-        }),
-      )
-    }
-    opts.onTurnPhase?.('interpreter_shadow', clock.nowMs() - started)
   }
   return out
 }

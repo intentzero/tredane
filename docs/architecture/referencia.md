@@ -19,6 +19,8 @@
 
 ## O que não podes partir
 
+0. **Confirmado** (**DEC-202**, Paulo, 17/11/2026): o chat não marca, não remarca e não cancela. Marcar, remarcar e cancelar são só na página web da cliente ([ADR-0018](../adr/0018-pagina-web-cliente.md)), sempre ligada; o chat informa e envia o link «Abrir agenda» com uma frase fixa (`src/clientweb/route-intent.ts`, `src/clinic/ai/autodraft.ts`). O funil conversacional (listas M5, eco, proposta com Confirmar no chat, `tryAiAutoBook`), o Flow, o extrator e a sombra do interpretador foram removidos. **As regras 4, 5a, 6 e 8 abaixo descrevem o que existia e ficam substituídas pela regra 0**; a 5 mantém-se só para a informação (o redator de exceção com validador).
+
 1. **Confirmado** (DEC-038, [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md)): um Durable Object por clínica, com SQLite nativo para o operacional. O D1 central é administrativo. O SQLite do DO não é um D1. Um DO por clínica não isola D1, R2, Queues nem Workflows.
 2. **Confirmado** (DEC-017, [ADR-0006](../adr/0006-clerk-platform-admin.md)): Clerk sem Organizations. `privateMetadata.superadmin` só é autoritativo no backend. Membership e role vivem no D1. A clínica activa é explícita. Cada contexto revalida e não reaproveita cache nem WebSocket de outro tenant.
 3. **Confirmado** (DEC-038, ADR-0012, [ADR-0015](../adr/0015-estado-persistente-da-conversa.md)): o painel recebe tempo real por WebSocket do DO da clínica. A fonte de verdade operacional é o SQLite desse DO. Memória e WebSocket não a substituem.

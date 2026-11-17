@@ -7,12 +7,9 @@
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
-import { deliverCatalogConsult, planCatalogConsult } from '../ai/catalog-consult'
-import { clearBookingFrame, getBookingFrame } from '../ai/schedule-session'
-import { readCatalogVersion } from '../ai/turn-context'
+import { clearBookingFrame } from '../ai/schedule-session'
 import { ensureClinicSettings } from '../config/settings'
-import { listServices } from '../config/services'
-import { getActiveProposalForConversation, retireActiveProposal } from '../proposals/proposals'
+import { retireActiveProposal } from '../proposals/proposals'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
 import { clearConversationUnread } from '../inbox/conversations'
@@ -302,26 +299,7 @@ export function handlePostBookingButtonClick(
 
   // Marcar outro = nova intenção → idle volta a poder armar.
   clearIdleSuppressed(db, input.tenantId, input.conversationId, clock.nowMs())
-  // T3 + DEC-142 / B2: limpa o serviço e lista o catálogo.
-  const frame = getBookingFrame(db, input.tenantId, input.conversationId)
-  const action = planCatalogConsult({
-    text: 'quero outro agendamento',
-    frame,
-    services: listServices(db, input.tenantId),
-    catalogVersion: readCatalogVersion(db, input.tenantId),
-    hasActiveProposal:
-      getActiveProposalForConversation(db, input.tenantId, input.conversationId, clock) != null,
-  })
-  if (action) {
-    const ask = deliverCatalogConsult(db, caller, clock, {
-      conversationId: input.conversationId,
-      clientRequestId: `followup.postbook.another:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
-      authorClerkUserId: FOLLOWUP_ACTOR,
-      authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-      action,
-    })
-    outbox.push(...ask.outbox)
-  }
+  // DEC-202: o clique devolve «another»; quem trata o clique envia o link «Abrir agenda».
 
   writeOperationalAudit(
     db,
@@ -423,25 +401,7 @@ export function handlePriceFollowupButtonClick(
     return { handled: true, action: 'end', outbox }
   }
 
+  // DEC-202: «Marcar outro» já não abre catálogo no chat; quem trata o clique envia o link «Abrir agenda».
   clearIdleSuppressed(db, input.tenantId, input.conversationId, clock.nowMs())
-  const frame = getBookingFrame(db, input.tenantId, input.conversationId)
-  const planned = planCatalogConsult({
-    text: 'quero outro agendamento',
-    frame,
-    services: listServices(db, input.tenantId),
-    catalogVersion: readCatalogVersion(db, input.tenantId),
-    hasActiveProposal:
-      getActiveProposalForConversation(db, input.tenantId, input.conversationId, clock) != null,
-  })
-  if (planned) {
-    const ask = deliverCatalogConsult(db, caller, clock, {
-      conversationId: input.conversationId,
-      clientRequestId: `followup.price.another:${key}`,
-      authorClerkUserId: FOLLOWUP_ACTOR,
-      authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-      action: planned,
-    })
-    outbox.push(...ask.outbox)
-  }
   return { handled: true, action: 'another', outbox }
 }

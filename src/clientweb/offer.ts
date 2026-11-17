@@ -38,26 +38,54 @@ export function isHttpsBase(baseUrl: string | undefined): baseUrl is string {
 export type ClientWebOfferPurpose = 'remarcar' | 'cancelar'
 
 export const CLIENT_WEB_RESCHEDULE_BODY =
-  'Para remarcar, toque em «Abrir agenda» e escolha a nova data e hora. Se preferir, escreva aqui.'
+  'Para remarcar, toque em «Abrir agenda» e escolha a nova data e hora. Se tiver dúvidas, escreva aqui.'
 
 export const CLIENT_WEB_CANCEL_BODY =
-  'Para cancelar, toque em «Abrir agenda» e confirme a marcação. Se preferir falar com a equipe, escreva aqui.'
+  'Para cancelar, toque em «Abrir agenda» e confirme a marcação. Se tiver dúvidas, escreva aqui.'
+
+export const CLIENT_WEB_BOOK_BODY =
+  'Para agendar, toque em «Abrir agenda» e escolha o dia e a hora. Se tiver dúvidas, escreva aqui.'
+
+export const CLIENT_WEB_NO_UPCOMING_BODY =
+  'Não encontrei marcações futuras no seu nome. Para agendar, toque em «Abrir agenda». Se tiver dúvidas, escreva aqui.'
 
 /** Corpo fixo da oferta de remarcar ou cancelar (DEC-104). Texto **Proposto**. */
 export function clientWebPurposeBody(purpose: ClientWebOfferPurpose): string {
   return purpose === 'remarcar' ? CLIENT_WEB_RESCHEDULE_BODY : CLIENT_WEB_CANCEL_BODY
 }
 
+/**
+ * Corpo fixo do encaminhamento (DEC-202). Com um serviço reconhecido, nomeia-o: a página abre
+ * nele. Texto **Proposto**.
+ */
+export function clientWebRouteBody(input: {
+  purpose: 'agendar' | 'remarcar' | 'cancelar'
+  serviceName?: string | null
+  noUpcoming?: boolean
+}): string {
+  if (input.purpose === 'remarcar') return CLIENT_WEB_RESCHEDULE_BODY
+  if (input.purpose === 'cancelar') return CLIENT_WEB_CANCEL_BODY
+  if (input.noUpcoming) return CLIENT_WEB_NO_UPCOMING_BODY
+  const name = input.serviceName?.trim()
+  return name
+    ? `Para agendar ${name}, toque em «Abrir agenda» e escolha o dia e a hora. Se tiver dúvidas, escreva aqui.`
+    : CLIENT_WEB_BOOK_BODY
+}
+
 export type PrepareClientWebOfferInput = {
   tenantId: string
   conversationId: string
-  purpose: ClientWebOfferPurpose
+  purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'
   /** A marcação alvo quando a cliente só tem uma futura; senão a página abre as marcações. */
-  appointmentId: string | null
+  appointmentId?: string | null
+  /** Serviço reconhecido no texto (DEC-202(4)): a página abre nele. */
+  serviceId?: string | null
 }
 
-/** Gancho do autodraft: emite o link e devolve o corpo e o botão. `null` = sem oferta (o chat segue). */
+/**
+ * Gancho do autodraft e do painel: emite o link pessoal e devolve o botão «Abrir agenda».
+ * `null` = não há link possível (sem número ativo, base sem https); quem chama passa à equipe.
+ */
 export type PrepareClientWebOffer = (
   input: PrepareClientWebOfferInput,
-) => Promise<{ body: string; interactive: SendOutboundInteractiveInput } | null>
-
+) => Promise<SendOutboundInteractiveInput | null>

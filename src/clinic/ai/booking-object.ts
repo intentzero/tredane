@@ -10,7 +10,7 @@ import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/type
 import { variantChoiceLabel } from '../config/zones'
 import { hasSchedulingAvailabilityIntent } from './booking-intent-text'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
-import { SERVICE_PICK_BODY, SERVICE_PICK_LIST_MIN } from './service-pick-offer'
+import { SERVICE_PICK_BODY, SERVICE_PICK_LIST_MIN } from './catalog-list'
 import { FAMILY_VOCATIVE_RE, THIRD_PARTY_RE } from './nlu/sensitive'
 import { CATALOG_MISS_STOP } from '../config/option-match-stop'
 import { textCitesSynonym } from '../config/synonyms'

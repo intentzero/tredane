@@ -1,6 +1,6 @@
 /**
  * Botões Continuar | Terminar no ack de «avaliar» / «feedback» (TRE-29).
- * Reusa applyIdleClientAction: Continuar = retoma marcação; Terminar = DEC-086/087.
+ * Reusa applyIdleClientAction: Continuar = envia o link «Abrir agenda» (DEC-202); Terminar = DEC-086/087.
  */
 import type { Clock } from '../../db/clock'
 import { parseReviewFlagAckButtonId } from '../inbox/review-flag'
@@ -8,7 +8,6 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { applyIdleClientAction } from './idle'
-import type { IdleContinueChoiceResume } from './idle-continue-resume'
 
 export type ReviewAckButtonResult =
   | { handled: false; reason: 'not_review_ack_button' }
@@ -17,7 +16,6 @@ export type ReviewAckButtonResult =
       action: 'continue' | 'end'
       closedOpportunityId?: string | null
       outbox: OutboxRow[]
-      resumeChoice?: IdleContinueChoiceResume
     }
 
 export function handleReviewFlagAckButtonClick(

@@ -590,37 +590,6 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
-    /** Página web da cliente (DEC-199): interruptor da owner. Desligado por defeito. */
-    async getClientWebSetting(tenantId: string, opts?: FetchOpts): Promise<ClientWebSettingDto> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/config/client-web`,
-        { method: 'GET' },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as ClientWebSettingDto
-    },
-
-    async setClientWebEnabled(
-      tenantId: string,
-      enabled: boolean,
-      opts?: FetchOpts,
-    ): Promise<ClientWebSettingDto> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/config/client-web`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled }),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as ClientWebSettingDto
-    },
-
     async getClinicAbuseLimits(
       tenantId: string,
       opts?: FetchOpts,
@@ -1317,41 +1286,21 @@ export function createPanelApi(getToken: TokenGetter) {
     },
 
     /**
-     * DEC-061: atendente envia proposta versionada com botões WhatsApp.
-     * Não cria compromisso nem muda etapa.
+     * DEC-202: a equipe envia o link «Abrir agenda» à cliente. Não marca nada: a cliente escolhe
+     * e confirma na página. `window_closed` = fora das 24 h; `unavailable` = sem link possível.
      */
-    async createAndSendProposal(
+    async sendClientWebLink(
       tenantId: string,
       body: {
-        clientRequestId: string
-        contactId: string
         conversationId: string
-        serviceId: string
-        professionalId?: string | null
-        startsAt: number
-        endsAt?: number
-        durationMinutes?: number
-        zoneIds?: string[] | null
+        purpose?: 'agendar' | 'remarcar' | 'cancelar'
+        serviceId?: string | null
+        appointmentId?: string | null
       },
       opts?: FetchOpts,
-    ): Promise<{
-      appointmentCreated: false
-      sendStatus: 'queued' | 'already_sent' | 'handed_off_closed_window'
-      proposal: {
-        id: string
-        version: number
-        state: string
-        serviceName: string
-        startsAt: number
-        endsAt: number
-        expiresAt: number | null
-        requiresSignal: boolean
-        resultKind: string | null
-        sendProviderMessageId: string | null
-      }
-    }> {
+    ): Promise<{ status: 'sent' | 'window_closed' | 'unavailable' | 'not_found' }> {
       const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/appointment-proposals`,
+        `/api/tenants/${encodeURIComponent(tenantId)}/client-web-links`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1361,22 +1310,7 @@ export function createPanelApi(getToken: TokenGetter) {
       )
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
-      return (await res.json()) as {
-        appointmentCreated: false
-        sendStatus: 'queued' | 'already_sent' | 'handed_off_closed_window'
-        proposal: {
-          id: string
-          version: number
-          state: string
-          serviceName: string
-          startsAt: number
-          endsAt: number
-          expiresAt: number | null
-          requiresSignal: boolean
-          resultKind: string | null
-          sendProviderMessageId: string | null
-        }
-      }
+      return (await res.json()) as { status: 'sent' | 'window_closed' | 'unavailable' | 'not_found' }
     },
 
     /** Reserva por bloco — quanto cabe no período (leitura). */
@@ -3223,9 +3157,6 @@ export type AbuseLimitNumbersDto = {
   proposalsPerContact: number
   proposalsPerClinic: number
 }
-
-/** Interruptor da owner da página web da cliente (DEC-199). `available` = a plataforma tem a página ligada neste ambiente. */
-export type ClientWebSettingDto = { enabled: boolean; available?: boolean; updatedAt: number | null }
 
 export type AbuseLimitsDto = {
   enabled: boolean
