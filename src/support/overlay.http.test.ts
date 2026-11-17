@@ -135,7 +135,12 @@ describe('overlay de suporte — o que funciona', () => {
       const context = await ctx.call(SUPER, `/api/tenants/${A}/context`, { cookie, session })
       expect(context.status).toBe(200)
       // O papel é o do subject (attendant), não um privilégio do superadmin.
-      expect(await json(context)).toMatchObject({ tenantId: A, role: 'attendant' })
+      const body = await json(context)
+      expect(body).toMatchObject({ tenantId: A, role: 'attendant' })
+      // O cliente fica a saber que é uma sessão de suporte e quando acaba (banner e contagem decrescente).
+      expect(body.support).toMatchObject({ expiresAt: expect.any(Number) })
+      expect(body.support.sessionId).toMatch(/^ssn_/)
+      expect(JSON.stringify(body.support)).not.toMatch(/token|handoff/i)
 
       const list = await ctx.call(SUPER, `/api/tenants/${A}/inbox/conversations`, { cookie, session })
       expect(list.status).toBe(200)

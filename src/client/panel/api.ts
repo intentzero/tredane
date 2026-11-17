@@ -40,6 +40,8 @@ export type TenantContextResponse = {
   name: string
   status: 'active'
   role: 'owner' | 'attendant'
+  /** Sessão de suporte só de leitura (ADR-0017): presente só quando o acesso é de uma superadmin em suporte. */
+  support?: { sessionId: string; expiresAt: number }
 }
 
 export type ApiErrorCode =
@@ -49,6 +51,10 @@ export type ApiErrorCode =
   | 'permission_denied'
   | 'forged_role_rejected'
   | 'tenant_not_active'
+  /** Sessão de suporte (ADR-0017): acabou, foi revogada ou o pedido foi recusado. */
+  | 'support_session_not_active'
+  | 'support_revoke_conflict'
+  | 'internal'
   | 'network'
   | 'unknown'
   /** DEC-110 / #421 — validação de sinónimos (alinhado a BY_CODE). */
@@ -265,6 +271,16 @@ export function createPanelApi(getToken: TokenGetter) {
       const body = (await res.json()) as TenantContextResponse
       assertGeneration(opts)
       return body
+    },
+
+    /** O actor encerra a sua sessão de suporte (DEC-034); o servidor limpa o cookie. */
+    async endSupportSession(sessionId: string, opts?: FetchOpts): Promise<void> {
+      const res = await authFetch(
+        `/api/platform/support-sessions/${encodeURIComponent(sessionId)}/end`,
+        { method: 'POST' },
+        opts,
+      )
+      if (!res.ok) throw await parseError(res)
     },
 
     async getClinicConfig(tenantId: string, opts?: FetchOpts): Promise<ClinicConfigSnapshot> {
