@@ -63,7 +63,7 @@ node scripts/booking-session-weekly-sample.mjs staging <tenantId> 2026-11-01 --n
 
 `TREDANE_WEEKLY_DRY_RUN=1` força só o pacote (mesmo com `--from-jsonl`).
 
-Complementar: [Funil booking_session (T4)](booking-session-funnel.md), `node scripts/flow-funnel.mjs …`.
+Complementar: [Funil booking_session (T4)](booking-session-funnel.md), (o script do funil do Flow foi removido, DEC-202).
 
 ## O que **não** fazer
 

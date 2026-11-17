@@ -13,7 +13,6 @@ import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { pickServicesForSlots } from './schedule-context'
 import {
   getOrCompileCatalog,
@@ -22,7 +21,6 @@ import {
   readCatalogVersion,
   type CatalogReadStats,
 } from './turn-context'
-import { SimulatedAiAdapter } from '../../ai'
 
 const NOW = Date.UTC(2026, 10, 5, 13, 0)
 
@@ -192,40 +190,4 @@ describe('TurnContext (#411)', () => {
     expect(pickServicesForSlots(services, ['quero massagem'])).toEqual([{ id: 'b', name: 'Massagem' }])
   })
 
-  it('autodraft com TurnContext produz proposta (resultado igual ao caminho anterior)', async () => {
-    const s = seed()
-    try {
-      const m = insertMessage(
-        s.db,
-        {
-          tenantId: s.tenantId,
-          conversationId: s.cnv.id,
-          direction: 'inbound',
-          body: 'Quero limpeza de pele amanhã às 15h',
-          deliveryState: 'received',
-          createdAt: s.clock.nowMs(),
-        },
-        s.clock,
-      )
-      enqueueAutoDraft(
-        s.db,
-        s.tenantId,
-        { conversationId: s.cnv.id, messageId: m.id },
-        s.clock,
-      )
-      s.clock.advance(7_000)
-      await runDueAutoDrafts(s.db, s.caller, s.clock, {
-        mode: 'synthetic',
-        adapter: new SimulatedAiAdapter(),
-      })
-      const n = s.db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM appointment_proposals WHERE conversation_id = ?`,
-        s.cnv.id,
-      )!.n
-      expect(n).toBeGreaterThanOrEqual(1)
-      expect(peekCompiledCatalogCache(s.db)).toBeTruthy()
-    } finally {
-      s.close()
-    }
   })
-})

@@ -2,6 +2,8 @@
 
 **Estado:** **Proposto**. É um corpus vivo do [plano de testes](plano-testes-conversacional.md). Os critérios (INV, EF, EE, Q) estão definidos no plano §4. Os dados são todos fictícios. O comportamento esperado segue as DEC **Confirmadas** citadas. Quando uma DEC muda, atualizar o caso e registar a mudança; o caso não se apaga.
 
+> **DEC-202 (Confirmado, 17/11/2026):** o chat só informa e encaminha para a página; as famílias de marcação, remarcação e cancelamento por conversa desta matriz ficam **Retiradas (DEC-202)**. O L1 vigente está em `src/clinic/ai/evals/dialogs/` (família **GU-** para o encaminhamento; informação, equipe, saúde, injeção, mídia e falhas do modelo mantêm os IDs).
+
 ## Como ler e manter
 
 - **ID estável** `família-número`. Nunca renumerar. Um caso obsoleto passa a **Retirado (motivo, DEC)**.

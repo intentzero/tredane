@@ -10,7 +10,7 @@ import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/type
 import { variantChoiceLabel } from '../config/zones'
 import { hasSchedulingAvailabilityIntent } from './booking-intent-text'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
-import { SERVICE_PICK_BODY, SERVICE_PICK_LIST_MIN } from './service-pick-offer'
+import { SERVICE_PICK_BODY, SERVICE_PICK_LIST_MIN } from './catalog-list'
 import { FAMILY_VOCATIVE_RE, THIRD_PARTY_RE } from './nlu/sensitive'
 import { CATALOG_MISS_STOP } from '../config/option-match-stop'
 import { textCitesSynonym } from '../config/synonyms'
@@ -238,25 +238,6 @@ export function listBookableOptions(services: readonly ServiceRow[]): BookableOp
   return out
 }
 
-export function findExplicitServiceInText(
-  text: string,
-  services: readonly ServiceRow[],
-): ServiceRow | null {
-  const hits: Array<{ service: ServiceRow; rank: number }> = []
-  for (const service of services) {
-    if (!service.active) continue
-    const h = serviceNameHit(text, service.name, service.synonyms)
-    if (h === 'exact') hits.push({ service, rank: 3 })
-    else if (h === 'fuzzy') hits.push({ service, rank: 2 })
-    else if (h === 'partial') hits.push({ service, rank: 1 })
-  }
-  if (hits.length === 0) return null
-  hits.sort((a, b) => b.rank - a.rank)
-  const top = hits[0]!.rank
-  const tied = hits.filter((h) => h.rank === top)
-  if (tied.length > 1) return null
-  return hits[0]!.service
-}
 
 function serviceNameHit(
   text: string,
@@ -985,26 +966,3 @@ export function resolveBookingObject(input: {
   }
 }
 
-/** Serviços candidatos para `extractServices` / autobook — sem fechar em hit fraco. */
-export function servicesFromBookingMatch(
-  result: BookingMatchResult,
-  services: readonly ServiceRow[],
-): ServiceRow[] {
-  if (result.kind === 'handoff' || result.kind === 'none') return []
-  // Só devolve serviço quando o resolver já fechou ou tem um único serviço inequívoco.
-  // Clarify genérico («qual serviço?») não pode inundar extractServices com o catálogo inteiro.
-  if (result.serviceId) {
-    const svc = services.find((s) => s.id === result.serviceId)
-    return svc ? [svc] : []
-  }
-  // selected *e* clarify com um só serviço (hit parcial «peeling» → Peeling químico):
-  // extractServices precisa disto no mid-funnel; senão cai no LLM / CPU DO (Lab H1).
-  if (result.kind === 'selected' || result.kind === 'clarify') {
-    const ids = uniqueServices(result.candidates)
-    if (ids.length === 1) {
-      const svc = services.find((s) => s.id === ids[0])
-      return svc ? [svc] : []
-    }
-  }
-  return []
-}

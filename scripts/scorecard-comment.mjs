@@ -12,7 +12,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 export const MARKER = '<!-- scorecard-l1 -->'
 
-const MONITORED = [/^src\/clinic\/ai\//, /^src\/whatsapp\/flow\//, /^src\/clinic\/proposals\//]
+const MONITORED = [/^src\/clinic\/ai\//, /^src\/clientweb\//, /^src\/clinic\/proposals\//]
 const EVALS = /^src\/clinic\/ai\/evals\//
 const TEST = /\.test\.tsx?$/
 

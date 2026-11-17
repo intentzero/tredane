@@ -4,7 +4,7 @@
  * DEC-118: a lista de livres vem de agendaFacts locais, não do payload ao gateway.
  */
 import type { AiAgendaFacts, AiClinicContext } from '../../ai/types'
-import { extractTimes } from './autobook'
+import { extractTimes } from './nlu/temporal'
 
 const TEMPO_LEAK =
   /\d+\s*%|weather_code|precipitation|open-?meteo|ceu_limpo|pouco_nublado|parcialmente_nublado|muito_nublado/i

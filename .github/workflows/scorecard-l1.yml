@@ -9,7 +9,7 @@ on:
   pull_request:
     paths:
       - 'src/clinic/ai/**'
-      - 'src/whatsapp/flow/**'
+      - 'src/clientweb/**'
       - 'src/clinic/proposals/**'
       - 'docs/implementation/avaliacao/**'
       - 'scripts/scorecard-comment.mjs'

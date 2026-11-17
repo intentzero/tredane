@@ -434,10 +434,6 @@ export function filledSlots(frame: BookingFrame): string[] {
   return out
 }
 
-/** Property: nenhuma pergunta sobre slot já preenchido. */
-export function wouldAskFilledSlot(frame: BookingFrame, askSlot: string): boolean {
-  return filledSlots(frame).includes(askSlot)
-}
 
 /**
  * Linha sem serviço (DEC-142): a consulta de catálogo limpa a marcação e
@@ -907,17 +903,6 @@ export function clearScheduleSession(
   clearBookingFrame(db, tenantId, conversationId)
 }
 
-/** Grava a linha explícita, ou null enquanto a pergunta ainda não foi respondida. Mantém dia e período. */
-export function saveScheduleLine(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  serviceId: string,
-  audienceLine: ScheduleAudienceLine | null,
-  clock: Clock,
-): void {
-  saveScheduleSession(db, tenantId, conversationId, { serviceId, audienceLine }, clock)
-}
 
 /**
  * Revalida ids contra o catálogo actual (ADR-0015). Sem inventar substituto:

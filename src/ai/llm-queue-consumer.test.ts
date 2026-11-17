@@ -1,75 +1,13 @@
 /**
- * DEC-188: após extract apply fino, o consumer retoma autodraft noutro RPC.
- * Sibling `llm_shadow`: medição H1 sem claim/apply.
+ * DEC-188 / DEC-202: o consumer da fila só trata o redator de exceção (`redact`).
  */
 import { describe, expect, it, vi } from 'vitest'
-import { processLlmJob, processLlmShadowJob, type LlmClinicStub } from './llm-queue-consumer'
-import type { LlmQueueMessage, LlmShadowQueueMessage } from '../clinic/ai/llm-queue-types'
+import { processLlmJob, type LlmClinicStub } from './llm-queue-consumer'
+import type { LlmQueueMessage } from '../clinic/ai/llm-queue-types'
 import type { WorkerBindings } from '../worker/bindings'
-import { isLlmShadowQueueMessage, buildLlmShadowQueueMessage } from '../clinic/ai/llm-queue-types'
 
-describe('processLlmJob resume after thin apply', () => {
-  it('chama runAutoDrafts com conversationId e limit 1 quando resumeAutodraft', async () => {
-    const conversationId = 'cnv_resume_1'
-    const msg: LlmQueueMessage = {
-      source: 'llm_job',
-      tenantId: 'tenant_dec0de000000000000000001',
-      jobId: 'llm_1',
-      conversationId,
-      messageId: 'msg_1',
-      purpose: 'extract',
-      idempotencyKey: 'ik_1',
-    }
-
-    const runAutoDrafts = vi.fn().mockResolvedValue([])
-    const stub: LlmClinicStub = {
-      claimLlmJob: vi.fn().mockResolvedValue({
-        status: 'claimed',
-        job: {
-          id: 'llm_1',
-          purpose: 'extract',
-          state: 'claimed',
-          snapshotJson: JSON.stringify({
-            purpose: 'extract',
-            conversationId,
-            messageId: 'msg_1',
-            turnText: 'fazem pacote pra noivas?',
-            today: '2026-11-15',
-            frameVersion: 0,
-            pending: null,
-            catalog: { services: [], variants: [], professionals: [] },
-            base: { acts: ['desconhecido'], slots: {}, coverage: 0, needsExtractor: true },
-          }),
-        },
-      }),
-      applyLlmResult: vi.fn().mockResolvedValue({
-        status: 'applied',
-        resumeAutodraft: true,
-        conversationId,
-      }),
-      failLlmJob: vi.fn().mockResolvedValue({ status: 'failed' }),
-      runAutoDrafts,
-    }
-
-    const env = {
-      AI_MODE: 'synthetic',
-    } as unknown as WorkerBindings
-
-    const outcome = await processLlmJob(msg, {
-      env,
-      clinicStub: () => stub,
-    })
-
-    expect(outcome).toBe('ack')
-    expect(stub.applyLlmResult).toHaveBeenCalledTimes(1)
-    expect(runAutoDrafts).toHaveBeenCalledTimes(1)
-    expect(runAutoDrafts.mock.calls[0]?.[1]).toEqual({
-      conversationId,
-      limit: 1,
-    })
-  })
-
-  it('não chama runAutoDrafts quando apply não pede resume', async () => {
+describe('processLlmJob (redator de exceção)', () => {
+  it('aplica o resultado do redator e não retoma o autodraft', async () => {
     const conversationId = 'cnv_redact_1'
     const msg: LlmQueueMessage = {
       source: 'llm_job',
@@ -121,39 +59,5 @@ describe('processLlmJob resume after thin apply', () => {
 
     await processLlmJob(msg, { env, clinicStub: () => stub })
     expect(runAutoDrafts).not.toHaveBeenCalled()
-  })
-})
-
-describe('processLlmShadowJob (H1 sibling)', () => {
-  it('reconhecimento e ack sem claim/apply no DO', async () => {
-    const task = {
-      tenantId: 'tenant_dec0de000000000000000001',
-      conversationId: 'cnv_shadow_1',
-      messageId: 'msg_shadow_1',
-      turnText: 'vocês têm estacionamento?',
-      today: '2026-11-15',
-      services: [],
-      professionals: [],
-      pending: null,
-      mainRaw: null,
-      mainModelCalled: false,
-    }
-    const msg = buildLlmShadowQueueMessage(task)
-    expect(isLlmShadowQueueMessage(msg)).toBe(true)
-    expect(msg.source).toBe('llm_shadow')
-
-    const claimLlmJob = vi.fn()
-    const env = { AI_MODE: 'synthetic' } as unknown as WorkerBindings
-    const outcome = await processLlmShadowJob(msg as LlmShadowQueueMessage, {
-      env,
-      clinicStub: () =>
-        ({
-          claimLlmJob,
-          applyLlmResult: vi.fn(),
-          failLlmJob: vi.fn(),
-        }) as unknown as LlmClinicStub,
-    })
-    expect(outcome).toBe('ack')
-    expect(claimLlmJob).not.toHaveBeenCalled()
   })
 })

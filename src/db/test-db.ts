@@ -132,6 +132,14 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0029_support_token_hash_ended.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0030_client_web_link_service.sql'),
+  )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0031_drop_interpreter_shadow_events.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

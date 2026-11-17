@@ -213,9 +213,9 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Estado:** Direção Confirmada (DEC-196, DEC-199, Paulo, 17/11/2026); frases e valores **Propostos**.
 - **Ator:** cliente final (WhatsApp e browser do telemóvel); sistema.
 - **Gatilho:** a cliente pede para agendar, remarcar ou cancelar, ou o hub oferece «Abrir agenda».
-- **Pré-condições:** página ligada na clínica (interruptor da owner); janela de 24 h aberta; contacto e conversa conhecidos.
+- **Pré-condições:** página sempre ligada (DEC-202); janela de 24 h aberta; contacto e conversa conhecidos; sem pausa da owner.
 - **Fluxo:** (1) o backend envia a frase determinística com o botão «Abrir agenda»; (2) a cliente toca e abre a casca da página (GET, o token não é gasto); (3) a página troca o token por uma sessão de 30 min (POST); (4) vê «Meus agendamentos» e a ação Agendar.
-- **Alternativas/erros:** link já usado ou expirado → «Este link já foi usado — peça outro no chat» e um toque devolve ao chat; janela fechada sem template aprovado → handoff (DEC-040(d)); pausa da owner → a página explica que a equipe atende.
+- **Alternativas/erros:** link já usado ou expirado → «Este link já foi usado — peça outro no chat» e um toque devolve ao chat; janela fechada sem template aprovado → handoff (DEC-040(d)); pausa da owner → o chat passa à equipe e a página só mostra as marcações (DEC-202).
 - **Telas:** WhatsApp; página (Início, Link usado ou expirado).
 - **Dados:** link (hash), sessão (hash), contacto, conversa; sem telefone na página.
 - **Requisitos:** REQ-111, REQ-115, REQ-116; aceite AC-87, AC-88, AC-94, AC-95.

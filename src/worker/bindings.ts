@@ -67,15 +67,6 @@ export type WorkerBindings = {
   TOKEN_ENCRYPTION_KEY?: string
   /** Token do challenge GET webhook (#32). Synthetic default se ausente. */
   META_VERIFY_TOKEN?: string
-  /**
-   * WhatsApp Flow de agendamento (#514 / ADR-0016).
-   * Sem os dois, o endpoint responde 503 e o funil M5 continua (não é flag de produto).
-   * Privada: wrangler secret; nunca versionar.
-   */
-  WHATSAPP_FLOW_ID?: string
-  WHATSAPP_FLOW_PRIVATE_KEY?: string
-  /** `published` (default) | `draft` — draft só em teste pré-publicação Meta. */
-  WHATSAPP_FLOW_MODE?: string
   /** STAGING-ONLY: `true` habilita POST .../whatsapp/dev/sync-existing-binding (exige ENVIRONMENT=staging). */
   WHATSAPP_DEV_SYNC_ENABLED?: string
   /** STAGING-ONLY: `true` habilita POST /api/ops/demo-clinic/seed (exige ENVIRONMENT=staging + DEMO_SEED_TOKEN). */
@@ -111,13 +102,6 @@ export type WorkerBindings = {
    * `off` (omisso) | `demo` (só tenant demo) | `on` (todos os tenants do env).
    */
   LLM_OUT_OF_DO?: string
-  /**
-   * `on` liga a sombra do interpretador LLM (Proposto): uma chamada extra ao
-   * extrator por turno de texto livre, só para medir. Omisso = desligada.
-   */
-  AI_INTERPRETER_SHADOW?: string
-  /** Fallback do interpretador: só serviço (`on`/`off`, default on). */
-  AI_INTERPRETER_FALLBACK_SERVICE?: string
   /** S7 (#178): «on» liga os limites de abuso (padrão desligado). Valores: ABUSE_LIMIT_* (Proposto). */
   ABUSE_LIMITS?: string
   CF_ACCOUNT_ID?: string

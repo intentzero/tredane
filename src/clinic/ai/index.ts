@@ -77,15 +77,12 @@ export {
 } from './llm-apply'
 export type {
   LlmQueueMessage,
-  LlmShadowQueueMessage,
   LlmQueueEnvelope,
   LlmJobPurpose,
 } from './llm-queue-types'
 export {
   isLlmQueueMessage,
-  isLlmShadowQueueMessage,
   isLlmQueueEnvelope,
-  buildLlmShadowQueueMessage,
   LAB_LLM_WAIT_MS,
 } from './llm-queue-types'
 export {
@@ -94,57 +91,6 @@ export {
   wamidFromExternalMessageId,
   WHATSAPP_TYPING_INDICATOR_TYPE,
 } from './typing-indicator'
-export {
-  tryAiAutoBook,
-  detectExplicitConfirmation,
-  AI_AUTOBOOK_ACTOR_ID,
-  AI_AUTOBOOK_ACTOR_NAME,
-  type AutoBookOutcome,
-  type AutoBookStatus,
-} from './autobook'
-export { runBookingTurn, type RunBookingTurnInput } from './run-booking-turn'
-export {
-  classifyCrossCuttingAct,
-  isCrossCuttingInterrupt,
-  type CrossCuttingAct,
-  type AskInfoTopic,
-} from './booking-turn-gate'
-export {
-  obligationFromFrame,
-  obligationFromPending,
-  shouldEmitOptionMiss,
-  resumeObligationAfterAskInfo,
-  type DialogueObligation,
-  type DialogueObligationKind,
-} from './dialogue-obligation'
-export {
-  emptyInterruptStack,
-  parkFromFrame,
-  parkInterrupt,
-  popInterrupt,
-  peekInterrupt,
-  resumeParkedObligation,
-  shouldResumeSlotAsk,
-  shouldResumeVariantAsk,
-  type DialogueInterruptStack,
-  type InterruptReason,
-  type ParkedInterrupt,
-} from './dialogue-interrupt-stack'
-export {
-  realizeAskInfo,
-  realizeClarify,
-  type AskInfoRealizeInput,
-  type AskInfoRealizeResult,
-  type AskInfoPolicyAct,
-} from './ask-info-realize'
-export {
-  isCatalogClarificationAsk,
-  answerFaqFromCatalog,
-  handleFaqContinueButtonClick,
-  FAQ_MISSING_DETAIL_BODY,
-  FAQ_CONTINUE_BUTTON_ID,
-  type FaqCatalogAnswer,
-} from './faq-clarification'
 export {
   getAiDailyUsage,
   incrementAiDailyUsage,

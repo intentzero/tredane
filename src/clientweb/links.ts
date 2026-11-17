@@ -38,6 +38,8 @@ export type ExchangedClientWebLink = ClientWebSession & {
   sessionToken: string
   purpose: ClientWebPurpose
   appointmentId: string | null
+  /** Serviço a pré-escolher na página (DEC-202(4)). */
+  serviceId: string | null
 }
 
 export function newClientWebLinkToken(): string {
@@ -59,6 +61,7 @@ export async function issueClientWebLink(
     conversationId: string
     purpose: ClientWebPurpose
     appointmentId?: string | null
+    serviceId?: string | null
     ttlMs?: number
   },
 ): Promise<IssuedClientWebLink> {
@@ -71,8 +74,8 @@ export async function issueClientWebLink(
     .prepare(
       `INSERT INTO client_web_links
          (token_hash, tenant_id, binding_id, contact_id, conversation_id, purpose,
-          appointment_id, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          appointment_id, service_id, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       tokenHash,
@@ -82,6 +85,7 @@ export async function issueClientWebLink(
       input.conversationId,
       input.purpose,
       input.appointmentId ?? null,
+      input.serviceId ?? null,
       now,
       expiresAt,
     )
@@ -104,6 +108,7 @@ type ExchangeRow = {
   conversation_id: string
   purpose: ClientWebPurpose
   appointment_id: string | null
+  service_id: string | null
 }
 
 /**
@@ -123,7 +128,7 @@ export async function exchangeClientWebLink(
     .prepare(
       `UPDATE client_web_links SET consumed_at = ?
        WHERE token_hash = ? AND consumed_at IS NULL AND replaced_at IS NULL AND expires_at > ?
-       RETURNING token_hash, tenant_id, contact_id, conversation_id, purpose, appointment_id`,
+       RETURNING token_hash, tenant_id, contact_id, conversation_id, purpose, appointment_id, service_id`,
     )
     .bind(now, tokenHash, now)
     .first<ExchangeRow>()
@@ -156,6 +161,7 @@ export async function exchangeClientWebLink(
     expiresAt,
     purpose: row.purpose,
     appointmentId: row.appointment_id,
+    serviceId: row.service_id,
   }
 }
 

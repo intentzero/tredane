@@ -1075,7 +1075,7 @@ function ReviewSheet(p: ReviewProps) {
     !p.reschedule && Boolean(ctx.conversationId && ctx.contactId) && !p.paidSignalMode
   /** «Marcar já» só sem sinal: com Pix a marcação imediata contradiz DEC-047. */
   const canMarkNow = proposalAvailable && !p.requiresSignal
-  /** «Enviar proposta» (a cliente confirma, DEC-061) ou «Marcar já» (a equipe marca agora). */
+  /** «Enviar link de agenda» (a cliente escolhe e confirma na página, DEC-202) ou «Marcar já» (a equipe marca agora). */
   const [way, setWay] = useState<'proposal' | 'now'>('proposal')
   const proposalPath = proposalAvailable && (!canMarkNow || way === 'proposal')
   const [notify, setNotify] = useState(() => defaultNotify(Boolean(ctx.conversationId), p.window24))
@@ -1083,7 +1083,7 @@ function ReviewSheet(p: ReviewProps) {
   useEffect(() => {
     if (!notifyTouched.current) setNotify(defaultNotify(Boolean(ctx.conversationId), p.window24))
   }, [ctx.conversationId, p.window24])
-  // Cada abertura da revisão volta ao padrão «Enviar proposta».
+  // Cada abertura da revisão volta ao padrão «Enviar link de agenda».
   useEffect(() => {
     if (p.isOpen) setWay('proposal')
   }, [p.isOpen])
@@ -1174,34 +1174,23 @@ function ReviewSheet(p: ReviewProps) {
     }
   }
 
-  async function createAndSendProposalAction() {
+  /** DEC-202: envia à cliente o link «Abrir agenda» já no serviço; ela escolhe e confirma na página. */
+  async function sendClientWebLinkAction() {
     if (!ctx.conversationId || !ctx.contactId) return
-    if (!(await stillFree())) return
-    const result = await api.createAndSendProposal(
+    const result = await api.sendClientWebLink(
       tenantId,
-      {
-        clientRequestId,
-        contactId: ctx.contactId,
-        conversationId: ctx.conversationId,
-        serviceId: service.id,
-        professionalId: slot.professionalId,
-        startsAt: slot.startsAt,
-        endsAt: slot.endsAt,
-        durationMinutes: Math.round((slot.endsAt - slot.startsAt) / 60_000),
-        zoneIds: p.zoneIds,
-      },
+      { conversationId: ctx.conversationId, purpose: 'agendar', serviceId: service.id },
       fo,
     )
-    const handoff = result.sendStatus === 'handed_off_closed_window'
-    p.onSuccess({
-      ...base,
-      kind: 'proposed',
-      proposalId: result.proposal.id,
-      notice: handoff ? 'proposal_handoff' : 'proposed',
-      noticeDetail: handoff
-        ? 'A janela de 24 h está fechada. A proposta ficou preparada para a equipe retomar o contato.'
-        : undefined,
-    })
+    if (result.status === 'window_closed') {
+      setErr('A janela de 24 h está fechada: o link não pode ser enviado agora.')
+      return
+    }
+    if (result.status !== 'sent') {
+      setErr('Não foi possível enviar o link agora. Tente de novo ou fale com a cliente.')
+      return
+    }
+    p.onSuccess({ ...base, kind: 'proposed', notice: 'proposed' })
   }
 
   const confirm = () =>
@@ -1218,7 +1207,7 @@ function ReviewSheet(p: ReviewProps) {
         return
       }
       if (proposalPath) {
-        await createAndSendProposalAction()
+        await sendClientWebLinkAction()
         return
       }
       if (p.reschedule) {
@@ -1392,8 +1381,8 @@ function ReviewSheet(p: ReviewProps) {
                   disabled={busy}
                   onClick={() => setWay('proposal')}
                 >
-                  <strong>Enviar proposta</strong>
-                  <span>A cliente confirma pelo botão no WhatsApp. Nada fica marcado antes.</span>
+                  <strong>Enviar link de agenda</strong>
+                  <span>A cliente escolhe o dia e a hora na página e confirma lá. Nada fica marcado antes.</span>
                 </button>
                 <button
                   type="button"
@@ -1433,31 +1422,31 @@ function ReviewSheet(p: ReviewProps) {
                 ) : null}
                 <section className="agd-proposal" aria-labelledby="agd-proposal-title">
                   <h3 id="agd-proposal-title" className="agd-proposal-title">
-                    Proposta pelo WhatsApp
+                    Link pelo WhatsApp
                   </h3>
                   {canNotify ? (
                     <p className="agd-proposal-hint">
-                      A cliente recebe a proposta com os botões Confirmar e Alterar detalhes.
-                      O horário só fica marcado depois do toque em Confirmar. Texto livre («sim», «obrigado») não confirma.
+                      A cliente recebe o botão «Abrir agenda» já neste serviço e escolhe o dia e a hora na página.
+                      O horário escolhido aqui não fica reservado: só fica marcado depois de a cliente confirmar na página.
                     </p>
                   ) : (
                     <p className="agd-proposal-hint" role="note">
                       {ctx.conversationId
-                        ? 'A janela de 24 h está fechada: a proposta fica preparada e a equipe retoma o contato (sem envio irregular).'
-                        : 'Sem conversa vinculada não dá para enviar a proposta pelo WhatsApp.'}
+                        ? 'A janela de 24 h está fechada: o link não pode ser enviado. Retome o contato pela cliente.'
+                        : 'Sem conversa vinculada não dá para enviar o link pelo WhatsApp.'}
                     </p>
                   )}
                 </section>
                 <Button
                   className="panel-btn panel-btn-primary agd-btn"
                   isDisabled={busy || (slot.tempoWarnings?.length ?? 0) > 0}
-                  onPress={() => void run(() => createAndSendProposalAction())}
+                  onPress={() => void run(() => sendClientWebLinkAction())}
                 >
-                  {busy ? 'Enviando proposta…' : 'Enviar proposta'}
+                  {busy ? 'Enviando link…' : 'Enviar link de agenda'}
                 </Button>
                 {(slot.tempoWarnings?.length ?? 0) > 0 ? (
                   <p className="agd-note" role="note">
-                    Este horário não passa no tempo do serviço. A proposta não é enviada.
+                    Este horário não passa no tempo do serviço. O link não é enviado.
                   </p>
                 ) : null}
               </>
@@ -1633,14 +1622,14 @@ function AgendarSuccess(props: {
         : success.kind === 'rescheduled'
           ? 'Horário reagendado'
           : success.kind === 'proposed'
-          ? 'Proposta enviada'
+          ? 'Link enviado'
           : 'Horário agendado'
   const noticeText: Record<NoticeStatus, string> = {
     sent: success.kind === 'signal' ? 'Cobrança enviada' : 'Mensagem enviada',
     failed: 'Não enviada',
     off: 'Não enviada (desligado)',
     unavailable: 'Não enviada',
-    proposed: 'Aguarda confirmação no WhatsApp',
+    proposed: 'Aguarda a cliente na página',
     proposal_handoff: 'Proposta preparada · janela fechada',
   }
   return (
@@ -1660,7 +1649,7 @@ function AgendarSuccess(props: {
         ) : null}
         {success.kind === 'proposed' ? (
           <p className="agd-note" role="note">
-            O horário e o atendimento só mudam depois do toque em Confirmar no WhatsApp.
+            O horário e o atendimento só mudam depois de a cliente confirmar na página.
           </p>
         ) : null}
         <dl className="agd-table">

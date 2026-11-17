@@ -28,8 +28,7 @@ describe('#414 dialogue acts', () => {
   })
 
   it('dialogueActIndex é estável e cobre 0..n-1', () => {
-    expect(dialogueActIndex('cnv_a', 'abrir', 3)).toBe(dialogueActIndex('cnv_a', 'abrir', 3))
-    expect(dialogueActIndex('cnv_a', 'abrir', 3)).not.toBe(dialogueActIndex('cnv_b', 'abrir', 3))
+    expect(dialogueActIndex('cnv_a', 'oferecer_horarios', 3)).toBe(dialogueActIndex('cnv_a', 'oferecer_horarios', 3))
     const seen = new Set<number>()
     for (let i = 0; i < 40; i++) {
       seen.add(dialogueActIndex(`cnv_${i}`, 'oferecer_horarios', 3))
@@ -39,18 +38,8 @@ describe('#414 dialogue acts', () => {
     for (const i of seen) expect(i).toBeLessThan(3)
   })
 
-  it('renderDialogueAct preenche nome só quando há primeiro contacto', () => {
-    const withName = renderDialogueAct('abrir', 'cnv_1', { nome: 'Carla' })
-    expect(withName.startsWith('Oi, Carla!')).toBe(true)
-    const noName = renderDialogueAct('abrir', 'cnv_1', {})
-    expect(noName.startsWith('Oi!')).toBe(true)
-    expect(noName).not.toMatch(/Oi,\s*!/)
-  })
-
   it('todas as redações preenchidas passam INV-05 e saem bem formadas (J-09)', () => {
     const samples: Array<[DialogueActId, Record<string, string>]> = [
-      ['abrir', { nome: 'Ana' }],
-      ['abrir', {}],
       ['perguntar_linha', { serviço: 'Depilação' }],
       ['perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas, Buço', assunto: 'depilação feminina' }],
       ['oferecer_horarios', { assunto: 'Limpeza de pele', quando: 'amanhã ', lista: '09:00, 10:00, 14:00' }],
@@ -64,12 +53,9 @@ describe('#414 dialogue acts', () => {
       ['informar_quem_faz', { pessoas: 'Gi' }],
       ['informar_quem_faz', { pessoas: 'Gi e Ana' }],
       ['informar_explicacao', { explicação: 'A limpeza remove impurezas da pele.' }],
-      ['acolher_adiamento', {}],
       ['esclarecer', {}],
       // Leva 2 (Proposta): funil de marcação.
       ['perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00' }],
-      ['perguntar_dia', { serviço: 'Massagem' }],
-      ['perguntar_horario', { serviço: 'Massagem' }],
       ['perguntar_servico', { lista: 'Massagem, Limpeza de pele' }],
       ['confirmar_servico', { serviço: 'Massagem' }],
       ['confirmar_hora_ambigua', { hora24: '15:00' }],
@@ -81,7 +67,6 @@ describe('#414 dialogue acts', () => {
       ['sem_vaga_sem_alternativa', { hora: '16:00' }],
       ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
       ['informar_preco_soma', { preço: 'R$ 160,00', duração: '45' }],
-      ['informar_preco_tabela', { serviço: 'Depilação', lista: 'Axila — R$ 40,00 (15 min)\nPernas — R$ 120,00 (30 min)', pergunta: 'Quais zonas você quer? Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.' }],
       ['recusar_mistura', {}],
       ['servico_inexistente', {}],
       ['varios_servicos', {}],
@@ -89,7 +74,6 @@ describe('#414 dialogue acts', () => {
       ['catalogo_mudou', {}],
       ['nao_consegui_fechar', { serviço: 'Massagem', hora: '10:00' }],
       ['orientar_terminar', {}],
-      ['orientar_ajuda_humana', {}],
     ]
     for (const [act, vars] of samples) {
       const all = renderEveryVariant(act, vars)
@@ -113,11 +97,11 @@ describe('#414 dialogue acts', () => {
   })
 
   it('a leva 2 (DEC-123) está aprovada: todos os atos se podem usar em produção', () => {
-    const leva2: DialogueActId[] = ['perguntar_dia', 'perguntar_horario', 'perguntar_servico', 'confirmar_servico',
+    const leva2: DialogueActId[] = ['perguntar_servico', 'confirmar_servico',
       'confirmar_hora_ambigua', 'sem_horario_periodo', 'sem_horario_dia', 'sem_horario_semana', 'sem_vaga_sem_alternativa',
-      'informar_preco_variante', 'informar_preco_soma', 'informar_preco_tabela', 'recusar_mistura', 'servico_inexistente', 'varios_servicos',
+      'informar_preco_variante', 'informar_preco_soma', 'recusar_mistura', 'servico_inexistente', 'varios_servicos',
       'historico_indisponivel', 'catalogo_mudou', 'nao_consegui_fechar']
-    expect(leva2).toHaveLength(18)
+    expect(leva2).toHaveLength(15)
     const vars = {
       serviço: 'Massagem',
       lista: 'Axila — R$ 40,00 (15 min)\nMassagem, Limpeza de pele',
@@ -176,10 +160,6 @@ describe('#414 dialogue acts', () => {
     // «fazem» não concorda com uma só pessoa («Ana fazem»).
     expect(DIALOGUE_ACTS.informar_quem_faz.some((t) => /\bfazem\b/.test(t))).toBe(false)
     for (const t of renderEveryVariant('informar_quem_faz', { pessoas: 'Ana' })) expect(t).not.toMatch(/Ana fazem/)
-    // A persona pode ser masculina (DEC-089): nenhuma abertura fixa «a assistente».
-    for (const t of DIALOGUE_ACTS.abrir) expect(t).not.toMatch(/\bSou a assistente\b/)
-    // «Combinado» lê-se como confirmação de horário.
-    for (const t of DIALOGUE_ACTS.acolher_adiamento) expect(t).not.toMatch(/Combinado/)
     // Sem imperativo seco nas perguntas das variantes.
     for (const t of DIALOGUE_ACTS.perguntar_variantes) expect(t).not.toMatch(/^Me diga/)
   })

@@ -5,7 +5,9 @@
 import type { Clock } from '../../db/clock'
 import type { PixProviderAdapter } from '../../pix/contract'
 import { writeOperationalAudit } from '../audit'
-import { AI_AUTOBOOK_ACTOR_ID, AI_AUTOBOOK_ACTOR_NAME } from '../ai/autobook'
+import { AI_AUTOBOOK_ACTOR as AI_AUTOBOOK_ACTOR_ID } from '../constants'
+
+const AI_AUTOBOOK_ACTOR_NAME = 'IA (agendamento automático)'
 import { cancelAutoDraft } from '../ai/autodraft'
 import { checkConversationProtection } from '../ai/protection'
 import { clearBookingFrame } from '../ai/schedule-session'

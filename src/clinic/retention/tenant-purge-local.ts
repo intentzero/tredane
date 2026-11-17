@@ -63,7 +63,6 @@ const WIPE_TABLES: readonly string[] = [
   'services',
   'resources',
   'clinic_settings',
-  'clinic_client_web',
   'inbound_events',
   'outbox_events',
   'f0_probe',

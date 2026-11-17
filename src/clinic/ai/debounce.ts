@@ -9,7 +9,7 @@
  * `looksLikeCompleteBookingRequest`; texto longo/frágil ou cobertura baixa mantém 7 s.
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai/budgets'
-import { isHubGreetingText } from '../../whatsapp/flow/hub-opening'
+import { isGreetingOnly as isHubGreetingText } from '../../clientweb/route-intent'
 import {
   COVERAGE_THRESHOLD,
   interpretTurn,

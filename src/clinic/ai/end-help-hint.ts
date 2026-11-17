@@ -77,14 +77,6 @@ export function botTaughtRestartPhraseInCopy(): boolean {
   return /diga\s+come[cç]ar\s+de\s+novo/i.test(RESET_DISCOVERY_HINT_TEXT)
 }
 
-/** Junta o hint de discovery ao corpo do option-miss. Idempotente. */
-export function appendResetDiscoveryHint(body: string): string {
-  const trimmed = body.trimEnd()
-  if (!trimmed) return RESET_DISCOVERY_HINT_TEXT
-  if (trimmed.includes(RESET_DISCOVERY_HINT_TEXT)) return trimmed
-  if (trimmed.includes('diga começar de novo')) return trimmed
-  return `${trimmed}\n\n${RESET_DISCOVERY_HINT_TEXT}`
-}
 
 export type FrameProgressHint = Pick<
   BookingFrame,
@@ -141,19 +133,6 @@ export function bookingFrameProgressKey(frame: FrameProgressHint | null | undefi
   ].join('|')
 }
 
-export function wasEndHelpHintSent(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-): boolean {
-  const row = db.get<{ sent: number }>(
-    `SELECT end_help_hint_sent AS sent FROM schedule_sessions
-     WHERE tenant_id = ? AND conversation_id = ?`,
-    tenantId,
-    conversationId,
-  )
-  return row?.sent === 1
-}
 
 export function markEndHelpHintSent(
   db: ClinicDb,
@@ -183,13 +162,6 @@ export function appendEndHelpHint(body: string, conversationId = ''): string {
   return `${trimmed}\n\n${hint}`
 }
 
-/** Soft-decline / adeus — não acrescentar hint. */
-export function isBookingExitReply(replyText: string, notes?: string): boolean {
-  if (notes && /DEC-147|abandon|soft.?decline|restart|CF-28/i.test(notes)) return true
-  return /quando quiser|fico por aqui|qualquer coisa|fica à vontade|fica a vontade/i.test(
-    replyText,
-  )
-}
 
 export function shouldAppendEndHelpHint(input: {
   replyText: string | undefined

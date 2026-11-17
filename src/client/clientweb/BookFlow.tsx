@@ -18,11 +18,13 @@ type Outcome = 'booked' | 'pix_signal' | 'paused' | 'error'
 
 type Props = {
   clinicName: string
+  /** Serviço reconhecido no chat (DEC-202): a página abre nele, se estiver ativo. */
+  initialServiceId?: string | null
   onExit: () => void
   onSessionLost: () => void
 }
 
-export function BookFlow({ clinicName, onExit, onSessionLost }: Props) {
+export function BookFlow({ clinicName, initialServiceId = null, onExit, onSessionLost }: Props) {
   const [catalog, setCatalog] = useState<Catalog | 'loading' | 'error'>('loading')
   const [line, setLine] = useState<Line | null>(null)
   const [step, setStep] = useState<Step>('service')
@@ -42,12 +44,19 @@ export function BookFlow({ clinicName, onExit, onSessionLost }: Props) {
       if (res === 'error') return setCatalog('error')
       setCatalog(res)
       setWeekStart(res.today)
+      const preset = initialServiceId ? res.services.find((s) => s.id === initialServiceId) : undefined
+      if (preset && preset.audience === 'qualquer' && preset.zones.every((z) => z.audience === 'ambos')) {
+        // Serviço que não depende de género: salta a lista (zonas, se houver, ou horário).
+        setService(preset)
+        setStep(preset.zones.length > 0 ? 'zones' : 'time')
+        return
+      }
       setStep(catalogNeedsLine(res) ? 'line' : 'service')
     })
     return () => {
       cancelled = true
     }
-  }, [onSessionLost])
+  }, [onSessionLost, initialServiceId])
 
   if (catalog === 'loading') {
     return (

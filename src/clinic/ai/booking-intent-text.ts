@@ -222,9 +222,6 @@ export const CATALOG_PRICE_ASK =
 export const PAYMENT_METHOD_ASK =
   /\b(cart[aã]o|credito|cr[eé]dito|debito|d[eé]bito|parcel\w*|boleto|forma(s)?\s+de\s+pagamento|aceita(m)?\s+cart)\b/i
 
-export function isPaymentMethodAsk(text: string): boolean {
-  return PAYMENT_METHOD_ASK.test(text)
-}
 
 /** Pedido de preço/duração — não deve seleccionar variante (D4). */
 export function isCatalogInfoAsk(text: string): boolean {

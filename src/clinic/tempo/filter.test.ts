@@ -3,7 +3,6 @@
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
-import { tryAiAutoBook } from '../ai/autobook'
 import { formatClinicTime } from '../ai/schedule-context'
 import {
   setForecastPlaceOp,
@@ -147,38 +146,6 @@ describe('filtro automático do bloco Tempo (S5)', () => {
     }
   })
 
-  it('não nasce proposta para as 15h quando o tempo não serve', async () => {
-    const s = seedList()
-    try {
-      setForecastPlaceOp(s.db, s.caller, { mode: 'cidade', city: 'Campinas' }, s.clock)
-      const contact = upsertContact(s.db, { tenantId: s.caller.tenantId, waId: '5511999000015', displayName: 'Ana' }, s.clock)
-      const conversation = createConversation(s.db, { tenantId: s.caller.tenantId, contactId: contact.id, status: 'open' }, s.clock)
-      insertMessage(
-        s.db,
-        {
-          tenantId: s.caller.tenantId,
-          conversationId: conversation.id,
-          direction: 'inbound',
-          body: 'Quero Bronzeamento hoje às 15h',
-          externalMessageId: 'wamid.tempo_s5',
-          deliveryState: 'received',
-          authorClerkUserId: null,
-          authorDisplayName: null,
-          createdAt: s.clock.nowMs(),
-        },
-        s.clock,
-      )
-      const out = await tryAiAutoBook(s.db, s.caller, s.clock, {
-        conversationId: conversation.id,
-        capability: true,
-        forecast: reading('encoberto', 30),
-      })
-      expect(out.proposalId).toBeUndefined()
-      expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointment_proposals`)?.n).toBe(0)
-    } finally {
-      s.close()
-    }
-  })
 })
 
 function seedClick() {

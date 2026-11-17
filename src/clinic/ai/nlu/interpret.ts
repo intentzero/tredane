@@ -416,35 +416,3 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
   return { acts, slots, coverage, needsExtractor }
 }
 
-const FALLBACK_BOOK =
-  /\b(quero|queria|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|fazer|preciso)\b/i
-
-/** Lacuna de serviço para o extrator LLM (fallback só-serviço; sombra 72h). */
-export function interpreterFallbackGaps(input: {
-  acts: TurnAct[]
-  slots: TurnSlots
-  turnText: string
-}): ('service')[] {
-  const faqActsOnly =
-    input.acts.length > 0 &&
-    !input.acts.includes('marcar') &&
-    input.acts.every((a) =>
-      a === 'informar_horario_funcionamento' ||
-      a === 'informar_local' ||
-      a === 'informar_preco' ||
-      a === 'explicar',
-    )
-  if (faqActsOnly) return []
-
-  const bookingSignal =
-    input.acts.includes('marcar') ||
-    FALLBACK_BOOK.test(input.turnText) ||
-    SCHEDULING_AVAILABILITY_CUE.test(input.turnText) ||
-    input.slots.date != null ||
-    input.slots.time != null ||
-    input.slots.period != null ||
-    input.slots.dateLiteral != null
-
-  if (!input.slots.serviceId && bookingSignal) return ['service']
-  return []
-}

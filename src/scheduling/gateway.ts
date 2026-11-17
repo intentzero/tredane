@@ -26,17 +26,15 @@ import type {
   ListHoldsInput,
   ScheduleHoldView,
 } from '../clinic/scheduling'
-import type {
-  AppointmentProposalRow,
-  CreateAndSendStaffProposalInput,
-  SendProposalResult,
-} from '../clinic/proposals'
-import { clinicProposals } from '../clinic'
+export type StaffClientWebLinkInput = {
+  conversationId: string
+  purpose?: 'agendar' | 'remarcar' | 'cancelar'
+  serviceId?: string | null
+  appointmentId?: string | null
+}
 
-export type StaffProposalSendResult = {
-  appointmentCreated: false
-  sendStatus: SendProposalResult['status']
-  proposal: AppointmentProposalRow
+export type StaffClientWebLinkResult = {
+  status: 'sent' | 'window_closed' | 'unavailable' | 'not_found'
 }
 
 export type SchedulingGateway = {
@@ -74,11 +72,11 @@ export type SchedulingGateway = {
     input: CreateHoldInput,
   ): Promise<HoldMutationResult<CreateHoldResult>>
   listHolds(caller: ClinicCaller, input: ListHoldsInput): Promise<ScheduleHoldView[]>
-  /** DEC-061: atendente envia proposta (sem marcar). */
-  createAndSendProposal(
+  /** DEC-202: a equipe envia à cliente o link da página de agenda (não marca nada). */
+  sendClientWebLink(
     caller: ClinicCaller,
-    input: CreateAndSendStaffProposalInput,
-  ): Promise<StaffProposalSendResult>
+    input: StaffClientWebLinkInput,
+  ): Promise<StaffClientWebLinkResult>
 }
 
 export function createMemorySchedulingGateway(
@@ -121,13 +119,9 @@ export function createMemorySchedulingGateway(
     async listHolds(caller, input) {
       return clinicScheduling.listHoldsOp(db, caller, input, clock)
     },
-    async createAndSendProposal(caller, input) {
-      const result = clinicProposals.createAndSendStaffProposalOp(db, caller, input, clock)
-      return {
-        appointmentCreated: false as const,
-        sendStatus: result.sendStatus,
-        proposal: result.proposal,
-      }
+    async sendClientWebLink() {
+      // O link emite-se no D1 central: sem ele (testes em memória) não há link possível.
+      return { status: 'unavailable' as const }
     },
   }
 }

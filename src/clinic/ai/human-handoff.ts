@@ -6,7 +6,9 @@
  * fora do expediente: pedido registado, IA activa; botão «Falar com a equipe» nas interactivas (21/11/2026).
  */
 import type { SendOutboundInteractiveInput } from '../inbox/types'
-import { META_LIST_MAX_ROWS, META_LIST_ROW_TITLE_MAX } from './choice-offer'
+/** Limites da lista interativa da Meta (linhas e título da linha). */
+const META_LIST_MAX_ROWS = 10
+const META_LIST_ROW_TITLE_MAX = 24
 import { AI_ACTOR_ID, AI_ACTOR_NAME } from '../ai-actor'
 import type { Clock } from '../../db/clock'
 import { HANDOFF_TIMEOUT_MS } from '../constants'
@@ -18,7 +20,7 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import { CLINIC_SCOPE_ID } from '../config/types'
-import { getConversation, setConversationAssignee } from '../inbox/conversations'
+import { setConversationAssignee } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
@@ -27,12 +29,11 @@ import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import { dayTextPt } from './slot-offer'
 import type { ClinicDb } from '../store'
-import { isCancelIntent, loadUpcomingAppointment } from './reschedule'
+import { isCancelRequest } from '../../clientweb/route-intent'
 import {
   HEALTH_RE,
   OFF_TOPIC_RE,
   PIX_OFF_PURPOSE_RE,
-  RESCHEDULE_RE,
   classifySensitive,
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
@@ -51,11 +52,6 @@ import {
 import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
 import { isCatalogInfoAsk, isShortBookingAffirm } from './booking-intent-text'
-import {
-  planIdleContinueResume,
-  sendIdleContinueProposalReoffer,
-  sendIdleContinueReoffer,
-} from '../followup/idle-continue-resume'
 
 const PERIOD_LABEL: Record<string, string> = {
   manha: 'manhã',
@@ -249,7 +245,7 @@ function clinicMinuteOfDay(tz: string, nowMs: number): number {
 
 /**
  * Clínica aberta agora pelo expediente efectivo (mesma base que DEC-113 / hub).
- * Evita import circular com `whatsapp/flow/hub-opening`.
+ * Evita import circular com `clientweb/hub`.
  */
 export function isClinicOpenForHandoff(
   db: ClinicDb,
@@ -440,24 +436,6 @@ export function replyAfterHoursHumanRequest(
     outbox.push(...result.outbox)
   } catch (err) {
     if (!(err instanceof ClinicError)) throw err
-  }
-  const plan = planIdleContinueResume(db, tenantId, input.conversationId, clock)
-  const caller = workerCaller(tenantId, AI_ASSIGNEE)
-  if (plan.mode === 'reoffer_proposal') {
-    const reoffer = sendIdleContinueProposalReoffer(db, caller, {
-      tenantId,
-      conversationId: input.conversationId,
-      proposalId: plan.proposalId,
-      clientRequestId: `${input.clientRequestId}:reoffer-proposal`,
-    }, clock)
-    if (!reoffer.duplicate) outbox.push(...reoffer.outbox)
-  } else if (plan.mode === 'reoffer') {
-    const reoffer = sendIdleContinueReoffer(db, caller, {
-      tenantId,
-      conversationId: input.conversationId,
-      clientRequestId: `${input.clientRequestId}:reoffer-pending`,
-    }, clock)
-    if (!reoffer.duplicate) outbox.push(...reoffer.outbox)
   }
   return { outbox }
 }
@@ -666,20 +644,6 @@ export function replyWhileHandoffPaused(
   return { outbox }
 }
 
-export function clearHandoffTimeout(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  updatedAt: number,
-): void {
-  db.run(
-    `UPDATE conversations SET ai_handoff_timeout_at = NULL, updated_at = ?
-     WHERE tenant_id = ? AND id = ?`,
-    updatedAt,
-    tenantId,
-    conversationId,
-  )
-}
 
 export function readHandoffTimeoutAt(
   db: ClinicDb,
@@ -1012,7 +976,6 @@ export function handoffReason(
   text: string,
   clock: Clock,
   turn?: { catalog: { services: import('../config/types').ServiceRow[]; resources: import('../config/types').ResourceRow[] } },
-  opts?: { conversationId?: string },
 ): AiReplyPauseReason | null {
   const body = text.trim()
   if (!body) return null
@@ -1025,8 +988,7 @@ export function handoffReason(
   if (hasStopRequest(hits)) return 'customer_requested'
   if (!wantsHumanPause(hits) && !OFF_TOPIC_RE.test(body) && !PIX_OFF_PURPOSE_RE.test(body)) {
     if (professionalOutsideService(db, tenantId, body, clock, turn)) return 'human_only'
-    // Remarcação: o autodraft tenta DEC-091 antes; sem compromisso futuro → human_only lá.
-    if (RESCHEDULE_RE.test(body) && !hits.some((h) => h.label === 'pedir_pessoa')) return 'human_only'
+    // DEC-202: remarcar e cancelar não passam à equipe; o autodraft envia o link «Abrir agenda».
     return null
   }
   if (hits.some((h) => h.label === 'pedir_pessoa' || h.label === 'pedir_parar')) return 'customer_requested'
@@ -1038,20 +1000,11 @@ export function handoffReason(
   ) {
     return 'off_purpose'
   }
-  if (hits.some((h) => h.label === 'cancelar')) {
-    if (opts?.conversationId && isCancelIntent(body)) {
-      const conv = getConversation(db, tenantId, opts.conversationId)
-      if (conv) {
-        const upcoming = loadUpcomingAppointment(db, tenantId, conv.contactId, clock.nowMs())
-        if (upcoming) return null
-      }
-    }
-    return 'human_only'
-  }
+  // DEC-202: cancelar tem o link «Abrir agenda»; só passa à equipe se o link não puder sair.
+  if (hits.some((h) => h.label === 'cancelar') && isCancelRequest(body)) return null
   if (hits.some((h) => h.label === 'terceiro') || professionalOutsideService(db, tenantId, body, clock)) {
     return 'human_only'
   }
-  if (RESCHEDULE_RE.test(body)) return 'human_only'
   return null
 }
 

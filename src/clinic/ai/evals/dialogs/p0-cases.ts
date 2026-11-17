@@ -1,98 +1,34 @@
 /**
- * Casos P0 da matriz para o harness L1 (#406).
+ * Casos L1 do chat (DEC-202): o chat informa e encaminha; marcar, remarcar e cancelar são na
+ * página web (família GU em `gu-cases.ts`). Aqui ficam os casos que não dependem do funil:
+ * informação (preço, horário, política), equipe, transparência, parar, saúde, injeção, mídia,
+ * falhas do modelo e fila Para revisão.
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
- * A-13..A-19: sonda de novembro / F1-0 (#506).
- * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
- * CC-*, A-22, A-23, A-32, CC-07/CC-08: consulta de catálogo, Confirmar suspenso, D3/D4 (`cc-cases.ts`).
- * A-24: nome do serviço ≠ variante (Massagem com tipos; Paulo 07/11/2026).
- * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
- * A-29, A-30: desistência educada após oferta de horários (DEC-147).
- * A-31: hora solta «14» contra pending de horário (DEC-127 / #605).
- * A-35: «Terminar» mid-oferta (DEC-152 / #629).
- * A-36: após soft-close Terminar, novo pedido não reusa variante/slots (leftover).
- * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 stack esclarecer).
- * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
- * A-42: 1.ª oferta de Horários leva dica «falar com a equipe» (DEC-153); 2.ª oferta no unitário.
- * A-43: meta «Como faço para terminar?» → HOW_TO_END_REPLY (#660 / DEC-154); sem soft-close/handoff.
- * A-47: «avaliar» → fila Para revisão + ack Continuar|Terminar; sem pausar IA / limpar frame (DEC-157 / TRE-29).
- * A-51: «avaliar …» com comentário livre → mesma fila + `review_client_comment` (DEC-166).
- * A-55: após ack Avaliar, toque Terminar → farewell + limpa frame (TRE-29).
- * A-56: após ack Avaliar, toque Continuar → retoma («Combinado!» ou reoferta) (TRE-29).
- * A-52: typo «feora»←«feira» após massagem relaxante ≠ option-miss (TRE-11 / DEC-145).
- * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
- * A-50: «gostaria de saber» não ecoa «saber» como zona (zonas-cases).
- * A-53 / A-54: FAQ mid-zonas (DEC-177) — zonas-cases.
- * A-60: FAQ institucional mid-funnel (DEC-185) — zonas-cases.
- * A-61 / A-62: FAQ «O que inclui a íntima?» variante vs serviço (DEC-177) — zonas-cases.
- * A-63..A-65: FAQ «é o que?» / «como é feita» (DEC-177 cue) — zonas-cases.
- * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
- * A-49: cartão DEC-141 A+B — fillers/stopwords fora; só nomes populares; sem auto-Gravar.
- * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
- *   Só copy/botões; apt e frame no mesmo serviço — não fecha troca Depilação→Massagem.
- * G-07c: day re-ask + time pick com apt Massagem e frame Depilação → proposal.serviceId
- *   Depilação (staging Paulo ~14:03 SP 09/11/2026; lacuna pós-#644).
- * G-07d: mid-booking SOFT_DAY («Posso para hoje?») com apt Massagem ≠ remarcação (audit C1).
- * G-07e: serviceChanged sai de remarcando e limpa rescheduleAppointmentId (audit C2 / #651).
- * G-07f: time-pick com oferta viva prefere frame.serviceId ao histórico (audit H1 / #652).
- * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
- * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
- * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
- * F-12: «Sim» após «Quer ver outro período?» limpa period=noite sticky (staging Paulo 09/11/2026).
- * F-13: «Sim» após «Quer ver outro dia?» limpa date sticky (sibling #655 / sticky-frame audit F2).
- * F-14: eco Sim das zonas não herda period sticky (silencioso 1, Paulo 09/11/2026).
- * F-15: «sexta + manhã» após oferta «amanhã à tarde» remapeia o dia (rsamp_f3b49 / TR-528).
- * F-16: proposta aberta + «próxima segunda» remapeia e reoferece (rsamp_fa7f138).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
-  acceptUnmatchedTermOp,
-  createBlockOp,
-  getService,
   listServices,
-  listUnmatchedTermsOp,
-  recordUnmatchedTerm,
   replaceServiceZonesOp,
-  setServiceActiveOp,
   upsertServiceOp,
 } from '../../../config'
-import { setClinicAiProfile } from '../../../config/settings'
 import {
-  IDLE_CLOSE_AFTER_MS,
-  IDLE_CONTINUE_REPLY_BODY,
-  IDLE_PROMPT_AFTER_MS,
-  IDLE_PROMPT_BODY,
-  rescheduleConversationIdle,
-  sweepDueIdleConversations,
 } from '../../../followup/idle'
-import { handleReviewFlagAckButtonClick } from '../../../followup/review-ack'
-import { isTerminarFarewellBody } from '../../../followup/terminar-farewell'
 import {
-  reviewFlagAckButtonId,
   reviewFlagAckInteractiveButtons,
 } from '../../../inbox/review-flag'
-import { ensureOpenOpportunity } from '../../../pipeline'
-import { encodeChoiceId } from '../../choice-offer'
 import {
   HUMAN_HANDOFF_BUTTON_ID,
   HUMAN_HANDOFF_BUTTON_TITLE,
 } from '../../human-handoff'
 import {
-  getBookingFrame,
-  getScheduleSession,
-  saveBookingFrame,
   saveScheduleSession,
 } from '../../schedule-session'
 import {
-  APPOINTMENT_PROPOSAL_VALIDITY_MS,
   type DialogCase,
 } from './runner'
-import { DIALOG_NOW_MS } from './scenario'
-import { CC_DIALOG_CASES } from './cc-cases'
-import { FL_DIALOG_CASES } from './fl-cases'
-import { CW_DIALOG_CASES } from './cw-cases'
-import { ZONAS_DIALOG_CASES } from './zonas-cases'
-import { LAB_2026_11_16_CASES } from './lab-2026-11-16-cases'
 
+import { zonedCivilToUtc } from '../../../scheduling'
+import { GU_DIALOG_CASES, GU_TZ as TZ, seedFutureAppointment } from './gu-cases'
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
     return {
@@ -104,6 +40,18 @@ class TimeoutAdapter extends SimulatedAiAdapter {
       provider: this.providerId,
       model: 'test',
     }
+  }
+}
+
+/** Redator de exceção que devolve sempre o mesmo texto. */
+class FixedExceptionAdapter extends SimulatedAiAdapter {
+  constructor(private readonly mensagem: string) {
+    super()
+  }
+  override async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
+    const r = await super.generate(input)
+    if (!r.ok || input.profile !== 'exception') return r
+    return { ...r, text: JSON.stringify({ mensagem: this.mensagem, notas: '' }) }
   }
 }
 
@@ -119,597 +67,8 @@ class FixedJsonAdapter extends SimulatedAiAdapter {
 }
 
 /** P0 da matriz (53) + P1 do aceite #408/#409 registados no harness (64 no total). */
+/** Casos de informação, equipe e segurança que sobrevivem ao fim do funil. */
 export const P0_DIALOG_CASES: DialogCase[] = [
-  {
-    id: 'A-01',
-    title: 'Pedido completo, serviço simples',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero limpeza de pele amanhã às 15h' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'A-02',
-    title: 'Pedido incremental',
-    turnosIdeais: 3,
-    // CF-19 (#413): 1.ª resposta oferece 2–3 horários reais (ou pergunta o dia).
-    turns: [
-      { role: 'client', text: 'Oi, quero fazer limpeza de pele' },
-      { role: 'client', text: 'amanhã' },
-      { role: 'client', text: '14h' },
-    ],
-    expect: {
-      proposal: true,
-      turns: [{ turn: 0, matches: [/\d{2}:\d{2}|qual dia|que dia|dia fica/i] }],
-    },
-  },
-  {
-    id: 'A-06',
-    title: 'O mais cedo possível',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Qual o primeiro horário para massagem?' }],
-    expect: {
-      proposal: false,
-      turns: [{ turn: 0, matches: [/\d{2}:\d{2}/] }],
-    },
-  },
-  {
-    id: 'A-07',
-    title: 'Escolha por «o das N»',
-    turnosIdeais: 1,
-    // M2 / CF-22: pending.options no frame; «o das 14» não depende do extractTimes.
-    prepare: (s) => {
-      const offerId = s.sayOutbound(
-        'Para Massagem, amanhã tenho sexta 06/11 às 13:00, 14:00 e 15:30. Qual fica melhor?',
-      )
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.massagem,
-          date: '2026-11-06',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '13:00', label: '2026-11-06 às 13:00' },
-              { key: '14:00', label: '2026-11-06 às 14:00' },
-              { key: '15:30', label: '2026-11-06 às 15:30' },
-            ],
-            messageId: offerId,
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 6, 16, 0), professionalId: s.ids.ana },
-              { startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana },
-              { startsAt: Date.UTC(2026, 10, 6, 18, 30), professionalId: s.ids.ana },
-            ],
-            messageId: offerId,
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'o das 14' }],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
-  },
-  {
-    id: 'A-08',
-    title: 'Escolha por ordinal',
-    turnosIdeais: 1,
-    prepare: (s) => {
-      const offerId = s.sayOutbound(
-        'Para Massagem, amanhã tenho sexta 06/11 às 13:00, 14:00 e 15:30. Qual fica melhor?',
-      )
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.massagem,
-          date: '2026-11-06',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '13:00', label: '2026-11-06 às 13:00' },
-              { key: '14:00', label: '2026-11-06 às 14:00' },
-              { key: '15:30', label: '2026-11-06 às 15:30' },
-            ],
-            messageId: offerId,
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 6, 16, 0), professionalId: s.ids.ana },
-              { startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana },
-              { startsAt: Date.UTC(2026, 10, 6, 18, 30), professionalId: s.ids.ana },
-            ],
-            messageId: offerId,
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'a segunda opção' }],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
-  },
-  {
-    id: 'A-12',
-    title: 'Sem preferência de dia',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero massagem, qualquer dia de tarde' }],
-    expect: {
-      proposal: false,
-      turns: [{ turn: 0, matches: [/\d{2}:\d{2}/, /tarde/i] }],
-    },
-  },
-  {
-    id: 'A-03',
-    title: 'Variantes com linha, passo a passo',
-    turnosIdeais: 5,
-    turns: [
-      { role: 'client', text: 'Quero depilação' },
-      { role: 'client', text: 'feminina' },
-      { role: 'client', text: 'axila e pernas' },
-      { role: 'client', text: 'sexta de manhã' },
-      { role: 'client', text: '10h' },
-    ],
-    // Preço (axila + pernas femininas = R$ 160,00) só no cartão (DEC-090).
-    // Turno 1: pergunta de zonas em modo varias = texto livre (DEC-191; revê DEC-178).
-    expect: {
-      proposal: true,
-      turns: [
-        { turn: 0, excludes: [/R\$/] },
-        {
-          turn: 1,
-          matches: [/quais zonas/i, /Escreva uma ou várias/i, /axila e pernas/i],
-          excludes: [/Toque em Opções/i, /Pode ser mais de uma/i],
-        },
-        { turn: 3, excludes: [/R\$/] },
-        { turn: 4, matches: [/R\$ 160,00/] },
-      ],
-    },
-  },
-  {
-    id: 'A-04',
-    title: 'Tudo num turno com variante',
-    turnosIdeais: 1,
-    // CF-24 (#435, corrigido): «às 10h» era lida como duração de 10 h e descartava as zonas.
-    turns: [{ role: 'client', text: 'Quero depilação feminina de axila sexta às 10h' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'A-05',
-    title: 'Serviço com sinal',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero peeling químico sexta às 10h' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'A-09',
-    title: 'Várias bolhas em menos de 7 s',
-    turnosIdeais: 1,
-    // CF-13 (corrigido na #409): três bolhas seguidas → um único job → só a proposta.
-    turns: [{ role: 'burst', texts: ['Oi', 'queria limpeza de pele', 'amanhã às 15h'] }],
-    expect: { proposal: true, outboundCount: 1 },
-  },
-  {
-    id: 'B-01',
-    title: 'Dia da semana + data',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele sábado dia 7 às 10h' }],
-    expect: { proposal: true },
-  },
-  {
-    id: 'B-02',
-    title: 'Mês por extenso',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele dia 5 de dezembro às 10h' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'B-03',
-    title: 'Próxima com o mesmo dia da semana',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele próxima quinta às 15h' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'B-04',
-    title: 'Semana que vem sem dia',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero massagem semana que vem de manhã' }],
-    expect: {
-      proposal: false,
-      outboundIncludes: ['segunda 09/11', 'manhã'],
-      outboundExcludes: [/\bhoje\b/i],
-    },
-  },
-  {
-    id: 'B-06',
-    title: '3 da tarde sem às',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Massagem amanhã 3 da tarde' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'B-07',
-    title: '15 e 30',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele amanhã 15 e 30' }],
-    expect: { proposal: true, noAppointment: true },
-  },
-  {
-    id: 'B-08',
-    title: 'Data impossível',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele 31/11 às 10h' }],
-    expect: { proposal: false, noAppointment: true },
-  },
-  {
-    id: 'A-10',
-    title: 'meio-dia',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele sexta ao meio-dia' }],
-    // 12:00 no vão do almoço → sem proposta; reconhece 12:00 (não inventa outro).
-    expect: { proposal: false, noAppointment: true },
-  },
-  {
-    id: 'B-05',
-    title: 'às 3 sem período',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Massagem amanhã às 3' }],
-    expect: {
-      outboundIncludes: ['15:00'],
-      outboundExcludes: [/\b03:00\b/],
-    },
-  },
-  {
-    id: 'B-09',
-    title: 'Dia fechado',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'limpeza de pele domingo às 10h' }],
-    expect: {
-      proposal: false,
-      turns: [{ turn: 0, matches: [/segunda|sábado|sexta|\d{2}:\d{2}/i] }],
-    },
-  },
-  {
-    id: 'B-10',
-    title: 'Hora já passada hoje',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'limpeza de pele hoje às 9h' }],
-    expect: { proposal: false, turns: [{ turn: 0, matches: [/\d{2}:\d{2}/] }] },
-  },
-  {
-    id: 'B-11',
-    title: 'Termina depois do expediente',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele sexta às 17h30' }],
-    // A frase pode ecoar «17:30» («já não tenho vaga»); o aceite é alternativas ≤ 16h.
-    expect: {
-      proposal: false,
-      turns: [{ turn: 0, matches: [/\b(15|16|14):\d{2}/] }],
-    },
-  },
-  {
-    id: 'B-13',
-    title: 'Conversa atravessa a meia-noite',
-    turnosIdeais: 2,
-    // qui 23:50 → sex 00:05 (SP). A oferta ecoa «sexta 06/11»: o dia fica protegido.
-    // CF-21 (dia relativo na sessão) não se reproduz aqui nem em B-14.
-    nowMs: Date.UTC(2026, 10, 6, 2, 50),
-    turns: [
-      { role: 'client', text: 'limpeza de pele amanhã à tarde' },
-      { role: 'clock', setMs: Date.UTC(2026, 10, 6, 3, 5) },
-      { role: 'client', text: '14h' },
-    ],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
-  },
-  {
-    id: 'B-14',
-    title: 'Meia-noite sem a data na resposta',
-    turnosIdeais: 2,
-    // Variante do B-13 sem eco do dia: a resposta só pergunta a hora.
-    nowMs: Date.UTC(2026, 10, 6, 2, 50),
-    turns: [
-      { role: 'client', text: 'limpeza de pele amanhã' },
-      { role: 'clock', setMs: Date.UTC(2026, 10, 6, 3, 5) },
-      { role: 'client', text: '14h' },
-    ],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
-  },
-  {
-    id: 'C-01',
-    title: 'Aceite com acho',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele amanhã' },
-      { role: 'client', text: 'acho que 15h tá ótimo' },
-    ],
-    expect: { proposal: true },
-  },
-  {
-    id: 'C-02',
-    title: 'ver no pedido completo',
-    turnosIdeais: 1,
-    // Matriz: «a limpeza»; no catálogo L1 há duas limpezas → nome completo (CF-05 = «ver»).
-    turns: [{ role: 'client', text: 'quero ver amanhã às 15h a limpeza de pele' }],
-    expect: { proposal: true },
-  },
-  {
-    id: 'C-03',
-    title: 'Valor lido como hora',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele amanhã' },
-      { role: 'client', text: 'custa 1500?' },
-    ],
-    expect: { proposal: false },
-  },
-  {
-    id: 'C-12',
-    title: 'Duração lida como hora',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele sexta' },
-      { role: 'client', text: 'a sessão dura 1h?' },
-    ],
-    expect: { proposal: false },
-  },
-  {
-    id: 'C-05',
-    title: 'Emoji como aceite',
-    turnosIdeais: 1,
-    // DEC-127.3: 👍 com uma opção pendente escolhe; não marca (DEC-061).
-    prepare: (s) => {
-      const offerId = s.sayOutbound('Para Massagem, amanhã tenho sexta 06/11 às 14:00. Qual fica melhor?')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.massagem,
-          date: '2026-11-06',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [{ key: '14:00', label: '2026-11-06 às 14:00' }],
-            messageId: offerId,
-          },
-          lastOffer: {
-            slots: [{ startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana }],
-            messageId: offerId,
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: '👍' }],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' }, noAppointment: true },
-  },
-  {
-    id: 'C-06',
-    title: 'Sim a pergunta lateral',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'clinic', text: 'Você já fez limpeza de pele antes?' },
-      { role: 'client', text: 'sim' },
-    ],
-    expect: { proposal: false },
-  },
-  {
-    id: 'C-07',
-    title: 'Muda de serviço depois da proposta',
-    turnosIdeais: 1,
-    // CF-23 (#436 / #440): a proposta da limpeza deixa de valer e sai a da massagem, no mesmo dia e hora.
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
-      { role: 'client', text: 'na verdade prefiro massagem' },
-    ],
-    expect: {
-      turns: [{ turn: 1, matches: [/Fica assim:\s*Massagem/i] }],
-      openProposals: 1,
-      supersededProposals: 1,
-      proposalAt: { date: '2026-11-06', time: '15:00' },
-    },
-  },
-  {
-    id: 'C-08',
-    title: 'Corrige a hora com não',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
-      { role: 'client', text: 'não, 16h' },
-    ],
-    expect: { proposal: true },
-  },
-  {
-    id: 'C-11',
-    title: 'Outra sessão',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'quero marcar outra sessão de limpeza de pele amanhã 15h' }],
-    expect: { proposal: true },
-  },
-  {
-    id: 'C-10',
-    title: 'Áudio ou imagem sem texto',
-    turnosIdeais: 1,
-    turns: [{ role: 'client_media', kind: 'audio' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      outboundIncludes: ['Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?'],
-      outboundExcludes: [/Posso ajudar/i, /Olá Carla/i],
-      outboundCount: 1,
-    },
-  },
-  {
-    id: 'C-14',
-    title: 'Imagem com legenda',
-    turnosIdeais: 1,
-    turns: [
-      {
-        role: 'client_media',
-        kind: 'image',
-        caption: 'quero assim, tem horário amanhã para limpeza de pele?',
-      },
-    ],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
-      turns: [{ turn: 0, matches: [/\d{2}:\d{2}|qual dia|que dia|amanh/i] }],
-    },
-  },
-  {
-    id: 'C-15',
-    title: 'Segundo áudio depois do pedido de texto',
-    turnosIdeais: 2,
-    turns: [
-      { role: 'client_media', kind: 'audio' },
-      { role: 'client_media', kind: 'audio' },
-    ],
-    expect: {
-      proposal: false,
-      paused: true,
-      outboundIncludes: [
-        'Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?',
-        'Vou pedir para a equipe continuar daqui.',
-      ],
-      outboundCount: 2,
-    },
-  },
-  {
-    id: 'C-16',
-    title: 'Comprovativo de Pix em imagem',
-    turnosIdeais: 1,
-    prepare: (s) => {
-      const now = s.clock.nowMs()
-      s.db.run(
-        `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents,
-           status, expires_at, contact_id, created_at, updated_at)
-         VALUES (?, ?, 'acc_dialog_pix', 'fake', 'ext_dialog_pix', 5000, 'awaiting_payment', ?, ?, ?, ?)`,
-        'chg_dialog_pix',
-        s.tenantId,
-        now + 3_600_000,
-        s.contactId,
-        now,
-        now,
-      )
-    },
-    turns: [{ role: 'client_media', kind: 'image' }],
-    expect: {
-      proposal: false,
-      paused: true,
-      outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
-      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
-      outboundCount: 1,
-    },
-  },
-  {
-    id: 'D-01',
-    title: 'Horário ocupado',
-    turnosIdeais: 1,
-    // Ana e Bia (quem faz limpeza) bloqueadas sexta 06/11 16:00–18:00 (SP), como no cenário da matriz.
-    prepare: (s) => {
-      for (const id of [s.ids.ana, s.ids.bia]) {
-        createBlockOp(
-          s.db,
-          s.caller,
-          { resourceId: id, startsAt: Date.UTC(2026, 10, 6, 19, 0), endsAt: Date.UTC(2026, 10, 6, 21, 0), reason: 'outro' },
-          s.clock,
-        )
-      }
-    },
-    // CF-15 (#413): alternativas por proximidade no período da tarde.
-    turns: [{ role: 'client', text: 'limpeza de pele sexta 16h' }],
-    expect: {
-      proposal: false,
-      turns: [{ turn: 0, matches: [/\b(14|15):00/], excludes: [/\b(09|10|11):\d{2}/] }],
-    },
-  },
-  {
-    id: 'D-02',
-    title: 'Dia sem vagas',
-    turnosIdeais: 1,
-    // Sexta 06/11 lotada 09:00–18:00 para Ana e Bia.
-    prepare: (s) => {
-      for (const id of [s.ids.ana, s.ids.bia]) {
-        createBlockOp(
-          s.db,
-          s.caller,
-          { resourceId: id, startsAt: Date.UTC(2026, 10, 6, 12, 0), endsAt: Date.UTC(2026, 10, 6, 21, 0), reason: 'outro' },
-          s.clock,
-        )
-      }
-    },
-    turns: [{ role: 'client', text: 'Limpeza de pele sexta' }],
-    expect: {
-      proposal: false,
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{2}:\d{2}/, /sábado|segunda|07\/11|09\/11/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'D-03',
-    title: 'Serviço inexistente',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Vocês fazem botox?' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      outboundExcludes: [/maps\.|goo\.gl|google/i],
-      turns: [{ turn: 0, matches: [/botox/i, /Temos /] }],
-    },
-  },
-  {
-    id: 'D-04',
-    title: 'Mistura masculino e feminino',
-    turnosIdeais: 1,
-    // CF-25 (#437): tinha a mesma causa do CF-24 («sexta 10h» lido como duração descartava as zonas).
-    turns: [
-      {
-        role: 'client',
-        text: 'Depilação axila masculina e pernas femininas sexta 10h',
-      },
-    ],
-    expect: {
-      proposal: false,
-      outboundExcludes: [/\bambos\b/i, /\blinha\b/i],
-      turns: [{ turn: 0, matches: [/mesma visita|misturam|compat/i] }],
-    },
-  },
-  {
-    id: 'D-10',
-    title: 'Zona homónima sem linha pergunta a linha, não recusa mistura (CF-43)',
-    turnosIdeais: 1,
-    // CF-43: «Axila» existe na Feminina e na Masculina (DEC-079). Sem palavra de
-    // linha é ambíguo → pergunta (DEC-090). Mistura explícita continua em D-04.
-    turns: [{ role: 'client', text: 'quero depilar a axila' }],
-    expect: {
-      proposal: false,
-      turns: [{ turn: 0, matches: [/feminina ou masculina/i], excludes: [/juntar masculino e feminino/i] }],
-    },
-  },
-  {
-    id: 'D-06',
-    title: 'Profissional que faz',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Limpeza de pele com a Bia sexta 10h' }],
-    expect: { proposal: true, professionalKey: 'bia' },
-  },
-  {
-    id: 'D-08',
-    title: 'Serviço sem preço',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quanto custa microagulhamento?' }],
-    expect: { turns: [{ turn: 0, matches: [/equipe/i], excludes: [/R\$/] }] },
-  },
   {
     id: 'E-01',
     title: 'Preço de serviço simples',
@@ -717,23 +76,6 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     // CA-03 / #413: preço + duração determinísticos (sem modelo).
     turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele?' }],
     expect: { turns: [{ turn: 0, matches: [/R\$\s*180,00/, /60 min/] }] },
-  },
-  {
-    id: 'F-08',
-    title: 'Cliente com pressa',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'rápido, tem limpeza hoje?' }],
-    expect: {
-      proposal: false,
-      // Paulo 09/11/2026: dia civil = hoje → rótulo «hoje», não «quinta 05/11».
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{2}:\d{2}/, /disponíveis para hoje|hoje às/i],
-          excludes: [/quinta\s+05\/11/i],
-        },
-      ],
-    },
   },
   {
     id: 'E-02',
@@ -749,546 +91,25 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turns: [{ role: 'client', text: 'Até que horas vocês atendem?' }],
   },
   {
-    id: 'F-01',
-    title: 'Vou pensar',
+    id: 'E-06',
+    title: 'Política de cancelamento',
     turnosIdeais: 1,
-    // Matriz: A:[oferta] → C:«Vou pensar…». Sem pedido completo no turno, para não
-    // contar a proposta do pedido anterior como falha de proposal:false (#410).
-    turns: [
-      { role: 'client', text: 'Quero limpeza amanhã' },
-      { role: 'client', text: 'Vou pensar e te falo' },
-    ],
-    expect: { proposal: false },
+    turns: [{ role: 'client', text: 'Se eu precisar desmarcar, tem multa?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['24h'],
+    },
   },
   {
-    id: 'F-03',
-    title: 'Cliente some (idle)',
-    turnosIdeais: 0,
-    coverageOnly: 'followup/idle.test',
-    turns: [],
-  },
-  {
-    id: 'F-09',
-    title: 'Após fecho idle, «Quero agendar uma massagem» não reusa Liberação+dia',
+    id: 'E-06b',
+    title: 'FAQ «como funciona o cancelamento» (Lab Bloco B)',
     turnosIdeais: 1,
-    // Staging Paulo 08/11/2026 / #620: thanks DEC-087 limpava mal o frame.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('F-09: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const liberacao = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Liberação miofascial',
-      )
-      if (!liberacao) throw new Error('F-09: variante Liberação miofascial ausente')
-      s.sayInbound('quero liberacao miofascial')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [liberacao.id],
-          date: '2026-11-11',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-11T10:00', label: '10:00' },
-              { key: '2026-11-11T11:00', label: '11:00' },
-            ],
-            messageId: 'm_f09_slots',
-          },
-        },
-        s.clock,
-      )
-      ensureOpenOpportunity(
-        s.db,
-        {
-          tenantId: s.tenantId,
-          contactId: s.contactId,
-          conversationId: s.conversationId,
-        },
-        s.clock,
-      )
-      rescheduleConversationIdle(s.db, s.tenantId, s.conversationId, s.clock, {
-        progressAt: s.clock.nowMs(),
-      })
-      s.clock.advance(IDLE_PROMPT_AFTER_MS + 1)
-      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
-      s.clock.advance(IDLE_CLOSE_AFTER_MS + 1)
-      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
-      if (getBookingFrame(s.db, s.tenantId, s.conversationId) != null) {
-        throw new Error('F-09: fecho idle deveria ter limpo o BookingFrame')
-      }
-    },
-    turns: [{ role: 'client', text: 'Quero agendar uma massagem' }],
+    turns: [{ role: 'client', text: 'como funciona o cancelamento se eu marcar?' }],
     expect: {
-      proposal: false,
-      turns: [
-        {
-          turn: 0,
-          // Modo `uma`: pergunta o tipo; não salta para horários da Liberação abandonada.
-          matches: [/tipo|qual|opç/i],
-          excludes: [
-            /Perfeito,\s*Liberação/i,
-            /próximos horários/i,
-            /quarta/i,
-            /11\/11/,
-            /\b10:00\b/,
-            /\b11:00\b/,
-          ],
-        },
-      ],
+      notPaused: true,
+      outboundIncludes: ['24h'],
+      outboundExcludes: [/Não entendi/i, /Quer ver as op[cç][oõ]es/i],
     },
-  },
-  {
-    id: 'F-10',
-    title: 'Texto Terminar no idle limpa Liberação; massagem pergunta o tipo',
-    turnosIdeais: 2,
-    // Staging Paulo 08/11/2026: «Terminar» (reply ao prompt) → thanks; depois massagem
-    // ainda reusava Liberação. Botão já passa por settleIdle (#620); texto livre também.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('F-10: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const liberacao = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Liberação miofascial',
-      )
-      if (!liberacao) throw new Error('F-10: variante Liberação miofascial ausente')
-      s.sayInbound('quero liberacao miofascial')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [liberacao.id],
-          date: '2026-11-11',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-11T10:00', label: '10:00' },
-              { key: '2026-11-11T11:00', label: '11:00' },
-            ],
-            messageId: 'm_f10_slots',
-          },
-        },
-        s.clock,
-      )
-      ensureOpenOpportunity(
-        s.db,
-        {
-          tenantId: s.tenantId,
-          contactId: s.contactId,
-          conversationId: s.conversationId,
-        },
-        s.clock,
-      )
-      rescheduleConversationIdle(s.db, s.tenantId, s.conversationId, s.clock, {
-        progressAt: s.clock.nowMs(),
-      })
-      s.clock.advance(IDLE_PROMPT_AFTER_MS + 1)
-      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
-      const prompt = s.db.get<{ body: string }>(
-        `SELECT body FROM messages
-         WHERE conversation_id = ? AND direction = 'outbound'
-         ORDER BY created_at DESC LIMIT 1`,
-        s.conversationId,
-      )
-      if (prompt?.body !== IDLE_PROMPT_BODY) {
-        throw new Error('F-10: esperava o prompt idle DEC-087')
-      }
-      if (getBookingFrame(s.db, s.tenantId, s.conversationId) == null) {
-        throw new Error('F-10: Liberação deveria continuar no quadro até Terminar')
-      }
-    },
-    turns: [
-      { role: 'client', text: 'Terminar' },
-      { role: 'client', text: 'Quero agendar uma massagem' },
-    ],
-    expect: {
-      proposal: false,
-      turns: [
-        {
-          turn: 0,
-          // Paulo 13/11/2026: adeus Terminar — uma das três frases (terminar-farewell.ts).
-          matches: [
-            /Perfeito\. Qualquer coisa, estamos por aqui\.|Até lá — se precisar, é só escrever\.|Combinado\. (Bom dia|Boa tarde|Boa noite) e até a sua visita\./i,
-          ],
-        },
-        {
-          turn: 1,
-          matches: [/tipo|qual|opç/i],
-          excludes: [
-            /Perfeito,\s*Liberação/i,
-            /próximos horários/i,
-            /quarta/i,
-            /11\/11/,
-            /\b10:00\b/,
-            /\b11:00\b/,
-          ],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-11',
-    title: 'Troca de serviço limpa dia sticky; oferta é próximos, não sexta anterior',
-    turnosIdeais: 2,
-    // Staging Paulo 09/11/2026: Massagem com date=sexta 13/11 → Depilação axila+pernas → Sim
-    // ainda dizia «horários disponíveis para sexta». saveBookingFrame agora limpa date/period.
-    prepare: (s) => {
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.massagem,
-          date: '2026-11-13',
-          period: 'tarde',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-13T14:00', label: '14:00' },
-              { key: '2026-11-13T15:00', label: '15:00' },
-            ],
-            messageId: 'm_f11_friday',
-          },
-          lastOffer: {
-            slots: [{ startsAt: Date.UTC(2026, 10, 13, 17, 0), professionalId: s.ids.gi }],
-            messageId: 'm_f11_friday',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [
-      { role: 'client', text: 'Quero depilação feminina de axila e pernas' },
-      { role: 'client', text: 'sim' },
-    ],
-    expect: {
-      proposal: false,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/Entendi:/i],
-        },
-        {
-          turn: 1,
-          // Copy aberta varia (próximos / «Tenho …»); o invariante é não travar sexta 13/11.
-          matches: [/\d{1,2}:\d{2}/],
-          excludes: [
-            /horários disponíveis para sexta/i,
-            /13\/11/,
-            /dispon[ií]vel nas opções/i,
-          ],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-12',
-    title: '«Sim» a outro período limpa noite sticky e oferece horários',
-    turnosIdeais: 1,
-    // Staging Paulo 09/11/2026 (c2d2b9a): period=noite sticky → «Sim» repetia
-    // «à noite não tenho… Quer ver outro período?» em loop.
-    prepare: (s) => {
-      const zones = s.db.all<{ id: string; name: string; audience: string }>(
-        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
-        s.tenantId,
-        s.ids.depilacao,
-      )
-      const variantIds = zones
-        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
-        .map((z) => z.id)
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.depilacao,
-          audienceLine: 'feminino',
-          variantIds,
-          date: '2026-11-06',
-          period: 'noite',
-          phase: 'coletando',
-        },
-        s.clock,
-      )
-      s.sayOutbound(
-        'Para Axila, Pernas, à noite não tenho horário livre. Quer ver outro período?',
-      )
-    },
-    turns: [{ role: 'client', text: 'Sim' }],
-    expect: {
-      proposal: false,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{1,2}:\d{2}/],
-          excludes: [/outro período\?/i, /à noite não tenho/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-13',
-    title: '«Sim» a outro dia limpa date sticky e oferece horários',
-    turnosIdeais: 1,
-    // Sibling do loop de período (#655): date sticky após «Quer ver outro dia?» → «Sim»
-    // não deve refiltrar o domingo vazio (sticky-frame audit F2).
-    prepare: (s) => {
-      const zones = s.db.all<{ id: string; name: string }>(
-        `SELECT id, name FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
-        s.tenantId,
-        s.ids.massagem,
-      )
-      const variantIds = zones
-        .filter((z) => /libera/i.test(z.name) || /relax/i.test(z.name))
-        .slice(0, 1)
-        .map((z) => z.id)
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.massagem,
-          variantIds: variantIds.length > 0 ? variantIds : zones.slice(0, 1).map((z) => z.id),
-          date: '2026-11-08', // domingo — sem expediente Mon–Fri
-          phase: 'coletando',
-        },
-        s.clock,
-      )
-      s.sayOutbound(
-        'Para Massagem, no domingo (08/11) não tenho horário livre. Quer ver outro dia?',
-      )
-    },
-    turns: [{ role: 'client', text: 'Sim' }],
-    expect: {
-      proposal: false,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{1,2}:\d{2}/],
-          excludes: [/outro dia\?/i, /08\/11/],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-14',
-    title: 'Eco Sim limpa period sticky e oferece próximos (sem noite herdada)',
-    turnosIdeais: 1,
-    // Paulo 09/11/2026 silencioso 1: após eco de zonas, não herdar noite sticky.
-    prepare: (s) => {
-      const zones = s.db.all<{ id: string; name: string; audience: string }>(
-        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
-        s.tenantId,
-        s.ids.depilacao,
-      )
-      const variantIds = zones
-        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
-        .map((z) => z.id)
-      const ecoId = s.sayOutbound('Entendi: axila, pernas. Certo?')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.depilacao,
-          audienceLine: 'feminino',
-          variantIds,
-          period: 'noite',
-          phase: 'coletando',
-          pending: {
-            slot: 'eco',
-            options: [
-              { key: 'sim', label: 'Sim' },
-              { key: 'corrigir', label: 'Corrigir' },
-            ],
-            messageId: ecoId,
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Sim' }],
-    expect: {
-      proposal: false,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{1,2}:\d{2}/],
-          excludes: [/à noite não tenho/i, /outro período\?/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-15',
-    title: 'Sexta de manhã após oferta amanhã à tarde — dia remapeia (não «amanhã de manhã»)',
-    turnosIdeais: 1,
-    // Live MCP rsamp_f3b49 (qua 11/11/2026): period remapeava, date sticky ficava amanhã.
-    nowMs: Date.UTC(2026, 10, 11, 18, 0), // qua 11/11 15:00 SP — amanhã ≠ sexta
-    prepare: (s) => {
-      const zones = s.db.all<{ id: string; name: string; audience: string }>(
-        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
-        s.tenantId,
-        s.ids.depilacao,
-      )
-      const variantIds = zones
-        .filter((z) => z.audience === 'masculino' && (z.name === 'Axila' || z.name === 'Pernas'))
-        .map((z) => z.id)
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.depilacao,
-          audienceLine: 'masculino',
-          variantIds,
-          date: '2026-11-12', // amanhã (qui)
-          period: 'tarde',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-12T15:30', label: '15:30' },
-              { key: '2026-11-12T16:00', label: '16:00' },
-              { key: '2026-11-12T16:30', label: '16:30' },
-            ],
-            messageId: 'm_f15_amanha',
-          },
-          lastOffer: {
-            slots: [{ startsAt: Date.UTC(2026, 10, 12, 18, 30), professionalId: s.ids.gi }],
-            messageId: 'm_f15_amanha',
-          },
-        },
-        s.clock,
-      )
-      s.sayOutbound(
-        'Os horários disponíveis para amanhã à tarde são 15:30, 16:00, 16:30. Algum serve?',
-      )
-    },
-    turns: [{ role: 'client', text: 'Na sexta na parte da manhã tem algum horário?' }],
-    expect: {
-      proposal: false,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{1,2}:\d{2}/, /sexta/i],
-          excludes: [/amanhã de manhã/i, /amanhã à tarde/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-16',
-    title: 'Proposta aberta + «próxima segunda» remapeia dia e reoferece (não repropõe hoje)',
-    turnosIdeais: 2,
-    // Live MCP rsamp_fa7f138 (qui 12/11/2026): sticky date+hora da proposta mantinha
-    // ready e reemitia quinta; dia-só sem período ficava fora do gate #688.
-    nowMs: Date.UTC(2026, 10, 12, 14, 0), // qui 12/11 11:00 SP
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele hoje às 15h' },
-      { role: 'proposal_sent' },
-      { role: 'client', text: 'Para a próxima segunda tem horário?' },
-    ],
-    expect: {
-      openProposals: 0,
-      supersededProposals: 1,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 1,
-          matches: [/\d{1,2}:\d{2}/, /segunda|16\/11/i],
-          excludes: [/Proposta de horário/i, /quinta/i, /12\/11/],
-        },
-      ],
-    },
-  },
-  {
-    id: 'F-05',
-    title: 'Alterar detalhes → menu IA (Horário|Serviço|Detalhes), sem handoff',
-    turnosIdeais: 1,
-    coverageOnly: 'alter-details.test',
-    turns: [],
-  },
-  {
-    id: 'F-06',
-    title: 'Proposta expirada',
-    turnosIdeais: 1,
-    coverageOnly: 'proposals.test',
-    turns: [],
   },
   {
     id: 'G-01',
@@ -1318,6 +139,66 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    // Sonda L4 05/11/2026: «é um robô» sem «atendente» não casava (\b sem flag u).
+    id: 'G-03b',
+    title: 'Você é um robô?',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Você é um robô?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'],
+    },
+  },
+  {
+    id: 'G-04',
+    title: 'Marcação para terceiro',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'É para a minha mãe' }],
+    expect: { paused: true },
+  },
+  {
+    id: 'G-05',
+    title: 'Falso terceiro',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero algo para a minha pele oleosa' }],
+    expect: { notPaused: true },
+  },
+  {
+    id: 'G-09',
+    title: 'Mensagem durante a pausa',
+    turnosIdeais: 1,
+    coverageOnly: 'dec-083.test',
+    turns: [],
+  },
+  {
+    id: 'G-10',
+    title: 'Pedido de equipe fora do expediente (DEC-155)',
+    turnosIdeais: 1,
+    // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC.
+    nowMs: Date.UTC(2026, 10, 7, 20, 0),
+    turns: [{ role: 'client', text: 'Quero falar com alguém' }],
+    expect: {
+      // DEC-155 (revê DEC-113 no pedido de equipe): horário + IA activa, sem pausa.
+      notPaused: true,
+      outboundIncludes: [
+        'Deixei seu pedido para a equipe',
+        'a equipe responde a partir de segunda',
+        '09:00',
+        'continuo por aqui até lá',
+      ],
+    },
+  },
+  {
+    id: 'G-11',
+    title: 'Pedido humano no meio de várias bolhas',
+    turnosIdeais: 1,
+    turns: [
+      { role: 'client', text: 'quero falar com alguém' },
+      { role: 'client', text: 'obrigada' },
+    ],
+    expect: { paused: true },
+  },
+  {
     id: 'F-07',
     title: 'Pare de me mandar mensagem',
     turnosIdeais: 1,
@@ -1339,143 +220,6 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       silentPause: true,
       outboundExcludes: [/Vou pedir para a equipe continuar daqui/i, /O que você precisa/i],
     },
-  },
-  {
-    // Sonda L4 05/11/2026: «é um robô» sem «atendente» não casava (\b sem flag u).
-    id: 'G-03b',
-    title: 'Você é um robô?',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Você é um robô?' }],
-    expect: {
-      notPaused: true,
-      outboundIncludes: ['Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'],
-    },
-  },
-  {
-    id: 'G-10',
-    title: 'Pedido de equipe fora do expediente (DEC-155)',
-    turnosIdeais: 1,
-    // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC.
-    nowMs: Date.UTC(2026, 10, 7, 20, 0),
-    turns: [{ role: 'client', text: 'Quero falar com alguém' }],
-    expect: {
-      // DEC-155 (revê DEC-113 no pedido de equipe): horário + IA activa, sem pausa.
-      notPaused: true,
-      outboundIncludes: [
-        'Deixei seu pedido para a equipe',
-        'a equipe responde a partir de segunda',
-        '09:00',
-        'continuo por aqui até lá',
-      ],
-    },
-  },
-  {
-    id: 'G-04',
-    title: 'Marcação para terceiro',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'É para a minha mãe' }],
-    expect: { paused: true },
-  },
-  {
-    id: 'G-05',
-    title: 'Falso terceiro',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero algo para a minha pele oleosa' }],
-    expect: { notPaused: true },
-  },
-  {
-    id: 'E-06',
-    title: 'Política de cancelamento',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Se eu precisar desmarcar, tem multa?' }],
-    expect: {
-      notPaused: true,
-      outboundIncludes: ['24h'],
-    },
-  },
-  {
-    id: 'E-06b',
-    title: 'FAQ «como funciona o cancelamento» (Lab Bloco B)',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'como funciona o cancelamento se eu marcar?' }],
-    expect: {
-      notPaused: true,
-      outboundIncludes: ['24h'],
-      outboundExcludes: [/Não entendi/i, /Quer ver as op[cç][oõ]es/i],
-    },
-  },
-  {
-    id: 'G-06',
-    title: 'Cancelar',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero cancelar meu horário' }],
-    expect: { paused: true },
-  },
-  {
-    id: 'G-07',
-    title: 'Remarcar com compromisso',
-    turnosIdeais: 2,
-    coverageOnly: 'reschedule.test',
-    turns: [],
-  },
-  {
-    id: 'G-07b',
-    title: 'Mid-booking «próxima terça» com compromisso futuro mantém oferta de marcação',
-    turnosIdeais: 1,
-    // Staging Paulo ~09/11: lastOffer ofertado + upcoming apt ≠ «para remarcar» / handoff.
-    // Asserta copy/botões; mesmo serviço no apt e no frame (não apanha Massagem swap).
-    coverageOnly: 'reschedule.test',
-    turns: [],
-  },
-  {
-    id: 'G-07c',
-    title: 'Day re-ask + time pick keeps Depilação when upcoming apt is Massagem',
-    turnosIdeais: 2,
-    // Staging ~14:03 SP 09/11: remarcação continuity usava apt.serviceId → Massagem proposal.
-    // L0 em reschedule.test: proposal.serviceId === Depilação após «Para hoje» + pick.
-    coverageOnly: 'reschedule.test',
-    turns: [],
-  },
-  {
-    id: 'G-07d',
-    title: 'Mid-booking SOFT_DAY «Posso para hoje?» keeps Depilação when upcoming apt is Massagem',
-    turnosIdeais: 1,
-    // Pós-#644: SOFT_DAY + hasUpcoming ainda entrava em tryAiReschedule mid ofertado.
-    coverageOnly: 'reschedule.test',
-    turns: [],
-  },
-  {
-    id: 'G-07e',
-    title: 'serviceChanged deixa remarcando e limpa rescheduleAppointmentId',
-    turnosIdeais: 1,
-    // Audit C2 / #651: phase remarcando + apt-alvo não colam na troca de serviço.
-    coverageOnly: 'booking-frame.test',
-    turns: [],
-  },
-  {
-    id: 'G-07f',
-    title: 'Time-pick com oferta viva prefere frame.serviceId ao histórico',
-    turnosIdeais: 1,
-    // Audit H1 / #652: Massagem no histórico + frame Depilação → proposal Depilação.
-    coverageOnly: 'prefer-frame-service.test',
-    turns: [],
-  },
-  {
-    id: 'G-09',
-    title: 'Mensagem durante a pausa',
-    turnosIdeais: 1,
-    coverageOnly: 'dec-083.test',
-    turns: [],
-  },
-  {
-    id: 'G-11',
-    title: 'Pedido humano no meio de várias bolhas',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'client', text: 'quero falar com alguém' },
-      { role: 'client', text: 'obrigada' },
-    ],
-    expect: { paused: true },
   },
   {
     id: 'H-01',
@@ -1550,88 +294,11 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'J-01',
-    title: 'Sem novo cumprimento',
-    turnosIdeais: 1,
-    turns: [
-      { role: 'clinic', text: 'Oi, Carla! Em que posso ajudar?' },
-      { role: 'client', text: 'e sexta de manhã?' },
-    ],
-    expect: { turns: [{ turn: 0, excludes: [/^\s*(oi|olá|ola)\b/i] }] },
-  },
-  {
-    id: 'J-03',
-    title: 'Não perguntar de novo a zona',
-    turnosIdeais: 2,
-    turns: [
-      { role: 'client', text: 'depilação masculina de axila segunda à tarde' },
-      { role: 'client', text: '14:00' },
-    ],
-    expect: { proposal: true },
-  },
-  {
-    id: 'J-04',
-    title: 'Corte de cumprimento',
-    turnosIdeais: 1,
-    // Unitário em client-copy.test; aqui garante que o strip não deixa vírgula solta
-    // quando o modelo re-cumpre a meio da conversa.
-    adapter: new FixedJsonAdapter('Oi Carla, tenho 15:00 amanhã para a massagem.'),
-    turns: [
-      { role: 'client', text: 'Quero massagem' },
-      { role: 'client', text: 'amanhã de tarde' },
-    ],
-    expect: {
-      outboundExcludes: [/^,\s*tenho/im],
-    },
-  },
-  {
-    id: 'J-05',
-    title: 'O nome não escolhe a linha',
-    turnosIdeais: 1,
-    turns: [{ role: 'client', text: 'Quero depilação' }],
-  },
-  {
-    id: 'J-06',
-    title: 'Conversa longa',
-    turnosIdeais: 1,
-    // Serviço na sessão (2.ª mensagem histórica); >20 mensagens; «pode ser sexta 10h».
-    prepare: (s) => {
-      s.sayInbound('oi')
-      s.sayOutbound('Olá! Em que posso ajudar?')
-      s.sayInbound('quero limpeza de pele')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        { serviceId: s.ids.limpeza },
-        s.clock,
-      )
-      s.sayOutbound('Claro! Qual dia fica melhor?')
-      for (let i = 0; i < 10; i++) {
-        s.sayInbound(`só uma dúvida rápida ${i}`)
-        s.sayOutbound(`pode perguntar ${i}`)
-      }
-    },
-    // Matriz: serviço só na sessão/frame (histórico truncado); «pode ser sexta 10h».
-    turns: [{ role: 'client', text: 'pode ser sexta 10h' }],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '10:00' } },
-  },
-  {
-    id: 'J-08',
-    title: 'Oferta fora do período',
-    turnosIdeais: 1,
-    // No L1 responde o caminho determinístico (só manhã). O validador do texto do modelo
-    // (#403) tem o seu teste: reply-facts.test «J-08». Este caso garante o resultado.
-    adapter: new FixedJsonAdapter('Tenho amanhã às 14:00 para a massagem de manhã.'),
-    turns: [{ role: 'client', text: 'massagem amanhã de manhã' }],
-    expect: { turns: [{ turn: 0, matches: [/\b(09|10|11):\d{2}/], excludes: [/14:00/] }] },
-  },
-  {
     id: 'K-01',
     title: 'Modelo indisponível',
     turnosIdeais: 1,
     adapter: new TimeoutAdapter(),
-    turns: [{ role: 'client', text: 'oi, tudo bem?' }],
+    turns: [{ role: 'client', text: 'vocês aceitam cartão de crédito?' }],
     expect: {
       notPaused: true,
       outboundIncludes: [
@@ -1654,20 +321,6 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turns: [],
   },
   {
-    id: 'K-04',
-    title: 'Clique duplo',
-    turnosIdeais: 1,
-    coverageOnly: 'execute-confirm.test',
-    turns: [],
-  },
-  {
-    id: 'K-05',
-    title: 'Botão de versão antiga',
-    turnosIdeais: 1,
-    coverageOnly: 'execute-confirm.test',
-    turns: [],
-  },
-  {
     // TR-487 / Paulo Confirmado: alerta sem pausa quando a copy promete retorno da equipe.
     id: 'K-08',
     title: 'Promessa de retorno da equipe → Precisa de alguém, sem pausar IA',
@@ -1676,766 +329,100 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       'promise-team-follow-up.test + autobook.test «pausa da owner» + reschedule.test frase (6)',
     turns: [],
   },
-  // —— Sonda de novembro / F1-0 (#506, DEC-138 prática 12) ——
   {
-    id: 'A-13',
-    title: 'Sessão antiga: recomeçar limpa o frame',
+    id: 'C-10',
+    title: 'Áudio ou imagem sem texto',
     turnosIdeais: 1,
-    // CF-28 (#508): «começar de novo» limpa o BookingFrame.
-    prepare: (s) => {
-      const zones = s.db.all<{ id: string; name: string; audience: string }>(
-        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
-        s.tenantId,
-        s.ids.depilacao,
-      )
-      const variantIds = zones
-        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
-        .map((z) => z.id)
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.depilacao,
-          audienceLine: 'feminino',
-          variantIds,
-          date: '2026-11-06',
-          phase: 'ofertado',
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'começar de novo' }],
-    expect: {
-      proposal: false,
-      turns: [
-        {
-          turn: 0,
-          matches: [/servi[cç]o|procedimento|opç/i],
-          excludes: [/\b\d{2}:\d{2}\b/],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-14',
-    title: '«Quero depilar» encontra Depilação (sinónimo na ficha, DEC-110)',
-    turnosIdeais: 1,
-    // CF-29 fechado (#509): sinónimo DEC-110 em extractServices / namedServices.
-    // 05/11/2026: o caso passava em falso — o cenário não tinha o sinónimo e a
-    // resposta era «não encontrei», que casava /Depila/ na lista do catálogo.
-    prepare: (s) => {
-      s.db.run(`UPDATE services SET synonyms_json = ? WHERE id = ?`, JSON.stringify(['depilar']), s.ids.depilacao)
-    },
-    damage: { serviceKey: 'depilacao' },
-    turns: [{ role: 'client', text: 'Quero depilar' }],
-    expect: {
-      proposal: false,
-      turns: [
-        {
-          turn: 0,
-          matches: [/feminina|masculina/i],
-          excludes: [/não entendi/i, /não encontrei/i, /maps\.|goo\.gl/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-20',
-    title: '«Quero depilar» sem sinónimo na ficha: diz que não entendeu e lista o catálogo',
-    turnosIdeais: 1,
-    // Comportamento vigente por desenho (DEC-110: nomes populares vêm da ficha).
-    // Reconhecer o verbo sem sinónimo seria decisão nova (Em aberto, metodologia §10).
-    // DEC-151: tom «não entendi» (não cumprimento do hub).
-    turns: [{ role: 'client', text: 'Quero depilar' }],
+    turns: [{ role: 'client_media', kind: 'audio' }],
     expect: {
       proposal: false,
       notPaused: true,
-      turns: [{ turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
+      outboundIncludes: ['Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?'],
+      outboundExcludes: [/Posso ajudar/i, /Olá Carla/i],
+      outboundCount: 1,
     },
   },
   {
-    id: 'A-21',
-    title: '«Quero depilar» sem sinónimo → owner grava a sugestão → passa a reconhecer Depilação (DEC-141)',
+    id: 'C-14',
+    title: 'Imagem com legenda',
+    turnosIdeais: 1,
+    turns: [
+      {
+        role: 'client_media',
+        kind: 'image',
+        caption: 'quero assim, tem horário amanhã para limpeza de pele?',
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
+      turns: [{ turn: 0, matches: [/Abrir agenda/] }],
+    },
+  },
+  {
+    id: 'C-15',
+    title: 'Segundo áudio depois do pedido de texto',
     turnosIdeais: 2,
-    // DEC-141: o «não entendi» / miss regista o termo; a owner vê Depilação como
-    // provável e grava com um toque. O sistema não grava sozinho.
-    damage: { serviceKey: 'depilacao' },
     turns: [
-      { role: 'client', text: 'Quero depilar' },
-      {
-        role: 'owner',
-        note: 'grava «depilar» como sinónimo de Depilação pela sugestão do painel',
-        act: (s) => {
-          const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
-          const hit = items.find((item) => item.term === 'depilar')
-          if (!hit) throw new Error(`A-21: sugestão «depilar» ausente (${JSON.stringify(items)})`)
-          if (hit.suggestedServiceId !== s.ids.depilacao) {
-            throw new Error(`A-21: serviço provável ${hit.suggestedServiceId}, esperado Depilação`)
-          }
-          acceptUnmatchedTermOp(s.db, s.caller, { id: hit.id, serviceId: hit.suggestedServiceId }, s.clock)
-          if (listUnmatchedTermsOp(s.db, s.caller, s.clock).some((item) => item.term === 'depilar')) {
-            throw new Error('A-21: sugestão continua aberta depois de gravada')
-          }
-        },
-      },
-      { role: 'client', text: 'Quero depilar' },
+      { role: 'client_media', kind: 'audio' },
+      { role: 'client_media', kind: 'audio' },
     ],
     expect: {
       proposal: false,
-      notPaused: true,
-      turns: [
-        { turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] },
-        { turn: 1, matches: [/feminina|masculina/i], excludes: [/não entendi/i, /maps\.|goo\.gl/i] },
+      paused: true,
+      outboundIncludes: [
+        'Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?',
+        'Vou pedir para a equipe continuar daqui.',
       ],
+      outboundCount: 2,
     },
   },
   {
-    id: 'A-49',
-    title: 'Cartão DEC-141 A+B: fillers não sobem; depilar sobe; sem auto-Gravar',
+    id: 'C-16',
+    title: 'Comprovativo de Pix em imagem',
     turnosIdeais: 1,
-    // Paulo 11/11/2026 A+B: stopwords/fillers fora do cartão; só nomes populares
-    // plausíveis; owner continua a Gravar/Descartar (nunca auto-Gravar).
-    damage: { serviceKey: 'depilacao' },
-    turns: [
-      { role: 'client', text: 'Quero depilar' },
-      {
-        role: 'owner',
-        note: 'filtro A+B: favor / saber disponibilidade fora; depilar no cartão; sinónimos intactos',
-        act: (s) => {
-          recordUnmatchedTerm(s.db, s.tenantId, 'favor', s.clock)
-          recordUnmatchedTerm(s.db, s.tenantId, 'saber disponibilidade', s.clock)
-          recordUnmatchedTerm(s.db, s.tenantId, 'agendamento parte', s.clock)
-          const now = s.clock.nowMs()
-          s.db.run(
-            `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
-             VALUES (?, 'umt_legacy_favor', 'favor', 'favor', 4, 'aberto', ?, ?)
-             ON CONFLICT(tenant_id, term_folded) DO UPDATE SET status = 'aberto', hits = 4`,
-            s.tenantId,
-            now,
-            now,
-          )
-          const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
-          if (items.some((item) => /favor|saber|disponibilidade|agendamento|parte/i.test(item.term))) {
-            throw new Error(`A-49: filler no cartão (${JSON.stringify(items)})`)
-          }
-          const hit = items.find((item) => item.term === 'depilar')
-          if (!hit) throw new Error(`A-49: «depilar» ausente (${JSON.stringify(items)})`)
-          if (hit.suggestedServiceId !== s.ids.depilacao) {
-            throw new Error(`A-49: serviço provável ${hit.suggestedServiceId}, esperado Depilação`)
-          }
-          const syns = getService(s.db, s.tenantId, s.ids.depilacao)?.synonyms ?? []
-          if (syns.length > 0) {
-            throw new Error(`A-49: auto-Gravar indevido (${JSON.stringify(syns)})`)
-          }
-        },
-      },
-    ],
+    prepare: (s) => {
+      const now = s.clock.nowMs()
+      s.db.run(
+        `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents,
+           status, expires_at, contact_id, created_at, updated_at)
+         VALUES (?, ?, 'acc_dialog_pix', 'fake', 'ext_dialog_pix', 5000, 'awaiting_payment', ?, ?, ?, ?)`,
+        'chg_dialog_pix',
+        s.tenantId,
+        now + 3_600_000,
+        s.contactId,
+        now,
+        now,
+      )
+    },
+    turns: [{ role: 'client_media', kind: 'image' }],
     expect: {
       proposal: false,
-      notPaused: true,
-      turns: [{ turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
+      paused: true,
+      outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
+      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
+      outboundCount: 1,
     },
   },
   {
-    id: 'A-24',
-    title: 'Massagem aberta: «uma massagem» pergunta tipos, não escolhe relaxante',
+    id: 'D-03',
+    title: 'Serviço inexistente',
     turnosIdeais: 1,
-    // Paulo 07/11/2026 / #597: nome do serviço ≠ variante; sem «Não encontrei».
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-24: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        { serviceId: massagem.id, phase: 'coletando' },
-        s.clock,
-      )
-    },
-    turns: [
-      { role: 'client', text: 'Bom dia, queria agendar uma massagem' },
-      {
-        role: 'owner',
-        note: 'sessão sem variante fechada (não travou Massagem relaxante)',
-        act: (s) => {
-          const session = getScheduleSession(s.db, s.tenantId, s.conversationId)
-          if (session?.variantIds && session.variantIds.length > 0) {
-            throw new Error(
-              `A-24: variantIds inesperados ${JSON.stringify(session.variantIds)} — não deve fechar relaxante`,
-            )
-          }
-        },
-      },
-    ],
+    turns: [{ role: 'client', text: 'Vocês fazem botox?' }],
     expect: {
       proposal: false,
       notPaused: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/tipos?|opç/i, /Liberação miofascial/i, /Massagem relaxante/i],
-          excludes: [/Não encontrei/i, /Entendi:\s*Massagem relaxante/i],
-        },
-      ],
+      outboundExcludes: [/maps\.|goo\.gl|google/i],
+      turns: [{ turn: 0, matches: [/botox/i, /Temos /] }],
     },
   },
   {
-    id: 'A-28',
-    title: 'Massagem modo uma: «tudo» e dois tipos não fecham; um tipo segue sem eco',
-    turnosIdeais: 2,
-    // DEC-145: serviço em `uma` — sem eco DEC-137 de conjunto, sem atalho «tudo».
-    // Dois nomes no unitário (`schedule-choice` selectionMode=uma); aqui o 2.º turno
-    // fecha um só tipo e avança a horários sem «Entendi:» (evita INV-08 da pergunta repetida).
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-28: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        { serviceId: massagem.id, phase: 'coletando' },
-        s.clock,
-      )
-    },
-    turns: [
-      { role: 'client', text: 'quero tudo' },
-      { role: 'client', text: 'Liberação miofascial' },
-    ],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      // T2: modo uma + «tudo» → friction mode_uma_todas (falha sem a flag).
-      turnDecided: [{ friction: [{ flag: 'mode_uma_todas' }] }],
-      turns: [
-        {
-          turn: 0,
-          matches: [/tipos?|opç/i, /Liberação miofascial/i],
-          excludes: [/Entendi:/i, /Toque em Opções|Escreva uma ou várias/i, /axila e pernas/i],
-        },
-        {
-          turn: 1,
-          matches: [/\d{1,2}:\d{2}/],
-          excludes: [/Entendi:/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-29',
-    title: 'Após slots: «Deixa estar, obrigado» encerra sem Não encontrei',
+    id: 'D-08',
+    title: 'Serviço sem preço',
     turnosIdeais: 1,
-    // DEC-147 / staging Paulo 07/11/2026: soft decline não vira sobra de zona.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-29: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-29: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-07T14:00', label: '14:00' },
-              { key: '2026-11-07T15:00', label: '15:00' },
-            ],
-            messageId: 'm_a29_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Deixa estar, obrigado' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
-          excludes: [/Não encontrei/i, /Liberação miofascial/i, /Massagem relaxante/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-30',
-    title: 'Após slots: «Podes encerrar a sessão» encerra sem Não encontrei',
-    turnosIdeais: 1,
-    // DEC-147: «podes»/«encerrar» não são tokens de zona.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-30: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-30: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-07T14:00', label: '14:00' },
-              { key: '2026-11-07T15:00', label: '15:00' },
-            ],
-            messageId: 'm_a30_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Podes encerrar a sessao' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
-          excludes: [/Não encontrei/i, /Liberação miofascial/i, /podes/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-34',
-    title: 'Após slots sem progresso: sem hint «diga terminar» (regressão P10)',
-    turnosIdeais: 1,
-    // DEC-152: sessão aberta + turno sem avanço do quadro → hint one-shot.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-34: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-34: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-07T14:00', label: '14:00' },
-              { key: '2026-11-07T15:00', label: '15:00' },
-            ],
-            messageId: 'm_a34_slots',
-          },
-          lastOffer: {
-            slots: [{ startsAt: Date.UTC(2026, 10, 7, 17, 0), professionalId: 'pro_a34' }],
-            messageId: 'm_a34_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    // Cumprimento sem dia/período/zona (senão o quadro avança e o hint não sai).
-    turns: [{ role: 'client', text: 'oi' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          excludes: [/Se quiser parar, diga terminar/i, /quando quiser|fico por aqui/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-35',
-    title: 'Após slots + hint: «Terminar» encerra sem Não encontrei',
-    turnosIdeais: 1,
-    // Staging Paulo 08/11/2026: mid-oferta Horários + hint DEC-152 → «Terminar»
-    // virava «Não encontrei terminar nas opções» + Opções de tipos.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-35: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-35: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-08T09:00', label: '09:00' },
-              { key: '2026-11-08T09:30', label: '09:30' },
-              { key: '2026-11-08T10:00', label: '10:00' },
-            ],
-            messageId: 'm_a35_slots',
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a35' },
-              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a35' },
-              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a35' },
-            ],
-            messageId: 'm_a35_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Terminar' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
-          excludes: [
-            /Não encontrei/i,
-            /Liberação miofascial/i,
-            /Ventosaterapia/i,
-            /Massagem relaxante/i,
-            /Se quiser parar, diga terminar/i,
-          ],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-39',
-    title: 'Confirmar não dispara esclarecer depois do Agendado',
-    turnosIdeais: 2,
-    // Staging Paulo 09/11/2026: race autodraft `[Botão] Confirmar` + pending choose_slot.
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
-      { role: 'proposal_sent' },
-      {
-        role: 'owner',
-        note: 'deixa pending choose_slot no quadro (race staging Confirmar → esclarecer)',
-        act: (s) => {
-          const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
-          if (!frame?.serviceId) return
-          saveBookingFrame(
-            s.db,
-            s.tenantId,
-            s.conversationId,
-            {
-              serviceId: frame.serviceId,
-              variantIds: frame.variantIds,
-              date: frame.date,
-              time: frame.time,
-              phase: 'ofertado',
-              pending: {
-                slot: 'horario',
-                options: [
-                  { key: '2026-11-10T15:00', label: '15:00' },
-                  { key: '2026-11-10T15:30', label: '15:30' },
-                ],
-                messageId: 'm_a39_slots',
-              },
-              lastOffer: frame.lastOffer,
-            },
-            s.clock,
-          )
-        },
-      },
-      { role: 'confirm_proposal' },
-    ],
-    expect: {
-      appointments: 1,
-      outboundExcludes: [/Não peguei bem/i, /outro jeito/i, /reformular/i],
-      turns: [
-        {
-          turn: 0,
-          matches: [/Confirmar|Proposta|Agendado|Posso ajudar/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-42',
-    title: '1.ª oferta Horários inclui dica falar com a equipe (DEC-153)',
-    turnosIdeais: 1,
-    // Paulo opção 3, 09/11/2026: dica one-shot na 1.ª oferta; sem handoff automático.
-    // Repetição na 2.ª oferta: human-help-hint.test (unitário).
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-42: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-42: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'coletando',
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'amanhã à tarde' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [
-            /\d{2}:\d{2}/,
-            /Se preferir falar com a equipe, escreva falar com a equipe/i,
-          ],
-          excludes: [/Vou pedir para a equipe continuar/i],
-        },
-      ],
-    },
+    turns: [{ role: 'client', text: 'Quanto custa microagulhamento?' }],
+    expect: { turns: [{ turn: 0, matches: [/equipe/i], excludes: [/R\$/] }] },
   },
   {
     id: 'A-43',
@@ -2759,709 +746,171 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'A-55',
-    title: 'Após ack Avaliar, Terminar limpa o funil (TRE-29)',
+    id: 'J-01',
+    title: 'Sem novo cumprimento',
+    turnosIdeais: 1,
+    turns: [
+      { role: 'clinic', text: 'Oi, Carla! Em que posso ajudar?' },
+      { role: 'client', text: 'e sexta de manhã?' },
+    ],
+    expect: { turns: [{ turn: 0, excludes: [/^\s*(oi|olá|ola)\b/i] }] },
+  },
+  {
+    id: 'J-04',
+    title: 'Corte de cumprimento',
+    turnosIdeais: 1,
+    // Unitário em client-copy.test; aqui garante que o strip não deixa vírgula solta
+    // quando o modelo re-cumpre a meio da conversa.
+    adapter: new FixedJsonAdapter('Oi Carla, tenho 15:00 amanhã para a massagem.'),
+    turns: [
+      { role: 'client', text: 'Quero massagem' },
+      { role: 'client', text: 'amanhã de tarde' },
+    ],
+    expect: {
+      outboundExcludes: [/^,\s*tenho/im],
+    },
+  },
+  {
+    id: 'K-04',
+    title: 'Clique duplo',
+    turnosIdeais: 1,
+    coverageOnly: 'execute-confirm.test',
+    turns: [],
+  },
+  {
+    id: 'K-05',
+    title: 'Botão de versão antiga',
+    turnosIdeais: 1,
+    coverageOnly: 'execute-confirm.test',
+    turns: [],
+  },
+  {
+    id: 'CC-30',
+    title: '«Terminar» sem nada em curso responde com a despedida, não com o redator de exceção',
+    turnosIdeais: 1,
+    // Staging 14/11/2026: com o quadro vazio, «Terminar» (o comando que a própria IA ensina)
+    // recebia «Não entendi bem o que você quis dizer com terminar» ou texto do perfil Google.
+    turns: [{ role: 'client', text: 'Terminar' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Perfeito\. Qualquer coisa|Até lá|Combinado\. (Bom dia|Boa tarde|Boa noite)|Sem problema\. Quando quiser|Tudo bem! Fico por aqui|Fica à vontade\. Qualquer coisa/],
+          excludes: [/não entendi|nao entendi|Gioconda|perfil/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'CC-31',
+    title: '«Terminar» depois de uma pergunta sem funil também fecha com a despedida',
     turnosIdeais: 2,
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-55: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-55: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-08T09:00', label: '09:00' },
-              { key: '2026-11-08T09:30', label: '09:30' },
-            ],
-            messageId: 'm_a55_slots',
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a55' },
-              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a55' },
-            ],
-            messageId: 'm_a55_slots',
-          },
-        },
-        s.clock,
-      )
-    },
     turns: [
-      { role: 'client', text: 'Avaliar' },
-      {
-        role: 'owner',
-        note: 'toque Terminar no ack de revisão (TRE-29)',
-        act: (s) => {
-          s.clock.advance(1_000)
-          handleReviewFlagAckButtonClick(
-            s.db,
-            {
-              tenantId: s.tenantId,
-              conversationId: s.conversationId,
-              buttonId: reviewFlagAckButtonId(s.conversationId, 'end'),
-              providerEventKey: `dialog-review-end:A-55`,
-            },
-            s.clock,
-          )
-        },
-      },
+      { role: 'client', text: 'Quanto custa a massagem?' },
+      { role: 'client', text: 'terminar' },
     ],
     expect: {
       proposal: false,
-      noAppointment: true,
-      reviewFlagged: true,
-      outboundExcludes: [/Não encontrei/i, /Vou pedir para a equipe/i],
-      assert: (s) => {
-        if (getBookingFrame(s.db, s.tenantId, s.conversationId) != null) {
-          return ['A-55: Terminar não limpou o BookingFrame']
-        }
-        const last = s.outboundBodies().at(-1) ?? ''
-        if (!isTerminarFarewellBody(last, 'America/Sao_Paulo', s.clock.nowMs())) {
-          return [`A-55: última outbound não é farewell Terminar (got «${last}»)`]
-        }
-        return []
-      },
-    },
-  },
-  {
-    id: 'A-56',
-    title: 'Após ack Avaliar, Continuar retoma o atendimento (TRE-29)',
-    turnosIdeais: 2,
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-56: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-56: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-08T09:00', label: '09:00' },
-              { key: '2026-11-08T09:30', label: '09:30' },
-            ],
-            messageId: 'm_a56_slots',
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a56' },
-              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a56' },
-            ],
-            messageId: 'm_a56_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [
-      { role: 'client', text: 'Avaliar' },
-      {
-        role: 'owner',
-        note: 'toque Continuar no ack de revisão (TRE-29)',
-        act: (s) => {
-          s.clock.advance(1_000)
-          handleReviewFlagAckButtonClick(
-            s.db,
-            {
-              tenantId: s.tenantId,
-              conversationId: s.conversationId,
-              buttonId: reviewFlagAckButtonId(s.conversationId, 'continue'),
-              providerEventKey: `dialog-review-continue:A-56`,
-            },
-            s.clock,
-          )
-        },
-      },
-    ],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      reviewFlagged: true,
-      outboundExcludes: [/Não encontrei/i, /Vou pedir para a equipe/i],
-      assert: (s) => {
-        const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
-        if (frame?.pending?.slot !== 'horario') {
-          return ['A-56: Continuar não manteve o pending de horário']
-        }
-        const last = s.outboundBodies().at(-1) ?? ''
-        const ok =
-          last === IDLE_CONTINUE_REPLY_BODY ||
-          /\d{1,2}:\d{2}/.test(last) ||
-          /Horários|Algum serve/i.test(last)
-        if (!ok) {
-          return [`A-56: Continuar não retomou (got «${last}»)`]
-        }
-        return []
-      },
-    },
-  },
-  {
-    id: 'A-52',
-    title: '«próxima terça feora» + massagem relaxante não vira option-miss',
-    turnosIdeais: 1,
-    // Staging TRE-11: typo «feora»←«feira» era leftover após casar relaxante →
-    // «Entendi: relaxante. Não encontrei feora…» + re-lista tipos.
-    // O cenário seed tem serviço «Massagem relaxante» à parte de «Massagem»;
-    // desactiva-o para o pedido casar só Massagem+tipo (como no piloto).
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-52: serviço Massagem ausente no cenário')
-      const aliasRelaxante = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem relaxante')
-      if (aliasRelaxante) setServiceActiveOp(s.db, s.caller, aliasRelaxante.id, false, s.clock)
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-    },
-    turns: [
-      {
-        role: 'client',
-        text: 'Quero agendar uma massagem relaxante para a próxima terça feora',
-      },
-    ],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/\d{1,2}:\d{2}/, /terça|10\/11/i],
-          excludes: [
-            /Não encontrei\s+feora/i,
-            /Quer Liberação miofascial/i,
-            /\bqual tipo\b/i,
-            /\bquais tipos?\b/i,
-          ],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-37',
-    title: 'Mid Horários: leftover não vira Não encontrei tipos (DEC-C3)',
-    turnosIdeais: 1,
-    // P1 / DEC-C3: obrigação choose_slot — «cotovelo» não é escolha de tipo.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-37: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-37: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-08T09:00', label: '09:00' },
-              { key: '2026-11-08T09:30', label: '09:30' },
-              { key: '2026-11-08T10:00', label: '10:00' },
-            ],
-            messageId: 'm_a37_slots',
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a37' },
-              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a37' },
-              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a37' },
-            ],
-            messageId: 'm_a37_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'cotovelo' }],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/outro jeito|reformular|equipe/i],
-          excludes: [
-            /Não encontrei/i,
-            /Liberação miofascial/i,
-            /Ventosaterapia/i,
-            /Massagem relaxante/i,
-            /qual tipo/i,
-          ],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-36',
-    title: 'Após soft-close Terminar, massagem pergunta o tipo (sem leftover)',
-    turnosIdeais: 2,
-    // P0 arquitectura: soft-close mid-funnel (#629) + clearSession; espelha F-10 no idle.
-    prepare: (s) => {
-      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-36: serviço Massagem ausente no cenário')
-      upsertServiceOp(
-        s.db,
-        s.caller,
-        {
-          id: massagem.id,
-          name: massagem.name,
-          durationMinutes: massagem.durationMinutes,
-          bufferMinutes: massagem.bufferMinutes,
-          priceCents: massagem.priceCents,
-          professionalIds: massagem.professionalIds,
-          roomRequirement: massagem.roomRequirement,
-          variantKind: 'tipo',
-          variantKindPlural: 'tipos',
-          variantSelection: 'uma',
-        },
-        s.clock,
-      )
-      replaceServiceZonesOp(
-        s.db,
-        s.caller,
-        massagem.id,
-        [
-          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
-          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
-          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
-        ],
-        s.clock,
-      )
-      const relaxante = s.db.get<{ id: string }>(
-        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
-        s.tenantId,
-        massagem.id,
-        'Massagem relaxante',
-      )
-      if (!relaxante) throw new Error('A-36: variante Massagem relaxante ausente')
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: massagem.id,
-          variantIds: [relaxante.id],
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '2026-11-08T09:00', label: '09:00' },
-              { key: '2026-11-08T10:00', label: '10:00' },
-            ],
-            messageId: 'm_a36_slots',
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a36' },
-              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a36' },
-            ],
-            messageId: 'm_a36_slots',
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [
-      { role: 'client', text: 'Terminar' },
-      { role: 'client', text: 'Quero agendar uma massagem' },
-    ],
-    expect: {
-      proposal: false,
-      notPaused: true,
-      noAppointment: true,
-      turns: [
-        {
-          turn: 0,
-          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
-          excludes: [/Não encontrei/i],
-        },
-        {
-          turn: 1,
-          matches: [/tipo|qual|opç/i],
-          excludes: [
-            /Perfeito,\s*Massagem relaxante/i,
-            /próximos horários/i,
-            /horários disponíveis/i,
-            /\b09:00\b/,
-            /\b10:00\b/,
-          ],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-31',
-    title: 'Escolha por hora solta «14»',
-    turnosIdeais: 1,
-    // DEC-127 / sonda segundo telefone 07/11/2026 (#605): número solto contra pending de horário.
-    prepare: (s) => {
-      const offerId = s.sayOutbound(
-        'Para Massagem, amanhã tenho sexta 06/11 às 13:00, 14:00 e 15:30. Qual fica melhor?',
-      )
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.massagem,
-          date: '2026-11-06',
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [
-              { key: '13:00', label: '2026-11-06 às 13:00' },
-              { key: '14:00', label: '2026-11-06 às 14:00' },
-              { key: '15:30', label: '2026-11-06 às 15:30' },
-            ],
-            messageId: offerId,
-          },
-          lastOffer: {
-            slots: [
-              { startsAt: Date.UTC(2026, 10, 6, 16, 0), professionalId: s.ids.ana },
-              { startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana },
-              { startsAt: Date.UTC(2026, 10, 6, 18, 30), professionalId: s.ids.ana },
-            ],
-            messageId: offerId,
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: '14' }],
-    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
-  },
-  {
-    id: 'A-15',
-    title: 'Homónimo Axila com Feminina não acusa mistura',
-    turnosIdeais: 1,
-    // CF-30 (#502): filtro pela linha travada — verde após o merge.
-    damage: { serviceKey: 'depilacao', zoneNames: ['Axila', 'Pernas'] },
-    prepare: (s) => {
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Axila e pernas' }],
-    expect: {
-      proposal: false,
-      turns: [
-        {
-          turn: 0,
-          matches: [/Axila/i, /Pernas/i],
-          excludes: [/masculino e feminino|juntar masculino|mesma visita/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-16',
-    title: '«Axilas e pernas» não deixa zona cair em silêncio',
-    turnosIdeais: 1,
-    // CF-31 (#509): eco DEC-137 já nomeia as duas; nenhuma cai sem dizer.
-    damage: { serviceKey: 'depilacao', zoneNames: ['Axila', 'Pernas'] },
-    prepare: (s) => {
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Axilas e pernas' }],
-    expect: {
-      proposal: false,
-      outboundIncludes: ['Entendi: axila, pernas. Certo?'],
-      turns: [
-        {
-          turn: 0,
-          matches: [/Axila/i, /Pernas/i],
-          excludes: [/só.*Pernas|apenas.*Pernas/i],
-        },
-      ],
-    },
-  },
-  {
-    id: 'A-17',
-    title: 'Toque «11-03 17:00» abre a proposta do dia certo',
-    turnosIdeais: 1,
-    // CF-32 (#507 / #505): id civil no toque; título mês-dia não autoriza.
-    nowMs: Date.UTC(2026, 10, 3, 13, 0), // ter 03/11/2026 10:00 SP
-    damage: {
-      serviceKey: 'depilacao',
-      zoneNames: ['Axila', 'Pernas'],
-      date: '2026-11-03',
-      time: '17:00',
-    },
-    prepare: (s) => {
-      const zones = s.db.all<{ id: string; name: string; audience: string }>(
-        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
-        s.tenantId,
-        s.ids.depilacao,
-      )
-      const variantIds = zones
-        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
-        .map((z) => z.id)
-      const catalogVersion = 'cv-dialog-506'
-      const key = '2026-11-03T17:00'
-      const offerId = s.sayOutbound(
-        'Para Depilação, terça 03/11 tenho 17:00. Qual fica melhor?',
-      )
-      saveScheduleSession(
-        s.db,
-        s.tenantId,
-        s.conversationId,
-        {
-          serviceId: s.ids.depilacao,
-          audienceLine: 'feminino',
-          variantIds,
-          date: '2026-11-03',
-          catalogVersion,
-          phase: 'ofertado',
-          pending: {
-            slot: 'horario',
-            options: [{ key, label: 'terça 03/11 às 17:00' }],
-            messageId: offerId,
-          },
-          lastOffer: {
-            slots: [
-              {
-                // 17:00 America/Sao_Paulo = 20:00 UTC
-                startsAt: Date.UTC(2026, 10, 3, 20, 0),
-                professionalId: s.ids.gi,
-              },
-            ],
-            messageId: offerId,
-          },
-        },
-        s.clock,
-      )
-    },
-    turns: [
-      {
-        role: 'choice',
-        buttonId: encodeChoiceId('horario', 'cv-dialog-506', '2026-11-03T17:00'),
-        buttonTitle: '11-03 17:00',
-        body: '[Lista] 11-03 17:00',
-      },
-    ],
-    expect: {
-      proposal: true,
-      noAppointment: true,
-      proposalAt: { date: '2026-11-03', time: '17:00' },
-      proposalZones: ['Axila', 'Pernas'],
-      turns: [{ turn: 0, excludes: [/qual dia/i] }],
-    },
-  },
-  {
-    id: 'A-18',
-    title: 'Confirmar depois da validade não marca e oferece outras horas',
-    turnosIdeais: 2,
-    // CF-33 (#511): Confirmar expirado explica e oferece ≥2 horários do mesmo pedido.
-    damage: { serviceKey: 'limpeza', date: '2026-11-06', time: '15:00' },
-    turns: [
-      { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
-      { role: 'proposal_sent' },
-      { role: 'clock', setMs: DIALOG_NOW_MS + APPOINTMENT_PROPOSAL_VALIDITY_MS + 60_000 },
-      { role: 'confirm_proposal' },
-    ],
-    expect: {
       noAppointment: true,
       turns: [
         {
           turn: 1,
-          matches: [
-            /expirou|já não (está|fica) válida|passou da validade/i,
-            /\b\d{2}:\d{2}\b.*\b\d{2}:\d{2}\b/,
-          ],
-          excludes: [/A equipe pode enviar uma nova proposta/i],
+          matches: [/Perfeito\. Qualquer coisa|Até lá|Combinado\. (Bom dia|Boa tarde|Boa noite)|Sem problema\. Quando quiser|Tudo bem! Fico por aqui|Fica à vontade\. Qualquer coisa/],
+          excludes: [/não entendi|nao entendi|Gioconda|perfil/i],
         },
       ],
     },
   },
   {
-    id: 'A-19',
-    title: 'Catálogo sem match: diz o que faltou, sem link Google',
+    id: 'CC-34',
+    title: '«tô inchada» → handoff DEC-046 (saúde), sem conselho clínico do modelo',
     turnosIdeais: 1,
-    // CF-34 fechado (#512 / #520): diz o que faltou; sem link Google.
-    prepare: (s) => {
-      setClinicAiProfile(
-        s.db,
-        s.tenantId,
-        { googleBusinessUrl: 'https://maps.app.goo.gl/ficticio506' },
-        s.clock,
-      )
-    },
-    turns: [{ role: 'client', text: 'Vocês fazem botox?' }],
+    // Staging 14/11/2026: a frase ia ao redator e inventava «vale procurar um médico».
+    // Lab #752: HEALTH_RE passa a casar «inchad» / «dor» → pausa off_purpose sem LLM.
+    // Baseline 15/11: frase fixa de segurança (não LLM) pode mencionar urgência.
+    turns: [{ role: 'client', text: 'Queria algo para drenar, to inchada' }],
     expect: {
       proposal: false,
-      notPaused: true,
-      outboundExcludes: [/maps\.app\.goo\.gl|maps\.google|goo\.gl\/ficticio/i],
+      noAppointment: true,
       turns: [
         {
           turn: 0,
-          matches: [/não entendi|não encontrei|opç/i],
-          excludes: [/maps\.app\.goo\.gl/i],
+          matches: [/equipe continuar/i, /forte|piorando|pronto-socorro/i],
         },
       ],
+    },
+  },
+  {
+    id: 'CC-34b',
+    title: 'Validador de saída ainda barra conselho clínico se o LLM o inventar',
+    turnosIdeais: 1,
+    // Rede de segurança: inbound sem léxico de saúde, redator devolve «médico» → DEC-107.
+    adapter: new FixedExceptionAdapter(
+      'Se o inchaço for forte ou te incomodar muito, vale procurar um médico antes.',
+    ),
+    turns: [{ role: 'client', text: 'Fazem pacote para noivas no final do ano?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      notPaused: true,
+      outboundExcludes: [/m[eé]dic/i],
+      turns: [{ turn: 0, matches: [/outro jeito|falar com a equipe|n[aã]o consegui/i] }],
+    },
+  },
+  {
+    id: 'CC-35',
+    title: 'Redator de exceção continua a poder remeter para a equipe (sem regressão)',
+    turnosIdeais: 1,
+    adapter: new FixedExceptionAdapter('A equipe confirma os detalhes na segunda-feira, a partir das 09:00.'),
+    turns: [{ role: 'client', text: 'Fazem pacote para noivas no final do ano?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/equipe confirma os detalhes/i] }],
+    },
+  },
+  {
+    id: 'LAB-813a',
+    title: '«já tenho alguma marcação?» lista compromissos, sem handoff',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      seedFutureAppointment(s, {
+        id: 'apt_lab_813a',
+        serviceId: s.ids.peeling,
+        professionalId: s.ids.bia,
+        startsAt: zonedCivilToUtc(TZ, 2026, 11, 25, 10, 0),
+      })
+    },
+    turns: [{ role: 'client', text: 'já tenho alguma marcação?' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      appointments: 1,
+      turns: [
+        {
+          turn: 0,
+          matches: [/você tem/i, /\d{2}:\d{2}/, /peeling/i],
+          excludes: [/equipe vai verificar/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'LAB-813c',
+    title: 'Sem marcação: «tenho horário marcado?» responde sem inventar hora',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'tenho horário marcado?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [{ turn: 0, matches: [/não tem horário marcado/i] }],
     },
   },
 ]
 
-// Família FL- (Flow + hub, DEC-138): caminho principal vigente.
-P0_DIALOG_CASES.push(...FL_DIALOG_CASES)
-P0_DIALOG_CASES.push(...CW_DIALOG_CASES)
-// Família CC- (consulta de catálogo, DEC-142) e Confirmar suspenso (A-22/A-23).
-P0_DIALOG_CASES.push(...CC_DIALOG_CASES)
-// A-25..A-27: zonas em texto livre e telemetria do funil (DEC-143, #588/#589).
-// A-27 (antes A-24 neste PR): renumerado após #597 ocupar A-24 (Massagem ≠ variante).
-P0_DIALOG_CASES.push(...ZONAS_DIALOG_CASES)
-P0_DIALOG_CASES.push(...LAB_2026_11_16_CASES)
+// Família GU- (DEC-202): pedido de marcar, remarcar ou cancelar recebe o link; nunca marca.
+P0_DIALOG_CASES.push(...GU_DIALOG_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)

@@ -21,7 +21,7 @@ import { queryAvailability } from '../scheduling/query'
 import { memoAdapter, queryAutomaticAvailability } from '../tempo/automatic'
 import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
-import { extractTimes } from './autobook'
+import { extractTimes } from './nlu/temporal'
 
 export const AI_FREE_SLOT_DAYS = 7
 export const AI_FREE_SLOT_MAX_SERVICES = 3

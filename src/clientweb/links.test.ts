@@ -133,6 +133,21 @@ describe('link pessoal e sessão (DEC-199)', () => {
     }
   })
 
+  it('o serviço reconhecido no chat viaja no link e sai na troca (DEC-202)', async () => {
+    const { d1, clock, close } = setup()
+    try {
+      const withService = await issueClientWebLink(d1, clock, { ...LINK, purpose: 'agendar', serviceId: 'svc-massagem' })
+      expect(await exchangeClientWebLink(d1, clock, withService.token)).toMatchObject({
+        purpose: 'agendar',
+        serviceId: 'svc-massagem',
+      })
+      const plain = await issueClientWebLink(d1, clock, { ...LINK, conversationId: 'cnv-9' })
+      expect(await exchangeClientWebLink(d1, clock, plain.token)).toMatchObject({ serviceId: null })
+    } finally {
+      close()
+    }
+  })
+
   it('não guarda o token nem a sessão em claro', async () => {
     const { admin, d1, clock, close } = setup()
     try {

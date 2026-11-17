@@ -99,7 +99,7 @@ describe('comentário do scorecard no PR', () => {
     const m = await load()
     expect(m.coverageNote(['src/clinic/ai/autobook.test.ts']).behaviour).toEqual([])
     expect(m.coverageNote(['src/clinic/inbox/messages.ts', 'docs/x.md']).behaviour).toEqual([])
-    expect(m.coverageNote(['src/whatsapp/flow/screens.ts']).behaviour).toEqual(['src/whatsapp/flow/screens.ts'])
+    expect(m.coverageNote(['src/clientweb/route-intent.ts']).behaviour).toEqual(['src/clientweb/route-intent.ts'])
   })
 
   it('diz com o que comparou: corrida da base ou linha de base gravada (que pode estar atrasada)', async () => {

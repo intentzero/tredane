@@ -33,7 +33,6 @@ import {
   isCatalogInfoAsk,
   isShortBookingAffirm,
 } from './booking-intent-text'
-import { realizeAskInfo } from './ask-info-realize'
 import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import {
@@ -670,25 +669,9 @@ export function catalogReply(
     return null
   }
 
-  // Pesquisa de preço mid-funnel — partilha realizeAskInfo com o gate (DEC-C1/C4).
-  // Park/resume da mesma obrigação; não limpa variante / lastOffer.
+  // E-02 / DEC-090: «Quanto custa depilação?» sem zona — pede as zonas, sem R$.
   if (active.length > 0 && named.length === 0 && asksPrice && opts.conversationId) {
     const pool = scoped.length > 0 ? scoped : active
-    const frameNow = getBookingFrame(db, tenantId, opts.conversationId)
-    if (sameFunnel && frameNow?.serviceId === svc.id) {
-      const realized = realizeAskInfo({
-        conversationId: cnv,
-        topic: 'price',
-        service: svc,
-        zones: pool,
-        frame: frameNow,
-        namedZones: [],
-        sameFunnel: true,
-      })
-      if (realized) return realized.replyText
-      if (variantAudiencesConflict(sessionZones)) return mixedAudienceReply(cnv)
-    }
-    // E-02 / DEC-090: «Quanto custa depilação?» a frio — pede zonas, sem R$.
     return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {
       selectionMode: svc.variantSelection,
     })

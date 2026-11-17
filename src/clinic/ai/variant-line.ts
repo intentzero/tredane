@@ -5,7 +5,6 @@
  * DEC-145: modo `uma` usa o singular do cadastro e redações sem o convite multi.
  * Modo `varias` (DEC-191): só texto livre (ex. axila e pernas / todas) + eco DEC-137; sem lista Opções.
  */
-import { formatBRL } from '../../ai/prompt'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { variantChoiceLabel } from '../config/zones'
 import type { ServiceRow, VariantAudience } from '../config/types'
@@ -113,22 +112,6 @@ export function variantKindForAsk(
   return service.variantKindPlural?.trim() || service.variantKind?.trim() || 'opções'
 }
 
-/**
- * Linhas de preço/duração por variante (tabela de catálogo).
- * Usado na pesquisa de preço com o serviço aberto e ainda sem variante nomeada
- * («Quanto custa?», «Qual o valor…», «valores», «tabela») — não lista só os nomes.
- */
-export function formatVariantPriceTable(zones: readonly ListedZone[]): string {
-  const labels = stableVariantLabelList(zones)
-  return zones
-    .map((zone, index) => {
-      const label = labels[index] ?? zone.name
-      const preço =
-        zone.priceCents == null ? 'a equipe confirma o valor' : formatBRL(zone.priceCents)
-      return `${label} — ${preço} (${zone.durationMinutes} min)`
-    })
-    .join('\n')
-}
 
 export function variantListQuestion(
   serviceName: string,

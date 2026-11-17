@@ -22,12 +22,6 @@ import {
 } from '../../conversation-metrics/query'
 import type { ConversationMetricsWindow } from '../../conversation-metrics/types'
 import {
-  listInterpreterShadowEvents,
-  SHADOW_REPORT_ROW_LIMIT,
-  type ShadowEventRow,
-} from '../../shadow-report/store'
-import { summariseShadowRows } from '../../shadow-report/summary'
-import {
   JSON_RPC_APPLICATION_ERROR,
   JSON_RPC_INVALID_PARAMS,
   toolErrorResult,
@@ -43,23 +37,6 @@ export const DIAGNOSIS_GUIDANCE = [
   '(5) uma hipótese de melhoria (copy, match, handoff) sem inventar mensagens que não estão no fio.',
   'Não peça ao servidor para gravar o diagnóstico — este MCP é só leitura.',
 ].join(' ')
-
-/** TEMPORÁRIO: ver hipotese-compreensao-llm-primeiro.md §5.3d (lista de remoção). */
-const SHADOW_REPORT_TOOL = {
-  name: 'get_interpreter_shadow_report' as const,
-  description:
-    'TEMPORÁRIO. Resumo agregado da sombra do interpretador LLM (turnos de texto livre): por campo, quantas vezes léxico e modelo concordam, só o modelo leu, só o léxico leu ou se contradizem; validação, cobertura, latência e custo. Com sample>0 devolve ids internos (conversa/mensagem) de divergências para rotular no painel. Sem texto da conversa. Janela por defeito: 24 h.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      sinceHours: { type: 'number', description: 'Janela em horas (1 a 168); por defeito 24.' },
-      tenantId: { type: 'string', description: 'Filtro opcional por clínica.' },
-      sample: { type: 'number', description: 'Até N ids de divergências por tipo (0 a 50); por defeito 0.' },
-    },
-    additionalProperties: false,
-  },
-  annotations: { readOnlyHint: true, openWorldHint: false },
-}
 
 export const REVIEW_CENTRAL_MCP_TOOLS = [
   {
@@ -121,7 +98,6 @@ export const REVIEW_CENTRAL_MCP_TOOLS = [
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
-  SHADOW_REPORT_TOOL,
   {
     name: 'get_conversation_metrics' as const,
     description:
@@ -152,12 +128,6 @@ export type ReviewCentralStore = {
     sampleId: string,
     nowMs: number,
   ) => Promise<ReviewSampleDetail | null>
-  /** TEMPORÁRIO: linhas da sombra do interpretador (D1 central). */
-  shadowEvents?: (opts: {
-    sinceMs: number
-    tenantId?: string | null
-    limit?: number
-  }) => Promise<ShadowEventRow[]>
   conversationMetrics?: (
     window: ConversationMetricsWindow,
     nowMs: number,
@@ -169,7 +139,6 @@ export function createD1ReviewCentralStore(d1: D1Database): ReviewCentralStore {
   return {
     list: (opts) => listReviewSamplesD1(d1, opts),
     get: (sampleId, nowMs) => getReviewSampleD1(d1, sampleId, nowMs),
-    shadowEvents: (opts) => listInterpreterShadowEvents(admin, opts),
     conversationMetrics: (window, nowMs) => fetchConversationMetricsReport(admin, window, nowMs),
   }
 }
@@ -179,7 +148,6 @@ export function createSyncReviewCentralStore(db: AdminDb): ReviewCentralStore {
   return {
     list: async (opts) => listReviewSamplesSync(db, opts),
     get: async (sampleId, nowMs) => getReviewSampleSync(db, sampleId, nowMs),
-    shadowEvents: (opts) => listInterpreterShadowEvents(asyncDb, opts),
     conversationMetrics: (window, nowMs) => fetchConversationMetricsReport(asyncDb, window, nowMs),
   }
 }
@@ -384,33 +352,6 @@ export async function callReviewCentralMcpTool(
           metrics: report,
           howToRead:
             'bookingRate = confirmados/intenção; falseConfirmations deve ser 0 (alerta ops.alert conversation.false_confirmation); messagesToBook mediana vs baseline 6; attendantCalls não é para minimizar à força.',
-        })
-      }
-      case 'get_interpreter_shadow_report': {
-        if (!deps.store.shadowEvents) {
-          return toolErrorResult('Relatório da sombra indisponível neste armazenamento', {
-            error: 'shadow_report_unavailable',
-            status: 501,
-          })
-        }
-        const sinceHours = Math.min(Math.max(optionalFiniteNumber(args, 'sinceHours') ?? 24, 1), 168)
-        const sample = Math.min(Math.max(optionalFiniteNumber(args, 'sample') ?? 0, 0), 50)
-        const tenantId = optionalString(args, 'tenantId')
-        const sinceMs = nowMs - sinceHours * 3_600_000
-        // Pedir limit+1: truncated só quando há mais linhas do que o teto do resumo.
-        const rowsPlus = await deps.store.shadowEvents({
-          sinceMs,
-          tenantId: tenantId ?? null,
-          limit: SHADOW_REPORT_ROW_LIMIT + 1,
-        })
-        const truncated = rowsPlus.length > SHADOW_REPORT_ROW_LIMIT
-        const rows = truncated ? rowsPlus.slice(0, SHADOW_REPORT_ROW_LIMIT) : rowsPlus
-        return toolTextResult({
-          temporary: true,
-          window: { sinceHours, fromMs: sinceMs, toMs: nowMs, tenantId: tenantId ?? null },
-          truncated,
-          summary: summariseShadowRows(rows, { sample }),
-          note: 'Sem rótulo humano, llm_only e differ não dizem quem tem razão: é a lista do que rever.',
         })
       }
       default:

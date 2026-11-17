@@ -201,7 +201,13 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
       maxAge: Math.floor(CLIENT_WEB_SESSION_TTL_MS / 1000),
     })
     log({ level: 'info', event: 'client_web.exchange_ok', detail: { purpose: result.purpose } })
-    return c.json({ ok: true, purpose: result.purpose, appointmentId: result.appointmentId, expiresAt: result.expiresAt })
+    return c.json({
+      ok: true,
+      purpose: result.purpose,
+      appointmentId: result.appointmentId,
+      serviceId: result.serviceId,
+      expiresAt: result.expiresAt,
+    })
   })
 
   app.get('/api/c/state', async (c) => {

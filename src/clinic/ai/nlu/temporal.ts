@@ -319,12 +319,6 @@ export function notAfterTimeFromText(text: string): string | null {
   return notAfter
 }
 
-/** «Mais tarde tem horário?» com lista de horários já aberta → continuar no mesmo dia. */
-export function wantsMoreSlotsLaterInDay(text: string): boolean {
-  const folded = norm(text)
-  if (!/\bmais tarde\b/.test(folded)) return false
-  return /\b(?:horario|horário|vaga|tem|algum)\b/.test(folded)
-}
 
 function maskDepoisDasSpans(folded: string): string {
   return folded.replace(depoisDasClockRe(), (m) => ' '.repeat(m.length))

@@ -36,7 +36,7 @@ Fonte canónica máquina-legível: `SEG_IA_EVIDENCE_MATRIX`. Resumo:
 
 | ID | Requisito | Cenário (sintético) | Teste | Estado |
 | --- | --- | --- | --- | --- |
-| S9-T01 | REQ-083 / AC-56 | Texto livre / JSON nunca marca | `autobook.test.ts` | Confirmado |
+| S9-T01 | REQ-083 / AC-56 | Texto livre / JSON nunca marca | `evals/dialogs/dialogs.test.ts` (GU-18 e INV-01; DEC-202) | Confirmado |
 | S9-T02 | DEC-061 | Só botão versionado | `execute-confirm.test.ts`, `adversarial.test.ts` | Confirmado |
 | S9-T03 | DEC-008/047 | Proposta/Pix sem hold | `proposals.test.ts`, `execute-confirm`, `adversarial` | Confirmado |
 | S9-T04 | Isolamento | Tenant/contato/conversa trocados | `proposals.test.ts`, `adversarial` | Confirmado |

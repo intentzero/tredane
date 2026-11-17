@@ -9,7 +9,7 @@ import {
   type VariantSelection,
 } from '../catalog/variant-selection'
 import type { ServiceZoneRow } from '../config/types'
-import { resolveZoneMention, zonesNamedInText } from '../config/zones'
+import { resolveZoneMention } from '../config/zones'
 import type { AudienceLine } from './variant-line'
 
 /**
@@ -24,10 +24,6 @@ const COUNTED_CATALOG_CHOICE = /\bas\s+(duas|tres|tr[eê]s)\b/i
  * O texto já vem dobrado (sem acento, minúsculas): «jóia» → joia, «ótimo» → otimo.
  */
 const GREETING_TUDO = /\btudo\s+(?:bem|bom|certo|joia|otimo)\b/gi
-/** Lista para a cliente escolher. Não é o conjunto da visita. */
-const ZONE_MENU =
-  /\b(temos|opcoes|opcao)\b|\bqual\b[^?.!]{0,40}\b(zona|regiao|regioes)\b/i
-
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
@@ -117,28 +113,7 @@ export function claimsWholeCatalog(text: string): boolean {
   return WHOLE_CATALOG_CHOICE.test(withoutGreetingTudo(fold(text)))
 }
 
-/**
- * Atalho de catálogo no turno («tudo», «as duas», «as três»).
- * Não é sobra de zona — o autobook deve continuar o serviço da sessão (#509).
- */
-export function claimsCatalogShortcut(text: string): boolean {
-  return claimsWholeCatalog(text) || countedCatalogSize(text) != null
-}
 
-/**
- * Zonas já fechadas na última fala da clínica («para axila e íntima»),
- * quando a cliente só aceita o horário. Uma lista («temos…», «qual zona») não escolhe.
- */
-export function zonesOfferedToClient(
-  text: string | null | undefined,
-  zones: readonly ServiceZoneRow[],
-): ServiceZoneRow[] {
-  if (!text || zones.length === 0) return []
-  if (ZONE_MENU.test(fold(text))) return []
-  const named = zonesNamedInText(text, zones)
-  if (named.length === 0 || nameCitedTwice(named)) return []
-  return named
-}
 
 /**
  * Zonas escolhidas pela cliente nos textos (mais novos primeiro).

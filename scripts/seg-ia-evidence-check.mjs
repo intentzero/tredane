@@ -15,7 +15,7 @@ const REQUIRED = [
   'src/seg-ia-validation/matrix.ts',
   'src/seg-ia-validation/adversarial.test.ts',
   'src/seg-ia-validation/matrix.test.ts',
-  'src/clinic/ai/autobook.test.ts',
+  'src/clinic/ai/evals/dialogs/dialogs.test.ts',
   'src/clinic/ai/prompt-injection.test.ts',
   'src/clinic/ai/abuse-limits.test.ts',
   'src/clinic/ai/context-minimization.test.ts',

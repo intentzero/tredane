@@ -439,7 +439,7 @@ describe('Cloudflare runtime harness — F0', () => {
     expect(bad.status).toBe(403)
   })
 
-  it('página da cliente (ADR-0018): RPCs do Clinic DO no workerd — interruptor, sessão, catálogo, estado e isolamento', async () => {
+  it('página da cliente (ADR-0018): RPCs do Clinic DO no workerd — sessão, catálogo, estado e isolamento', async () => {
     const { computeHubSignature256, SYNTHETIC_APP_SECRET } = await import('../whatsapp/webhook-verify')
     const { issueClientWebLink } = await import('../clientweb/links')
     const { systemClock } = await import('../db/clock')
@@ -496,21 +496,8 @@ describe('Cloudflare runtime harness — F0', () => {
     }
     const get = (path: string, cookie: string) => worker.fetch(`http://localhost${path}`, { headers: { Cookie: cookie } })
 
-    // Interruptor da owner desligado: a sessão abre, mas a clínica não serve nada.
+    // DEC-202: a página está sempre ligada; a sessão abre e serve logo.
     const cookie = await login('clinic-demo-a')
-    expect((await get('/api/c/state', cookie)).status).toBe(401)
-    expect((await get('/api/c/catalog', cookie)).status).toBe(401)
-
-    // A owner liga; a atendente não pode.
-    const attendantPut = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/config/client-web', {
-      method: 'PUT',
-      headers: { Authorization: 'Bearer synth:user_synth_attendant_a', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true }),
-    })
-    expect(attendantPut.status).toBe(403)
-    const on = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/config/client-web', { method: 'PUT', headers: owner, body: JSON.stringify({ enabled: true }) })
-    expect(on.status).toBe(200)
-    expect(await on.json()).toMatchObject({ enabled: true })
 
     // Estado e catálogo vêm do DO, com o contacto da sessão.
     const state = await get('/api/c/state', cookie)
@@ -543,17 +530,44 @@ describe('Cloudflare runtime harness — F0', () => {
     })
     expect(await cancel.json()).toEqual({ status: 'not_found' })
 
-    // Outra clínica (interruptor da owner desligado) não serve nada, mesmo com o contacto e a conversa da A.
+    // Outra clínica não serve nada, mesmo com o contacto e a conversa da A (não existem no DO da B).
     // O isolamento por contacto e conversa está nos testes de `state.test.ts` e de rotas.
     const forged = await login('clinic-demo-b')
-    for (const path of ['/api/c/state', '/api/c/catalog']) {
-      expect((await get(path, forged)).status).toBe(401)
-    }
+    // O estado (marcações do contacto) recusa; o catálogo é o da própria clínica da sessão.
+    expect((await get('/api/c/state', forged)).status).toBe(401)
 
-    // Desligar revoga as sessões abertas já.
-    const off = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/config/client-web', { method: 'PUT', headers: owner, body: JSON.stringify({ enabled: false }) })
-    expect(await off.json()).toMatchObject({ enabled: false })
-    expect((await get('/api/c/state', cookie)).status).toBe(401)
+    // DEC-202: um botão do funil antigo (Confirmar de proposta) responde com o link e nunca marca.
+    const { queueCaller } = await import('../clinic')
+    const { clinicDurableObjectName } = await import('../clinic/demo/do-name')
+    const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName('clinic-demo-a'))) as unknown as {
+      handleProposalButtonClick: (c: unknown, i: unknown) => Promise<{ handled: boolean; action?: string }>
+      sendClientWebLinkFromStaff: (c: unknown, i: unknown) => Promise<{ status: string }>
+    }
+    const click = await stub.handleProposalButtonClick(queueCaller('clinic-demo-a'), {
+      tenantId: 'clinic-demo-a',
+      contactId,
+      conversationId: conv!.id,
+      buttonId: 'prop:aprop_antiga:v1:confirm',
+      providerEventKey: 'evt_legacy_confirm',
+    })
+    expect(click).toMatchObject({ handled: true, action: 'web_link' })
+    const ctaRows = await (async () => {
+      const list = await worker.fetch(`http://localhost/api/tenants/clinic-demo-a/inbox/conversations/${conv!.id}`, { headers: owner })
+      return JSON.stringify(await list.json())
+    })()
+    expect(ctaRows).toMatch(/Abrir agenda/)
+    // Nenhum compromisso nasceu do clique.
+    const apts = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/appointments', { headers: owner })
+    expect(JSON.stringify(await apts.json())).not.toMatch(/"status":"confirmed"/)
+
+    // A equipe envia o link pelo painel: sai o botão, com auditoria, e não marca nada.
+    const staff = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/client-web-links', {
+      method: 'POST',
+      headers: owner,
+      body: JSON.stringify({ conversationId: conv!.id, purpose: 'agendar' }),
+    })
+    expect(staff.status).toBe(201)
+    expect(await staff.json()).toEqual({ status: 'sent' })
   }, 60_000)
 
   it('WS autenticado + revoke corta A e preserva B (#23)', async () => {

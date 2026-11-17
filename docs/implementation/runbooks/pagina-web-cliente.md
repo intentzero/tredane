@@ -1,6 +1,6 @@
 # Runbook — página web da cliente (agendar, remarcar e cancelar por link)
 
-**Estado:** **Proposto** (DEC-196 a DEC-201, [ADR-0018](../../adr/0018-pagina-web-cliente.md)). Só **staging**: `CLIENT_WEB_ENABLED` está ligado em `env.staging` de `wrangler.jsonc` e **não** em produção. Dados fictícios; a GATE-04 (parecer LGPD) bloqueia dados reais.
+**Estado:** **Proposto** (DEC-196 a DEC-202, [ADR-0018](../../adr/0018-pagina-web-cliente.md)). Desde a DEC-202 o chat **não marca, não remarca e não cancela**: só informa e envia o link. Só **staging**: `CLIENT_WEB_ENABLED` está ligado em `env.staging` de `wrangler.jsonc` e **não** em produção. Dados fictícios; a GATE-04 (parecer LGPD) bloqueia dados reais.
 
 ## O que liga o quê
 
@@ -8,19 +8,19 @@
 | --- | --- | --- |
 | `CLIENT_WEB_ENABLED=true` | var do Worker (staging) | Liga as rotas `/api/c/*` e a casca `/c/*`. Sem ele respondem 404. |
 | `APP_BASE_URL` https | var do Worker | Base do link («https://staging.app.tredane.com/c/<token>»). Sem https o link não sai. |
-| «Agendamento por link» | Clínica › Configurações (só a owner) | Liga por clínica. **Desligado por defeito.** Desligar fecha na hora as sessões abertas. |
-| Pausa da owner (limites das automações) | Clínica › Limites das automações | A página mostra «A equipe atende por aqui» e não marca nem remarca; o chat não oferece o link de remarcar e cancelar. |
+| Pausa da owner (limites das automações) | Clínica › Limites das automações | A página mostra as marcações, mas agendar, remarcar e cancelar ficam bloqueados com «Falar com a equipe»; o chat passa à equipe em vez de enviar o link (DEC-202). |
 
 ## Teste de fumo em staging (clínica demo)
 
 1. Confirmar que o deploy tem `CLIENT_WEB_ENABLED` (`npm run check:env -- staging`) e que a clínica demo tem serviços e profissionais.
-2. Na clínica demo, owner: Clínica › **Agendamento por link** → ligar.
-3. Pelo [MCP de laboratório](laboratorio-mcp.md) (`lab_say`): dizer «Oi». Esperado: uma mensagem com o expediente de hoje e o botão **«Abrir agenda»**; o `lab_state` mostra o botão de URL e **não** o token no corpo.
+2. A página está sempre ligada nas clínicas do ambiente (DEC-202): não há interruptor por clínica.
+3. Pelo [MCP de laboratório](laboratorio-mcp.md) (`lab_say`): dizer «Oi», e depois «Quero marcar massagem amanhã às 10h» (o botão abre já na Massagem). Esperado, no «Oi»: uma mensagem com o expediente de hoje e o botão **«Abrir agenda»**; o `lab_state` mostra o botão de URL e **não** o token no corpo.
 4. Abrir o URL num telemóvel (ou na vista móvel do navegador): a página mostra o nome da clínica e «Olá, <primeiro nome>»; o endereço passa a `/c` (sem token). Recarregar mantém a sessão (30 min).
 5. Abrir **outra vez o mesmo URL**: «Este link já foi usado». Pedir outro no chat («Oi»): o link novo invalida o anterior.
 6. Agendar: serviço → (zonas) → horário → Confirmar. Esperado: «Horário marcado», recibo no chat com «Marcado pela página. Não foi você?», marcação na agenda com o rótulo da cliente (web) e auditoria `appointment.client_web_booked`.
 7. Remarcar e cancelar: dizer «quero remarcar» / «quero cancelar» no chat: o botão abre **direto** na marcação. Com sinal pago, a página pede à equipe em vez de cancelar.
-8. Owner desliga o interruptor: a página aberta passa a «Este link já foi usado» no pedido seguinte.
+8. Pausa da owner (Limites das automações): «quero marcar» no chat passa à equipe, sem botão; a página aberta mostra as marcações e bloqueia agendar, remarcar e cancelar.
+9. Painel: Agendar → escolher serviço e horário → **Enviar link de agenda**. Esperado: a cliente recebe o botão «Abrir agenda» já nesse serviço; nada fica marcado; auditoria `client_web.link_sent_by_staff`.
 
 ## Cabeçalhos a verificar (`curl -sI`)
 
@@ -32,8 +32,8 @@ Eventos `client_web.exchange_ok`, `client_web.exchange_refused`, `client_web.boo
 
 ## Desligar em emergência
 
-1. Rápido, por clínica: a owner desliga o interruptor, ou o superadmin pelo suporte.
-2. Global: `CLIENT_WEB_ENABLED=false` no `env.staging` e deploy. As rotas passam a 404 e o chat deixa de oferecer o link (volta ao Flow, se configurado, e ao M5).
+1. Pausa da owner (Limites das automações): o chat passa à equipe e a página deixa de marcar.
+2. Global: `CLIENT_WEB_ENABLED=false` no `env.staging` e deploy. As rotas passam a 404 e o chat passa à equipe (não há outro caminho para marcar; o Flow e as listas do chat foram removidos).
 3. Marcações já feitas pela página ficam como estão (a auditoria identifica-as).
 
 ## Limpeza e retenção

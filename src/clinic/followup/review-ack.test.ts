@@ -163,7 +163,7 @@ describe('TRE-29 review ack Continuar | Terminar', () => {
     }
   })
 
-  it('Continuar sem oferta reenvia a cópia genérica de retoma', async () => {
+  it('Continuar não reenvia cópia genérica: quem trata o clique envia o link (DEC-202)', async () => {
     const { db, close, clock, tenantId, cnv } = seedFlaggedConversation()
     try {
       const caller = workerCaller(tenantId, 'user_synth_owner_a')
@@ -190,7 +190,8 @@ describe('TRE-29 review ack Continuar | Terminar', () => {
          ORDER BY created_at DESC, rowid DESC LIMIT 1`,
         cnv.id,
       )
-      expect(reply?.body).toBe(IDLE_CONTINUE_REPLY_BODY)
+      expect(reply?.body).not.toBe(IDLE_CONTINUE_REPLY_BODY)
+      expect(click.outbox).toEqual([])
     } finally {
       close()
     }

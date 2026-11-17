@@ -34,7 +34,7 @@ npx wrangler tail --env staging --format=json | node scripts/booking-session-fun
 
 `TREDANE_FUNNEL_DRY_RUN=1` força só o pacote SQL/filtros.
 
-Complementar Flow por token D1 (DEC-143 b): `node scripts/flow-funnel.mjs staging <tenantId> [YYYY-MM-DD]`.
+Nota (DEC-202): o funil do Flow foi removido; `scripts/flow-funnel.mjs` já não existe.
 
 ## O que **não** fazer
 

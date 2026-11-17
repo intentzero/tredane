@@ -93,34 +93,17 @@ export type AiAssistDeps = {
   /** Previsão fictícia nos testes do bloco Tempo (DEC-077). Sem isto, o adaptador real. */
   forecast?: import('../tempo/evaluate').ForecastAdapter
   /**
-   * ADR-0016 / #514: quando secrets Flow estão no Worker, o DO injecta isto
-   * para trocar M5 (linha/Opções/Horários) pelo CTA `type: flow`.
-   */
-  prepareBookingFlowOffer?: import('../../whatsapp/flow/offer-live').PrepareBookingFlowOffer
-  /**
-   * Página web da cliente (ADR-0018, Fase 5): com a página ligada, remarcar e cancelar oferecem o
-   * link («Abrir agenda») em vez do caminho conversacional. Ausente = comportamento de hoje.
+   * Página web da cliente (ADR-0018, DEC-202): emite o link pessoal e devolve o botão «Abrir
+   * agenda». Ausente (ambiente sem https, página desligada) = o chat passa à equipe.
    */
   prepareClientWebOffer?: import('../../clientweb/offer').PrepareClientWebOffer
-  /**
-   * Sombra do interpretador LLM (Proposto): mede cada turno de texto livre sem
-   * alterar o atendimento. Desligada por omissão (`AI_INTERPRETER_SHADOW=on`).
-   */
-  interpreterShadow?: boolean
-  /** Fallback do interpretador: só serviço (`AI_INTERPRETER_FALLBACK_SERVICE`, default on). */
-  interpreterFallback?: import('./interpreter-fallback').InterpreterFallbackConfig
-  /**
-   * TEMPORÁRIO: recebe cada evento da sombra (o DO grava-o no D1 central para o Review MCP).
-   * Nunca deve lançar; erros são engolidos por quem chama.
-   */
-  interpreterShadowSink?: (event: import('./interpreter-shadow').InterpreterShadowEvent) => Promise<void> | void
   /**
    * DEC-188: Claude autodraft fora do DO — enfileira em vez de `adapter.generate`
    * no extrator/redator. `suggestReply` do painel ignora isto.
    */
   llmOutOfDo?: boolean
   /**
-   * Publica na fila `tredane-llm-*` (extract/redact ou sibling `llm_shadow`).
+   * Publica na fila `tredane-llm-*` (redator de exceção).
    * Obrigatório quando `llmOutOfDo` está ligado.
    */
   enqueueLlmJob?: (msg: import('./llm-queue-types').LlmQueueEnvelope) => Promise<void>

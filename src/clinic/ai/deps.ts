@@ -6,8 +6,6 @@ import {
   type SimulatedAiOptions,
 } from '../../ai'
 import { abuseLimitsFromEnv, type AbuseLimits } from './abuse-limits'
-import { interpreterFallbackConfigFromEnv } from './interpreter-fallback'
-import { interpreterShadowEnabled } from './interpreter-shadow'
 import type { AiAssistDeps } from './types'
 
 /** Config serializável Worker → DO (RPC não transporta classes). */
@@ -35,9 +33,6 @@ export type AiAssistRpcDeps = {
    * env `ABUSE_LIMIT_*` = tetos/bootstrap. `ABUSE_LIMITS=on` só marca platform.enabled legado.
    */
   abuseLimits?: AbuseLimits
-  /** Sombra do interpretador LLM; só mede (ver `interpreter-shadow.ts`). */
-  interpreterShadow?: boolean
-  interpreterFallback?: import('./interpreter-fallback').InterpreterFallbackConfig
 }
 
 /** Capacidade de proposta e clique. Sempre ligada; a pausa da owner é o desligamento. */
@@ -65,8 +60,6 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     clinicName: rpc.clinicName ?? null,
     autoBookPaused: rpc.autoBookPaused === true,
     ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
-    ...(rpc.interpreterShadow ? { interpreterShadow: true } : {}),
-    ...(rpc.interpreterFallback ? { interpreterFallback: rpc.interpreterFallback } : {}),
   }
 }
 
@@ -78,15 +71,11 @@ export function rpcDepsFromEnv(env: {
   ANTHROPIC_API_KEY?: string
   AI_GATEWAY_BYOK_ALIAS?: string
   ABUSE_LIMITS?: string
-  AI_INTERPRETER_SHADOW?: string
-  AI_INTERPRETER_FALLBACK_SERVICE?: string
   [key: `ABUSE_LIMIT_${string}`]: string | undefined
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
   return {
     mode,
-    ...(interpreterShadowEnabled(env.AI_INTERPRETER_SHADOW) ? { interpreterShadow: true } : {}),
-    interpreterFallback: interpreterFallbackConfigFromEnv(env),
     abuseLimits: abuseLimitsFromEnv(env as Record<string, string | undefined>),
     gateway: {
       accountId: env.CF_ACCOUNT_ID ?? '',
