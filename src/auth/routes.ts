@@ -68,6 +68,8 @@ export function createAuthRoutes(): Hono<AuthEnv> {
         name: ctx.tenantName,
         status: ctx.tenantStatus,
         role: ctx.role,
+        // ADR-0017: o cliente sabe que está numa sessão de suporte (só leitura) e quando ela acaba.
+        ...(ctx.support ? { support: { sessionId: ctx.support.sessionId, expiresAt: ctx.support.expiresAt } } : {}),
       })
     },
   )

@@ -22,7 +22,13 @@ function mockApis(opts: {
   }>
   contextById?: Record<
     string,
-    { tenantId: string; name: string; status: 'active'; role: 'owner' | 'attendant' }
+    {
+      tenantId: string
+      name: string
+      status: 'active'
+      role: 'owner' | 'attendant'
+      support?: { sessionId: string; expiresAt: number }
+    }
   >
 }) {
   vi.stubGlobal(
@@ -258,5 +264,33 @@ describe('panel shell (#22)', () => {
       await screen.findByRole('heading', { name: 'Você não tem acesso a esta área' }),
     ).toBeTruthy()
     expect(screen.queryByRole('navigation', { name: 'Áreas' })).toBeNull()
+  })
+
+  it('sessão de suporte: em qualquer área monta só a vista de leitura, sem navegação nem áreas de escrita', async () => {
+    writeSynthUserId('user_synth_superadmin')
+    window.history.replaceState(null, '', '/c/clinic-demo-a/agenda')
+    mockApis({
+      tenants: [],
+      contextById: {
+        'clinic-demo-a': {
+          tenantId: 'clinic-demo-a',
+          name: 'Clínica Aurora (fictícia)',
+          status: 'active',
+          role: 'attendant',
+          support: { sessionId: 'ssn_1', expiresAt: Date.now() + 20 * 60_000 },
+        },
+      },
+    })
+
+    const { container } = render(<PanelApp />)
+
+    const banner = await screen.findByRole('region', { name: 'Sessão de suporte' })
+    expect(within(banner).getByText(/somente leitura/i)).toBeTruthy()
+    expect(within(banner).getByRole('button', { name: 'Encerrar sessão' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Conversas' })).toBeTruthy()
+    // A área pedida (agenda) e a navegação normal do painel não existem nesta sessão.
+    expect(screen.queryByRole('navigation', { name: 'Áreas' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Agenda' })).toBeNull()
+    await expectNoAxeViolations(container)
   })
 })
