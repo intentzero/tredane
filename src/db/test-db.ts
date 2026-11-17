@@ -130,11 +130,15 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
   )
   applySqlFile(
     (sql) => db.exec(sql),
-    join(MIGRATIONS_DIR, '0029_client_web_link_service.sql'),
+    join(MIGRATIONS_DIR, '0029_support_token_hash_ended.sql'),
   )
   applySqlFile(
     (sql) => db.exec(sql),
-    join(MIGRATIONS_DIR, '0030_drop_interpreter_shadow_events.sql'),
+    join(MIGRATIONS_DIR, '0030_client_web_link_service.sql'),
+  )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0031_drop_interpreter_shadow_events.sql'),
   )
 }
 

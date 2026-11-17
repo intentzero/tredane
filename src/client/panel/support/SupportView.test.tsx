@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import axe from 'axe-core'
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../ui/panel.css'
 import { PanelApiError, type PanelApi } from '../api'
@@ -208,5 +209,15 @@ describe('SupportView — modo de suporte só de leitura (#853, ADR-0017 §5)', 
     render(<SupportView createSocket={fakeSocket} context={context} api={api} now={() => Date.now()} />)
     expect(await screen.findByText('Sessão de suporte encerrada')).toBeTruthy()
     expect(FakeSocket.all).toHaveLength(0)
+  })
+})
+
+describe('SupportView: layout no desktop (staging 17/11/2026)', () => {
+  it('o CSS repõe coluna única na vista de suporte a partir de 768 px (o .panel-app é grelha com menu lateral)', () => {
+    const css = readFileSync('src/client/ui/panel.css', 'utf8')
+    const media = /@media \(min-width: 768px\) \{\s*\.panel-app\.support-view \{([^}]*)\}/.exec(css)
+    expect(media, 'regra .panel-app.support-view dentro de @media (min-width: 768px)').not.toBeNull()
+    expect(media![1]).toMatch(/display:\s*flex/)
+    expect(media![1]).toMatch(/flex-direction:\s*column/)
   })
 })

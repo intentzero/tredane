@@ -196,7 +196,7 @@ export async function expireSupportSessionIfNeededAsync(
   if (!current) throw new NotFoundError('support_session_not_found', 'Sessão inexistente')
   if (current.status !== 'active' || now < current.expiresAt) return current
   const r = await db.run(
-    `UPDATE support_sessions SET status = 'expired', ended_at = ?, handoff_hash = NULL
+    `UPDATE support_sessions SET status = 'expired', ended_at = ?, handoff_hash = NULL, token_hash = 'ended:' || id
      WHERE id = ? AND status = 'active'`,
     now,
     sessionId,
@@ -250,7 +250,7 @@ export async function revokeSupportSessionAsync(
   const now = clock.nowMs()
   const r = await db.run(
     `UPDATE support_sessions
-     SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?, handoff_hash = NULL
+     SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?, handoff_hash = NULL, token_hash = 'ended:' || id
      WHERE id = ? AND status = 'active'`,
     now,
     input.actorClerkUserId,
@@ -634,7 +634,7 @@ export async function decideSupportTerminationAsync(
   if (session.status === 'active') {
     const revoked = await db.run(
       `UPDATE support_sessions
-       SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?, handoff_hash = NULL
+       SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?, handoff_hash = NULL, token_hash = 'ended:' || id
        WHERE id = ? AND status = 'active'`,
       now,
       input.ownerClerkUserId,

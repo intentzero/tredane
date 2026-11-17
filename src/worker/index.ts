@@ -7,6 +7,7 @@ import {
 } from '../clinic/ai/llm-queue-types'
 import { runReviewSamplesPurge } from '../review-samples'
 import { purgeExpiredClientWebRows } from '../clientweb/cleanup'
+import { purgeSupportRecords } from '../support/retention'
 import { systemClock } from '../db/clock'
 import { HEALTH_CRON, runHealthRefresh } from '../ops/health-cron'
 import type { WorkerBindings } from './bindings'
@@ -50,6 +51,8 @@ const worker = {
     await runReviewSamplesPurge(env)
     // ADR-0018 §7a: links, sessões e contadores expirados da página da cliente.
     if (env.DB) await purgeExpiredClientWebRows(env.DB, systemClock)
+    // VAL-09 / decisão 3 (17/11/2026, #896): registos de suporte com mais de 5 anos.
+    if (env.DB) await purgeSupportRecords(env.DB, systemClock)
   },
 }
 

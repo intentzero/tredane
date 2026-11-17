@@ -195,7 +195,7 @@ Com a sombra ligada, o Durable Object grava cada evento num registo mínimo no *
 
 **Lista de remoção** (quando a H1 estiver decidida; tudo está marcado «TEMPORÁRIO»):
 
-0. (Feito pela DEC-202: tudo desta lista foi removido, incluindo a tabela por migração `0030`.) Apagar o runbook `docs/implementation/runbooks/sombra-interpretador-relatorio.md`, a sua linha no `AGENTS.md` e a frase sobre a ferramenta nas `instructions` do `initialize` (`src/mcp/review-central/routes.ts`).
+0. (Feito pela DEC-202: tudo desta lista foi removido, incluindo a tabela por migração `0031`.) Apagar o runbook `docs/implementation/runbooks/sombra-interpretador-relatorio.md`, a sua linha no `AGENTS.md` e a frase sobre a ferramenta nas `instructions` do `initialize` (`src/mcp/review-central/routes.ts`).
 
 1. Apagar `src/shadow-report/` (armazenamento, resumo e testes).
 2. Em `src/mcp/review-central/tools.ts`: a ferramenta `SHADOW_REPORT_TOOL`, o `case 'get_interpreter_shadow_report'`, o campo `shadowEvents` do `ReviewCentralStore` e as duas linhas das fábricas; repor a lista de três ferramentas em `http.test.ts`.

@@ -189,19 +189,47 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 ## 7b. DEC-202: o chat só informa e encaminha (17/11/2026, **Confirmado**)
 
-- **Encaminhamento (`src/clientweb/route-intent.ts`, léxico puro, sem LLM):** cumprimento → `home`; pedido de marcar ou de vaga → `agendar`; «remarcar» ou «cancelar» com marcação futura → `remarcar` ou `cancelar` (com a marcação alvo se só houver uma); sem marcação futura → `agendar` com «Não encontrei marcações…». Perguntas de informação (preço, duração, o que é, onde fica) e perguntas condicionais sobre política não são pedido de marcar. Um **único** serviço reconhecido (nome, sinónimo ou zona; o nome longo ganha ao curto contido) pré-escolhe o serviço no link (`client_web_links.service_id`, migração `0029`); a página salta a lista se o serviço está ativo e não depende de género, senão pergunta «Para quem é?» e, se já não existe, abre a escolha de serviço.
+- **Encaminhamento (`src/clientweb/route-intent.ts`, léxico puro, sem LLM):** cumprimento → `home`; pedido de marcar ou de vaga → `agendar`; «remarcar» ou «cancelar» com marcação futura → `remarcar` ou `cancelar` (com a marcação alvo se só houver uma); sem marcação futura → `agendar` com «Não encontrei marcações…». Perguntas de informação (preço, duração, o que é, onde fica) e perguntas condicionais sobre política não são pedido de marcar. Um **único** serviço reconhecido (nome, sinónimo ou zona; o nome longo ganha ao curto contido) pré-escolhe o serviço no link (`client_web_links.service_id`, migração `0030`); a página salta a lista se o serviço está ativo e não depende de género, senão pergunta «Para quem é?» e, se já não existe, abre a escolha de serviço.
 - **Sempre ligada:** sai o interruptor da owner (tabela `clinic_client_web`, migração de clínica `0074`, rotas `config/client-web`, cartão do painel). `CLIENT_WEB_ENABLED` fica só como interruptor de emergência do ambiente.
 - **Pausa da owner:** o pedido passa à equipe (frase fixa e alerta «Precisa de alguém»), sem link; a página mostra as marcações e bloqueia agendar, remarcar e cancelar com «Falar com a equipe». Sem link possível (sem número ativo, base sem https) ou fora das 24 h o chat também passa à equipe; o template fora das 24 h continua **Em aberto** (TMPL-05, gate Meta).
 - **Botões antigos no WhatsApp** (listas M5, Confirmar/Alterar de propostas, cancelar no chat, «Continuar» do FAQ, «Marcar outro», «Prosseguir»): respondem com o link e nunca marcam; o «Falar com a equipe» do cartão de proposta continua a passar à equipe (`src/clientweb/legacy-buttons.ts`).
 - **Equipe:** `POST /api/tenants/:id/client-web-links` (`clinic.agenda.operate`) e o RPC `sendClientWebLinkFromStaff` enviam o link com o botão «Abrir agenda» (auditoria `client_web.link_sent_by_staff`); o painel Agendar passa de «Enviar proposta» a «Enviar link de agenda». O horário escolhido no painel não fica reservado.
-- **Removido:** `autobook`, `choice-offer`, reagendar e cancelar por conversa, `alter-details`, extrator LLM e job `extract` da fila, sombra do interpretador (tabela por migração `0030`, rota `/api/platform/quality/shadow`, ferramenta `get_interpreter_shadow_report`), `src/whatsapp/flow/` e as rotas do Flow, `staff-send`. As tabelas e o quadro de estado da conversa (`BookingFrame`, sessão de agendamento) ficam sem escritor do funil e saem numa limpeza de dados separada.
+- **Removido:** `autobook`, `choice-offer`, reagendar e cancelar por conversa, `alter-details`, extrator LLM e job `extract` da fila, sombra do interpretador (tabela por migração `0031`, rota `/api/platform/quality/shadow`, ferramenta `get_interpreter_shadow_report`), `src/whatsapp/flow/` e as rotas do Flow, `staff-send`. As tabelas e o quadro de estado da conversa (`BookingFrame`, sessão de agendamento) ficam sem escritor do funil e saem numa limpeza de dados separada.
 - **Limites e riscos:** as respostas com link não passam pela quota `autoDraftsPerContact` (não geram rascunho); a quota por contacto e a limitação de pedidos às rotas públicas continuam. Cada link novo invalida o anterior da conversa.
 
 ## 8. Em aberto
 
-1. Valores de 60 e 30 min (DEC-199). Quem decide: Paulo; bloqueia a Fase 1.
-2. Validade do crédito do sinal (DEC-198). Quem decide: Paulo; bloqueia o cancelamento com sinal.
-3. Domínio e nome da página. Quem decide: Paulo; bloqueia o envio real do link.
-4. (**Fechado pela DEC-202**: sem interruptor da owner; a página fica sempre ligada.)
-5. Quando saem as listas M5 e o código do Flow (limpeza separada, DEC-196).
-6. Horizonte máximo de datas: **Confirmado** como configuração da clínica pela owner (DEC-201), ainda não implementada. **Em aberto:** valor padrão e opções. Bloqueia a Fase 2 (a página precisa do valor, ou de um fixo provisório).
+Índice resumido em [docs/memory/MEMORY.md](../memory/MEMORY.md) (`em-aberto-pagina-web-cliente.md`).
+
+### Paulo (produto)
+
+| # | Pergunta | Bloqueia |
+| --- | --- | --- |
+| 1 | Valores de **60 min** (token) e **30 min** (sessão), DEC-199 (**Propostos** hoje) | Afinar limites antes de produção |
+| 2 | **Validade do crédito** do sinal (DEC-198(c); liga DEC-180) | Cancelamento com sinal pago sem «Pedir à equipe» |
+| 3 | **Valor padrão** do horizonte máximo e ecrã de configuração da owner (DEC-201) | Substituir `CLIENT_WEB_HORIZON_DAYS` fixo |
+| 4 | **Revisão dos textos** das mensagens no chat e recibos (**Propostos**) | Copy definitiva (DEC-104) |
+| 5 | Aceitar ou não **remarcar** uma marcação com sinal pago **sem** aplicar a janela de crédito (hoje remarcar funciona; cancelar com sinal não) | Produção com sinal |
+
+### Engenharia
+
+| # | Lacuna | Bloqueia |
+| --- | --- | --- |
+| 1 | **Expurgo** por tenant e por contacto no D1 central (`client_web_links`, `client_web_sessions`; DEC-099, REQ-071) — o Flow tem a mesma lacuna | LGPD / offboarding |
+| 2 | Texto próprio para **erro de rede** e para **clínica suspensa** (hoje mostra «link já usado», impreciso) | UX e suporte |
+| 3 | Pré-escolher **«Para quem é?»** a partir da conversa (DEC-142) | Menos atrito na página |
+| 4 | Suprimir no canal web a frase do chat «Horário já não está livre…» quando a vaga se perde no Confirmar | Ruído no WhatsApp |
+| 5 | Template **TMPL-05** (implementação): link fora das 24 h | Clientes que só abrem o chat no dia seguinte |
+
+### Externos / gates
+
+| # | Gate | Bloqueia |
+| --- | --- | --- |
+| 1 | **GATE-04** — parecer LGPD | Dados reais e produção |
+| 2 | **TMPL-05** — template Meta com botão URL fora da janela de 24 h | Mesmo critério que o item 5 de engenharia |
+| 3 | **Revisão de segurança curta** (enumeração, CSRF, clickjacking, limites), como em [suporte-revisao-e-pentest.md](../implementation/runbooks/suporte-revisao-e-pentest.md) | Produção |
+
+### Outros (DEC-196)
+
+- As listas M5 e o código do Flow foram removidos (DEC-202, §7b).
+- O interruptor da owner por clínica foi **retirado pela DEC-202**: a página fica sempre ligada (ver §7b).

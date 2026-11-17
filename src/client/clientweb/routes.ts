@@ -4,10 +4,13 @@ function normalize(pathname: string): string {
   return pathname.replace(/\/+$/, '') || '/'
 }
 
-/** `/c` e tudo debaixo dele pertence à página da cliente. */
+/**
+ * `/c` (sessão aberta) e `/c/<token>` (um só segmento) são da página da cliente. O painel da equipe também vive
+ * em `/c/:clínica/:área/...` (dois ou mais segmentos): reivindicar o prefixo todo escondia o painel inteiro.
+ */
 export function isClientWebPath(pathname: string): boolean {
   const path = normalize(pathname)
-  return path === '/c' || path.startsWith('/c/')
+  return path === '/c' || /^\/c\/[^/]+$/.test(path)
 }
 
 /** Token do link em `/c/<token>`; `null` em `/c` (sessão já aberta) ou formato inválido. */

@@ -13677,3 +13677,41 @@ button.panel-auth-inline-link {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Pedido de suporte do Tredane visto pela responsável (#897, M-27). */
+.support-request-details {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--space-3);
+  font-size: var(--font-size-small);
+}
+.support-request-details dt {
+  color: var(--color-text-secondary);
+}
+.support-request-details dd {
+  margin: 0;
+}
+.support-request-notes {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * Vista de suporte no desktop (#853): `.panel-app` vira grelha 200 px + resto a partir de 768 px (menu lateral).
+ * A vista de suporte não tem menu: sem isto o banner caía na coluna de 200 px e o «Encerrar sessão» ficava
+ * fora do ecrã. Coluna única, e a página rola.
+ */
+@media (min-width: 768px) {
+  .panel-app.support-view {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    overflow-y: auto;
+  }
+}

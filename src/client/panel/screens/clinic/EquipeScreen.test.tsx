@@ -79,6 +79,8 @@ function snap(over: Partial<TeamSnapshot> = {}): TeamSnapshot {
 function mockApi(team: TeamSnapshot): PanelApi {
   return {
     getTeam: vi.fn(async () => team),
+    listSupportRequests: vi.fn(async () => ({ requests: [] })),
+    decideSupportRequest: vi.fn(async () => undefined),
     inviteAttendant: vi.fn(async () => ({
       invitation: team.invitations[0]!,
       emailSent: true,
@@ -765,5 +767,55 @@ describe('EquipeScreen — tempo real invitation.accepted', () => {
     expect(screen.getByRole('heading', { name: /Membros · 3/ })).toBeTruthy()
     expect(screen.getByRole('heading', { name: /^Convites pendentes$/ })).toBeTruthy()
     expect(api.getTeam).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('EquipeScreen — pedidos de suporte do Tredane (#897)', () => {
+  const pendingRequest = {
+    id: 'sar_1',
+    tenantId: 'clinic-demo-a',
+    actorClerkUserId: 'u_tredane',
+    subjectClerkUserId: 'user_owner',
+    reason: 'Investigar falha de envio',
+    scope: 'read_diagnostics',
+    status: 'pending' as const,
+    decidedByOwnerClerkUserId: null,
+    decidedAt: null,
+    createdAt: Date.now() - 3_600_000,
+    expiresAt: Date.now() + 23 * 3_600_000,
+  }
+
+  it('a responsável vê a faixa, abre o pedido, aprova e a tela confirma', async () => {
+    const api = mockApi(snap())
+    ;(api.listSupportRequests as ReturnType<typeof vi.fn>).mockResolvedValue({ requests: [pendingRequest] })
+    const user = userEvent.setup()
+    render(<EquipeScreen tenantId="clinic-demo-a" api={api} generation={1} viewerClerkUserId="user_owner" />)
+    await user.click(await screen.findByRole('button', { name: 'Ver pedido' }))
+    expect((await screen.findByRole('dialog', { name: 'Pedido de suporte' })).textContent).toContain('Luciana Moraes')
+    await user.click(screen.getByRole('button', { name: 'Aprovar suporte' }))
+    await waitFor(() =>
+      expect(api.decideSupportRequest).toHaveBeenCalledWith('clinic-demo-a', 'sar_1', 'approve', expect.anything()),
+    )
+    expect(await screen.findByText(/Suporte aprovado\./)).toBeTruthy()
+  })
+
+  it('o link do e-mail abre o pedido; um sinal em tempo real relê a lista', async () => {
+    const api = mockApi(snap())
+    ;(api.listSupportRequests as ReturnType<typeof vi.fn>).mockResolvedValue({ requests: [pendingRequest] })
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+        supportRequestId="sar_1"
+      />,
+    )
+    expect(await screen.findByRole('dialog', { name: 'Pedido de suporte' })).toBeTruthy()
+    const before = (api.listSupportRequests as ReturnType<typeof vi.fn>).mock.calls.length
+    act(() => emitTeamSignal?.())
+    await waitFor(() =>
+      expect((api.listSupportRequests as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(before),
+    )
   })
 })
