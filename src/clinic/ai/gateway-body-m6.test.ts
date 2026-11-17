@@ -32,7 +32,7 @@ import { loadTurnContext } from './turn-context'
 const TZ = 'America/Sao_Paulo'
 /** Terça 27/10/2026 10:00 SP — janelas 09–18 geram >10 livres nos próximos 7 dias. */
 const NOW = Date.UTC(2026, 9, 27, 13, 0)
-const COLLOQUIAL = 'fazem pacote pra noivas no final do ano?'
+const COLLOQUIAL = 'queria relaxar as costas amanhã'
 
 /** Rótulos da pergunta pendente (permitidos no extrator — DEC-109 / Paulo 03/11). */
 const PENDING_LABELS = ['06/11 09:00', '06/11 10:30'] as const

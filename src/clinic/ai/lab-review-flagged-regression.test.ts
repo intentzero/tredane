@@ -1,5 +1,5 @@
 /**
- * Cenários R26–R41 — regressões de conversas «Avaliar» / review (texto sintético).
+ * Cenários R26–R47 — regressões de conversas «Avaliar» / review (texto sintético).
  * Espelham `lab/cenarios.json`; pares com correções em paralelo → `pendingOnMain` no JSON.
  */
 import { describe, expect, it } from 'vitest'
@@ -32,13 +32,17 @@ import {
   notBeforeTimeFromText,
   wantsMoreSlotsLaterInDay,
 } from './nlu/temporal'
+import { periodModelEvidence } from './interpreter-fallback'
 import { planCatalogConsult } from './catalog-consult'
 import { listServices } from '../config/services'
-import { afterHoursHumanRequestBody } from './human-handoff'
 import { offerNearestSlots } from './slot-offer'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { buildSlotChoiceInteractive, toSendInteractive } from './choice-offer'
-import { augmentOutboundWithHumanTeam, replyAfterHoursHumanRequest } from './human-handoff'
+import {
+  afterHoursHumanRequestBody,
+  augmentOutboundWithHumanTeam,
+  replyAfterHoursHumanRequest,
+} from './human-handoff'
 import { planIdleContinueResume } from '../followup/idle-continue-resume'
 import { saveBookingFrame, type BookingFrame } from './schedule-session'
 import {
@@ -589,6 +593,11 @@ describe('R31–R36 — regressões #868 / #869 (cnv_b8df6c5, sintético)', () =
     } finally {
       s.close()
     }
+  })
+
+  it('R47: «depois das 11» não vira período de fallback (R27 invariável)', () => {
+    expect(periodModelEvidence('Depois das 11?', 'manha')).toBe(false)
+    expect(notBeforeTimeFromText('Depois das 11?')).toBe('11:00')
   })
 
   it('R36: lista de horários «Falar com a equipe» numa só secção (#868/#869)', () => {

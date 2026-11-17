@@ -15,6 +15,7 @@ import {
   lexiconVariantsCoherent,
   servicesForShadowRule,
 } from './lexicon-variants-gate'
+import { periodModelEvidence } from './interpreter-fallback'
 import {
   callExtractorModel,
   validateExtractorOutput,
@@ -130,7 +131,8 @@ export function resolveShadowSlots(
   }
 
   if (raw.period === 'manha' || raw.period === 'tarde' || raw.period === 'noite') {
-    slots.period = raw.period
+    if (periodModelEvidence(opts.turnText ?? '', raw.period)) slots.period = raw.period
+    else rejected.push('period')
   } else if (raw.period != null) rejected.push('period')
 
   if (typeof raw.timeLiteral === 'string' && raw.timeLiteral.trim()) {

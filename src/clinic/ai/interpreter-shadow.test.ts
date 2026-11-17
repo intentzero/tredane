@@ -161,7 +161,7 @@ describe('resolveShadowSlots (validação relaxada)', () => {
       const opts = { today: TODAY, services: s.services, professionals: [], pending: null }
       const ok = resolveShadowSlots(
         { acts: ['marcar'], serviceId: svc.id, dateLiteral: 'amanhã', period: 'tarde' },
-        opts,
+        { ...opts, turnText: 'quero marcar amanhã à tarde' },
       )
       expect(ok.slots).toEqual({ service: svc.id, date: '2026-11-06', period: 'tarde' })
       expect(ok.rejected).toEqual([])

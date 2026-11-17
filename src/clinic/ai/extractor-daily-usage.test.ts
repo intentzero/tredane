@@ -22,8 +22,8 @@ import { getAiDailyUsage, incrementAiDailyUsage, recordModelCallTowardDailyCap }
 import type { TurnDecidedPayload } from './turn-decided'
 
 const NOW = Date.UTC(2026, 10, 5, 15, 0)
-/** Texto coloquial → needsExtractor (sem léxico de serviço). */
-const COLLOQUIAL = 'fazem pacote pra noivas no final do ano?'
+/** Lacuna de serviço → fallback extrator (DEC-190 / sombra 72h). */
+const COLLOQUIAL = 'queria relaxar as costas amanhã'
 
 /**
  * Extrator devolve serviço do catálogo → autobook responde em determinístico

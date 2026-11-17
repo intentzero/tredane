@@ -253,7 +253,7 @@ function periodFromHour(hour: number): Period {
 }
 
 /** Cumprimentos não filtram período («Boa tarde, quero marcar…»). */
-function stripGreetingPeriodFalsePositives(folded: string): string {
+export function stripGreetingPeriodFalsePositives(folded: string): string {
   return folded
     .replace(/\b(?:bom dia|boa tarde|boa noite)\b/g, ' ')
     .replace(/\s+/g, ' ')

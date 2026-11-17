@@ -206,6 +206,7 @@ import {
   appendRealtimeEvent,
   closeAllSockets,
   closeUserSockets,
+  closeSupportSessionSockets,
   createD1AccessAuthority,
   createMapAccessAuthority,
   deliverEventToSockets,
@@ -240,6 +241,7 @@ type WsUpgradeIdentity = {
   clerkUserId: string
   sessionId: string
   role: 'owner' | 'attendant'
+  supportSessionId?: string
 }
 
 /**
@@ -569,7 +571,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
    */
   async issueWsTicket(
     caller: ClinicCaller,
-    identity: { clerkUserId: string; sessionId: string; role: 'owner' | 'attendant' },
+    identity: { clerkUserId: string; sessionId: string; role: 'owner' | 'attendant'; supportSessionId?: string },
   ): Promise<{ ticket: string; expiresAt: number }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -580,6 +582,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         clerkUserId: identity.clerkUserId,
         sessionId: identity.sessionId,
         role: identity.role,
+        ...(identity.supportSessionId ? { supportSessionId: identity.supportSessionId } : {}),
       },
       this.#clock.nowMs(),
     )
@@ -3006,6 +3009,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return { ok: true, closedConnections: closed, authEpoch: denial.authEpoch }
   }
 
+  /**
+   * Fecha só as ligações de uma sessão de suporte (ADR-0017 §4). Não cria denial: o subject real,
+   * ligado em simultâneo, mantém o acesso.
+   */
+  async applySupportSessionFence(input: {
+    tenantId: string
+    supportSessionId: string
+    reason: 'support_revoked' | 'session_expired'
+  }): Promise<{ ok: true; closedConnections: string[] }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    const closed = closeSupportSessionSockets(
+      this.#asDeliverySockets(),
+      input.tenantId,
+      input.supportSessionId,
+      input.reason,
+    )
+    return { ok: true, closedConnections: closed }
+  }
+
   async applyTenantSuspended(input: {
     tenantId: string
     source: FenceSource
@@ -3139,6 +3162,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       const attachment = ws.deserializeAttachment()
       if (!attachment || attachment.tenantId !== caller.tenantId) continue
 
+      if (attachment.supportSessionId) {
+        const sess = authority.checkSupportSession
+          ? await authority.checkSupportSession(attachment.tenantId, attachment.supportSessionId, this.#clock.nowMs())
+          : ({ status: 'unavailable' } as const)
+        if (sess.status === 'unavailable') {
+          skippedUnavailable += 1
+          continue
+        }
+        if (sess.status === 'deny') {
+          closeSupportSessionSockets([ws], caller.tenantId, attachment.supportSessionId, sess.reason)
+          revoked += 1
+          continue
+        }
+      }
       const decision = await authority.checkMembership(
         attachment.tenantId,
         attachment.clerkUserId,
@@ -5050,6 +5087,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         clerkUserId: redeemed.grant.clerkUserId,
         sessionId: redeemed.grant.sessionId,
         role: redeemed.grant.role,
+        ...(redeemed.grant.supportSessionId ? { supportSessionId: redeemed.grant.supportSessionId } : {}),
       }
     }
     const tenantId = request.headers.get(WS_INTERNAL_HEADERS.tenantId)
@@ -5095,6 +5133,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (decision.status === 'deny') {
       return Response.json({ error: decision.reason }, { status: 403 })
     }
+    if (identity.supportSessionId) {
+      // Ligação de suporte (ADR-0017 §4): a sessão tem de estar ativa agora; sem verificação possível, recusa.
+      const authority = this.#authority()
+      const sess = authority.checkSupportSession
+        ? await authority.checkSupportSession(identity.tenantId, identity.supportSessionId, this.#clock.nowMs())
+        : ({ status: 'unavailable' } as const)
+      if (sess.status === 'unavailable') {
+        return Response.json({ error: 'authority_unavailable' }, { status: 503 })
+      }
+      if (sess.status === 'deny') {
+        return Response.json({ error: sess.reason }, { status: 403 })
+      }
+    }
     // Role autoritativa = D1 no momento do accept (não a do bilhete/header).
     const role: 'owner' | 'attendant' =
       decision.role === 'owner' || decision.role === 'attendant' ? decision.role : identity.role
@@ -5111,6 +5162,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       tenantId: identity.tenantId,
       authEpoch: fence.authEpoch,
       connectedAt: this.#clock.nowMs(),
+      ...(identity.supportSessionId ? { supportSessionId: identity.supportSessionId } : {}),
     }
 
     this.ctx.acceptWebSocket(server, [identity.clerkUserId, identity.tenantId])
@@ -5231,7 +5283,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       }
       if (parsed?.type === 'presence') {
         const t0 = this.#clock.nowMs()
-        if (attachment && 'clerkUserId' in attachment) {
+        // Ligação de suporte nunca conta como presença do subject (suprimiria o push dele).
+        if (attachment && 'clerkUserId' in attachment && !('supportSessionId' in attachment && attachment.supportSessionId)) {
           ws.serializeAttachment({
             ...attachment,
             visible: parsed.visible,

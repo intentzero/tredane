@@ -83,10 +83,10 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
       },
     )
     expect(v.slots.serviceId?.value).toBe('svc_dep')
-    expect(v.slots.serviceId?.fonte).toBe('llm')
-    expect(v.slots.variantIds?.value).toEqual(['zone_ax'])
-    expect(v.slots.date?.value).toBe('2026-11-03')
-    expect(v.slots.period?.value).toBe('manha')
+    expect(v.slots.serviceId?.fonte).toBe('regra')
+    expect(v.slots.variantIds?.fonte).toBe('regra')
+    expect(v.slots.date?.fonte).toBe('regra')
+    expect(v.slots.period?.fonte).toBe('regra')
     // Confiança alta não aparece como autorização.
     expect(v.discarded).not.toContain('confidence')
   })
@@ -318,7 +318,7 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
     }
     const accepted = validateExtractorOutput({ acts: ['marcar'], timeLiteral: '18:00' }, opts)
     expect(accepted.slots.time?.value).toBe('18:00')
-    expect(accepted.slots.time?.fonte).toBe('llm')
+    expect(accepted.slots.time?.fonte).toBe('regra')
     const bare = interpretTurn({
       turnText: 'pode ser',
       messageId: 'msg_3',

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Suporte — vista só de leitura (Proposto)</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit}
+button:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+.d{--app:#F5F4EF;--card:#FFFFFF;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--wn:#6E4200;--wnT:#FFF7EA;--wnB:#EBCB94;--bd:#E1E3E0;--ctl:#7A8584;--dg:#B42318}
+.cv{display:grid;gap:2px;width:100%;box-sizing:border-box;text-align:left;padding:12px;min-height:44px;border:1px solid var(--bd);border-radius:12px;background:transparent;color:var(--tx);cursor:pointer}
+.cv.on{border-color:var(--tx);background:var(--card)}
+.cv b{font-weight:600;font-size:14px}
+.cv span{font-size:13px;color:var(--tx2)}
+.ms{display:grid;gap:2px;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--card);max-width:560px}
+.ms.out{margin-left:auto;background:var(--sunk)}
+.ms small{font-size:12px;color:var(--tx2)}
+.tag{display:inline-block;padding:1px 8px;border-radius:6px;font-size:12px;font-weight:600;background:var(--wnT);color:var(--wn);border:1px solid var(--wnB)}
+</style>
+</helmet>
+<div class="d" style="width:1440px;height:900px;box-sizing:border-box;background:var(--app);color:var(--tx);font-family:Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;overflow:hidden">
+  <!-- Proposto — vista de suporte só de leitura (#853, ADR-0017). Sem rail, sem Agenda/Pipeline/Clínica, sem compositor. Dados fictícios. -->
+  <section aria-label="Sessão de suporte" style="display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--wnT);color:var(--wn);border-bottom:2px solid var(--wnB)">
+    <p style="flex:1;margin:0;font-size:14px"><b>Sessão de suporte · somente leitura</b> — Clínica Demo A · restam <b>24:10</b></p>
+    <button type="button" style="min-height:44px;padding:0 16px;border:1px solid currentColor;border-radius:12px;background:transparent;color:inherit;font-size:14px;font-weight:600;cursor:pointer">Encerrar sessão</button>
+  </section>
+  <main style="padding:16px 24px">
+    <h1 style="margin:0 0 4px;font-size:20px;font-weight:600">Conversas</h1>
+    <p style="margin:0 0 16px;color:var(--tx2)">Só leitura. Telefones aparecem com os últimos 4 dígitos. Não é possível enviar, atribuir nem alterar nada.</p>
+    <div style="display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px">
+      <nav aria-label="Conversas da clínica" style="display:grid;gap:8px;align-content:start">
+        <button class="cv on" aria-current="true" type="button"><b>Juliana (fictícia)</b><span>Quero marcar depilação a laser…</span><span>Hoje 14:02 · ••••1234</span></button>
+        <button class="cv" type="button"><b>Marcos (fictício)</b><span>Qual o valor do pacote?</span><span>Hoje 11:40 · ••••5678</span></button>
+        <button class="cv" type="button"><b>Contato ••••9012</b><span>Obrigada!</span><span>Ontem 18:15</span></button>
+      </nav>
+      <section aria-label="Mensagens da conversa" style="display:grid;gap:8px;align-content:start">
+        <div class="ms"><small>Cliente · 14:02</small><span>Oi, quero marcar depilação a laser nas pernas. Tem horário esta semana?</span></div>
+        <div class="ms out"><small>Assistente IA · 14:02</small><span>Olá! Para qual unidade e que dia prefere?</span></div>
+        <div class="ms"><small>Cliente · 14:04</small><span>Sexta de manhã.</span></div>
+        <p style="margin:8px 0 0;color:var(--tx2);font-size:13px">Fim da conversa. <span class="tag">Somente leitura</span></p>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

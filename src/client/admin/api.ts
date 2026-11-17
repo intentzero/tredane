@@ -340,6 +340,21 @@ export function createAdminApi(getToken: TokenGetter) {
         { method: 'POST', body: JSON.stringify({ ...input, scope: 'read_diagnostics' }) },
       )
     },
+    /** Cancela um pedido ainda sem sessão (pendente ou aprovado): só quem o fez. */
+    async cancelSupportRequest(requestId: string): Promise<void> {
+      await request(`/api/platform/support-requests/${encodeURIComponent(requestId)}/cancel`, { method: 'POST' })
+    },
+    /** Ativa a sessão de um pedido aprovado: começam os 30 minutos e devolve o código de uso único. */
+    async activateSupportSession(requestId: string): Promise<{ handoffCode: string; session: { id: string } }> {
+      return request(`/api/platform/support-requests/${encodeURIComponent(requestId)}/activate`, { method: 'POST' })
+    },
+    /** Troca o código por o cookie HttpOnly da sessão (o token nunca passa pelo JavaScript). */
+    async exchangeSupportHandoff(handoffCode: string): Promise<void> {
+      await request('/api/support/handoff', { method: 'POST', body: JSON.stringify({ handoffCode }) })
+    },
+    async endSupportSession(sessionId: string): Promise<void> {
+      await request(`/api/platform/support-sessions/${encodeURIComponent(sessionId)}/end`, { method: 'POST' })
+    },
     async listMembers(tenantId: string, opts?: FetchOpts): Promise<AdminMember[]> {
       return (await request<{ members: AdminMember[] }>(`${tenantPath(tenantId)}/members`, {}, opts)).members
     },
@@ -429,6 +444,28 @@ export function adminErrorMessage(err: unknown): string {
       return 'Este convite já não está pendente. Atualize a página.'
     case 'reason_too_long':
       return 'O motivo tem mais de 300 caracteres.'
+    case 'support_sessions_disabled':
+      return 'As sessões de suporte estão desligadas neste ambiente.'
+    case 'support_request_not_approved':
+      return 'Este pedido já não está aprovado. Atualize a página.'
+    case 'support_request_expired':
+      return 'O pedido expirou. Faça um novo pedido.'
+    case 'support_request_not_cancellable':
+      return 'Este pedido já não pode ser cancelado. Atualize a página.'
+    case 'not_request_actor':
+    case 'not_session_actor':
+    case 'support_actor_mismatch':
+      return 'Só quem fez o pedido pode fazer isto.'
+    case 'support_session_already_active':
+      return 'Esta sessão já foi ativada. Atualize a página.'
+    case 'support_session_not_active':
+    case 'support_revoke_conflict':
+      return 'Esta sessão já terminou. Atualize a página.'
+    case 'handoff_invalid':
+    case 'handoff_consume_conflict':
+    case 'handoff_clerk_session_mismatch':
+    case 'handoff_actor_mismatch':
+      return 'Não foi possível abrir a sessão neste navegador. A sessão já começou: encerre-a e faça novo pedido.'
     case 'permission_denied':
     case 'superadmin_required':
       return 'Sem permissão para esta ação.'
