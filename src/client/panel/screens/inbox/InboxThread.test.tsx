@@ -239,6 +239,31 @@ describe('InboxThread — estado de envio', () => {
     expect(screen.getAllByText('Temos horário amanhã às 10h')).toHaveLength(1)
   })
 
+  it('duplo Enviar não duplica POST (guard in-flight)', async () => {
+    const user = userEvent.setup()
+    const d = detail()
+  let release: (() => void) | null = null
+    const sendInboxMessage = vi.fn(async () => {
+      await new Promise<void>((r) => {
+        release = r
+      })
+      return {
+        conversation: d,
+        duplicate: false,
+        message: message({ id: 'msg_out', direction: 'outbound', body: 'Oi', deliveryState: 'pending' }),
+      }
+    })
+    renderThread(mockApi(d, { sendInboxMessage } as Partial<PanelApi>))
+    const input = await screen.findByLabelText('Mensagem')
+    await user.type(input, 'Oi')
+    const send = screen.getByRole('button', { name: 'Enviar' })
+    await user.click(send)
+    await user.click(send)
+    expect(sendInboxMessage).toHaveBeenCalledTimes(1)
+    release!()
+    await waitFor(() => expect(sendInboxMessage).toHaveBeenCalledTimes(1))
+  })
+
   it('«Sugerir resposta» é ícone dentro da barra do compositor; sem Horários livres', async () => {
     renderThread(mockApi(detail()))
     const btn = await screen.findByRole('button', { name: 'Sugerir resposta com IA' })

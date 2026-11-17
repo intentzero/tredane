@@ -64,6 +64,7 @@ import { useVisualViewportSheet } from "../../ui/useVisualViewportSheet";
 import { AiWorking } from "../../ui/AiWorking";
 import { navigatePanel } from "../../routes";
 import { ErrorState } from "../../states/StatusScreens";
+import { pruneOutboxAgainstMessages } from "./outboxReconcile";
 import {
   assigneeLine,
   avatarTone,
@@ -322,6 +323,7 @@ function MessageBubble({
 
 type LocalOutbound = {
   localId: string;
+  clientRequestId: string;
   body: string;
   aiSuggestionId: string | null;
   createdAt: number;
@@ -519,6 +521,7 @@ export function InboxThread({
   const composerId = useId();
   const timelineRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const sendInFlightRef = useRef(false);
   const scrolledConversationRef = useRef<string | null>(null);
   const prevLastMessageIdRef = useRef<string | null>(null);
   // Faixa «N não lidas» ancorada na primeira não lida de quando a conversa abriu.
@@ -561,6 +564,7 @@ export function InboxThread({
         });
       }
       setDetail(res);
+      setOutbox((prev) => pruneOutboxAgainstMessages(prev, res.messages));
       if (res.messagingWindow?.open && res.status !== "closed")
         void refreshAiDraft(res.messages);
       if (humanUnreadInbound.length > 0) {
@@ -1145,8 +1149,12 @@ export function InboxThread({
     },
     opts?: { retryLocalId?: string },
   ) {
-    if (!detail) return;
+    if (!detail || sendInFlightRef.current) return;
     const textOnly = Boolean(payload.body) && !payload.template;
+    const clientRequestId = opts?.retryLocalId
+      ? outbox.find((o) => o.localId === opts.retryLocalId)?.clientRequestId ??
+        `client:${crypto.randomUUID()}`
+      : `client:${crypto.randomUUID()}`;
     const aiSuggestionId = payload.aiSuggestionId ?? activeSuggestionId;
     const localId = textOnly
       ? (opts?.retryLocalId ?? `local:${crypto.randomUUID()}`)
@@ -1156,12 +1164,15 @@ export function InboxThread({
       setOutbox((prev) =>
         opts?.retryLocalId
           ? prev.map((o) =>
-              o.localId === localId ? { ...o, status: "sending" } : o,
+              o.localId === localId
+                ? { ...o, status: "sending", clientRequestId }
+                : o,
             )
           : [
               ...prev,
               {
                 localId,
+                clientRequestId,
                 body,
                 aiSuggestionId,
                 createdAt: Date.now(),
@@ -1182,8 +1193,8 @@ export function InboxThread({
       });
     }
     setBusy(true);
+    sendInFlightRef.current = true;
     setNotice(null);
-    const clientRequestId = `client:${crypto.randomUUID()}`;
     try {
       const res = await api.sendInboxMessage(
         tenantId,
@@ -1231,6 +1242,7 @@ export function InboxThread({
         friendlyError(err, "A mensagem não foi enviada. Tente de novo."),
       );
     } finally {
+      sendInFlightRef.current = false;
       setBusy(false);
     }
   }

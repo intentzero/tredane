@@ -32,11 +32,17 @@ export function useKeyboardViewport(): void {
           typeof window.matchMedia !== 'function' || window.matchMedia('(pointer: coarse)').matches
         const keyboardOpen = touch && !zoomed && window.innerHeight - view.height > KEYBOARD_MIN_PX
         if (keyboardOpen) {
+          const insetBottom = Math.max(
+            0,
+            Math.round(window.innerHeight - view.height - view.offsetTop),
+          )
           root.style.setProperty('--panel-vvh', `${Math.round(view.height)}px`)
+          root.style.setProperty('--keyboard-inset-bottom', `${insetBottom}px`)
           root.dataset.keyboard = 'open'
           resetDocumentScroll()
         } else {
           root.style.removeProperty('--panel-vvh')
+          root.style.removeProperty('--keyboard-inset-bottom')
           delete root.dataset.keyboard
           resetDocumentScroll()
         }
@@ -52,6 +58,7 @@ export function useKeyboardViewport(): void {
       view.removeEventListener('scroll', update)
       window.removeEventListener('scroll', resetDocumentScroll)
       root.style.removeProperty('--panel-vvh')
+      root.style.removeProperty('--keyboard-inset-bottom')
       delete root.dataset.keyboard
     }
   }, [])

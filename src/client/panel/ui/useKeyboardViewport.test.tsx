@@ -9,6 +9,7 @@ function fakeViewport(height: number) {
   const listeners = new Map<string, Array<() => void>>()
   const view = {
     height,
+    offsetTop: 0,
     scale: 1,
     addEventListener: (type: string, fn: () => void) => {
       const list = listeners.get(type) ?? []
@@ -38,6 +39,7 @@ describe('useKeyboardViewport', () => {
     view.height = 500
     act(fire)
     expect(root.style.getPropertyValue('--panel-vvh')).toBe('500px')
+    expect(root.style.getPropertyValue('--keyboard-inset-bottom')).toBe('344px')
     expect(root.dataset.keyboard).toBe('open')
     view.height = 844
     act(fire)
