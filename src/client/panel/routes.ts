@@ -206,6 +206,16 @@ export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | n
   // Link do e-mail (#25 / S3): `/invite/accept?token=…` — token não entra na rota.
   if (path === '/invite/accept') return { kind: 'invite-accept' }
 
+  // Link do e-mail de suporte (#897, DEC-030): `/t/:clínica/support-requests/:id` abre o pedido em Equipe.
+  const support = /^\/t\/([^/]+)\/support-requests\/([^/]+)$/.exec(path)
+  if (support) {
+    const tenantId = decodeURIComponent(support[1] ?? '')
+    const entityId = decodeURIComponent(support[2] ?? '')
+    if (tenantId && entityId) {
+      return { kind: 'area', area: 'clinica', tenantId, section: 'equipe', entityId }
+    }
+  }
+
   const match = /^\/c\/([^/]+)\/([^/]+)(?:\/(.*))?$/.exec(path)
   if (!match) return null
   const tenantId = decodeURIComponent(match[1] ?? '')

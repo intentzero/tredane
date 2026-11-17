@@ -15,6 +15,10 @@ const SUPPORT_WHATSAPP =
 const CONFLICT = 'Outra pessoa acabou de mudar isso. Atualize a tela e tente de novo.'
 
 const BY_CODE: Record<string, string> = {
+  // pedidos de suporte do Tredane (#897, DEC-030)
+  support_request_not_pending: 'Outra pessoa responsável já decidiu este pedido. A primeira decisão vale.',
+  support_request_expired: 'O prazo de 24 h deste pedido acabou. O Tredane precisa de fazer um novo pedido.',
+  support_request_not_found: 'Este pedido já não existe.',
   // sessão e acesso
   unauthenticated: 'Sua sessão terminou. Entre de novo para continuar.',
   session_expired: 'Sua sessão terminou. Entre de novo para continuar.',

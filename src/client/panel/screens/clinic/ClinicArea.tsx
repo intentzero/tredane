@@ -233,6 +233,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           generation={generation}
           viewerClerkUserId={viewer?.id ?? null}
           viewerPending={viewer === null}
+          supportRequestId={entityId}
         />,
       ),
     )

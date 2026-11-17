@@ -2036,6 +2036,36 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { invitation: TeamInvitation; emailSent: boolean }
     },
 
+    /** Pedidos de suporte do Tredane a esta clínica (DEC-029; só responsável). Sem nomes: ids do Clerk. */
+    async listSupportRequests(
+      tenantId: string,
+      status?: SupportRequestStatus,
+      opts?: FetchOpts,
+    ): Promise<{ requests: SupportRequestLite[] }> {
+      const q = status ? `?status=${encodeURIComponent(status)}` : ''
+      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/support-requests${q}`, {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const data = (await res.json()) as { requests?: SupportRequestLite[] }
+      return { requests: data.requests ?? [] }
+    },
+
+    /** A primeira decisão vale (DEC-030); pedido expirado ou já decidido volta como erro. */
+    async decideSupportRequest(
+      tenantId: string,
+      requestId: string,
+      decision: 'approve' | 'reject',
+      opts?: FetchOpts,
+    ): Promise<void> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/support-requests/${encodeURIComponent(requestId)}/decision`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision }) },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+    },
+
     /** DEC-103: promove attendant ativo → owner. */
     async promoteMember(
       tenantId: string,
@@ -2482,6 +2512,22 @@ export type TeamInvitation = {
     usedInWindow: number
     remainingInWindow: number
   }
+}
+
+export type SupportRequestStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+
+export type SupportRequestLite = {
+  id: string
+  tenantId: string
+  actorClerkUserId: string
+  subjectClerkUserId: string
+  reason: string
+  scope: string
+  status: SupportRequestStatus
+  decidedByOwnerClerkUserId: string | null
+  decidedAt: number | null
+  createdAt: number
+  expiresAt: number
 }
 
 export type TeamSnapshot = {
