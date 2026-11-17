@@ -17,6 +17,7 @@ import {
   recordSupportAccess,
   redactPhones,
   resolveSupportTenantContext,
+  supportReadTarget,
 } from '../support/overlay'
 import type { HumanPrincipal, TenantContext } from './types'
 
@@ -127,7 +128,14 @@ export function requireTenantAccess(opts: {
           throw new AuthError('forged_role_rejected', 'Role forjada rejeitada', 403)
         }
         c.set('tenantContext', resolved.ctx)
-        await recordSupportAccess(services.adminDb, { session: resolved.session, route, method, outcome: 'success', nowMs })
+        await recordSupportAccess(services.adminDb, {
+          session: resolved.session,
+          route,
+          method,
+          outcome: 'success',
+          nowMs,
+          target: supportReadTarget(method, pathname),
+        })
         await next()
         // O suporte nunca vê o telefone inteiro de uma cliente (Q-SUP-01).
         const res = c.res
