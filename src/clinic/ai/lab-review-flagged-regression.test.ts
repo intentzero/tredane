@@ -20,6 +20,7 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import type { ServiceRow } from '../config/types'
 import { tryAiAutoBook } from './autobook'
+import { clientDefersBookingChoice } from './booking-intent-text'
 import {
   answerFaqFromCatalog,
   isCatalogClarificationAsk,
@@ -709,6 +710,10 @@ describe('R37–R41 — rsamp_f72ce590 seq 59–99 (sintético)', () => {
     } finally {
       s.close()
     }
+  })
+
+  it('R60: preço «antes de marcar» sem empurrar horário (P21)', () => {
+    expect(clientDefersBookingChoice('mas qual o valor da drenagem? antes de marcar')).toBe(true)
   })
 
   it('R41: handoff fora de horas — uma frase e «hoje às» na terça de manhã', () => {

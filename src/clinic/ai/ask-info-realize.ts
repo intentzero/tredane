@@ -53,6 +53,8 @@ export type AskInfoRealizeInput = {
   namedZones?: readonly ServiceRow['zones'][number][]
   /** Funil activo = sessão do mesmo serviço. */
   sameFunnel?: boolean
+  /** Sem retomar `perguntar_horario` / oferta (ex. «antes de marcar», frustração P21). */
+  deferSlotResume?: boolean
 }
 
 export type AskInfoRealizeResult = {
@@ -153,6 +155,8 @@ function resumeHorario(serviceName: string): AskInfoPolicyAct {
 export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult | null {
   const { conversationId, topic, service, zones, frame } = input
   const sameFunnel = input.sameFunnel ?? Boolean(frame?.serviceId === service.id)
+  const wantSlotResume = (p: ReturnType<typeof parkFromFrame>) =>
+    !input.deferSlotResume && shouldResumeSlotAsk(p)
   if (!sameFunnel || !frame?.serviceId) return null
 
   let stack = emptyInterruptStack()
@@ -174,7 +178,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
       vars: { duração },
       fallback: `${duração} min.`,
     }
-    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const resume = wantSlotResume(parked) ? resumeHorario(service.name) : null
     const { entry, stack: after } = popInterrupt(stack)
     const resumedObligation = entry ? resumeParkedObligation(entry) : null
     const quoteText = renderAct(quote, conversationId)
@@ -229,7 +233,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
   const quoteZones = sessionKept && sessionZones.length > 0 ? sessionZones : null
   if (quoteZones && quoteZones.length === 1) {
     const quote = quoteSingleVariant(quoteZones[0]!)
-    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const resume = wantSlotResume(parked) ? resumeHorario(service.name) : null
     const { entry, stack: after } = popInterrupt(stack)
     const quoteText = renderAct(quote, conversationId)
     const replyText = resume
@@ -247,7 +251,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
   if (quoteZones && quoteZones.length >= 2) {
     if (variantAudiencesConflict(quoteZones)) return null
     const quote = quoteSum(quoteZones)
-    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const resume = wantSlotResume(parked) ? resumeHorario(service.name) : null
     const { entry, stack: after } = popInterrupt(stack)
     const quoteText = renderAct(quote, conversationId)
     const replyText = resume
@@ -266,7 +270,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
   // Serviço linha única sem variantIds no quadro (ex. drenagem «Sessão» em oferta — S04).
   if (topic === 'price' && !quoteZones && zones.length === 1) {
     const quote = quoteSingleVariant(zones[0]!)
-    const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+    const resume = wantSlotResume(parked) ? resumeHorario(service.name) : null
     const { entry, stack: after } = popInterrupt(stack)
     const quoteText = renderAct(quote, conversationId)
     const replyText = resume
@@ -306,7 +310,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
         vars: { duração },
         fallback: `${duração} min.`,
       }
-      const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+      const resume = wantSlotResume(parked) ? resumeHorario(service.name) : null
       const { entry, stack: after } = popInterrupt(stack)
       const quoteText = renderAct(quote, conversationId)
       const replyText = resume
@@ -329,7 +333,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
         vars: { variante: service.name, preço, duração },
         fallback: `${service.name} custa ${preço} e dura ${duração} min.`,
       }
-      const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
+      const resume = wantSlotResume(parked) ? resumeHorario(service.name) : null
       const { entry, stack: after } = popInterrupt(stack)
       const quoteText = renderAct(quote, conversationId)
       const replyText = resume

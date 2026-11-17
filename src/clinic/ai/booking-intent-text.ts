@@ -234,6 +234,16 @@ export function isCatalogInfoAsk(text: string): boolean {
   )
 }
 
+/** Cliente ainda não quer escolher horário (baseline P21, 16/11/2026). */
+export function clientDefersBookingChoice(text: string): boolean {
+  const folded = text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .trim()
+  return /\bantes\s+de\s+(marcar|agendar|fechar|confirmar)\b/.test(folded)
+}
+
 /**
  * Afirmação curta de marcação após consulta de catálogo (ex. «Quero» / «Pode ser»).
  * Não inclui «não quero» (soft-decline / D3) nem pedido com zona/dia/hora.

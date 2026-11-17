@@ -5,6 +5,7 @@
 import type { Clock } from '../../db/clock'
 import type { ServiceRow } from '../config/types'
 import type { ClinicDb } from '../store'
+import { formatBRL } from '../../ai/prompt'
 import { realizeAskInfo } from './ask-info-realize'
 import { isCatalogInfoAsk } from './booking-intent-text'
 import { humanTeamOfferButtons } from './human-handoff'
@@ -55,8 +56,15 @@ export function buildFrustrationRecoveryReply(input: {
       zones,
       frame,
       sameFunnel: true,
+      deferSlotResume: true,
     })
-    if (quote?.replyText.trim()) parts.push(quote.replyText.trim())
+    if (quote?.replyText.trim()) {
+      parts.push(quote.replyText.trim())
+    } else if (svc.priceCents != null) {
+      parts.push(
+        `${svc.name} custa ${formatBRL(svc.priceCents)} e dura ${svc.durationMinutes} min.`,
+      )
+    }
   }
   const buttons = humanTeamOfferButtons(input.db, input.tenantId, input.clock)
   if (buttons.length > 0) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   classifyVariantPolarity,
+  clientDefersBookingChoice,
   isCatalogInfoAsk,
   isShortBookingAffirm,
   resolvePolarityVariantIds,
@@ -97,6 +98,14 @@ describe('isCatalogInfoAsk — D4', () => {
     expect(isCatalogInfoAsk('qual o preço?')).toBe(true)
     expect(isCatalogInfoAsk('tem a tabela?')).toBe(true)
     expect(isCatalogInfoAsk('Quero marcar axila sexta')).toBe(false)
+  })
+})
+
+describe('clientDefersBookingChoice — P21', () => {
+  it('detecta adiar marcação', () => {
+    expect(clientDefersBookingChoice('mas qual o valor? antes de marcar')).toBe(true)
+    expect(clientDefersBookingChoice('antes de agendar quero saber')).toBe(true)
+    expect(clientDefersBookingChoice('qnto custa?')).toBe(false)
   })
 })
 
