@@ -157,6 +157,8 @@
         // sem novo OK (docs/architecture/hipotese-compreensao-llm-primeiro.md).
         // Demo continua off no DO (#aiAssistDepsWithFlow) até N turnos LLM estáveis (DEC-188).
         "AI_INTERPRETER_SHADOW": "on",
+        // Fallback do interpretador (sombra 72h): só serviço ligado em staging.
+        "AI_INTERPRETER_FALLBACK_SERVICE": "on",
         // DEC-188: Claude autodraft (extrator/redator) fora do Clinic DO. Rollout: demo → all staging → prod.
         "LLM_OUT_OF_DO": "demo",
         // #25 / Cloudflare Email Sending (Paulo Confirmado 2026-11-11). Sem secret de API no

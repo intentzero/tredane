@@ -175,4 +175,25 @@ describe('interpretTurn (#416)', () => {
     expect(pref.slots.period?.value).toBe('noite')
     expect(pref.slots.time).toBeUndefined()
   })
+
+  it('léxico lê linha em «sou mulher» e «sou homem» (DEC-079)', () => {
+    const depSvc = service({ id: 'svc_d', name: 'Depilação' })
+    const f = interpretTurn({
+      turnText: 'quero depilação amanhã, sou mulher',
+      messageId: 'msg_sou_f',
+      today: '2026-11-02',
+      services: [depSvc],
+    })
+    expect(f.slots.line?.value).toBe('feminino')
+    expect(f.slots.line?.trecho).toBe('sou mulher')
+
+    const m = interpretTurn({
+      turnText: 'marcar depilação, sou homem',
+      messageId: 'msg_sou_m',
+      today: '2026-11-02',
+      services: [depSvc],
+    })
+    expect(m.slots.line?.value).toBe('masculino')
+    expect(m.slots.line?.trecho).toBe('sou homem')
+  })
 })
