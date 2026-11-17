@@ -264,9 +264,6 @@ export function isWeakInjection(hits: SensitiveHit[]): boolean {
   return hits.some((h) => h.label === 'injecao' && h.injectionStrength === 'fraca')
 }
 
-export function hasInjectionSignal(hits: SensitiveHit[]): boolean {
-  return hits.some((h) => h.label === 'injecao')
-}
 
 /**
  * Motivos que pausam a IA (DEC-083). Não inclui pergunta_politica nem injeção fraca.
@@ -317,10 +314,4 @@ export function hasAiTransparencyQuestion(hits: SensitiveHit[]): boolean {
   return hits.some((h) => h.label === 'pergunta_ia')
 }
 
-export function hasHealth(hits: SensitiveHit[]): boolean {
-  return hits.some((h) => h.label === 'saude')
-}
 
-export function hasOffense(hits: SensitiveHit[]): boolean {
-  return hits.some((h) => h.label === 'ofensa')
-}

@@ -27,7 +27,12 @@ import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { isHumanStaffAuthor } from '../inbox/human-prefix'
 import { sendOutboundMessageOp } from '../inbox/operations'
-import { clientWebOfferBody, clientWebRouteBody } from '../../clientweb/offer'
+import {
+  CLIENT_WEB_LINKS_PER_CONVERSATION,
+  clientWebOfferBody,
+  clientWebRouteBody,
+  countRecentWebLinks,
+} from '../../clientweb/offer'
 import { isGreetingOnly, routeToClientWeb } from '../../clientweb/route-intent'
 import {
   clinicTodayOpenState,
@@ -779,11 +784,15 @@ export async function runDueAutoDrafts(
       reasonLabel: string,
       bodyOverride?: string,
     ): Promise<void> => {
+      // Trava de abuso: muitos links na mesma conversa numa hora → passa à equipe em vez de repetir.
+      const overLimit =
+        countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) >=
+        CLIENT_WEB_LINKS_PER_CONVERSATION
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
       let sentOk = false
       let reasonOut = reasonLabel
-      const paused = deps.autoBookPaused === true
+      const paused = deps.autoBookPaused === true || overLimit
       if (route.purpose === 'home' && paused && bodyOverride) {
         // Cumprimento com a pausa da owner: só a abertura, sem link.
         try {
@@ -866,7 +875,7 @@ export async function runDueAutoDrafts(
           clock,
         )
         replyOutbox = handoff.outbox
-        reasonOut = 'human_handoff'
+        reasonOut = overLimit ? 'web_link_limit' : 'human_handoff'
       }
       cancelAutoDraft(db, tenantId, job.conversationId)
       record({ ...job, status: 'skipped', suggestion: null, reason: reasonOut, replyOutbox })

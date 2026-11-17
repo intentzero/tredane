@@ -18,7 +18,6 @@ export function setDialogueVariantForTests(n: number | null): void {
 }
 
 export type DialogueActId =
-  | 'abrir'
   | 'perguntar_linha'
   | 'perguntar_variantes'
   | 'oferecer_horarios'
@@ -31,10 +30,7 @@ export type DialogueActId =
   | 'informar_local_link'
   | 'informar_quem_faz'
   | 'informar_explicacao'
-  | 'acolher_adiamento'
   | 'esclarecer'
-  | 'perguntar_dia'
-  | 'perguntar_horario'
   | 'perguntar_servico'
   | 'confirmar_servico'
   | 'confirmar_hora_ambigua'
@@ -45,7 +41,6 @@ export type DialogueActId =
   | 'sem_vaga_sem_alternativa'
   | 'informar_preco_variante'
   | 'informar_preco_soma'
-  | 'informar_preco_tabela'
   | 'recusar_mistura'
   | 'servico_inexistente'
   | 'varios_servicos'
@@ -54,8 +49,6 @@ export type DialogueActId =
   | 'nao_consegui_fechar'
   /** DEC-152 — hint one-shot mid-funnel («diga terminar»). */
   | 'orientar_terminar'
-  /** DEC-153 — dica one-shot na 1.ª oferta de horários («falar com a equipe»). */
-  | 'orientar_ajuda_humana'
 
 /**
  * Convite na pergunta de variantes em modo `varias`
@@ -68,11 +61,6 @@ export const MULTI_VARIANT_ASK_HINT =
 
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
-  abrir: [
-    'Oi{nome}! Aqui é o atendimento virtual da clínica. Quer agendar algum serviço?',
-    'Oi{nome}! Em que posso ajudar — marcar um horário ou tirar uma dúvida?',
-    'Oi{nome}! Posso te ajudar a marcar ou a ver preços e horários.',
-  ],
   perguntar_linha: [
     'Para {serviço}, prefere a opção feminina ou masculina?',
     'Para {serviço}, é na versão feminina ou masculina?',
@@ -125,25 +113,12 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Nesse serviço, quem atende é {pessoas}.',
   ],
   informar_explicacao: ['{explicação}', 'Sobre isso: {explicação}'],
-  acolher_adiamento: [
-    'Sem problema. Quando quiser, é só chamar.',
-    'Tudo bem! Fico por aqui quando você decidir.',
-    'Fica à vontade. Qualquer coisa, me chama.',
-  ],
   esclarecer: [
     'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
     'Não peguei bem — prefere reformular ou chamar a equipe?',
   ],
   // — Leva 2 (Confirmada, DEC-123): funil de marcação. A 1.ª redação de cada ato é, quando existe,
   //   o texto que o código já envia hoje; as restantes são novas. Ver docs/product/copy-dialogo-atos.md.
-  perguntar_dia: [
-    'Para {serviço}, qual dia fica melhor?',
-    'Qual dia você prefere para {serviço}?',
-  ],
-  perguntar_horario: [
-    'Qual horário fica melhor para {serviço}?',
-    'Para {serviço}, qual horário você prefere?',
-  ],
   perguntar_servico: [
     'Qual serviço você quer? Temos {lista}.',
     'Claro! Qual serviço? Temos {lista}.',
@@ -182,11 +157,6 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Somando tudo, ficam {preço} e {duração} min de atendimento.',
   ],
   // Tabela de preços do serviço aberto (ex. «Quanto custa?» a meio da pergunta de zonas).
-  informar_preco_tabela: [
-    'Para {serviço}:\n{lista}\n{pergunta}',
-    'Valores de {serviço}:\n{lista}\n{pergunta}',
-    'Para {serviço} temos:\n{lista}\n{pergunta}',
-  ],
   recusar_mistura: [
     'Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?',
     'Masculino e feminino não entram na mesma visita. Qual dos dois prefere?',
@@ -210,9 +180,6 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   // DEC-152 (Paulo, 08/11/2026): uma redação fixa; one-shot no funil.
   orientar_terminar: ['Se quiser parar, use o botão Terminar quando aparecer.'],
   // DEC-153 (Paulo, 09/11/2026, opção 3): dica na 1.ª oferta de slots; sem handoff automático.
-  orientar_ajuda_humana: [
-    'Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer.',
-  ],
 }
 
 export type DialogueVars = Record<string, string | undefined>

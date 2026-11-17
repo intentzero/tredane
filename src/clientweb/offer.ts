@@ -5,6 +5,7 @@
  * em vez do CTA do Flow. Texto **Proposto** (o do Flow é Confirmado; este ainda não foi revisto).
  */
 import type { SendOutboundInteractiveInput } from '../clinic/inbox/types'
+import type { ClinicDb } from '../clinic/store'
 
 export const CLIENT_WEB_CTA_TEXT = 'Abrir agenda'
 
@@ -49,10 +50,6 @@ export const CLIENT_WEB_BOOK_BODY =
 export const CLIENT_WEB_NO_UPCOMING_BODY =
   'Não encontrei marcações futuras no seu nome. Para agendar, toque em «Abrir agenda». Se tiver dúvidas, escreva aqui.'
 
-/** Corpo fixo da oferta de remarcar ou cancelar (DEC-104). Texto **Proposto**. */
-export function clientWebPurposeBody(purpose: ClientWebOfferPurpose): string {
-  return purpose === 'remarcar' ? CLIENT_WEB_RESCHEDULE_BODY : CLIENT_WEB_CANCEL_BODY
-}
 
 /**
  * Corpo fixo do encaminhamento (DEC-202). Com um serviço reconhecido, nomeia-o: a página abre
@@ -89,3 +86,27 @@ export type PrepareClientWebOfferInput = {
 export type PrepareClientWebOffer = (
   input: PrepareClientWebOfferInput,
 ) => Promise<SendOutboundInteractiveInput | null>
+
+/** Limite de links enviados pelo chat por conversa e janela (DEC-202): trava quem repete «quero marcar» sem parar. */
+export const CLIENT_WEB_LINKS_PER_CONVERSATION = 5
+export const CLIENT_WEB_LINKS_WINDOW_MS = 60 * 60 * 1000
+
+/** Quantos links o chat já enviou nesta conversa na janela (mensagens de `ai-web-*`). */
+export function countRecentWebLinks(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  nowMs: number,
+): number {
+  return (
+    db.get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM outbound_messages o
+       JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
+       WHERE o.tenant_id = ? AND o.conversation_id = ? AND o.client_request_id LIKE 'ai-web-%'
+         AND m.created_at > ?`,
+      tenantId,
+      conversationId,
+      nowMs - CLIENT_WEB_LINKS_WINDOW_MS,
+    )?.n ?? 0
+  )
+}

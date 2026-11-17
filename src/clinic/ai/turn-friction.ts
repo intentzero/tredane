@@ -115,15 +115,6 @@ export function turnLooksLikeDayOrTimeAsk(text: string): boolean {
   return false
 }
 
-/** Pergunta só de horário/vaga, sem novo dia/hora no turno (choose_slot reask). */
-export function isBareSlotScheduleReAsk(text: string): boolean {
-  const folded = foldFrictionTerm(text)
-  if (!folded) return false
-  if (/\b(segunda|terca|quarta|quinta|sexta|sabado|domingo|amanha|hoje)\b/.test(folded)) return false
-  if (/\b\d{1,2}\s*h(?:\d{2})?\b/.test(folded)) return false
-  if (/\b\d{1,2}:\d{2}\b/.test(text)) return false
-  return turnLooksLikeDayOrTimeAsk(text)
-}
 
 type FrameHint = {
   variantIds?: string[] | null

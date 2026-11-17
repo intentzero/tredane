@@ -27,12 +27,6 @@ export function forbiddenClientTermsIn(text: string): string[] {
   return [...hit]
 }
 
-export function assertNoForbiddenClientTerms(text: string, label = 'copy'): void {
-  const hits = forbiddenClientTermsIn(text)
-  if (hits.length > 0) {
-    throw new Error(`${label}: termos proibidos à cliente (${hits.join(', ')}): ${text}`)
-  }
-}
 
 /** Fallback / 1.ª redação — `recusar_mistura` (DEC-123). */
 export const MIXED_AUDIENCE_REPLY =
@@ -104,9 +98,6 @@ export function serviceChangedReply(conversationId = ''): string {
 export const PAYMENT_METHOD_REPLY =
   'Sobre cartão e parcelamento, a equipe confirma com você.'
 
-export function paymentMethodReply(): string {
-  return PAYMENT_METHOD_REPLY
-}
 
 /** Fallback — `nao_consegui_fechar`. */
 export function teamConfirmsSoonReply(

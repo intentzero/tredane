@@ -87,8 +87,8 @@ describe('agendar pela página (C-02 a C-06)', () => {
     render(<ClientWebApp />)
     expect(await screen.findByRole('heading', { name: 'Quando?' })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Qual serviço?' })).toBeNull()
-    expect(screen.getByText(/Limpeza de pele · 45 min/)).toBeTruthy()
-    expect(calls.some((c) => c.url.endsWith('/api/c/availability'))).toBe(true)
+    expect(await screen.findByText(/Limpeza de pele · 45 min/)).toBeTruthy()
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/c/availability'))).toBe(true))
   })
 
   it('serviço do chat que depende de género continua a perguntar «Para quem é?» primeiro', async () => {

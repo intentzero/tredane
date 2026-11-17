@@ -644,20 +644,6 @@ export function replyWhileHandoffPaused(
   return { outbox }
 }
 
-export function clearHandoffTimeout(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  updatedAt: number,
-): void {
-  db.run(
-    `UPDATE conversations SET ai_handoff_timeout_at = NULL, updated_at = ?
-     WHERE tenant_id = ? AND id = ?`,
-    updatedAt,
-    tenantId,
-    conversationId,
-  )
-}
 
 export function readHandoffTimeoutAt(
   db: ClinicDb,

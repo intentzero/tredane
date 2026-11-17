@@ -5,9 +5,7 @@
  */
 import type { Clock } from '../db/clock'
 import { listEffectiveWeeklyWindows } from '../clinic/config/availability'
-import { listServices } from '../clinic/config/services'
 import { ensureClinicSettings } from '../clinic/config/settings'
-import type { ServiceRow } from '../clinic/config/types'
 import { formatClinicTime } from '../clinic/ai/schedule-context'
 import { clinicCivilDateFromUtc } from '../clinic/scheduling/timezone'
 import type { ClinicDb } from '../clinic/store'
@@ -195,7 +193,3 @@ export function hubMeusBody(
 }
 
 
-/** Serviços activos da clínica para o detector de nome. */
-export function activeServicesForHub(db: ClinicDb, tenantId: string): ServiceRow[] {
-  return listServices(db, tenantId).filter((s) => s.active)
-}

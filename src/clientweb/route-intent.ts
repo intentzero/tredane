@@ -134,11 +134,6 @@ function dropContainedNames(found: RouteServiceHint[]): RouteServiceHint[] {
   return found.filter((_, i) => !names.some((other, j) => j !== i && contained(names[i]!, other)))
 }
 
-/** O serviço a pré-escolher no link: só quando exatamente um é reconhecido (DEC-202(4)). */
-export function uniqueServiceInText(services: readonly RouteServiceHint[], text: string): string | null {
-  const cited = servicesCitedInText(services, text)
-  return cited.length === 1 ? cited[0]!.id : null
-}
 
 /**
  * Decide se o texto é pedido de marcar, remarcar ou cancelar. `null` = não é (o chat informa).

@@ -93,49 +93,7 @@ export function getLlmJobByIdempotency(
   return r ? mapJob(r) : null
 }
 
-export function findOpenLlmJobForMessage(
-  db: ClinicDb,
-  tenantId: string,
-  input: { conversationId: string; messageId: string; purpose?: LlmJobPurpose },
-): LlmJobRow | null {
-  const r = input.purpose
-    ? db.get<JobSql>(
-        `SELECT * FROM llm_jobs
-         WHERE tenant_id = ? AND conversation_id = ? AND message_id = ? AND purpose = ?
-           AND state IN ('queued', 'claimed')
-         ORDER BY created_at DESC LIMIT 1`,
-        tenantId,
-        input.conversationId,
-        input.messageId,
-        input.purpose,
-      )
-    : db.get<JobSql>(
-        `SELECT * FROM llm_jobs
-         WHERE tenant_id = ? AND conversation_id = ? AND message_id = ?
-           AND state IN ('queued', 'claimed')
-         ORDER BY created_at DESC LIMIT 1`,
-        tenantId,
-        input.conversationId,
-        input.messageId,
-      )
-  return r ? mapJob(r) : null
-}
 
-export function hasDoneLlmJob(
-  db: ClinicDb,
-  tenantId: string,
-  input: { conversationId: string; messageId: string; purpose: LlmJobPurpose },
-): boolean {
-  const r = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM llm_jobs
-     WHERE tenant_id = ? AND conversation_id = ? AND message_id = ? AND purpose = ? AND state = 'done'`,
-    tenantId,
-    input.conversationId,
-    input.messageId,
-    input.purpose,
-  )
-  return Number(r?.n ?? 0) > 0
-}
 
 export function hasOpenLlmJobForConversation(
   db: ClinicDb,
@@ -327,11 +285,3 @@ export function parseSnapshot<T>(job: LlmJobRow): T | null {
   }
 }
 
-export function parseResult<T>(job: LlmJobRow): T | null {
-  if (!job.resultJson) return null
-  try {
-    return JSON.parse(job.resultJson) as T
-  } catch {
-    return null
-  }
-}
