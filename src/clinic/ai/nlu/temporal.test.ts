@@ -7,6 +7,7 @@ import {
   extractDates,
   extractTimes,
   nextWeekSearchDays,
+  notAfterTimeFromText,
   notBeforeTimeFromText,
   parseTemporal,
   wantsNextWeekWithoutWeekday,
@@ -287,6 +288,12 @@ describe('parseTemporal (#408)', () => {
   it('S02: notBeforeTimeFromText — «dps das 4» → 16:00', () => {
     expect(notBeforeTimeFromText('tem mais tarde? tipo dps das 4')).toBe('16:00')
     expect(notBeforeTimeFromText('pode ser depois das 14h')).toBe('14:00')
+  })
+
+  it('notAfterTimeFromText — «antes das 11» → 11:00 (exclui 11:00)', () => {
+    expect(notAfterTimeFromText('E antes das 11?')).toBe('11:00')
+    expect(notAfterTimeFromText('tem horário antes das 14h30?')).toBe('14:30')
+    expect(parseTemporal('E antes das 11?', { civilDate: '2026-11-17' }).times).toEqual([])
   })
 
   it('S09a: «depois do almoço» → não antes de 13:00', () => {

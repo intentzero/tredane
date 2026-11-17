@@ -420,6 +420,8 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 
 **Paleta do app (Confirmado, Paulo, 16/11/2026, «gostei, implementa»; normalização em toda a app pedida no mesmo dia):** [mock de comparação](../design/paleta-app/PaletaApp.html) de Conversas TEL-01, com temas claro/escuro e direção Coral & Menta da landing. [Escopo e pendências](../design/paleta-app/README.md). Os [tokens v0.10.0](../design/tokens.json) revêm os valores visuais de DEC-041/050/164, mantendo os papéis semânticos e a seleção claro/escuro de DEC-098. Turquesa identifica seleção, navegação, links e ações gerais; coral destaca a ação principal **iniciar Agendar** em Conversas, Agenda, ficha do cliente e Acompanhar. Confirmações dentro do fluxo usam o botão primário comum; âmbar indica atenção; verde, sucesso; lavanda, IA. Não altera os requisitos de TEL-01.
 
+**Destaque Agendar (ajuste Proposto, 17/11/2026):** após [feedback visual de Paulo](decisions.md#revisão-visual-do-painel--coral--menta-16112026) sobre a dificuldade de ler texto escuro no coral, os [tokens v0.10.1](../design/tokens.json) usam coral profundo com texto branco em claro e escuro. O par mantém contraste de texto ≥ 4,5:1 nos estados normal e hover; o preenchimento do botão mantém contraste ≥ 3:1 com o cartão. **Em aberto:** confirmação visual de Paulo em aparelho. A regra aplica-se às entradas principais de Agendar; links e seleções turquesa mantêm seus papéis.
+
 | Tela | Jornadas | Requisitos | Cenários |
 | --- | --- | --- | --- |
 | TEL-01 Conversas | JRN-01, JRN-02, JRN-04, JRN-06 | REQ-010, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-022 | AC-04, AC-06, AC-07, AC-16 |

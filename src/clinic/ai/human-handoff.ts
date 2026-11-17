@@ -25,6 +25,7 @@ import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { flagConversationForTeamHandoff } from '../inbox/review-flag'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
+import { dayTextPt } from './slot-offer'
 import type { ClinicDb } from '../store'
 import { isCancelIntent, loadUpcomingAppointment } from './reschedule'
 import {
@@ -375,7 +376,7 @@ export function afterHoursHumanRequestBody(
 ): string {
   const opening = nextClinicOpening(db, tenantId, clock)
   if (opening) {
-    return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}. A equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo.\n\n${humanTeamAccessExplanation(db, tenantId, clock)}`
+    return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá.`
   }
   const resources = listResources(db, tenantId, clock)
   const pros = new Set(resources.filter((r) => r.kind === 'professional').map((r) => r.id))
@@ -767,8 +768,6 @@ export type AiReplyPauseReason =
   /** Segunda mídia após pedido de texto (DEC-119 / #475). */
   | 'media_after_ask'
 
-const WEEKDAYS = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
-
 function weekdayOf(date: string): number {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
   const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
@@ -809,7 +808,7 @@ export function nextClinicOpening(
       const blocked = clinicBlocks.some((b) => b.startsAt <= startsAt && startsAt < b.endsAt)
       if (blocked) continue
       return {
-        dayLabel: WEEKDAYS[dow]!,
+        dayLabel: dayTextPt(date, today),
         time: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`,
       }
     }
