@@ -597,7 +597,7 @@ export async function consumeSupportHandoff(
     if (now >= row.expires_at) {
       db.run(
         `UPDATE support_sessions
-         SET status = 'expired', ended_at = ?, handoff_hash = NULL
+         SET status = 'expired', ended_at = ?, handoff_hash = NULL, token_hash = 'ended:' || id
          WHERE id = ? AND status = 'active'`,
         now,
         row.id,
@@ -692,7 +692,7 @@ export function revokeSupportSession(
     const result = db.run(
       `UPDATE support_sessions
        SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?,
-           handoff_hash = NULL
+           handoff_hash = NULL, token_hash = 'ended:' || id
        WHERE id = ? AND status = 'active'`,
       now,
       input.actorClerkUserId,
@@ -734,7 +734,7 @@ export function expireSupportSessionIfNeeded(
 
     db.run(
       `UPDATE support_sessions
-       SET status = 'expired', ended_at = ?, handoff_hash = NULL
+       SET status = 'expired', ended_at = ?, handoff_hash = NULL, token_hash = 'ended:' || id
        WHERE id = ? AND status = 'active'`,
       now,
       sessionId,
@@ -1082,7 +1082,7 @@ export function decideSupportTermination(
       const revoked = db.run(
         `UPDATE support_sessions
          SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?,
-             handoff_hash = NULL
+             handoff_hash = NULL, token_hash = 'ended:' || id
          WHERE id = ? AND status = 'active'`,
         now,
         input.ownerClerkUserId,
@@ -1149,7 +1149,7 @@ export function revokeSupportSessionsForSubject(
       const result = db.run(
         `UPDATE support_sessions
          SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?,
-             handoff_hash = NULL
+             handoff_hash = NULL, token_hash = 'ended:' || id
          WHERE id = ? AND status = 'active'`,
         now,
         input.actorClerkUserId,
