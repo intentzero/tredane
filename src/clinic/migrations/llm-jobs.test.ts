@@ -6,6 +6,6 @@ describe('0069_llm_jobs', () => {
   it('id/nome e CLINIC_SCHEMA_VERSION alinhados', () => {
     expect(MIGRATION_ID).toBe(69)
     expect(MIGRATION_NAME).toBe('0069_llm_jobs')
-    expect(CLINIC_SCHEMA_VERSION).toBe(72)
+    expect(CLINIC_SCHEMA_VERSION).toBe(73)
   })
 })

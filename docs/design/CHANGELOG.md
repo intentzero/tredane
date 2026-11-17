@@ -1,5 +1,10 @@
 # Histórico do design
 
+## 17/11/2026 — Página web da cliente (C-01 a C-12)
+
+- Mocks novos em `cliente/` (DEC-196 a DEC-200): agendar, remarcar, cancelar, link usado, pesquisa e «Para quem é?».
+- Layout compacto **Confirmado** (Paulo): cabeçalho com título do passo e barra de progresso, listas de ponta a ponta, escolha única que avança ao tocar, resumo junto do botão. Regras em `docs/product/ux-ui.md`.
+
 ## 17/11/2026 — Platform Admin: estados e diálogos PA-13 a PA-19 (**Confirmado**, Paulo 17/11/2026, #835)
 
 - Seis mocks novos espelham os componentes já implementados: **PA-13** estados transversais, **PA-14** página não encontrada, **PA-15** suspender (e reativar), **PA-16** excluir, **PA-17** pedir suporte, **PA-18** substituir owner; e **PA-19**, a clínica «em configuração» com convite pendente (DEC-194).

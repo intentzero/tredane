@@ -344,3 +344,47 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 **Dado** o mesmo período e clínica; **quando** o superadmin abre a qualidade da IA; **então** as métricas e o relatório sombra coincidem com `get_conversation_metrics` e `get_interpreter_shadow_report` do Review MCP. **Requisitos:** REQ-110.
 
+
+### AC-87 — Link: abrir não gasta, trocar gasta uma vez
+
+**Dado** um link pessoal válido; **quando** a página é aberta (GET) e recarregada, **então** o token continua utilizável; **quando** a página faz a troca, **então** abre uma sessão de 30 min no browser e a segunda troca com o mesmo token mostra «Este link já foi usado — peça outro no chat». Um link novo da mesma conversa invalida o anterior, e o link inexistente, usado ou expirado responde igual. **Requisitos:** REQ-111, REQ-115.
+
+### AC-88 — Sessão presa ao tenant e ao contacto
+
+**Dado** duas clínicas e dois contactos fictícios; **quando** a sessão de um contacto pede estado, horas ou ação, **então** só vê e altera dados do próprio contacto e da própria clínica; um pedido com `tenant_id`, `contact_id` ou `Origin` alheios é recusado. Nenhum log contém token nem telefone. **Requisitos:** REQ-111.
+
+### AC-89 — Marcar pela página
+
+**Dado** um serviço com variantes e horas livres; **quando** a cliente escolhe e toca em **Confirmar** na página, **então** o compromisso é criado uma vez (também com dois toques ou reenvio do mesmo `clientRequestId`), a agenda do painel mostra «Marcado pela cliente (web)» e a cliente recebe o recibo no chat. **Requisitos:** REQ-112, REQ-116.
+
+### AC-90 — Vaga perdida e Pix
+
+**Dado** uma hora que ficou ocupada ou que o Tempo deixou de servir antes do toque; **então** nada é marcado e a página mostra horas alternativas. **Dado** um serviço com sinal; **então** Confirmar abre o Pix no chat e não reserva o horário antes do pagamento. **Requisitos:** REQ-112.
+
+### AC-91 — Remarcar pela página
+
+**Dado** uma marcação futura; **quando** a cliente escolhe nova hora e confirma, **então** o mesmo compromisso é movido de forma atómica (motivo `contato_remarcou`), com o mesmo serviço e variantes e sem sinal novo. **Requisitos:** REQ-113.
+
+### AC-92 — Cancelar sem sinal
+
+**Dado** uma marcação futura sem sinal; **quando** a cliente confirma o cancelamento, **então** o compromisso fica cancelado (motivo `contato_cancelou`), a agenda libera a hora e o recibo sai no chat. **Requisitos:** REQ-114.
+
+### AC-93 — Cancelar com sinal
+
+**Dado** uma marcação com sinal pago e a janela de crédito aplicada pelo backend; **quando** a cliente cancela dentro da janela, **então** o crédito é registado; **fora** da janela, a página mostra o texto da política e só cancela após o aceite explícito. **Dado** a janela ainda não aplicada, **então** a página mostra «Pedir à equipe» e não cancela. **Requisitos:** REQ-114.
+
+### AC-94 — Meus agendamentos
+
+**Dado** um contacto com marcações futuras e outro sem nenhuma; **quando** cada um abre a página, **então** o primeiro vê só as suas e o segundo vê a lista vazia com a ação Agendar. **Requisitos:** REQ-115.
+
+### AC-95 — Oferta e recibo no chat
+
+**Dado** a janela de 24 h aberta; **quando** a cliente pede para agendar, remarcar ou cancelar, **então** sai a frase determinística com «Abrir agenda» e a conversa continua disponível. **Dado** a janela fechada sem template aprovado; **então** vale o handoff, sem template inventado. **Dado** uma ação feita na página; **então** o recibo traz «Não foi você? Falar com a equipe». **Requisitos:** REQ-116.
+
+### AC-96 — Pesquisa de serviços e zonas
+
+**Dado** um catálogo fictício com «Axilas» (sinónimo «sovaco») e um serviço que a inclui; **quando** a cliente escreve «axila» ou «SOVACO», **então** vê a zona e o serviço com o termo destacado, sem diferenças de acento ou plural, e tocar na zona abre Zonas com ela marcada. **Dado** «botox» sem correspondência; **então** vê «Perguntar no WhatsApp» e «Ver todos os serviços», sem sugestões inventadas. Serviço inativo ou não agendável por aqui nunca aparece. **Requisitos:** REQ-117.
+
+### AC-97 — «Para quem é?» sem deduzir género
+
+**Dado** um catálogo com zonas femininas, masculinas e «ambos»; **quando** a cliente abre Serviço sem linha definida na conversa, **então** vê a pergunta «Para quem é?» e só depois as zonas dessa linha mais as «ambos». **Dado** a conversa que já definiu a linha; **então** a página abre com ela escolhida e com a opção Trocar. A escolha não altera o contacto (nenhum campo de sexo) e não vale para a marcação seguinte. **Requisitos:** REQ-117.

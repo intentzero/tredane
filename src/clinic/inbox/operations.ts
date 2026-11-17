@@ -915,14 +915,15 @@ export function sendOutboundMessageOp(
   const hasButtons = Boolean(input.interactive?.buttons?.length)
   const hasList = Boolean(input.interactive?.list?.sections?.length)
   const hasFlow = Boolean(input.interactive?.flow?.flowId?.trim())
-  const interactiveModes = [hasButtons, hasList, hasFlow].filter(Boolean).length
+  const hasCtaUrl = Boolean(input.interactive?.ctaUrl?.url?.trim())
+  const interactiveModes = [hasButtons, hasList, hasFlow, hasCtaUrl].filter(Boolean).length
   if (interactiveModes > 1) {
     throw new ValidationError(
       'send_interactive_modes_conflict',
-      'Envie botões, lista ou Flow, não mais do que um',
+      'Envie botões, lista, Flow ou botão de URL, não mais do que um',
     )
   }
-  const hasInteractive = hasButtons || hasList || hasFlow
+  const hasInteractive = hasButtons || hasList || hasFlow || hasCtaUrl
   const rawBody = (input.body ?? '').trim()
   const modes = [hasTemplate, hasInteractive, Boolean(rawBody && !hasInteractive)].filter(Boolean)
     .length
@@ -1049,6 +1050,7 @@ export function sendOutboundMessageOp(
       mode: 'published' | 'draft'
     }
     let interactiveFlow: InteractiveFlowPayload | null = null
+    let interactiveCtaUrl: { displayText: string; url: string } | null = null
 
     if (hasTemplate) {
       const tpl = input.template!
@@ -1077,7 +1079,30 @@ export function sendOutboundMessageOp(
       }
       body = rawBody
       kind = 'interactive'
-      if (hasFlow) {
+      if (hasCtaUrl) {
+        const ctaIn = input.interactive!.ctaUrl!
+        const displayText = ctaIn.displayText.trim()
+        const url = ctaIn.url.trim()
+        if (!displayText || displayText.length > 20) {
+          throw new ValidationError(
+            'interactive_cta_url_text_invalid',
+            'Botão de URL exige texto com até 20 caracteres',
+          )
+        }
+        let parsedUrl: URL | null = null
+        try {
+          parsedUrl = new URL(url)
+        } catch {
+          parsedUrl = null
+        }
+        if (!parsedUrl || parsedUrl.protocol !== 'https:' || url.length > 2000) {
+          throw new ValidationError(
+            'interactive_cta_url_invalid',
+            'Botão de URL exige um endereço https válido (até 2000 caracteres)',
+          )
+        }
+        interactiveCtaUrl = { displayText, url }
+      } else if (hasFlow) {
         const flowIn = input.interactive!.flow!
         const flowId = flowIn.flowId.trim()
         const flowCta = flowIn.flowCta.trim()
@@ -1237,6 +1262,7 @@ export function sendOutboundMessageOp(
         interactiveButtons,
         interactiveList,
         interactiveFlow,
+        interactiveCtaUrl,
         deliveryState: 'pending',
       },
       clock,
@@ -1339,6 +1365,7 @@ export function sendOutboundMessageOp(
           interactiveButtons,
           interactiveList,
           interactiveFlow,
+          interactiveCtaUrl,
         },
       },
       clock,

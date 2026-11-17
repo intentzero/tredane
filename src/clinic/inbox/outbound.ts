@@ -39,6 +39,11 @@ export type OutboundInteractiveFlow = {
   mode: 'published' | 'draft'
 }
 
+export type OutboundInteractiveCtaUrl = {
+  displayText: string
+  url: string
+}
+
 export type OutboundMessageRow = {
   id: string
   tenantId: string
@@ -56,6 +61,8 @@ export type OutboundMessageRow = {
   interactiveList: OutboundInteractiveList | null
   /** Flow Cloud API quando kind=interactive type=flow (#514). */
   interactiveFlow: OutboundInteractiveFlow | null
+  /** Botão de URL quando kind=interactive type=cta_url (ADR-0018). */
+  interactiveCtaUrl: OutboundInteractiveCtaUrl | null
   deliveryState: OutboundDeliveryState
   failureReason: string | null
   outboxEventId: string | null
@@ -162,6 +169,44 @@ function parseInteractiveFlow(raw: string | null): OutboundInteractiveFlow | nul
   }
 }
 
+function parseInteractiveCtaUrl(raw: string | null): OutboundInteractiveCtaUrl | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as { ctaUrl?: unknown }
+    if (!parsed || !parsed.ctaUrl || typeof parsed.ctaUrl !== 'object') return null
+    const cta = parsed.ctaUrl as Record<string, unknown>
+    const displayText = typeof cta.displayText === 'string' ? cta.displayText.trim() : ''
+    const url = typeof cta.url === 'string' ? cta.url.trim() : ''
+    if (!displayText || !url) return null
+    return { displayText, url }
+  } catch {
+    return null
+  }
+}
+
+/** Marca que fica no lugar do URL depois do envio (o token do link não deve ficar guardado). */
+export const CTA_URL_REMOVED = '[removido]'
+
+/**
+ * Apaga o URL (com o token do link) de uma mensagem com botão de URL assim que o envio
+ * deixa de poder ser repetido (ADR-0018 §7a). Mantém o texto do botão. Idempotente.
+ */
+export function scrubCtaUrlFromOutbound(db: ClinicDb, tenantId: string, outboundId: string): void {
+  const row = db.get<{ interactive_json: string | null }>(
+    `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    outboundId,
+  )
+  const cta = parseInteractiveCtaUrl(row?.interactive_json ?? null)
+  if (!cta || cta.url === CTA_URL_REMOVED) return
+  db.run(
+    `UPDATE outbound_messages SET interactive_json = ? WHERE tenant_id = ? AND id = ?`,
+    JSON.stringify({ ctaUrl: { displayText: cta.displayText, url: CTA_URL_REMOVED } }),
+    tenantId,
+    outboundId,
+  )
+}
+
 function mapOutbound(row: ObSql): OutboundMessageRow {
   let templateParams: Record<string, string> | null = null
   if (row.template_params_json) {
@@ -189,6 +234,7 @@ function mapOutbound(row: ObSql): OutboundMessageRow {
     interactiveButtons: parseInteractiveButtons(row.interactive_json ?? null),
     interactiveList: parseInteractiveList(row.interactive_json ?? null),
     interactiveFlow: parseInteractiveFlow(row.interactive_json ?? null),
+    interactiveCtaUrl: parseInteractiveCtaUrl(row.interactive_json ?? null),
     deliveryState: row.delivery_state as OutboundDeliveryState,
     failureReason: row.failure_reason,
     outboxEventId: row.outbox_event_id,
@@ -256,6 +302,7 @@ export function insertOutboundMessage(
     interactiveButtons?: OutboundInteractiveButton[] | null
     interactiveList?: OutboundInteractiveList | null
     interactiveFlow?: OutboundInteractiveFlow | null
+    interactiveCtaUrl?: OutboundInteractiveCtaUrl | null
     deliveryState?: OutboundDeliveryState
     failureReason?: string | null
     outboxEventId?: string | null
@@ -268,7 +315,9 @@ export function insertOutboundMessage(
   const now = clock.nowMs()
   const state = input.deliveryState ?? 'pending'
   const interactiveJson =
-    input.kind === 'interactive' && input.interactiveFlow
+    input.kind === 'interactive' && input.interactiveCtaUrl
+      ? JSON.stringify({ ctaUrl: input.interactiveCtaUrl })
+      : input.kind === 'interactive' && input.interactiveFlow
       ? JSON.stringify({ flow: input.interactiveFlow })
       : input.kind === 'interactive' && input.interactiveList
         ? JSON.stringify({ list: input.interactiveList })
@@ -453,6 +502,8 @@ export function applyOutboundDeliveryUpdate(
     input.tenantId,
     current.messageId,
   )
+
+  if (input.nextState !== 'pending') scrubCtaUrlFromOutbound(db, input.tenantId, input.outboundId)
 
   const outbound = findOutboundByMessageId(db, input.tenantId, current.messageId)!
   const msg = db.get<{

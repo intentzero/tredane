@@ -73,6 +73,8 @@ export function sendProposalResultMessageOp(
     alternativesListing?: string | null
     /** DEC-086 / baseline 15/11: follow-up depois do Agendado na mesma cadeia (item 10). */
     postBookingAppointmentId?: string | null
+    /** DEC-197: `web` acrescenta o recibo «Não foi você?» ao texto de marcado. */
+    channel?: 'whatsapp' | 'web'
   },
   clock: Clock,
 ): SendProposalResultOutcome {
@@ -114,6 +116,7 @@ export function sendProposalResultMessageOp(
       ? {
           zones,
           omitDoubtFallback: window.open,
+          ...(input.channel === 'web' ? { webReceipt: true } : {}),
           ...(replacedStartsAt != null ? { replacedStartsAt } : {}),
         }
       : {}),

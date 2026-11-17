@@ -67,6 +67,19 @@ export type MetaSendInteractiveFlowInput = {
   clientRequestId?: string
 }
 
+/** Cloud API interactive type=cta_url: botão que abre um URL (DEC-196, ADR-0018). */
+export type MetaSendInteractiveCtaUrlInput = {
+  phoneNumberId: string
+  accessToken: string
+  toWaId: string
+  body: string
+  /** Texto do botão (≤20). */
+  displayText: string
+  /** URL https. Contém o token do link: nunca em logs. */
+  url: string
+  clientRequestId?: string
+}
+
 export type MetaSendSuccess = {
   outcome: 'succeeded'
   providerMessageId: string
@@ -100,6 +113,7 @@ export type MetaAdapter = {
   ): Promise<MetaSendResult>
   sendInteractiveListMessage(input: MetaSendInteractiveListInput): Promise<MetaSendResult>
   sendInteractiveFlowMessage(input: MetaSendInteractiveFlowInput): Promise<MetaSendResult>
+  sendInteractiveCtaUrlMessage(input: MetaSendInteractiveCtaUrlInput): Promise<MetaSendResult>
   /**
    * Recibo de leitura (tiques azuis). Com `typingIndicator: true`, a Cloud API
    * também mostra o indicador nativo «a escrever…» até a resposta ou ~25 s (DEC-136).
@@ -270,6 +284,21 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
         return { outcome: 'failed', errorCode: 'meta_interactive_flow_invalid' }
       }
       const marker = `${input.clientRequestId ?? ''}|${input.body}|flow|${input.accessToken}`
+      return syntheticSendResult(marker, input.phoneNumberId)
+    },
+    async sendInteractiveCtaUrlMessage(input) {
+      if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
+        return { outcome: 'failed', errorCode: 'meta_send_invalid' }
+      }
+      if (
+        !input.body.trim() ||
+        !input.displayText?.trim() ||
+        input.displayText.trim().length > 20 ||
+        !/^https:\/\//i.test(input.url ?? '')
+      ) {
+        return { outcome: 'failed', errorCode: 'meta_interactive_cta_url_invalid' }
+      }
+      const marker = `${input.clientRequestId ?? ''}|${input.body}|cta_url|${input.accessToken}`
       return syntheticSendResult(marker, input.phoneNumberId)
     },
   }
@@ -507,6 +536,28 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
                 ...(r.description ? { description: r.description } : {}),
               })),
             })),
+          },
+        },
+      })
+    },
+    async sendInteractiveCtaUrlMessage(input) {
+      if (
+        !input.displayText?.trim() ||
+        input.displayText.trim().length > 20 ||
+        !/^https:\/\//i.test(input.url ?? '')
+      ) {
+        return { outcome: 'failed', errorCode: 'meta_interactive_cta_url_invalid' }
+      }
+      return liveGraphSend(version, input.phoneNumberId, input.accessToken, {
+        messaging_product: 'whatsapp',
+        to: input.toWaId,
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          body: { text: input.body },
+          action: {
+            name: 'cta_url',
+            parameters: { display_text: input.displayText.trim(), url: input.url },
           },
         },
       })

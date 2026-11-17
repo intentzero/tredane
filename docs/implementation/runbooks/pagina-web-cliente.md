@@ -1,0 +1,45 @@
+# Runbook — página web da cliente (agendar, remarcar e cancelar por link)
+
+**Estado:** **Proposto** (DEC-196 a DEC-201, [ADR-0018](../../adr/0018-pagina-web-cliente.md)). Só **staging**: `CLIENT_WEB_ENABLED` está ligado em `env.staging` de `wrangler.jsonc` e **não** em produção. Dados fictícios; a GATE-04 (parecer LGPD) bloqueia dados reais.
+
+## O que liga o quê
+
+| Interruptor | Onde | Efeito |
+| --- | --- | --- |
+| `CLIENT_WEB_ENABLED=true` | var do Worker (staging) | Liga as rotas `/api/c/*` e a casca `/c/*`. Sem ele respondem 404. |
+| `APP_BASE_URL` https | var do Worker | Base do link («https://staging.app.tredane.com/c/<token>»). Sem https o link não sai. |
+| «Agendamento por link» | Clínica › Configurações (só a owner) | Liga por clínica. **Desligado por defeito.** Desligar fecha na hora as sessões abertas. |
+| Pausa da owner (limites das automações) | Clínica › Limites das automações | A página mostra «A equipe atende por aqui» e não marca nem remarca; o chat não oferece o link de remarcar e cancelar. |
+
+## Teste de fumo em staging (clínica demo)
+
+1. Confirmar que o deploy tem `CLIENT_WEB_ENABLED` (`npm run check:env -- staging`) e que a clínica demo tem serviços e profissionais.
+2. Na clínica demo, owner: Clínica › **Agendamento por link** → ligar.
+3. Pelo [MCP de laboratório](laboratorio-mcp.md) (`lab_say`): dizer «Oi». Esperado: uma mensagem com o expediente de hoje e o botão **«Abrir agenda»**; o `lab_state` mostra o botão de URL e **não** o token no corpo.
+4. Abrir o URL num telemóvel (ou na vista móvel do navegador): a página mostra o nome da clínica e «Olá, <primeiro nome>»; o endereço passa a `/c` (sem token). Recarregar mantém a sessão (30 min).
+5. Abrir **outra vez o mesmo URL**: «Este link já foi usado». Pedir outro no chat («Oi»): o link novo invalida o anterior.
+6. Agendar: serviço → (zonas) → horário → Confirmar. Esperado: «Horário marcado», recibo no chat com «Marcado pela página. Não foi você?», marcação na agenda com o rótulo da cliente (web) e auditoria `appointment.client_web_booked`.
+7. Remarcar e cancelar: dizer «quero remarcar» / «quero cancelar» no chat: o botão abre **direto** na marcação. Com sinal pago, a página pede à equipe em vez de cancelar.
+8. Owner desliga o interruptor: a página aberta passa a «Este link já foi usado» no pedido seguinte.
+
+## Cabeçalhos a verificar (`curl -sI`)
+
+`GET /c/<qualquer>` → `200`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`, `X-Frame-Options: DENY`. `GET /api/c/state` sem cookie → `401` com os mesmos cabeçalhos.
+
+## Logs e sinais (sem token nem telefone)
+
+Eventos `client_web.exchange_ok`, `client_web.exchange_refused`, `client_web.book`, `client_web.reschedule`, `client_web.cancel`, `client_web.ask_team`, `client_web.rate_limited`. Muitos `exchange_refused` seguidos = link a ser reaberto depois de usado ou tentativa de adivinhar. `429` = limite de pedidos (troca: 20 por IP e 10 min; restantes: 120 e 30 por sessão).
+
+## Desligar em emergência
+
+1. Rápido, por clínica: a owner desliga o interruptor, ou o superadmin pelo suporte.
+2. Global: `CLIENT_WEB_ENABLED=false` no `env.staging` e deploy. As rotas passam a 404 e o chat deixa de oferecer o link (volta ao Flow, se configurado, e ao M5).
+3. Marcações já feitas pela página ficam como estão (a auditoria identifica-as).
+
+## Limpeza e retenção
+
+O cron diário (04:15 UTC) apaga do D1 central os links expirados há mais de 7 dias, as sessões expiradas ou revogadas há mais de 1 dia e os contadores de limite com mais de 1 dia. **Ainda por fazer:** expurgo por tenant e por contacto (DEC-099, REQ-071), como no Flow.
+
+## Antes de produção
+
+GATE-04 (parecer LGPD), TMPL-05 (link fora das 24 h aprovado pela Meta), revisão de segurança curta (enumeração, CSRF, clickjacking, limites) como em [suporte-revisao-e-pentest.md](suporte-revisao-e-pentest.md), valores de 60 e 30 min do link e da sessão (DEC-199), valor padrão do horizonte (DEC-201), texto das mensagens (Proposto) e a decisão sobre cancelar com sinal pago (DEC-198).

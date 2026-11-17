@@ -60,6 +60,7 @@ export const OPERATIONAL_RESET_KEPT_TABLES: readonly string[] = [
   'clinic_schema_state',
   'clinic_meta',
   'clinic_settings',
+  'clinic_client_web',
   'clinic_purge_state',
   'operational_audit',
   'services',

@@ -30,6 +30,8 @@ export type WorkerBindings = {
   AUTH_MODE?: string
   /** Base URL pública para links de convite (#25). Obrigatória com transporte cloudflare. */
   APP_BASE_URL?: string
+  /** Assets estáticos (SPA). Usado pela casca da página da cliente (`/c/*`), que leva o token no URL. */
+  ASSETS?: Fetcher
   /**
    * Transporte de e-mail: `simulated` (dev/CI) | `cloudflare` (Workers Email Sending).
    * Com binding `EMAIL` presente e var vazia, resolve para cloudflare.
@@ -82,6 +84,8 @@ export type WorkerBindings = {
   DEMO_SEED_TOKEN?: string
   /** ADR-0017 §7: ligar ativar/handoff de sessões de suporte em produção (`"true"`). Fora de produção está sempre ligado. */
   SUPPORT_SESSIONS_ENABLED?: string
+  /** Página web da cliente (DEC-196 a DEC-199, ADR-0018): `"true"` liga as rotas `/api/c/*`; omisso = 404. Staging primeiro. */
+  CLIENT_WEB_ENABLED?: string
   /** STAGING-ONLY (DEC-186): `true` habilita o MCP de laboratório (exige ENVIRONMENT=staging + OAUTH_KV; auth OAuth de superadmin). */
   LAB_ENABLED?: string
   /** Staging: waIds extra protegidos em `lab_reset` (Teste Paulo), lista separada por vírgulas. */

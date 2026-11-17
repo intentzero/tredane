@@ -396,6 +396,17 @@ export async function processClinicOutboxMessage(
   const hasInteractiveFlow = Boolean(
     interactiveFlow?.flowId && interactiveFlow.flowCta && interactiveFlow.flowToken,
   )
+  const ctaUrlRaw =
+    payload.interactiveCtaUrl && typeof payload.interactiveCtaUrl === 'object'
+      ? (payload.interactiveCtaUrl as { displayText?: unknown; url?: unknown })
+      : null
+  const interactiveCtaUrl = ctaUrlRaw
+    ? {
+        displayText: typeof ctaUrlRaw.displayText === 'string' ? ctaUrlRaw.displayText.trim() : '',
+        url: typeof ctaUrlRaw.url === 'string' ? ctaUrlRaw.url.trim() : '',
+      }
+    : null
+  const hasInteractiveCtaUrl = Boolean(interactiveCtaUrl?.displayText && interactiveCtaUrl.url)
 
   if (isDemoTenantId(msg.tenantId)) {
     // Clínica demo (contatos fictícios): nunca chamar a Meta.
@@ -471,7 +482,17 @@ export async function processClinicOutboxMessage(
           clientRequestId,
         })
       } else if (kind === 'interactive') {
-        if (hasInteractiveFlow && interactiveFlow) {
+        if (hasInteractiveCtaUrl && interactiveCtaUrl) {
+          sendResult = await meta.sendInteractiveCtaUrlMessage({
+            phoneNumberId: creds.phoneNumberId,
+            accessToken: creds.accessToken,
+            toWaId: waId,
+            body,
+            displayText: interactiveCtaUrl.displayText,
+            url: interactiveCtaUrl.url,
+            clientRequestId,
+          })
+        } else if (hasInteractiveFlow && interactiveFlow) {
           sendResult = await meta.sendInteractiveFlowMessage({
             phoneNumberId: creds.phoneNumberId,
             accessToken: creds.accessToken,

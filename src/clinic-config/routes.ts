@@ -84,6 +84,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
     setAiProfile: (caller, input) => stub.setClinicAiProfile(caller, input),
     setForecastPlace: (caller, input) => stub.setForecastPlace(caller, input),
+    getClientWebSetting: (caller) => stub.getClientWebSetting(caller),
+    setClientWebEnabled: (caller, input) => stub.setClientWebEnabled(caller, input),
     getAbuseLimits: (caller) => stub.getClinicAbuseLimits(caller),
     updateAbuseLimits: (caller, input) => stub.updateClinicAbuseLimits(caller, input),
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
@@ -203,6 +205,36 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         body.timezone,
       )
       return c.json(serializeSettings(settings))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  // Página web da cliente (DEC-199): interruptor da owner. Desligado por defeito.
+  app.get('/api/tenants/:tenantId/config/client-web', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const view = await gw.getClientWebSetting(callerFromContext(ctx.tenantId, c.get('principal').clerkUserId))
+      return c.json({ enabled: view.enabled, available: view.available, updatedAt: view.updatedAt })
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/client-web', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{ enabled?: unknown }>().catch(() => null)
+      if (!body || typeof body.enabled !== 'boolean') return c.json({ error: 'invalid_body' }, 400)
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const view = await gw.setClientWebEnabled(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        { enabled: body.enabled },
+      )
+      return c.json({ enabled: view.enabled, updatedAt: view.updatedAt })
     } catch (err) {
       return configErrorResponse(c, err)
     }

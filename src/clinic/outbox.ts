@@ -69,6 +69,22 @@ function mapRow(row: {
 }
 
 /** Inserção de outbox — deve ocorrer dentro de transactionSync com a mutação. */
+/** Troca o URL do botão de URL por um marcador; payloads sem botão de URL ficam iguais. */
+export function scrubCtaUrlFromPayload(payloadJson: string): string {
+  if (!payloadJson.includes('interactiveCtaUrl')) return payloadJson
+  try {
+    const payload = JSON.parse(payloadJson) as Record<string, unknown>
+    const cta = payload.interactiveCtaUrl
+    if (cta && typeof cta === 'object') {
+      payload.interactiveCtaUrl = { ...(cta as Record<string, unknown>), url: '[removido]' }
+      return JSON.stringify(payload)
+    }
+  } catch {
+    /* payload ilegível: mantém */
+  }
+  return payloadJson
+}
+
 export function insertOutboxEvent(
   db: ClinicDb,
   input: OutboxInsert,
@@ -271,6 +287,8 @@ export function acknowledgeOutboxResult(
     payload.providerRef = result.providerRef
     payloadJson = JSON.stringify(payload)
   }
+  // ADR-0018 §7a: o URL do botão (com o token do link) não fica no outbox depois do envio.
+  if (state !== 'published') payloadJson = scrubCtaUrlFromPayload(payloadJson)
 
   db.run(
     `UPDATE outbox_events

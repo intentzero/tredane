@@ -73,6 +73,14 @@ Dúvidas? Responda esta mensagem.
 
 No MVP S4 (#175), com janela aberta usa-se `type=interactive` / `button` (Confirmar · Alterar detalhes) com corpo determinístico do snapshot. Com janela fechada: mensagem de sistema + comunicação pendente; **sem** template inventado.
 
+## TMPL-05 — Link da página web da cliente (DEC-196 / DEC-199) — **Em aberto**
+
+**Objetivo:** com a janela de 24 h fechada, enviar o link pessoal da página de agendamento. Dentro da janela usa-se `interactive` com botão de URL (CTA), sem template.
+
+**Texto proposto:** «Olá, {{1}}! Para agendar, remarcar ou cancelar na {{2}}, toque no botão. Esta página não pede pagamento nem senha.» Botão de URL dinâmico «Abrir agenda» → `/c/{{3}}`.
+
+**Estado:** Em aberto · **Aprovação Meta:** Pendente (categoria e aceitação de botão URL dinâmico por confirmar) · **Gate:** GATE-10. Sem aprovação, a janela fechada continua a ser handoff, sem template inventado (DEC-040(d)). Domínio da página em aberto.
+
 ## Fora deste recorte
 
 - Lembrete automático de consulta (**posterior**, Q-UX-06).

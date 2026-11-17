@@ -164,6 +164,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
+**Página web da cliente (direção Confirmada, Paulo, 17/11/2026 — DEC-196 a DEC-199, [ADR-0018](adr/0018-pagina-web-cliente.md) Proposto):** alternativa determinística à conversa. Por um link pessoal enviado no chat, a cliente agenda, remarca, cancela (também com sinal) e vê as suas marcações numa página web; a conversa fica para informar e esclarecer. A página **substitui o Flow** (DEC-138, ADR-0016 suspenso) e **confirma na própria página**, o que revê a DEC-061(1) e (6) só para este canal; no chat, texto livre continua a nunca marcar e o Pix continua no WhatsApp. «Uso único» é a troca única do link por uma sessão curta (GET não gasta o link). **Propostos / em aberto:** valores de 60 e 30 min, regras do cancelamento com sinal e validade do crédito, domínio, template fora das 24 h (TMPL-05) e GATE-04 (LGPD). Pesquisa de texto em serviços e zonas e pergunta «Para quem é?» sem deduzir género: DEC-200 (pedido **Confirmado**, desenho **Proposto**). Horizonte máximo de marcação como configuração da clínica: DEC-201 (**Confirmado**, por implementar). Requisitos REQ-111 a REQ-117; mocks [C-01 a C-12](design/cliente/README.md).
+
 ## Requisitos de aceite
 
 - Uma clínica não consegue ler ou alterar contatos, mensagens, oportunidades, agenda ou arquivos de outra clínica, inclusive ao manipular IDs diretamente na API.
@@ -211,7 +213,7 @@ A fundação F0 (React/Vite, Hono/Worker, D1/Drizzle, migrações, fixtures com 
 
 ## Fora do primeiro MVP
 
-Prontuário ou registro clínico, pagamentos além do sinal por Pix, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho, relatórios avançados e painel de profissional. **A Platform Admin interna passa a integrar o escopo**, sem acesso operacional irrestrito aos dados clínicos. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
+Prontuário ou registro clínico, pagamentos além do sinal por Pix, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho (exceto o agendamento confirmado pela própria cliente, DEC-061, e a página web da cliente, DEC-196), relatórios avançados e painel de profissional. **A Platform Admin interna passa a integrar o escopo**, sem acesso operacional irrestrito aos dados clínicos. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
 
 ## Decisões pendentes antes de integrar serviços reais
 

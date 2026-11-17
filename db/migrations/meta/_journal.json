@@ -183,6 +183,20 @@
       "when": 1794400000000,
       "tag": "0026_tenant_health_volume",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1794500000000,
+      "tag": "0027_client_web",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1794600000000,
+      "tag": "0028_client_web_rate_limits",
+      "breakpoints": true
     }
   ]
 }

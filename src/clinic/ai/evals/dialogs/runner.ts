@@ -21,6 +21,7 @@ import {
 } from './damage'
 import { bootDialogScenario, DIALOG_TZ, type DialogScenario } from './scenario'
 import { createFlowHarness, type FlowPath, type FlowRunTrace } from './flow-driver'
+import { createClientWebHarness } from './clientweb-driver'
 
 export type DialogMediaKind = 'audio' | 'image' | 'document'
 
@@ -98,6 +99,11 @@ export type DialogCase = {
    */
   flow?: boolean
   /**
+   * Liga a página web da cliente (ADR-0018, Fase 5): a abertura do hub leva o botão «Abrir agenda»
+   * em vez do CTA do Flow, como em produção com a página ligada pela plataforma e pela owner.
+   */
+  clientWeb?: boolean
+  /**
    * Pedido declarado para métricas de estrago F1-0 (#506).
    * Sem isto, o relatório omite o caso (métricas null).
    */
@@ -154,6 +160,12 @@ export type DialogCase = {
     >
     /** Família FL-: quantos CTAs de Flow saíram no diálogo. */
     flowOffers?: number
+    /** Família CW-: quantos botões «Abrir agenda» saíram no diálogo (e com URL https de token). */
+    clientWebOffers?: number
+    /** Família CW-: nenhuma mensagem leva o botão de URL. */
+    noCtaUrl?: boolean
+    /** Família CW-: finalidade (e marcação alvo, quando só há uma) de cada link emitido, pela ordem. */
+    clientWebPurposes?: Array<{ purpose: string; appointmentId?: string | null }>
     /**
      * T3 / DEC-148: eventos `booking_session.flow` na outbox (pela ordem).
      * Só os campos nomeados são comparados; sem corpo de mensagem.
@@ -216,9 +228,16 @@ export async function runDialogCase(
   const baselineAppointments = s.appointmentCount()
   const flow = c.flow ? createFlowHarness({ forecast: c.forecast }) : null
   flow?.bind(s)
+  const clientWeb = c.clientWeb ? createClientWebHarness() : null
   const flowDeps = flow
     ? { prepareBookingFlowOffer: flow.prepare, clinicName: 'Clínica Teste Paulo' }
-    : {}
+    : clientWeb
+      ? {
+          prepareBookingFlowOffer: clientWeb.prepare,
+          prepareClientWebOffer: clientWeb.prepareOffer,
+          clinicName: 'Clínica Teste Paulo',
+        }
+      : {}
   const flowRuns: FlowRunTrace[] = []
   let confirmClicks = 0
   let agentTurns = 0
@@ -530,6 +549,42 @@ export async function runDialogCase(
           }
         }
       })
+    }
+    if (e?.clientWebOffers != null) {
+      const sent = s.db
+        .all<{ interactive_json: string | null }>(
+          `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? AND interactive_json LIKE '%ctaUrl%'`,
+          s.tenantId,
+        )
+        .map((r) => JSON.parse(r.interactive_json ?? '{}') as { ctaUrl?: { displayText?: string; url?: string } })
+      if (sent.length !== e.clientWebOffers) {
+        errors.push(`esperava ${e.clientWebOffers} botão(ões) «Abrir agenda», saíram ${sent.length}`)
+      }
+      for (const m of sent) {
+        if (m.ctaUrl?.displayText !== 'Abrir agenda') errors.push(`botão de URL com texto ${JSON.stringify(m.ctaUrl?.displayText)}`)
+        if (!/^https:\/\/[^/]+\/c\/cw1_[A-Za-z0-9_-]{20,}$/.test(m.ctaUrl?.url ?? '')) {
+          errors.push('o botão de URL não tem a forma https://…/c/<token>')
+        }
+      }
+      if (clientWeb && clientWeb.offers() !== e.clientWebOffers) {
+        errors.push(`esperava ${e.clientWebOffers} link(s) emitido(s), emitidos ${clientWeb.offers()}`)
+      }
+    }
+    if (e?.clientWebPurposes) {
+      const got = clientWeb?.purposes() ?? []
+      if (JSON.stringify(got.map((g) => g.purpose)) !== JSON.stringify(e.clientWebPurposes.map((w) => w.purpose))) {
+        errors.push(`finalidades dos links: ${JSON.stringify(got.map((g) => g.purpose))}, esperado ${JSON.stringify(e.clientWebPurposes.map((w) => w.purpose))}`)
+      }
+      e.clientWebPurposes.forEach((w, i) => {
+        if (w.appointmentId !== undefined && got[i]?.appointmentId !== w.appointmentId) {
+          errors.push(`link #${i}: marcação alvo ${JSON.stringify(got[i]?.appointmentId)}, esperado ${JSON.stringify(w.appointmentId)}`)
+        }
+      })
+    }
+    if (e?.noCtaUrl) {
+      const n = s.db
+        .all<{ n: number }>(`SELECT COUNT(*) AS n FROM outbound_messages WHERE tenant_id = ? AND interactive_json LIKE '%ctaUrl%'`, s.tenantId)[0]?.n ?? 0
+      if (n > 0) errors.push(`não devia haver botão de URL, saíram ${n}`)
     }
     if (e?.flowOffers != null && flow && flow.offers() !== e.flowOffers) {
       errors.push(`esperava ${e.flowOffers} CTA(s) de Flow, saíram ${flow.offers()}`)

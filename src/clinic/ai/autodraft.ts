@@ -125,6 +125,7 @@ import {
 import {
   isCancelIntent,
   isRescheduleIntent,
+  loadUpcomingAppointments,
   tryAiReschedule,
 } from './reschedule'
 import { isConversationPaused } from './protection'
@@ -985,10 +986,64 @@ export async function runDueAutoDrafts(
     }
     // DEC-091: remarcação com compromisso futuro — antes do handoff e do funil de zonas.
     const upcoming = turn.upcoming
+    /**
+     * Página web da cliente (ADR-0018, Fase 5): remarcar e cancelar oferecem o link «Abrir agenda».
+     * Só com a página ligada (gancho presente), a automação não pausada pela owner e a cliente com
+     * compromisso futuro. Com uma só marcação futura o link abre direto nela. Devolve `true` se saiu.
+     */
+    const offerClientWebLink = async (purpose: 'remarcar' | 'cancelar'): Promise<boolean> => {
+      if (!deps.prepareClientWebOffer || deps.autoBookPaused === true || !conv) return false
+      let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
+      try {
+        const future = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 2)
+        offered = await deps.prepareClientWebOffer({
+          tenantId,
+          conversationId: job.conversationId,
+          purpose,
+          appointmentId: future.length === 1 ? (future[0]?.id ?? null) : null,
+        })
+      } catch {
+        offered = null
+      }
+      if (!offered) return false
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: offered.body,
+            interactive: offered.interactive,
+            clientRequestId: `ai-web-${purpose}:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+        // Fora da janela ou envio recusado: segue o caminho conversacional.
+        return false
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: purpose === 'remarcar' ? 'web_reschedule_link' : 'web_cancel_link',
+        replyOutbox,
+      })
+      return true
+    }
     if (
       !isCancelIntent(turnText) &&
       isRescheduleIntent(turnText, { hasUpcoming: Boolean(upcoming), priorOffer: false })
     ) {
+      // Página web da cliente: com compromisso futuro, o link substitui a conversa de remarcar.
+      if (upcoming && (await offerClientWebLink('remarcar'))) continue
       const reschedule = await tryAiReschedule(db, caller, clock, {
         conversationId: job.conversationId,
         inboundText: turnText,
@@ -1286,6 +1341,7 @@ export async function runDueAutoDrafts(
       continue
     }
     if (isCancelIntent(turnText) && upcoming && conv) {
+      if (await offerClientWebLink('cancelar')) continue
       const cancelStart = handleCancelIntentAutodraft(
         db,
         tenantId,

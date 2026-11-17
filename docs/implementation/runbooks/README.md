@@ -8,6 +8,7 @@
 | [Reprocessamento](reprocess.md) | DLQ, outbox stale, status incerto — sem duplicar efeitos |
 | [Credenciais](credentials.md) | Rotação Clerk/Meta/Pix/AI/VAPID |
 | [Recuperação](recovery.md) | Restore por clínica, schema, PITR |
+| [Página web da cliente](pagina-web-cliente.md) | Ligar, testar e desligar o agendamento por link em staging (DEC-196, ADR-0018) |
 | [Incidentes](incidents.md) | Classificação, correlação, comunicação, três casos de IA |
 | [Preocupação com a IA](ai-concern.md) | Sugestão, resumo ou marcação que alguém contesta; sem falha de fila |
 | [Pausar o botão de agendamento](ai-autobook-kill-switch.md) | Owner pausa novas propostas/Pix do botão; sem auto-cancel |

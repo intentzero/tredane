@@ -361,6 +361,11 @@ import {
   MIGRATION_NAME as M72_NAME,
   STATEMENTS as M72_STATEMENTS,
 } from './migrations/0072_booking_session_quality'
+import {
+  MIGRATION_ID as M73_ID,
+  MIGRATION_NAME as M73_NAME,
+  STATEMENTS as M73_STATEMENTS,
+} from './migrations/0073_clinic_client_web'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -443,6 +448,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M70_ID, name: M70_NAME, statements: M70_STATEMENTS },
   { id: M71_ID, name: M71_NAME, statements: M71_STATEMENTS },
   { id: M72_ID, name: M72_NAME, statements: M72_STATEMENTS },
+  { id: M73_ID, name: M73_NAME, statements: M73_STATEMENTS },
 ]
 
 export type MigrationResult = {
