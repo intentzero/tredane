@@ -127,6 +127,9 @@ export const HUMAN_TEAM_ACCESS_IN_HOURS_COPY =
 export const HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY =
   'Fora do horário registo o pedido; a equipe responde na próxima abertura e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe ou escreva.'
 
+/** Título da secção extra (≤24) quando a lista já tem secções tituladas. */
+export const HUMAN_TEAM_LIST_SECTION_TITLE = 'Atendimento'
+
 function clipListTitle(title: string): string {
   const t = title.trim()
   if (t.length <= META_LIST_ROW_TITLE_MAX) return t
@@ -191,11 +194,18 @@ export function augmentOutboundWithHumanTeam(
     if (rows.length >= META_LIST_MAX_ROWS) {
       return { body, interactive }
     }
+    const humanRow = { id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) }
     const sections = [...interactive.list.sections]
-    sections.push({
-      title: 'Atendimento',
-      rows: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) }],
-    })
+    // Cloud API: com mais de uma secção, todas exigem `title` (senão 400/131009).
+    // As listas de horários/serviços têm uma única secção sem título: a linha
+    // humana entra nessa (última) secção em vez de abrir uma secção nova.
+    const allTitled = sections.every((sec) => Boolean(sec.title?.trim()))
+    if (allTitled) {
+      sections.push({ title: HUMAN_TEAM_LIST_SECTION_TITLE, rows: [humanRow] })
+    } else {
+      const last = sections[sections.length - 1]!
+      sections[sections.length - 1] = { ...last, rows: [...(last.rows ?? []), humanRow] }
+    }
     return {
       body,
       interactive: {
