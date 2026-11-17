@@ -128,6 +128,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0028_client_web_rate_limits.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0029_support_token_hash_ended.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

@@ -68,13 +68,13 @@ Todas **Confirmadas** (Paulo, 17/11/2026, guiado uma a uma). A qualificação ju
 | --- | --- | --- |
 | 1 | Qualificação: Tredane **operador**; aprovação da owner por sessão como instrução | Sim, a validar no contrato |
 | 2 | Mensagens tratadas como possível dado sensível | Sim, por prudência, até o advogado dizer o contrário |
-| 3 | Prazo de guarda dos registos de suporte e de leitura | **5 anos** (purga automática por implementar) |
+| 3 | Prazo de guarda dos registos de suporte e de leitura | **5 anos**. **Implementado (#896):** cron diário `purgeSupportRecords` apaga sessões, pedidos e término terminados há mais de 5 anos e as entradas `support.access*`; sessão ativa e pedido pendente nunca; a purga fica auditada (`support.retention.purge`, só contagens). A auditoria do ciclo de vida (`support.request.*`, `support.session.*`) **não** entra neste prazo: a decisão só cobriu leituras e bloqueios; decidir se também expira |
 | 4 | Registar o id da conversa/contato lido | Feito no #882/#888. **A lista de conversas fica como «lista lida»**: limite aceite e documentado |
-| 5 | Apagar o hash do token ao fim da sessão | Sim (por implementar) |
+| 5 | Apagar o hash do token ao fim da sessão | Sim. **Implementado (#895):** ao encerrar, revogar, expirar ou aceitar o término, `token_hash` passa a `ended:<id>` (coluna NOT NULL e única); a migração 0029 limpa as já terminadas. O cookie de uma sessão terminada passa a dar `support_cookie_invalid` em vez de `support_session_not_active` (403 nos dois casos) |
 | 6 | Cláusula de contrato e texto da política de privacidade | Rascunho nosso (secção 8), revisão do advogado |
 | 7 | Política interna da secção 5 | Adotada como está; prazo e responsável pela comunicação à ANPD ficam com o advogado (pergunta 9) |
 
-**Por implementar por causa destas decisões:** apagar `support_sessions.token_hash` ao encerrar ou expirar; purga dos registos de suporte (`support_*` e `support.access*`) 5 anos depois do fim da sessão.
+**Implementado** (#895, #896): apagar o hash do token e a purga aos 5 anos. **Falta:** parecer do advogado sobre o prazo (pergunta 11) e decidir se a auditoria do ciclo de vida também expira.
 
 ## 7. Ligação aos outros documentos
 

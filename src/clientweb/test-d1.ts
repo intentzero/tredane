@@ -17,8 +17,8 @@ export function adminDbAsD1(admin: ReturnType<typeof bootAdminDb>['db']): D1Data
           return (admin.get(sql, ...binds) as T | undefined) ?? null
         },
         async run() {
-          admin.run(sql, ...binds)
-          return { success: true, meta: {} }
+          const r = admin.run(sql, ...binds)
+          return { success: true, meta: { changes: r?.changes ?? 0 } }
         },
         async all() {
           return { results: admin.all(sql, ...binds), success: true, meta: {} }
