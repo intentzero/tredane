@@ -120,6 +120,21 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - **O URL com o token já não fica guardado:** depois do envio (resultado aceite ou falhado) o URL é trocado por `[removido]` em `outbound_messages.interactive_json` e em `outbox_events.payload_json`. Em resultado incerto mantém-se, porque o envio pode repetir-se.
 - **Clínica suspensa ou em exclusão** deixa de servir a página (`GET /api/c/state` devolve 401); não depende de revogar sessões uma a uma.
 
+**Fase 2 implementada (17/11/2026, atrás da flag): agendar na página**
+
+- `GET /api/c/catalog`, `POST /api/c/availability` (intervalo de datas) e `POST /api/c/book`; RPCs `clientWebCatalog`, `clientWebSlots` e `clientWebBook` no Clinic DO (`src/clientweb/booking.ts`).
+- `book` cria a proposta versionada (`createOrSupersedeProposal`), marca-a enviada (30 min) e passa-a pelo **mesmo executor** do botão do WhatsApp (`executeProposalConfirmOp`) com `channel: 'web'`: ator `contact:web`, auditoria `appointment.client_web_booked`, nota «Marcado pela cliente (web)», e o texto de «marcado» no chat leva o recibo «Marcado pela página. Não foi você? Fale com a equipe.». Mesmos gates do chat: vaga e Tempo revalidados na transação, Pix sem reserva antes do pagamento, limites S7 e pausa da owner (`paused`).
+- O toque duplo não duplica: `findRecentWebBooking` devolve a marcação da própria cliente (mesmo serviço e hora, últimos 10 min).
+- Página: Início com «Agendar novo horário», «Para quem é?» (só se o catálogo depende de género), serviço, zonas (só as da linha, total somado), horário (semana com setas, Manhã/Tarde/Noite), revisão e resultado (marcado, Pix, pausa, erro). Layout compacto (C-02 a C-06).
+- **Horizonte provisório:** 30 dias fixos em `CLIENT_WEB_HORIZON_DAYS`, até a configuração da clínica existir (DEC-201).
+
+**Fase 2, ainda não feito:**
+
+1. **Pesquisa de texto** (C-10, C-11, DEC-200) e **calendário do mês** (C-12). A navegação por semanas já cobre o horizonte.
+2. **«Para quem é?» não vem pré-escolhido** da conversa (DEC-142); a cliente escolhe sempre.
+3. **Hora perdida entre Confirmar e a marcação** também gera a frase do chat «Horário já não está livre… Tenho …» (reaproveitada do executor). Para a página basta o aviso no ecrã; falta suprimir a mensagem do chat neste canal.
+4. Sem caso L1 novo: o canal web não é um diálogo. O comportamento está coberto por `booking.test.ts` e `BookFlow.test.tsx`; o scorecard (222 casos) não regrediu.
+
 **Ainda não feito (bloqueia ligar em produção):**
 
 1. **Nada emite o link ainda.** `issueClientWebLink` e o envio do botão existem, mas a oferta na conversa é a Fase 5. Em staging só se testa emitindo o link à mão.

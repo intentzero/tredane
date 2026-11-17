@@ -14,6 +14,7 @@ import { systemClock, type Clock } from '../db/clock'
 import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
+import type { ClientWebBookResult, ClientWebCatalog, ClientWebSlotsResult, WebBookingInput } from './booking'
 import {
   CLIENT_WEB_EXCHANGE_LIMIT,
   CLIENT_WEB_STATE_LIMIT,
@@ -52,6 +53,38 @@ export type ClientWebRouteOptions = {
   clockFactory?: () => Clock
   /** Testes: substitui a leitura do D1 (nome da clínica) e do Clinic DO. */
   stateLookup?: (env: WorkerBindings, session: ClientWebSession) => Promise<Omit<ClientWebState, 'sessionExpiresAt'> | null>
+  /** Testes: substituem as chamadas ao Clinic DO. */
+  catalogLookup?: (env: WorkerBindings, session: ClientWebSession) => Promise<ClientWebCatalog | null>
+  slotsLookup?: (
+    env: WorkerBindings,
+    session: ClientWebSession,
+    input: { serviceId: string; variantIds: string[]; from: string; to: string },
+  ) => Promise<ClientWebSlotsResult | null>
+  bookLookup?: (env: WorkerBindings, session: ClientWebSession, input: WebBookingInput) => Promise<ClientWebBookResult | null>
+}
+
+const MAX_ID = 120
+const SLOT_ID_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function str(v: unknown, max = MAX_ID): string | null {
+  return typeof v === 'string' && v.length > 0 && v.length <= max ? v : null
+}
+
+function strList(v: unknown): string[] | null {
+  if (v == null) return []
+  if (!Array.isArray(v) || v.length > 20) return null
+  const out: string[] = []
+  for (const x of v) {
+    const s = str(x)
+    if (!s) return null
+    out.push(s)
+  }
+  return out
+}
+
+function clinicStub(env: WorkerBindings, session: ClientWebSession) {
+  return env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(session.tenantId)))
 }
 
 const log = createChannelLogger('client_web')
@@ -182,6 +215,88 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     if (!state) return c.json({ error: 'session_required' }, 401)
     const body: ClientWebState = { ...state, sessionExpiresAt: session.expiresAt }
     return c.json(body)
+  })
+
+  /** Resolve a sessão do cookie, com o mesmo limite por sessão. Devolve a resposta de erro, se for o caso. */
+  async function requireSession(
+    c: Context<AppEnv>,
+    kind: string,
+    limit: number,
+  ): Promise<{ session: ClientWebSession } | { response: Response }> {
+    const sessionToken = getCookie(c, CLIENT_WEB_COOKIE) ?? ''
+    const db = dbOf(c.env)
+    const ip = c.req.header('cf-connecting-ip') ?? 'desconhecido'
+    const limited = await hitRateLimit(db, clock(), {
+      bucket: await rateBucket(`${kind}:${sessionToken ? 'sessao' : 'ip'}`, sessionToken || ip),
+      limit,
+    })
+    if (!limited.allowed) {
+      c.header('Retry-After', String(limited.retryAfterSec))
+      return { response: c.json({ error: 'rate_limited' }, 429) }
+    }
+    const session = await getClientWebSession(db, clock(), sessionToken)
+    if (!session) return { response: c.json({ error: 'session_required' }, 401) }
+    // Clínica suspensa ou em exclusão não serve a página (ADR-0018 §7a).
+    if (!opts.stateLookup && !(await loadActiveTenantName(db, session.tenantId))) {
+      return { response: c.json({ error: 'session_required' }, 401) }
+    }
+    return { session }
+  }
+
+  app.get('/api/c/catalog', async (c) => {
+    const got = await requireSession(c, 'catalog', CLIENT_WEB_STATE_LIMIT)
+    if ('response' in got) return got.response
+    const catalog = opts.catalogLookup
+      ? await opts.catalogLookup(c.env, got.session)
+      : await clinicStub(c.env, got.session).clientWebCatalog({ tenantId: got.session.tenantId })
+    return catalog ? c.json(catalog) : c.json({ error: 'session_required' }, 401)
+  })
+
+  app.post('/api/c/availability', async (c) => {
+    const got = await requireSession(c, 'avail', 120)
+    if ('response' in got) return got.response
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+    const serviceId = str(body.serviceId)
+    const variantIds = strList(body.variantIds)
+    const from = typeof body.from === 'string' && DATE_RE.test(body.from) ? body.from : null
+    const to = typeof body.to === 'string' && DATE_RE.test(body.to) ? body.to : null
+    if (!serviceId || !variantIds || !from || !to) return c.json({ error: 'invalid_request' }, 400)
+    const input = { serviceId, variantIds, from, to }
+    const result = opts.slotsLookup
+      ? await opts.slotsLookup(c.env, got.session, input)
+      : await clinicStub(c.env, got.session).clientWebSlots({
+          tenantId: got.session.tenantId,
+          contactId: got.session.contactId,
+          conversationId: got.session.conversationId,
+          ...input,
+        })
+    if (!result) return c.json({ error: 'session_required' }, 401)
+    if (!result.ok) return c.json({ error: result.error }, 422)
+    return c.json({ slots: result.slots, from: result.from, to: result.to })
+  })
+
+  app.post('/api/c/book', async (c) => {
+    const got = await requireSession(c, 'book', 30)
+    if ('response' in got) return got.response
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+    const serviceId = str(body.serviceId)
+    const variantIds = strList(body.variantIds)
+    const slotId = typeof body.slotId === 'string' && SLOT_ID_RE.test(body.slotId) ? body.slotId : null
+    const line = body.line === 'feminino' || body.line === 'masculino' ? body.line : body.line == null ? null : undefined
+    if (!serviceId || !variantIds || !slotId || line === undefined) return c.json({ error: 'invalid_request' }, 400)
+    const input: WebBookingInput = { serviceId, variantIds, line, slotId }
+    const result = opts.bookLookup
+      ? await opts.bookLookup(c.env, got.session, input)
+      : await clinicStub(c.env, got.session).clientWebBook({
+          tenantId: got.session.tenantId,
+          contactId: got.session.contactId,
+          conversationId: got.session.conversationId,
+          ...input,
+        })
+    if (!result) return c.json({ error: 'session_required' }, 401)
+    log({ level: 'info', event: 'client_web.book', detail: { status: result.status } })
+    // 200 mesmo quando a hora já não está livre: é um resultado esperado, não um erro de pedido.
+    return c.json(result)
   })
 
   return app

@@ -116,11 +116,11 @@ describe('ClientWebApp (C-01, C-09)', () => {
     expect(screen.queryByRole('list')).toBeNull()
   })
 
-  it('não mostra botões que ainda não existem (Agendar, Remarcar, Cancelar)', async () => {
+  it('só mostra Agendar; Remarcar e Cancelar ainda não existem na página', async () => {
     mockApi()
     render(<ClientWebApp />)
     await screen.findByRole('heading', { name: 'Olá, Marina' })
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Agendar novo horário'])
     expect(screen.queryByRole('link')).toBeNull()
   })
 

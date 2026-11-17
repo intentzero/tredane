@@ -16,17 +16,25 @@ export type ClientWebClinicState = {
   appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number }>
 }
 
-export function readClientWebState(
+/** O contacto tem de ser o da conversa da sessão, nesta clínica (ADR-0018 §4). */
+export function sessionOwnsConversation(
   db: ClinicDb,
-  clock: Clock,
   input: { tenantId: string; contactId: string; conversationId: string },
-): ClientWebClinicState | null {
+): boolean {
   const conv = db.get<{ contact_id: string }>(
     'SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?',
     input.tenantId,
     input.conversationId,
   )
-  if (!conv || conv.contact_id !== input.contactId) return null
+  return Boolean(conv && conv.contact_id === input.contactId)
+}
+
+export function readClientWebState(
+  db: ClinicDb,
+  clock: Clock,
+  input: { tenantId: string; contactId: string; conversationId: string },
+): ClientWebClinicState | null {
+  if (!sessionOwnsConversation(db, input)) return null
   const contact = db.get<{ display_name: string | null }>(
     'SELECT display_name FROM contacts WHERE tenant_id = ? AND id = ?',
     input.tenantId,

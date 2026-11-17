@@ -159,7 +159,16 @@ import {
 import { handleFaqContinueButtonClick } from '../clinic/ai/faq-clarification'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
-import { readClientWebState } from '../clientweb/state'
+import { readClientWebState, sessionOwnsConversation } from '../clientweb/state'
+import {
+  findRecentWebBooking,
+  listClientWebSlots,
+  planWebProposal,
+  readClientWebCatalog,
+  type ClientWebBookResult,
+  type ClientWebCatalog,
+  type ClientWebSlotsResult,
+} from '../clientweb/booking'
 import { parseFlowSessionJson } from '../whatsapp/flow/tokens'
 import {
   isWhatsappFlowConfigured,
@@ -998,6 +1007,127 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
     return readClientWebState(this.#db, this.#clock, input)
+  }
+
+  /** Página web da cliente (ADR-0018): catálogo marcável e horizonte. Só leitura. */
+  async clientWebCatalog(input: { tenantId: string }): Promise<ClientWebCatalog> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    return readClientWebCatalog(this.#db, input.tenantId, this.#clock)
+  }
+
+  /** Página web da cliente: horas livres de um intervalo. O contacto da sessão tem de ser o da conversa. */
+  async clientWebSlots(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    serviceId: string
+    variantIds: string[]
+    from: string
+    to: string
+  }): Promise<ClientWebSlotsResult | null> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    return listClientWebSlots(this.#db, input.tenantId, this.#clock, {
+      serviceId: input.serviceId,
+      variantIds: input.variantIds,
+      from: input.from,
+      to: input.to,
+    })
+  }
+
+  /**
+   * Página web da cliente: Confirmar (DEC-197). Cria a proposta versionada e passa-a pelo mesmo
+   * executor do botão do WhatsApp, com `channel: 'web'`. A pausa da owner bloqueia a marcação.
+   */
+  async clientWebBook(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    serviceId: string
+    variantIds: string[]
+    line: 'feminino' | 'masculino' | null
+    slotId: string
+  }): Promise<ClientWebBookResult | null> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId)
+    this.#assertInstanceTenant(caller)
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    const already = findRecentWebBooking(this.#db, caller.tenantId, this.#clock, input, input)
+    if (already) return { status: 'booked', appointment: already }
+    const autoBookPaused = clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
+    if (autoBookPaused) return { status: 'paused' }
+
+    const env = this.#abuseEnv()
+    const settings = clinicConfig.ensureClinicSettings(this.#db, caller.tenantId, this.#clock)
+    const abuseLimits = clinicAi.resolveAbuseLimits(
+      clinicAi.abuseLimitsFromEnv(env),
+      clinicConfig.clinicAbuseRowFromSettings(settings),
+      env,
+    )
+    const planned = await planWebProposal(
+      this.#db,
+      caller.tenantId,
+      this.#clock,
+      { contactId: input.contactId, conversationId: input.conversationId },
+      { serviceId: input.serviceId, variantIds: input.variantIds, line: input.line, slotId: input.slotId },
+      { abuseLimits },
+    )
+    if (!planned.ok) {
+      return planned.error === 'slot_unavailable' ? { status: 'slot_taken' } : { status: 'error', error: planned.error }
+    }
+
+    let pixAdapter: Awaited<ReturnType<typeof clinicPix.buildClinicPixAdapter>>['adapter'] | undefined
+    if (planned.proposal.requiresSignal) {
+      const pixMode = ((this.env as WorkerBindings).PIX_MODE ?? 'synthetic').toLowerCase()
+      const environment = pixMode === 'live' ? 'live' : pixMode === 'sandbox' ? 'sandbox' : 'synthetic'
+      try {
+        pixAdapter = (
+          await clinicPix.buildClinicPixAdapter(this.#db, caller.tenantId, {
+            sealKeys: pixSealKeys(this.env as WorkerBindings),
+            environment,
+          })
+        ).adapter
+      } catch {
+        pixAdapter = undefined
+      }
+    }
+    const execution = await clinicProposals.executeProposalConfirmOp(
+      this.#db,
+      caller,
+      {
+        handoff: planned.handoff,
+        capability: clinicAi.autoBookCapability() && !autoBookPaused,
+        providerEventKey: `web:${planned.proposal.id}:v${planned.proposal.version}`,
+        senderContactId: input.contactId,
+        channel: 'web',
+      },
+      this.#clock,
+      pixAdapter ? { pixAdapter } : {},
+    )
+    if (execution.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, execution.outbox, true)
+      await this.#drain(caller)
+    }
+    if (execution.status === 'pix_signal') {
+      await this.#scheduleNextPixExpiry(caller)
+      return { status: 'pix_signal' }
+    }
+    if (execution.status === 'booked') {
+      return {
+        status: 'booked',
+        appointment: {
+          id: execution.appointment.id,
+          startsAt: execution.appointment.startsAt,
+          endsAt: execution.appointment.endsAt,
+          serviceName: planned.proposal.serviceName,
+        },
+      }
+    }
+    if (execution.status === 'slot_refused' || execution.status === 'tempo_refused') return { status: 'slot_taken' }
+    if (execution.reason === 'capability_disabled') return { status: 'paused' }
+    return { status: 'error', error: execution.authorizationReason === 'expired' ? 'expired' : 'not_allowed' }
   }
 
   /**

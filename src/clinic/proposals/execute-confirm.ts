@@ -56,6 +56,7 @@ export function proposalPixClientRequestId(proposalId: string, version: number):
 }
 
 const BUTTON_STAGE_NOTE = 'Compromisso confirmado pelo botão do WhatsApp'
+const WEB_STAGE_NOTE = 'Compromisso confirmado pela cliente na página web'
 
 function openOpportunityId(
   db: ClinicDb,
@@ -125,6 +126,21 @@ export type ExecuteProposalConfirmInput = {
   contextMessageId?: string | null
   /** Remetente WhatsApp (wa_id / contact) para auditoria mínima. */
   senderContactId?: string | null
+  /**
+   * Canal do gesto de confirmar (DEC-197). `web`: toque em Confirmar na página da cliente;
+   * ator `contact:web`, auditoria `appointment.client_web_booked` e recibo no chat.
+   * Omisso = botão do WhatsApp.
+   */
+  channel?: 'whatsapp' | 'web'
+}
+
+export const WEB_BOOKING_ACTOR_ID = 'contact:web'
+export const WEB_BOOKING_ACTOR_NAME = 'Cliente (página web)'
+
+function actorFor(channel: 'whatsapp' | 'web' | undefined): { id: string; name: string; stageNote: string } {
+  return channel === 'web'
+    ? { id: WEB_BOOKING_ACTOR_ID, name: WEB_BOOKING_ACTOR_NAME, stageNote: WEB_STAGE_NOTE }
+    : { id: AI_AUTOBOOK_ACTOR_ID, name: AI_AUTOBOOK_ACTOR_NAME, stageNote: BUTTON_STAGE_NOTE }
 }
 
 export type ExecuteProposalConfirmDeps = {
@@ -286,15 +302,17 @@ function writeAiBookedAudit(
     providerEventKey?: string | null
     senderContactId?: string | null
     outcome: 'booked' | 'pix_signal'
+    channel?: 'whatsapp' | 'web'
   },
   clock: Clock,
 ): void {
+  const web = input.channel === 'web'
   writeOperationalAudit(
     db,
     {
       tenantId: input.tenantId,
-      actor: AI_AUTOBOOK_ACTOR_ID,
-      action: 'appointment.ai_booked',
+      actor: web ? WEB_BOOKING_ACTOR_ID : AI_AUTOBOOK_ACTOR_ID,
+      action: web ? 'appointment.client_web_booked' : 'appointment.ai_booked',
       objectType: input.appointmentId ? 'appointment' : 'appointment_proposal',
       objectId: input.appointmentId ?? input.proposal.id,
       detail: {
@@ -307,7 +325,7 @@ function writeAiBookedAudit(
         appointmentId: input.appointmentId,
         chargeId: input.chargeId,
         outcome: input.outcome,
-        marker: 'Marcado pela IA',
+        marker: web ? 'Marcado pela cliente (web)' : 'Marcado pela IA',
       },
     },
     clock,
@@ -320,7 +338,11 @@ async function ensureResult(
   proposalId: string,
   resultKind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
   clock: Clock,
-  opts: { alternativesListing?: string | null; postBookingAppointmentId?: string | null } = {},
+  opts: {
+    alternativesListing?: string | null
+    postBookingAppointmentId?: string | null
+    channel?: 'whatsapp' | 'web'
+  } = {},
 ): Promise<SendProposalResultOutcome> {
   return sendProposalResultMessageOp(
     db,
@@ -334,6 +356,7 @@ async function ensureResult(
       ...(opts.postBookingAppointmentId != null
         ? { postBookingAppointmentId: opts.postBookingAppointmentId }
         : {}),
+      ...(opts.channel === 'web' ? { channel: 'web' as const } : {}),
     },
     clock,
   )
@@ -390,6 +413,7 @@ export async function executeProposalConfirmOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
+  const actor = actorFor(input.channel)
 
   if (input.handoff.action !== 'confirm') {
     return {
@@ -441,7 +465,7 @@ export async function executeProposalConfirmOp(
               professionalId: proposal.professionalId,
               roomResourceId,
               startsAt: proposal.startsAt,
-              actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
+              actorClerkUserId: actor.id,
               // Mantém zonas do compromisso (DEC-078 / DEC-091).
               zoneIds: null,
             },
@@ -459,10 +483,10 @@ export async function executeProposalConfirmOp(
               contactId: proposal.contactId,
               conversationId: proposal.conversationId,
               opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
-              actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-              actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
+              actorClerkUserId: actor.id,
+              actorDisplayName: actor.name,
               appliedDurationMinutes: null,
-              stageNote: BUTTON_STAGE_NOTE,
+              stageNote: actor.stageNote,
               zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
                 .map((z) => z.zoneId)
                 .filter((id): id is string => Boolean(id)),
@@ -471,6 +495,7 @@ export async function executeProposalConfirmOp(
           )
       const result = await ensureResult(db, caller, proposal.id, 'booked', clock, {
         postBookingAppointmentId: booked.value.id,
+        channel: input.channel,
       })
       settleBookingFrameAfterConfirm(db, meta.tenantId, proposal.conversationId, clock)
       const outbox = collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : [])
@@ -720,8 +745,8 @@ export async function executeProposalConfirmOp(
         professionalId: proposal.professionalId,
         roomResourceId,
         startsAt: proposal.startsAt,
-        actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-        authorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
+        actorClerkUserId: actor.id,
+        authorDisplayName: actor.name,
         zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
           .map((z) => z.zoneId)
           .filter((id): id is string => Boolean(id)),
@@ -746,6 +771,7 @@ export async function executeProposalConfirmOp(
         providerEventKey: input.providerEventKey,
         senderContactId: input.senderContactId,
         outcome: 'pix_signal',
+        channel: input.channel,
       },
       clock,
     )
@@ -777,7 +803,7 @@ export async function executeProposalConfirmOp(
             professionalId: proposal.professionalId,
             roomResourceId,
             startsAt: proposal.startsAt,
-            actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
+            actorClerkUserId: actor.id,
             zoneIds: null,
             skipRescheduleNotice: true,
           },
@@ -796,10 +822,10 @@ export async function executeProposalConfirmOp(
             conversationId: proposal.conversationId,
             opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
             contactLabel,
-            actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-            actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
+            actorClerkUserId: actor.id,
+            actorDisplayName: actor.name,
             appliedDurationMinutes: null,
-            stageNote: BUTTON_STAGE_NOTE,
+            stageNote: actor.stageNote,
             zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
               .map((z) => z.zoneId)
               .filter((id): id is string => Boolean(id)),
@@ -823,11 +849,13 @@ export async function executeProposalConfirmOp(
         providerEventKey: input.providerEventKey,
         senderContactId: input.senderContactId,
         outcome: 'booked',
+        channel: input.channel,
       },
       clock,
     )
     const result = await ensureResult(db, caller, confirmed.id, 'booked', clock, {
       postBookingAppointmentId: booked.value.id,
+      channel: input.channel,
     })
     settleBookingFrameAfterConfirm(db, meta.tenantId, confirmed.conversationId, clock)
     const outbox = collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : [])

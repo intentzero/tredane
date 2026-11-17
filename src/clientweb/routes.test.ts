@@ -177,3 +177,117 @@ describe('clínica ativa (ADR-0018 §7a)', () => {
     }
   })
 })
+
+describe('catálogo, horas e Confirmar (Fase 2)', () => {
+  const CATALOG = { timezone: 'America/Sao_Paulo', horizonDays: 30, today: '2026-11-17', services: [] }
+
+  function setupGateway() {
+    const { db, close } = bootAdminDb()
+    const clock = createControllableClock(1_800_000_000_000)
+    const d1 = adminDbAsD1(db)
+    const seen: Array<{ kind: string; session: ClientWebSession; input?: unknown }> = []
+    const app = new Hono<{ Bindings: WorkerBindings }>().route(
+      '/',
+      createClientWebRoutes({
+        dbFactory: () => d1,
+        clockFactory: () => clock,
+        stateLookup: async () => ({ clinicName: 'Clínica Aurora', firstName: null, timezone: 'America/Sao_Paulo', appointments: [] }),
+        catalogLookup: async (_e, session) => {
+          seen.push({ kind: 'catalog', session })
+          return CATALOG
+        },
+        slotsLookup: async (_e, session, input) => {
+          seen.push({ kind: 'slots', session, input })
+          return { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to }
+        },
+        bookLookup: async (_e, session, input) => {
+          seen.push({ kind: 'book', session, input })
+          return { status: 'booked', appointment: { id: 'apt-9', startsAt: 1, endsAt: 2, serviceName: 'Limpeza' } }
+        },
+      }),
+    )
+    const call = (method: 'GET' | 'POST', path: string, cookie?: string, body?: unknown) =>
+      app.request(
+        `${ORIGIN}${path}`,
+        {
+          method,
+          headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+          ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        },
+        ENV,
+      )
+    const login = async () => {
+      const { token } = await issueClientWebLink(d1, clock, LINK)
+      return sessionCookie(await call('POST', '/api/c/exchange', undefined, { token }))
+    }
+    return { call, login, seen, close }
+  }
+
+  it('sem sessão as três rotas respondem 401', async () => {
+    const { call, close } = setupGateway()
+    try {
+      expect((await call('GET', '/api/c/catalog')).status).toBe(401)
+      expect((await call('POST', '/api/c/availability', undefined, { serviceId: 's', variantIds: [], from: '2026-11-18', to: '2026-11-18' })).status).toBe(401)
+      expect((await call('POST', '/api/c/book', undefined, { serviceId: 's', variantIds: [], line: null, slotId: '2026-11-18T10:00' })).status).toBe(401)
+    } finally {
+      close()
+    }
+  })
+
+  it('com sessão, a clínica e o contacto vêm só da sessão, nunca do pedido', async () => {
+    const { call, login, seen, close } = setupGateway()
+    try {
+      const cookie = await login()
+      expect((await call('GET', '/api/c/catalog', cookie)).status).toBe(200)
+      const slots = await call('POST', '/api/c/availability', cookie, {
+        serviceId: 'svc-1', variantIds: ['z1'], from: '2026-11-18', to: '2026-11-24', tenantId: 'clinic-evil', contactId: 'ctc-evil',
+      })
+      expect(slots.status).toBe(200)
+      expect((await slots.json()) as { slots: unknown[] }).toMatchObject({ slots: [{ id: '2026-11-18T10:00' }] })
+      const booked = await call('POST', '/api/c/book', cookie, {
+        serviceId: 'svc-1', variantIds: [], line: 'feminino', slotId: '2026-11-18T10:00', tenantId: 'clinic-evil', contactId: 'ctc-evil',
+      })
+      expect(await booked.json()).toMatchObject({ status: 'booked' })
+      for (const s of seen) {
+        expect(s.session).toMatchObject({ tenantId: 'clinic-a', contactId: 'ctc-1', conversationId: 'cnv-1' })
+        expect(JSON.stringify(s.input ?? {})).not.toMatch(/evil/)
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('valida o corpo: campos em falta, tipos errados, hora mal formada e linha inválida dão 400', async () => {
+    const { call, login, close } = setupGateway()
+    try {
+      const cookie = await login()
+      const bad = [
+        { variantIds: [], from: '2026-11-18', to: '2026-11-18' },
+        { serviceId: 's', variantIds: 'z1', from: '2026-11-18', to: '2026-11-18' },
+        { serviceId: 's', variantIds: [], from: 'amanhã', to: '2026-11-18' },
+      ]
+      for (const b of bad) expect((await call('POST', '/api/c/availability', cookie, b)).status).toBe(400)
+      const badBook = [
+        { variantIds: [], line: null, slotId: '2026-11-18T10:00' },
+        { serviceId: 's', variantIds: [], line: null, slotId: 'segunda às 10' },
+        { serviceId: 's', variantIds: [], line: 'outro', slotId: '2026-11-18T10:00' },
+        { serviceId: 's', variantIds: new Array(21).fill('z'), line: null, slotId: '2026-11-18T10:00' },
+      ]
+      for (const b of badBook) expect((await call('POST', '/api/c/book', cookie, b)).status).toBe(400)
+    } finally {
+      close()
+    }
+  })
+
+  it('POST sem Origin é recusado também nas rotas novas', async () => {
+    const { login, close } = setupGateway()
+    try {
+      const cookie = await login()
+      const app = new Hono<{ Bindings: WorkerBindings }>().route('/', createClientWebRoutes({ stateLookup: async () => null }))
+      const res = await app.request(`${ORIGIN}/api/c/book`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' }, ENV)
+      expect(res.status).toBe(403)
+    } finally {
+      close()
+    }
+  })
+})

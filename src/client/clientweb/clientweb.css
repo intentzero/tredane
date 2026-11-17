@@ -103,3 +103,55 @@
   font-weight: var(--font-weight-semibold);
 }
 .cw-icon-warning { background: var(--color-warning-tint); color: var(--color-warning-ink); }
+
+/* Agendar (Fase 2): mocks C-02 a C-06, layout compacto. */
+.cw-flush { padding: 0; gap: 0; }
+.cw-margin { margin-left: 16px; margin-right: 16px; }
+.cw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cw-caption { font-size: var(--font-size-caption); color: var(--color-text-secondary); }
+.cw-caption-title { margin: 0 0 8px; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+.cw-step-header { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 4px 16px 4px 4px; box-sizing: border-box; background: var(--color-surface-card); }
+.cw-step-title { display: flex; flex-direction: column; min-width: 0; }
+.cw-icon-btn { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--color-text-primary); font-size: 24px; line-height: 1; cursor: pointer; border-radius: 8px; }
+.cw-icon-btn:disabled { color: var(--color-line-disabled); cursor: default; }
+.cw-progress { height: 4px; background: var(--color-line-divider); }
+.cw-progress-bar { height: 4px; background: var(--color-primary-base); }
+.cw-btn { min-height: 48px; padding: 0 16px; border-radius: 8px; border: 0; font: inherit; font-size: var(--font-size-button); font-weight: var(--font-weight-semibold); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.cw-btn-primary { background: var(--color-primary-fill); color: var(--color-primary-on-fill); }
+.cw-btn-primary:disabled { background: var(--color-line-disabled); color: var(--color-text-secondary); cursor: default; }
+.cw-btn-secondary { background: var(--color-surface-card); color: var(--color-text-primary); border: 1px solid var(--color-line-control); }
+.cw-btn-text { background: transparent; color: var(--color-primary-base); min-height: 44px; }
+.cw-link { background: transparent; border: 0; padding: 0; min-height: 32px; font: inherit; font-weight: var(--font-weight-semibold); color: var(--color-primary-base); cursor: pointer; text-decoration: underline; }
+.cw-choice-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cw-line-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--color-surface-card); border-bottom: 1px solid var(--color-line-divider); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.cw-rows { margin: 0; padding: 0; list-style: none; }
+.cw-row { width: 100%; min-height: 60px; box-sizing: border-box; padding: 10px 16px; display: flex; align-items: center; gap: 12px; background: var(--color-surface-card); border: 0; border-bottom: 1px solid var(--color-line-divider); font: inherit; color: var(--color-text-primary); text-align: left; cursor: pointer; }
+.cw-row-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.cw-row-title { font-weight: var(--font-weight-semibold); }
+.cw-chevron { color: var(--color-text-muted); font-size: 20px; }
+.cw-fieldset { margin: 0; padding: 0; border: 0; }
+.cw-check-row { min-height: 52px; box-sizing: border-box; padding: 8px 16px; display: flex; align-items: center; gap: 12px; background: var(--color-surface-card); border-bottom: 1px solid var(--color-line-divider); cursor: pointer; }
+.cw-check-row.is-on { background: var(--color-primary-tint); }
+.cw-check-row input { width: 20px; height: 20px; margin: 0; accent-color: var(--color-primary-base); }
+.cw-check-row .cw-row-title { flex: 1; }
+.cw-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 16px; padding: 10px 16px 16px; background: var(--color-surface-card); border-top: 1px solid var(--color-line-divider); }
+.cw-bar .cw-btn-primary { flex: 1; }
+.cw-bar-col { flex-direction: column; align-items: stretch; gap: 4px; }
+.cw-bar-sum { display: flex; flex-direction: column; }
+.cw-week-nav { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.cw-month { flex: 1; font-weight: var(--font-weight-semibold); text-transform: capitalize; }
+.cw-days { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; }
+.cw-day { flex: none; width: 52px; min-height: 56px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--color-surface-card); border: 1px solid var(--color-line-border); border-radius: 12px; font: inherit; color: var(--color-text-primary); cursor: pointer; }
+.cw-day.is-on { background: var(--color-primary-tint); border: 2px solid var(--color-primary-base); }
+.cw-day:disabled { background: var(--color-surface-sunken); border-style: dashed; color: var(--color-text-muted); cursor: default; }
+.cw-part { margin-bottom: 8px; }
+.cw-times { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cw-time { min-height: 44px; background: var(--color-surface-card); border: 1px solid var(--color-line-control); border-radius: 8px; font: inherit; font-weight: var(--font-weight-semibold); color: var(--color-text-primary); cursor: pointer; }
+.cw-dl { margin: 0; background: var(--color-surface-card); border: 1px solid var(--color-line-border); border-radius: 12px; }
+.cw-dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; }
+.cw-dl > div + div { border-top: 1px solid var(--color-surface-sunken); }
+.cw-dl dt { color: var(--color-text-secondary); }
+.cw-dl dd { margin: 0; font-weight: var(--font-weight-semibold); text-align: right; }
+.cw-notice { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: var(--font-size-small); background: var(--color-warning-tint); border: 1px solid var(--color-warning-border); color: var(--color-warning-ink); }
+.cw-alert { margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; font-size: var(--font-size-small); background: var(--color-danger-tint); border: 1px solid var(--color-danger-border); color: var(--color-danger-ink); }
+.cw-icon-ok { background: var(--color-success-tint); color: var(--color-success-ink); }

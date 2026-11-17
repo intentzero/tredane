@@ -252,6 +252,8 @@ export const TEMPO_UNCONFIRMED_PHRASE =
   'Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.'
 
 export type ProposalResultBodyOpts = {
+  /** DEC-197: marcação feita na página — acrescenta o recibo «Não foi você?». */
+  webReceipt?: boolean
   /**
    * Lista de horários livres do mesmo pedido (#511).
    * Ex.: «sexta 06/11 às 14:00, 16:00». Sem IANA.
@@ -276,6 +278,9 @@ export type ProposalResultBodyOpts = {
 }
 
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
+/** DEC-197: recibo da marcação feita na página; deixa a cliente avisar a equipe se não foi ela. */
+export const WEB_RECEIPT_SENTENCE = 'Marcado pela página. Não foi você? Fale com a equipe.'
+
 export function renderProposalResultBody(
   proposal: AppointmentProposalRow,
   kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
@@ -301,6 +306,7 @@ export function renderProposalResultBody(
         (!rescheduled && proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
         (location ? ` Local: ${location}.` : '') +
+        (opts.webReceipt ? ` ${WEB_RECEIPT_SENTENCE}` : '') +
         (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)
       )
     }

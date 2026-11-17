@@ -1,17 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './clientweb.css'
 import { exchangeLink, fetchState, type ClientWebState } from './api'
+import { BookFlow } from './BookFlow'
 import { clientWebTokenFromPath } from './routes'
 import { clinicInitials, formatAppointmentWhen, formatDurationMinutes } from './format'
 
 type View =
   | { kind: 'loading' }
   | { kind: 'ready'; state: ClientWebState }
+  | { kind: 'booking'; state: ClientWebState }
   | { kind: 'unavailable' }
   | { kind: 'error' }
 
 export function ClientWebApp() {
   const [view, setView] = useState<View>({ kind: 'loading' })
+  const sessionLost = useCallback(() => setView({ kind: 'unavailable' }), [])
+  const refresh = useCallback(async () => {
+    setView({ kind: 'loading' })
+    const state = await fetchState()
+    if (state.kind === 'unauthorized') return setView({ kind: 'unavailable' })
+    if (state.kind === 'error') return setView({ kind: 'error' })
+    setView({ kind: 'ready', state: state.state })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -47,7 +57,10 @@ export function ClientWebApp() {
           </p>
         </main>
       )}
-      {view.kind === 'ready' && <Home state={view.state} />}
+      {view.kind === 'ready' && <Home state={view.state} onBook={() => setView({ kind: 'booking', state: view.state })} />}
+      {view.kind === 'booking' && (
+        <BookFlow clinicName={view.state.clinicName} onExit={() => void refresh()} onSessionLost={sessionLost} />
+      )}
       {view.kind === 'unavailable' && <LinkUnavailable />}
       {view.kind === 'error' && <LoadError />}
     </div>
@@ -65,7 +78,7 @@ function Header({ name }: { name: string }) {
   )
 }
 
-function Home({ state }: { state: ClientWebState }) {
+function Home({ state, onBook }: { state: ClientWebState; onBook: () => void }) {
   return (
     <>
       <Header name={state.clinicName} />
@@ -93,9 +106,14 @@ function Home({ state }: { state: ClientWebState }) {
           </ul>
         )}
         <p className="cw-note">
-          Para agendar, remarcar ou cancelar, continue pela conversa no WhatsApp.
+          Para remarcar ou cancelar, continue pela conversa no WhatsApp.
         </p>
       </main>
+      <footer className="cw-bar">
+        <button type="button" className="cw-btn cw-btn-primary" onClick={onBook}>
+          Agendar novo horário
+        </button>
+      </footer>
     </>
   )
 }
