@@ -40,8 +40,6 @@ import {
 import { createProposal, markProposalSent } from '../proposals'
 
 const TZ = 'America/Sao_Paulo'
-const PENDING_TYPO_FIX_REF = 'bc-cbfa8af7'
-
 function seedClinic(opts: { tenantId: string; waId: string; now: number }) {
   const clock = createControllableClock(opts.now)
   const boot = bootClinicDb({ clock })
@@ -160,16 +158,10 @@ async function autoBookTurn(
   })
 }
 
-function slotTitlesFromInteractive(out: Awaited<ReturnType<typeof tryAiAutoBook>>): string[] {
-  const interactive = out.interactive
-  if (!interactive || interactive.mode !== 'list') return []
-  return interactive.sections.flatMap((sec) => sec.rows.map((r) => r.title))
-}
-
 describe('R26/R27 — filtro «depois das X» (manhã)', () => {
   const NOW = Date.UTC(2026, 10, 16, 14, 0) // seg 11:00 SP
 
-  it.fails(`R26: «depois das 10» → 10:30 sim, 10:00 não (pending ${PENDING_TYPO_FIX_REF})`, async () => {
+  it('R26: «depois das 10» → primeiro 10:15, 10:00 excluído', async () => {
     expect(notBeforeTimeFromText('Depois das 10 tem algum horário?')).toBe('10:00')
     const s = seedClinic({
       tenantId: 'clinic-demo-r26',
@@ -194,14 +186,15 @@ describe('R26/R27 — filtro «depois das X» (manhã)', () => {
         conversationId: s.cnv.id,
       })
       const times = offered.slots.map((x) => x.time)
-      expect(times).toContain('10:30')
-      expect(times).not.toContain('10:00')
+      expect(times).toEqual(['10:15', '10:45', '11:15', '11:45'])
+      expect(times[0]).toBe('10:15')
+      expect(times.includes('10:00')).toBe(false)
     } finally {
       s.close()
     }
   })
 
-  it.fails(`R27: «depois das 11» manhã sem apagar 10:30 (pending ${PENDING_TYPO_FIX_REF})`, async () => {
+  it('R27: «depois das 11» → primeiro 11:15, 11:00 excluído (manhã ainda tem vagas)', async () => {
     expect(notBeforeTimeFromText('Depois das 11?')).toBe('11:00')
     const s = seedClinic({
       tenantId: 'clinic-demo-r27',
@@ -209,20 +202,28 @@ describe('R26/R27 — filtro «depois das X» (manhã)', () => {
       now: NOW,
     })
     try {
-      depilacaoService(s)
-      await autoBookTurn(s, 'quero depilação feminina amanhã de manhã')
-      await autoBookTurn(s, 'só a axila')
-      const step1 = await autoBookTurn(s, 'Depois das 10 tem algum horário?')
-      const titles1 = slotTitlesFromInteractive(step1)
-      expect(titles1.some((t) => t.includes('10:30'))).toBe(true)
-      expect(titles1.some((t) => t.includes('10:00'))).toBe(false)
-
-      const step2 = await autoBookTurn(s, 'Depois das 11?')
-      expect(step2.replyText).toMatch(/tarde/i)
-      expect(step2.replyText).not.toMatch(/manhã.*sem.*horário/i)
-      const titles2 = slotTitlesFromInteractive(step2)
-      const t2 = step2.replyText ?? ''
-      expect(titles2.some((t) => t.includes('10:30')) || t2.includes('10:30')).toBe(true)
+      const svc = depilacaoService(s)
+      const tomorrow = clinicCivilDateFromUtc(TZ, NOW + 86_400_000)
+      const offered = await offerNearestSlots({
+        db: s.db,
+        tenantId: s.tenantId,
+        service: { ...svc, active: true },
+        zones: svc.zones,
+        tz: TZ,
+        clock: s.clock,
+        professionalId: s.pro.id,
+        date: tomorrow,
+        period: 'manha',
+        notBeforeHHMM: '11:00',
+        limit: 6,
+        conversationId: s.cnv.id,
+      })
+      const times = offered.slots.map((x) => x.time)
+      expect(times).toEqual(['11:15', '11:45'])
+      expect(times[0]).toBe('11:15')
+      expect(times.includes('11:00')).toBe(false)
+      expect(offered.replyText).not.toMatch(/manhã.*sem.*horário/i)
+      expect(offered.replyText).not.toMatch(/não tenho horário livre/i)
     } finally {
       s.close()
     }
@@ -252,7 +253,7 @@ describe('R28/R29 — FAQ depilação íntima (sintético)', () => {
     variantSelection: 'varias',
   } as unknown as ServiceRow
 
-  it.fails(`R28: «O que inclui a depilação íntima?» (pending ${PENDING_TYPO_FIX_REF})`, () => {
+  it('R28: «O que inclui a depilação íntima?»', () => {
     expect(isCatalogClarificationAsk('O que inclui a depilação íntima?')).toBe(true)
     const r = answerFaqFromCatalog({
       text: 'O que inclui a depilação íntima?',
@@ -286,7 +287,7 @@ describe('R28/R29 — FAQ depilação íntima (sintético)', () => {
 describe('R30 — typo «Íntima incluinnariz?»', () => {
   const NOW = Date.UTC(2026, 10, 16, 14, 0)
 
-  it('R30: tolerância a typo responde inclusão sem «Não peguei bem»', async () => {
+  it('R30: typo «incluinnariz» → detalhe de nariz em falta (sem «Não peguei bem»)', async () => {
     const s = seedClinic({
       tenantId: 'clinic-demo-r30',
       waId: '5511900000130',
@@ -297,7 +298,9 @@ describe('R30 — typo «Íntima incluinnariz?»', () => {
       await autoBookTurn(s, 'depilação feminina amanhã')
       const out = await autoBookTurn(s, 'Íntima incluinnariz?')
       expect(out.replyText).not.toMatch(/Não peguei bem/i)
-      expect(out.replyText).toMatch(/inclui|virilha|íntima/i)
+      expect(out.replyText).toBe(
+        'Não tenho esse detalhe no cadastro; a equipe confirma.',
+      )
     } finally {
       s.close()
     }

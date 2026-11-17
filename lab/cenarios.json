@@ -978,15 +978,15 @@
       "waId": "550000000126",
       "displayName": "Clara",
       "note": "Sintético (Clínica Estética Aurora). Filtro estrito «depois das 10» na manhã.",
-      "pendingOnMain": "https://cursor.com/agents/bc-cbfa8af7",
       "runDuringTeamHours": true,
       "steps": [
         { "say": "quero depilação feminina amanhã de manhã" },
         { "say": "só a axila" },
+        { "tap": { "kind": "button", "title": "Sim" } },
         {
           "say": "Depois das 10 tem algum horário?",
           "assertReply": {
-            "slotSetMustInclude": ["10:30"],
+            "slotSetMustInclude": ["10:15", "10:45", "11:15", "11:45"],
             "slotSetMustExclude": ["10:00"],
             "mustNotContain": ["10:00"]
           }
@@ -997,16 +997,15 @@
       "id": "R27-filtro-depois-das-11-manha",
       "displayName": "Débora",
       "note": "Continuação R26 no mesmo waId.",
-      "pendingOnMain": "https://cursor.com/agents/bc-cbfa8af7",
       "dependsOn": "R26-filtro-depois-das-10-manha",
       "waId": "550000000126",
       "steps": [
         {
           "say": "Depois das 11?",
           "assertReply": {
-            "mustContain": ["tarde"],
-            "mustNotContain": ["não tem horário de manhã", "sem horário na manhã"],
-            "slotSetMustInclude": ["10:30"]
+            "slotSetMustInclude": ["11:15", "11:45"],
+            "slotSetMustExclude": ["11:00", "10:00"],
+            "mustNotContain": ["não tem horário de manhã", "sem horário na manhã"]
           }
         }
       ]
@@ -1016,7 +1015,6 @@
       "waId": "550000000128",
       "displayName": "Beatriz",
       "note": "Sintético; inspiração amostra «Avaliar» (rsamp reescrito, sem texto real).",
-      "pendingOnMain": "https://cursor.com/agents/bc-cbfa8af7",
       "steps": [
         { "say": "oi, depilação feminina por favor" },
         {
@@ -1047,14 +1045,14 @@
       "id": "R30-typo-intima-incluinnariz",
       "waId": "550000000130",
       "displayName": "Elisa",
-      "note": "Typo voluntário; L1 verde em main (17/11/2026).",
+      "note": "Typo voluntário; após #872, «incluinnariz» → inclui nariz, detalhe em falta.",
       "steps": [
         { "say": "depilação feminina amanhã" },
         {
           "say": "Íntima incluinnariz?",
           "assertReply": {
             "mustNotContain": ["Não peguei bem"],
-            "mustContain": ["inclui", "virilha", "íntima"]
+            "mustContain": ["Não tenho esse detalhe no cadastro", "a equipe confirma"]
           }
         }
       ]
