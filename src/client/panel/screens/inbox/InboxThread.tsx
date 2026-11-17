@@ -862,15 +862,23 @@ export function InboxThread({
           `${res.conversation.assigneeDisplayName ?? "Outra pessoa"} assumiu esta conversa antes de você.`,
         );
       }
-      setDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...res.conversation,
-              messages: [...prev.messages, res.systemMessage],
-            }
-          : prev,
-      );
+      setDetail((prev) => {
+        if (!prev) return prev
+        const humanOwner =
+          res.conversation.assigneeClerkUserId != null &&
+          res.conversation.assigneeClerkUserId !== "system:ai-autodraft" &&
+          res.conversation.assigneeClerkUserId === viewerClerkUserId
+        return {
+          ...prev,
+          ...res.conversation,
+          aiReplyPause: humanOwner
+            ? { at: Date.now(), reason: "staff_active" }
+            : prev.aiReplyPause,
+          messages: res.systemMessage
+            ? [...prev.messages, res.systemMessage]
+            : prev.messages,
+        }
+      });
       // DEC-156: Assumir (`clearedAwaitingTeam`) limpa notifs da conversa.
       if (res.versionMatched !== false) {
         const { closeConversationNotifications } = await import(
@@ -905,7 +913,9 @@ export function InboxThread({
           ? {
               ...prev,
               ...res.conversation,
-              messages: [...prev.messages, res.systemMessage],
+              messages: res.systemMessage
+                ? [...prev.messages, res.systemMessage]
+                : prev.messages,
             }
           : prev,
       );
@@ -939,15 +949,22 @@ export function InboxThread({
         },
         { generation, expectGeneration: () => generation },
       );
-      setDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...res.conversation,
-              messages: [...prev.messages, res.systemMessage],
-            }
-          : prev,
-      );
+      setDetail((prev) => {
+        if (!prev) return prev
+        const humanOwner =
+          res.conversation.assigneeClerkUserId != null &&
+          res.conversation.assigneeClerkUserId !== "system:ai-autodraft"
+        return {
+          ...prev,
+          ...res.conversation,
+          aiReplyPause: humanOwner
+            ? { at: Date.now(), reason: "staff_active" }
+            : prev.aiReplyPause,
+          messages: res.systemMessage
+            ? [...prev.messages, res.systemMessage]
+            : prev.messages,
+        }
+      });
       setTransferOpen(false);
     } catch (err) {
       setNotice(

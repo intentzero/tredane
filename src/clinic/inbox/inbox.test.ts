@@ -341,6 +341,7 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
         'message.created',
         'whatsapp.send',
         'opportunity.stage_changed',
+        'conversation.ai_pause',
       ])
       const r2 = sendOutboundMessageOp(
         db,

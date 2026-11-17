@@ -810,13 +810,13 @@ describe('DEC-086 post-booking follow-up', () => {
         clock,
       )
       expect(click.handled).toBe(true)
-      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)).toBeNull()
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)?.reason).toBe('staff_active')
       expect(
         db.get<{ a: string | null }>(
           `SELECT assignee_clerk_user_id AS a FROM conversations WHERE id = ?`,
           conversationId,
         )?.a,
-      ).toBe('system:ai-autodraft')
+      ).toBe('user_synth_attendant_a')
     } finally {
       close()
     }

@@ -12,14 +12,16 @@
  * `conversation.ai_pause` (paused=false) em `clinic-do.ts` — esta helper só
  * mexe no SQLite da clínica.
  *
- * **Confirmado** (Paulo, 13/11/2026, America/Sao_Paulo): Terminar religa a IA
- * mesmo depois de Assumir — revê DEC-083 só neste caminho (Assumir sozinho
- * continua a deixar a IA pausada até Devolver à IA / DEC-155).
+ * **Confirmado** (Paulo, 17/11/2026): Terminar religa a IA quando ninguém da
+ * equipe é responsável; com humano no cartão (Assumir / envio manual), mantém
+ * a pausa `staff_active` e não chama `resumeAiReply`.
  * **Confirmado** (Paulo, 14/11/2026, America/Sao_Paulo): após Terminar o idle
  * não volta com agradecimento / small talk.
  */
 import type { Clock } from '../../db/clock'
 import { resumeAiReply } from '../ai/human-handoff'
+import { getConversation } from '../inbox/conversations'
+import { isHumanStaffAuthor } from '../inbox/human-prefix'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { clearConversationIdle, setIdleSuppressed } from './idle-state'
@@ -38,6 +40,10 @@ export function suppressFollowupsAfterClientEnd(
   const now = clock.nowMs()
   setIdleSuppressed(db, tenantId, conversationId, now)
   clearConversationIdle(db, tenantId, conversationId, now)
+  const conv = getConversation(db, tenantId, conversationId)
+  if (conv && isHumanStaffAuthor(conv.assigneeClerkUserId)) {
+    return []
+  }
   return resumeAiReply(db, tenantId, conversationId, clock, {
     source: 'manual_resume',
   })

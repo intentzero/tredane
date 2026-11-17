@@ -102,7 +102,7 @@ export type InboxGateway = {
     input: AssignConversationInput,
   ): Promise<{
     conversation: ConversationListItem
-    systemMessage: MessageRow
+    systemMessage: MessageRow | null
     versionMatched: boolean
   }>
   resumeAiReply(caller: ClinicCaller, conversationId: string): Promise<{ aiReplyPause: null }>

@@ -336,11 +336,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           body.assigneeClerkUserId === undefined
             ? principal.clerkUserId
             : body.assigneeClerkUserId
-        let assigneeDisplayName =
-          body.assigneeDisplayName ??
-          (assigneeClerkUserId === principal.clerkUserId
-            ? displayNameFromAuth(principal.clerkUserId, ctx.role)
-            : null)
+        let assigneeDisplayName = body.assigneeDisplayName ?? null
 
         if (assigneeClerkUserId) {
           const adminDb = opts.syncAdminDbFactory?.(c.env) ?? null
@@ -352,12 +348,19 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
                 'Responsável tem de ser membership ativa desta clínica',
               )
             }
-            if (!assigneeDisplayName) {
-              assigneeDisplayName =
-                membership.role === 'owner' ? 'Responsável' : 'Atendente'
-            }
           }
+          assigneeDisplayName = await resolveOutboundAuthorDisplayName(
+            c.env,
+            assigneeClerkUserId,
+            assigneeDisplayName,
+          )
         }
+
+        const actorDisplayName = await resolveOutboundAuthorDisplayName(
+          c.env,
+          principal.clerkUserId,
+          null,
+        )
 
         const gw = await resolveGateway(c.env, tenantId, opts)
         const result = await gw.assign(workerCaller(tenantId, principal.clerkUserId), {
@@ -365,7 +368,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           assigneeClerkUserId,
           assigneeDisplayName,
           actorClerkUserId: principal.clerkUserId,
-          actorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+          actorDisplayName,
           expectedAssignmentVersion: body.expectedAssignmentVersion ?? null,
         })
 
@@ -373,7 +376,9 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         return c.json(
           {
             conversation: serializeConversation(result.conversation),
-            systemMessage: serializeMessage(result.systemMessage),
+            systemMessage: result.systemMessage
+              ? serializeMessage(result.systemMessage)
+              : null,
             versionMatched: result.versionMatched,
           },
           status,
