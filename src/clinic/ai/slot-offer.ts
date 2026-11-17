@@ -376,8 +376,10 @@ export async function offerNearestSlots(input: {
   conversationId?: string
   /** Evita recursão no auto-avanço silencioso (Paulo 09/11/2026). */
   _skipEmptyAdvance?: boolean
-  /** Lab S02: «depois das Nh» — não oferecer horários anteriores no dia pedido. */
+  /** Lab S02: «depois das Nh» — só ofertar horários **depois** desse relógio (exclui a hora X). */
   notBeforeHHMM?: string | null
+  /** Inverso de `notBeforeHHMM`: só slots com minuto ≤ este relógio (ex.: alternativa mais cedo). */
+  onlyAtOrBeforeHHMM?: string | null
   /** S02: «semana que vem» sem dia — só dias desta lista (segunda–sábado). */
   searchDays?: string[] | null
   /** S06: quando livre, oferece exactamente esta hora no dia pedido. */
@@ -402,11 +404,13 @@ export async function offerNearestSlots(input: {
     conversationId = '',
     _skipEmptyAdvance = false,
     notBeforeHHMM = null,
+    onlyAtOrBeforeHHMM = null,
     searchDays = null,
     preferHHMM = null,
     contactId = null,
   } = input
   const notBeforeMinute = notBeforeHHMM ? minutesOfHHMM(notBeforeHHMM) : null
+  const onlyAtOrBeforeMinute = onlyAtOrBeforeHHMM ? minutesOfHHMM(onlyAtOrBeforeHHMM) : null
   const visitMinutes = visitDuration(db, tenantId, service, zones)
   const contactBusy =
     contactId != null && contactId.length > 0
@@ -452,7 +456,7 @@ export async function offerNearestSlots(input: {
         (slot) =>
           slot.startsAt >= earliest &&
           localHHMM(tz, slot.startsAt) === preferHHMM &&
-          (notBeforeMinute == null || minutesOfHHMM(preferHHMM) >= notBeforeMinute) &&
+          (notBeforeMinute == null || minutesOfHHMM(preferHHMM) > notBeforeMinute) &&
           (!period || inPeriodHHMM(period, preferHHMM)) &&
           (contactBusy.length === 0 ||
             !slotOverlapsContactBooking(slot.startsAt, visitMinutes, contactBusy)),
@@ -473,7 +477,10 @@ export async function offerNearestSlots(input: {
         )
         .map((slot) => ({ slot, time: localHHMM(tz, slot.startsAt) }))
         .filter(({ time }) => !period || inPeriodHHMM(period, time))
-        .filter(({ time }) => notBeforeMinute == null || minutesOfHHMM(time) >= notBeforeMinute)
+        .filter(({ time }) => notBeforeMinute == null || minutesOfHHMM(time) > notBeforeMinute)
+        .filter(
+          ({ time }) => onlyAtOrBeforeMinute == null || minutesOfHHMM(time) < onlyAtOrBeforeMinute,
+        )
       const chosen: OfferedSlot[] = []
       let nextMinute: number | null = null
       for (let i = eligible.length - 1; i >= 0 && picked.length + chosen.length < limit; i--) {
@@ -493,7 +500,10 @@ export async function offerNearestSlots(input: {
       }
       const time = localHHMM(tz, slot.startsAt)
       if (period && !inPeriodHHMM(period, time)) continue
-      if (notBeforeMinute != null && minutesOfHHMM(time) < notBeforeMinute) continue
+      if (notBeforeMinute != null && minutesOfHHMM(time) <= notBeforeMinute) continue
+      if (onlyAtOrBeforeMinute != null && minutesOfHHMM(time) >= onlyAtOrBeforeMinute) {
+        continue
+      }
       const minute = minutesOfHHMM(time)
       const prev = lastMinute.get(day)
       if (prev != null && minute - prev < minGapMinutes) continue
@@ -520,6 +530,52 @@ export async function offerNearestSlots(input: {
   }
   if (picked.length === 0) {
     // Silencioso 2 (Paulo 09/11/2026): período/dia vazio → auto-avançar sem wait «Sim».
+    if (!_skipEmptyAdvance && period && notBeforeMinute != null) {
+      const earlier = await offerNearestSlots({
+        ...input,
+        notBeforeHHMM: null,
+        onlyAtOrBeforeHHMM: notBeforeHHMM,
+        order: 'latest',
+        limit: 1,
+        _skipEmptyAdvance: true,
+      })
+      const advanced = await offerNearestSlots({
+        ...input,
+        period: period === 'manha' ? 'tarde' : period === 'tarde' ? 'noite' : null,
+        notBeforeHHMM: null,
+        onlyAtOrBeforeHHMM: null,
+        _skipEmptyAdvance: true,
+      })
+      if (advanced.slots.length > 0) {
+        const merged = [...earlier.slots, ...advanced.slots].slice(0, limit)
+        const período = periodWordPt(period)
+        const diaBase = date ? dayOfferLabelPt(date, today) : dayOfferLabelPt(advanced.slots[0]!.date, today)
+        const lead =
+          earlier.slots.length > 0
+            ? `Depois das ${notBeforeHHMM} ${período} não tenho horário livre. O mais perto ${período} é ${earlier.slots[0]!.time}. `
+            : ''
+        const listed = merged.map((s) => s.time).join(', ')
+        const tardeSuffix =
+          period === 'manha' && advanced.slots.some((s) => inPeriodHHMM('tarde', s.time))
+            ? ` à tarde`
+            : ''
+        const dia = `${diaBase}${tardeSuffix}`
+        const fallback = `${lead}Os horários disponíveis para ${dia} são ${listed}. Algum serve?`
+        const body = sayAct(
+          'oferecer_horarios',
+          conversationId,
+          { assunto: subject, quando: '', lista: listed, dia },
+          fallback,
+          { requireInTemplate: ['{dia}'] },
+        )
+        return {
+          slots: merged,
+          // Com lead aprovado (depois das X sem vaga), o motor M4 não inclui o prefixo — manter o fallback.
+          replyText: lead ? fallback : body,
+          clearPeriod: true,
+        }
+      }
+    }
     if (!_skipEmptyAdvance && period) {
       const advanced = await offerNearestSlots({
         ...input,

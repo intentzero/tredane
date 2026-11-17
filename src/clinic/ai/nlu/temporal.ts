@@ -272,7 +272,7 @@ export function depoisDasClockRe(): RegExp {
 }
 
 /**
- * Lab S02: «dps das 4» / «depois das 14h» → só ofertar slots ≥ esse relógio no mesmo dia.
+ * Lab S02: «dps das 4» / «depois das 14h» → só ofertar slots **depois** desse relógio (exclui X:00).
  * Horas 1–7 contam como tarde (16:00–19:00), como em `parsePeriods`.
  */
 export function notBeforeTimeFromText(text: string): string | null {
