@@ -1,5 +1,15 @@
 # Histórico do design
 
+## 17/11/2026 — Platform Admin: estados e diálogos PA-13 a PA-19 (**Confirmado**, Paulo 17/11/2026, #835)
+
+- Seis mocks novos espelham os componentes já implementados: **PA-13** estados transversais, **PA-14** página não encontrada, **PA-15** suspender (e reativar), **PA-16** excluir, **PA-17** pedir suporte, **PA-18** substituir owner; e **PA-19**, a clínica «em configuração» com convite pendente (DEC-194).
+- Nenhum token novo; `check_mocks.py` e `check_contrast.py` passam.
+
+## 17/11/2026 — Platform Admin: PA-07 revisto e PA-12 novo (DEC-193)
+
+- **PA-07** passa a refletir os dados reais: oito cartões de métricas (falsa confirmação a vermelho se > 0), sombra H1 por campo com Concorda, Diverge, Só LLM e Só regra, e amostras com telefone mascarado que abrem a conversa. Antes mostrava só ids e valores fictícios.
+- **PA-12** (novo, **Proposto**): diálogo com o texto da conversa de uma amostra de revisão, comentários da cliente e o aviso de leitura auditada (Q-PA-01, DEC-193).
+
 ## 16/11/2026 — Normalização do Agendar na app (**Confirmado**)
 
 - Depois de ver a Agenda em staging, Paulo pediu que a paleta fosse normalizada em toda a app. A entrada principal **Agendar** usa o mesmo coral em Conversas, Agenda, ficha do cliente e Acompanhar; ações gerais continuam em turquesa.
@@ -10,6 +20,16 @@
 - Paulo aprovou o [mock do app](paleta-app/README.md) com «gostei, implementa». Revisão de DEC-041/050/164 registada em [decisions.md](../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026).
 - Tokens v0.10.0: superfícies brancas/menta no claro e verdes profundas no escuro; turquesa em seleção e ações frequentes; novo `accent` coral para Agendar na conversa; âmbar, sucesso e IA conservam seus papéis. CSS do painel, catálogo e `theme-color` escuro atualizados.
 - Mocks mobile e o mock `desktop/Horarios.dc.html` migrados para os valores novos. Previews mobile e de Horários no desktop regenerados. A validação visual das demais telas reais permanece **Em aberto**.
+
+## 16/11/2026 — Platform Admin: mocks migrados para tokens v0.10.0
+
+- Depois do merge com a paleta Coral & Menta (#858), os 19 mocks `admin/*.dc.html` passaram a usar os valores novos da escala (o `#EEEDE7` de fundo foi para `surface.sunken`, o das bordas para `line.divider`). `check_mocks.py` volta a passar. Os previews PNG do admin ainda não foram regenerados.
+
+## 16/11/2026 — Platform Admin: mocks PA-01 a PA-07 (**Confirmado**, Paulo «aprovado», DEC-192)
+
+- Pasta nova `admin/` com sete telas desktop (1440×900): visão geral, clínicas, nova clínica, detalhe da clínica, suporte, saúde e qualidade da IA. Navegação lateral com as cores `nav` existentes; nenhum token novo.
+- Abas do detalhe da clínica **PA-08 a PA-11** (Membros, Saúde, Suporte, Auditoria), **Confirmadas** (Paulo, 16/11/2026), com spec em `platform-admin.md` §6.1.
+- `check_mocks.py` passa a validar `admin/*.dc.html`; `render_previews.py` e `shot.mjs` geram `admin/previews/`. Só os previews do admin foram gerados nesta alteração.
 
 ## 16/11/2026 — «Precisa de alguém» no shell + título do separador (DEC-156 A+E)
 

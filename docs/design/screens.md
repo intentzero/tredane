@@ -133,6 +133,34 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 - Barra inferior / rail: **Conversas · Acompanhar · Agenda · Clientes** para todos; **Clínica** só para o Responsável (Opção C Confirmada, Paulo 31/10/2026). Owner = 5 itens; attendant = 4. Os mocks M-01 a M-14 antigos mostram 3 abas do Atendente; M-15 mostrava 4 do Responsável — actualizados pela área Clientes (TEL-12).
 - A aba Clínica e as rotas M-15 a M-26 respondem “Você não tem acesso a esta área” para o Atendente, sem dados, e a API nega a ação (REQ-002). Esconder a aba não substitui a autorização no servidor.
 
+## Platform Admin (desktop 1440×900, Confirmado)
+
+Mocks PA-01 a PA-07 **Confirmados** (Paulo, 16/11/2026, «aprovado»); os estados em falta continuam por desenhar. Área interna só para superadmin ([spec](../product/platform-admin.md), [DEC-192](../product/decisions.md)). Desktop primeiro; no celular só precisa funcionar. Ficheiros em `admin/`, previews em `admin/previews/PA-xx-*.png`. Nenhuma tela mostra texto de conversa, contato ou agenda (DEC-018).
+
+| ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
+| --- | --- | --- | --- | --- | --- |
+| PA-01 | `VisaoGeral` | TEL-13 visão geral | JRN-20, JRN-24 · REQ-104, REQ-109 · AC-81, AC-85 | Contadores por estado, alertas abertos, pedidos e sessões de suporte, atividade recente da plataforma | PA-02, PA-04, PA-05, PA-06 |
+| PA-02 | `Clinicas` | TEL-13 clínicas | JRN-21, JRN-22 · REQ-105 · AC-82 | Busca, filtro por estado, tabela com estado, WhatsApp, owner, membros e criação | PA-03, PA-04 |
+| PA-03 | `NovaClinica` | TEL-13 nova clínica | JRN-21 · REQ-006, REQ-105 | Nome, fuso, primeira owner; erro de e-mail no campo | PA-04 |
+| PA-04 | `ClinicaDetalhe` | TEL-13 detalhe (aba Resumo) | JRN-22, JRN-24 · REQ-105, REQ-106, REQ-108 · AC-82, AC-83 | Alerta de saúde, dados, integrações, owners (adicionar, substituir, remover); ações Pedir suporte, Suspender, Excluir | PA-05, PA-06 |
+| PA-05 | `Suporte` | TEL-13 suporte | JRN-23 · REQ-007, REQ-060–066, REQ-107 · AC-84 | Sessão ativa com contador de 30 min e barra, lista de pedidos (aprovado, aguarda owner, ativa, rejeitado) | Clinic App (handoff) |
+| PA-06 | `Saude` | TEL-13 saúde | JRN-24 · REQ-108 · AC-85 | Contagens por clínica: outbox, incertos, jobs de IA, schema, leitura; clínica suspensa e sem resposta | PA-04 |
+| PA-07 | `QualidadeIA` | TEL-13 qualidade IA (**Confirmado** 16/11/2026; **revisto** 16/11/2026 pela DEC-193: amostras com texto) | JRN-25 · REQ-110 · AC-86 | Métricas de conversa (8 cartões, falsa confirmação a vermelho se > 0), sombra H1 por campo (Concorda, Diverge, Só LLM, Só regra), amostras com telefone mascarado que abrem a conversa | PA-12 |
+| PA-12 | `QualidadeIAAmostra` | TEL-13 qualidade IA · amostra aberta (**Proposto**, DEC-193) | JRN-25 · REQ-110 | Diálogo com a conversa real (quem disse o quê), comentários da cliente e o aviso de que a leitura fica na auditoria | PA-07 |
+| PA-13 | `Estados` | TEL-13 estados transversais (**Confirmado**, Paulo 17/11/2026, #835) | JRN-20 · REQ-104 | Carregando, vazio, filtro sem resultado, erro com «Tentar de novo», sessão expirada (volta ao login e regressa a `/admin`) e verificação de acesso indisponível; frases, sem códigos técnicos | — |
+| PA-14 | `NaoEncontrada` | TEL-13 sem flag ou rota inexistente (**Confirmado**, Paulo 17/11/2026, #835) | JRN-20 · REQ-104 · AC-81 | «Página não encontrada» **sem a navegação do admin**, igual para quem não é superadmin e para sub-rotas desconhecidas: não revela que `/admin` existe | — |
+| PA-15 | `DialogoSuspender` | TEL-13 diálogo sobre PA-04 (**Confirmado**, Paulo 17/11/2026, #835) | JRN-22 · REQ-106 · AC-83 | Efeitos da suspensão e motivo obrigatório (3 a 300) com erro de validação. **«Reativar» usa o mesmo diálogo** com o texto «A clínica volta a poder atender…» | PA-04 |
+| PA-16 | `DialogoExcluir` | TEL-13 diálogo sobre PA-04 (**Confirmado**, Paulo 17/11/2026, #835) | JRN-22 · REQ-106 · AC-83 | Efeitos da exclusão, motivo e confirmação escrevendo o nome da clínica (erro se não corresponde); botão de perigo | PA-04 |
+| PA-17 | `DialogoPedirSuporte` | TEL-13 diálogo sobre PA-05 (**Confirmado**, Paulo 17/11/2026, #835) | JRN-23 · REQ-107 · AC-84 | Regras (24 h para decidir, 30 min, só leitura), clínica, pessoa entre os membros ativos e motivo | PA-05, PA-10 |
+| PA-18 | `DialogoOwner` | TEL-13 diálogo sobre PA-08 (**Confirmado**, Paulo 17/11/2026, #835) | JRN-22 · REQ-105 · AC-82 | Substituir owner por um attendant da clínica. **Remover** e **Adicionar owner** seguem o mesmo molde (confirmação sem campos; e-mail do convite) | PA-08 |
+| PA-19 | `ClinicaEmConfiguracao` | TEL-13 detalhe, clínica sem owner ativa (**Confirmado**, Paulo 17/11/2026, #835; DEC-194) | JRN-21 · REQ-105 · AC-82 | Estado «Em configuração», convite pendente com Reenviar e Cancelar, convite expirado com «Emitir novo convite», aviso de que o suporte fica indisponível. Sem convite em curso aparece o campo «Convidar owner» | PA-08 |
+| PA-08 | `ClinicaMembros` | TEL-13 detalhe · aba Membros (**Confirmado**, Paulo 16/11/2026) | JRN-22 · REQ-105 · AC-82 | Filtro Ativos/Revogados/Todos, owners com Substituir e Remover, attendants sem ação, linha com nome indisponível do Clerk | PA-04 |
+| PA-09 | `ClinicaSaude` | TEL-13 detalhe · aba Saúde (**Confirmado**, Paulo 16/11/2026) | JRN-24 · REQ-108 · AC-85 | Alertas da clínica com limiar, cartões Envios, WhatsApp, IA, Dados e Volume (Q-PA-04) | PA-06 |
+| PA-10 | `ClinicaSuporte` | TEL-13 detalhe · aba Suporte (**Confirmado**, Paulo 16/11/2026) | JRN-23 · REQ-107 · AC-84 | Histórico de pedidos e sessões da clínica com estado final, quem decidiu e duração | PA-05 |
+| PA-11 | `ClinicaAuditoria` | TEL-13 detalhe · aba Auditoria (**Confirmado**, Paulo 16/11/2026) | JRN-22, JRN-23 · REQ-105 · AC-82 | Filtros de período e tipo, eventos com ator, alvo, resultado e sessão; linha expandida com metadados | — |
+
+Estados e diálogos desenhados em PA-13 a PA-19 (#835, **Confirmados**, Paulo 17/11/2026). As abas de PA-04 estão em PA-08 a PA-11 (spec §6.1). Por desenhar: o menu da conta e a Platform Admin no celular (só tem de funcionar, DEC-192).
+
 ## Desktop (Proposto, sem mock `M-xx`)
 
 A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; o aceite de usabilidade em aparelho real segue em Q-UX-01. Pendências do épico em [#232](https://github.com/intentzero/tredane/issues/232).

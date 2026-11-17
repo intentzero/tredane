@@ -22,7 +22,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
 | Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
 | Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-26; suporte em TEL-10, M-27 a M-29) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
-| App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-clerk-platform-admin.md), [identidade e administração](../architecture/identity-and-admin.md). App separado, com spec própria quando for desenhado. |
+| App de superadmin (Platform Admin, TEL-13) | **Fora desta spec** | Spec própria em [platform-admin.md](platform-admin.md) (DEC-192): rota `/admin` no mesmo SPA, desktop primeiro, telas PA-01 a PA-07. Valem daqui só tokens, componentes e acessibilidade. |
 | Relatórios, campanhas, prontuário, pagamentos além do sinal por Pix (DEC-047), bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
 
 ## 2. Princípios de experiência

@@ -319,3 +319,28 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-74 — Atendente virtual opcional (Confirmado, DEC-089)
 
 **Dado** a responsável da Aurora; **quando** grava nome «Luna» e género feminino; **então** a copy da IA usa concordância feminina e pode apresentar-se com esse nome. Attendant que tenta gravar é recusado. Campos vazios mantêm a copy neutra. A ficha do contacto da Mariana **não** ganha sexo. **Requisitos:** REQ-100.
+
+### AC-81 — Só superadmin abre a Platform Admin
+
+**Dado** um usuário autenticado sem `privateMetadata.superadmin === true`; **quando** abre `/admin`; **então** vê a tela de rota inexistente e o cliente não pede o bundle admin; com a flag, `GET /api/me` devolve `isSuperadmin: true` e a visão geral abre. Falha da verificação Clerk mostra erro, não acesso. **Requisitos:** REQ-104, REQ-006.
+
+### AC-82 — Lista e detalhe de clínicas sem conteúdo clínico
+
+**Dado** superadmin e clínicas em estados diferentes; **quando** filtra a lista e abre uma clínica; **então** vê estado, owners, membros, WhatsApp e auditoria, e nenhuma mensagem, contato ou marcação. **Requisitos:** REQ-105.
+
+### AC-83 — Mudança de estado confirmada pelo servidor
+
+**Dado** uma clínica ativa; **quando** o superadmin suspende com motivo; **então** a tela só mostra «Suspensa» depois da resposta da API, e a auditoria da clínica ganha a entrada com ator e motivo. Excluir exige digitar o nome e termina em `pending_deletion`. **Requisitos:** REQ-106.
+
+### AC-84 — Suporte só com aprovação válida
+
+**Dado** um pedido de suporte `pending`; **então** não há botão de entrar. **Quando** uma owner ativa aprova; **então** o botão aparece e, depois de ativada, o contador usa o `expires_at` do servidor e ao chegar a zero só oferece novo pedido. **Requisitos:** REQ-107, REQ-007, REQ-061–063.
+
+### AC-85 — Saúde e alertas só com contagens
+
+**Dado** uma clínica com outbox falhado; **quando** o superadmin abre a visão geral e a saúde; **então** a clínica aparece com o alerta e as contagens, sem texto de mensagens; uma clínica cujo DO não responde aparece como «sem resposta» com a hora da última leitura. **Requisitos:** REQ-108, REQ-109.
+
+### AC-86 — Qualidade da IA com os números do MCP
+
+**Dado** o mesmo período e clínica; **quando** o superadmin abre a qualidade da IA; **então** as métricas e o relatório sombra coincidem com `get_conversation_metrics` e `get_interpreter_shadow_report` do Review MCP. **Requisitos:** REQ-110.
+

@@ -36,7 +36,7 @@ def conv(src):
     return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>%s</title><style>%s</style></head><body>%s</body></html>' % (title, style, body)
 
 
-for name in ('mobile', 'desktop'):
+for name in ('mobile', 'desktop', 'admin'):
     out = os.path.join(ROOT, '.tmp-html', name)
     os.makedirs(out, exist_ok=True)
     for f in glob.glob(os.path.join(ROOT, name, '*.dc.html')):
@@ -52,6 +52,8 @@ for fn, b in boards.items():
     stem = fn.replace('.dc.html', '')
     mid = re.match(r'(M-\d+)', b['title']).group(1)
     os.replace(os.path.join(ROOT, '.tmp-png', 'mobile', stem + '.png'), os.path.join(ROOT, 'mobile', 'previews', '%s-%s.png' % (mid, stem)))
-for f in glob.glob(os.path.join(ROOT, '.tmp-png', 'desktop', '*.png')):
-    os.replace(f, os.path.join(ROOT, 'desktop', 'previews', os.path.basename(f)))
+for d in ('desktop', 'admin'):
+    os.makedirs(os.path.join(ROOT, d, 'previews'), exist_ok=True)
+    for f in glob.glob(os.path.join(ROOT, '.tmp-png', d, '*.png')):
+        os.replace(f, os.path.join(ROOT, d, 'previews', os.path.basename(f)))
 print('previews atualizados')

@@ -60,7 +60,7 @@
 - `privateMetadata.superadmin === true` só o backend consulta. O browser, `publicMetadata` e uma claim antiga não autorizam.
 - Membership N:N e role por tenant estão no D1. A flag de superadmin não abre o conteúdo da clínica.
 - A pessoa escolhe e troca a clínica activa. Cada pedido e cada WebSocket revalidam o membership vigente. Cache e socket de outro tenant não se reaproveitam (DEC-017, DEC-026).
-- A Platform Admin é outra aplicação. O suporte usa sessão própria do Tredane no D1, com actor e subject distintos ([ADR-0007](../adr/0007-support-impersonation.md)). Handoff, retenção e política de mutação do suporte ficam por especificar antes de uso real (MVP).
+- A Platform Admin é outra aplicação: rota `/admin` no mesmo SPA e Worker, com bundle à parte (DEC-192, [platform-admin.md](../product/platform-admin.md)); a separação é de autorização. O suporte usa sessão própria do Tredane no D1, com actor e subject distintos ([ADR-0007](../adr/0007-support-impersonation.md)). Handoff, retenção e política de mutação do suporte ficam por especificar antes de uso real (MVP).
 
 ## Tempo real
 

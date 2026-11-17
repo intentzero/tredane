@@ -18,7 +18,7 @@
 
 ### REQ-004 — Ativação e associação de membros
 
-**Prioridade/estado:** MVP / Confirmado quanto à delegação (DEC-020 revista por **DEC-103**, 01/11/2026); convite confirmado (DEC-021–025) e protocolo técnico de revogação em aberto. **Origem:** ACT-03/05, JRN-08/09/10/12. **Comportamento:** superadmin cria tenant e atribui primeiro owner. Owner do tenant, na Equipe: convida attendants e owners; promove attendant→owner; despromove owner→attendant; remove attendants e outros owners — sempre no próprio tenant e com `last_owner_protected`. Superadmin/Platform Admin continua a atribuir, promover, substituir e remover owners. Attendant não gere membros. Memberships N:N no D1 sem Clerk Organizations. **Aceite:** owner gere owners só no próprio tenant; não deixa o tenant sem owner ativo; remoção em A preserva B; todas as alterações auditadas. **Confirmado em DEC-026:** revogação imediata por tenant, sem logout Clerk e sem afetar memberships de outras clínicas. **Pendente:** revisão do protocolo técnico de WebSocket e testes da F1.
+**Prioridade/estado:** MVP / Confirmado quanto à delegação (DEC-020 revista por **DEC-103**, 01/11/2026); convite confirmado (DEC-021–025) e protocolo técnico de revogação em aberto. **Origem:** ACT-03/05, JRN-08/09/10/12. **Comportamento:** superadmin cria tenant e atribui primeiro owner **(meio revisto pela DEC-194, 16/11/2026: por convite de owner emitido pelo superadmin; a clínica pode existir sem owner ativa até ao aceite)**. Owner do tenant, na Equipe: convida attendants e owners; promove attendant→owner; despromove owner→attendant; remove attendants e outros owners — sempre no próprio tenant e com `last_owner_protected`. Superadmin/Platform Admin continua a atribuir, promover, substituir e remover owners. Attendant não gere membros. Memberships N:N no D1 sem Clerk Organizations. **Aceite:** owner gere owners só no próprio tenant; não deixa o tenant sem owner ativo; remoção em A preserva B; todas as alterações auditadas. **Confirmado em DEC-026:** revogação imediata por tenant, sem logout Clerk e sem afetar memberships de outras clínicas. **Pendente:** revisão do protocolo técnico de WebSocket e testes da F1.
 
 ### REQ-008 — Convite de attendant por e-mail
 
@@ -333,6 +333,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
 | REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |
+| REQ-104–110 | MVP interno | Interface da Platform Admin (DEC-192): acesso, clínicas, estado, suporte, saúde, visão geral e qualidade da IA. Detalhe e aceite em [platform-admin.md](platform-admin.md#5-requisitos). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |
 
