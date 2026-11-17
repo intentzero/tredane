@@ -88,7 +88,9 @@ import {
 import {
   existingAppointmentPrefix,
   upcomingAppointmentsOfferPrefix,
+  upcomingPrefixAlreadyShown,
 } from './contact-appointment-hint'
+import { planCatalogConsult } from './catalog-consult'
 import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
@@ -145,7 +147,9 @@ import {
   extractTimes,
   nextWeekSearchDays,
   norm,
+  notAfterTimeFromText,
   notBeforeTimeFromText,
+  wantsMoreSlotsLaterInDay,
   wantsNextWeekWithoutWeekday,
 } from './nlu/temporal'
 import { wantsHumanText } from './nlu/sensitive'
@@ -340,9 +344,40 @@ function zonesForMidFunnelOffer(
 
 type OfferSlotSearchExtras = (currentDate: string | null | undefined) => {
   notBeforeHHMM: string | null
+  onlyAtOrBeforeHHMM: string | null
   searchDays: string[] | null
   preferHHMM: string | null
   date?: string
+}
+
+function notBeforeFromLastOfferIfMaisTarde(
+  turnText: string,
+  frame: BookingFrame | null,
+  currentDate: string | null | undefined,
+  tz: string,
+): string | null {
+  if (!wantsMoreSlotsLaterInDay(turnText)) return null
+  const hasPendingHorario = frame?.pending?.slot === 'horario' && (frame.pending.options?.length ?? 0) > 0
+  if (!hasPendingHorario && !frame?.lastOffer) return null
+  if (currentDate && frame?.date && frame.date !== currentDate) return null
+  let maxTime: string | null = null
+  for (const option of frame?.pending?.options ?? []) {
+    const match = option.key.match(/T(\d{2}:\d{2})$/)
+    if (match) {
+      const time = match[1]!
+      if (!maxTime || time > maxTime) maxTime = time
+    }
+  }
+  for (const slot of frame?.lastOffer?.slots ?? []) {
+    const time = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(slot.startsAt))
+    if (!maxTime || time > maxTime) maxTime = time
+  }
+  return maxTime
 }
 
 function slotOfferWouldDuplicatePrior(newBody: string, priorBody: string | null | undefined): boolean {
@@ -931,13 +966,16 @@ function withUpcomingAppointmentReminder(
   db: ClinicDb,
   tenantId: string,
   contactId: string,
+  conversationId: string,
   date: string | null | undefined,
   tz: string,
   clock: Clock,
 ): string {
   const body = slotOfferReplyText(offered, db, tenantId, contactId, date, tz, clock)
-  const alreadySameDay = date != null && existingAppointmentPrefix(db, tenantId, contactId, date, tz, clock)
+  const alreadySameDay =
+    date != null && existingAppointmentPrefix(db, tenantId, contactId, date, tz, clock)
   if (alreadySameDay) return body
+  if (upcomingPrefixAlreadyShown(db, tenantId, conversationId)) return body
   const upcoming = upcomingAppointmentsOfferPrefix(db, tenantId, contactId, tz, clock)
   return upcoming ? `${upcoming}${body}` : body
 }
@@ -1228,7 +1266,6 @@ export async function tryAiAutoBook(
     ? input.turnTextOverride.trim()
     : clientTurn.map((m) => m.body).join('\n')
   turnTextForFriction = turnText
-  const notBeforeHHMM = notBeforeTimeFromText(turnText)
   const clientTodayCivil = () => clinicCivilDateFromUtc(tz, confirmation.created_at)
   const nextWeekOnly = wantsNextWeekWithoutWeekday(turnText)
   const weekSearchDays = nextWeekOnly ? nextWeekSearchDays(clientTodayCivil()) : null
@@ -1236,8 +1273,10 @@ export async function tryAiAutoBook(
     const t = [...extractTimes(turnText)]
     return t.length === 1 ? t[0]! : null
   })()
+  const notBeforeHHMM = notBeforeTimeFromText(turnText)
   const offerSlotSearchExtras = (currentDate: string | null | undefined) => ({
     notBeforeHHMM,
+    onlyAtOrBeforeHHMM: notAfterTimeFromText(turnText),
     searchDays: weekSearchDays,
     preferHHMM: explicitPreferHHMM,
     ...(nextWeekOnly && !currentDate && weekSearchDays?.[0] ? { date: weekSearchDays[0] } : {}),
@@ -1260,6 +1299,93 @@ export async function tryAiAutoBook(
   )
   // Baseline do progresso DEC-152: depois da revalidação, antes do turno.
   frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
+
+  const catalogConsult = planCatalogConsult({
+    text: turnText,
+    frame: frameAtStart,
+    services,
+    catalogVersion: catalog.version,
+    hasActiveProposal:
+      getActiveProposalForConversation(db, tenantId, input.conversationId, clock) != null,
+  })
+  if (catalogConsult) {
+    deferred.saveFrame(catalogConsult.framePatch)
+    const interactive = catalogConsult.interactive as ChoiceInteractive | null
+    return finish({
+      ...none('needs_info', { confirmationMessageId: confirmation.id }),
+      replyText: catalogConsult.body,
+      ...(interactive ? { interactive } : {}),
+      notes: 'DEC-142: consulta de catálogo (tryAiAutoBook).',
+    })
+  }
+
+  if (
+    (wantsMoreSlotsLaterInDay(turnText) || notAfterTimeFromText(turnText)) &&
+    frameAtStart?.serviceId &&
+    frameAtStart.pending?.slot === 'horario'
+  ) {
+    const svcRefine = services.find((s) => s.id === frameAtStart.serviceId)
+    if (svcRefine) {
+      const active = svcRefine.zones.filter((z) => z.active)
+      const line = frameAtStart.line ?? null
+      const pool =
+        needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
+      const variantIds = frameAtStart.variantIds ?? []
+      const kept = pool.filter((z) => variantIds.includes(z.id))
+      const zonesOffer =
+        kept.length > 0 ? kept : zonesForMidFunnelOffer(svcRefine, frameAtStart, pool)
+      const resumed = await resumeMidFunnelSlotOffer({
+        db,
+        tenantId,
+        service: svcRefine,
+        zones: zonesOffer.length > 0 ? zonesOffer : active,
+        frame: frameAtStart,
+        tz,
+        clock,
+        forecast: input.forecast,
+        conversationId: input.conversationId,
+        contactId: conv.contactId,
+        turnCorpus: turnText,
+        catalogResources: input.turn?.catalog.resources,
+        deferred,
+        catalogVersion: catalog.version,
+        rememberOffer: rememberOfferFrame,
+        offerExtras: (currentDate) => {
+          const base = offerSlotSearchExtras(currentDate)
+          const fromLast = notBeforeFromLastOfferIfMaisTarde(
+            turnText,
+            frameAtStart,
+            currentDate,
+            tz,
+          )
+          if (!fromLast) return base
+          const notBeforeHHMM =
+            base.notBeforeHHMM && base.notBeforeHHMM > fromLast
+              ? base.notBeforeHHMM
+              : fromLast
+          return { ...base, notBeforeHHMM }
+        },
+        priorOutboundBody: prevClinic?.body ?? null,
+      })
+      return finish({
+        ...none('needs_info', {
+          confirmationMessageId: confirmation.id,
+          serviceId: svcRefine.id,
+        }),
+        replyText: slotOfferReplyText(
+          { replyText: resumed.slotText },
+          db,
+          tenantId,
+          conv.contactId,
+          frameAtStart.date,
+          tz,
+          clock,
+        ),
+        ...(resumed.interactive ? { interactive: resumed.interactive } : {}),
+        notes: 'Refino temporal (mais tarde / antes das X) com quadro activo.',
+      })
+    }
+  }
 
   // P1 / DEC-C4: gate cross-cutting antes de pending / fillers
   // (restart → exit A/B → reject C → ask_info). Handoff fica no autodraft.
@@ -3070,6 +3196,8 @@ export async function tryAiAutoBook(
       // «Não encontrei …» nem reaponta tipos com a variante já travada.
       const leftoverAsk =
         mention.unrecognized &&
+        !notAfterTimeFromText(turnText) &&
+        !wantsMoreSlotsLaterInDay(turnText) &&
         zoneEcho !== 'skip' &&
         zoneEcho !== 'confirm' &&
         zoneEcho !== 'correct' &&
@@ -3755,6 +3883,7 @@ export async function tryAiAutoBook(
               db,
               tenantId,
               conv.contactId,
+              input.conversationId,
               date,
               tz,
               clock,

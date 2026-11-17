@@ -447,8 +447,8 @@ export async function handleAlterDetailsChoice(
       serviceId: frame.serviceId,
       line: frame.line,
       variantIds: frame.variantIds,
-      date: null,
-      period: null,
+      date: frame.date,
+      period: frame.period,
       time: null,
       pending: null,
       lastOffer: null,
@@ -462,8 +462,8 @@ export async function handleAlterDetailsChoice(
   const autoBook = await tryAiAutoBook(db, caller, clock, {
     conversationId: input.conversationId,
     capability: input.capability !== false,
-    // Continua o mesmo serviço (namedNow) sem eco de zonas — zoneEcho skip.
-    turnTextOverride: svc.name,
+    // Reoferta no dia gravado; não repetir o nome do serviço (não zera o quadro).
+    turnTextOverride: frame.date ? 'outro horário' : svc.name,
     confirmationMessageIdOverride: confirmationMessageId,
     zoneEcho: 'skip',
   })
