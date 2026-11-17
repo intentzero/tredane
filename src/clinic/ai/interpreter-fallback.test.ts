@@ -1,13 +1,13 @@
 /**
- * Fallback do interpretador LLM (Paulo, 17/11/2026 — sombra 72h).
+ * Fallback do interpretador LLM — só serviço (Paulo, 17/11/2026 — DL D-20261117-091300-CUR).
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { ServiceRow } from '../config/types'
 import { interpretTurn, type TurnInterpretation } from './nlu/interpret'
 import { validateExtractorOutput } from './llm-extractor'
 import {
-  DEFAULT_INTERPRETER_FALLBACK_FLAGS,
-  interpreterFallbackFlagsFromEnv,
+  DEFAULT_INTERPRETER_FALLBACK,
+  interpreterFallbackConfigFromEnv,
   interpreterFallbackGaps,
   logInterpreterFallbackApplied,
   periodModelEvidence,
@@ -51,31 +51,23 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
 }
 
 const dep = service({ id: 'svc_dep', name: 'Depilação' })
-const flagsAll: typeof DEFAULT_INTERPRETER_FALLBACK_FLAGS = {
-  service: true,
-  line: true,
-  period: true,
-}
 
-describe('interpreterFallbackFlagsFromEnv', () => {
-  it('defaults: service on, line/period off', () => {
-    expect(interpreterFallbackFlagsFromEnv({})).toEqual(DEFAULT_INTERPRETER_FALLBACK_FLAGS)
+describe('interpreterFallbackConfigFromEnv', () => {
+  it('default: service on', () => {
+    expect(interpreterFallbackConfigFromEnv({})).toEqual({ service: true })
+    expect(interpreterFallbackConfigFromEnv({ AI_INTERPRETER_FALLBACK_SERVICE: 'off' })).toEqual({
+      service: false,
+    })
   })
 })
 
-describe('periodModelEvidence', () => {
+describe('periodModelEvidence (sombra / validação; não aplica no atendimento)', () => {
   it('rejeita «boa tarde» como período', () => {
     expect(periodModelEvidence('boa tarde, quero depilação amanhã', 'tarde')).toBe(false)
   })
-  it('aceita «de manhã»', () => {
-    expect(periodModelEvidence('depilação amanhã de manhã', 'manha')).toBe(true)
-  })
-  it('rejeita «depois das 11» como período', () => {
-    expect(periodModelEvidence('depois das 11 tem horário?', 'manha')).toBe(false)
-  })
 })
 
-describe('validateExtractorOutput — fallback', () => {
+describe('validateExtractorOutput — fallback só serviço', () => {
   it('typo «depilaçao»: serviço via fallback com léxico vazio', () => {
     const base: TurnInterpretation = {
       acts: ['marcar'],
@@ -95,11 +87,10 @@ describe('validateExtractorOutput — fallback', () => {
         professionals: [],
         pending: null,
         base,
-        fallbackFlags: DEFAULT_INTERPRETER_FALLBACK_FLAGS,
       },
     )
     expect(v.slots.serviceId?.value).toBe('svc_dep')
-    expect(v.fallbackApplied).toContain('service')
+    expect(v.fallbackApplied).toBe(true)
   })
 
   it('não sobrescreve serviço já lido pelo léxico', () => {
@@ -109,7 +100,6 @@ describe('validateExtractorOutput — fallback', () => {
       today: '2026-11-02',
       services: [dep],
     })
-    expect(base.slots.serviceId?.value).toBe('svc_dep')
     const v = validateExtractorOutput(
       { acts: ['marcar'], serviceId: 'svc_outro' },
       {
@@ -120,21 +110,22 @@ describe('validateExtractorOutput — fallback', () => {
         professionals: [],
         pending: null,
         base,
-        fallbackFlags: DEFAULT_INTERPRETER_FALLBACK_FLAGS,
       },
     )
     expect(v.slots.serviceId?.value).toBe('svc_dep')
     expect(v.slots.serviceId?.fonte).not.toBe('llm')
-    expect(v.discarded).toContain('serviceId')
+    expect(v.fallbackApplied).toBe(false)
   })
 
   it('rejeita id inactivo / inválido', () => {
-    const base = interpretTurn({
-      turnText: 'quero marcar amanhã',
-      messageId: 'msg_bad',
-      today: '2026-11-02',
-      services: [dep],
-    })
+    const base: TurnInterpretation = {
+      acts: ['marcar'],
+      slots: {
+        date: { value: '2026-11-03', messageId: 'msg_bad', trecho: 'amanhã', fonte: 'regra' },
+      },
+      coverage: 0.4,
+      needsExtractor: true,
+    }
     const v = validateExtractorOutput(
       { acts: ['marcar'], serviceId: 'svc_ghost' },
       {
@@ -147,17 +138,19 @@ describe('validateExtractorOutput — fallback', () => {
         base,
       },
     )
-    expect(v.slots.serviceId).toBeUndefined()
+    expect(v.slots.serviceId?.fonte).not.toBe('llm')
     expect(v.discarded).toContain('serviceId')
   })
 
-  it('line sem palavra de género não aplica mesmo com flag on', () => {
-    const base = interpretTurn({
-      turnText: 'depilação amanhã',
-      messageId: 'msg_line',
-      today: '2026-11-02',
-      services: [dep],
-    })
+  it('ignora line do modelo mesmo com léxico vazio', () => {
+    const base: TurnInterpretation = {
+      acts: ['marcar'],
+      slots: {
+        date: { value: '2026-11-03', messageId: 'msg_line', trecho: 'amanhã', fonte: 'regra' },
+      },
+      coverage: 0.4,
+      needsExtractor: true,
+    }
     const v = validateExtractorOutput(
       { acts: ['marcar'], serviceId: 'svc_dep', line: 'feminino' },
       {
@@ -168,63 +161,36 @@ describe('validateExtractorOutput — fallback', () => {
         professionals: [],
         pending: null,
         base,
-        fallbackFlags: flagsAll,
       },
     )
-    expect(v.slots.line?.fonte).not.toBe('llm')
-    expect(v.discarded).toContain('line')
+    expect(v.slots.line).toBeUndefined()
+    expect(v.fallbackApplied).toBe(true)
   })
 
-  it('período «boa tarde» rejeitado', () => {
-    const base = interpretTurn({
-      turnText: 'boa tarde quero depilação',
-      messageId: 'msg_bt',
-      today: '2026-11-02',
-      services: [dep],
-    })
+  it('ignora period do modelo mesmo com flag implícita e léxico vazio', () => {
+    const base: TurnInterpretation = {
+      acts: ['marcar'],
+      slots: {
+        date: { value: '2026-11-03', messageId: 'msg_p', trecho: 'amanhã', fonte: 'regra' },
+      },
+      coverage: 0.4,
+      needsExtractor: true,
+    }
     const v = validateExtractorOutput(
-      { acts: ['marcar'], period: 'tarde' },
+      { acts: ['marcar'], serviceId: 'svc_dep', period: 'manha' },
       {
-        messageId: 'msg_bt',
-        turnText: 'boa tarde quero depilação',
+        messageId: 'msg_p',
+        turnText: 'depilação amanhã de manhã',
         today: '2026-11-02',
         services: [dep],
         professionals: [],
         pending: null,
         base,
-        fallbackFlags: flagsAll,
+        fallbackConfig: { service: true },
       },
     )
     expect(v.slots.period).toBeUndefined()
-    expect(v.discarded).toContain('period')
-  })
-
-  it('«de manhã» com flag period on aplica quando léxico não leu período', () => {
-    const massagem = service({ id: 'svc_m', name: 'Massagem', zones: [] })
-    const base: TurnInterpretation = {
-      acts: ['marcar'],
-      slots: {
-        serviceId: { value: 'svc_m', messageId: 'msg_manha', trecho: 'Massagem', fonte: 'llm' },
-        date: { value: '2026-11-03', messageId: 'msg_manha', trecho: 'amanhã', fonte: 'regra' },
-      },
-      coverage: 0.6,
-      needsExtractor: true,
-    }
-    const v = validateExtractorOutput(
-      { acts: ['marcar'], period: 'manha' },
-      {
-        messageId: 'msg_manha',
-        turnText: 'queria relaxar as costas amanhã de manhã',
-        today: '2026-11-02',
-        services: [massagem],
-        professionals: [],
-        pending: null,
-        base,
-        fallbackFlags: flagsAll,
-      },
-    )
-    expect(v.slots.period?.value).toBe('manha')
-    expect(v.fallbackApplied).toContain('period')
+    expect(v.fallbackApplied).toBe(true)
   })
 
   it('não aplica variantes nem opção do modelo', () => {
@@ -242,12 +208,14 @@ describe('validateExtractorOutput — fallback', () => {
       clientExplanation: null,
     }
     const depZ = service({ id: 'svc_dep', name: 'Depilação', zones: [z] })
-    const base = interpretTurn({
-      turnText: 'quero marcar amanhã',
-      messageId: 'msg_nv',
-      today: '2026-11-02',
-      services: [depZ],
-    })
+    const base: TurnInterpretation = {
+      acts: ['marcar'],
+      slots: {
+        date: { value: '2026-11-03', messageId: 'msg_nv', trecho: 'amanhã', fonte: 'regra' },
+      },
+      coverage: 0.4,
+      needsExtractor: true,
+    }
     const v = validateExtractorOutput(
       {
         acts: ['escolher_opcao', 'marcar'],
@@ -267,44 +235,41 @@ describe('validateExtractorOutput — fallback', () => {
           options: [{ key: '10:00', label: '10:00' }],
         },
         base,
-        fallbackFlags: flagsAll,
       },
     )
     expect(v.slots.variantIds).toBeUndefined()
     expect(v.slots.optionIndex).toBeUndefined()
-    expect(v.fallbackApplied).not.toContain('line')
   })
 
-  it('flags line/period off não aplicam esses campos', () => {
-    const base = interpretTurn({
-      turnText: 'queria relaxar as costas amanhã de manhã',
-      messageId: 'msg_flags',
-      today: '2026-11-02',
-      services: [service({ id: 'svc_mass', name: 'Massagem relaxante', zones: [] })],
-    })
-    expect(base.slots.serviceId).toBeUndefined()
+  it('com fallback desligado não aplica serviço', () => {
+    const base: TurnInterpretation = {
+      acts: ['marcar'],
+      slots: {
+        date: { value: '2026-11-03', messageId: 'msg_off', trecho: 'amanhã', fonte: 'regra' },
+      },
+      coverage: 0.4,
+      needsExtractor: true,
+    }
     const v = validateExtractorOutput(
-      { acts: ['marcar'], serviceId: 'svc_mass', period: 'manha', line: 'feminino' },
+      { acts: ['marcar'], serviceId: 'svc_dep' },
       {
-        messageId: 'msg_flags',
-        turnText: 'queria relaxar as costas amanhã de manhã',
+        messageId: 'msg_off',
+        turnText: 'quero marcar amanhã',
         today: '2026-11-02',
-        services: [service({ id: 'svc_mass', name: 'Massagem relaxante', zones: [] })],
+        services: [dep],
         professionals: [],
         pending: null,
         base,
-        fallbackFlags: DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+        fallbackConfig: { service: false },
       },
     )
-    expect(v.slots.line).toBeUndefined()
-    expect(v.fallbackApplied).toContain('service')
-    expect(v.fallbackApplied).not.toContain('period')
-    expect(v.fallbackApplied).not.toContain('line')
+    expect(v.slots.serviceId?.fonte).not.toBe('llm')
+    expect(v.fallbackApplied).toBe(false)
   })
 })
 
 describe('shouldRunFallbackExtractor', () => {
-  it('não corre sem lacuna nem com flags desligados', () => {
+  it('não corre sem lacuna de serviço', () => {
     const base = interpretTurn({
       turnText: 'fazem pacote pra noivas?',
       messageId: 'msg_faq',
@@ -314,14 +279,12 @@ describe('shouldRunFallbackExtractor', () => {
     expect(interpreterFallbackGaps({ acts: base.acts, slots: base.slots, turnText: 'fazem pacote pra noivas?' })).toEqual(
       [],
     )
-    expect(shouldRunFallbackExtractor(base, 'fazem pacote pra noivas?', DEFAULT_INTERPRETER_FALLBACK_FLAGS)).toBe(
-      false,
-    )
+    expect(shouldRunFallbackExtractor(base, 'fazem pacote pra noivas?', DEFAULT_INTERPRETER_FALLBACK)).toBe(false)
   })
 })
 
 describe('logInterpreterFallbackApplied', () => {
-  it('emite ids sem texto', () => {
+  it('emite só serviceId', () => {
     const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
     logInterpreterFallbackApplied({
       level: 'info',
@@ -336,6 +299,7 @@ describe('logInterpreterFallbackApplied', () => {
     expect(line).toContain('ai.interpreter_fallback_applied')
     expect(line).toContain('svc_dep')
     expect(line).not.toContain('depila')
+    expect(line).not.toContain('line')
     spy.mockRestore()
   })
 })

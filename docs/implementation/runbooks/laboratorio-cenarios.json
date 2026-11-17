@@ -1176,7 +1176,7 @@
       "id": "R46-fallback-nao-inventa-periodo-cumprimento",
       "waId": "550000000146",
       "displayName": "Mônica",
-      "note": "«Boa tarde» no cumprimento não vira período tarde (fallback period off).",
+      "note": "«Boa tarde» no cumprimento não vira período tarde (léxico/slot-offer; sem fallback LLM de período).",
       "steps": [
         {
           "say": "boa tarde, depilação feminina amanhã",

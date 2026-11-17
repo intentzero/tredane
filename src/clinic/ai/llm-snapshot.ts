@@ -12,7 +12,7 @@ import {
   catalogNamesFromServices,
   type ExtractorRaw,
 } from './llm-extractor'
-import { DEFAULT_INTERPRETER_FALLBACK_FLAGS, shouldRunFallbackExtractor } from './interpreter-fallback'
+import { DEFAULT_INTERPRETER_FALLBACK, shouldRunFallbackExtractor } from './interpreter-fallback'
 import { interpretTurn, type TurnInterpretation } from './nlu/interpret'
 import { getBookingFrame, type BookingFramePending } from './schedule-session'
 import type { AiAssistDeps } from './types'
@@ -92,8 +92,8 @@ export function buildExtractSnapshot(
     pending: frame?.pending ?? null,
     professionals: proList,
   })
-  const flags = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS
-  if (!shouldRunFallbackExtractor(base, turn.turnText, flags)) return null
+  const config = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK
+  if (!shouldRunFallbackExtractor(base, turn.turnText, config)) return null
   return {
     purpose: 'extract',
     conversationId: turn.conversationId,

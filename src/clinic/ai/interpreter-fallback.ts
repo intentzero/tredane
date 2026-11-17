@@ -1,25 +1,19 @@
 /**
- * Extrator LLM só como fallback (Paulo, 17/11/2026 — sombra 72h / DL D-20261117-082000-CUR).
- * Preenche service / line / period apenas quando o léxico deixou o campo vazio.
+ * Extrator LLM só como fallback de **serviço** (Paulo, 17/11/2026 — DL D-20261117-091300-CUR).
+ * Line e período ficam só no léxico; variante/opção nunca vêm do modelo.
  */
 import {
   interpreterFallbackGaps,
-  type InterpreterFallbackField,
   type TurnInterpretation,
   type TurnSlots,
 } from './nlu/interpret'
 import { norm, stripGreetingPeriodFalsePositives } from './nlu/temporal'
 
-export type { InterpreterFallbackField } from './nlu/interpret'
 export { interpreterFallbackGaps } from './nlu/interpret'
 
-export type InterpreterFallbackFlags = Record<InterpreterFallbackField, boolean>
+export type InterpreterFallbackConfig = { service: boolean }
 
-export const DEFAULT_INTERPRETER_FALLBACK_FLAGS: InterpreterFallbackFlags = {
-  service: true,
-  line: false,
-  period: false,
-}
+export const DEFAULT_INTERPRETER_FALLBACK: InterpreterFallbackConfig = { service: true }
 
 function envTriState(raw: string | undefined | null, defaultOn: boolean): boolean {
   const v = (raw ?? '').trim().toLowerCase()
@@ -28,28 +22,22 @@ function envTriState(raw: string | undefined | null, defaultOn: boolean): boolea
   return defaultOn
 }
 
-export function interpreterFallbackFlagsFromEnv(env: {
+export function interpreterFallbackConfigFromEnv(env: {
   AI_INTERPRETER_FALLBACK_SERVICE?: string
-  AI_INTERPRETER_FALLBACK_LINE?: string
-  AI_INTERPRETER_FALLBACK_PERIOD?: string
-}): InterpreterFallbackFlags {
-  return {
-    service: envTriState(env.AI_INTERPRETER_FALLBACK_SERVICE, true),
-    line: envTriState(env.AI_INTERPRETER_FALLBACK_LINE, false),
-    period: envTriState(env.AI_INTERPRETER_FALLBACK_PERIOD, false),
-  }
+}): InterpreterFallbackConfig {
+  return { service: envTriState(env.AI_INTERPRETER_FALLBACK_SERVICE, true) }
 }
 
 export function shouldRunFallbackExtractor(
   base: TurnInterpretation,
   turnText: string,
-  flags: InterpreterFallbackFlags = DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  config: InterpreterFallbackConfig = DEFAULT_INTERPRETER_FALLBACK,
 ): boolean {
-  const gaps = interpreterFallbackGaps({ acts: base.acts, slots: base.slots, turnText })
-  return gaps.some((g) => flags[g])
+  if (!config.service) return false
+  return interpreterFallbackGaps({ acts: base.acts, slots: base.slots, turnText }).includes('service')
 }
 
-/** Evidência estrita de período (DEC-079; cumprimentos e cortes de relógio fora). */
+/** Evidência estrita de período na sombra / validação do extrator (line e period não aplicam no atendimento). */
 export function periodModelEvidence(turnText: string, period: 'manha' | 'tarde' | 'noite'): boolean {
   const folded = norm(turnText)
   if (/\bmeio\s+dia\b/.test(folded)) return false
@@ -65,10 +53,8 @@ export type InterpreterFallbackAppliedEvent = {
   tenantId: string
   conversationId: string
   messageId: string
-  fields: InterpreterFallbackField[]
-  serviceId?: string
-  line?: 'feminino' | 'masculino'
-  period?: 'manha' | 'tarde' | 'noite'
+  fields: ['service']
+  serviceId: string
 }
 
 export function logInterpreterFallbackApplied(e: InterpreterFallbackAppliedEvent): void {
@@ -76,16 +62,15 @@ export function logInterpreterFallbackApplied(e: InterpreterFallbackAppliedEvent
 }
 
 /**
- * Mantém só service/line/period do LLM quando o léxico estava vazio e o flag permite.
- * Variantes, opção, data/hora/profissional nunca vêm do fallback.
+ * Mantém só serviceId do LLM quando o léxico estava vazio e o fallback está ligado.
+ * Todo o resto (line, period, variantes, opção, data/hora) reverte ou descarta.
  */
 export function enforceInterpreterFallbackPolicy(
   slots: TurnSlots,
   base: TurnSlots,
   discarded: string[],
-  flags: InterpreterFallbackFlags = DEFAULT_INTERPRETER_FALLBACK_FLAGS,
-): InterpreterFallbackField[] {
-  const applied: InterpreterFallbackField[] = []
+  config: InterpreterFallbackConfig = DEFAULT_INTERPRETER_FALLBACK,
+): boolean {
   const revertLlm = (key: keyof TurnSlots) => {
     const cur = slots[key]
     if (cur?.fonte !== 'llm') return
@@ -103,18 +88,15 @@ export function enforceInterpreterFallbackPolicy(
     'dateLiteral',
     'time',
     'optionIndex',
+    'line',
+    'period',
   ] as const) {
     revertLlm(key)
   }
 
-  if (!flags.service || base.serviceId) revertLlm('serviceId')
-  else if (slots.serviceId?.fonte === 'llm') applied.push('service')
-
-  if (!flags.line || base.line) revertLlm('line')
-  else if (slots.line?.fonte === 'llm') applied.push('line')
-
-  if (!flags.period || base.period) revertLlm('period')
-  else if (slots.period?.fonte === 'llm') applied.push('period')
-
-  return applied
+  if (!config.service || base.serviceId) {
+    revertLlm('serviceId')
+    return false
+  }
+  return slots.serviceId?.fonte === 'llm'
 }

@@ -102,8 +102,8 @@ export type AiAssistDeps = {
    * alterar o atendimento. Desligada por omissão (`AI_INTERPRETER_SHADOW=on`).
    */
   interpreterShadow?: boolean
-  /** Flags por campo do fallback do interpretador (service on; line/period off por omissão). */
-  interpreterFallback?: import('./interpreter-fallback').InterpreterFallbackFlags
+  /** Fallback do interpretador: só serviço (`AI_INTERPRETER_FALLBACK_SERVICE`, default on). */
+  interpreterFallback?: import('./interpreter-fallback').InterpreterFallbackConfig
   /**
    * TEMPORÁRIO: recebe cada evento da sombra (o DO grava-o no D1 central para o Review MCP).
    * Nunca deve lançar; erros são engolidos por quem chama.

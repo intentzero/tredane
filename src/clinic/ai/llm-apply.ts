@@ -40,9 +40,9 @@ import {
   frameVersionOf,
 } from './llm-snapshot'
 import {
-  DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  DEFAULT_INTERPRETER_FALLBACK,
   logInterpreterFallbackApplied,
-  type InterpreterFallbackFlags,
+  type InterpreterFallbackConfig,
 } from './interpreter-fallback'
 import {
   COVERAGE_THRESHOLD,
@@ -99,7 +99,7 @@ function applyExtractSlots(
   snapshot: ExtractSnapshot,
   raw: ExtractorRaw | null,
   clock: Clock,
-  fallbackFlags: InterpreterFallbackFlags = DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  fallbackConfig: InterpreterFallbackConfig = DEFAULT_INTERPRETER_FALLBACK,
 ): { applied: boolean; interpretation: TurnInterpretation; discarded: string[] } {
   const services = listServices(db, tenantId)
   const professionals = snapshot.catalog.professionals
@@ -119,21 +119,17 @@ function applyExtractSlots(
     professionals,
     pending: snapshot.pending,
     base: snapshot.base,
-    fallbackFlags,
+    fallbackConfig,
   })
-  if (validated.fallbackApplied.length > 0) {
+  if (validated.fallbackApplied && validated.slots.serviceId?.fonte === 'llm') {
     logInterpreterFallbackApplied({
       level: 'info',
       event: 'ai.interpreter_fallback_applied',
       tenantId,
       conversationId: snapshot.conversationId,
       messageId: snapshot.messageId,
-      fields: validated.fallbackApplied,
-      ...(validated.slots.serviceId?.fonte === 'llm'
-        ? { serviceId: validated.slots.serviceId.value }
-        : {}),
-      ...(validated.slots.line?.fonte === 'llm' ? { line: validated.slots.line.value } : {}),
-      ...(validated.slots.period?.fonte === 'llm' ? { period: validated.slots.period.value } : {}),
+      fields: ['service'],
+      serviceId: validated.slots.serviceId.value,
     })
   }
   const coverage = Math.max(
@@ -271,7 +267,7 @@ export function applyLlmResultOp(
       snapshot,
       result.raw,
       clock,
-      deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+      deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK,
     )
     markLlmJobDone(db, tenantId, { jobId: job.id, result }, clock)
     // Reabre autodraft para booking + eventual redact (extrator já done).

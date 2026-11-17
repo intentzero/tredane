@@ -306,6 +306,12 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
   } else if (/\bmasculina\b|\bmasculino\b/i.test(text)) {
     slots.line = field('masculino', messageId, 'masculina')
     markTokens('masculina')
+  } else if (/\bsou\s+mulher\b/i.test(text)) {
+    slots.line = field('feminino', messageId, 'sou mulher')
+    markTokens('mulher')
+  } else if (/\bsou\s+homem\b/i.test(text)) {
+    slots.line = field('masculino', messageId, 'sou homem')
+    markTokens('homem')
   }
 
   for (const p of input.professionals ?? []) {
@@ -408,17 +414,15 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
   return { acts, slots, coverage, needsExtractor }
 }
 
-export type InterpreterFallbackField = 'service' | 'line' | 'period'
-
 const FALLBACK_BOOK =
   /\b(quero|queria|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|fazer|preciso)\b/i
 
-/** Lacunas que o extrator LLM pode preencher (fallback sombra 72h). */
+/** Lacuna de serviço para o extrator LLM (fallback só-serviço; sombra 72h). */
 export function interpreterFallbackGaps(input: {
   acts: TurnAct[]
   slots: TurnSlots
   turnText: string
-}): InterpreterFallbackField[] {
+}): ('service')[] {
   const faqActsOnly =
     input.acts.length > 0 &&
     !input.acts.includes('marcar') &&
@@ -438,17 +442,6 @@ export function interpreterFallbackGaps(input: {
     input.slots.period != null ||
     input.slots.dateLiteral != null
 
-  const gaps: InterpreterFallbackField[] = []
-  if (!input.slots.serviceId && bookingSignal) gaps.push('service')
-  if (!input.slots.line && bookingSignal && (input.slots.serviceId != null || input.acts.includes('marcar'))) {
-    gaps.push('line')
-  }
-  if (
-    !input.slots.period &&
-    bookingSignal &&
-    (input.slots.date != null || input.slots.time != null || input.slots.dateLiteral != null)
-  ) {
-    gaps.push('period')
-  }
-  return gaps
+  if (!input.slots.serviceId && bookingSignal) return ['service']
+  return []
 }

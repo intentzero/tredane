@@ -30,13 +30,12 @@ import { norm, parseTemporal, parseTimes } from './nlu/temporal'
 import { textCitesNameOrSynonym } from '../config/synonyms'
 import { lexiconVariantsCoherent } from './lexicon-variants-gate'
 import {
-  DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  DEFAULT_INTERPRETER_FALLBACK,
   enforceInterpreterFallbackPolicy,
   logInterpreterFallbackApplied,
   periodModelEvidence,
   shouldRunFallbackExtractor,
-  type InterpreterFallbackAppliedEvent,
-  type InterpreterFallbackFlags,
+  type InterpreterFallbackConfig,
 } from './interpreter-fallback'
 import { applyBookingUpdate } from './apply-booking-update'
 import {
@@ -128,9 +127,9 @@ export function validateExtractorOutput(
     professionals: Array<{ id: string; name: string }>
     pending: BookingFramePending | null
     base: TurnInterpretation
-    fallbackFlags?: InterpreterFallbackFlags
+    fallbackConfig?: InterpreterFallbackConfig
   },
-): { slots: TurnSlots; acts: TurnAct[]; discarded: string[]; fallbackApplied: InterpreterFallbackAppliedEvent['fields'] } {
+): { slots: TurnSlots; acts: TurnAct[]; discarded: string[]; fallbackApplied: boolean } {
   const discarded: string[] = []
   const slots: TurnSlots = { ...opts.base.slots }
   const variantById = new Map<string, { serviceId: string; name: string; synonyms: string[] }>()
@@ -308,7 +307,7 @@ export function validateExtractorOutput(
     slots,
     opts.base.slots,
     discarded,
-    opts.fallbackFlags ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+    opts.fallbackConfig ?? DEFAULT_INTERPRETER_FALLBACK,
   )
 
   return {
@@ -398,8 +397,8 @@ export async function runRestrictedExtractor(
     professionals: proList,
   })
 
-  const fallbackFlags = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS
-  if (!shouldRunFallbackExtractor(base, turn.turnText, fallbackFlags)) {
+  const fallbackConfig = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK
+  if (!shouldRunFallbackExtractor(base, turn.turnText, fallbackConfig)) {
     return {
       interpretation: base,
       applied: false,
@@ -453,22 +452,18 @@ export async function runRestrictedExtractor(
     professionals: proList,
     pending: frame?.pending ?? null,
     base,
-    fallbackFlags,
+    fallbackConfig,
   })
 
-  if (validated.fallbackApplied.length > 0) {
+  if (validated.fallbackApplied && validated.slots.serviceId?.fonte === 'llm') {
     logInterpreterFallbackApplied({
       level: 'info',
       event: 'ai.interpreter_fallback_applied',
       tenantId,
       conversationId: turn.conversationId,
       messageId: turn.messageId,
-      fields: validated.fallbackApplied,
-      ...(validated.slots.serviceId?.fonte === 'llm'
-        ? { serviceId: validated.slots.serviceId.value }
-        : {}),
-      ...(validated.slots.line?.fonte === 'llm' ? { line: validated.slots.line.value } : {}),
-      ...(validated.slots.period?.fonte === 'llm' ? { period: validated.slots.period.value } : {}),
+      fields: ['service'],
+      serviceId: validated.slots.serviceId.value,
     })
   }
 
