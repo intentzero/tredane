@@ -226,11 +226,11 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Ator:** cliente final; sistema.
 - **Gatilho:** a cliente toca em Agendar na página (JRN-20).
 - **Pré-condições:** sessão válida; serviços ativos e horas livres.
-- **Fluxo:** (1) escolhe serviço; (2) escolhe género e variantes quando houver (DEC-079); (3) escolhe uma hora livre; (4) vê a revisão com serviço, variantes, data, hora, duração, preço e sinal; (5) toca em **Confirmar**; (6) o backend revalida e marca uma vez, ou abre o Pix no chat quando há sinal; (7) a página mostra «Marcado» e o chat recebe o recibo.
+- **Fluxo:** (1) procura ou escolhe o serviço (DEC-200); (2) diz «Para quem é?» se o catálogo depender de género, o que a conversa já definiu vem escolhido, e escolhe as zonas, também com pesquisa (DEC-079, DEC-200); (3) escolhe uma hora livre; (4) vê a revisão com serviço, variantes, data, hora, duração, preço e sinal; (5) toca em **Confirmar**; (6) o backend revalida e marca uma vez, ou abre o Pix no chat quando há sinal; (7) a página mostra «Marcado» e o chat recebe o recibo.
 - **Alternativas/erros:** vaga perdida ou Tempo que deixou de servir → horas alternativas; reenvio ou dois toques não duplicam; sessão expirada → JRN-20 de novo.
 - **Telas:** Serviço, Variantes, Horário, Revisão e Confirmar, Feito.
 - **Dados:** proposta (id, versão, validade), compromisso, auditoria `appointment.client_web_booked`. O toque não é consentimento LGPD nem prova de identidade.
-- **Requisitos:** REQ-112, REQ-116; aceite AC-89, AC-90, AC-95.
+- **Requisitos:** REQ-112, REQ-116, REQ-117; aceite AC-89, AC-90, AC-95, AC-96, AC-97.
 
 ## JRN-22 — Remarcar ou cancelar pela página
 

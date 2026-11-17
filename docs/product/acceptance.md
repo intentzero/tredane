@@ -380,3 +380,11 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-95 — Oferta e recibo no chat
 
 **Dado** a janela de 24 h aberta; **quando** a cliente pede para agendar, remarcar ou cancelar, **então** sai a frase determinística com «Abrir agenda» e a conversa continua disponível. **Dado** a janela fechada sem template aprovado; **então** vale o handoff, sem template inventado. **Dado** uma ação feita na página; **então** o recibo traz «Não foi você? Falar com a equipe». **Requisitos:** REQ-116.
+
+### AC-96 — Pesquisa de serviços e zonas
+
+**Dado** um catálogo fictício com «Axilas» (sinónimo «sovaco») e um serviço que a inclui; **quando** a cliente escreve «axila» ou «SOVACO», **então** vê a zona e o serviço com o termo destacado, sem diferenças de acento ou plural, e tocar na zona abre Zonas com ela marcada. **Dado** «botox» sem correspondência; **então** vê «Perguntar no WhatsApp» e «Ver todos os serviços», sem sugestões inventadas. Serviço inativo ou não agendável por aqui nunca aparece. **Requisitos:** REQ-117.
+
+### AC-97 — «Para quem é?» sem deduzir género
+
+**Dado** um catálogo com zonas femininas, masculinas e «ambos»; **quando** a cliente abre Serviço sem linha definida na conversa, **então** vê a pergunta «Para quem é?» e só depois as zonas dessa linha mais as «ambos». **Dado** a conversa que já definiu a linha; **então** a página abre com ela escolhida e com a opção Trocar. A escolha não altera o contacto (nenhum campo de sexo) e não vale para a marcação seguinte. **Requisitos:** REQ-117.

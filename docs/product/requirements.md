@@ -310,6 +310,10 @@
 
 **Prioridade/estado:** MVP / direção Confirmada (DEC-196, DEC-197); frases **Propostas**. **Origem:** JRN-20, JRN-23; DEC-104. **Comportamento:** o backend oferece o link com uma frase determinística e o botão «Abrir agenda», dentro da janela de 24 h; fora dela, só com template aprovado (TMPL-05, **Em aberto**). Depois de cada marcação, remarcação ou cancelamento pela página, sai um recibo com «Não foi você? Falar com a equipe»; falha do recibo não desfaz a ação. A conversa continua como alternativa. **Aceite:** AC-95.
 
+### REQ-117 — Pesquisa e «Para quem é?» na página web
+
+**Prioridade/estado:** MVP / pedido Confirmado (DEC-200, Paulo 17/11/2026); desenho **Proposto**. **Origem:** JRN-21; DEC-075, DEC-079, DEC-110, DEC-142. **Comportamento:** na escolha de serviço e de zonas, um campo de pesquisa filtra o catálogo ativo pelo nome e pelos sinónimos, sem acentos e com plural leve, e destaca o termo; tocar numa zona abre a escolha de zonas com ela marcada; sem resultado, mostra «Perguntar no WhatsApp» e «Ver todos os serviços». O género não é determinado pelo sistema: a página pergunta «Para quem é?» só quando o catálogo depende dele, respeita a linha já definida na conversa e não grava o género no contacto. **Regras e exceções:** serviço «qualquer» e zona «ambos» aparecem sempre; a pesquisa nunca mostra serviço inativo nem não agendável por aqui. **Aceite:** AC-96, AC-97.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -357,7 +361,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
 | REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |
-| REQ-111–116 | MVP | Página web da cliente aberta pelo WhatsApp (DEC-196 a DEC-199): link pessoal e troca única, agendar, remarcar, cancelar, Meus agendamentos, oferta e recibo no chat. Detalhe acima e em [ADR-0018](../adr/0018-pagina-web-cliente.md). |
+| REQ-111–117 | MVP | Página web da cliente aberta pelo WhatsApp (DEC-196 a DEC-199): link pessoal e troca única, agendar, remarcar, cancelar, Meus agendamentos, oferta e recibo no chat. Detalhe acima (REQ-117: pesquisa e género) e em [ADR-0018](../adr/0018-pagina-web-cliente.md). |
 | REQ-104–110 | MVP interno | Interface da Platform Admin (DEC-192): acesso, clínicas, estado, suporte, saúde, visão geral e qualidade da IA. Detalhe e aceite em [platform-admin.md](platform-admin.md#5-requisitos). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |
