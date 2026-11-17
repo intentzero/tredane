@@ -104,7 +104,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 
 ## Explorações de paleta
 
-**Painel, Confirmado (Paulo, 16/11/2026, «gostei, implementa»):** [mock de paleta do app](paleta-app/PaletaApp.html) e [nota de escopo](paleta-app/README.md). Ilustra TEL-01 Conversas (JRN-01/02, REQ-010–018) em desktop e celular; os tokens v0.10.0 estão implementados. Não substitui mocks funcionais nem critérios de aceite. A validação dos percursos reais em todas as telas continua **Em aberto**.
+**Painel, Confirmado (Paulo, 16/11/2026, «gostei, implementa»):** [mock de paleta do app](paleta-app/PaletaApp.html) e [nota de escopo](paleta-app/README.md). Ilustra TEL-01 Conversas (JRN-01/02, REQ-010–018) em desktop e celular; os tokens v0.10.1 incluem ajuste **Proposto** do coral após feedback de 17/11/2026. Não substitui mocks funcionais nem critérios de aceite. A validação dos percursos reais em todas as telas continua **Em aberto**.
 
 | Arquivo | Estado e origem | O que mostra | Critérios |
 | --- | --- | --- | --- |
