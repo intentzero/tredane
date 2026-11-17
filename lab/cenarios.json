@@ -1244,6 +1244,41 @@
           }
         }
       ]
+    },
+    {
+      "id": "R60-p21-preco-antes-de-marcar",
+      "waId": "550000000160",
+      "displayName": "Cliente",
+      "note": "P21 rsamp_6725 — 2.ª pergunta de preço com «antes de marcar» sem empurrar horário.",
+      "steps": [
+        { "say": "oi queria agendar uma drenagem linfatica pra terça" },
+        { "say": "qnto custa?" },
+        {
+          "say": "mas qual o valor da drenagem? antes de marcar",
+          "assertReply": {
+            "mustContain": ["160"],
+            "mustNotContain": ["qual horário", "horários disponíveis"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R61-p21-frustracao-sem-slot",
+      "waId": "550000000161",
+      "displayName": "Cliente",
+      "note": "P21 rsamp_6725 — queixa «vc nao responde» com preço, sem reoferta de horário.",
+      "steps": [
+        { "say": "oi queria agendar uma drenagem linfatica pra terça" },
+        { "say": "qnto custa?" },
+        { "say": "mas qual o valor da drenagem? antes de marcar" },
+        {
+          "say": "vc nao responde o q eu pergunto ne",
+          "assertReply": {
+            "mustContain": ["entendi mal", "160"],
+            "mustNotContain": ["qual horário", "horários disponíveis"]
+          }
+        }
+      ]
     }
   ]
 }

@@ -153,7 +153,11 @@ import {
   wantsNextWeekWithoutWeekday,
 } from './nlu/temporal'
 import { wantsHumanText } from './nlu/sensitive'
-import { isCatalogInfoAsk, isPaymentMethodAsk } from './booking-intent-text'
+import {
+  clientDefersBookingChoice,
+  isCatalogInfoAsk,
+  isPaymentMethodAsk,
+} from './booking-intent-text'
 import { buildFrustrationRecoveryReply, isClientNotAnsweredComplaint } from './client-frustration-turn'
 import {
   buildPaymentDeferralReply,
@@ -1664,6 +1668,7 @@ export async function tryAiAutoBook(
         type: 'ask_info',
         topic: gate.topic === 'price' ? 'preco' : 'duracao',
       })
+      const deferSlotResume = clientDefersBookingChoice(turnText)
       const realized = realizeAskInfo({
         conversationId: input.conversationId,
         topic: gate.topic,
@@ -1672,6 +1677,7 @@ export async function tryAiAutoBook(
         frame: frameForQuote,
         namedZones: namedAsk,
         sameFunnel: true,
+        deferSlotResume,
       })
       if (realized) {
         // T3: preço total → Marcar outro | Terminar (sem pending M5).
@@ -1696,6 +1702,7 @@ export async function tryAiAutoBook(
           sameServiceFunnel &&
           frameInFunnel &&
           shouldResumeSlotAsk(realized.parked) &&
+          !deferSlotResume &&
           !lineServiceOpenOffer
         ) {
           const variantIds = frameInFunnel.variantIds ?? []
