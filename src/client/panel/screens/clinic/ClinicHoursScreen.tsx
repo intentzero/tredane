@@ -422,20 +422,23 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
       ) : null}
 
       {dirty ? (
-        <div className="hours-savebar" role="region" aria-label="Alterações no horário">
-          <p>
-            <strong>{changedLabel}, ainda não salva.</strong>
-            {followers.length > 0 ? ` Vale também para ${followers.map((p) => p.name).join(' e ')}.` : ''}
-          </p>
-          <div className="clinic-footer-actions">
-            <Button className="panel-btn panel-btn-ghost" isDisabled={saving} onPress={() => setDraft(saved)}>
-              Descartar
-            </Button>
-            <Button className="panel-btn panel-btn-primary" isDisabled={saving} onPress={() => void saveHours()}>
-              {saving ? 'Salvando…' : 'Salvar horário'}
-            </Button>
+        <>
+          <div className="hours-savebar" role="region" aria-label="Alterações no horário">
+            <p>
+              <strong>{changedLabel}, ainda não salva.</strong>
+              {followers.length > 0 ? ` Vale também para ${followers.map((p) => p.name).join(' e ')}.` : ''}
+            </p>
+            <div className="clinic-footer-actions">
+              <Button className="panel-btn panel-btn-ghost" isDisabled={saving} onPress={() => setDraft(saved)}>
+                Descartar
+              </Button>
+              <Button className="panel-btn panel-btn-primary" isDisabled={saving} onPress={() => void saveHours()}>
+                {saving ? 'Salvando…' : 'Salvar horário'}
+              </Button>
+            </div>
           </div>
-        </div>
+          <div className="panel-sticky-clearance" aria-hidden="true" />
+        </>
       ) : null}
 
       <ClinicSheet

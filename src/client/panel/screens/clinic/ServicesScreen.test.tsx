@@ -834,12 +834,32 @@ describe('ServiceForm — layout do painel (overflow horizontal)', () => {
     expect(css).not.toMatch(
       /\.clinic-footer-sticky\s*\{[^}]*margin:\s*0\s+calc\(var\(--space-4\)\s*\*\s*-1\)/s,
     )
-    // M-64 Opção A: teclado aberto (data-keyboard=open) esconde o rodapé sticky.
+    // M-64 Opção A: teclado aberto (data-keyboard=open) esconde o rodapé sticky/docado.
     expect(css).toMatch(
-      /:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-sticky\s*\{[^}]*display:\s*none/s,
+      /:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-sticky\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-dock\s*\{[^}]*display:\s*none/s,
     )
+    // Ficha docada: scroll + footer fora do sticky (variantes/combos não ficam sob Salvar).
+    expect(css).toMatch(/\.clinic-form--dock\s*\{[^}]*height:\s*100%/s)
+    expect(css).toMatch(/\.clinic-form-scroll\s*\{[^}]*overflow-y:\s*auto/s)
+    expect(css).toMatch(/\.clinic-footer-dock\s*\{[^}]*flex:\s*none/s)
+    // Shell pregado ao viewport — evita barra inferior a meio do ecrã.
+    expect(css).toMatch(/\.panel-app\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/s)
+    expect(css).toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.panel-app:has\(\.inbox-thread\)\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+    )
+    expect(css).toMatch(/\.panel-sticky-clearance\s*\{[^}]*height:\s*var\(--panel-sticky-clearance\)/s)
     expect(css).toMatch(/\.svc-format-item\s*\{[^}]*position:\s*relative/s)
     expect(css).toMatch(/\.svc-format-item\s*\{[^}]*min-width:\s*0/s)
+  })
+
+  it('ficha do serviço usa scroll + rodapé docado (não sticky no fluxo)', () => {
+    renderForm(svc({ name: 'Massagem' }), {})
+    const save = screen.getByRole('button', { name: 'Salvar serviço' })
+    const footer = save.closest('.clinic-footer-dock')
+    expect(footer).toBeTruthy()
+    expect(footer?.classList.contains('clinic-footer-sticky')).toBe(false)
+    expect(document.querySelector('.clinic-form--dock')).toBeTruthy()
+    expect(document.querySelector('.clinic-form-scroll')).toBeTruthy()
   })
 
   it('mostra o título e os três cartões de formato sem cortar o texto', () => {
