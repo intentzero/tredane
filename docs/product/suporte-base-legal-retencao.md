@@ -15,7 +15,7 @@
 | Quem é avisado | Owners ativas por e-mail ao iniciar (DEC-035); owners e subject em tempo real; o subject pode pedir o fim e a owner decide (DEC-036, DEC-037). Qualquer owner pode encerrar a qualquer momento. |
 | Fica registado | `central_audit_events`: pedido, aprovação, ativação, encerramento, e cada leitura (`support.access`, agregada por sessão, rota e minuto) e cada tentativa bloqueada (`support.access.denied`). O registo tem **a rota e o método**, não o conteúdo lido. |
 
-**Lacuna a decidir:** o registo de leitura diz *que rota* foi lida, **não qual conversa nem qual contato**. Para responder a um titular («quem viu as minhas mensagens?») ou a um incidente, isso pode ser insuficiente. [DECIDIR] registar também o id da conversa/contato lido (sem texto) — é uma mudança pequena em `recordSupportAccess`, mas muda a agregação por minuto.
+**Id lido (#882, PR [#888](https://github.com/intentzero/tredane/pull/888), em revisão):** abrir o detalhe de uma conversa ou de um contato regista também o tipo e o id (nunca texto, nome ou telefone); a agregação passa a ser por sessão, alvo e minuto. **Lacuna que resta:** a **lista** de conversas mostra o preview da última mensagem de todas e fica registada só como «lista lida», sem dizer quais foram expostas; as entradas anteriores ao #888 não têm alvo. [DECIDIR] se isto basta para responder a um titular («quem viu as minhas mensagens?») ou se a lista deve ser tratada de outra forma.
 
 ## 2. Papéis e base legal (hipóteses)
 
@@ -67,7 +67,7 @@ Hoje **nada purga** `central_audit_events` nem as tabelas de suporte: a retenç�
 | 1 | Qualificação: Tredane operador; aprovação da owner por sessão como instrução | Sim, a validar no contrato |
 | 2 | Mensagens tratadas como possível dado sensível | Sim, por prudência, até o advogado dizer o contrário |
 | 3 | Prazo de guarda dos registos de suporte e de leitura | 5 anos |
-| 4 | Registar também o id da conversa/contato lido | Sim (pequena alteração de código, a abrir como issue) |
+| 4 | Registar também o id da conversa/contato lido | Sim — feito no #882/#888; falta decidir o caso da lista (secção 1) |
 | 5 | Apagar o hash do token ao fim da sessão | Sim |
 | 6 | Cláusula de contrato e texto da política de privacidade | Redigir com o advogado |
 | 7 | Política interna da secção 5 | Adotar como está |
