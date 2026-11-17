@@ -66,6 +66,11 @@ export type SocketAttachment = {
   visible?: boolean
   /** Último report de presença (ms). Expira — iOS suspende sem fechar o WS. */
   presenceAt?: number
+  /**
+   * Só em ligação de sessão de suporte (ADR-0017 §4): leitura. `clerkUserId` é o do subject (para o fence de
+   * membership), mas a ligação nunca conta como presença dele nem recebe payloads.
+   */
+  supportSessionId?: string
 }
 
 /** Janela em que um report `visible` conta como «app aberta» (heartbeat 25 s). */
@@ -78,7 +83,7 @@ export function activeViewerUserIds(
 ): string[] {
   const out = new Set<string>()
   for (const a of attachments) {
-    if (!a || !a.clerkUserId || a.visible !== true || typeof a.presenceAt !== 'number') continue
+    if (!a || a.supportSessionId || !a.clerkUserId || a.visible !== true || typeof a.presenceAt !== 'number') continue
     if (nowMs - a.presenceAt <= PRESENCE_TTL_MS) out.add(a.clerkUserId)
   }
   return [...out]

@@ -2,7 +2,7 @@ import type { Clock } from '../db/clock'
 import type { ClinicDb } from '../clinic/store'
 import type { AccessAuthority } from './authority'
 import { denyUserAccess, localFenceBlocks } from './fence'
-import { isEventVisibleToRole, type RealtimeEventRow } from './events'
+import { eventAudience, isEventVisibleToRole, type RealtimeEventRow } from './events'
 import {
   encodeServerMessage,
   type AccessRevokeReason,
@@ -76,6 +76,16 @@ function closeRevoked(
 }
 
 /**
+ * Eventos que uma ligação de suporte recebe (ADR-0017 §4). Só **sinais** de conversa, de audiência geral e
+ * **sem payload**: o ecrã refaz a leitura pelas rotas HTTP, que já filtram e mascaram telefones.
+ */
+export function isSupportSignalEvent(event: Pick<RealtimeEventRow, 'type' | 'payload'>): boolean {
+  if (event.type === 'conversation.ai_draft') return false
+  if (!/^(message|conversation)\./.test(event.type)) return false
+  return eventAudience(event.payload) === 'all'
+}
+
+/**
  * Entrega clínica só após persistência + revalidação.
  * Fail-closed: authority unavailable → não envia payload (ADR-0009).
  */
@@ -93,6 +103,7 @@ export async function deliverEventToSockets(
     membershipCheckMs: 0,
   }
   const message = encodeServerMessage(toEventMessage(event))
+  const supportSignal = encodeServerMessage(toEventMessage({ ...event, payload: {} }))
 
   for (const ws of sockets) {
     const attachment = ws.deserializeAttachment()
@@ -105,6 +116,22 @@ export async function deliverEventToSockets(
       closeRevoked(ws, attachment, revokeReasonFrom(local.reason))
       result.revoked.push(attachment.connectionId)
       continue
+    }
+
+    if (attachment.supportSessionId) {
+      // Ligação de suporte: a sessão tem de continuar ativa (fail-closed) e só recebe sinais sem payload.
+      const sess = authority.checkSupportSession
+        ? await authority.checkSupportSession(attachment.tenantId, attachment.supportSessionId, clock.nowMs())
+        : ({ status: 'unavailable' } as const)
+      if (sess.status === 'unavailable') {
+        result.skippedUnavailable.push(attachment.connectionId)
+        continue
+      }
+      if (sess.status === 'deny') {
+        closeRevoked(ws, attachment, sess.reason)
+        result.revoked.push(attachment.connectionId)
+        continue
+      }
     }
 
     const membershipStarted = Date.now()
@@ -128,6 +155,17 @@ export async function deliverEventToSockets(
       })
       closeRevoked(ws, attachment, decision.reason)
       result.revoked.push(attachment.connectionId)
+      continue
+    }
+
+    if (attachment.supportSessionId) {
+      if (!isSupportSignalEvent(event)) continue
+      try {
+        ws.send(supportSignal)
+        result.delivered.push(attachment.connectionId)
+      } catch {
+        /* socket morto */
+      }
       continue
     }
 
@@ -162,6 +200,25 @@ export function closeUserSockets(
     if (!attachment) continue
     if (attachment.tenantId !== tenantId) continue
     if (attachment.clerkUserId !== clerkUserId) continue
+    closeRevoked(ws, attachment, reason)
+    closed.push(attachment.connectionId)
+  }
+  return closed
+}
+
+/** Fecha só as ligações de **uma** sessão de suporte; o subject real, ligado ao mesmo tempo, não é tocado. */
+export function closeSupportSessionSockets(
+  sockets: readonly DeliverySocket[],
+  tenantId: string,
+  supportSessionId: string,
+  reason: AccessRevokeReason,
+): string[] {
+  const closed: string[] = []
+  for (const ws of sockets) {
+    const attachment = ws.deserializeAttachment()
+    if (!attachment) continue
+    if (attachment.tenantId !== tenantId) continue
+    if (attachment.supportSessionId !== supportSessionId) continue
     closeRevoked(ws, attachment, reason)
     closed.push(attachment.connectionId)
   }
