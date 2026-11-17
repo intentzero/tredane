@@ -177,9 +177,11 @@ describe('consulta de catálogo (DEC-142)', () => {
       expect(parsed.buttons).toBeUndefined()
       expect(parsed.flow).toBeUndefined()
       expect(parsed.list?.button).toBe(CATALOG_AUDIENCE_LIST_BUTTON)
+      // Secção única (Meta exige título em todas quando há mais de uma): a linha humana entra nela.
+      expect(parsed.list?.sections).toHaveLength(1)
       const rows = parsed.list?.sections[0]?.rows ?? []
-      expect(rows.map((row) => row.title)).toEqual(['Feminino', 'Masculino'])
-      expect(rows.map((row) => parseChoiceId(row.id)?.slot)).toEqual(['audiencia', 'audiencia'])
+      expect(rows.map((row) => row.title)).toEqual(['Feminino', 'Masculino', 'Falar com a equipe'])
+      expect(rows.slice(0, 2).map((row) => parseChoiceId(row.id)?.slot)).toEqual(['audiencia', 'audiencia'])
       expect(last.interactive_json ?? '').toContain('Falar com a equipe')
       const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
       expect(frame?.line).toBeNull()
