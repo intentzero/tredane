@@ -47,6 +47,8 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
       true,
     )
     expect(openingHoursMixedWithBooking('gostaria de saber se atendem domingo')).toBe(false)
+    expect(openingHoursMixedWithBooking('Você pode me atender esta tarde?')).toBe(true)
+    expect(openingHoursMixedWithBooking('tem horário hoje à tarde?')).toBe(true)
   })
 
   it('responde dia específico e expediente completo', () => {

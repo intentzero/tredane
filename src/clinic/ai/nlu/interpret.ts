@@ -9,6 +9,7 @@ import type { BookingFramePending } from '../schedule-session'
 import { citesServiceName } from '../schedule-choice'
 import { classifySensitive } from './sensitive'
 import { extractDates, extractTimes, parseTemporal, norm } from './temporal'
+import { SCHEDULING_AVAILABILITY_CUE } from '../booking-intent-text'
 import { isOpeningHoursFaqAsk } from '../opening-hours-reply'
 
 export const COVERAGE_THRESHOLD = 0.55
@@ -360,9 +361,10 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     }
   }
 
-  if (BOOK.test(text) && !acts.includes('marcar')) {
+  if ((BOOK.test(text) || SCHEDULING_AVAILABILITY_CUE.test(text)) && !acts.includes('marcar')) {
     acts.push('marcar')
-    markTokens(BOOK)
+    if (BOOK.test(text)) markTokens(BOOK)
+    else markTokens('atender')
   }
   if (ORDINAL.test(text) && !acts.includes('escolher_opcao')) {
     markTokens(ORDINAL)
@@ -437,6 +439,7 @@ export function interpreterFallbackGaps(input: {
   const bookingSignal =
     input.acts.includes('marcar') ||
     FALLBACK_BOOK.test(input.turnText) ||
+    SCHEDULING_AVAILABILITY_CUE.test(input.turnText) ||
     input.slots.date != null ||
     input.slots.time != null ||
     input.slots.period != null ||

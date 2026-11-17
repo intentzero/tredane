@@ -95,6 +95,13 @@ export function turnLooksLikeDayOrTimeAsk(text: string): boolean {
   const folded = foldFrictionTerm(text)
   if (!folded) return false
   if (/\b(horario|horarios|horas|disponivel|disponiveis|vaga|vagas)\b/.test(folded)) return true
+  if (/\btem\s+horario\b/.test(folded)) return true
+  if (
+    /\b(?:pode|consegue)\b/.test(folded) &&
+    /\b(?:atender|encaixar)\b/.test(folded)
+  ) {
+    return true
+  }
   if (/\bqual(?:is)?\b/.test(folded) && /\b(horario|horarios|horas|disponivel|disponiveis|vaga|vagas)\b/.test(folded)) {
     return true
   }
