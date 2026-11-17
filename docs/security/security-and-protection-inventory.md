@@ -53,7 +53,7 @@
 | Onde | `src/clinic-reset/routes.ts` — `POST .../staging/reset-operational-data` e `POST .../staging/clear-appointments` (404 se `ENVIRONMENT !== 'staging'`, antes da auth); `src/security/env-gate.ts` (`isStagingEnv`); `src/clinic/retention/operational-reset.ts`; `src/clinic/retention/clear-appointments.ts`; UI dono em Clínica hub (`StagingResetCard`, `StagingClearAppointmentsCard`, só `staging.*` hostname) |
 | Decisão | Pedido do Paulo, 28/10/2026 (STAGING-ONLY) — sem DEC; limpar só compromissos: Paulo, 16/11/2026 (STAGING-ONLY) — sem DEC |
 | Testes | `src/clinic-reset/reset.http.test.ts`; `StagingClearAppointmentsCard.test.tsx`; `ClinicHub.test.tsx` (gate do cartão) |
-| Limites | Depende de `ENVIRONMENT` correto em cada Worker (`wrangler.jsonc`); exige `confirmName`. Limpar agenda não apaga contatos/conversas/config. |
+| Limites | Depende de `ENVIRONMENT` correto em cada Worker (`wrangler.jsonc`); exige `confirm: true` no corpo (após modal no painel). Limpar agenda não apaga contatos/conversas/config. |
 
 ### 4. AI_AUTOBOOK (agendamento pela IA) e contenção
 
