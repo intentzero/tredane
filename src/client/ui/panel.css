@@ -8095,6 +8095,9 @@ button.panel-auth-inline-link {
 }
 
 .acomp-wide-board {
+  --motion-kanban-flip-ms: 300;
+  --motion-kanban-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --motion-kanban-reduced-fade-ms: 120;
   flex: 1;
   min-height: 0;
   display: grid;
