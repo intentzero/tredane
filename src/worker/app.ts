@@ -1,3 +1,4 @@
+import { createClientWebRoutes, type ClientWebRouteOptions } from '../clientweb/routes'
 import { createClinicResetRoutes, type ClinicResetRouteOptions } from '../clinic-reset/routes'
 import { stripInternalHeaders } from '../realtime/protocol'
 import { createDemoSeedRoutes } from '../ops/demo-seed'
@@ -167,6 +168,8 @@ export type CreateAppOptions = {
   ops?: OpsRouteOptions
   /** STAGING-ONLY: reset dos dados operacionais da clínica. */
   clinicReset?: ClinicResetRouteOptions
+  /** Testes: injeta D1, relógio e leitura de estado da página web da cliente. */
+  clientWeb?: ClientWebRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -300,6 +303,9 @@ export function createApp(opts: CreateAppOptions = {}) {
     clockFactory: opts.clockFactory,
   }
   app.route('/', createWhatsappFlowRoutes(flowOpts))
+
+  // Página web da cliente (DEC-196, ADR-0018) — sem Clerk; liga com CLIENT_WEB_ENABLED.
+  app.route('/', createClientWebRoutes(opts.clientWeb ?? {}))
 
   // Webhooks Pix (#39) — sem middleware Clerk.
   const pixWebhookOpts: PixWebhookRouteOptions = {

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { resolveProvaRoute } from './prova/routes'
 import { resolveRootRedirect } from './panel/routes'
 import { isAdminPath } from './admin/routes'
+import { isClientWebPath } from './clientweb/routes'
 import './styles.css'
 import { initTheme } from './panel/theme'
 
@@ -28,6 +29,14 @@ const AdminApp = lazy(async () => {
   return { default: mod.AdminApp }
 })
 
+// Página pública da cliente (DEC-196): sem Clerk nem painel.
+const ClientWebApp = lazy(async () => {
+  await import('./ui/tokens.css')
+  await import('./ui/fonts.css')
+  const mod = await import('./clientweb/ClientWebApp')
+  return { default: mod.ClientWebApp }
+})
+
 const PanelApp = lazy(async () => {
   await import('./ui/panel.css')
   const mod = await import('./panel/PanelApp')
@@ -41,7 +50,9 @@ createRoot(root).render(
         <div className="panel-root">
           <ProvaApp route={provaRoute} />
         </div>
-      ) : rootRedirect ? null : isAdminPath(pathname) ? (
+      ) : rootRedirect ? null : isClientWebPath(pathname) ? (
+        <ClientWebApp />
+      ) : isAdminPath(pathname) ? (
         <AdminApp />
       ) : (
         <PanelApp />

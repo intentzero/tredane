@@ -1,0 +1,105 @@
+/* Página web da cliente (DEC-196, mocks C-01 e C-09). Mobile first; só tokens de ui/tokens.css. */
+.cw-root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-relaxed);
+}
+.cw-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 4px 16px;
+  box-sizing: border-box;
+  background: var(--color-surface-card);
+  border-bottom: 1px solid var(--color-line-divider);
+}
+.cw-badge {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-nav-base);
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-small);
+  font-weight: 700;
+}
+.cw-clinic {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+}
+.cw-safe {
+  margin: 0;
+  padding: 6px 16px;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border-bottom: 1px solid var(--color-line-divider);
+}
+.cw-main {
+  flex: 1;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cw-center {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.cw-intro { display: flex; flex-direction: column; gap: 2px; }
+.cw-title { margin: 0; font-size: var(--font-size-headline); font-weight: var(--font-weight-semibold); }
+.cw-body { margin: 0; color: var(--color-text-secondary); }
+.cw-muted { margin: 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.cw-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.cw-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-line-border);
+  border-radius: 12px;
+}
+.cw-card-head { display: flex; align-items: center; gap: 8px; }
+.cw-card-title { flex: 1; font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); }
+.cw-chip {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+.cw-note {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+.cw-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+}
+.cw-icon-warning { background: var(--color-warning-tint); color: var(--color-warning-ink); }

@@ -262,14 +262,23 @@ export type SendOutboundInteractiveFlow = {
   mode?: 'published' | 'draft'
 }
 
+/** Botão que abre um URL (cta_url) — página web da cliente (DEC-196, ADR-0018). */
+export type SendOutboundInteractiveCtaUrl = {
+  /** Texto do botão (≤20). */
+  displayText: string
+  /** URL https. Contém o token do link. */
+  url: string
+}
+
 /**
- * Interactive WhatsApp: botões (≤3) **ou** lista (≤10 linhas) **ou** Flow.
+ * Interactive WhatsApp: botões (≤3) **ou** lista (≤10 linhas) **ou** Flow **ou** botão de URL.
  * Mutuamente exclusivos. Exige janela 24 h.
  */
 export type SendOutboundInteractiveInput = {
   buttons?: SendOutboundInteractiveButton[]
   list?: SendOutboundInteractiveList | null
   flow?: SendOutboundInteractiveFlow | null
+  ctaUrl?: SendOutboundInteractiveCtaUrl | null
 }
 
 export type SendOutboundAfterPersistCtx = {

@@ -104,6 +104,24 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - Laboratório MCP em staging (DEC-186) e aparelhos reais (iPhone e Android, pré-visualização, browser interno, recarregar, voltar).
 - Revisão de segurança curta antes de produção (enumeração, CSRF, clickjacking, limites).
 
+## 7a. Estado da implementação
+
+**Fase 1 implementada (staging, atrás de `CLIENT_WEB_ENABLED`, 17/11/2026):**
+
+- migração `0027_client_web.sql` (links e sessões, só hashes); `src/clientweb/{links,routes,state,first-name}.ts`;
+- `POST /api/c/exchange` e `GET /api/c/state`, com `Origin` obrigatório nos POST e cabeçalhos de privacidade;
+- RPC `clientWebState` no Clinic DO (só leitura; o contacto tem de ser o da conversa da sessão);
+- botão de URL (`cta_url`) no `MetaAdapter`, no envio (`interactive.ctaUrl`) e na fila `whatsapp.send`;
+- página `/c` (C-01 só leitura e C-09), sem Clerk, em `src/client/clientweb/`.
+
+**Ainda não feito na Fase 1 (bloqueia ligar em produção):**
+
+1. **Nada emite o link ainda.** `issueClientWebLink` e o envio do botão existem, mas a oferta na conversa é a Fase 5. Em staging só se testa emitindo o link à mão.
+2. **Limites de abuso por IP e por token** (`docs/security/abuse-limits.md`) não estão ligados às rotas `/api/c/*`.
+3. **O URL com o token fica no outbox.** `outbound_messages.interactive_json` e o payload `whatsapp.send` guardam o `url` em claro até o envio (mesmo padrão do `flowToken`). Quem lê conversas (suporte, ADR-0017) poderia ler um link ainda não trocado, válido até 60 min. **Proposto:** apagar o `url` das linhas assim que o envio termina, antes de ligar em produção.
+4. **Interruptor da owner por clínica** (DEC-199, desligado por defeito) e revogação das sessões ao pausar a owner ou suspender a clínica (`revokeClientWebSessions` existe; falta ligá-la).
+5. Domínio e `/c/*` com `Cache-Control: no-store` também na casca da SPA (hoje o asset segue a configuração padrão).
+
 ## 8. Em aberto
 
 1. Valores de 60 e 30 min (DEC-199). Quem decide: Paulo; bloqueia a Fase 1.

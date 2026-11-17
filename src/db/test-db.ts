@@ -120,6 +120,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0026_tenant_health_volume.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0027_client_web.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

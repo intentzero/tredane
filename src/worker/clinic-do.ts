@@ -159,6 +159,7 @@ import {
 import { handleFaqContinueButtonClick } from '../clinic/ai/faq-clarification'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
+import { readClientWebState } from '../clientweb/state'
 import { parseFlowSessionJson } from '../whatsapp/flow/tokens'
 import {
   isWhatsappFlowConfigured,
@@ -977,6 +978,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       catalogVersion: input.catalogVersion,
       frame: input.frame,
     })
+  }
+
+  /**
+   * Página web da cliente (ADR-0018): só leitura. Devolve o primeiro nome e as marcações
+   * futuras do contacto da sessão. O contacto tem de ser o da conversa da sessão; qualquer
+   * outra combinação devolve `null` (a rota responde 401).
+   */
+  async clientWebState(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+  }): Promise<{
+    firstName: string | null
+    timezone: string
+    appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number }>
+  } | null> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId)
+    this.#assertInstanceTenant(caller)
+    return readClientWebState(this.#db, this.#clock, input)
   }
 
   /**
