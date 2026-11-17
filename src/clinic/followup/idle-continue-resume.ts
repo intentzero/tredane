@@ -214,13 +214,17 @@ export function planIdleContinueResume(
     }
   }
 
+  const proposal = getActiveProposalForConversation(db, tenantId, conversationId, clock)
+  if (proposal?.state === 'enviada' && !proposal.confirmSuspended) {
+    return { mode: 'reoffer_proposal', proposalId: proposal.id }
+  }
+
   if (frame?.pending?.options.length && pendingOfferFresh(db, tenantId, conversationId, nowMs)) {
     if (rebuildInteractiveFromPending(db, tenantId, conversationId)) {
       return { mode: 'reoffer' }
     }
   }
 
-  const proposal = getActiveProposalForConversation(db, tenantId, conversationId, clock)
   if (proposal) return { mode: 'reoffer_proposal', proposalId: proposal.id }
 
   return { mode: 'generic' }
@@ -246,8 +250,11 @@ export function sendIdleContinueReoffer(
     input.tenantId,
     frame.pending.messageId,
   )
-  const lead = offerMsg?.body?.trim()
-    ? `${IDLE_RESUME_LEAD_IN}\n${offerMsg.body.trim()}`
+  const priorBody = offerMsg?.body?.trim() ?? ''
+  const lead = priorBody
+    ? priorBody.startsWith(IDLE_RESUME_LEAD_IN)
+      ? priorBody
+      : `${IDLE_RESUME_LEAD_IN}\n${priorBody}`
     : IDLE_RESUME_LEAD_IN
   const sent = sendOutboundMessageOp(
     db,

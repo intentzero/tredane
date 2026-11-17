@@ -95,6 +95,12 @@ export function parseIdleTextReply(raw: string): 'continue' | 'end' | null {
   if (!t || /^\[(?:Botão|Lista)\]/i.test(t)) return null
   if (/^terminar[.!?\s]*$/i.test(t)) return 'end'
   if (/^prosseguir[.!?\s]*$/i.test(t)) return 'continue'
+  if (
+    /^(?:quero\s+)?continuar(?:\s+(?:o\s+)?atendimento)?[.!?\s]*$/i.test(t) ||
+    /^quero\s+continuar[.!?\s]*$/i.test(t)
+  ) {
+    return 'continue'
+  }
   return null
 }
 

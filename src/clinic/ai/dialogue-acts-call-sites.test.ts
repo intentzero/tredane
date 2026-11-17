@@ -125,6 +125,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // DEC-C1/C4 — notas internas (stack ask_info / esclarecer)
   /^DEC-C1\/C4: ask_info \$\{gate\.topic\} via interrupt stack \(pending kept\)\.$/,
   /^DEC-C3\/C4: bare choose_slot leftover → esclarecer via stack \(not option-miss\)\.$/,
+  /^DEC-C3: choose_slot \+ pergunta de horário → reoferta lista\.$/,
   // DEC-177 — FAQ gate (factos do cadastro / sinónimos; sem leftover)
   /^Não tenho esse detalhe no cadastro; a equipe confirma\.$/,
   /^Sim — no cadastro, \$\{display\} faz parte de \$\{subject\.name\}\.$/,

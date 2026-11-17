@@ -351,6 +351,67 @@ describe('idle Prosseguir retoma contexto', () => {
     }
   })
 
+  it('seq40-46: reoferta não duplica «Retomando de onde paramos»', () => {
+    const s = seed()
+    try {
+      const catalogVersion = 'cv_idle_dup_lead'
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          catalogVersion,
+          pending: {
+            slot: 'horario',
+            messageId: 'msg_slots_dup',
+            options: [{ key: '2026-11-16T10:00', label: '10:00' }],
+          },
+        },
+        s.clock,
+      )
+      const offerAt = s.clock.nowMs()
+      s.db.run(
+        `INSERT INTO messages (id, tenant_id, conversation_id, direction, body, delivery_state, created_at)
+         VALUES ('msg_slots_dup', ?, ?, 'outbound', ?, 'delivered', ?)`,
+        s.tenantId,
+        s.cnv.id,
+        `${IDLE_RESUME_LEAD_IN}\nSegunda 16/11: 10:00?`,
+        offerAt,
+      )
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'ok',
+          deliveryState: 'received',
+          createdAt: offerAt + 2_000,
+        },
+        s.clock,
+      )
+      s.clock.advance(IDLE_PROMPT_AFTER_MS)
+      armIdlePrompt(s)
+      handleIdleButtonClick(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: idleButtonId(s.cnv.id, 'continue'),
+          providerEventKey: 'wa:idle:dup-lead',
+        },
+        s.clock,
+      )
+      const bodies = s.outboundBodies().filter((b) => b.includes(IDLE_RESUME_LEAD_IN))
+      for (const b of bodies) {
+        expect(b.match(/Retomando de onde paramos/g)?.length ?? 0).toBeLessThanOrEqual(1)
+      }
+    } finally {
+      s.close()
+    }
+  })
+
   it('dois toques Prosseguir com a mesma chave → uma resposta', () => {
     const s = seed()
     try {

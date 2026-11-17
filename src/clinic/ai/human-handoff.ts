@@ -3,8 +3,10 @@
  * Não chama o modelo. Não marca horário. Uma mensagem já pausada não gera outra frase.
  *
  * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
- * fora do expediente → sem oferta/dica de equipe; pedido explícito → horário, IA activa.
+ * fora do expediente: pedido registado, IA activa; botão «Falar com a equipe» nas interactivas (21/11/2026).
  */
+import type { SendOutboundInteractiveInput } from '../inbox/types'
+import { META_LIST_MAX_ROWS, META_LIST_ROW_TITLE_MAX } from './choice-offer'
 import { AI_ACTOR_ID, AI_ACTOR_NAME } from '../ai-actor'
 import type { Clock } from '../../db/clock'
 import { HANDOFF_TIMEOUT_MS } from '../constants'
@@ -48,6 +50,11 @@ import {
 import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
 import { isCatalogInfoAsk, isShortBookingAffirm } from './booking-intent-text'
+import {
+  planIdleContinueResume,
+  sendIdleContinueProposalReoffer,
+  sendIdleContinueReoffer,
+} from '../followup/idle-continue-resume'
 
 const PERIOD_LABEL: Record<string, string> = {
   manha: 'manhã',
@@ -112,6 +119,94 @@ export const HANDOFF_TIMEOUT_RESUME_TEXT =
 export const AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK =
   'Fora do horário da equipe agora. Posso continuar te ajudando por aqui.'
 
+/** Copy única: expediente aberto (Paulo 16/11/2026, item 6). */
+export const HUMAN_TEAM_ACCESS_IN_HOURS_COPY =
+  'No horário da equipe, ao tocar em Falar com a equipe ou pedir por texto, a equipe assume daqui.'
+
+/** Copy única: fora do expediente — pedido registado, IA continua (Paulo 16/11/2026, item 6). */
+export const HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY =
+  'Fora do horário registo o pedido; a equipe responde na próxima abertura e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe ou escreva.'
+
+function clipListTitle(title: string): string {
+  const t = title.trim()
+  if (t.length <= META_LIST_ROW_TITLE_MAX) return t
+  return `${t.slice(0, Math.max(1, META_LIST_ROW_TITLE_MAX - 1)).trimEnd()}…`
+}
+
+/** Explica o que acontece ao pedir a equipe (expediente vs fora). */
+export function humanTeamAccessExplanation(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): string {
+  if (isHumanTeamOfferAllowed(db, tenantId, clock)) {
+    return HUMAN_TEAM_ACCESS_IN_HOURS_COPY
+  }
+  const opening = nextClinicOpening(db, tenantId, clock)
+  if (opening) {
+    return `Fora do horário registo o pedido; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe ou escreva.`
+  }
+  return HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY
+}
+
+function interactiveHasHumanTeam(
+  interactive: SendOutboundInteractiveInput | null | undefined,
+): boolean {
+  if (!interactive) return false
+  if (interactive.buttons?.some((b) => b.id === HUMAN_HANDOFF_BUTTON_ID)) return true
+  const rows = interactive.list?.sections.flatMap((s) => s.rows ?? []) ?? []
+  return rows.some((r) => r.id === HUMAN_HANDOFF_BUTTON_ID)
+}
+
+/**
+ * Garante botão/linha «Falar com a equipe» nas interactivas (≤3 botões / ≤10 linhas lista).
+ * Paulo 16/11/2026 — item 6 / rsamp_f72ce5908371eff3a9757281.
+ */
+export function augmentOutboundWithHumanTeam(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  input: { body: string; interactive?: SendOutboundInteractiveInput | null },
+): { body: string; interactive?: SendOutboundInteractiveInput | null } {
+  void db
+  void tenantId
+  void clock
+  const body = input.body
+  const interactive = input.interactive
+  if (!interactive?.buttons?.length && !interactive?.list?.sections?.length) {
+    return { body, interactive: interactive ?? null }
+  }
+  if (interactiveHasHumanTeam(interactive)) {
+    return { body, interactive }
+  }
+  const human = { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }
+  if (interactive.buttons?.length) {
+    if (interactive.buttons.length >= 3) {
+      return { body, interactive }
+    }
+    return { body, interactive: { ...interactive, buttons: [...interactive.buttons, human] } }
+  }
+  if (interactive.list) {
+    const rows = interactive.list.sections.flatMap((s) => s.rows ?? [])
+    if (rows.length >= META_LIST_MAX_ROWS) {
+      return { body, interactive }
+    }
+    const sections = [...interactive.list.sections]
+    sections.push({
+      title: 'Atendimento',
+      rows: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) }],
+    })
+    return {
+      body,
+      interactive: {
+        ...interactive,
+        list: { ...interactive.list, sections },
+      },
+    }
+  }
+  return { body, interactive }
+}
+
 /** Registo + continuidade — baseline P3 (15/11/2026). */
 export const AFTER_HOURS_HUMAN_REGISTERED_PREFIX = 'Deixei seu pedido para a equipe'
 
@@ -172,13 +267,15 @@ export function isHumanTeamOfferAllowed(
   return isClinicOpenForHandoff(db, tenantId, clock)
 }
 
-/** Botão reply «Falar com a equipe» só dentro do expediente (DEC-155). */
+/** Botão reply «Falar com a equipe» (sempre disponível nas interactivas; click fora do expediente = DEC-155). */
 export function humanTeamOfferButtons(
   db: ClinicDb,
   tenantId: string,
   clock: Clock,
 ): Array<{ id: string; title: string }> {
-  if (!isHumanTeamOfferAllowed(db, tenantId, clock)) return []
+  void db
+  void tenantId
+  void clock
   return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
 }
 
@@ -268,7 +365,7 @@ export function afterHoursHumanRequestBody(
 ): string {
   const opening = nextClinicOpening(db, tenantId, clock)
   if (opening) {
-    return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}. A equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo. Posso continuar te ajudando por aqui.`
+    return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}. A equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo.\n\n${humanTeamAccessExplanation(db, tenantId, clock)}`
   }
   const resources = listResources(db, tenantId, clock)
   const pros = new Set(resources.filter((r) => r.kind === 'professional').map((r) => r.id))
@@ -289,7 +386,7 @@ export function afterHoursHumanRequestBody(
     { lista },
     `Funcionamos assim:\n${lista}`,
   )
-  return `${withHours}\n\nPosso continuar te ajudando por aqui.`
+  return `${withHours}\n\n${humanTeamAccessExplanation(db, tenantId, clock)}`
 }
 
 /**
@@ -332,6 +429,24 @@ export function replyAfterHoursHumanRequest(
     outbox.push(...result.outbox)
   } catch (err) {
     if (!(err instanceof ClinicError)) throw err
+  }
+  const plan = planIdleContinueResume(db, tenantId, input.conversationId, clock)
+  const caller = workerCaller(tenantId, AI_ASSIGNEE)
+  if (plan.mode === 'reoffer_proposal') {
+    const reoffer = sendIdleContinueProposalReoffer(db, caller, {
+      tenantId,
+      conversationId: input.conversationId,
+      proposalId: plan.proposalId,
+      clientRequestId: `${input.clientRequestId}:reoffer-proposal`,
+    }, clock)
+    if (!reoffer.duplicate) outbox.push(...reoffer.outbox)
+  } else if (plan.mode === 'reoffer') {
+    const reoffer = sendIdleContinueReoffer(db, caller, {
+      tenantId,
+      conversationId: input.conversationId,
+      clientRequestId: `${input.clientRequestId}:reoffer-pending`,
+    }, clock)
+    if (!reoffer.duplicate) outbox.push(...reoffer.outbox)
   }
   return { outbox }
 }

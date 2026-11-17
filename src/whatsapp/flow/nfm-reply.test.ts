@@ -901,7 +901,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       ).toBeNull()
       expect(s.outboundBodies().some((b) => /equipe continuar/i.test(b))).toBe(false)
       expect(
-        s.outboundBodies().some((b) => /Posso continuar te ajudando por aqui/i.test(b)),
+        s.outboundBodies().some((b) => /continuo por aqui até lá|Deixei seu pedido para a equipe/i.test(b)),
       ).toBe(true)
     } finally {
       s.close()

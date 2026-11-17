@@ -73,6 +73,10 @@ import {
 import { ensureOpenOpportunity } from '../../../pipeline'
 import { encodeChoiceId } from '../../choice-offer'
 import {
+  HUMAN_HANDOFF_BUTTON_ID,
+  HUMAN_HANDOFF_BUTTON_TITLE,
+} from '../../human-handoff'
+import {
   getBookingFrame,
   getScheduleSession,
   saveBookingFrame,
@@ -1359,7 +1363,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       outboundIncludes: [
         'Deixei seu pedido para a equipe',
         'A equipe responde a partir de segunda às 09:00',
-        'Posso continuar te ajudando por aqui',
+        'continuo por aqui até lá',
+        'Falar com a equipe',
       ],
     },
   },
@@ -2635,10 +2640,13 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         const parsed = JSON.parse(row.interactive_json) as {
           buttons?: Array<{ id: string; title: string }>
         }
-        const expected = reviewFlagAckInteractiveButtons(s.conversationId)
+        const expected = [
+          ...reviewFlagAckInteractiveButtons(s.conversationId),
+          { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE },
+        ]
         if (JSON.stringify(parsed.buttons) !== JSON.stringify(expected)) {
           return [
-            `A-47: botões do ack ≠ Continuar|Terminar (got ${JSON.stringify(parsed.buttons)})`,
+            `A-47: botões do ack ≠ Continuar|Terminar|Equipe (got ${JSON.stringify(parsed.buttons)})`,
           ]
         }
         return []

@@ -36,7 +36,28 @@ export const FAQ_CONTINUE_BUTTON_TITLE = 'Continuar'
  * «é o quê?» → «e o que», «como é feita» → «como e feita».
  */
 const CLARIFICATION_CUE =
-  /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+e|e\s+o\s+que|o\s+que\s+significa|como\s+funciona|como\s+e\b|como\s+e\s+feit[ao]s?|como\s+sao\s+feit[ao]s?|como\s+se\s+faz|como\s+fazem?|explica(?:r|cao)?|significa|abrang(?:e|em)|contempla|quero\s+saber\s+(?:como|o\s+que))\b/i
+  /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+e|e\s+o\s+que|o\s+que\s+inclui|inclui\s+o\s+que|o\s+que\s+significa|como\s+funciona|como\s+e\b|como\s+e\s+feit[ao]s?|como\s+sao\s+feit[ao]s?|como\s+se\s+faz|como\s+fazem?|explica(?:r|cao)?|significa|abrang(?:e|em)|contempla|quero\s+saber\s+(?:como|o\s+que))\b/i
+
+const COVERAGE_OBJECT_TERM_STOP: ReadonlySet<string> = new Set([
+  'que',
+  'o',
+  'a',
+  'os',
+  'as',
+  'de',
+  'do',
+  'da',
+  'e',
+  'ou',
+  'na',
+  'no',
+  'um',
+  'uma',
+  'inclui',
+  'incluem',
+  'cobre',
+  'cobrem',
+])
 
 export function foldFaqText(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -136,6 +157,7 @@ function coverageObjectTerm(
     null
   if (afterVerb) {
     const term = foldFaqText(afterVerb)
+    if (!term || COVERAGE_OBJECT_TERM_STOP.has(term)) return null
     if (subject && zoneNameAliases(subject).includes(term)) return null
     return term
   }

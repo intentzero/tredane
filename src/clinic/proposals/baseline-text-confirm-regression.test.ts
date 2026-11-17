@@ -161,7 +161,8 @@ describe('baseline 15/11 — confirmação por texto (S07b)', () => {
       const out = await say(s, text)
       expect(appointmentCount(s)).toBe(0)
       expect(out[0]?.autoBook?.status).toBe('requires_button')
-      expect(out[0]?.autoBook?.replyText).toBe(PROPOSAL_CONFIRM_NUDGE_LEAD)
+      expect(out[0]?.autoBook?.replyText).toContain(PROPOSAL_CONFIRM_NUDGE_LEAD)
+      expect(out[0]?.autoBook?.replyText).toMatch(/Drenagem|13:00/i)
       expect(
         out[0]?.autoBook?.interactive?.mode === 'buttons' ? out[0].autoBook.interactive.buttons : [],
       ).toHaveLength(1)

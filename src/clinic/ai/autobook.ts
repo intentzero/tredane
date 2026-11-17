@@ -113,6 +113,7 @@ import {
   frictionModeUmaTodas,
   mergeFriction,
   turnLooksLikeDayOrTimeAsk,
+  isBareSlotScheduleReAsk,
   type TurnFrictionEvent,
 } from './turn-friction'
 import { isCancelMismatchPending } from './appointment-intent'
@@ -2970,6 +2971,49 @@ export async function tryAiAutoBook(
         sessionIntact ? sessionIds : null,
       )
       const turnMention = mentionZones(turnText, mentionPool, det.service)
+      if (
+        dialogueObligation?.kind === 'choose_slot' &&
+        isBareSlotScheduleReAsk(turnText) &&
+        frameEarly?.serviceId === det.service.id &&
+        frameEarly.pending?.slot === 'horario' &&
+        !pendingTimeOverride &&
+        !input.boundSlot
+      ) {
+        const active = det.service.zones.filter((z) => z.active)
+        const line = heldAudienceLine(frameEarly) ?? frameEarly.line ?? null
+        const pool =
+          needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
+        const zonesOffer = zonesForMidFunnelOffer(det.service, frameEarly, pool.length > 0 ? pool : active)
+        const turnCorpusSlot = [turnText, ...older.map((m) => m.body)].join('\n')
+        const resumed = await resumeMidFunnelSlotOffer({
+          db,
+          tenantId,
+          service: det.service,
+          zones: zonesOffer,
+          frame: frameEarly,
+          tz,
+          clock,
+          forecast: input.forecast,
+          conversationId: input.conversationId,
+          contactId: conv.contactId,
+          turnCorpus: turnCorpusSlot,
+          catalogResources: input.turn?.catalog.resources,
+          deferred,
+          catalogVersion: catalog.version,
+          rememberOffer: rememberOfferFrame,
+          offerExtras: offerSlotSearchExtras,
+          priorOutboundBody: prevClinic?.body ?? null,
+        })
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: det.service.id,
+          }),
+          replyText: resumed.slotText,
+          ...(resumed.interactive ? { interactive: resumed.interactive } : {}),
+          notes: 'DEC-C3: choose_slot + pergunta de horário → reoferta lista.',
+        })
+      }
       // DEC-C3 / P1: leftover *só* (sem hora no turno) com obrigação `choose_slot`
       // → esclarecer; não option-miss de tipos. «09:00 e cotovelo» continua
       // option-miss (DEC-137: zona desconhecida a meio do pedido).

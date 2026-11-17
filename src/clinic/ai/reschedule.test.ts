@@ -571,7 +571,7 @@ describe('DEC-091/129 reagendamento conversacional', () => {
 
   it('mid-booking «próxima terça» com lastOffer ofertado e compromisso futuro não vira remarcação', async () => {
     // Staging Paulo ~09/11: mid marcação nova (zonas+Horários sexta) + «Na próxima terça…»
-    // com compromisso futuro → «Algum serve para remarcar?» + «Falar com a equipe».
+    // com compromisso futuro → «Algum serve?» + lista com «Falar com a equipe» (item 6).
     // G-07b / #644: só copy + botões; serviço do compromisso = Depilação (= frame),
     // por isso não apanha troca Depilação→Massagem (ver teste seguinte / G-07c).
     const s = seed()
@@ -630,7 +630,7 @@ describe('DEC-091/129 reagendamento conversacional', () => {
         .map((m) => m.interactive_json ?? '')
         .join('\n')
       expect(interactive).toContain(SLOT_LIST_BUTTON_LABEL)
-      expect(interactive).not.toMatch(/Falar com a equipe/)
+      expect(interactive).toMatch(/Falar com a equipe/)
     } finally {
       s.close()
     }

@@ -180,7 +180,7 @@ describe('consulta de catálogo (DEC-142)', () => {
       const rows = parsed.list?.sections[0]?.rows ?? []
       expect(rows.map((row) => row.title)).toEqual(['Feminino', 'Masculino'])
       expect(rows.map((row) => parseChoiceId(row.id)?.slot)).toEqual(['audiencia', 'audiencia'])
-      expect(last.interactive_json ?? '').not.toContain('Falar com a equipe')
+      expect(last.interactive_json ?? '').toContain('Falar com a equipe')
       const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
       expect(frame?.line).toBeNull()
       expect(frame?.serviceId).toBeNull()
