@@ -1,7 +1,7 @@
 /**
  * STAGING-ONLY (Paulo, 16/11/2026): apaga todos os compromissos da clínica no Clinic DO.
  * Mantém contatos, conversas, serviços, salas, Pix e restante configuração.
- * O gate de ambiente/papel/nome é feito no Worker (src/clinic-reset/routes.ts).
+ * O gate de ambiente/papel/confirmação é feito no Worker (src/clinic-reset/routes.ts).
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'

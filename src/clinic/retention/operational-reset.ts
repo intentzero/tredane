@@ -4,7 +4,7 @@
  *
  * Mantém conta/tenant, membros (D1), configuração da clínica, serviços, salas/profissionais,
  * horários e bloqueios, conta Pix, canal/modelos WhatsApp, estado de esquema/realtime e a
- * própria auditoria operacional. O gate de ambiente/papel/nome é feito no Worker
+ * própria auditoria operacional. O gate de ambiente/papel/confirmação é feito no Worker
  * (src/clinic-reset/routes.ts); aqui só se apaga — numa única transação — e audita.
  */
 import type { Clock } from '../../db/clock'

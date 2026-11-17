@@ -368,14 +368,12 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
                 <>
                   <StagingClearAppointmentsCard
                     tenantId={tenantId}
-                    clinicName={active.context.name}
                     api={api}
                     generation={generation}
                     onDone={() => void reload()}
                   />
                   <StagingResetCard
                     tenantId={tenantId}
-                    clinicName={active.context.name}
                     api={api}
                     generation={generation}
                     onDone={() => void reload()}

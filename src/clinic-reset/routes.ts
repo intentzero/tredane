@@ -1,12 +1,12 @@
 /**
  * STAGING-ONLY (Paulo, 2026-10-28 / 2026-11-16): ferramentas de reset do painel.
- * - POST /api/tenants/:tenantId/staging/reset-operational-data  { confirmName }
- * - POST /api/tenants/:tenantId/staging/clear-appointments  { confirmName }
+ * - POST /api/tenants/:tenantId/staging/reset-operational-data  { confirm: true }
+ * - POST /api/tenants/:tenantId/staging/clear-appointments  { confirm: true }
  *
  * Guardas (servidor, nesta ordem):
  *  1. ENVIRONMENT === 'staging' estrito; qualquer outro valor ou ausente → 404 (antes da auth).
  *  2. Membership activo + papel owner (clinic.config.write); atendente → 403.
- *  3. confirmName tem de ser igual ao nome da clínica no D1 (tenantContext) → senão 400.
+ *  3. Corpo deve incluir confirm: true (confirmação no modal do painel) → senão 400.
  * Apaga só dados do tenant no Clinic DO (uma transação) e audita
  * no DO (operational_audit) e no D1 (central_audit_events).
  */
@@ -94,20 +94,19 @@ type OwnerGateOk = {
 }
 type OwnerGateFail = { ok: false; response: Response }
 
-async function gateOwnerConfirmName(c: Context<ResetEnv>): Promise<OwnerGateOk | OwnerGateFail> {
+async function gateOwnerConfirmed(c: Context<ResetEnv>): Promise<OwnerGateOk | OwnerGateFail> {
   const ctx = c.get('tenantContext')!
   requireClinicPermission(ctx, 'clinic.config.write')
   const principal = c.get('principal')!
   if (principal.kind !== 'human' || ctx.role !== 'owner') {
     return { ok: false, response: c.json({ error: 'permission_denied' }, 403) }
   }
-  const body = (await c.req.json().catch(() => ({}))) as { confirmName?: unknown }
-  const confirmName = typeof body.confirmName === 'string' ? body.confirmName.trim() : ''
-  if (!confirmName || confirmName !== ctx.tenantName.trim()) {
+  const body = (await c.req.json().catch(() => ({}))) as { confirm?: unknown }
+  if (body.confirm !== true) {
     return {
       ok: false,
       response: c.json(
-        { error: 'confirm_name_mismatch', message: 'Escreva o nome exato da clínica.' },
+        { error: 'confirm_required', message: 'Envie confirm: true após confirmação no painel.' },
         400,
       ),
     }
@@ -128,7 +127,7 @@ export function createClinicResetRoutes(opts: ClinicResetRouteOptions = {}) {
     requireTenantAccess({ param: 'tenantId' }),
     async (c) => {
       try {
-        const gate = await gateOwnerConfirmName(c)
+        const gate = await gateOwnerConfirmed(c)
         if (!gate.ok) return gate.response
         const gw = opts.gatewayFactory?.(c.env, gate.tenantId) ?? doGateway(c.env, gate.tenantId)
         const result = await gw.reset(workerCaller(gate.tenantId, gate.clerkUserId))
@@ -164,7 +163,7 @@ export function createClinicResetRoutes(opts: ClinicResetRouteOptions = {}) {
     requireTenantAccess({ param: 'tenantId' }),
     async (c) => {
       try {
-        const gate = await gateOwnerConfirmName(c)
+        const gate = await gateOwnerConfirmed(c)
         if (!gate.ok) return gate.response
         const gw = opts.gatewayFactory?.(c.env, gate.tenantId) ?? doGateway(c.env, gate.tenantId)
         const result = await gw.clearAppointments(workerCaller(gate.tenantId, gate.clerkUserId))
