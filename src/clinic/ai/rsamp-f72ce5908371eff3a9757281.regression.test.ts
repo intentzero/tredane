@@ -18,11 +18,15 @@ import { createConversation } from '../inbox/conversations'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { offerNearestSlots } from './slot-offer'
-import { notBeforeTimeFromText } from './nlu/temporal'
+import { notAfterTimeFromText, notBeforeTimeFromText } from './nlu/temporal'
 import { tryAiAutoBook } from './autobook'
+import { afterHoursHumanRequestBody } from './human-handoff'
+import { zonedCivilToUtc } from '../scheduling/timezone'
+import { handleAlterDetailsChoice, ALTER_HORARIO_KEY } from './alter-details'
+import { upcomingPrefixAlreadyShown } from './contact-appointment-hint'
 import { loadTurnContext } from './turn-context'
 import { insertMessage } from '../inbox/messages'
-import { saveBookingFrame } from './schedule-session'
+import { getBookingFrame, saveBookingFrame } from './schedule-session'
 
 const TZ = 'America/Sao_Paulo'
 /** Qui 19/11/2026 10:00 SP — sexta 20/11 no futuro próximo */
@@ -106,10 +110,10 @@ function seedDepiFriday() {
   return { ...boot, clock, db, tenantId, caller, depi: depiLoaded, pro, cnv, contact, friday, zones }
 }
 
-async function autoBookBody(
+async function autoBookTurn(
   s: ReturnType<typeof seedDepiFriday>,
   body: string,
-): Promise<string> {
+): Promise<Awaited<ReturnType<typeof tryAiAutoBook>>> {
   const inbound = insertMessage(
     s.db,
     {
@@ -133,7 +137,7 @@ async function autoBookBody(
     },
     s.clock,
   )
-  const booked = await tryAiAutoBook(s.db, s.caller, s.clock, {
+  return tryAiAutoBook(s.db, s.caller, s.clock, {
     conversationId: s.cnv.id,
     enabled: true,
     capability: true,
@@ -141,6 +145,13 @@ async function autoBookBody(
     confirmationMessageIdOverride: inbound.id,
     turnTextOverride: body,
   })
+}
+
+async function autoBookBody(
+  s: ReturnType<typeof seedDepiFriday>,
+  body: string,
+): Promise<string> {
+  const booked = await autoBookTurn(s, body)
   return booked.replyText ?? ''
 }
 
@@ -247,6 +258,213 @@ describe('rsamp_f72ce590 — FAQ íntima', () => {
       const reply = await autoBookBody(s, 'Íntima incluinnariz?')
       expect(reply).not.toMatch(/Não peguei bem/i)
       expect(reply).toMatch(/não tenho esse detalhe|equipe confirma/i)
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('rsamp_f72ce590 — seq 59–99 (17/11/2026)', () => {
+  it('R37: «Mais tarde tem horário?» oferece após o último slot da lista (quinta tarde)', async () => {
+    const s = seedDepiFriday()
+    const thursday = '2026-11-19'
+    const intima = s.zones.find((z) => z.name === 'Íntima')!
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.depi.id,
+          line: 'masculino',
+          variantIds: [intima.id],
+          date: thursday,
+          period: 'tarde',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            messageId: 'msg-offer',
+            options: [
+              { key: `${thursday}T13:00`, label: '13:00' },
+              { key: `${thursday}T13:30`, label: '13:30' },
+              { key: `${thursday}T14:00`, label: '14:00' },
+            ],
+          },
+          lastOffer: {
+            messageId: 'msg-offer',
+            slots: [
+              { startsAt: zonedCivilToUtc(TZ, 2026, 10, 19, 13, 0), professionalId: s.pro.id },
+              { startsAt: zonedCivilToUtc(TZ, 2026, 10, 19, 13, 30), professionalId: s.pro.id },
+              { startsAt: zonedCivilToUtc(TZ, 2026, 10, 19, 14, 0), professionalId: s.pro.id },
+            ],
+          },
+        },
+        s.clock,
+      )
+      const out = await autoBookTurn(s, 'Mais tarde tem horário?')
+      expect(out.replyText).not.toMatch(/qual horário você prefere\?$/i)
+      expect(out.interactive).not.toBeNull()
+      const serialized = JSON.stringify(out.interactive)
+      expect(serialized).toMatch(/14:15|14:30|14:45|15:00|15:15/)
+      expect(serialized).not.toMatch(/13:00|13:30|"14:00"/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R38: Alterar detalhes → Horário mantém o dia da proposta', async () => {
+    const s = seedDepiFriday()
+    s.clock.set(Date.UTC(2026, 10, 17, 13, 0))
+    const proposalDay = '2026-11-19'
+    const intima = s.zones.find((z) => z.name === 'Íntima')!
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.depi.id,
+          line: 'masculino',
+          variantIds: [intima.id],
+          date: proposalDay,
+          time: '14:00',
+          phase: 'proposto',
+        },
+        s.clock,
+      )
+      const result = await handleAlterDetailsChoice(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          key: ALTER_HORARIO_KEY,
+          capability: true,
+        },
+        s.clock,
+      )
+      expect(result.autoBook?.interactive).toBeTruthy()
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.date).toBe(proposalDay)
+      const combined = `${result.autoBook?.replyText ?? ''}${JSON.stringify(result.autoBook?.interactive)}`
+      expect(combined).not.toMatch(/\bhoje\b/i)
+      expect(combined).toMatch(/quinta|19\/11|14:30|15:00/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R39: «E antes das 11?» filtra manhã no dia do quadro', async () => {
+    const s = seedDepiFriday()
+    const intima = s.zones.find((z) => z.name === 'Íntima')!
+    expect(notAfterTimeFromText('E antes das 11?')).toBe('11:00')
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.depi.id,
+          line: 'masculino',
+          variantIds: [intima.id],
+          date: '2026-11-19',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            messageId: 'msg-h',
+            options: [{ key: '2026-11-19T10:00', label: '10:00' }],
+          },
+        },
+        s.clock,
+      )
+      const out = await autoBookTurn(s, 'E antes das 11?')
+      expect(out.replyText).not.toMatch(/Não encontrei antes/i)
+      expect(`${out.replyText}${JSON.stringify(out.interactive)}`).toMatch(/09:00|09:30|10:00|10:30/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R40: «Quais serviços oferece?» com linha masculina → lista interativa', async () => {
+    const s = seedDepiFriday()
+    try {
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação a laser',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: 12_000,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.depi.id,
+          line: 'masculino',
+          variantIds: [s.zones[0]!.id],
+          phase: 'coletando',
+        },
+        s.clock,
+      )
+      const out = await autoBookTurn(s, 'Quais serviços oferece?')
+      expect(out.interactive).toBeTruthy()
+      expect(out.replyText).toMatch(/Qual você quer/i)
+      const serialized = JSON.stringify(out.interactive ?? {})
+      expect(serialized).toMatch(/Depilação/i)
+      expect(serialized).toMatch(/buttons|list/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R41: handoff fora de horas — uma frase + «hoje às» quando abre no mesmo dia', () => {
+    const s = seedDepiFriday()
+    s.clock.set(Date.UTC(2026, 10, 17, 11, 12))
+    try {
+      const body = afterHoursHumanRequestBody(s.db, s.tenantId, s.clock, s.cnv.id)
+      expect(body.split('\n\n').length).toBe(1)
+      expect(body).toMatch(/hoje às 09:00/i)
+      expect(body).not.toMatch(/terça às 09:00/i)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R41b: lembrete «Você já tem…» só uma vez por conversa', async () => {
+    const s = seedDepiFriday()
+    try {
+      const starts = zonedCivilToUtc(TZ, 2026, 10, 20, 11, 0)
+      s.db.run(
+        `INSERT INTO appointments (id, tenant_id, service_id, professional_id, starts_at, ends_at, status, created_at, contact_id, confirmed_by)
+         VALUES ('apt_rsamp_f72_prefix', ?, ?, ?, ?, ?, 'confirmed', ?, ?, 'system:proposal-send')`,
+        s.tenantId,
+        s.depi.id,
+        s.pro.id,
+        starts,
+        starts + 20 * 60_000,
+        s.clock.nowMs(),
+        s.contact.id,
+      )
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'outbound',
+          body: 'Você já tem Depilação na sexta às 11:00. É para outro horário ou serviço?\n\n',
+          deliveryState: 'delivered',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      expect(upcomingPrefixAlreadyShown(s.db, s.tenantId, s.cnv.id)).toBe(true)
     } finally {
       s.close()
     }

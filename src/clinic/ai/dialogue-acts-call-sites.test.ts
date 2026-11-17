@@ -243,6 +243,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // rsamp_f72ce590: prefixo aprovado quando «depois das X» esvazia o período pedido.
   /^Depois das \$\{notBeforeHHMM\} \$\{período\} não tenho horário livre\. O mais perto \$\{período\} é \$\{earlier\.slots\[0\]!\.time\}\. $/,
   /^\$\{lead\}Os horários disponíveis para \$\{dia\} são \$\{listed\}\. Algum serve\?$/,
+  /^Antes das \$\{onlyAtOrBeforeHHMM\} não tenho horário livre\. O mais perto depois é \$\{merged\[0\]!\.time\}\. $/,
+  /^\$\{lead\}Os horários disponíveis para \$\{diaBase\} são \$\{listed\}\. Algum serve\?$/,
 ]
 
 function readCallSite(file: string): string {
