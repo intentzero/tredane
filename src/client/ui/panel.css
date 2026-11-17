@@ -9045,6 +9045,9 @@ button.panel-auth-inline-link {
   }
 
   .agenda-context {
+    /* Contém os .panel-sr-only (absolute) da lista do dia: sem isto o
+     * bloco de contenção é .agenda-wide e eles esticam o scroll do main. */
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
