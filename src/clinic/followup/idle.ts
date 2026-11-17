@@ -54,6 +54,14 @@ export {
 export const IDLE_PROMPT_BODY =
   'Ainda está aí? Quer prosseguir com o atendimento ou terminar?'
 
+/**
+ * Mensagem do fecho automático por inatividade (segundo prazo depois de
+ * `IDLE_PROMPT_BODY`). Texto fixo pedido pelo Paulo (17/11/2026); o botão
+ * Terminar continua a usar `pickTerminarFarewell`.
+ */
+export const IDLE_AUTO_CLOSE_BODY =
+  'Encerramos este atendimento por falta de resposta. Se precisar, é só escrever aqui que retomamos.'
+
 export const IDLE_CONTINUE_REPLY_BODY =
   'Combinado! Em que posso ajudar?'
 
@@ -335,7 +343,13 @@ function settleIdle(
   tenantId: string,
   conversationId: string,
   clock: Clock,
-  input: { thanks: boolean; note: string; clientRequestId: string },
+  input: {
+    thanks: boolean
+    note: string
+    clientRequestId: string
+    /** Corpo fixo do adeus (fecho automático); omisso = `pickTerminarFarewell`. */
+    farewellBody?: string
+  },
 ): { closedOpportunityId: string | null; outbox: OutboxRow[] } {
   const outbox: OutboxRow[] = []
   // CF-28 / #508: limpa o BookingFrame *antes* do agradecimento. Se o outbound
@@ -374,7 +388,7 @@ function settleIdle(
       caller,
       {
         conversationId,
-        body: pickTerminarFarewell({ timezone, nowMs: clock.nowMs() }),
+        body: input.farewellBody ?? pickTerminarFarewell({ timezone, nowMs: clock.nowMs() }),
         clientRequestId: input.clientRequestId,
         authorClerkUserId: FOLLOWUP_ACTOR,
         authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
@@ -400,6 +414,7 @@ function closeIdleConversation(
     thanks: true,
     note: 'Idle: sem resposta (fecho automático)',
     clientRequestId: `followup.idle.close:${conversationId}:${clock.nowMs()}`,
+    farewellBody: IDLE_AUTO_CLOSE_BODY,
   })
   writeOperationalAudit(
     db,
