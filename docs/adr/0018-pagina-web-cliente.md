@@ -114,13 +114,18 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - botão de URL (`cta_url`) no `MetaAdapter`, no envio (`interactive.ctaUrl`) e na fila `whatsapp.send`;
 - página `/c` (C-01 só leitura e C-09), sem Clerk, em `src/client/clientweb/`.
 
-**Ainda não feito na Fase 1 (bloqueia ligar em produção):**
+**Fechado depois (17/11/2026), ainda atrás da flag:**
+
+- **Limite de pedidos** nas rotas públicas: janela fixa de 10 min no D1 (`client_web_rate_limits`, migração 0028), por hash do IP na troca (20) e por hash da sessão no estado (120); `429` com `Retry-After`. Valores **Propostos**. Se o D1 falhar, deixa passar.
+- **O URL com o token já não fica guardado:** depois do envio (resultado aceite ou falhado) o URL é trocado por `[removido]` em `outbound_messages.interactive_json` e em `outbox_events.payload_json`. Em resultado incerto mantém-se, porque o envio pode repetir-se.
+- **Clínica suspensa ou em exclusão** deixa de servir a página (`GET /api/c/state` devolve 401); não depende de revogar sessões uma a uma.
+
+**Ainda não feito (bloqueia ligar em produção):**
 
 1. **Nada emite o link ainda.** `issueClientWebLink` e o envio do botão existem, mas a oferta na conversa é a Fase 5. Em staging só se testa emitindo o link à mão.
-2. **Limites de abuso por IP e por token** (`docs/security/abuse-limits.md`) não estão ligados às rotas `/api/c/*`.
-3. **O URL com o token fica no outbox.** `outbound_messages.interactive_json` e o payload `whatsapp.send` guardam o `url` em claro até o envio (mesmo padrão do `flowToken`). Quem lê conversas (suporte, ADR-0017) poderia ler um link ainda não trocado, válido até 60 min. **Proposto:** apagar o `url` das linhas assim que o envio termina, antes de ligar em produção.
-4. **Interruptor da owner por clínica** (DEC-199, desligado por defeito) e revogação das sessões ao pausar a owner ou suspender a clínica (`revokeClientWebSessions` existe; falta ligá-la).
-5. Domínio e `/c/*` com `Cache-Control: no-store` também na casca da SPA (hoje o asset segue a configuração padrão).
+2. **Interruptor da owner por clínica** (DEC-199, desligado por defeito) e a pausa da owner (DEC-197): a pausa só importa quando houver ações que marcam (Fase 2); o interruptor precisa de configuração da clínica, que não existe.
+3. **A casca da página** (`/c/…`) ainda segue o cache normal dos ficheiros estáticos; falta `Cache-Control: no-store` e `Referrer-Policy: no-referrer` também nela.
+4. Um erro de rede ou de D1 em `/api/c/state` mostra «Não foi possível abrir a agenda»; uma clínica suspensa mostra o aviso de «link já usado», que não é exato. Texto próprio por decidir.
 
 ## 8. Em aberto
 

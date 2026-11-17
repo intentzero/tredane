@@ -5,7 +5,7 @@ import { bootAdminDb } from '../db/test-db'
 import type { WorkerBindings } from '../worker/bindings'
 import { issueClientWebLink, CLIENT_WEB_SESSION_TTL_MS, type ClientWebSession } from './links'
 import { adminDbAsD1 } from './test-d1'
-import { createClientWebRoutes, CLIENT_WEB_COOKIE } from './routes'
+import { createClientWebRoutes, CLIENT_WEB_COOKIE, loadActiveTenantName } from './routes'
 
 const ORIGIN = 'https://app.test'
 const ENV = { CLIENT_WEB_ENABLED: 'true' } as unknown as WorkerBindings
@@ -138,6 +138,40 @@ describe('rotas públicas da página web da cliente', () => {
       const cookie = sessionCookie(await post('/api/c/exchange', { token }))
       clock.advance(CLIENT_WEB_SESSION_TTL_MS + 1)
       expect((await get('/api/c/state', cookie)).status).toBe(401)
+    } finally {
+      close()
+    }
+  })
+
+  it('exchange devolve 429 com Retry-After depois de muitos pedidos do mesmo IP', async () => {
+    const { post, close } = setup()
+    try {
+      const h = { Origin: ORIGIN, 'cf-connecting-ip': '198.51.100.7' }
+      let last: Response | null = null
+      for (let i = 0; i < 21; i++) last = await post('/api/c/exchange', { token: 'cw1_naoexiste' }, h)
+      expect(last?.status).toBe(429)
+      expect(Number(last?.headers.get('retry-after'))).toBeGreaterThan(0)
+      // Outro IP não é afetado.
+      const other = await post('/api/c/exchange', { token: 'cw1_naoexiste' }, { Origin: ORIGIN, 'cf-connecting-ip': '198.51.100.8' })
+      expect(other.status).toBe(410)
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('clínica ativa (ADR-0018 §7a)', () => {
+  it('só uma clínica ativa serve a página', async () => {
+    const { db, close } = bootAdminDb()
+    try {
+      const d1 = adminDbAsD1(db)
+      const id = (db.get('SELECT id FROM tenants LIMIT 1') as { id: string }).id
+      expect(await loadActiveTenantName(d1, id)).toBeTruthy()
+      db.run("UPDATE tenants SET status = 'suspended' WHERE id = ?", id)
+      expect(await loadActiveTenantName(d1, id)).toBeNull()
+      db.run("UPDATE tenants SET status = 'pending_deletion' WHERE id = ?", id)
+      expect(await loadActiveTenantName(d1, id)).toBeNull()
+      expect(await loadActiveTenantName(d1, 'inexistente')).toBeNull()
     } finally {
       close()
     }

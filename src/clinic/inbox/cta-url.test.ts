@@ -5,7 +5,7 @@ import { ValidationError } from '../errors'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { seedSyntheticWhatsappTemplates } from './templates'
-import { sendOutboundMessageOp } from './operations'
+import { applyOutboundSendResultOp, sendOutboundMessageOp } from './operations'
 import { findOutboundByClientRequestId } from './outbound'
 import { createMetaAdapter } from '../../whatsapp/meta'
 
@@ -86,5 +86,48 @@ describe('botão de URL (cta_url) — ADR-0018', () => {
     expect(ok.outcome).toBe('succeeded')
     const bad = await meta.sendInteractiveCtaUrlMessage({ ...base, displayText: 'Abrir agenda', url: 'http://x.test' })
     expect(bad).toEqual({ outcome: 'failed', errorCode: 'meta_interactive_cta_url_invalid' })
+  })
+
+  it('depois do envio o URL (com o token) sai do outbound e do outbox', () => {
+    const { db, close, send } = setup()
+    try {
+      const caller = workerCaller('clinic-demo-a', 'system:ai-autodraft')
+      const clock = createControllableClock(Date.UTC(2026, 10, 17, 16))
+      const sent = send({ ctaUrl: { displayText: 'Abrir agenda', url: URL_OK } })
+      const ob = sent.outbox.find((o) => o.type === 'whatsapp.send')!
+      const outboxJson = () =>
+        db.get<{ payload_json: string }>('SELECT payload_json FROM outbox_events WHERE id = ?', ob.id)!.payload_json
+      const obRow = () => findOutboundByClientRequestId(db, 'clinic-demo-a', 'cta-1')
+
+      expect(outboxJson()).toContain(URL_OK)
+      expect(obRow()?.interactiveCtaUrl?.url).toBe(URL_OK)
+
+      // Resultado incerto: o envio pode ser repetido, o outbox mantém o URL.
+      applyOutboundSendResultOp(
+        db,
+        caller,
+        { outboundId: obRow()!.id, outboxEventId: ob.id, idempotencyKey: ob.idempotencyKey, outcome: 'uncertain', errorCode: 'meta_adapter_error' },
+        clock,
+      )
+      expect(outboxJson()).toContain(URL_OK)
+
+      applyOutboundSendResultOp(
+        db,
+        caller,
+        { outboundId: obRow()!.id, outboxEventId: ob.id, idempotencyKey: ob.idempotencyKey, outcome: 'succeeded', providerMessageId: 'wamid.X' },
+        clock,
+      )
+      expect(outboxJson()).not.toContain(URL_OK)
+      expect(outboxJson()).toContain('[removido]')
+      expect(obRow()?.interactiveCtaUrl).toEqual({ displayText: 'Abrir agenda', url: '[removido]' })
+      const dump = JSON.stringify([
+        db.all('SELECT * FROM outbound_messages'),
+        db.all('SELECT * FROM outbox_events'),
+        db.all('SELECT * FROM messages'),
+      ])
+      expect(dump).not.toContain('cw1_exemplo')
+    } finally {
+      close()
+    }
   })
 })

@@ -15,6 +15,13 @@ import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import {
+  CLIENT_WEB_EXCHANGE_LIMIT,
+  CLIENT_WEB_STATE_LIMIT,
+  hitRateLimit,
+  pruneRateLimits,
+  rateBucket,
+} from './rate-limit'
+import {
   exchangeClientWebLink,
   getClientWebSession,
   CLIENT_WEB_SESSION_TTL_MS,
@@ -54,16 +61,26 @@ export function isClientWebEnabled(env: WorkerBindings | undefined): boolean {
   return env?.CLIENT_WEB_ENABLED === 'true'
 }
 
+/**
+ * Nome da clínica, só se estiver ativa. Clínica suspensa ou em exclusão não serve a página:
+ * a sessão deixa de valer na prática (ADR-0018 §7a), sem depender de revogar uma a uma.
+ */
+export async function loadActiveTenantName(db: D1Database, tenantId: string): Promise<string | null> {
+  const tenant = await db
+    .prepare('SELECT name, status FROM tenants WHERE id = ?')
+    .bind(tenantId)
+    .first<{ name: string; status: string | null }>()
+  if (!tenant || (tenant.status ?? 'active') !== 'active') return null
+  return tenant.name
+}
+
 async function defaultStateLookup(
   env: WorkerBindings,
   db: D1Database,
   session: ClientWebSession,
 ): Promise<Omit<ClientWebState, 'sessionExpiresAt'> | null> {
-  const tenant = await db
-    .prepare('SELECT name FROM tenants WHERE id = ?')
-    .bind(session.tenantId)
-    .first<{ name: string }>()
-  if (!tenant) return null
+  const tenantName = await loadActiveTenantName(db, session.tenantId)
+  if (!tenantName) return null
   const stub = env.CLINIC.get(env.CLINIC.idFromName(clinicDurableObjectName(session.tenantId)))
   const data = await stub.clientWebState({
     tenantId: session.tenantId,
@@ -71,7 +88,7 @@ async function defaultStateLookup(
     conversationId: session.conversationId,
   })
   if (!data) return null
-  return { clinicName: tenant.name, ...data }
+  return { clinicName: tenantName, ...data }
 }
 
 function sameOrigin(c: Context<AppEnv>): boolean {
@@ -104,6 +121,19 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
   })
 
   app.post('/api/c/exchange', async (c) => {
+    const db = dbOf(c.env)
+    const ip = c.req.header('cf-connecting-ip') ?? 'desconhecido'
+    const limited = await hitRateLimit(db, clock(), {
+      bucket: await rateBucket('exchange:ip', ip),
+      limit: CLIENT_WEB_EXCHANGE_LIMIT,
+    })
+    if (!limited.allowed) {
+      c.header('Retry-After', String(limited.retryAfterSec))
+      log({ level: 'warn', event: 'client_web.rate_limited', detail: { route: 'exchange' } })
+      return c.json({ error: 'rate_limited' }, 429)
+    }
+    // Limpeza oportunista (1 em 50 trocas).
+    if (Math.random() < 0.02) void pruneRateLimits(db, clock())
     let token = ''
     try {
       const body = (await c.req.json()) as { token?: unknown }
@@ -111,7 +141,7 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     } catch {
       /* corpo inválido: tratado como link indisponível */
     }
-    const result = await exchangeClientWebLink(dbOf(c.env), clock(), token)
+    const result = await exchangeClientWebLink(db, clock(), token)
     if (!result) {
       // Mesma resposta para inexistente, usado, expirado ou substituído (sem enumeração).
       log({ level: 'info', event: 'client_web.exchange_refused', detail: {} })
@@ -131,6 +161,16 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
   app.get('/api/c/state', async (c) => {
     const sessionToken = getCookie(c, CLIENT_WEB_COOKIE) ?? ''
     const db = dbOf(c.env)
+    const ip = c.req.header('cf-connecting-ip') ?? 'desconhecido'
+    const limited = await hitRateLimit(db, clock(), {
+      bucket: await rateBucket(sessionToken ? 'state:sessao' : 'state:ip', sessionToken || ip),
+      limit: CLIENT_WEB_STATE_LIMIT,
+    })
+    if (!limited.allowed) {
+      c.header('Retry-After', String(limited.retryAfterSec))
+      log({ level: 'warn', event: 'client_web.rate_limited', detail: { route: 'state' } })
+      return c.json({ error: 'rate_limited' }, 429)
+    }
     const session = await getClientWebSession(db, clock(), sessionToken)
     if (!session) {
       deleteCookie(c, CLIENT_WEB_COOKIE, { path: '/api/c' })

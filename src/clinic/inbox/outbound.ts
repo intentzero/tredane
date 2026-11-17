@@ -184,6 +184,29 @@ function parseInteractiveCtaUrl(raw: string | null): OutboundInteractiveCtaUrl |
   }
 }
 
+/** Marca que fica no lugar do URL depois do envio (o token do link não deve ficar guardado). */
+export const CTA_URL_REMOVED = '[removido]'
+
+/**
+ * Apaga o URL (com o token do link) de uma mensagem com botão de URL assim que o envio
+ * deixa de poder ser repetido (ADR-0018 §7a). Mantém o texto do botão. Idempotente.
+ */
+export function scrubCtaUrlFromOutbound(db: ClinicDb, tenantId: string, outboundId: string): void {
+  const row = db.get<{ interactive_json: string | null }>(
+    `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    outboundId,
+  )
+  const cta = parseInteractiveCtaUrl(row?.interactive_json ?? null)
+  if (!cta || cta.url === CTA_URL_REMOVED) return
+  db.run(
+    `UPDATE outbound_messages SET interactive_json = ? WHERE tenant_id = ? AND id = ?`,
+    JSON.stringify({ ctaUrl: { displayText: cta.displayText, url: CTA_URL_REMOVED } }),
+    tenantId,
+    outboundId,
+  )
+}
+
 function mapOutbound(row: ObSql): OutboundMessageRow {
   let templateParams: Record<string, string> | null = null
   if (row.template_params_json) {
@@ -479,6 +502,8 @@ export function applyOutboundDeliveryUpdate(
     input.tenantId,
     current.messageId,
   )
+
+  if (input.nextState !== 'pending') scrubCtaUrlFromOutbound(db, input.tenantId, input.outboundId)
 
   const outbound = findOutboundByMessageId(db, input.tenantId, current.messageId)!
   const msg = db.get<{
