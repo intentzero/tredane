@@ -46,6 +46,7 @@ Código: `src/ops/secrets.ts` · `npm run ops:secrets` · API superadmin `/api/f
 | `PIX_TOKEN_SECRET` | secret | obrigatório para sandbox/live | GATE-08 |
 | `AI_GATEWAY_TOKEN` / `ANTHROPIC_API_KEY` | secret | se `AI_MODE=gateway` | GATE-06 |
 | `AI_INTERPRETER_SHADOW` | var | opcional; `on` liga a sombra do interpretador LLM (uma chamada extra por turno de texto livre, só mede; omisso = desligada) | [hipótese](../architecture/hipotese-compreensao-llm-primeiro.md) |
+| `AI_INTERPRETER_FALLBACK_SERVICE` / `_LINE` / `_PERIOD` | var | opcional; ligam o extrator como fallback por campo quando o léxico deixou vazio (defaults: service on, line/period off) | sombra 72h / DL D-20261117-082000-CUR |
 | `VAPID_PRIVATE_KEY` | secret | se push live | — |
 | `ATTACHMENT_TOKEN_SECRET` | secret | obrigatório | — |
 

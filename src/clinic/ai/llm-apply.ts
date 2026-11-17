@@ -40,6 +40,11 @@ import {
   frameVersionOf,
 } from './llm-snapshot'
 import {
+  DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  logInterpreterFallbackApplied,
+  type InterpreterFallbackFlags,
+} from './interpreter-fallback'
+import {
   COVERAGE_THRESHOLD,
   type ExtractorRaw,
   validateExtractorOutput,
@@ -94,6 +99,7 @@ function applyExtractSlots(
   snapshot: ExtractSnapshot,
   raw: ExtractorRaw | null,
   clock: Clock,
+  fallbackFlags: InterpreterFallbackFlags = DEFAULT_INTERPRETER_FALLBACK_FLAGS,
 ): { applied: boolean; interpretation: TurnInterpretation; discarded: string[] } {
   const services = listServices(db, tenantId)
   const professionals = snapshot.catalog.professionals
@@ -113,7 +119,23 @@ function applyExtractSlots(
     professionals,
     pending: snapshot.pending,
     base: snapshot.base,
+    fallbackFlags,
   })
+  if (validated.fallbackApplied.length > 0) {
+    logInterpreterFallbackApplied({
+      level: 'info',
+      event: 'ai.interpreter_fallback_applied',
+      tenantId,
+      conversationId: snapshot.conversationId,
+      messageId: snapshot.messageId,
+      fields: validated.fallbackApplied,
+      ...(validated.slots.serviceId?.fonte === 'llm'
+        ? { serviceId: validated.slots.serviceId.value }
+        : {}),
+      ...(validated.slots.line?.fonte === 'llm' ? { line: validated.slots.line.value } : {}),
+      ...(validated.slots.period?.fonte === 'llm' ? { period: validated.slots.period.value } : {}),
+    })
+  }
   const coverage = Math.max(
     snapshot.base.coverage,
     validated.discarded.includes('parse') ? 0 : 0.7,
@@ -243,7 +265,14 @@ export function applyLlmResultOp(
       }
     }
     recordModelCallTowardDailyCap(db, tenantId, clock)
-    applyExtractSlots(db, tenantId, snapshot, result.raw, clock)
+    applyExtractSlots(
+      db,
+      tenantId,
+      snapshot,
+      result.raw,
+      clock,
+      deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+    )
     markLlmJobDone(db, tenantId, { jobId: job.id, result }, clock)
     // Reabre autodraft para booking + eventual redact (extrator já done).
     const now = clock.nowMs()

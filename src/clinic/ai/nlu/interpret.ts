@@ -407,3 +407,48 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
 
   return { acts, slots, coverage, needsExtractor }
 }
+
+export type InterpreterFallbackField = 'service' | 'line' | 'period'
+
+const FALLBACK_BOOK =
+  /\b(quero|queria|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|fazer|preciso)\b/i
+
+/** Lacunas que o extrator LLM pode preencher (fallback sombra 72h). */
+export function interpreterFallbackGaps(input: {
+  acts: TurnAct[]
+  slots: TurnSlots
+  turnText: string
+}): InterpreterFallbackField[] {
+  const faqActsOnly =
+    input.acts.length > 0 &&
+    !input.acts.includes('marcar') &&
+    input.acts.every((a) =>
+      a === 'informar_horario_funcionamento' ||
+      a === 'informar_local' ||
+      a === 'informar_preco' ||
+      a === 'explicar',
+    )
+  if (faqActsOnly) return []
+
+  const bookingSignal =
+    input.acts.includes('marcar') ||
+    FALLBACK_BOOK.test(input.turnText) ||
+    input.slots.date != null ||
+    input.slots.time != null ||
+    input.slots.period != null ||
+    input.slots.dateLiteral != null
+
+  const gaps: InterpreterFallbackField[] = []
+  if (!input.slots.serviceId && bookingSignal) gaps.push('service')
+  if (!input.slots.line && bookingSignal && (input.slots.serviceId != null || input.acts.includes('marcar'))) {
+    gaps.push('line')
+  }
+  if (
+    !input.slots.period &&
+    bookingSignal &&
+    (input.slots.date != null || input.slots.time != null || input.slots.dateLiteral != null)
+  ) {
+    gaps.push('period')
+  }
+  return gaps
+}

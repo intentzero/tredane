@@ -112,6 +112,10 @@ export type WorkerBindings = {
    * extrator por turno de texto livre, só para medir. Omisso = desligada.
    */
   AI_INTERPRETER_SHADOW?: string
+  /** Fallback do interpretador: `on`/`off` por campo (service default on; line/period default off). */
+  AI_INTERPRETER_FALLBACK_SERVICE?: string
+  AI_INTERPRETER_FALLBACK_LINE?: string
+  AI_INTERPRETER_FALLBACK_PERIOD?: string
   /** S7 (#178): «on» liga os limites de abuso (padrão desligado). Valores: ABUSE_LIMIT_* (Proposto). */
   ABUSE_LIMITS?: string
   CF_ACCOUNT_ID?: string

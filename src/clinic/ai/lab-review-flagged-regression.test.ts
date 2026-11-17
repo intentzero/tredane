@@ -27,6 +27,7 @@ import {
 import { turnLooksLikeDayOrTimeAsk } from './turn-friction'
 import { loadTurnContext } from './turn-context'
 import { notBeforeTimeFromText } from './nlu/temporal'
+import { periodModelEvidence } from './interpreter-fallback'
 import { offerNearestSlots } from './slot-offer'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { buildSlotChoiceInteractive, toSendInteractive } from './choice-offer'
@@ -581,6 +582,11 @@ describe('R31–R36 — regressões #868 / #869 (cnv_b8df6c5, sintético)', () =
     } finally {
       s.close()
     }
+  })
+
+  it('R47: «depois das 11» não vira período de fallback (R27 invariável)', () => {
+    expect(periodModelEvidence('Depois das 11?', 'manha')).toBe(false)
+    expect(notBeforeTimeFromText('Depois das 11?')).toBe('11:00')
   })
 
   it('R36: lista de horários «Falar com a equipe» numa só secção (#868/#869)', () => {

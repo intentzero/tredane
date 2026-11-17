@@ -29,6 +29,15 @@ import {
 import { norm, parseTemporal, parseTimes } from './nlu/temporal'
 import { textCitesNameOrSynonym } from '../config/synonyms'
 import { lexiconVariantsCoherent } from './lexicon-variants-gate'
+import {
+  DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  enforceInterpreterFallbackPolicy,
+  logInterpreterFallbackApplied,
+  periodModelEvidence,
+  shouldRunFallbackExtractor,
+  type InterpreterFallbackAppliedEvent,
+  type InterpreterFallbackFlags,
+} from './interpreter-fallback'
 import { applyBookingUpdate } from './apply-booking-update'
 import {
   getBookingFrame,
@@ -119,8 +128,9 @@ export function validateExtractorOutput(
     professionals: Array<{ id: string; name: string }>
     pending: BookingFramePending | null
     base: TurnInterpretation
+    fallbackFlags?: InterpreterFallbackFlags
   },
-): { slots: TurnSlots; acts: TurnAct[]; discarded: string[] } {
+): { slots: TurnSlots; acts: TurnAct[]; discarded: string[]; fallbackApplied: InterpreterFallbackAppliedEvent['fields'] } {
   const discarded: string[] = []
   const slots: TurnSlots = { ...opts.base.slots }
   const variantById = new Map<string, { serviceId: string; name: string; synonyms: string[] }>()
@@ -258,7 +268,7 @@ export function validateExtractorOutput(
   }
 
   if (raw.period === 'manha' || raw.period === 'tarde' || raw.period === 'noite') {
-    if (new RegExp(`\\b${raw.period}\\b`).test(folded)) {
+    if (periodModelEvidence(opts.turnText, raw.period)) {
       slots.period = fieldLlm(raw.period, opts.messageId, raw.period)
     } else discarded.push('period')
   } else if (raw.period != null) {
@@ -294,10 +304,18 @@ export function validateExtractorOutput(
     }
   }
 
+  const fallbackApplied = enforceInterpreterFallbackPolicy(
+    slots,
+    opts.base.slots,
+    discarded,
+    opts.fallbackFlags ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS,
+  )
+
   return {
     slots,
     acts: acts.length > 0 ? acts : opts.base.acts,
     discarded,
+    fallbackApplied,
   }
 }
 
@@ -380,7 +398,8 @@ export async function runRestrictedExtractor(
     professionals: proList,
   })
 
-  if (!base.needsExtractor) {
+  const fallbackFlags = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS
+  if (!shouldRunFallbackExtractor(base, turn.turnText, fallbackFlags)) {
     return {
       interpretation: base,
       applied: false,
@@ -434,7 +453,24 @@ export async function runRestrictedExtractor(
     professionals: proList,
     pending: frame?.pending ?? null,
     base,
+    fallbackFlags,
   })
+
+  if (validated.fallbackApplied.length > 0) {
+    logInterpreterFallbackApplied({
+      level: 'info',
+      event: 'ai.interpreter_fallback_applied',
+      tenantId,
+      conversationId: turn.conversationId,
+      messageId: turn.messageId,
+      fields: validated.fallbackApplied,
+      ...(validated.slots.serviceId?.fonte === 'llm'
+        ? { serviceId: validated.slots.serviceId.value }
+        : {}),
+      ...(validated.slots.line?.fonte === 'llm' ? { line: validated.slots.line.value } : {}),
+      ...(validated.slots.period?.fonte === 'llm' ? { period: validated.slots.period.value } : {}),
+    })
+  }
 
   const coverage = Math.max(base.coverage, validated.discarded.includes('parse') ? 0 : 0.7)
   const interpretation: TurnInterpretation = {

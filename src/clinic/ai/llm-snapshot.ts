@@ -12,6 +12,7 @@ import {
   catalogNamesFromServices,
   type ExtractorRaw,
 } from './llm-extractor'
+import { DEFAULT_INTERPRETER_FALLBACK_FLAGS, shouldRunFallbackExtractor } from './interpreter-fallback'
 import { interpretTurn, type TurnInterpretation } from './nlu/interpret'
 import { getBookingFrame, type BookingFramePending } from './schedule-session'
 import type { AiAssistDeps } from './types'
@@ -75,6 +76,7 @@ export function buildExtractSnapshot(
   tenantId: string,
   turn: TurnContext,
   clock: Clock,
+  deps: AiAssistDeps,
 ): ExtractSnapshot | null {
   const settings = turn.settings ?? ensureClinicSettings(db, tenantId, clock)
   const today = clinicCivilDateFromUtc(settings.timezone || 'America/Sao_Paulo', clock.nowMs())
@@ -90,7 +92,8 @@ export function buildExtractSnapshot(
     pending: frame?.pending ?? null,
     professionals: proList,
   })
-  if (!base.needsExtractor) return null
+  const flags = deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK_FLAGS
+  if (!shouldRunFallbackExtractor(base, turn.turnText, flags)) return null
   return {
     purpose: 'extract',
     conversationId: turn.conversationId,
