@@ -233,7 +233,7 @@ export const AI_TRANSPARENCY_TEXT =
   'Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'
 
 /** Origem do evento `conversation.ai_pause` — ganchos para alertas do painel (DEC-156). */
-export type AiPauseEventSource = 'handoff' | 'timeout_resume' | 'manual_resume'
+export type AiPauseEventSource = 'handoff' | 'timeout_resume' | 'manual_resume' | 'staff_takeover'
 
 /** Minuto civil no fuso da clínica (0–1439). */
 function clinicMinuteOfDay(tz: string, nowMs: number): number {
@@ -504,6 +504,7 @@ export function inboundWarrantsHandoffResume(
 ): boolean {
   const body = text.trim()
   if (!body) return false
+  if (reason === 'staff_active') return false
   if (reason === 'customer_requested' || reason === 'human_only') return false
   if (reason !== 'off_purpose') return false
   return BOOKING_PROGRESS_WHILE_PAUSED_RE.test(body)
@@ -525,6 +526,7 @@ export function inboundWarrantsParallelHandoffAutomation(
 ): boolean {
   const body = text.trim()
   if (!body) return false
+  if (reason === 'staff_active') return false
   if (wantsHumanOnlyEscalation(body)) return false
   if (opts.fromInteractive) return true
   const frameProgress = hasBookingFrameProgress(opts.db, opts.tenantId, opts.conversationId)
@@ -579,6 +581,7 @@ export function parallelHandoffAllowsAutomation(
 
 /** Evita silêncio após handoff quando a cliente escreve de novo. */
 export function shouldAcknowledgeWhileHandoffPaused(reason: AiReplyPauseReason): boolean {
+  if (reason === 'staff_active') return false
   return reason === 'off_purpose' || reason === 'customer_requested'
 }
 
@@ -767,6 +770,8 @@ export type AiReplyPauseReason =
   | 'payment_proof'
   /** Segunda mídia após pedido de texto (DEC-119 / #475). */
   | 'media_after_ask'
+  /** Equipe humana assumiu / enviou — a IA não responde à cliente até Devolver à IA. */
+  | 'staff_active'
 
 function weekdayOf(date: string): number {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
@@ -841,6 +846,41 @@ export function readAiReplyPause(
   )
   if (!row?.at) return null
   return { at: row.at, reason: row.reason ?? 'off_purpose' }
+}
+
+/**
+ * Congela respostas automáticas da IA enquanto um humano é responsável (Assumir / envio manual).
+ * Não envia WhatsApp; cancela jobs de autodraft pendentes.
+ */
+export function pauseAiForStaffTakeover(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+): OutboxRow[] {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE conversations
+     SET ai_reply_paused_at = ?, ai_reply_pause_reason = ?,
+         ai_handoff_timeout_at = NULL, updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    now,
+    'staff_active',
+    now,
+    tenantId,
+    conversationId,
+  )
+  db.run(
+    `DELETE FROM ai_autodraft_jobs WHERE tenant_id = ? AND conversation_id = ?`,
+    tenantId,
+    conversationId,
+  )
+  return [
+    pauseEvent(db, tenantId, conversationId, true, clock, {
+      source: 'staff_takeover',
+      handoffTimeoutAt: null,
+    }),
+  ]
 }
 
 export function resumeAiReply(

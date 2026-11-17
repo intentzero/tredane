@@ -1,5 +1,5 @@
 /**
- * Terminar: cancela idle + timeout de handoff e a IA assume (mesmo após Assumir).
+ * Terminar: cancela idle + timeout de handoff; a IA assume só sem humano no cartão.
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
@@ -111,7 +111,7 @@ describe('suppressFollowupsAfterClientEnd', () => {
     }
   })
 
-  it('após Assumir, Terminar religa a IA (revê DEC-083 só neste caminho)', () => {
+  it('após Assumir, Terminar mantém o humano e a pausa staff_active', () => {
     const s = seed()
     try {
       notifyHumanHandoff(
@@ -151,14 +151,14 @@ describe('suppressFollowupsAfterClientEnd', () => {
         s.conversationId,
         s.clock,
       )
-      expect(readAiReplyPause(s.db, 'clinic-demo-a', s.conversationId)).toBeNull()
+      expect(readAiReplyPause(s.db, 'clinic-demo-a', s.conversationId)?.reason).toBe('staff_active')
       expect(readHandoffTimeoutAt(s.db, 'clinic-demo-a', s.conversationId)).toBeNull()
       expect(
         s.db.get<{ a: string | null }>(
           `SELECT assignee_clerk_user_id AS a FROM conversations WHERE id = ?`,
           s.conversationId,
         )?.a,
-      ).toBe(AI)
+      ).toBe('user_synth_attendant_a')
     } finally {
       s.close()
     }

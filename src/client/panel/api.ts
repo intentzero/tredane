@@ -2776,7 +2776,7 @@ export type DeleteContactResponse = {
 
 export type InboxAssignResponse = {
   conversation: InboxConversation
-  systemMessage: InboxMessage
+  systemMessage: InboxMessage | null
   versionMatched?: boolean
 }
 

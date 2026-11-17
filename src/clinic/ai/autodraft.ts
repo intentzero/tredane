@@ -27,6 +27,7 @@ import { pickTerminarFarewell } from '../followup/terminar-farewell'
 import { suppressFollowupsAfterClientEnd } from '../followup/suppress-after-end'
 import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
+import { isHumanStaffAuthor } from '../inbox/human-prefix'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { toSendInteractive } from './choice-offer'
 import {
@@ -660,6 +661,10 @@ export async function runDueAutoDrafts(
     }
     const conv = getConversation(db, tenantId, job.conversationId)
     if (!conv || conv.status === 'closed') { skip('conversation_closed'); continue }
+    if (conv.assigneeClerkUserId && isHumanStaffAuthor(conv.assigneeClerkUserId)) {
+      skip('human_assignee')
+      continue
+    }
     const inboundBody =
       db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND id = ?`,

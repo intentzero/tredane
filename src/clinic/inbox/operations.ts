@@ -40,9 +40,15 @@ import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from 
 import { rescheduleConversationIdle } from '../followup/idle-state'
 import {
   applyHumanOutboundPrefix,
+  isHumanStaffAuthor,
+  isRoleOnlyDisplayName,
   shouldPrefixHumanOutbound,
 } from './human-prefix'
-import { augmentOutboundWithHumanTeam } from '../ai/human-handoff'
+import {
+  augmentOutboundWithHumanTeam,
+  pauseAiForStaffTakeover,
+} from '../ai/human-handoff'
+import { AI_ACTOR_NAME, isAiActorId } from '../ai-actor'
 import {
   applyOutboundDeliveryUpdate,
   findOutboundByClientRequestId,
@@ -364,6 +370,16 @@ export function getContactDetailOp(
   return { contact, conversations, hasPendingPix, appointments }
 }
 
+function timelinePartyLabel(
+  clerkUserId: string | null,
+  displayName: string | null,
+): string {
+  if (isAiActorId(clerkUserId)) return AI_ACTOR_NAME
+  const name = (displayName ?? '').trim()
+  if (name && !isRoleOnlyDisplayName(name)) return name
+  return 'membro'
+}
+
 /**
  * Assumir / transferir responsável.
  * Atribuição é campo separado do status (states.md).
@@ -376,7 +392,7 @@ export function assignConversationOp(
   clock: Clock,
 ): InboxMutationResult<{
   conversation: ConversationListItem
-  systemMessage: MessageRow
+  systemMessage: MessageRow | null
   versionMatched: boolean
 }> {
   assertClinicSchemaReady(db)
@@ -389,6 +405,24 @@ export function assignConversationOp(
     const versionMatched =
       input.expectedAssignmentVersion == null ||
       input.expectedAssignmentVersion === before.assignmentVersion
+
+    if (input.assigneeClerkUserId === before.assigneeClerkUserId) {
+      const pauseOutbox =
+        input.assigneeClerkUserId && isHumanStaffAuthor(input.assigneeClerkUserId)
+          ? pauseAiForStaffTakeover(db, meta.tenantId, input.conversationId, clock)
+          : []
+      const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
+      return {
+        value: { conversation: item, systemMessage: null, versionMatched },
+        outbox: pauseOutbox,
+      }
+    }
+
+    const actorLabel = timelinePartyLabel(input.actorClerkUserId, input.actorDisplayName)
+    const assigneeLabel = timelinePartyLabel(
+      input.assigneeClerkUserId,
+      input.assigneeDisplayName,
+    )
 
     const now = clock.nowMs()
     const updated = setConversationAssignee(db, {
@@ -408,16 +442,16 @@ export function assignConversationOp(
 
     let systemBody: string
     if (!input.assigneeClerkUserId) {
-      systemBody = `${input.actorDisplayName} removeu o responsável`
+      systemBody = `${actorLabel} removeu o responsável`
     } else if (
       before.assigneeClerkUserId &&
       before.assigneeClerkUserId !== input.assigneeClerkUserId
     ) {
-      systemBody = `${input.actorDisplayName} transferiu para ${input.assigneeDisplayName ?? 'membro'}`
+      systemBody = `${actorLabel} transferiu para ${assigneeLabel}`
     } else if (input.assigneeClerkUserId === input.actorClerkUserId) {
-      systemBody = `${input.actorDisplayName} assumiu a conversa`
+      systemBody = `${actorLabel} assumiu a conversa`
     } else {
-      systemBody = `${input.actorDisplayName} atribuiu a ${input.assigneeDisplayName ?? 'membro'}`
+      systemBody = `${actorLabel} atribuiu a ${assigneeLabel}`
     }
 
     const systemMessage = insertMessage(
@@ -511,6 +545,11 @@ export function assignConversationOp(
     )
 
     // DEC-062: assumir a conversa tira a oportunidade de «Novo contato» (transferir não altera).
+    const staffPauseOutbox =
+      input.assigneeClerkUserId && isHumanStaffAuthor(input.assigneeClerkUserId)
+        ? pauseAiForStaffTakeover(db, meta.tenantId, input.conversationId, clock)
+        : []
+
     const stageOutbox =
       input.assigneeClerkUserId && input.assigneeClerkUserId === input.actorClerkUserId
         ? advanceToInServiceIfNew(
@@ -528,9 +567,10 @@ export function assignConversationOp(
         : null
 
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
+    const base = stageOutbox ? [outbox, stageOutbox] : [outbox]
     return {
       value: { conversation: item, systemMessage, versionMatched },
-      outbox: stageOutbox ? [outbox, stageOutbox] : [outbox],
+      outbox: [...base, ...staffPauseOutbox],
     }
   })
 }
@@ -1342,6 +1382,9 @@ export function sendOutboundMessageOp(
       meta.tenantId,
       input.clientRequestId,
     )!
+    const staffPauseOutbox = isHumanStaffAuthor(input.authorClerkUserId)
+      ? pauseAiForStaffTakeover(db, meta.tenantId, input.conversationId, clock)
+      : []
     const baseOutbox = stageOutbox
       ? [createdOutbox, sendOutbox, stageOutbox]
       : [createdOutbox, sendOutbox]
@@ -1352,7 +1395,7 @@ export function sendOutboundMessageOp(
         outbound: outboundFresh,
         duplicate: false,
       },
-      outbox: [...baseOutbox, ...frameOutbox],
+      outbox: [...baseOutbox, ...frameOutbox, ...staffPauseOutbox],
     }
   })
 }
