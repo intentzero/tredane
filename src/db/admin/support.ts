@@ -42,7 +42,7 @@ export type SupportSessionRow = {
   endedAt: number | null
 }
 
-function mapRequest(row: {
+export function mapRequest(row: {
   id: string
   tenant_id: string
   actor_clerk_user_id: string
@@ -70,7 +70,7 @@ function mapRequest(row: {
   }
 }
 
-function mapSession(row: {
+export function mapSession(row: {
   id: string
   support_access_request_id: string
   approved_by_owner_clerk_user_id: string

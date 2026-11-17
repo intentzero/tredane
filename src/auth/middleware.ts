@@ -7,7 +7,16 @@ import {
   resolveTenantContext,
   type AuthServices,
 } from './authorize'
-import { isAuthError } from './errors'
+import { AuthError, isAuthError } from './errors'
+import { systemClock } from '../db/clock'
+import { supportSessionsEnabled } from '../support/flag'
+import { buildSupportClearCookie, parseSupportCookie } from '../support/cookie'
+import {
+  matchSupportReadRoute,
+  recordSupportAccess,
+  redactPhones,
+  resolveSupportTenantContext,
+} from '../support/overlay'
 import type { HumanPrincipal, TenantContext } from './types'
 
 export type AuthEnv = {
@@ -25,6 +34,8 @@ export type AuthEnv = {
     /** `synthetic` só em development/test; staging/prod devem usar `clerk`. */
     AUTH_MODE?: string
     ENVIRONMENT?: string
+    /** ADR-0017 §7: ligar as sessões de suporte em produção (`"true"`). */
+    SUPPORT_SESSIONS_ENABLED?: string
   }
 }
 
@@ -85,6 +96,49 @@ export function requireTenantAccess(opts: {
         return c.json({ error: 'tenant_required' }, 400)
       }
       const claimed = c.req.header(claimedHeader)
+
+      // Sessão de suporte (ADR-0017): só se o interruptor estiver ligado e o pedido trouxer o cookie.
+      const supportToken = supportSessionsEnabled(c.env)
+        ? parseSupportCookie(c.req.header('Cookie') ?? null)
+        : null
+      if (supportToken) {
+        const clock = services.clock ?? systemClock
+        const secure = c.env?.ENVIRONMENT !== 'development'
+        let resolved: Awaited<ReturnType<typeof resolveSupportTenantContext>>
+        try {
+          resolved = await resolveSupportTenantContext(services, principal, tenantId, supportToken, clock)
+        } catch (err) {
+          // Cookie inválido, expirado ou de outra clínica: recusa e limpa-o, para não bloquear o resto da navegação.
+          c.header('Set-Cookie', buildSupportClearCookie({ secure }))
+          throw err
+        }
+        const method = c.req.method
+        const pathname = new URL(c.req.url).pathname
+        const route = matchSupportReadRoute(method, pathname)
+        const nowMs = clock.nowMs()
+        if (!route) {
+          // Deny-by-default: só `GET` às rotas da lista. Tentativas ficam auditadas, agregadas por minuto.
+          const key = pathname.replace(/^\/api\/tenants\/[^/]+\/?/, '').split('/').slice(0, 2).join('/') || 'root'
+          await recordSupportAccess(services.adminDb, { session: resolved.session, route: key, method, outcome: 'denied', nowMs })
+          return c.json({ error: method === 'GET' || method === 'HEAD' ? 'support_route_blocked' : 'support_write_blocked' }, 403)
+        }
+        if (claimed != null && claimed !== '' && claimed !== resolved.ctx.role) {
+          throw new AuthError('forged_role_rejected', 'Role forjada rejeitada', 403)
+        }
+        c.set('tenantContext', resolved.ctx)
+        await recordSupportAccess(services.adminDb, { session: resolved.session, route, method, outcome: 'success', nowMs })
+        await next()
+        // O suporte nunca vê o telefone inteiro de uma cliente (Q-SUP-01).
+        const res = c.res
+        if (res.headers.get('content-type')?.includes('application/json')) {
+          const body = (await res.clone().json()) as unknown
+          const headers = new Headers(res.headers)
+          headers.delete('content-length')
+          c.res = new Response(JSON.stringify(redactPhones(body)), { status: res.status, headers })
+        }
+        return
+      }
+
       const ctx = await resolveTenantContext(services, principal, tenantId, claimed)
       c.set('tenantContext', ctx)
       await next()

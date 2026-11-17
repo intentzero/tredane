@@ -27,6 +27,13 @@ export type TenantContext = {
   role: MembershipRole
   tenantName: string
   tenantStatus: 'active'
+  /** Presente só em sessão de suporte (ADR-0017): leitura, tenant fixo, papel do subject. */
+  support?: {
+    sessionId: string
+    actorClerkUserId: string
+    subjectClerkUserId: string
+    expiresAt: number
+  }
 }
 
 /**
