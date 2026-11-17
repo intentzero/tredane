@@ -5,14 +5,11 @@ import { AdminLoadError, AdminLoading, PageHeader } from '../AdminUi'
 import { SUPPORT_OPEN, formatSpan, personLabel } from '../format'
 import { useAdminApi } from '../useAdminApi'
 import { RequestSupportDialog } from './RequestSupportDialog'
+import { SupportActions } from './SupportActions'
 import { SupportTable } from './SupportTable'
 import { useSupport } from './useSupport'
 
 type Filter = 'all' | 'open' | 'closed'
-
-/** Nota sobre o que ainda não existe: sem botões que prometem o que o servidor não faz em produção. */
-export const SUPPORT_SCOPE_NOTE =
-  'Esta página mostra os pedidos e sessões. Ativar, entrar e encerrar uma sessão ainda não estão disponíveis na Platform Admin.'
 
 /** PA-05 — pedidos e sessões de suporte de todas as clínicas (DEC-029 a DEC-037). */
 export function SuporteGlobal() {
@@ -65,6 +62,13 @@ export function SuporteGlobal() {
             {i.remainingMs !== null ? `Restam ${formatSpan(i.remainingMs)} de 30 minutos` : ''}. A sessão não se prolonga:
             para continuar depois, faça um novo pedido.
           </span>
+          <SupportActions
+            item={i}
+            onChanged={(message) => {
+              setNotice(message)
+              reload()
+            }}
+          />
         </section>
       ))}
       {items.length === 0 ? (
@@ -92,11 +96,17 @@ export function SuporteGlobal() {
           {visible.length === 0 ? (
             <EmptyState title="Nenhum pedido neste filtro" description="Mude o filtro para ver os outros." />
           ) : (
-            <SupportTable items={visible} showClinic />
+            <SupportTable
+              items={visible}
+              showClinic
+              onChanged={(message) => {
+                setNotice(message)
+                reload()
+              }}
+            />
           )}
         </>
       )}
-      <span className="admin-muted">{SUPPORT_SCOPE_NOTE}</span>
       <RequestSupportDialog
         open={dialog}
         clinics={clinics}
