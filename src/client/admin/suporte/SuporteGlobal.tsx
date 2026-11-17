@@ -5,6 +5,7 @@ import { AdminLoadError, AdminLoading, PageHeader } from '../AdminUi'
 import { SUPPORT_OPEN, formatSpan, personLabel } from '../format'
 import { useAdminApi } from '../useAdminApi'
 import { RequestSupportDialog } from './RequestSupportDialog'
+import { SupportActions } from './SupportActions'
 import { SupportTable } from './SupportTable'
 import { useSupport } from './useSupport'
 
@@ -61,6 +62,13 @@ export function SuporteGlobal() {
             {i.remainingMs !== null ? `Restam ${formatSpan(i.remainingMs)} de 30 minutos` : ''}. A sessão não se prolonga:
             para continuar depois, faça um novo pedido.
           </span>
+          <SupportActions
+            item={i}
+            onChanged={(message) => {
+              setNotice(message)
+              reload()
+            }}
+          />
         </section>
       ))}
       {items.length === 0 ? (

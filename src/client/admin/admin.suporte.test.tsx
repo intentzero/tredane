@@ -94,7 +94,24 @@ function mount(items: SupportItem[], owners: Record<string, number> = { aurora: 
           server.failAction = null
           return j({ error: f.error }, f.status)
         }
-        if (url.endsWith('/activate')) return j({ session: { id: 's_new' }, handoffCode: 'hand_off_code', accessGranted: false }, 201)
+        if (url.endsWith('/activate')) {
+          const id = url.match(/support-requests\/([^/]+)\/activate/)?.[1]
+          const idx = id ? server.items.findIndex((i) => i.requestId === id) : -1
+          if (idx >= 0) {
+            const prev = server.items[idx]!
+            server.items[idx] = {
+              ...prev,
+              state: 'active',
+              sessionId: 's_new',
+              activatedAt: NOW,
+              expiresAt: NOW + 30 * MIN,
+              remainingMs: 30 * MIN,
+              decider: prev.decider ?? person('u_ana', 'Ana Souza'),
+              decidedAt: prev.decidedAt ?? NOW - MIN,
+            }
+          }
+          return j({ session: { id: 's_new' }, handoffCode: 'hand_off_code', accessGranted: false }, 201)
+        }
         return j({ ok: true })
       }
       if (url === '/api/platform/support-requests' && method === 'POST') {
@@ -248,6 +265,9 @@ describe('Platform Admin — suporte (#831)', () => {
         for (const closed of ['Revisar importação', 'Teste rejeitado', 'Revogada pela owner', 'Encerrada pelo operador', 'Ninguém decidiu']) {
           expect(names(closed)).toEqual([])
         }
+        // Cartão de sessão ativa também oferece Abrir/Encerrar (não só a tabela).
+        const banner = screen.getByRole('region', { name: /Sessão ativa · Studio Vila Nova/ })
+        expect(within(banner).queryAllByRole('button').map((b) => b.textContent)).toEqual(['Abrir', 'Encerrar'])
         expect(screen.queryByText(/ainda não estão disponíveis/)).toBeNull()
       })
 
@@ -277,8 +297,18 @@ describe('Platform Admin — suporte (#831)', () => {
         const table = await screen.findByRole('table')
         await user.click(act(table, 'Serviço sem zonas').getByRole('button', { name: /Entrar/ }))
         await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Entrar agora' }))
-        expect((await screen.findAllByText(/A sessão já começou/)).length).toBeGreaterThan(0)
         expect(openClinicApp).not.toHaveBeenCalledWith('aurora')
+        // Diálogo Entrar fecha; aviso na página; a linha e o cartão passam a Abrir/Encerrar.
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+        expect((await screen.findByRole('status')).textContent).toMatch(/A sessão em Clínica Aurora começou/)
+        await waitFor(() =>
+          expect(act(screen.getByRole('table'), 'Serviço sem zonas').queryAllByRole('button').map((b) => b.textContent)).toEqual([
+            'Abrir',
+            'Encerrar',
+          ]),
+        )
+        const banner = screen.getByRole('region', { name: /Sessão ativa · Clínica Aurora/ })
+        expect(within(banner).queryAllByRole('button').map((b) => b.textContent)).toEqual(['Abrir', 'Encerrar'])
       })
 
       it('Encerrar e Cancelar pedido confirmam antes de chamar o servidor', async () => {

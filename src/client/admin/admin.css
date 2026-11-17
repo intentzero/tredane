@@ -668,6 +668,10 @@
   color: var(--color-primary-ink);
 }
 
+.admin-session .admin-row-actions {
+  margin-top: var(--space-2);
+}
+
 /* Auditoria */
 .admin-inline-field {
   min-width: 180px;

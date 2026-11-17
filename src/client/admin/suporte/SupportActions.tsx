@@ -77,11 +77,13 @@ export function SupportActions({ item, onChanged }: Props) {
         const activated = await api.activateSupportSession(item.requestId)
         try {
           await api.exchangeSupportHandoff(activated.handoffCode)
-        } catch (err) {
-          // A sessão já começou mas este navegador não ficou com ela: a linha passa a «ativa» e pode ser encerrada.
-          onChanged(`A sessão em ${item.tenantName} começou, mas não abriu neste navegador. Encerre-a e faça novo pedido.`)
-          setError(adminErrorMessage(err))
+        } catch {
+          // A sessão já começou mas este navegador não ficou com ela: fecha o diálogo Entrar
+          // para a UI mostrar Abrir/Encerrar (após o reload) sem residual do pedido de entrada.
+          setKind(null)
+          setError(null)
           setBusy(false)
+          onChanged(`A sessão em ${item.tenantName} começou, mas não abriu neste navegador. Encerre-a e faça novo pedido.`)
           return
         }
         openClinicApp(item.tenantId)

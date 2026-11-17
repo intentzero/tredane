@@ -4,6 +4,7 @@ import { AdminLoadError, AdminLoading } from '../AdminUi'
 import { SUPPORT_OPEN, formatSpan, personLabel } from '../format'
 import { EmptyState } from '../../panel/states/StatusScreens'
 import { RequestSupportDialog } from './RequestSupportDialog'
+import { SupportActions } from './SupportActions'
 import { SupportTable } from './SupportTable'
 import { useSupport } from './useSupport'
 
@@ -55,6 +56,13 @@ export function SuporteTab({ tenantId, tenantName, tenantStatus, hasActiveOwner 
             Em nome de {personLabel(active.subject)} · aprovada por {personLabel(active.decider)} · motivo «
             {active.reason}»
           </span>
+          <SupportActions
+            item={active}
+            onChanged={(message) => {
+              setNotice(message)
+              reload()
+            }}
+          />
         </section>
       ) : null}
       {items.length === 0 ? (
