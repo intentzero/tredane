@@ -40,6 +40,28 @@ Eventos `client_web.exchange_ok`, `client_web.exchange_refused`, `client_web.boo
 
 O cron diário (04:15 UTC) apaga do D1 central os links expirados há mais de 7 dias, as sessões expiradas ou revogadas há mais de 1 dia e os contadores de limite com mais de 1 dia. **Ainda por fazer:** expurgo por tenant e por contacto (DEC-099, REQ-071), como no Flow.
 
+## Estado do staging (17/11/2026)
+
+**Confirmado** (verificação manual e deploy atrás do PR #898; detalhe em [docs/memory/staging-client-web-17-11-2026.md](../../memory/staging-client-web-17-11-2026.md)):
+
+| Item | Estado |
+| --- | --- |
+| Migrações D1 `0027_client_web` e `0028_client_web_rate_limits` | **Aplicadas** em staging |
+| Worker `tredane-dev-staging`, versão `fd8c3d86-726a-40a7-a5a7-17d1f8de6395`, conta Tredane `fc4be5a9597f5f05126209205ee98339` | **Confirmado** |
+| `CLOUDFLARE_ACCOUNT_ID` no GitHub Environment `staging` | **Em aberto** — falta fixar a variable (ver [DEPLOY.md](../../DEPLOY.md)); bloqueia CI de deploy |
+| `CLIENT_WEB_ENABLED=true` | Só em `env.staging` de `wrangler.jsonc` (**Confirmado**); produção continua 404 |
+| Casca `/c/*`: cabeçalhos de privacidade | **Verificado** |
+| `GET /api/c/state` sem sessão | **401** (**Verificado**) |
+| `POST` sem `Origin` | **403** (**Verificado**) |
+| Token inventado na troca | **410** (**Verificado**) |
+| Tabelas `client_web_*` no D1 | **Existem** (**Verificado**) |
+| Logs do Worker | Sem erros relevantes na verificação (**Verificado**) |
+| Fumo completo com interruptor da owner | **Não verificado** |
+| Envio real do botão `cta_url` pela Meta | **Não verificado** |
+| Uso num telemóvel real | **Não verificado** |
+
+**Proposto (operação):** o próximo deploy da `main` para staging **sobrepõe** este worker até o PR #898 (ou equivalente) estar merged e o pipeline voltar a publicar esta versão.
+
 ## Antes de produção
 
-GATE-04 (parecer LGPD), TMPL-05 (link fora das 24 h aprovado pela Meta), revisão de segurança curta (enumeração, CSRF, clickjacking, limites) como em [suporte-revisao-e-pentest.md](suporte-revisao-e-pentest.md), valores de 60 e 30 min do link e da sessão (DEC-199), valor padrão do horizonte (DEC-201), texto das mensagens (Proposto) e a decisão sobre cancelar com sinal pago (DEC-198).
+Lista completa em [ADR-0018 §8](../../adr/0018-pagina-web-cliente.md) e [em-aberto-pagina-web-cliente.md](../../memory/em-aberto-pagina-web-cliente.md). Resumo: GATE-04 (parecer LGPD), TMPL-05 (link fora das 24 h aprovado pela Meta), revisão de segurança curta (enumeração, CSRF, clickjacking, limites) como em [suporte-revisao-e-pentest.md](suporte-revisao-e-pentest.md), valores de 60 e 30 min do link e da sessão (DEC-199), valor padrão do horizonte (DEC-201), texto das mensagens (**Proposto**) e a decisão sobre cancelar com sinal pago (DEC-198).
