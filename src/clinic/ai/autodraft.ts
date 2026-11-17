@@ -1552,7 +1552,7 @@ export async function runDueAutoDrafts(
     const preferExtractService =
       !midFrame?.serviceId &&
       !midFunnelAskInfo &&
-      buildExtractSnapshot(db, tenantId, turn, clock) != null
+      buildExtractSnapshot(db, tenantId, turn, clock, deps) != null
     const catalogDeferred = createDeferredBookingFrame()
     const catalogText = midFunnelAskInfo
       ? null
@@ -1680,7 +1680,7 @@ export async function runDueAutoDrafts(
       // DEC-188: extract já aplicado via Queue; slots estão no frame.
       opts.onTurnPhase?.('extractor', 0)
     } else if (deps.llmOutOfDo) {
-      const snapshot = buildExtractSnapshot(db, tenantId, liveTurn, clock)
+      const snapshot = buildExtractSnapshot(db, tenantId, liveTurn, clock, deps)
       if (snapshot) {
         const created = createLlmJob(
           db,

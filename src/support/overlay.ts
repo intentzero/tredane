@@ -44,6 +44,12 @@ export function matchSupportReadRoute(method: string, pathname: string): string 
   return SUPPORT_READ_ROUTES.find((r) => r.re.test(pathname))?.name ?? null
 }
 
+/** Único `POST` que a sessão de suporte pode fazer: pedir o bilhete do WebSocket de leitura (ADR-0017 §4). */
+const SUPPORT_TICKET_RE = /^\/api\/tenants\/[^/]+\/realtime\/ticket$/
+export function matchSupportTicketRoute(method: string, pathname: string): string | null {
+  return method === 'POST' && SUPPORT_TICKET_RE.test(pathname) ? 'realtime.ticket' : null
+}
+
 export type SupportOverlayServices = {
   adminDb: AsyncAdminDb
   authority: AuthorityReader

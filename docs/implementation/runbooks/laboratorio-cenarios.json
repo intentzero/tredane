@@ -6,7 +6,7 @@
   "mcp": "user-tredane-staging-lab",
   "howToRun": [
     "Chamar lab_status primeiro e confirmar que sobra teto (o conjunto completo usa ~105 turnos).",
-    "Cenários R26–R36 usam assertReply (mustContain, mustNotContain, slotSetMustInclude, slotSetMustExclude) na última resposta do passo; pendingOnMain indica regressão conhecida até o PR listado.",
+    "Cenários R26–R47 usam assertReply (mustContain, mustNotContain, slotSetMustInclude, slotSetMustExclude) na última resposta do passo; pendingOnMain indica regressão conhecida até o PR listado.",
     "Cada cenario usa um waId proprio. Para repetir num dia em que os waIds ja tem historico, somar um sufixo de corrida (ex.: 550000000101 -> 5500000001012) para comecar conversa limpa; os cenarios 'remarcacao' e 'cancelamento' dependem do agendamento criado no proprio cenario.",
     "Passo 'say' = lab_say(text, waId, displayName no 1o passo). Passo 'tap' = lab_tap usando o id devolvido em tappable cuja linha/botao tem o 'title' indicado (os ids mudam a cada corrida; procurar por title). 'tapRowIndex' = tocar na linha N (0-based) da lista de Horarios.",
     "Correr os cenarios SEQUENCIALMENTE: chamadas lab_say em paralelo misturaram o 'tappable' entre waIds na corrida de 15/11.",
@@ -1154,6 +1154,139 @@
             "listSectionCountMax": 1,
             "listRowTitlesMustInclude": ["Falar com a equipe"],
             "listSectionsTitledOnlyIfMultiple": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "R37-mais-tarde-apos-lista",
+      "waId": "550000000137",
+      "displayName": "Laura",
+      "note": "rsamp_f72ce590 seq67–70 — «Mais tarde tem horário?» após oferta quinta tarde.",
+      "steps": [
+        { "say": "depilação masculina íntima quinta à tarde" },
+        { "tapRowIndex": 2, "kind": "list" },
+        {
+          "say": "Mais tarde tem horário?",
+          "assertReply": {
+            "mustNotContain": ["qual horário você prefere"],
+            "interactiveList": true,
+            "slotSetMustExclude": ["13:00", "13:30", "14:00"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R38-alterar-horario-mantem-dia",
+      "waId": "550000000138",
+      "displayName": "Marina",
+      "note": "rsamp_f72ce590 seq77–81 — Alterar detalhes → Horário no dia da proposta.",
+      "steps": [
+        { "say": "depilação masculina íntima quinta 14:00" },
+        { "tapRowIndex": 0, "kind": "list" },
+        { "tapRowIndex": 0, "kind": "buttons", "buttonTitle": "Alterar detalhes" },
+        { "tapRowIndex": 0, "kind": "buttons", "buttonTitle": "Horário" },
+        {
+          "assertReply": {
+            "mustNotContain": ["qual horário você prefere"],
+            "interactiveList": true,
+            "mustContain": ["14:"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R39-antes-das-11",
+      "waId": "550000000139",
+      "displayName": "Nádia",
+      "note": "rsamp_f72ce590 seq84–87 — «E antes das 11?» com dia em contexto.",
+      "steps": [
+        { "say": "depilação masculina íntima hoje" },
+        {
+          "say": "E antes das 11?",
+          "assertReply": {
+            "mustNotContain": ["Não encontrei antes"],
+            "interactiveList": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "R40-quais-servicos-oferece",
+      "waId": "550000000140",
+      "displayName": "Olivia",
+      "note": "rsamp_f72ce590 seq92–95 — catálogo com lista interativa.",
+      "steps": [
+        { "say": "depilação masculina" },
+        { "tapRowIndex": 0, "kind": "list" },
+        {
+          "say": "Quais serviços oferece?",
+          "assertReply": {
+            "mustContain": ["Qual você quer"],
+            "interactiveList": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "R41-handoff-uma-frase-hoje",
+      "waId": "550000000141",
+      "displayName": "Patrícia",
+      "note": "rsamp_f72ce590 seq96–97 — Chamar atendente fora do horário (terça 08:12).",
+      "runDuringTeamHours": false,
+      "steps": [
+        { "say": "oi" },
+        {
+          "say": "quero falar com a equipe",
+          "assertReply": {
+            "mustContain": ["Deixei seu pedido", "hoje às 09:00"],
+            "mustNotContain": ["\\n\\n", "terça às 09:00"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R45-fallback-typo-depilacao",
+      "waId": "550000000145",
+      "displayName": "Larissa",
+      "note": "Fallback service: typo «depilaçao» sem match de léxico (sombra 72h).",
+      "steps": [
+        { "say": "boa tarde quero fazer depilaçao amanhã de manhã" },
+        { "tap": { "kind": "button", "title": "Feminina" } },
+        {
+          "say": "só axila",
+          "assertReply": { "mustNotContain": ["Não peguei bem", "Qual serviço"] }
+        }
+      ]
+    },
+    {
+      "id": "R46-fallback-nao-inventa-periodo-cumprimento",
+      "waId": "550000000146",
+      "displayName": "Mônica",
+      "note": "«Boa tarde» no cumprimento não vira período tarde (léxico/slot-offer; sem fallback LLM de período).",
+      "steps": [
+        {
+          "say": "boa tarde, depilação feminina amanhã",
+          "assertReply": { "mustNotContain": ["só à tarde", "período tarde"] }
+        }
+      ]
+    },
+    {
+      "id": "R47-fallback-depois-das-11-manha",
+      "waId": "550000000147",
+      "displayName": "Nádia",
+      "note": "R27 invariável: «depois das 11» na manhã mantém filtro estrito, não período LLM.",
+      "runDuringTeamHours": true,
+      "steps": [
+        { "say": "quero depilação feminina amanhã de manhã" },
+        { "say": "só a axila" },
+        { "tap": { "kind": "button", "title": "Sim" } },
+        {
+          "say": "Depois das 11?",
+          "assertReply": {
+            "slotSetMustInclude": ["11:15", "11:45"],
+            "slotSetMustExclude": ["11:00"],
+            "mustNotContain": ["não tem horário de manhã"]
           }
         }
       ]

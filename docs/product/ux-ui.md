@@ -329,6 +329,7 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 - **Pedido (M-27).** Mostra quem pede, em nome de quem (usuário representado), motivo, o que poderá fazer e a duração. **Aprovar suporte** e **Rejeitar**; qualquer responsável decide e a primeira decisão vale. Pedido expirado não pode ser aprovado: exige novo pedido.
 - **Sessão ativa (M-28).** Tempo restante, ator, usuário representado, aprovador e histórico. **Encerrar suporte agora** está disponível a qualquer responsável. Para continuar após 30 minutos, o Tredane faz novo pedido.
 - **Aviso ao usuário representado (M-29).** Faixa em Conversas enquanto houver sessão ativa, com **Solicitar encerramento**; os responsáveis são avisados e decidem (DEC-036, DEC-037).
+- **Vista do suporte (ADR-0017, #853; mocks `desktop/SuporteVistaLeitura` e `SuporteVistaEstados`, Proposto).** Quem do Tredane entra na clínica vê uma vista própria, não o painel normal: banner permanente «Sessão de suporte · somente leitura» com clínica e contagem decrescente (aviso sublinhado e lido por leitor de ecrã com menos de 5 min) e **Encerrar sessão**; só Conversas (lista e mensagens, telefones com os 4 últimos dígitos); nenhum controlo de escrita nem as áreas Clientes, Agenda, Pipeline e Clínica. Ao fim do prazo, revogação ou resposta 401/403/409 do servidor, aparece «Sessão de suporte encerrada» sem dados. A barreira real é o servidor; a vista só evita oferecer o que seria recusado.
 - **Tempo real:** início, fim, expiração e revogação chegam por evento; ao reconectar, a tela reconcilia com a API. Revogada a sessão, a conexão do suporte cai na hora.
 - **Em aberto:** texto exato do e-mail e do que o pedido mostra como escopo (depende da lista de ações de diagnóstico, a definir com engenharia).
 
@@ -419,6 +420,8 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 ## 9. Rastreabilidade
 
 **Paleta do app (Confirmado, Paulo, 16/11/2026, «gostei, implementa»; normalização em toda a app pedida no mesmo dia):** [mock de comparação](../design/paleta-app/PaletaApp.html) de Conversas TEL-01, com temas claro/escuro e direção Coral & Menta da landing. [Escopo e pendências](../design/paleta-app/README.md). Os [tokens v0.10.0](../design/tokens.json) revêm os valores visuais de DEC-041/050/164, mantendo os papéis semânticos e a seleção claro/escuro de DEC-098. Turquesa identifica seleção, navegação, links e ações gerais; coral destaca a ação principal **iniciar Agendar** em Conversas, Agenda, ficha do cliente e Acompanhar. Confirmações dentro do fluxo usam o botão primário comum; âmbar indica atenção; verde, sucesso; lavanda, IA. Não altera os requisitos de TEL-01.
+
+**Destaque Agendar (ajuste Proposto, 17/11/2026):** após [feedback visual de Paulo](decisions.md#revisão-visual-do-painel--coral--menta-16112026) sobre a dificuldade de ler texto escuro no coral, os [tokens v0.10.1](../design/tokens.json) usam coral profundo com texto branco em claro e escuro. O par mantém contraste de texto ≥ 4,5:1 nos estados normal e hover; o preenchimento do botão mantém contraste ≥ 3:1 com o cartão. **Em aberto:** confirmação visual de Paulo em aparelho. A regra aplica-se às entradas principais de Agendar; links e seleções turquesa mantêm seus papéis.
 
 | Tela | Jornadas | Requisitos | Cenários |
 | --- | --- | --- | --- |

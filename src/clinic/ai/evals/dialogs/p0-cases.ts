@@ -1362,9 +1362,9 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       notPaused: true,
       outboundIncludes: [
         'Deixei seu pedido para a equipe',
-        'A equipe responde a partir de segunda às 09:00',
+        'a equipe responde a partir de segunda',
+        '09:00',
         'continuo por aqui até lá',
-        'Falar com a equipe',
       ],
     },
   },

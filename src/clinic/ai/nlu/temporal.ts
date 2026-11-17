@@ -253,7 +253,7 @@ function periodFromHour(hour: number): Period {
 }
 
 /** Cumprimentos não filtram período («Boa tarde, quero marcar…»). */
-function stripGreetingPeriodFalsePositives(folded: string): string {
+export function stripGreetingPeriodFalsePositives(folded: string): string {
   return folded
     .replace(/\b(?:bom dia|boa tarde|boa noite)\b/g, ' ')
     .replace(/\s+/g, ' ')
@@ -292,8 +292,40 @@ export function notBeforeTimeFromText(text: string): string | null {
   return notBefore
 }
 
+export function antesDasClockRe(): RegExp {
+  return /\b(?:antes|ante)\s+das?\s+([01]?\d|2[0-3])(?:\s*h(?:rs|s)?(?:\s*([0-5]\d))?|:([0-5]\d))?\b/g
+}
+
+/**
+ * «antes das 11h» — só ofertar horários **antes** desse relógio (exclui X:00), espelhando `notBeforeTimeFromText`.
+ */
+export function notAfterTimeFromText(text: string): string | null {
+  const folded = norm(text)
+  let notAfter: string | null = null
+  for (const m of folded.matchAll(antesDasClockRe())) {
+    const hour = Number(m[1])
+    if (Number.isNaN(hour) || hour > 23) continue
+    const minutes = m[3] != null ? Number(m[3]) : m[2] != null ? Number(m[2]) : 0
+    const h = hour >= 1 && hour <= 7 ? hour + 12 : hour
+    const candidate = `${String(h).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+    if (!notAfter || candidate < notAfter) notAfter = candidate
+  }
+  return notAfter
+}
+
+/** «Mais tarde tem horário?» com lista de horários já aberta → continuar no mesmo dia. */
+export function wantsMoreSlotsLaterInDay(text: string): boolean {
+  const folded = norm(text)
+  if (!/\bmais tarde\b/.test(folded)) return false
+  return /\b(?:horario|horário|vaga|tem|algum)\b/.test(folded)
+}
+
 function maskDepoisDasSpans(folded: string): string {
   return folded.replace(depoisDasClockRe(), (m) => ' '.repeat(m.length))
+}
+
+function maskAntesDasSpans(folded: string): string {
+  return folded.replace(antesDasClockRe(), (m) => ' '.repeat(m.length))
 }
 
 function parsePeriods(foldedRaw: string): Period[] {
@@ -328,8 +360,8 @@ export function parseTimes(
   foldedRaw: string,
   periods: Period[] = [],
 ): { times: string[]; ambiguousAfternoonHour: number | null; spans: ClockSpan[] } {
-  // «depois das Nh» → período (parsePeriods); não extrair HH:MM pontual.
-  const folded = maskDepoisDasSpans(maskNonClockSpans(foldedRaw))
+  // «depois das Nh» / «antes das Nh» → período ou corte; não extrair HH:MM pontual.
+  const folded = maskAntesDasSpans(maskDepoisDasSpans(maskNonClockSpans(foldedRaw)))
   const out = new Set<string>()
   const spans: ClockSpan[] = []
   const add = (h: number, m: number) => {

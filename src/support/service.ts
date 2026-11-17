@@ -239,6 +239,19 @@ export async function decideSupportRequest(
   return { request, realtimeNotified }
 }
 
+/** Fecha as ligações WebSocket da sessão (ADR-0017 §4); best-effort. */
+async function fenceSupportSession(services: SupportServices, session: SupportSessionRow): Promise<void> {
+  try {
+    await services.events.closeSupportSession?.({
+      tenantId: session.tenantId,
+      supportSessionId: session.id,
+      reason: 'support_revoked',
+    })
+  } catch {
+    /* best-effort */
+  }
+}
+
 async function notifySessionLifecycle(
   services: SupportServices,
   session: SupportSessionRow,
@@ -410,6 +423,7 @@ export async function endSupportSession(
     asOwner: input.asOwner,
     reason: input.asOwner ? 'owner_revoke' : 'actor_end',
   })
+  await fenceSupportSession(services, session)
   const realtimeNotified = await notifySessionLifecycle(
     services,
     session,
@@ -485,6 +499,7 @@ export async function ownerDecideTermination(
     decision: input.decision,
   })
 
+  if (input.decision === 'end') await fenceSupportSession(services, result.session)
   const type =
     input.decision === 'end' ? 'support.session.ended' : 'support.termination.kept'
   const published = await services.events.publishTenantEvent({

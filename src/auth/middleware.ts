@@ -13,6 +13,7 @@ import { supportSessionsEnabled } from '../support/flag'
 import { buildSupportClearCookie, parseSupportCookie } from '../support/cookie'
 import {
   matchSupportReadRoute,
+  matchSupportTicketRoute,
   recordSupportAccess,
   redactPhones,
   resolveSupportTenantContext,
@@ -114,7 +115,7 @@ export function requireTenantAccess(opts: {
         }
         const method = c.req.method
         const pathname = new URL(c.req.url).pathname
-        const route = matchSupportReadRoute(method, pathname)
+        const route = matchSupportReadRoute(method, pathname) ?? matchSupportTicketRoute(method, pathname)
         const nowMs = clock.nowMs()
         if (!route) {
           // Deny-by-default: só `GET` às rotas da lista. Tentativas ficam auditadas, agregadas por minuto.

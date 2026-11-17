@@ -1,5 +1,5 @@
 /**
- * Cenários R26–R36 — regressões de conversas «Avaliar» / review (texto sintético).
+ * Cenários R26–R47 — regressões de conversas «Avaliar» / review (texto sintético).
  * Espelham `lab/cenarios.json`; pares com correções em paralelo → `pendingOnMain` no JSON.
  */
 import { describe, expect, it } from 'vitest'
@@ -26,13 +26,24 @@ import {
 } from './faq-clarification'
 import { turnLooksLikeDayOrTimeAsk } from './turn-friction'
 import { loadTurnContext } from './turn-context'
-import { notBeforeTimeFromText } from './nlu/temporal'
+import {
+  notAfterTimeFromText,
+  notBeforeTimeFromText,
+  wantsMoreSlotsLaterInDay,
+} from './nlu/temporal'
+import { periodModelEvidence } from './interpreter-fallback'
+import { planCatalogConsult } from './catalog-consult'
+import { listServices } from '../config/services'
 import { offerNearestSlots } from './slot-offer'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { buildSlotChoiceInteractive, toSendInteractive } from './choice-offer'
-import { augmentOutboundWithHumanTeam, replyAfterHoursHumanRequest } from './human-handoff'
+import {
+  afterHoursHumanRequestBody,
+  augmentOutboundWithHumanTeam,
+  replyAfterHoursHumanRequest,
+} from './human-handoff'
 import { planIdleContinueResume } from '../followup/idle-continue-resume'
-import { saveBookingFrame } from './schedule-session'
+import { saveBookingFrame, type BookingFrame } from './schedule-session'
 import {
   PROPOSAL_CONFIRM_NUDGE_LEAD,
   sendProposalConfirmNudgeOp,
@@ -583,6 +594,11 @@ describe('R31–R36 — regressões #868 / #869 (cnv_b8df6c5, sintético)', () =
     }
   })
 
+  it('R47: «depois das 11» não vira período de fallback (R27 invariável)', () => {
+    expect(periodModelEvidence('Depois das 11?', 'manha')).toBe(false)
+    expect(notBeforeTimeFromText('Depois das 11?')).toBe('11:00')
+  })
+
   it('R36: lista de horários «Falar com a equipe» numa só secção (#868/#869)', () => {
     const s = seedClinic({
       tenantId: 'clinic-demo-r36',
@@ -607,6 +623,106 @@ describe('R31–R36 — regressões #868 / #869 (cnv_b8df6c5, sintético)', () =
       const titles = list.sections.flatMap((sec) => sec.rows.map((r) => r.title))
       expect(titles).toContain('Falar com a equipe')
       expect(list.sections[0]?.title).toBeUndefined()
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('R37–R41 — rsamp_f72ce590 seq 59–99 (sintético)', () => {
+  const NOW = Date.UTC(2026, 10, 17, 14, 0)
+
+  it('R37: «Mais tarde tem horário?» activa refinamento no mesmo dia', () => {
+    expect(wantsMoreSlotsLaterInDay('Mais tarde tem horário?')).toBe(true)
+    expect(wantsMoreSlotsLaterInDay('Tem horário à tarde?')).toBe(false)
+  })
+
+  it('R39: «antes das 11» → onlyAtOrBefore exclui 11:00 e posteriores', async () => {
+    expect(notAfterTimeFromText('E antes das 11?')).toBe('11:00')
+    const s = seedClinic({
+      tenantId: 'clinic-demo-r39',
+      waId: '5511900000139',
+      now: NOW,
+    })
+    try {
+      const svc = depilacaoService(s)
+      const today = clinicCivilDateFromUtc(TZ, NOW)
+      const offered = await offerNearestSlots({
+        db: s.db,
+        tenantId: s.tenantId,
+        service: { ...svc, active: true },
+        zones: svc.zones,
+        tz: TZ,
+        clock: s.clock,
+        professionalId: s.pro.id,
+        date: today,
+        period: 'manha',
+        onlyAtOrBeforeHHMM: '11:00',
+        limit: 6,
+        conversationId: s.cnv.id,
+      })
+      const times = offered.slots.map((x) => x.time)
+      expect(times.every((t) => t < '11:00')).toBe(true)
+      expect(times.includes('11:00')).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R40: «Quais serviços oferece?» plano inclui lista interativa', () => {
+    const s = seedClinic({
+      tenantId: 'clinic-demo-r40',
+      waId: '5511900000140',
+      now: NOW,
+    })
+    try {
+      const svc = depilacaoService(s)
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Drenagem linfática',
+          durationMinutes: 45,
+          bufferMinutes: 0,
+          priceCents: 18_000,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const services = listServices(s.db, s.tenantId)
+      const planned = planCatalogConsult({
+        text: 'Quais serviços oferece?',
+        frame: {
+          line: 'masculino',
+          serviceId: svc.id,
+          variantIds: [],
+          phase: 'coletando',
+        } as unknown as BookingFrame,
+        services,
+        catalogVersion: 'cv_r40',
+        hasActiveProposal: false,
+      })
+      expect(planned).not.toBeNull()
+      expect(planned!.interactive).toBeTruthy()
+      expect(planned!.body).toMatch(/Qual você quer/i)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('R41: handoff fora de horas — uma frase e «hoje às» na terça de manhã', () => {
+    const closed = Date.UTC(2026, 10, 17, 11, 12)
+    const s = seedClinic({
+      tenantId: 'clinic-demo-r41',
+      waId: '5511900000141',
+      now: closed,
+    })
+    try {
+      const body = afterHoursHumanRequestBody(s.db, s.tenantId, s.clock, s.cnv.id)
+      expect(body.split('\n\n').length).toBe(1)
+      expect(body).toMatch(/hoje às 09:00/i)
+      expect(body).not.toMatch(/terça às 09:00/i)
     } finally {
       s.close()
     }

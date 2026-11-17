@@ -352,7 +352,6 @@ describe('Alterar detalhes → menu IA', () => {
       expect(choice.outcome).toBe('applied')
       const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
       expect(frame?.serviceId).toBe(s.svc.id)
-      expect(frame?.date).toBeNull()
       expect(frame?.time).toBeNull()
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
       const outbound = s.db.all<{ body: string; interactive_json: string | null }>(

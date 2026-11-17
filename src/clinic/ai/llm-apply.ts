@@ -40,6 +40,11 @@ import {
   frameVersionOf,
 } from './llm-snapshot'
 import {
+  DEFAULT_INTERPRETER_FALLBACK,
+  logInterpreterFallbackApplied,
+  type InterpreterFallbackConfig,
+} from './interpreter-fallback'
+import {
   COVERAGE_THRESHOLD,
   type ExtractorRaw,
   validateExtractorOutput,
@@ -94,6 +99,7 @@ function applyExtractSlots(
   snapshot: ExtractSnapshot,
   raw: ExtractorRaw | null,
   clock: Clock,
+  fallbackConfig: InterpreterFallbackConfig = DEFAULT_INTERPRETER_FALLBACK,
 ): { applied: boolean; interpretation: TurnInterpretation; discarded: string[] } {
   const services = listServices(db, tenantId)
   const professionals = snapshot.catalog.professionals
@@ -113,7 +119,19 @@ function applyExtractSlots(
     professionals,
     pending: snapshot.pending,
     base: snapshot.base,
+    fallbackConfig,
   })
+  if (validated.fallbackApplied && validated.slots.serviceId?.fonte === 'llm') {
+    logInterpreterFallbackApplied({
+      level: 'info',
+      event: 'ai.interpreter_fallback_applied',
+      tenantId,
+      conversationId: snapshot.conversationId,
+      messageId: snapshot.messageId,
+      fields: ['service'],
+      serviceId: validated.slots.serviceId.value,
+    })
+  }
   const coverage = Math.max(
     snapshot.base.coverage,
     validated.discarded.includes('parse') ? 0 : 0.7,
@@ -243,7 +261,14 @@ export function applyLlmResultOp(
       }
     }
     recordModelCallTowardDailyCap(db, tenantId, clock)
-    applyExtractSlots(db, tenantId, snapshot, result.raw, clock)
+    applyExtractSlots(
+      db,
+      tenantId,
+      snapshot,
+      result.raw,
+      clock,
+      deps.interpreterFallback ?? DEFAULT_INTERPRETER_FALLBACK,
+    )
     markLlmJobDone(db, tenantId, { jobId: job.id, result }, clock)
     // Reabre autodraft para booking + eventual redact (extrator já done).
     const now = clock.nowMs()

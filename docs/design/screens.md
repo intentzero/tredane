@@ -104,7 +104,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 
 ## Explorações de paleta
 
-**Painel, Confirmado (Paulo, 16/11/2026, «gostei, implementa»):** [mock de paleta do app](paleta-app/PaletaApp.html) e [nota de escopo](paleta-app/README.md). Ilustra TEL-01 Conversas (JRN-01/02, REQ-010–018) em desktop e celular; os tokens v0.10.0 estão implementados. Não substitui mocks funcionais nem critérios de aceite. A validação dos percursos reais em todas as telas continua **Em aberto**.
+**Painel, Confirmado (Paulo, 16/11/2026, «gostei, implementa»):** [mock de paleta do app](paleta-app/PaletaApp.html) e [nota de escopo](paleta-app/README.md). Ilustra TEL-01 Conversas (JRN-01/02, REQ-010–018) em desktop e celular; os tokens v0.10.1 incluem ajuste **Proposto** do coral após feedback de 17/11/2026. Não substitui mocks funcionais nem critérios de aceite. A validação dos percursos reais em todas as telas continua **Em aberto**.
 
 | Arquivo | Estado e origem | O que mostra | Critérios |
 | --- | --- | --- | --- |
@@ -180,5 +180,7 @@ A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de
 | `desktop/AgendaSemana.dc.html` | TEL-04 semana | Grade de sete dias, horários simultâneos lado a lado, filtro por profissional, fim de semana hachurado e linha «Agora» (**Proposto**) |
 | `desktop/ClientesLista.dc.html` | TEL-12 lista | Rail com item Clientes; lista ~400 px (busca, filtros Todas/Com horário/Bloqueadas); ficha resumida ao lado | **Confirmado** (Opção C, Paulo 31/10/2026); fase 1 implementada |
 | `desktop/ClientesFicha.dc.html` | TEL-12 ficha | Ficha completa partilhada com Contato: dados, horários, conversas, Resumo da IA, Bloquear; sem sexo | **Confirmado** (Opção C, Paulo 31/10/2026); fase 1 implementada |
+| `desktop/SuporteVistaLeitura.dc.html` | TEL-10 vista de suporte | Vista única da sessão de suporte (ADR-0017, #853): banner fixo «Sessão de suporte · somente leitura» com clínica, tempo restante e **Encerrar sessão**; só Conversas (lista + mensagens), telefones com 4 últimos dígitos; sem rail, sem Agenda/Pipeline/Clínica, sem compositor nem ações | **Proposto**; implementada em #866 (só Conversas, sem tempo real) |
+| `desktop/SuporteVistaEstados.dc.html` | TEL-10 estados | Menos de 5 min (tempo sublinhado + aviso para leitor de ecrã), encerrando, sessão encerrada («Voltar ao Platform Admin») e erro de leitura | **Proposto**; implementados em #866 |
 
 `desktop/Main.dc.html` permanece como exploração antiga (três colunas); a referência visual do desktop de Conversas são os mocks `ConversasDesktopProposta*` (lista) e `Conversa{WhatsappWeb,Compositor,Bolhas}` (conversa aberta, substitui o thread de `ConversasDesktopPropostaThread` desde 01/11/2026). Os mocks `ConversasControles*` documentam a Opção A Confirmada do header/menu/sidepane. Os mocks `Clientes*` documentam a Opção C (directório + ficha partilhada).

@@ -85,6 +85,7 @@ const CATALOG_ASK: readonly RegExp[] = [
   /\bnova\s+marcacao\b/,
   /\b(?:quero|queria|prefiro)\s+agendar\s+de\s+novo\b/,
   /\bo que (?:voce|voces) (?:tem|oferece|oferecem)\b/,
+  /\bquais\s+(?:os\s+)?servicos\s+oferecem?\b/,
 ]
 
 function fold(text: string): string {
