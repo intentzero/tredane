@@ -4569,6 +4569,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       const shedStarted = this.#clock.nowMs()
       const shed = shedDueAlarmBacklog(this.#db, meta.tenantId, shedStarted)
       timer.addPhase('alarm_shed_backlog', this.#clock.nowMs() - shedStarted)
+      let skipIdleSweep = false
       if (shed.shed) {
         console.warn(
           JSON.stringify({
@@ -4579,10 +4580,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             autodraftDue: shed.autodraftDue,
             idleCleared: shed.idleCleared,
             autodraftDropped: shed.autodraftDropped,
+            idleDeferred: shed.idleDeferred,
           }),
         )
-        await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + 60_000)
-        return
+        if (shed.idleDeferred) {
+          skipIdleSweep = true
+          await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + 60_000)
+        }
       }
       let phase = this.#clock.nowMs()
       try {
@@ -4692,21 +4696,23 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       phase = this.#clock.nowMs()
       try {
       // DEC-087: idle 15 min + segundo prazo de mais 15 min.
-      const idleItems = sweepDueIdleConversations(
-        this.#db,
-        meta.tenantId,
-        this.#clock,
-      )
-      for (const item of idleItems) {
-        if (
-          (item.action === 'prompted' || item.action === 'closed') &&
-          item.outbox.length > 0
-        ) {
-          await this.#fanoutOutboxes(caller, item.outbox, true)
+      if (!skipIdleSweep) {
+        const idleItems = sweepDueIdleConversations(
+          this.#db,
+          meta.tenantId,
+          this.#clock,
+        )
+        for (const item of idleItems) {
+          if (
+            (item.action === 'prompted' || item.action === 'closed') &&
+            item.outbox.length > 0
+          ) {
+            await this.#fanoutOutboxes(caller, item.outbox, true)
+          }
         }
+        const nextIdle = nextIdleDueAt(this.#db, meta.tenantId)
+        if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle + 500)
       }
-      const nextIdle = nextIdleDueAt(this.#db, meta.tenantId)
-      if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle + 500)
       } catch {
         /* best-effort idle */
       }
