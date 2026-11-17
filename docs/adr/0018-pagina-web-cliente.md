@@ -174,12 +174,18 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 3. **Hora perdida entre Confirmar e a marcação** também gera a frase do chat «Horário já não está livre… Tenho …» (reaproveitada do executor). Para a página basta o aviso no ecrã; falta suprimir a mensagem do chat neste canal.
 4. Sem caso L1 novo: o canal web não é um diálogo. O comportamento está coberto por `booking.test.ts` e `BookFlow.test.tsx`; o scorecard (222 casos) não regrediu.
 
+**Staging preparado (17/11/2026):**
+
+- `CLIENT_WEB_ENABLED=true` em `env.staging` de `wrangler.jsonc` (não em produção); runbook [pagina-web-cliente.md](../implementation/runbooks/pagina-web-cliente.md) com o teste de fumo, os cabeçalhos a verificar, os logs e como desligar.
+- **Casca `/c` e `/c/*` servida pelo Worker** (`src/clientweb/shell.ts`, binding `ASSETS`, `run_worker_first`): devolve o `index.html` com `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` e sem moldura, e pede sempre a raiz dos assets (o token do URL não chega à busca de ficheiros). Com a página desligada responde 404.
+- **Limpeza diária** no cron das 04:15 UTC (`src/clientweb/cleanup.ts`): links expirados há mais de 7 dias, sessões há mais de 1 dia, contadores com mais de 1 dia.
+- **Teste no runtime do Cloudflare** (`npm run test:runtime`, workerd): o ciclo completo no Clinic DO real (interruptor da owner, sessão, estado, catálogo, horas, Confirmar com erro tratado, cancelar, revogação ao desligar). Fecha a lacuna de só termos testado a lógica sem o RPC.
+
 **Ainda não feito (bloqueia ligar em produção):**
 
-1. ~~Nada emite o link~~ e ~~interruptor da owner~~: feitos na Fase 5 (acima). A pausa da owner (DEC-197) já bloqueia marcar e remarcar (`paused`).
-3. **A casca da página** (`/c/…`) ainda segue o cache normal dos ficheiros estáticos; falta `Cache-Control: no-store` e `Referrer-Policy: no-referrer` também nela.
-4. **Retenção no D1 central:** `client_web_links`, `client_web_sessions` (hashes, ids de tenant, contacto e conversa) e `client_web_rate_limits` só expiram por regra, as linhas ficam. Falta a limpeza periódica das expiradas e o expurgo por tenant e por contacto (DEC-099, REQ-071); o Flow tem a mesma lacuna.
-4. Um erro de rede ou de D1 em `/api/c/state` mostra «Não foi possível abrir a agenda»; uma clínica suspensa mostra o aviso de «link já usado», que não é exato. Texto próprio por decidir.
+1. **Expurgo por tenant e por contacto** no D1 central (DEC-099, REQ-071): a limpeza diária só trata o que expirou.
+2. Um erro de rede ou de D1 em `/api/c/state` mostra «Não foi possível abrir a agenda»; uma clínica suspensa mostra o aviso de «link já usado», que não é exato. Texto próprio por decidir.
+3. GATE-04 (LGPD), TMPL-05 (fora das 24 h) e a revisão de segurança curta.
 
 ## 8. Em aberto
 

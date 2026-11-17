@@ -439,6 +439,123 @@ describe('Cloudflare runtime harness — F0', () => {
     expect(bad.status).toBe(403)
   })
 
+  it('página da cliente (ADR-0018): RPCs do Clinic DO no workerd — interruptor, sessão, catálogo, estado e isolamento', async () => {
+    const { computeHubSignature256, SYNTHETIC_APP_SECRET } = await import('../whatsapp/webhook-verify')
+    const { issueClientWebLink } = await import('../clientweb/links')
+    const { systemClock } = await import('../db/clock')
+    const owner = { Authorization: 'Bearer synth:user_synth_owner_a', 'Content-Type': 'application/json' }
+    const pnid = 'pnid_cw_e2e'
+
+    const sessionRes = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/whatsapp/session', {
+      method: 'POST',
+      headers: owner,
+      body: JSON.stringify({ purpose: 'connect' }),
+    })
+    const session = (await sessionRes.json()) as { state: string }
+    await worker.fetch('http://localhost/api/tenants/clinic-demo-a/whatsapp/complete', {
+      method: 'POST',
+      headers: owner,
+      body: JSON.stringify({ state: session.state, code: 'synth_code_valid', phoneNumberId: pnid, wabaId: 'waba_cw_e2e', displayPhone: '+15551820399' }),
+    })
+    // Uma conversa real no Clinic DO, pelo webhook assinado.
+    const body = JSON.stringify({
+      object: 'whatsapp_business_account',
+      entry: [{ id: 'waba_cw_e2e', changes: [{ field: 'messages', value: {
+        metadata: { phone_number_id: pnid },
+        contacts: [{ wa_id: '5511977000222', profile: { name: 'Marina Souza' } }],
+        messages: [{ from: '5511977000222', id: 'wamid.CW_E2E_1', timestamp: String(Math.floor(Date.now() / 1000)), type: 'text', text: { body: 'Olá' } }],
+      } }] }],
+    })
+    const hook = await worker.fetch('http://localhost/api/webhooks/whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': await computeHubSignature256(body, SYNTHETIC_APP_SECRET) },
+      body,
+    })
+    expect(hook.status).toBe(200)
+    let conv: { id: string; contactId?: string; contact?: { id: string } } | undefined
+    for (let i = 0; i < 100 && !conv; i++) {
+      const list = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/inbox/conversations', { headers: owner })
+      const json = (await list.json()) as { conversations?: Array<typeof conv> } | Array<typeof conv>
+      const rows = (Array.isArray(json) ? json : json.conversations ?? []) as Array<NonNullable<typeof conv>>
+      conv = rows[0]
+      if (!conv) await new Promise((r) => setTimeout(r, 100))
+    }
+    expect(conv).toBeTruthy()
+    const contactId = conv!.contactId ?? conv!.contact?.id
+    expect(contactId).toBeTruthy()
+
+    const env = await worker.getEnv()
+    const link = (tenantId: string) =>
+      issueClientWebLink(env.DB, systemClock, { tenantId, bindingId: 'b', contactId: contactId!, conversationId: conv!.id, purpose: 'home' })
+    const origin = { Origin: 'http://localhost', 'Content-Type': 'application/json' }
+    const login = async (tenantId: string) => {
+      const { token } = await link(tenantId)
+      const res = await worker.fetch('http://localhost/api/c/exchange', { method: 'POST', headers: origin, body: JSON.stringify({ token }) })
+      expect(res.status).toBe(200)
+      return (res.headers.get('set-cookie') ?? '').split(';')[0]!
+    }
+    const get = (path: string, cookie: string) => worker.fetch(`http://localhost${path}`, { headers: { Cookie: cookie } })
+
+    // Interruptor da owner desligado: a sessão abre, mas a clínica não serve nada.
+    const cookie = await login('clinic-demo-a')
+    expect((await get('/api/c/state', cookie)).status).toBe(401)
+    expect((await get('/api/c/catalog', cookie)).status).toBe(401)
+
+    // A owner liga; a atendente não pode.
+    const attendantPut = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/config/client-web', {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer synth:user_synth_attendant_a', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true }),
+    })
+    expect(attendantPut.status).toBe(403)
+    const on = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/config/client-web', { method: 'PUT', headers: owner, body: JSON.stringify({ enabled: true }) })
+    expect(on.status).toBe(200)
+    expect(await on.json()).toMatchObject({ enabled: true })
+
+    // Estado e catálogo vêm do DO, com o contacto da sessão.
+    const state = await get('/api/c/state', cookie)
+    expect(state.status).toBe(200)
+    const stateBody = (await state.json()) as { clinicName: string; firstName: string | null; appointments: unknown[] }
+    expect(stateBody.firstName).toBe('Marina')
+    expect(stateBody.appointments).toEqual([])
+    expect(JSON.stringify(stateBody)).not.toMatch(/5511977000222|clinic-demo-a|tenant/)
+    const catalog = await get('/api/c/catalog', cookie)
+    expect(catalog.status).toBe(200)
+    expect(await catalog.json()).toMatchObject({ horizonDays: 30, services: expect.any(Array) })
+
+    // Serviço inexistente: horas dão 422 e Confirmar dá erro tratado, sem marcar nada.
+    const avail = await worker.fetch('http://localhost/api/c/availability', {
+      method: 'POST',
+      headers: { ...origin, Cookie: cookie },
+      body: JSON.stringify({ serviceId: 'svc-inexistente', variantIds: [], from: '2026-11-18', to: '2026-11-24' }),
+    })
+    expect(avail.status).toBe(422)
+    const book = await worker.fetch('http://localhost/api/c/book', {
+      method: 'POST',
+      headers: { ...origin, Cookie: cookie },
+      body: JSON.stringify({ serviceId: 'svc-inexistente', variantIds: [], line: null, slotId: '2026-11-18T10:00' }),
+    })
+    expect(await book.json()).toMatchObject({ status: 'error', error: 'service_unavailable' })
+    const cancel = await worker.fetch('http://localhost/api/c/cancel', {
+      method: 'POST',
+      headers: { ...origin, Cookie: cookie },
+      body: JSON.stringify({ appointmentId: 'apt-inexistente' }),
+    })
+    expect(await cancel.json()).toEqual({ status: 'not_found' })
+
+    // Outra clínica (interruptor da owner desligado) não serve nada, mesmo com o contacto e a conversa da A.
+    // O isolamento por contacto e conversa está nos testes de `state.test.ts` e de rotas.
+    const forged = await login('clinic-demo-b')
+    for (const path of ['/api/c/state', '/api/c/catalog']) {
+      expect((await get(path, forged)).status).toBe(401)
+    }
+
+    // Desligar revoga as sessões abertas já.
+    const off = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/config/client-web', { method: 'PUT', headers: owner, body: JSON.stringify({ enabled: false }) })
+    expect(await off.json()).toMatchObject({ enabled: false })
+    expect((await get('/api/c/state', cookie)).status).toBe(401)
+  }, 60_000)
+
   it('WS autenticado + revoke corta A e preserva B (#23)', async () => {
     async function openWs(tenantId: string, userId: string) {
       const response = await worker.fetch(`http://localhost/api/tenants/${tenantId}/ws`, {

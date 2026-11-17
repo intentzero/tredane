@@ -11,7 +11,9 @@
     "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173",
     "APP_BASE_URL": "http://localhost:5173",
     "EMAIL_TRANSPORT": "simulated",
-    "META_MODE": "synthetic"
+    "META_MODE": "synthetic",
+    // Página web da cliente (DEC-196): liga as rotas /api/c/* para o teste do runtime.
+    "CLIENT_WEB_ENABLED": "true"
   },
   "d1_databases": [
     {

@@ -30,6 +30,8 @@ export type WorkerBindings = {
   AUTH_MODE?: string
   /** Base URL pública para links de convite (#25). Obrigatória com transporte cloudflare. */
   APP_BASE_URL?: string
+  /** Assets estáticos (SPA). Usado pela casca da página da cliente (`/c/*`), que leva o token no URL. */
+  ASSETS?: Fetcher
   /**
    * Transporte de e-mail: `simulated` (dev/CI) | `cloudflare` (Workers Email Sending).
    * Com binding `EMAIL` presente e var vazia, resolve para cloudflare.

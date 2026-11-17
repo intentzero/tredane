@@ -6,6 +6,8 @@ import {
   type LlmQueueEnvelope,
 } from '../clinic/ai/llm-queue-types'
 import { runReviewSamplesPurge } from '../review-samples'
+import { purgeExpiredClientWebRows } from '../clientweb/cleanup'
+import { systemClock } from '../db/clock'
 import { HEALTH_CRON, runHealthRefresh } from '../ops/health-cron'
 import type { WorkerBindings } from './bindings'
 import type { InboundQueueMessage } from '../whatsapp/queue-types'
@@ -46,6 +48,8 @@ const worker = {
       return
     }
     await runReviewSamplesPurge(env)
+    // ADR-0018 §7a: links, sessões e contadores expirados da página da cliente.
+    if (env.DB) await purgeExpiredClientWebRows(env.DB, systemClock)
   },
 }
 

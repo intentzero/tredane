@@ -1,4 +1,5 @@
 import { createClientWebRoutes, type ClientWebRouteOptions } from '../clientweb/routes'
+import { createClientWebShellRoutes, type ClientWebShellOptions } from '../clientweb/shell'
 import { createClinicResetRoutes, type ClinicResetRouteOptions } from '../clinic-reset/routes'
 import { stripInternalHeaders } from '../realtime/protocol'
 import { createDemoSeedRoutes } from '../ops/demo-seed'
@@ -170,6 +171,8 @@ export type CreateAppOptions = {
   clinicReset?: ClinicResetRouteOptions
   /** Testes: injeta D1, relógio e leitura de estado da página web da cliente. */
   clientWeb?: ClientWebRouteOptions
+  /** Testes: injeta os assets da casca `/c/*`. */
+  clientWebShell?: ClientWebShellOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -306,6 +309,7 @@ export function createApp(opts: CreateAppOptions = {}) {
 
   // Página web da cliente (DEC-196, ADR-0018) — sem Clerk; liga com CLIENT_WEB_ENABLED.
   app.route('/', createClientWebRoutes(opts.clientWeb ?? {}))
+  app.route('/', createClientWebShellRoutes(opts.clientWebShell ?? {}))
 
   // Webhooks Pix (#39) — sem middleware Clerk.
   const pixWebhookOpts: PixWebhookRouteOptions = {
