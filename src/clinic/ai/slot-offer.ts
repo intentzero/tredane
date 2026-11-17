@@ -529,6 +529,36 @@ export async function offerNearestSlots(input: {
     )
   }
   if (picked.length === 0) {
+    // «antes das X» sem vaga: oferece o mais cedo depois do corte no mesmo dia pedido.
+    if (!_skipEmptyAdvance && onlyAtOrBeforeMinute != null && date) {
+      const later = await offerNearestSlots({
+        ...input,
+        onlyAtOrBeforeHHMM: null,
+        notBeforeHHMM: onlyAtOrBeforeHHMM,
+        order: 'earliest',
+        limit,
+        _skipEmptyAdvance: true,
+      })
+      if (later.slots.length > 0) {
+        const merged = later.slots.slice(0, limit)
+        const listed = merged.map((s) => s.time).join(', ')
+        const diaBase = dayOfferLabelPt(date, today)
+        const lead = `Antes das ${onlyAtOrBeforeHHMM} não tenho horário livre. O mais perto depois é ${merged[0]!.time}. `
+        const fallback = `${lead}Os horários disponíveis para ${diaBase} são ${listed}. Algum serve?`
+        const body = sayAct(
+          'oferecer_horarios',
+          conversationId,
+          { assunto: subject, quando: '', lista: listed, dia: diaBase },
+          fallback,
+          { requireInTemplate: ['{dia}'] },
+        )
+        return {
+          slots: merged,
+          replyText: lead ? fallback : body,
+          clearPeriod: true,
+        }
+      }
+    }
     // Silencioso 2 (Paulo 09/11/2026): período/dia vazio → auto-avançar sem wait «Sim».
     if (!_skipEmptyAdvance && period && notBeforeMinute != null) {
       const earlier = await offerNearestSlots({

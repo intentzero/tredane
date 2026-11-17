@@ -94,6 +94,22 @@ function formatFutureAppointmentLine(
   return `${appt.serviceLabel} ${dayPart} às ${localHHMM(tz, appt.startsAt)}`
 }
 
+/** True se o lembrete «Você já tem…» já saiu nesta conversa (não repetir a cada oferta). */
+export function upcomingPrefixAlreadyShown(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const rows = db.all<{ body: string }>(
+    `SELECT body FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+     ORDER BY created_at DESC LIMIT 40`,
+    tenantId,
+    conversationId,
+  )
+  return rows.some((row) => /^você já tem\b/i.test(row.body.trim()))
+}
+
 /** Lembrete antes de ofertar horários quando já há marcação futura (outro dia ou serviço). */
 export function upcomingAppointmentsOfferPrefix(
   db: ClinicDb,
