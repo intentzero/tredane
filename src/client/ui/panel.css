@@ -13451,3 +13451,109 @@ button.panel-auth-inline-link {
     flex: none;
   }
 }
+
+/* Modo de suporte do Clinic App (#853, ADR-0017): vista só de leitura com banner permanente. */
+.support-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  border-bottom: 2px solid var(--color-warning-border);
+}
+.support-banner-text {
+  flex: 1;
+  margin: 0;
+}
+.support-banner-low {
+  font-weight: 700;
+  text-decoration: underline;
+}
+.support-banner-end {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: var(--size-border-width) solid currentColor;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.support-sr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.support-main {
+  padding: var(--space-4);
+}
+.support-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+}
+.support-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+@media (min-width: 900px) {
+  .support-columns {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  }
+}
+.support-list ul,
+.support-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.support-conv {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  gap: 2px;
+  padding: var(--space-3);
+  text-align: left;
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.support-conv[aria-current='true'] {
+  border-color: var(--color-text-primary);
+}
+.support-conv-name {
+  font-weight: 600;
+}
+.support-conv-preview,
+.support-conv-when,
+.support-msg-meta {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+.support-msg {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+}
+.support-msg-outbound {
+  margin-left: var(--space-5);
+}
+.support-msg-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

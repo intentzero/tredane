@@ -17,6 +17,7 @@ import { AgendaArea } from './screens/agenda/AgendaArea'
 import { ClientesArea } from './screens/clientes/ClientesArea'
 import { AvisosScreen } from './screens/AvisosScreen'
 import { PanelShell } from './shell/PanelShell'
+import { SupportView } from './support/SupportView'
 import { ErrorState, LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
 import { captureInstallPrompt, registerServiceWorker } from './pwa'
@@ -42,7 +43,7 @@ function usePanelPath(): PanelRoute | null {
 
 function PanelRouter() {
   const route = usePanelPath()
-  const { signedIn, status, authResolved } = useAuthSession()
+  const { signedIn, status, authResolved, api } = useAuthSession()
   const { selectTenant, active } = useTenant()
   // Clerk que não responde (sem rede, script bloqueado) não pode deixar a tela em «Abrindo…» para sempre.
   const [authSlow, setAuthSlow] = useState(false)
@@ -155,6 +156,16 @@ function PanelRouter() {
 
   if (route.kind === 'clinicas') {
     return <ClinicSelector />
+  }
+
+  // Sessão de suporte (ADR-0017): vista própria só de leitura; nenhuma área normal do painel é montada.
+  if (active.phase === 'ready' && active.context.support && api) {
+    return (
+      <SupportView
+        context={active.context as typeof active.context & { support: { sessionId: string; expiresAt: number } }}
+        api={api}
+      />
+    )
   }
 
   if (route.area === 'avisos') {
