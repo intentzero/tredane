@@ -2360,8 +2360,8 @@ button.panel-auth-inline-link {
   min-height: 0;
   flex: 1;
   gap: var(--space-2);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  /* Só a .inbox-timeline rola; overflow aqui escondia o compositor no iOS. */
+  overflow: hidden;
 }
 
 .inbox-thread-header {
@@ -5519,6 +5519,10 @@ button.panel-auth-inline-link {
 /* Com o teclado aberto o home indicator fica atrás dele: sem folga extra. */
 :root[data-keyboard='open'] .inbox-composer-wrap {
   padding-bottom: 0;
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
 }
 
 @media (max-width: 767.98px) {
