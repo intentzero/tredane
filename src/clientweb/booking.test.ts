@@ -103,7 +103,6 @@ describe('catálogo da página (REQ-112)', () => {
       expect(catalog.today).toBe('2024-01-07')
       const l = catalog.services.find((s) => s.id === laser.id)!
       expect(l.zones.map((z) => z.name).sort()).toEqual(['Axilas', 'Barba', 'Sobrancelha'])
-      expect(JSON.stringify(catalog)).not.toMatch(/synonym|sinónimo/i)
     } finally {
       close()
     }
@@ -257,6 +256,29 @@ describe('planWebProposal + executor com canal web (DEC-197)', () => {
       // Passados 10 minutos já não vale como repetição.
       clock.advance(11 * 60 * 1000)
       expect(findRecentWebBooking(db, TENANT, clock, session, { serviceId: simple.id, slotId })).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
+  it('daysOnly devolve só a primeira hora de cada dia (calendário) e não tem o teto de horas', async () => {
+    const { db, close, clock, simple } = seed()
+    try {
+      const res = await listClientWebSlots(db, TENANT, clock, { serviceId: simple.id, variantIds: [], from: '2024-01-07', to: '2024-01-22', daysOnly: true })
+      if (!res.ok) throw new Error('sem resultado')
+      expect(res.slots.map((s) => s.date)).toEqual(['2024-01-08', '2024-01-15', '2024-01-22'])
+      expect(res.slots.every((s) => s.time === '09:00')).toBe(true)
+    } finally {
+      close()
+    }
+  })
+
+  it('o catálogo leva os sinónimos só para a pesquisa casar', () => {
+    const { db, close, clock, simple } = seed()
+    try {
+      db.run('UPDATE services SET synonyms_json = ? WHERE tenant_id = ? AND id = ?', JSON.stringify(['limpeza facial']), TENANT, simple.id)
+      const svc = readClientWebCatalog(db, TENANT, clock).services.find((x) => x.id === simple.id)!
+      expect(svc.synonyms).toEqual(['limpeza facial'])
     } finally {
       close()
     }

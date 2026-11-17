@@ -10,6 +10,8 @@ import {
 } from './api'
 import { catalogNeedsLine, civilDayLabel, formatPrice, servicesForLine, visitTotals, zonesForLine } from './booking-model'
 import { TimeStep } from './TimeStep'
+import { Highlight } from './Highlight'
+import { searchCatalog, filterZones } from './search-model'
 
 type Step = 'line' | 'service' | 'zones' | 'time' | 'review' | 'done'
 type Outcome = 'booked' | 'pix_signal' | 'paused' | 'error'
@@ -73,9 +75,9 @@ export function BookFlow({ clinicName, onExit, onSessionLost }: Props) {
   const totalSteps = hasZones ? 4 : 3
   const position = step === 'service' || step === 'line' ? 1 : step === 'zones' ? 2 : step === 'time' ? (hasZones ? 3 : 2) : totalSteps
 
-  function chooseService(s: CatalogService) {
+  function chooseService(s: CatalogService, preselectZoneId?: string) {
     setService(s)
-    setZoneIds([])
+    setZoneIds(preselectZoneId ? [preselectZoneId] : [])
     setDay(null)
     setSlot(null)
     setSlotNotice(null)
@@ -171,6 +173,7 @@ export function BookFlow({ clinicName, onExit, onSessionLost }: Props) {
           subtitle={`${service.name} · ${visitTotals(service, zoneIds).minutes} min`}
           depsKey={`${service.id}:${zoneIds.join(',')}`}
           load={(from, to) => fetchSlots({ serviceId: service.id, variantIds: zoneIds, from, to })}
+          loadDays={(from, to) => fetchSlots({ serviceId: service.id, variantIds: zoneIds, from, to, daysOnly: true })}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           day={day}
@@ -209,6 +212,25 @@ export function BookFlow({ clinicName, onExit, onSessionLost }: Props) {
   )
 }
 
+function SearchField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="cw-search">
+      <span aria-hidden="true" className="cw-search-icon">
+        ⌕
+      </span>
+      <input
+        type="search"
+        className="cw-search-input"
+        aria-label={label}
+        placeholder={label}
+        value={value}
+        autoComplete="off"
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  )
+}
+
 function ServiceList({
   catalog,
   line,
@@ -217,21 +239,88 @@ function ServiceList({
 }: {
   catalog: Catalog
   line: Line | null
-  onPick: (s: CatalogService) => void
+  onPick: (s: CatalogService, preselectZoneId?: string) => void
   onChangeLine: (() => void) | null
 }) {
+  const [query, setQuery] = useState('')
   const services = servicesForLine(catalog, line)
+  const q = query.trim()
+  const result = q ? searchCatalog(catalog, services, line, q) : null
   return (
     <main className="cw-main cw-flush">
-      {onChangeLine && (
-        <div className="cw-line-bar">
-          <span>{line === 'feminino' ? 'Feminino' : line === 'masculino' ? 'Masculino' : 'Para quem é?'}</span>
-          <button type="button" className="cw-link" onClick={onChangeLine}>
-            Trocar
-          </button>
-        </div>
-      )}
-      {services.length === 0 ? (
+      <div className="cw-search-wrap">
+        <SearchField label="Procurar serviço ou zona" value={query} onChange={setQuery} />
+        {onChangeLine && (
+          <div className="cw-line-inline">
+            <span>{line === 'feminino' ? 'Feminino' : line === 'masculino' ? 'Masculino' : 'Para quem é?'}</span>
+            <button type="button" className="cw-link" onClick={onChangeLine}>
+              Trocar
+            </button>
+            {result && (
+              <span role="status" className="cw-results-count">
+                {result.count} {result.count === 1 ? 'resultado' : 'resultados'}
+              </span>
+            )}
+          </div>
+        )}
+        {!onChangeLine && result && (
+          <span role="status" className="cw-results-count">
+            {result.count} {result.count === 1 ? 'resultado' : 'resultados'}
+          </span>
+        )}
+      </div>
+      {result ? (
+        result.groups.length === 0 ? (
+          <div role="status" className="cw-empty">
+            <h2 className="cw-title">Nada encontrado para «{q}»</h2>
+            <p className="cw-body">Pode ser um serviço que não se marca por aqui. A equipe responde no WhatsApp.</p>
+            <button type="button" className="cw-btn cw-btn-secondary" onClick={() => setQuery('')}>
+              Ver todos os serviços
+            </button>
+          </div>
+        ) : (
+          <nav aria-label="Resultados" className="cw-rows">
+            {result.groups.map((g) => (
+              <section key={g.service.id} aria-label={g.service.name}>
+                <h2 className="cw-group-title">{g.service.name}</h2>
+                {g.serviceMatched && (
+                  <button type="button" className="cw-row" onClick={() => onPick(g.service)}>
+                    <span className="cw-row-main">
+                      <span className="cw-row-title">
+                        <Highlight text={g.service.name} query={q} />
+                      </span>
+                      <span className="cw-muted">
+                        {g.service.zones.length > 0
+                          ? `${g.service.variantKindPlural ?? 'Opções'} à escolha`
+                          : `${g.service.durationMinutes} min · ${formatPrice(g.service.priceCents)}`}
+                      </span>
+                    </span>
+                    <span aria-hidden="true" className="cw-chevron">
+                      ›
+                    </span>
+                  </button>
+                )}
+                {g.zones.map((z) => (
+                  <button key={z.id} type="button" className="cw-row" onClick={() => onPick(g.service, z.id)}>
+                    <span className="cw-row-main">
+                      <span className="cw-row-title">
+                        <Highlight text={z.name} query={q} />
+                      </span>
+                      <span className="cw-muted">
+                        {g.service.variantKind ?? 'Zona'} · {z.durationMinutes} min · {formatPrice(z.priceCents)}
+                      </span>
+                    </span>
+                    <span aria-hidden="true" className="cw-chevron">
+                      ›
+                    </span>
+                  </button>
+                ))}
+              </section>
+            ))}
+            <p className="cw-muted cw-margin cw-pad">Resultados agrupados pelo serviço. Tocar numa zona abre a escolha de zonas com ela já marcada.</p>
+          </nav>
+        )
+      ) : services.length === 0 ? (
         <p className="cw-note cw-margin">Não há serviços para marcar aqui. Fale com a equipe pelo WhatsApp.</p>
       ) : (
         <ul className="cw-rows" aria-label="Serviços">
@@ -274,7 +363,9 @@ function ZoneStep({
   onToggle: (id: string) => void
   onNext: () => void
 }) {
-  const zones = zonesForLine(service, line)
+  const [zoneQuery, setZoneQuery] = useState('')
+  const allZones = zonesForLine(service, line)
+  const zones = filterZones(allZones, zoneQuery)
   const totals = visitTotals(service, selected)
   const single = service.variantSelection === 'uma'
   return (
@@ -283,6 +374,14 @@ function ZoneStep({
         <p className="cw-muted cw-margin">
           {service.name}. {single ? 'Escolha uma.' : 'Escolha uma ou mais. A duração e o preço somam.'}
         </p>
+        <div className="cw-search-wrap">
+          <SearchField label={`Procurar ${(service.variantKind ?? 'opção').toLowerCase()}`} value={zoneQuery} onChange={setZoneQuery} />
+        </div>
+        {zones.length === 0 && (
+          <p role="status" className="cw-note cw-margin">
+            Nada encontrado para «{zoneQuery.trim()}».
+          </p>
+        )}
         <fieldset className="cw-fieldset">
           <legend className="cw-sr">{service.variantKindPlural ?? 'Opções'}</legend>
           {zones.map((z) => (
@@ -293,7 +392,9 @@ function ZoneStep({
                 checked={selected.includes(z.id)}
                 onChange={() => onToggle(z.id)}
               />
-              <span className="cw-row-title">{z.name}</span>
+              <span className="cw-row-title">
+                <Highlight text={z.name} query={zoneQuery} />
+              </span>
               <span className="cw-muted">
                 {z.durationMinutes} min · {formatPrice(z.priceCents)}
               </span>

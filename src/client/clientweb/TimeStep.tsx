@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Catalog, Slot, SlotsResult } from './api'
+import { CalendarSheet } from './CalendarSheet'
 import {
   addDays,
   canGoNextWeek,
@@ -16,6 +17,7 @@ export function TimeStep({
   subtitle,
   depsKey,
   load,
+  loadDays,
   weekStart,
   setWeekStart,
   day,
@@ -30,6 +32,8 @@ export function TimeStep({
   /** Muda quando o pedido de horas muda (serviço, zonas, marcação). */
   depsKey: string
   load: (from: string, to: string) => Promise<SlotsResult>
+  /** Calendário do mês: primeira hora de cada dia do horizonte. */
+  loadDays: (from: string, to: string) => Promise<SlotsResult>
   weekStart: string
   setWeekStart: (d: string) => void
   day: string | null
@@ -43,6 +47,10 @@ export function TimeStep({
   const [retry, setRetry] = useState(0)
   const loadRef = useRef(load)
   loadRef.current = load
+  const loadDaysRef = useRef(loadDays)
+  loadDaysRef.current = loadDays
+  const stableLoadDays = useCallback((from: string, to: string) => loadDaysRef.current(from, to), [])
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -79,7 +87,11 @@ export function TimeStep({
         </p>
       )}
       <div className="cw-week-nav cw-margin">
-        <span className="cw-month">{month}</span>
+        <button type="button" className="cw-month-btn" aria-haspopup="dialog" aria-expanded={calendarOpen} onClick={() => setCalendarOpen(true)}>
+          <span className="cw-month">{month}</span>
+          <span aria-hidden="true"> ▾</span>
+        </button>
+        <span className="cw-spacer" />
         <button
           type="button"
           className="cw-icon-btn"
@@ -152,7 +164,20 @@ export function TimeStep({
         </section>
       ))}
       {Array.isArray(slots) && slots.length > 0 && <p className="cw-muted cw-margin">Nada fica marcado antes de Confirmar.</p>}
+      {calendarOpen && (
+        <CalendarSheet
+          catalog={catalog}
+          selected={day}
+          loadDays={stableLoadDays}
+          onSessionLost={onSessionLost}
+          onClose={() => setCalendarOpen(false)}
+          onPick={(date) => {
+            setCalendarOpen(false)
+            setDay(date)
+            setWeekStart(date)
+          }}
+        />
+      )}
     </main>
   )
 }
-

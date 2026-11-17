@@ -19,13 +19,13 @@ const CATALOG = {
   horizonDays: 30,
   today: '2026-11-17',
   services: [
-    { id: 'svc-limpeza', name: 'Limpeza de pele', durationMinutes: 45, priceCents: 12_000, audience: 'qualquer', variantKind: null, variantKindPlural: null, variantSelection: 'varias', requiresSignal: false, zones: [] },
+    { id: 'svc-limpeza', name: 'Limpeza de pele', synonyms: ['limpeza facial'], durationMinutes: 45, priceCents: 12_000, audience: 'qualquer', variantKind: null, variantKindPlural: null, variantSelection: 'varias', requiresSignal: false, zones: [] },
     {
-      id: 'svc-laser', name: 'Depilação a laser', durationMinutes: 60, priceCents: null, audience: 'qualquer', variantKind: 'Zona', variantKindPlural: 'Zonas', variantSelection: 'varias', requiresSignal: true,
+      id: 'svc-laser', name: 'Depilação a laser', synonyms: [], durationMinutes: 60, priceCents: null, audience: 'qualquer', variantKind: 'Zona', variantKindPlural: 'Zonas', variantSelection: 'varias', requiresSignal: true,
       zones: [
-        { id: 'z-ax', name: 'Axilas', audience: 'feminino', durationMinutes: 10, priceCents: 9_000 },
-        { id: 'z-vi', name: 'Virilha', audience: 'feminino', durationMinutes: 20, priceCents: 14_000 },
-        { id: 'z-ba', name: 'Barba', audience: 'masculino', durationMinutes: 30, priceCents: 8_000 },
+        { id: 'z-ax', name: 'Axilas', synonyms: ['sovaco'], audience: 'feminino', durationMinutes: 10, priceCents: 9_000 },
+        { id: 'z-vi', name: 'Virilha', synonyms: [], audience: 'feminino', durationMinutes: 20, priceCents: 14_000 },
+        { id: 'z-ba', name: 'Barba', synonyms: [], audience: 'masculino', durationMinutes: 30, priceCents: 8_000 },
       ],
     },
   ],
@@ -51,7 +51,11 @@ function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[] 
       if (url.endsWith('/api/c/exchange')) return json({ ok: true })
       if (url.endsWith('/api/c/state')) return json(STATE)
       if (url.endsWith('/api/c/catalog')) return json(CATALOG)
-      if (url.endsWith('/api/c/availability')) return json({ slots: opts.slots ?? SLOTS })
+      if (url.endsWith('/api/c/availability')) {
+        const all = (opts.slots ?? SLOTS) as Array<{ date: string }>
+        const only = body?.daysOnly === true
+        return json({ slots: only ? all.filter((x, i) => all.findIndex((y) => y.date === x.date) === i) : all })
+      }
       if (url.endsWith('/api/c/book')) {
         return json(opts.book ?? { status: 'booked', appointment: { id: 'apt-1', startsAt: 1, endsAt: 2, serviceName: 'Limpeza de pele' } }, opts.bookStatus ?? 200)
       }
@@ -233,5 +237,92 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(screen.getByRole('button', { name: '09:00' }))
     await screen.findByRole('heading', { name: 'Confirme o horário' })
     await check(document.body)
+  })
+
+  it('pesquisa em Serviço: «sovaco» acha a zona Axilas pelo sinónimo, sem o mostrar, e tocar leva às zonas com ela marcada', async () => {
+    const calls = mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.type(await screen.findByRole('searchbox', { name: 'Procurar serviço ou zona' }), 'sovaco')
+    expect(await screen.findByText('1 resultado')).toBeTruthy()
+    const results = screen.getByRole('navigation', { name: 'Resultados' })
+    expect(within(results).getByText('Depilação a laser')).toBeTruthy()
+    expect(within(results).getByRole('button', { name: /Axilas/ })).toBeTruthy()
+    // O sinónimo só serve para casar: nunca aparece escrito na página.
+    expect(screen.queryByText(/sovaco/i)).toBeNull()
+    await user.click(within(results).getByRole('button', { name: /Axilas/ }))
+    expect(await screen.findByRole('heading', { name: 'Que zonas?' })).toBeTruthy()
+    expect((screen.getByLabelText(/Axilas/) as HTMLInputElement).checked).toBe(true)
+    expect(screen.getByRole('button', { name: 'Ver horários' })).toHaveProperty('disabled', false)
+    expect(calls.length).toBeGreaterThan(0)
+  })
+
+  it('pesquisa: «axila» sem acento nem plural, e «botox» mostra «Nada encontrado» com saída', async () => {
+    mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    const box = await screen.findByRole('searchbox', { name: 'Procurar serviço ou zona' })
+    await user.type(box, 'AXILA')
+    expect(within(screen.getByRole('navigation', { name: 'Resultados' })).getByRole('button', { name: /Axilas/ })).toBeTruthy()
+    await user.clear(box)
+    await user.type(box, 'botox')
+    expect(await screen.findByRole('heading', { name: 'Nada encontrado para «botox»' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Ver todos os serviços' }))
+    expect(await screen.findByRole('button', { name: /Limpeza de pele/ })).toBeTruthy()
+    expect((box as HTMLInputElement).value).toBe('')
+  })
+
+  it('pesquisa de zona dentro do serviço filtra a lista e mantém as escolhidas', async () => {
+    mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Depilação a laser/ }))
+    await user.click(screen.getByLabelText(/Axilas/))
+    await user.type(screen.getByRole('searchbox', { name: 'Procurar zona' }), 'virilh')
+    expect(screen.queryByLabelText(/Axilas/)).toBeNull()
+    expect(screen.getByLabelText(/Virilha/)).toBeTruthy()
+    await user.clear(screen.getByRole('searchbox', { name: 'Procurar zona' }))
+    expect((screen.getByLabelText(/Axilas/) as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('calendário do mês: abre, mostra dias livres, escolhe o dia e fecha com Escape', async () => {
+    const calls = mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await screen.findByRole('button', { name: '14:15' })
+    await user.click(screen.getByRole('button', { name: /novembro de 2026/i }))
+    const dialog = await screen.findByRole('dialog', { name: 'Escolher data' })
+    const free = await within(dialog).findByRole('button', { name: 'qui 19/11, com horários' })
+    expect(within(dialog).getByLabelText('sex 20/11, sem horários')).toBeTruthy()
+    const daysCall = calls.filter((c) => c.url.endsWith('/api/c/availability')).pop()!
+    expect(daysCall.body).toMatchObject({ daysOnly: true, from: '2026-11-17', to: '2026-12-16' })
+    await user.click(free)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(await screen.findByRole('button', { name: '10:00' })).toBeTruthy()
+    // Escape fecha.
+    await user.click(screen.getByRole('button', { name: /novembro de 2026/i }))
+    await screen.findByRole('dialog', { name: 'Escolher data' })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('calendário: «Primeira data livre», mês seguinte só até ao horizonte e sem violações (axe)', async () => {
+    mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await screen.findByRole('button', { name: '14:15' })
+    await user.click(screen.getByRole('button', { name: /novembro de 2026/i }))
+    const dialog = await screen.findByRole('dialog', { name: 'Escolher data' })
+    await within(dialog).findByRole('button', { name: /Primeira data livre: qua 18\/11/ })
+    expect((within(dialog).getByRole('button', { name: 'Mês anterior' }) as HTMLButtonElement).disabled).toBe(true)
+    await user.click(within(dialog).getByRole('button', { name: 'Próximo mês' }))
+    expect(within(dialog).getByText('dezembro 2026')).toBeTruthy()
+    expect((within(dialog).getByRole('button', { name: 'Próximo mês' }) as HTMLButtonElement).disabled).toBe(true)
+    const res = await axe.run(document.body, { rules: { 'color-contrast': { enabled: false } } })
+    expect(res.violations.map((v) => `${v.id}: ${v.nodes[0]?.html}`)).toEqual([])
+    await user.click(within(dialog).getByRole('button', { name: /Primeira data livre/ }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

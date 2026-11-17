@@ -41,6 +41,8 @@ export type ClientWebLine = 'feminino' | 'masculino'
 export type ClientWebCatalogZone = {
   id: string
   name: string
+  /** DEC-110: só para a pesquisa casar; a página nunca os mostra. */
+  synonyms: string[]
   audience: 'feminino' | 'masculino' | 'ambos'
   durationMinutes: number
   priceCents: number | null
@@ -49,6 +51,8 @@ export type ClientWebCatalogZone = {
 export type ClientWebCatalogService = {
   id: string
   name: string
+  /** DEC-110: só para a pesquisa casar; a página nunca os mostra. */
+  synonyms: string[]
   durationMinutes: number
   priceCents: number | null
   /** Audiência do serviço (DEC-075), não da pessoa. */
@@ -83,6 +87,7 @@ export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Cloc
     .map<ClientWebCatalogService>((s) => ({
       id: s.id,
       name: s.name,
+      synonyms: [...s.synonyms],
       durationMinutes: s.durationMinutes,
       priceCents: s.priceCents,
       audience: s.audiencia,
@@ -95,6 +100,7 @@ export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Cloc
         .map((z) => ({
           id: z.id,
           name: z.name,
+          synonyms: [...z.synonyms],
           audience: z.audience,
           durationMinutes: z.durationMinutes,
           priceCents: z.priceCents,
@@ -143,6 +149,8 @@ export async function listClientWebSlots(
     variantIds: string[]
     from: string
     to: string
+    /** Calendário: só a primeira hora de cada dia (sem o teto de horas). */
+    daysOnly?: boolean
     forecast?: ForecastAdapter
   },
 ): Promise<ClientWebSlotsResult> {
@@ -160,7 +168,7 @@ export async function listClientWebSlots(
   const forecast = input.forecast ?? { read: readOpenMeteo }
   const slots: ClientWebSlot[] = []
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
-    if (slots.length >= CLIENT_WEB_MAX_SLOTS) break
+    if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
     try {
       avail = await queryAutomaticAvailability(
@@ -180,6 +188,7 @@ export async function listClientWebSlots(
       if (seen.has(time)) continue
       seen.add(time)
       slots.push({ id: `${date}T${time}`, date, time })
+      if (input.daysOnly) break
     }
   }
   return { ok: true, slots, from: range.from, to: range.to }

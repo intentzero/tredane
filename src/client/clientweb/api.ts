@@ -23,6 +23,8 @@ export type ClientWebState = {
 export type CatalogZone = {
   id: string
   name: string
+  /** Só para a pesquisa casar (DEC-110); nunca se mostra. */
+  synonyms: string[]
   audience: 'feminino' | 'masculino' | 'ambos'
   durationMinutes: number
   priceCents: number | null
@@ -31,6 +33,8 @@ export type CatalogZone = {
 export type CatalogService = {
   id: string
   name: string
+  /** Só para a pesquisa casar (DEC-110); nunca se mostra. */
+  synonyms: string[]
   durationMinutes: number
   priceCents: number | null
   audience: 'feminino' | 'masculino' | 'qualquer'
@@ -137,6 +141,8 @@ export async function fetchSlots(input: {
   variantIds: string[]
   from: string
   to: string
+  /** Calendário: só a primeira hora de cada dia. */
+  daysOnly?: boolean
 }): Promise<SlotsResult> {
   try {
     const res = await fetch('/api/c/availability', {
@@ -175,7 +181,7 @@ export async function bookSlot(input: BookInput): Promise<BookResult | 'unauthor
 export type CancelResult = { status: 'cancelled'; serviceName: string; startsAt: number } | { status: 'needs_team' } | { status: 'not_found' }
 
 /** Horas para remarcar: serviço e zonas vêm da própria marcação. */
-export async function fetchRescheduleSlots(input: { appointmentId: string; from: string; to: string }): Promise<SlotsResult> {
+export async function fetchRescheduleSlots(input: { appointmentId: string; from: string; to: string; daysOnly?: boolean }): Promise<SlotsResult> {
   try {
     const res = await fetch('/api/c/availability', {
       method: 'POST',

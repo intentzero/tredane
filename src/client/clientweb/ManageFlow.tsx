@@ -128,6 +128,7 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
         subtitle={`${appointment.serviceName} · hoje ${formatAppointmentWhen(appointment.startsAt, timezone)}`}
         depsKey={`resched:${appointment.id}`}
         load={(from, to) => fetchRescheduleSlots({ appointmentId: appointment.id, from, to })}
+        loadDays={(from, to) => fetchRescheduleSlots({ appointmentId: appointment.id, from, to, daysOnly: true })}
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         day={day}

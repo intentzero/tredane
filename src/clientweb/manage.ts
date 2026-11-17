@@ -114,7 +114,7 @@ export async function listRescheduleSlots(
   tenantId: string,
   clock: Clock,
   session: { contactId: string },
-  input: { appointmentId: string; from: string; to: string; forecast?: ForecastAdapter },
+  input: { appointmentId: string; from: string; to: string; daysOnly?: boolean; forecast?: ForecastAdapter },
 ): Promise<RescheduleSlotsResult> {
   const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
   if (!apt) return { ok: false, error: 'appointment_not_found' }
@@ -126,7 +126,7 @@ export async function listRescheduleSlots(
   const forecast = input.forecast ?? { read: readOpenMeteo }
   const slots: ClientWebSlot[] = []
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
-    if (slots.length >= CLIENT_WEB_MAX_SLOTS) break
+    if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
     try {
       avail = await queryAutomaticAvailability(
@@ -151,6 +151,7 @@ export async function listRescheduleSlots(
       if (seen.has(time)) continue
       seen.add(time)
       slots.push({ id: `${date}T${time}`, date, time })
+      if (input.daysOnly) break
     }
   }
   return { ok: true, slots, from: range.from, to: range.to }

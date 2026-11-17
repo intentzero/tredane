@@ -61,13 +61,13 @@ export type ClientWebRouteOptions = {
   slotsLookup?: (
     env: WorkerBindings,
     session: ClientWebSession,
-    input: { serviceId: string; variantIds: string[]; from: string; to: string },
+    input: { serviceId: string; variantIds: string[]; from: string; to: string; daysOnly?: boolean },
   ) => Promise<ClientWebSlotsResult | null>
   bookLookup?: (env: WorkerBindings, session: ClientWebSession, input: WebBookingInput) => Promise<ClientWebBookResult | null>
   rescheduleSlotsLookup?: (
     env: WorkerBindings,
     session: ClientWebSession,
-    input: { appointmentId: string; from: string; to: string },
+    input: { appointmentId: string; from: string; to: string; daysOnly?: boolean },
   ) => Promise<RescheduleSlotsResult | null>
   rescheduleLookup?: (
     env: WorkerBindings,
@@ -275,7 +275,7 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const appointmentId = body.appointmentId === undefined ? null : str(body.appointmentId)
     if (body.appointmentId !== undefined) {
       if (!appointmentId || !from || !to) return c.json({ error: 'invalid_request' }, 400)
-      const rinput = { appointmentId, from, to }
+      const rinput = { appointmentId, from, to, ...(body.daysOnly === true ? { daysOnly: true } : {}) }
       const rres = opts.rescheduleSlotsLookup
         ? await opts.rescheduleSlotsLookup(c.env, got.session, rinput)
         : await clinicStub(c.env, got.session).clientWebRescheduleSlots({
@@ -291,7 +291,7 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const serviceId = str(body.serviceId)
     const variantIds = strList(body.variantIds)
     if (!serviceId || !variantIds || !from || !to) return c.json({ error: 'invalid_request' }, 400)
-    const input = { serviceId, variantIds, from, to }
+    const input = { serviceId, variantIds, from, to, ...(body.daysOnly === true ? { daysOnly: true } : {}) }
     const result = opts.slotsLookup
       ? await opts.slotsLookup(c.env, got.session, input)
       : await clinicStub(c.env, got.session).clientWebSlots({

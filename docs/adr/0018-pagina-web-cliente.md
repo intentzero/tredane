@@ -128,6 +128,12 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - Página: Início com «Agendar novo horário», «Para quem é?» (só se o catálogo depende de género), serviço, zonas (só as da linha, total somado), horário (semana com setas, Manhã/Tarde/Noite), revisão e resultado (marcado, Pix, pausa, erro). Layout compacto (C-02 a C-06).
 - **Horizonte provisório:** 30 dias fixos em `CLIENT_WEB_HORIZON_DAYS`, até a configuração da clínica existir (DEC-201).
 
+**Pesquisa e calendário implementados (17/11/2026, atrás da flag):**
+
+- **Pesquisa** (C-10, C-11, DEC-200): um campo em Serviço acha serviços e zonas pelo nome e pelos sinónimos, sem acentos e com plural leve, com o termo realçado e resultados agrupados pelo serviço; tocar numa zona abre Zonas com ela marcada. Zonas tem o seu campo. Sem resultado mostra «Nada encontrado» e «Ver todos os serviços». Corre no navegador sobre o catálogo (`search-model.ts`).
+- **Sinónimos no catálogo:** o catálogo de `GET /api/c/catalog` passa a levar `synonyms` (serviço e zona) **só para a pesquisa casar**; a página nunca os escreve (há teste). A DEC-110 diz «nunca à cliente»; isto dá ao navegador da cliente a lista de nomes populares. **Em aberto para o Paulo:** aceitar, ou fazer a pesquisa no servidor (uma rota a mais, com o mesmo resultado e sem expor a lista).
+- **Calendário do mês** (C-12): a data do cabeçalho do horário abre uma folha com o mês, pontos nos dias com horas livres, dias cheios ou fechados apagados, mês anterior e seguinte só dentro do horizonte, e «Primeira data livre». Usa `daysOnly` em `POST /api/c/availability` (só a primeira hora de cada dia, sem o teto de 400 horas, que escondia os últimos dias). Vale também em Remarcar.
+
 **Fase 5 implementada (17/11/2026, atrás da flag e do interruptor da owner): oferta do link no chat**
 
 - A abertura do hub do chat («Oi» e pedido vago de marcar, `shouldAttachHubOpeningCta`) leva o botão **«Abrir agenda»** (`cta_url`) em vez do CTA do Flow, quando a página está ligada pela plataforma (`CLIENT_WEB_ENABLED`, base `APP_BASE_URL` https) **e** pela owner nesta clínica. É o mesmo gancho `prepareBookingFlowOffer`: o Clinic DO emite o link (`issueClientWebLink`, `purpose: 'home'`) e devolve o corpo e o botão (`src/clientweb/offer.ts`). Sem binding ativo ou sem https cai no Flow, se existir, e depois no M5.
@@ -156,7 +162,6 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 **Fase 2, ainda não feito:**
 
-1. **Pesquisa de texto** (C-10, C-11, DEC-200) e **calendário do mês** (C-12). A navegação por semanas já cobre o horizonte.
 2. **«Para quem é?» não vem pré-escolhido** da conversa (DEC-142); a cliente escolhe sempre.
 3. **Hora perdida entre Confirmar e a marcação** também gera a frase do chat «Horário já não está livre… Tenho …» (reaproveitada do executor). Para a página basta o aviso no ecrã; falta suprimir a mensagem do chat neste canal.
 4. Sem caso L1 novo: o canal web não é um diálogo. O comportamento está coberto por `booking.test.ts` e `BookFlow.test.tsx`; o scorecard (222 casos) não regrediu.

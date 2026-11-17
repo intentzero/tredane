@@ -16,6 +16,7 @@ import {
 
 const svc = (over: Partial<CatalogService> & { id: string }): CatalogService => ({
   name: over.id,
+  synonyms: [],
   durationMinutes: 60,
   priceCents: 12_000,
   audience: 'qualquer',
@@ -30,9 +31,9 @@ const svc = (over: Partial<CatalogService> & { id: string }): CatalogService => 
 const laser = svc({
   id: 'laser',
   zones: [
-    { id: 'ax', name: 'Axilas', audience: 'feminino', durationMinutes: 15, priceCents: 4_000 },
-    { id: 'ba', name: 'Barba', audience: 'masculino', durationMinutes: 30, priceCents: 8_000 },
-    { id: 'so', name: 'Sobrancelha', audience: 'ambos', durationMinutes: 15, priceCents: 3_050 },
+    { id: 'ax', name: 'Axilas', synonyms: [], audience: 'feminino', durationMinutes: 15, priceCents: 4_000 },
+    { id: 'ba', name: 'Barba', synonyms: [], audience: 'masculino', durationMinutes: 30, priceCents: 8_000 },
+    { id: 'so', name: 'Sobrancelha', synonyms: [], audience: 'ambos', durationMinutes: 15, priceCents: 3_050 },
   ],
 })
 const limpeza = svc({ id: 'limpeza' })
@@ -55,7 +56,7 @@ describe('género no catálogo (DEC-200)', () => {
   })
 
   it('serviço com zonas só do outro género não aparece', () => {
-    const soBarba = svc({ id: 'barba', zones: [{ id: 'ba', name: 'Barba', audience: 'masculino', durationMinutes: 30, priceCents: 8_000 }] })
+    const soBarba = svc({ id: 'barba', zones: [{ id: 'ba', name: 'Barba', synonyms: [], audience: 'masculino', durationMinutes: 30, priceCents: 8_000 }] })
     expect(servicesForLine(catalog([soBarba]), 'feminino')).toEqual([])
   })
 })
@@ -64,7 +65,7 @@ describe('totais e preço', () => {
   it('soma zonas; sem zonas usa o serviço; sem preço numa zona fica «sob consulta»', () => {
     expect(visitTotals(laser, ['ax', 'so'])).toEqual({ minutes: 30, priceCents: 7_050 })
     expect(visitTotals(limpeza, [])).toEqual({ minutes: 60, priceCents: 12_000 })
-    const semPreco = svc({ id: 'x', zones: [{ id: 'z', name: 'Z', audience: 'ambos', durationMinutes: 10, priceCents: null }] })
+    const semPreco = svc({ id: 'x', zones: [{ id: 'z', name: 'Z', synonyms: [], audience: 'ambos', durationMinutes: 10, priceCents: null }] })
     expect(visitTotals(semPreco, ['z']).priceCents).toBeNull()
     expect(formatPrice(null)).toBe('Sob consulta')
   })

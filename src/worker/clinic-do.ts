@@ -1075,6 +1075,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     variantIds: string[]
     from: string
     to: string
+    daysOnly?: boolean
   }): Promise<ClientWebSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
@@ -1086,6 +1087,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       variantIds: input.variantIds,
       from: input.from,
       to: input.to,
+      daysOnly: input.daysOnly === true,
     })
   }
 
@@ -1192,6 +1194,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     appointmentId: string
     from: string
     to: string
+    daysOnly?: boolean
   }): Promise<RescheduleSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
