@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import './clientweb.css'
-import { exchangeLink, fetchCatalog, fetchState, type Catalog, type ClientWebAppointment, type ClientWebState } from './api'
+import { exchangeLink, fetchCatalog, fetchState, type Catalog, type ClientWebAppointment, type ClientWebState, type LinkPurpose } from './api'
 import { CancelFlow, RescheduleFlow } from './ManageFlow'
 import { BookFlow } from './BookFlow'
 import { clientWebTokenFromPath } from './routes'
@@ -31,11 +31,13 @@ export function ClientWebApp() {
     const token = clientWebTokenFromPath(window.location.pathname)
 
     async function start() {
+      let landing: { purpose: LinkPurpose; appointmentId: string | null } | null = null
       if (token) {
         const result = await exchangeLink(token)
         if (cancelled) return
         if (result === 'unavailable') return setView({ kind: 'unavailable' })
         if (result === 'error') return setView({ kind: 'error' })
+        landing = { purpose: result.purpose, appointmentId: result.appointmentId }
         // O token sai do endereço: não fica no histórico nem pode ser partilhado a partir da barra.
         window.history.replaceState(null, '', '/c')
       }
@@ -43,6 +45,20 @@ export function ClientWebApp() {
       if (cancelled) return
       if (state.kind === 'unauthorized') return setView({ kind: 'unavailable' })
       if (state.kind === 'error') return setView({ kind: 'error' })
+      // Link de remarcar ou cancelar com uma marcação alvo: abre direto nela (se ainda existir).
+      const target =
+        landing && landing.appointmentId && (landing.purpose === 'remarcar' || landing.purpose === 'cancelar')
+          ? state.state.appointments.find((a) => a.id === landing!.appointmentId)
+          : undefined
+      if (target && landing?.purpose === 'cancelar') {
+        return setView({ kind: 'cancel', state: state.state, appointment: target })
+      }
+      if (target && landing?.purpose === 'remarcar') {
+        const catalog = await fetchCatalog()
+        if (cancelled) return
+        if (catalog === 'unauthorized') return setView({ kind: 'unavailable' })
+        if (catalog !== 'error') return setView({ kind: 'reschedule', state: state.state, appointment: target, catalog })
+      }
       setView({ kind: 'ready', state: state.state })
     }
     void start()

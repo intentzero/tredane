@@ -88,6 +88,7 @@ describe('rotas públicas da página web da cliente', () => {
       expect(res.headers.get('referrer-policy')).toBe('no-referrer')
       expect(res.headers.get('x-robots-tag')).toBe('noindex')
       const body = await res.json()
+      expect(body).toMatchObject({ ok: true, purpose: 'home', appointmentId: null })
       expect(JSON.stringify(body)).not.toMatch(/clinic-a|ctc-1|cnv-1/)
     } finally {
       close()
@@ -376,6 +377,17 @@ describe('remarcar, cancelar e pedir à equipe (Fases 3 e 4)', () => {
       expect((await call('/api/c/reschedule', cookie, { appointmentId: 'a', slotId: 'amanhã' })).status).toBe(400)
       expect((await call('/api/c/reschedule', cookie, { slotId: '2026-11-18T10:00' })).status).toBe(400)
       expect((await call('/api/c/cancel', cookie, {})).status).toBe(400)
+    } finally {
+      close()
+    }
+  })
+
+  it('exchange devolve a finalidade e a marcação alvo do link (remarcar e cancelar)', async () => {
+    const { d1, clock, post, close } = setup()
+    try {
+      const { token } = await issueClientWebLink(d1, clock, { ...LINK, purpose: 'cancelar', appointmentId: 'apt-7' })
+      const res = await post('/api/c/exchange', { token })
+      expect(await res.json()).toMatchObject({ ok: true, purpose: 'cancelar', appointmentId: 'apt-7' })
     } finally {
       close()
     }

@@ -141,9 +141,17 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - **Interruptor da owner por clínica** (DEC-199, desligado por defeito): tabela `clinic_client_web` (migração 73 do Clinic DO), `GET|PUT /api/tenants/:id/config/client-web` (só a owner, auditoria `config.client_web_updated`) e o cartão «Agendamento por link» em Clínica. Com o interruptor desligado, todos os RPCs `clientWeb*` devolvem `null` (a página não serve) e desligar revoga as sessões abertas.
 - Família L1 **CW-01 a CW-05** (`cw-cases.ts`, harness `clientweb-driver.ts`): abertura com o botão, pedido vago, serviço nomeado, informação e página desligada. O token nunca aparece no corpo.
 
+**Remarcar e cancelar no chat oferecem o link (Confirmado, Paulo, 17/11/2026, «sim remarcar e cancelar também oferecem o link»):**
+
+- Com a página ligada (plataforma e owner), a cliente **com compromisso futuro** que diz «quero remarcar» ou «quero cancelar» recebe o botão «Abrir agenda» em vez do caminho conversacional (DEC-091 e o botão «Cancelar marcação»). Gancho novo `prepareClientWebOffer` (`src/clientweb/offer.ts`), chamado em `autodraft.ts` antes de `tryAiReschedule` e de `handleCancelIntentAutodraft`.
+- O link leva a **finalidade** (`remarcar` ou `cancelar`) e, se a cliente só tem **uma** marcação futura, a **marcação alvo**: a página abre direto no ecrã de remarcar ou de cancelar dessa marcação (`exchange` devolve `purpose` e `appointmentId`). Com várias, abre as marcações. Se o alvo já não existe, abre as marcações.
+- Corpos fixos, **Propostos**: «Para remarcar, toque em «Abrir agenda» e escolha a nova data e hora. Se preferir, escreva aqui.» e «Para cancelar, toque em «Abrir agenda» e confirme a marcação. Se preferir falar com a equipe, escreva aqui.»
+- **Não** oferece o link: sem compromisso futuro (segue o caminho de hoje: equipe), com a pausa da owner ativa, com a página desligada, ou fora da janela de 24 h (o envio falha e o chat segue).
+- A conversa continua a ser a alternativa: quem escreve «quero cancelar» e prefere falar com a equipe escreve na mesma conversa.
+- L1 **CW-06 a CW-10**: remarcar com uma marcação, cancelar com uma, cancelar com duas (sem alvo), cancelar sem marcação (equipe) e página desligada (sem botão).
+
 **Fase 5, ainda não feito:**
 
-1. **Remarcar e cancelar no chat não oferecem o link.** «Quero remarcar» e «quero cancelar» seguem o caminho conversacional de hoje (DEC-091 e o botão «Cancelar marcação»). Oferecer o link com `purpose` `remarcar` ou `cancelar` muda comportamento validado e precisa de decisão do Paulo.
 2. **Fora das 24 h** o link não sai (TMPL-05 por aprovar na Meta).
 3. A base `APP_BASE_URL` de staging e produção é https; em desenvolvimento (http) a oferta não sai.
 

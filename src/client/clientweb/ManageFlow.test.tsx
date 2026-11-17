@@ -16,7 +16,7 @@ const SLOTS = [
 
 type Calls = Array<{ url: string; method: string; body: Record<string, unknown> | null }>
 
-function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknown; ask?: unknown } = {}) {
+function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknown; ask?: unknown; exchange?: unknown } = {}) {
   const calls: Calls = []
   vi.stubGlobal(
     'fetch',
@@ -25,7 +25,7 @@ function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknow
       const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
       calls.push({ url, method: init?.method ?? 'GET', body })
       const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status })
-      if (url.endsWith('/api/c/exchange')) return json({ ok: true })
+      if (url.endsWith('/api/c/exchange')) return json(opts.exchange ?? { ok: true, purpose: 'home', appointmentId: null })
       if (url.endsWith('/api/c/state')) {
         return json({ clinicName: 'Clínica Aurora', firstName: 'Marina', timezone: 'America/Sao_Paulo', appointments: [{ ...APT, hasPaidSignal: opts.signal === true }], sessionExpiresAt: 1 })
       }
@@ -164,5 +164,43 @@ describe('cancelar pela página (C-08)', () => {
     await user.click(screen.getByRole('button', { name: '14:15' }))
     await screen.findByRole('heading', { name: 'Confirme a remarcação' })
     await check()
+  })
+})
+
+describe('link de remarcar e cancelar abre direto na marcação (Fase 5)', () => {
+  it('finalidade cancelar com a marcação alvo abre o ecrã de cancelar', async () => {
+    mockApi({ exchange: { ok: true, purpose: 'cancelar', appointmentId: 'apt-1' } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Cancelar marcação?' })).toBeTruthy()
+    expect(screen.getByText('Limpeza de pele')).toBeTruthy()
+  })
+
+  it('finalidade remarcar abre as horas da marcação', async () => {
+    const calls = mockApi({ exchange: { ok: true, purpose: 'remarcar', appointmentId: 'apt-1' } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Nova data e hora' })).toBeTruthy()
+    await screen.findByRole('button', { name: '14:15' })
+    expect(calls.find((c) => c.url.endsWith('/api/c/availability'))!.body).toMatchObject({ appointmentId: 'apt-1' })
+  })
+
+  it('marcação alvo que já não existe, ou link sem alvo, mostra as marcações', async () => {
+    mockApi({ exchange: { ok: true, purpose: 'cancelar', appointmentId: 'apt-que-ja-nao-existe' } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Olá, Marina' })).toBeTruthy()
+    cleanup()
+    resetExchangesForTest()
+    window.history.replaceState(null, '', '/c/cw1_outro')
+    mockApi({ exchange: { ok: true, purpose: 'remarcar', appointmentId: null } })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Olá, Marina' })).toBeTruthy()
+  })
+
+  it('depois de cancelar por este link, «Ver minhas marcações» volta ao início', async () => {
+    mockApi({ exchange: { ok: true, purpose: 'cancelar', appointmentId: 'apt-1' } })
+    const user = userEvent.setup()
+    render(<ClientWebApp />)
+    await user.click(await screen.findByRole('button', { name: 'Cancelar marcação' }))
+    await user.click(await screen.findByRole('button', { name: 'Ver minhas marcações' }))
+    expect(await screen.findByRole('heading', { name: 'Olá, Marina' })).toBeTruthy()
   })
 })

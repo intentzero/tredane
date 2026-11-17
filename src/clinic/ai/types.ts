@@ -98,6 +98,11 @@ export type AiAssistDeps = {
    */
   prepareBookingFlowOffer?: import('../../whatsapp/flow/offer-live').PrepareBookingFlowOffer
   /**
+   * Página web da cliente (ADR-0018, Fase 5): com a página ligada, remarcar e cancelar oferecem o
+   * link («Abrir agenda») em vez do caminho conversacional. Ausente = comportamento de hoje.
+   */
+  prepareClientWebOffer?: import('../../clientweb/offer').PrepareClientWebOffer
+  /**
    * Sombra do interpretador LLM (Proposto): mede cada turno de texto livre sem
    * alterar o atendimento. Desligada por omissão (`AI_INTERPRETER_SHADOW=on`).
    */

@@ -161,7 +161,14 @@ import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
 import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
 import { isClientWebEnabled } from '../clientweb/flag'
-import { clientWebOfferBody, clientWebOfferInteractive, clientWebUrl, isHttpsBase } from '../clientweb/offer'
+import {
+  clientWebOfferBody,
+  clientWebOfferInteractive,
+  clientWebPurposeBody,
+  clientWebUrl,
+  isHttpsBase,
+  type PrepareClientWebOffer,
+} from '../clientweb/offer'
 import { issueClientWebLink, revokeClientWebSessions } from '../clientweb/links'
 import {
   isClientWebEnabledForClinic,
@@ -5240,6 +5247,42 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return async (input) => (await web(input)) ?? (flow ? await flow(input) : null)
   }
 
+  /**
+   * Remarcar e cancelar no chat (Fase 5): emite o link com a finalidade e, se a cliente só tem uma
+   * marcação futura, a marcação alvo. `null` = sem oferta (o caminho conversacional segue).
+   */
+  #prepareClientWebPurposeOffer(): PrepareClientWebOffer | undefined {
+    const env = this.env as WorkerBindings
+    if (!env.DB || !isClientWebEnabled(env) || !isHttpsBase(env.APP_BASE_URL)) return undefined
+    const baseUrl = env.APP_BASE_URL
+    return async (input) => {
+      if (!this.#clientWebOn(input.tenantId)) return null
+      const conv = this.#db.get<{ contact_id: string }>(
+        'SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?',
+        input.tenantId,
+        input.conversationId,
+      )
+      if (!conv) return null
+      const binding = await env.DB!
+        .prepare(`SELECT id FROM whatsapp_phone_bindings WHERE tenant_id = ? AND status = 'active' LIMIT 1`)
+        .bind(input.tenantId)
+        .first<{ id: string }>()
+      if (!binding) return null
+      const link = await issueClientWebLink(env.DB!, this.#clock, {
+        tenantId: input.tenantId,
+        bindingId: binding.id,
+        contactId: conv.contact_id,
+        conversationId: input.conversationId,
+        purpose: input.purpose,
+        appointmentId: input.appointmentId,
+      })
+      return {
+        body: clientWebPurposeBody(input.purpose),
+        interactive: clientWebOfferInteractive(clientWebUrl(baseUrl, link.token)),
+      }
+    }
+  }
+
   /** Emite o link pessoal e devolve o botão «Abrir agenda». `null` = sem oferta (o chat continua). */
   #prepareClientWebOffer(): PrepareBookingFlowOffer | undefined {
     const env = this.env as WorkerBindings
@@ -5302,6 +5345,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const prepare = this.#prepareBookingFlowOffer()
     let out = base
     if (prepare) out = { ...out, prepareBookingFlowOffer: prepare }
+    const webPurpose = this.#prepareClientWebPurposeOffer()
+    if (webPurpose) out = { ...out, prepareClientWebOffer: webPurpose }
     // TEMPORÁRIO: sombra H1 grava no D1 central (Review MCP). Com LLM_OUT_OF_DO
     // a chamada Claude da sombra vai na fila (sibling `llm_shadow`); o sink no DO
     // só serve o caminho inline (tenants sem out-of-DO). Demo deixa de forçar off

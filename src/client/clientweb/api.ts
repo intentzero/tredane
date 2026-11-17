@@ -65,7 +65,9 @@ export type BookResult =
   | { status: 'paused' }
   | { status: 'error'; error: string }
 
-export type ExchangeResult = 'ok' | 'unavailable' | 'error'
+/** Finalidade do link: abre a página já no ecrã de remarcar ou de cancelar (ADR-0018, Fase 5). */
+export type LinkPurpose = 'home' | 'agendar' | 'remarcar' | 'cancelar'
+export type ExchangeResult = { kind: 'ok'; purpose: LinkPurpose; appointmentId: string | null } | 'unavailable' | 'error'
 export type StateResult =
   | { kind: 'ok'; state: ClientWebState }
   | { kind: 'unauthorized' }
@@ -88,7 +90,10 @@ export function exchangeLink(token: string): Promise<ExchangeResult> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       })
-      if (res.ok) return 'ok'
+      if (res.ok) {
+        const body = await json<{ purpose?: LinkPurpose; appointmentId?: string | null }>(res)
+        return { kind: 'ok', purpose: body?.purpose ?? 'home', appointmentId: body?.appointmentId ?? null }
+      }
       return res.status === 410 ? 'unavailable' : 'error'
     } catch {
       return 'error'

@@ -33,3 +33,31 @@ export function clientWebOfferInteractive(url: string): SendOutboundInteractiveI
 export function isHttpsBase(baseUrl: string | undefined): baseUrl is string {
   return typeof baseUrl === 'string' && /^https:\/\//i.test(baseUrl.trim())
 }
+
+/** Finalidade do link (ADR-0018): abre a página já no ecrã de remarcar ou de cancelar. */
+export type ClientWebOfferPurpose = 'remarcar' | 'cancelar'
+
+export const CLIENT_WEB_RESCHEDULE_BODY =
+  'Para remarcar, toque em «Abrir agenda» e escolha a nova data e hora. Se preferir, escreva aqui.'
+
+export const CLIENT_WEB_CANCEL_BODY =
+  'Para cancelar, toque em «Abrir agenda» e confirme a marcação. Se preferir falar com a equipe, escreva aqui.'
+
+/** Corpo fixo da oferta de remarcar ou cancelar (DEC-104). Texto **Proposto**. */
+export function clientWebPurposeBody(purpose: ClientWebOfferPurpose): string {
+  return purpose === 'remarcar' ? CLIENT_WEB_RESCHEDULE_BODY : CLIENT_WEB_CANCEL_BODY
+}
+
+export type PrepareClientWebOfferInput = {
+  tenantId: string
+  conversationId: string
+  purpose: ClientWebOfferPurpose
+  /** A marcação alvo quando a cliente só tem uma futura; senão a página abre as marcações. */
+  appointmentId: string | null
+}
+
+/** Gancho do autodraft: emite o link e devolve o corpo e o botão. `null` = sem oferta (o chat segue). */
+export type PrepareClientWebOffer = (
+  input: PrepareClientWebOfferInput,
+) => Promise<{ body: string; interactive: SendOutboundInteractiveInput } | null>
+

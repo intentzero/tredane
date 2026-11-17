@@ -164,6 +164,8 @@ export type DialogCase = {
     clientWebOffers?: number
     /** Família CW-: nenhuma mensagem leva o botão de URL. */
     noCtaUrl?: boolean
+    /** Família CW-: finalidade (e marcação alvo, quando só há uma) de cada link emitido, pela ordem. */
+    clientWebPurposes?: Array<{ purpose: string; appointmentId?: string | null }>
     /**
      * T3 / DEC-148: eventos `booking_session.flow` na outbox (pela ordem).
      * Só os campos nomeados são comparados; sem corpo de mensagem.
@@ -230,7 +232,11 @@ export async function runDialogCase(
   const flowDeps = flow
     ? { prepareBookingFlowOffer: flow.prepare, clinicName: 'Clínica Teste Paulo' }
     : clientWeb
-      ? { prepareBookingFlowOffer: clientWeb.prepare, clinicName: 'Clínica Teste Paulo' }
+      ? {
+          prepareBookingFlowOffer: clientWeb.prepare,
+          prepareClientWebOffer: clientWeb.prepareOffer,
+          clinicName: 'Clínica Teste Paulo',
+        }
       : {}
   const flowRuns: FlowRunTrace[] = []
   let confirmClicks = 0
@@ -563,6 +569,17 @@ export async function runDialogCase(
       if (clientWeb && clientWeb.offers() !== e.clientWebOffers) {
         errors.push(`esperava ${e.clientWebOffers} link(s) emitido(s), emitidos ${clientWeb.offers()}`)
       }
+    }
+    if (e?.clientWebPurposes) {
+      const got = clientWeb?.purposes() ?? []
+      if (JSON.stringify(got.map((g) => g.purpose)) !== JSON.stringify(e.clientWebPurposes.map((w) => w.purpose))) {
+        errors.push(`finalidades dos links: ${JSON.stringify(got.map((g) => g.purpose))}, esperado ${JSON.stringify(e.clientWebPurposes.map((w) => w.purpose))}`)
+      }
+      e.clientWebPurposes.forEach((w, i) => {
+        if (w.appointmentId !== undefined && got[i]?.appointmentId !== w.appointmentId) {
+          errors.push(`link #${i}: marcação alvo ${JSON.stringify(got[i]?.appointmentId)}, esperado ${JSON.stringify(w.appointmentId)}`)
+        }
+      })
     }
     if (e?.noCtaUrl) {
       const n = s.db
