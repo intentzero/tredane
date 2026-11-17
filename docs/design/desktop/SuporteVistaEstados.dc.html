@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Suporte — estados da vista (Proposto)</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit}
+.d{--app:#F5F4EF;--card:#FFFFFF;--tx:#142625;--tx2:#424B4A;--wn:#6E4200;--wnT:#FFF7EA;--wnB:#EBCB94;--bd:#E1E3E0;--pr:#0E5A5C}
+.fr{border:1px solid var(--bd);border-radius:12px;background:var(--app);overflow:hidden;display:flex;flex-direction:column}
+.lb{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--tx2)}
+.bn{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--wnT);color:var(--wn);border-bottom:2px solid var(--wnB);font-size:14px}
+.bn p{flex:1;margin:0}
+.bn button{min-height:44px;padding:0 16px;border:1px solid currentColor;border-radius:12px;background:transparent;color:inherit;font-weight:600}
+.bd{padding:24px;font-size:14px;color:var(--tx2)}
+</style>
+</helmet>
+<div class="d" style="width:1440px;height:900px;box-sizing:border-box;background:var(--card);color:var(--tx);font-family:Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;padding:24px;overflow:hidden">
+  <!-- Proposto — estados da vista de suporte (#853). Dados fictícios. -->
+  <h1 style="margin:0 0 16px;font-size:20px;font-weight:600">Vista de suporte — estados</h1>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+    <div><p class="lb">1 · Menos de 5 minutos (tempo sublinhado; leitor de ecrã ouve «A sessão de suporte termina em menos de 5 minutos.»)</p>
+      <div class="fr" style="height:240px"><section aria-label="Sessão de suporte" class="bn"><p><b>Sessão de suporte · somente leitura</b> — Clínica Demo A · restam <b style="text-decoration:underline">04:12</b></p><button type="button">Encerrar sessão</button></section><div class="bd">Lista de conversas…</div></div></div>
+    <div><p class="lb">2 · Encerrando (botão desativado)</p>
+      <div class="fr" style="height:240px"><section aria-label="Sessão de suporte" class="bn"><p><b>Sessão de suporte · somente leitura</b> — Clínica Demo A · restam 12:00</p><button type="button" disabled style="opacity:.6">Encerrando…</button></section><div class="bd">Lista de conversas…</div></div></div>
+    <div><p class="lb">3 · Sessão encerrada (tempo esgotado, revogada pela clínica ou por quem pediu)</p>
+      <div class="fr" style="height:240px;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box"><h2 style="margin:0 0 8px;font-size:18px;font-weight:600">Sessão de suporte encerrada</h2><p style="margin:0 0 16px;color:var(--tx2)">O acesso a esta clínica terminou. Nenhum dado continua a ser apresentado.</p><button type="button" style="min-height:44px;padding:0 16px;border:0;border-radius:12px;background:var(--pr);color:#FFFFFF;font-weight:600">Voltar ao Platform Admin</button></div></div>
+    <div><p class="lb">4 · Erro ao ler (a sessão continua; o erro não mostra dados parciais)</p>
+      <div class="fr" style="height:240px"><section aria-label="Sessão de suporte" class="bn"><p><b>Sessão de suporte · somente leitura</b> — Clínica Demo A · restam 18:30</p><button type="button">Encerrar sessão</button></section><div class="bd"><p role="alert" style="margin:0;color:#B42318">Não foi possível carregar esta conversa.</p></div></div></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
