@@ -32,6 +32,11 @@ export type HealthSummaryRow = {
   uncertainOutbound: number | null
   llmJobsOpen: number | null
   llmJobsFailed1h: number | null
+  /** Volume (Q-PA-04): só contagens; `null` nas linhas anteriores à migração 0026. */
+  contactCount: number | null
+  messageCount: number | null
+  appointmentCount: number | null
+  attachmentCount: number | null
 }
 
 type RawSummary = {
@@ -46,6 +51,10 @@ type RawSummary = {
   uncertain_outbound: number | null
   llm_jobs_open: number | null
   llm_jobs_failed_1h: number | null
+  contact_count: number | null
+  message_count: number | null
+  appointment_count: number | null
+  attachment_count: number | null
 }
 
 const num = (v: number | null | undefined): number | null => (v === null || v === undefined ? null : Number(v))
@@ -63,6 +72,10 @@ function mapSummary(r: RawSummary): HealthSummaryRow {
     uncertainOutbound: num(r.uncertain_outbound),
     llmJobsOpen: num(r.llm_jobs_open),
     llmJobsFailed1h: num(r.llm_jobs_failed_1h),
+    contactCount: num(r.contact_count),
+    messageCount: num(r.message_count),
+    appointmentCount: num(r.appointment_count),
+    attachmentCount: num(r.attachment_count),
   }
 }
 
@@ -152,14 +165,17 @@ export async function refreshTenantHealth(
     await db.run(
       `INSERT INTO tenant_health_summary (
          tenant_id, read_at, last_ok_at, status, schema_version, schema_ready,
-         pending_outbox, failed_outbox, uncertain_outbound, llm_jobs_open, llm_jobs_failed_1h
-       ) VALUES (?, ?, ?, 'ok', ?, ?, ?, ?, ?, ?, ?)
+         pending_outbox, failed_outbox, uncertain_outbound, llm_jobs_open, llm_jobs_failed_1h,
+         contact_count, message_count, appointment_count, attachment_count
+       ) VALUES (?, ?, ?, 'ok', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(tenant_id) DO UPDATE SET
          read_at = excluded.read_at, last_ok_at = excluded.last_ok_at, status = 'ok',
          schema_version = excluded.schema_version, schema_ready = excluded.schema_ready,
          pending_outbox = excluded.pending_outbox, failed_outbox = excluded.failed_outbox,
          uncertain_outbound = excluded.uncertain_outbound,
-         llm_jobs_open = excluded.llm_jobs_open, llm_jobs_failed_1h = excluded.llm_jobs_failed_1h`,
+         llm_jobs_open = excluded.llm_jobs_open, llm_jobs_failed_1h = excluded.llm_jobs_failed_1h,
+         contact_count = excluded.contact_count, message_count = excluded.message_count,
+         appointment_count = excluded.appointment_count, attachment_count = excluded.attachment_count`,
       tenantId,
       nowMs,
       nowMs,
@@ -170,6 +186,10 @@ export async function refreshTenantHealth(
       snap.uncertainOutbound ?? null,
       snap.llmJobsOpen ?? null,
       snap.llmJobsFailed1h ?? null,
+      snap.contactCount ?? null,
+      snap.messageCount ?? null,
+      snap.appointmentCount ?? null,
+      snap.attachmentMetaCount ?? null,
     )
     return 'ok'
   } catch {
@@ -220,7 +240,8 @@ const HEALTH_SELECT = `
          (SELECT COUNT(*) FROM whatsapp_signup_sessions s
            WHERE s.tenant_id = t.id AND s.status = 'pending') AS wa_signup_pending,
          h.tenant_id, h.read_at, h.last_ok_at, h.status, h.schema_version, h.schema_ready,
-         h.pending_outbox, h.failed_outbox, h.uncertain_outbound, h.llm_jobs_open, h.llm_jobs_failed_1h
+         h.pending_outbox, h.failed_outbox, h.uncertain_outbound, h.llm_jobs_open, h.llm_jobs_failed_1h,
+         h.contact_count, h.message_count, h.appointment_count, h.attachment_count
   FROM tenants t
   LEFT JOIN tenant_health_summary h ON h.tenant_id = t.id`
 

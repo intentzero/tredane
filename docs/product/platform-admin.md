@@ -129,7 +129,7 @@ Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão exp
 **Saúde (PA-09).** Fonte: `GET /api/f6/ops/tenants/:id/snapshot` (`getOpsSnapshot`) e `evaluateOpsSignals`.
 - Faixa de alertas da clínica com sinal, valor, limiar e desde quando.
 - Cartões: Envios (outbox pendente, falhado, incertos), WhatsApp (estado e último erro, sem número de telefone), IA (jobs na fila e falhados na última hora — **lacuna**: ainda não estão no snapshot), Dados (versão do schema e se está pronta).
-- Volume: contatos, mensagens, marcações e anexos, só como números (Q-PA-04).
+- Volume: contatos, mensagens, marcações e anexos, só como números (Q-PA-04, **implementado** em #881): o cron grava as quatro contagens em `tenant_health_summary` (migração 0026) e o cartão «Volume» vem depois de «Dados»; linhas antigas mostram «—» até à próxima leitura.
 - Hora da leitura e «Atualizar»; DO sem resposta mostra a última leitura válida com a hora.
 
 **Suporte (PA-10).** Fonte: as mesmas rotas do PA-05, filtradas pela clínica.

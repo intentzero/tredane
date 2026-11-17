@@ -20,6 +20,10 @@ const snap = (over: Record<string, unknown> = {}) => ({
   uncertainOutbound: 0,
   llmJobsOpen: 0,
   llmJobsFailed1h: 0,
+  contactCount: 12,
+  messageCount: 340,
+  appointmentCount: 7,
+  attachmentMetaCount: 5,
   ...over,
 })
 const row = (over: Partial<HealthSummaryRow> = {}): HealthSummaryRow => ({
@@ -34,6 +38,10 @@ const row = (over: Partial<HealthSummaryRow> = {}): HealthSummaryRow => ({
   uncertainOutbound: 0,
   llmJobsOpen: 0,
   llmJobsFailed1h: 0,
+  contactCount: null,
+  messageCount: null,
+  appointmentCount: null,
+  attachmentCount: null,
   ...over,
 })
 
@@ -93,8 +101,14 @@ describe('refresh e leitura do resumo (DEC-193)', () => {
       expect(r.summary).toMatchObject({ status: 'ok', failedOutbox: 3, schemaVersion: 41, schemaReady: true, readAt: NOW, lastOkAt: NOW })
       expect(r.name).toBeTruthy()
       expect(r.whatsappStatus).toBe('not_connected')
-      // Nada além de contagens: sem texto, telefones ou ids de contactos.
-      expect(JSON.stringify(r)).not.toMatch(/contact|message|phone|token/i)
+      // Volume (Q-PA-04): só números.
+      expect(r.summary).toMatchObject({ contactCount: 12, messageCount: 340, appointmentCount: 7, attachmentCount: 5 })
+      // Nada além de contagens e estados: todo o valor do resumo é número, booleano ou nulo (salvo o id e o estado).
+      const rest: Record<string, unknown> = { ...r.summary! }
+      delete rest.tenantId
+      delete rest.status
+      expect(Object.values(rest).every((v) => v === null || typeof v === 'number' || typeof v === 'boolean')).toBe(true)
+      expect(JSON.stringify(r)).not.toMatch(/phone|token|body|text/i)
       expect(await getHealth(db, 'nao-existe')).toBeNull()
     } finally {
       boot.close()
@@ -117,6 +131,21 @@ describe('refresh e leitura do resumo (DEC-193)', () => {
       // Recupera: a leitura seguinte volta a «ok».
       await refreshTenantHealth(db, 'clinic-demo-a', async () => snap(), NOW + 1_800_000)
       expect((await getHealth(db, 'clinic-demo-a'))!.summary).toMatchObject({ status: 'ok', pendingOutbox: 0 })
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('um snapshot sem volume (DO antigo) guarda nulos e a leitura seguinte preenche', async () => {
+    const boot = bootAdminDb()
+    try {
+      const db = asyncFromSync(boot.db)
+      const old: Record<string, unknown> = snap()
+      for (const k of ['contactCount', 'messageCount', 'appointmentCount', 'attachmentMetaCount']) delete old[k]
+      await refreshTenantHealth(db, 'clinic-demo-a', async () => old, NOW)
+      expect((await getHealth(db, 'clinic-demo-a'))!.summary).toMatchObject({ contactCount: null, messageCount: null })
+      await refreshTenantHealth(db, 'clinic-demo-a', async () => snap({ messageCount: 9 }), NOW + 600_000)
+      expect((await getHealth(db, 'clinic-demo-a'))!.summary).toMatchObject({ messageCount: 9, contactCount: 12 })
     } finally {
       boot.close()
     }

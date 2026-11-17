@@ -16,6 +16,10 @@ const counts = (over: Partial<NonNullable<ClinicHealth['counts']>> = {}): NonNul
   uncertainOutbound: 0,
   llmJobsOpen: 0,
   llmJobsFailed1h: 0,
+  contactCount: 120,
+  messageCount: 3400,
+  appointmentCount: 58,
+  attachmentCount: 9,
   schemaVersion: 41,
   schemaReady: true,
   ...over,
@@ -298,7 +302,7 @@ describe('Platform Admin — saúde (#833, DEC-193)', () => {
   })
 
   describe('PA-09 aba Saúde da clínica', () => {
-    it('alertas com valor e limiar, cartões Envios, WhatsApp, IA e Dados; sem telefone nem volume', async () => {
+    it('alertas com valor e limiar, cartões Envios, WhatsApp, IA, Volume e Dados; sem telefone', async () => {
       mount(seed())
       const { container } = await open('/admin/clinicas/vila/saude')
       const alerts = await screen.findByRole('table')
@@ -308,8 +312,13 @@ describe('Platform Admin — saúde (#833, DEC-193)', () => {
       expect(screen.getByRole('region', { name: 'IA' }).textContent).toContain('1')
       expect(screen.getByText(/nota connected/)).toBeTruthy()
       expect(screen.getByText(/Sem número de telefone nesta tela/)).toBeTruthy()
-      expect(screen.queryByText('Contatos')).toBeNull()
-      expect(screen.queryByText('Mensagens')).toBeNull()
+      // Volume (Q-PA-04): só números, nenhum conteúdo.
+      const volume = within(screen.getByRole('region', { name: 'Volume' }))
+      expect(volume.getByText('Contatos').nextSibling?.textContent).toBe('120')
+      expect(volume.getByText('Mensagens').nextSibling?.textContent).toBe('3400')
+      expect(volume.getByText('Marcações').nextSibling?.textContent).toBe('58')
+      expect(volume.getByText('Anexos').nextSibling?.textContent).toBe('9')
+      expect(volume.getByText(/nenhum conteúdo é lido/)).toBeTruthy()
       await checkA11y(container)
     })
 
