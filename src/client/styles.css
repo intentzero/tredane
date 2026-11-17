@@ -8,5 +8,15 @@
   -webkit-font-smoothing: antialiased;
 }
 * { box-sizing: border-box; }
+/* Só no painel operacional (.panel-app): o documento não rola —
+ * senão o iOS, ao focar um campo, desloca a página e a barra inferior
+ * fica a meio do ecrã com um vão vazio por baixo. Admin/prova continuam
+ * a poder rolar o documento. */
+html:has(.panel-app),
+html:has(.panel-app) body,
+html:has(.panel-app) #root {
+  height: 100%;
+  overflow: hidden;
+}
 body { margin: 0; min-width: 320px; }
 a { color: inherit; text-decoration: none; }

@@ -791,7 +791,8 @@ export function ServiceForm({
   const serviceCount = snap.services.length
 
   return (
-    <div className="clinic-stack clinic-form">
+    <div className="clinic-form clinic-form--dock">
+      <div className="clinic-form-scroll">
       <header className="clinic-page-head clinic-desktop-hide">
         <Button
           className="panel-icon-btn"
@@ -1199,7 +1200,29 @@ export function ServiceForm({
           {formError}
         </p>
       ) : null}
-      <div className="clinic-footer-actions clinic-footer-sticky">
+      {existing ? (
+        <section className="clinic-stack" aria-label="Apagar serviço">
+          {existing.deletable === true ? (
+            <Button
+              className="panel-btn-danger"
+              isDisabled={saving || deleting}
+              onPress={() => {
+                setDeleteError(null)
+                setDeleteOpen(true)
+              }}
+            >
+              Apagar serviço
+            </Button>
+          ) : (
+            <p className="clinic-footnote">
+              Este serviço já tem marcações (ou Pix/proposta ligada), por isso não pode ser
+              apagado. Basta desativá-lo: sai de novos agendamentos e o histórico fica.
+            </p>
+          )}
+        </section>
+      ) : null}
+      </div>
+      <div className="clinic-footer-actions clinic-footer-dock">
         {dirty ? (
           <span className="svc-dirty" role="status">
             Alterações por salvar
@@ -1222,27 +1245,6 @@ export function ServiceForm({
           {saving ? 'Salvando…' : 'Salvar serviço'}
         </Button>
       </div>
-      {existing ? (
-        <section className="clinic-stack" aria-label="Apagar serviço">
-          {existing.deletable === true ? (
-            <Button
-              className="panel-btn-danger"
-              isDisabled={saving || deleting}
-              onPress={() => {
-                setDeleteError(null)
-                setDeleteOpen(true)
-              }}
-            >
-              Apagar serviço
-            </Button>
-          ) : (
-            <p className="clinic-footnote">
-              Este serviço já tem marcações (ou Pix/proposta ligada), por isso não pode ser
-              apagado. Basta desativá-lo: sai de novos agendamentos e o histórico fica.
-            </p>
-          )}
-        </section>
-      ) : null}
       {existing ? (
         <DeleteServiceDialog
           open={deleteOpen}

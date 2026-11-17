@@ -22,19 +22,23 @@ export function DraftSaveBar({
   if (count <= 0) return null
   const label = count === 1 ? '1 alteração' : `${count} alterações`
   return (
-    <div className="hours-savebar" role="region" aria-label="Alterações por salvar">
-      <p>
-        <strong>{label}</strong>
-        {effect ? ` · ${effect}` : null}
-      </p>
-      <div className="clinic-footer-actions">
-        <Button className="panel-btn panel-btn-ghost" isDisabled={saving} onPress={onDiscard}>
-          Descartar
-        </Button>
-        <Button className="panel-btn panel-btn-primary" isDisabled={saving} onPress={onSave}>
-          {saving ? 'Salvando…' : saveLabel}
-        </Button>
+    <>
+      <div className="hours-savebar" role="region" aria-label="Alterações por salvar">
+        <p>
+          <strong>{label}</strong>
+          {effect ? ` · ${effect}` : null}
+        </p>
+        <div className="clinic-footer-actions">
+          <Button className="panel-btn panel-btn-ghost" isDisabled={saving} onPress={onDiscard}>
+            Descartar
+          </Button>
+          <Button className="panel-btn panel-btn-primary" isDisabled={saving} onPress={onSave}>
+            {saving ? 'Salvando…' : saveLabel}
+          </Button>
+        </div>
       </div>
-    </div>
+      {/* Folga para o conteúdo acima do sticky rolar limpo até ao fim. */}
+      <div className="panel-sticky-clearance" aria-hidden="true" />
+    </>
   )
 }

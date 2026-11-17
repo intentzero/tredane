@@ -28,6 +28,14 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Painel operacional: preenche o #root trancado e não deixa o documento rolar. */
+.panel-root:has(> .panel-app),
+.panel-root:has(.panel-app) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .panel-root button,
 .panel-root select,
 .panel-root input,
@@ -650,15 +658,17 @@
 .panel-app {
   width: min(100%, 960px);
   min-width: min(100%, var(--size-viewport-min));
-  /* Altura fixa: só o <main> rola; cabeçalho e barra inferior ficam fixos (iOS PWA). */
-  height: 100dvh;
+  /* Pregada ao viewport: o documento não rola por baixo (barra a meio do ecrã).
+   * Só o <main> rola; cabeçalho e barra inferior ficam fixos (iOS PWA). */
+  position: fixed;
+  inset: 0;
+  height: auto;
   overflow: hidden;
   margin: 0 auto;
   background: var(--color-surface-app);
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
-  position: relative;
   /* Largura da coluna de navegação da Clínica no desktop (grelha e cabeçalho). */
   --clinic-nav-width: 360px;
 }
@@ -2014,10 +2024,101 @@ button.panel-auth-inline-link {
   background: var(--color-surface-card);
 }
 
+/*
+ * Ficha com rodapé docado (mesmo padrão que Agendar: scroll + footer fora do
+ * fluxo sticky). O conteúdo rola limpo por cima de Cancelar/Salvar; a barra
+ * inferior do shell fica no viewport (inset:0), não a meio do ecrã.
+ */
+.clinic-form--dock {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  gap: 0;
+}
+
+.clinic-form-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.clinic-footer-dock {
+  flex: none;
+  z-index: 2;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+}
+
+/* Com barra inferior do shell, ela já reserva a safe-area. */
+.panel-app:has(> .panel-nav) .clinic-footer-dock {
+  padding-bottom: var(--space-3);
+}
+
+/* Mobile: o shell não rola — a ficha docada preenche o main e rola por dentro. */
+.panel-shell-main:has(> .clinic-form--dock) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.panel-shell-main > .clinic-form--dock {
+  flex: 1;
+  min-height: 0;
+}
+
+.panel-shell-main > .clinic-form--dock > .clinic-form-scroll {
+  padding: var(--space-4);
+}
+
+/* Desktop: o aside já tem padding; o scroll interno não duplica gutters. */
+.clinic-panel-body:has(> .clinic-form--dock) {
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  overflow-y: hidden;
+}
+
+.clinic-panel-body > .clinic-form--dock {
+  flex: 1;
+  min-height: 0;
+}
+
+.clinic-panel-body > .clinic-form--dock > .clinic-form-scroll {
+  padding: 0 0 var(--space-4);
+}
+
+.clinic-panel-body > .clinic-form--dock > .clinic-footer-dock {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: var(--space-3);
+}
+
+/* Folga após rodapé sticky ainda no fluxo (horário / DraftSaveBar). */
+.panel-sticky-clearance {
+  flex: none;
+  height: var(--panel-sticky-clearance);
+  pointer-events: none;
+}
+
 /* Opção A Confirmada (Paulo 09/11/2026, M-64): com teclado aberto o rodapé
- * sticky cobre o campo focado (ex. Nome em Novo serviço). Some enquanto
+ * cobre o campo focado (ex. Nome em Novo serviço). Some enquanto
  * useKeyboardViewport marca data-keyboard=open; volta ao fechar. */
-:root[data-keyboard='open'] .clinic-footer-sticky {
+:root[data-keyboard='open'] .clinic-footer-sticky,
+:root[data-keyboard='open'] .clinic-footer-dock {
   display: none;
 }
 
@@ -4007,9 +4108,9 @@ button.panel-auth-inline-link {
   justify-content: center;
 }
 
-/* Conversa aberta: um só cabeçalho, ocupa a altura da tela, compositor no fundo. */
+/* Conversa aberta: um só cabeçalho; o shell já preenche o viewport (inset:0). */
 .panel-app:has(.inbox-thread) {
-  height: 100dvh;
+  height: auto;
 }
 
 .panel-app:has(.inbox-thread) .panel-shell-header {
@@ -5382,13 +5483,22 @@ button.panel-auth-inline-link {
 }
 
 /* Teclado aberto: a app ocupa só a área visível (useKeyboardViewport
-   sobrescreve --panel-vvh no <html> enquanto o teclado está aberto). */
+   sobrescreve --panel-vvh no <html> enquanto o teclado está aberto).
+   Fora do teclado a app fica em inset:0 — não usar --panel-vvh como altura
+   por defeito (um valor residual encolhia o shell e a barra ficava a meio). */
 :root {
   --panel-vvh: 100dvh;
+  /* Folga para conteúdo rolar acima de um rodapé sticky ainda no fluxo. */
+  --panel-sticky-clearance: calc(var(--size-control-default) + var(--space-6) + env(safe-area-inset-bottom, 0px));
 }
 
-.panel-app,
 .panel-app:has(.inbox-thread) {
+  height: auto;
+}
+
+:root[data-keyboard='open'] .panel-app,
+:root[data-keyboard='open'] .panel-app:has(.inbox-thread) {
+  bottom: auto;
   height: var(--panel-vvh);
 }
 
