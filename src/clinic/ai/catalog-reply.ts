@@ -29,6 +29,7 @@ import {
 } from './client-copy'
 import {
   CATALOG_PRICE_ASK,
+  hasSchedulingAvailabilityIntent,
   isCatalogInfoAsk,
   isShortBookingAffirm,
 } from './booking-intent-text'
@@ -352,9 +353,7 @@ export function catalogReply(
     return sayAct('informar_local', cnv, { endereço: address }, address)
   }
 
-  const bookingIntentCold =
-    /\b(quero|gostaria|marcar|agendar|disponi|vaga|fazer|preciso)\b/i.test(body) &&
-    !isCatalogInfoAsk(body)
+  const bookingIntentCold = hasSchedulingAvailabilityIntent(body) && !isCatalogInfoAsk(body)
   const frameCold = opts.conversationId ? getBookingFrame(db, tenantId, opts.conversationId) : null
   const midFunnelCatalog = Boolean(frameCold?.serviceId)
   if (

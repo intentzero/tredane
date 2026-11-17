@@ -1309,6 +1309,51 @@
       ]
     },
     {
+      "id": "R62-disponibilidade-esta-tarde",
+      "waId": "550000000162",
+      "displayName": "Paulo",
+      "note": "rsamp_62934e637e4ce0d8 — «pode me atender esta tarde?» oferta/agenda, não FAQ LLM.",
+      "steps": [
+        { "say": "Oi tudo bem?" },
+        {
+          "say": "Você pode me atender esta tarde?",
+          "assertReply": {
+            "mustContain": ["serviço"],
+            "mustNotContain": [
+              "quem confirma",
+              "share.google",
+              "Aqui é a Gioconda",
+              "vou pedir para verificarem"
+            ]
+          }
+        },
+        {
+          "say": "Você pode-me atender esta tarde?",
+          "assertReply": {
+            "mustNotContain": ["quem confirma", "share.google", "Aqui é a Gioconda"]
+          }
+        },
+        {
+          "say": "pode me atender hoje à tarde?",
+          "assertReply": {
+            "mustNotContain": ["quem confirma", "share.google"]
+          }
+        },
+        {
+          "say": "tem horário hoje à tarde?",
+          "assertReply": {
+            "mustNotContain": ["quem confirma", "share.google"]
+          }
+        },
+        {
+          "say": "consegue me encaixar hoje de tarde?",
+          "assertReply": {
+            "mustNotContain": ["quem confirma", "share.google"]
+          }
+        }
+      ]
+    },
+    {
       "id": "R61-p21-frustracao-sem-slot",
       "waId": "550000000161",
       "displayName": "Cliente",

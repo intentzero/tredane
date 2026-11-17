@@ -8,6 +8,7 @@ import type { ServiceAudience } from '../catalog/audience'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
+import { hasSchedulingAvailabilityIntent } from './booking-intent-text'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
 import { SERVICE_PICK_BODY, SERVICE_PICK_LIST_MIN } from './service-pick-offer'
 import { FAMILY_VOCATIVE_RE, THIRD_PARTY_RE } from './nlu/sensitive'
@@ -110,9 +111,6 @@ function skinGuidanceReply(service: ServiceRow, conversationId: string): string 
   const ask = sayAct('perguntar_servico', conversationId, {}, SERVICE_PICK_BODY)
   return `Pra pele assim, a ${avaliacao} é gratuita e ajuda a indicar o melhor tratamento.\n${ask}`
 }
-
-const BOOKING_INTENT =
-  /\b(quero|queria\s+(?:ver|marcar|agendar|fazer)|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
 
 /** Léxico popular → radical do nome no catálogo (baseline S9a idosa / toxina). */
 const POPULAR_SERVICE_NAME_PARTS: ReadonlyArray<{ tokens: readonly string[]; inName: string }> = [
@@ -752,7 +750,7 @@ export function resolveBookingObject(input: {
   if (pool.length === 0) {
     if (!wantsPrice) {
       const unknown = catalogMissHint(text, services)
-      const booking = BOOKING_INTENT.test(text)
+      const booking = hasSchedulingAvailabilityIntent(text)
       const inquiry = SERVICE_INQUIRY.test(text)
       if (unknown && exactServiceHits.length === 0 && scored.length === 0) {
         const unknownTokens = unknown.split(/\s+/).filter(Boolean)

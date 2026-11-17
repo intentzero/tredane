@@ -220,7 +220,13 @@ function collectRelativeDays(folded: string, today: string): { dates: string[]; 
   const relative: string[] = []
   if (/\bdepois de amanha\b/.test(folded)) dates.push(addDays(today, 2))
   else if (/\bamanha\b/.test(folded)) dates.push(addDays(today, 1))
-  if (/\bhoje\b/.test(folded)) dates.push(today)
+  if (
+    /\bhoje\b/.test(folded) ||
+    /\besta\s+(?:manha|tarde|noite)\b/.test(folded) ||
+    /\bhoje\s+de\s+tarde\b/.test(folded)
+  ) {
+    dates.push(today)
+  }
   if (NEXT_WEEK_RE.test(folded)) {
     relative.push('semana_que_vem')
     dates.push(nextMondayCivil(today))

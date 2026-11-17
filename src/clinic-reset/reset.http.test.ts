@@ -135,7 +135,7 @@ describe('reset operacional da clínica (staging-only)', () => {
       seed(a.db, a.clock, A)
       const before = count(a.db, 'conversations')
       expect(before).toBeGreaterThan(0)
-      const res = await h.post(OWNER_A, { confirmName: h.tenantName(A) }, {
+      const res = await h.post(OWNER_A, { confirm: true }, {
         ENVIRONMENT: 'production',
       } as WorkerBindings)
       expect(res.status).toBe(404)
@@ -149,11 +149,10 @@ describe('reset operacional da clínica (staging-only)', () => {
   it('ENVIRONMENT ausente (ou development) recusa (404)', async () => {
     const h = harness()
     try {
-      const name = h.tenantName(A)
-      expect((await h.post(OWNER_A, { confirmName: name })).status).toBe(404)
-      expect((await h.post(OWNER_A, { confirmName: name }, {} as WorkerBindings)).status).toBe(404)
+      expect((await h.post(OWNER_A, { confirm: true })).status).toBe(404)
+      expect((await h.post(OWNER_A, { confirm: true }, {} as WorkerBindings)).status).toBe(404)
       expect(
-        (await h.post(OWNER_A, { confirmName: name }, { ENVIRONMENT: 'development' } as WorkerBindings))
+        (await h.post(OWNER_A, { confirm: true }, { ENVIRONMENT: 'development' } as WorkerBindings))
           .status,
       ).toBe(404)
     } finally {
@@ -166,7 +165,7 @@ describe('reset operacional da clínica (staging-only)', () => {
     try {
       const a = h.clinic(A)
       seed(a.db, a.clock, A)
-      const res = await h.post(ATTENDANT_A, { confirmName: h.tenantName(A) }, STAGING)
+      const res = await h.post(ATTENDANT_A, { confirm: true }, STAGING)
       expect(res.status).toBe(403)
       expect(count(a.db, 'conversations')).toBeGreaterThan(0)
     } finally {
@@ -177,24 +176,23 @@ describe('reset operacional da clínica (staging-only)', () => {
   it('dono de outra clínica não reseta A (403)', async () => {
     const h = harness()
     try {
-      const res = await h.post('user_synth_owner_b', { confirmName: h.tenantName(A) }, STAGING)
+      const res = await h.post('user_synth_owner_b', { confirm: true }, STAGING)
       expect(res.status).toBe(403)
     } finally {
       h.close()
     }
   })
 
-  it('nome errado, ausente ou com outra caixa → 400; nada é apagado', async () => {
+  it('sem confirm: true no corpo → 400; nada é apagado', async () => {
     const h = harness()
     try {
       const a = h.clinic(A)
       seed(a.db, a.clock, A)
       const before = count(a.db, 'messages')
-      const name = h.tenantName(A)
-      for (const body of [{ confirmName: 'Outra clínica' }, {}, { confirmName: name.toUpperCase() + 'X' }]) {
+      for (const body of [{}, { confirm: false }, { confirm: 'yes' }, { confirmName: 'Clínica' }]) {
         const res = await h.post(OWNER_A, body, STAGING)
         expect(res.status).toBe(400)
-        expect(((await res.json()) as { error: string }).error).toBe('confirm_name_mismatch')
+        expect(((await res.json()) as { error: string }).error).toBe('confirm_required')
       }
       expect(count(a.db, 'messages')).toBe(before)
     } finally {
@@ -216,7 +214,7 @@ describe('reset operacional da clínica (staging-only)', () => {
       expect(count(a.db, 'contacts')).toBeGreaterThan(0)
       expect(count(a.db, 'opportunities')).toBeGreaterThan(0)
 
-      const res = await h.post(OWNER_A, { confirmName: `  ${h.tenantName(A)} ` }, STAGING)
+      const res = await h.post(OWNER_A, { confirm: true }, STAGING)
       expect(res.status).toBe(200)
       const body = (await res.json()) as {
         ok: boolean
@@ -309,7 +307,7 @@ describe('limpar agenda (staging-only)', () => {
       expect(before).toBeGreaterThan(0)
       const res = await h.post(
         OWNER_A,
-        { confirmName: h.tenantName(A) },
+        { confirm: true },
         { ENVIRONMENT: 'production' } as WorkerBindings,
         CLEAR_URL_A,
       )
@@ -321,20 +319,16 @@ describe('limpar agenda (staging-only)', () => {
     }
   })
 
-  it('atendente recebe 403; nome errado → 400', async () => {
+  it('atendente recebe 403; sem confirm → 400', async () => {
     const h = harness()
     try {
       const a = h.clinic(A)
       seedAppointments(a.db, a.clock, A)
       const before = count(a.db, 'appointments')
       expect(
-        (
-          await h.post(ATTENDANT_A, { confirmName: h.tenantName(A) }, STAGING, CLEAR_URL_A)
-        ).status,
+        (await h.post(ATTENDANT_A, { confirm: true }, STAGING, CLEAR_URL_A)).status,
       ).toBe(403)
-      expect(
-        (await h.post(OWNER_A, { confirmName: 'Outra' }, STAGING, CLEAR_URL_A)).status,
-      ).toBe(400)
+      expect((await h.post(OWNER_A, {}, STAGING, CLEAR_URL_A)).status).toBe(400)
       expect(count(a.db, 'appointments')).toBe(before)
     } finally {
       h.close()
@@ -357,7 +351,7 @@ describe('limpar agenda (staging-only)', () => {
 
       const res = await h.post(
         OWNER_A,
-        { confirmName: `  ${h.tenantName(A)} ` },
+        { confirm: true },
         STAGING,
         CLEAR_URL_A,
       )
@@ -394,7 +388,7 @@ describe('limpar agenda (staging-only)', () => {
       // Idempotente: segunda chamada ok com zeros.
       const again = await h.post(
         OWNER_A,
-        { confirmName: h.tenantName(A) },
+        { confirm: true },
         STAGING,
         CLEAR_URL_A,
       )

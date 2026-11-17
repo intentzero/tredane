@@ -123,6 +123,10 @@ Soft-decline mid-funil (DEC-147). **Não** é o adeus dos botões **Terminar** (
 2. `Até lá — se precisar, é só escrever.`
 3. `Combinado. Bom dia/Boa tarde/Boa noite e até a sua visita.` (saudação pelo fuso da clínica; noite ≥ 18h)
 
+Fecho **automático** por inatividade (segundo prazo depois de «Ainda está aí?», DEC-087): texto fixo `IDLE_AUTO_CLOSE_BODY` em `src/clinic/followup/idle.ts` — pedido do Paulo, 17/11/2026, America/Sao_Paulo — em vez das três frases acima:
+
+1. `Encerramos este atendimento por falta de resposta. Se precisar, é só escrever aqui que retomamos.`
+
 ### orientar_terminar
 
 1. `Se quiser parar, use o botão Terminar quando aparecer.`

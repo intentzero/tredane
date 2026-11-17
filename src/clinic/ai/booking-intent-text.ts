@@ -253,3 +253,23 @@ export function isShortBookingAffirm(text: string): boolean {
     text.trim(),
   )
 }
+
+/**
+ * Disponibilidade coloquial sem «pode ser» (afirmação curta / pending).
+ * rsamp_62934e637e4ce0d8: «pode me atender esta tarde?».
+ */
+export const SCHEDULING_AVAILABILITY_CUE =
+  /\b(?:pode(?:\s*[-–—])?(?:\s*me\s+)?atender|consegue(?:\s*me\s+)?encaixar|tem\s+hor[aá]rio)\b/i
+
+/**
+ * Intenção de marcação / vaga (inclui disponibilidade coloquial).
+ * Não casa FAQ de expediente («atende no domingo?») — exige corte de agendamento.
+ */
+export const SCHEDULING_BOOKING_CUE =
+  /\b(?:quero|queria(?:\s+(?:ver|marcar|agendar|fazer))\b|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
+
+export function hasSchedulingAvailabilityIntent(text: string): boolean {
+  const body = text.trim()
+  if (!body) return false
+  return SCHEDULING_BOOKING_CUE.test(body) || SCHEDULING_AVAILABILITY_CUE.test(body)
+}

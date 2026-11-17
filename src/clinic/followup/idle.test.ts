@@ -17,6 +17,7 @@ import { getBookingFrame, saveBookingFrame } from '../ai/schedule-session'
 import {
   handleIdleButtonClick,
   handleIdleTextReply,
+  IDLE_AUTO_CLOSE_BODY,
   IDLE_CLOSE_AFTER_MS,
   IDLE_PROMPT_AFTER_MS,
   IDLE_PROMPT_BODY,
@@ -213,9 +214,7 @@ describe('DEC-087 idle follow-up', () => {
          ORDER BY created_at DESC LIMIT 1`,
         conversationId,
       )
-      expect(isTerminarFarewellBody(thanks?.body ?? '', 'America/Sao_Paulo', clock.nowMs())).toBe(
-        true,
-      )
+      expect(thanks?.body).toBe(IDLE_AUTO_CLOSE_BODY)
       expect(thanks?.body).not.toBe(IDLE_PROMPT_BODY)
       const suppressed = db.get<{ at: number | null }>(
         `SELECT idle_suppressed_at AS at FROM conversations WHERE id = ?`,
@@ -513,9 +512,7 @@ describe('DEC-087 idle follow-up', () => {
          ORDER BY created_at DESC LIMIT 1`,
         conversationId,
       )
-      expect(
-        isTerminarFarewellBody(thanksClose?.body ?? '', 'America/Sao_Paulo', clock.nowMs()),
-      ).toBe(true)
+      expect(thanksClose?.body).toBe(IDLE_AUTO_CLOSE_BODY)
     } finally {
       close()
     }

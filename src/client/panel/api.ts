@@ -421,7 +421,6 @@ export function createPanelApi(getToken: TokenGetter) {
     /** STAGING-ONLY: apaga dados operacionais da clínica (servidor 404 fora de staging). */
     async resetClinicOperationalData(
       tenantId: string,
-      confirmName: string,
       opts?: FetchOpts,
     ): Promise<{ status: number; body: unknown }> {
       const res = await authFetch(
@@ -429,7 +428,7 @@ export function createPanelApi(getToken: TokenGetter) {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confirmName }),
+          body: JSON.stringify({ confirm: true }),
         },
         opts,
       )
@@ -441,7 +440,6 @@ export function createPanelApi(getToken: TokenGetter) {
     /** STAGING-ONLY: apaga todos os compromissos da clínica (servidor 404 fora de staging). */
     async clearClinicAppointments(
       tenantId: string,
-      confirmName: string,
       opts?: FetchOpts,
     ): Promise<{ status: number; body: unknown }> {
       const res = await authFetch(
@@ -449,7 +447,7 @@ export function createPanelApi(getToken: TokenGetter) {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confirmName }),
+          body: JSON.stringify({ confirm: true }),
         },
         opts,
       )

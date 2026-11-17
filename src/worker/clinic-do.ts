@@ -3215,7 +3215,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return result.value
   }
 
-  /** STAGING-ONLY: gate de ambiente/papel/nome no Worker (src/clinic-reset). */
+  /** STAGING-ONLY: gate de ambiente/papel/confirmação no Worker (src/clinic-reset). */
   async resetClinicOperationalData(caller: ClinicCaller) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

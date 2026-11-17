@@ -1,12 +1,13 @@
 /**
  * STAGING-ONLY (dono): «Limpar agenda».
  * Chama POST .../staging/clear-appointments. O servidor recusa (404) fora de
- * ENVIRONMENT=staging, 403 para não-donos e 400 se o nome não bate — o cliente só esconde.
+ * ENVIRONMENT=staging, 403 para não-donos — o cliente só esconde fora de staging.*.
  */
 import { useState } from 'react'
-import { Button, Input, Label, TextField } from 'react-aria-components'
+import { Button } from 'react-aria-components'
 import type { PanelApi } from '../../api'
 import { friendlyError } from '../../copy/errors'
+import { StagingDestructiveConfirmDialog } from './StagingDestructiveConfirmDialog'
 
 export function describeClearAppointmentsResult(status: number, body: unknown): string {
   const b = (body ?? {}) as Record<string, unknown>
@@ -17,42 +18,34 @@ export function describeClearAppointmentsResult(status: number, body: unknown): 
   }
   if (status === 404) return 'Indisponível neste ambiente (só staging).'
   if (status === 403) return 'Só o dono da clínica pode fazer isto.'
-  if (status === 400) return 'O nome não confere. Escreva o nome exato da clínica.'
+  if (status === 400) return 'Confirme a ação no diálogo antes de continuar.'
   if (status === 401) return 'Sessão expirada — entre de novo.'
   return `Falhou (HTTP ${status}).`
 }
 
 type Props = {
   tenantId: string
-  clinicName: string
   api: PanelApi
   generation: number
   onDone?: () => void
 }
 
-export function StagingClearAppointmentsCard({
-  tenantId,
-  clinicName,
-  api,
-  generation,
-  onDone,
-}: Props) {
-  const [confirmName, setConfirmName] = useState('')
+export function StagingClearAppointmentsCard({ tenantId, api, generation, onDone }: Props) {
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const matches = confirmName.trim() !== '' && confirmName.trim() === clinicName.trim()
 
-  async function onPress() {
+  async function onConfirm() {
     setBusy(true)
     setMessage(null)
     try {
-      const r = await api.clearClinicAppointments(tenantId, confirmName, {
+      const r = await api.clearClinicAppointments(tenantId, {
         generation,
         expectGeneration: () => generation,
       })
       setMessage(describeClearAppointmentsResult(r.status, r.body))
       if (r.status === 200) {
-        setConfirmName('')
+        setDialogOpen(false)
         onDone?.()
       }
     } catch (err) {
@@ -63,29 +56,18 @@ export function StagingClearAppointmentsCard({
   }
 
   return (
+  <>
     <section aria-labelledby="staging-clear-appointments" className="whatsapp-dev-sync-section">
       <h3 id="staging-clear-appointments" className="whatsapp-subhead">
         Staging: limpar agenda
       </h3>
       <p className="clinic-footnote">
-        Apaga todos os compromissos (passados e futuros) e reservas temporárias desta clínica.
-        Mantém contatos, conversas, serviços, salas, equipe e WhatsApp. Não dá para desfazer.
+        Remove todos os compromissos e reservas temporárias desta clínica para voltar a testar a
+        agenda do zero. Contatos, conversas, serviços, salas, equipe e WhatsApp ficam intactos.
+        Não dá para desfazer.
       </p>
-      <TextField className="clinic-field">
-        <Label>Digite o nome da clínica para confirmar</Label>
-        <Input
-          autoComplete="off"
-          value={confirmName}
-          onChange={(e) => setConfirmName(e.target.value)}
-          aria-label="Nome da clínica para limpar agenda"
-        />
-      </TextField>
-      <Button
-        className="panel-btn-secondary"
-        isDisabled={busy || !matches}
-        onPress={() => void onPress()}
-      >
-        {busy ? 'Apagando…' : 'Apagar todos os compromissos'}
+      <Button className="panel-btn-secondary" onPress={() => setDialogOpen(true)}>
+        Apagar todos os compromissos
       </Button>
       {message ? (
         <p className="clinic-footnote" role="status">
@@ -93,5 +75,32 @@ export function StagingClearAppointmentsCard({
         </p>
       ) : null}
     </section>
+    <StagingDestructiveConfirmDialog
+      open={dialogOpen}
+      busy={busy}
+      title="Limpar agenda?"
+      confirmLabel="Confirmar"
+      confirmBusyLabel="Apagando…"
+      onClose={() => setDialogOpen(false)}
+      onConfirm={() => void onConfirm()}
+      description={
+        <>
+          <p style={{ margin: '0 0 8px' }}>Será apagado desta clínica (só staging):</p>
+          <ul style={{ margin: '0 0 8px', paddingLeft: '1.25rem' }}>
+            <li>Compromissos passados e futuros</li>
+            <li>Alocações de sala e profissional nos horários</li>
+            <li>Comandos e eventos internos dos compromissos</li>
+            <li>Reservas temporárias (holds)</li>
+            <li>Snapshots de zonas/combo ligados a visitas já marcadas</li>
+          </ul>
+          <p style={{ margin: 0 }}>
+            Mantém contatos, conversas e mensagens, oportunidades no pipeline (só desliga o vínculo
+            com horário), serviços, profissionais, salas, horários da clínica, Pix, WhatsApp e demais
+            configuração. Não dá para desfazer.
+          </p>
+        </>
+      }
+    />
+  </>
   )
 }
