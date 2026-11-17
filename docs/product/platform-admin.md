@@ -117,7 +117,7 @@ Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão exp
 
 ### 6.1 Abas do detalhe da clínica (PA-04, PA-08 a PA-11)
 
-**Estado:** **Confirmado** (Paulo, 16/11/2026, «Aprovado») com os mocks PA-08 a PA-11 em `docs/design/admin/`. Continuam em aberto Q-PA-04 e as lacunas de backend abaixo. O cabeçalho (nome, estado, ações Pedir suporte / Suspender / Excluir) e o alerta de saúde são comuns a todas as abas; a aba ativa fica na URL (`/admin/clinicas/:id/membros`) para poder ser partilhada.
+**Estado:** **Confirmado** (Paulo, 16/11/2026, «Aprovado») com os mocks PA-08 a PA-11 em `docs/design/admin/`. Q-PA-04 decidida (volume só números, [#881](https://github.com/intentzero/tredane/issues/881)); continuam as lacunas de backend abaixo. O cabeçalho (nome, estado, ações Pedir suporte / Suspender / Excluir) e o alerta de saúde são comuns a todas as abas; a aba ativa fica na URL (`/admin/clinicas/:id/membros`) para poder ser partilhada.
 
 **Membros (PA-08).** Fonte: `GET /api/platform/tenants/:id/members` (inclui revogados).
 - Colunas: pessoa (nome e e-mail), papel (Owner, Attendant), estado (Ativo, Revogado), entrou em, revogado em.
@@ -150,7 +150,7 @@ Estados obrigatórios em todas: carregando, vazio, erro com repetir, sessão exp
 | Q-PA-01 | **Resolvida (Paulo, 16/11/2026: «sim»):** PA-07 mostra o texto das amostras de revisão, como o Review MCP já faz ao superadmin (DEC-159). | Opção (b). Descartada: só ids. | Paulo | **Implementado no PR #(qualidade IA, #834):** PA-07 revisto e PA-12 novo; o telefone sai mascarado e cada leitura de texto fica na auditoria (`review.sample.read`) |
 | Q-PA-02 | **Resolvida (Paulo, 16/11/2026):** a saúde global lê um **resumo periódico gravado no D1** (cron), não o DO a cada pedido. | Opção (b). Descartada: fan-out aos DOs a pedido. | Paulo | PA-06 e PA-01 mostram a hora do resumo; PA-09 (clínica) pode atualizar o snapshot da própria clínica a pedido |
 | Q-PA-03 | Aviso de aprovação de suporte em tempo real para o superadmin | polling 30 s (proposto) ou canal próprio | Paulo | Não bloqueia o primeiro corte. **Decidido (Paulo, 17/11/2026): canal em tempo real**, na issue [#880](https://github.com/intentzero/tredane/issues/880) (fora do #853) |
-| Q-PA-04 | **Ainda em aberto; o PR #851 (#833) não mostra volume.** A aba Saúde pode mostrar volume (contatos, mensagens, marcações, anexos) da clínica? | (a) sim, só números, como o snapshot já faz; (b) não, só sinais de falha | Paulo | Mock PA-09. **Decidido (Paulo, 17/11/2026): (a) sim, só números**; issue [#881](https://github.com/intentzero/tredane/issues/881), e o mock PA-09 passa a mostrar o volume |
+| Q-PA-04 | A aba Saúde pode mostrar volume (contatos, mensagens, marcações, anexos) da clínica? | **Decidido (Paulo, 17/11/2026): (a) sim, só números**, como o snapshot já faz. Descartada: (b) só sinais de falha. O PR #851 (#833) ainda não mostra volume. | Paulo | Mock PA-09. Issue [#881](https://github.com/intentzero/tredane/issues/881); o mock PA-09 passa a mostrar o volume |
 
 **Fora deste recorte:** purga física e retenção LGPD (#43, VAL-09); MFA (DEC-028); edição do catálogo ou da agenda de uma clínica pela Platform Admin; faturação de clínicas.
 
