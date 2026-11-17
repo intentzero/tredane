@@ -9,11 +9,12 @@ import type { Clock } from '../db/clock'
 import type { ClinicDb } from '../clinic/store'
 import { loadUpcomingAppointments } from '../clinic/ai/reschedule'
 import { clientWebFirstName } from './first-name'
+import { hasPaidSignal } from './manage'
 
 export type ClientWebClinicState = {
   firstName: string | null
   timezone: string
-  appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number }>
+  appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number; hasPaidSignal: boolean }>
 }
 
 /** O contacto tem de ser o da conversa da sessão, nesta clínica (ADR-0018 §4). */
@@ -54,6 +55,7 @@ export function readClientWebState(
       serviceName: a.serviceName,
       startsAt: a.startsAt,
       endsAt: a.endsAt,
+      hasPaidSignal: hasPaidSignal(db, input.tenantId, a.id),
     })),
   }
 }

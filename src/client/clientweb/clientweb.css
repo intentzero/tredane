@@ -155,3 +155,9 @@
 .cw-notice { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: var(--font-size-small); background: var(--color-warning-tint); border: 1px solid var(--color-warning-border); color: var(--color-warning-ink); }
 .cw-alert { margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; font-size: var(--font-size-small); background: var(--color-danger-tint); border: 1px solid var(--color-danger-border); color: var(--color-danger-ink); }
 .cw-icon-ok { background: var(--color-success-tint); color: var(--color-success-ink); }
+
+/* Remarcar e cancelar (Fases 3 e 4): mocks C-07 e C-08. */
+.cw-btn-danger { background: var(--color-danger-ink); color: var(--color-text-on-primary); }
+.cw-btn-danger:disabled { background: var(--color-line-disabled); color: var(--color-text-secondary); cursor: default; }
+.cw-card-actions { display: flex; gap: 8px; margin-top: 4px; }
+.cw-card-actions .cw-btn { flex: 1; min-height: 44px; }

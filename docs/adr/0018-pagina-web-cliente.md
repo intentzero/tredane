@@ -128,6 +128,19 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - Página: Início com «Agendar novo horário», «Para quem é?» (só se o catálogo depende de género), serviço, zonas (só as da linha, total somado), horário (semana com setas, Manhã/Tarde/Noite), revisão e resultado (marcado, Pix, pausa, erro). Layout compacto (C-02 a C-06).
 - **Horizonte provisório:** 30 dias fixos em `CLIENT_WEB_HORIZON_DAYS`, até a configuração da clínica existir (DEC-201).
 
+**Fases 3 e 4 implementadas (17/11/2026, atrás da flag): remarcar e cancelar** (`src/clientweb/manage.ts`)
+
+- **Remarcar:** `POST /api/c/availability` aceita `appointmentId` (serviço e zonas vêm da marcação; a própria marcação não ocupa a vaga) e `POST /api/c/reschedule`. Cria a proposta com `replacesAppointmentId` e passa pelo mesmo executor, canal `web`; a mesma marcação é movida (motivo `contato_remarcou`), mantém serviço, zonas e duração, sem sinal novo. O recibo no chat começa por «Remarcado:» e leva «Marcado pela página. Não foi você?…». Toque duplo devolve a marcação (`rescheduleAlreadyAt`).
+- **Cancelar:** `POST /api/c/cancel`. Só marcações **sem sinal pago**; cancela com ator `contact:web` (motivo `contato_desistiu`), idempotente por marcação, e envia o recibo «Cancelado: … Não foi você? Fale com a equipe.» ao chat (melhor esforço; fora das 24 h não sai).
+- **Com sinal pago não cancela:** a página mostra «Pedir cancelamento» e `POST /api/c/ask-team` faz o mesmo que «Falar com a equipe» no chat (pausa a IA e avisa a equipe; fora do expediente só responde o horário, DEC-155). É a regra Proposta da DEC-198(b): a janela de crédito ainda não é aplicada pelo backend.
+- Só se mexe em marcações **do contacto da sessão**, futuras e confirmadas; qualquer outra dá `not_found`. A página mostra Remarcar e Cancelar em cada marcação.
+
+**Fases 3 e 4, ainda não feito:**
+
+1. **Cancelar com sinal pago sozinha** (aceite explícito da política fora da janela, DEC-198(c)): depende de aplicar a janela de crédito e da validade do crédito (**Em aberto**, Paulo).
+2. **Remarcar uma marcação com sinal pago** funciona como qualquer outra (mantém a marcação e não gera sinal novo), sem aplicar a janela de crédito. Confirmar com o Paulo se isso é aceitável antes de produção.
+3. Cancelar e remarcar não têm limites S7 próprios de cancelamento; a remarcação passa pelos limites de propostas (S7) como no chat.
+
 **Fase 2, ainda não feito:**
 
 1. **Pesquisa de texto** (C-10, C-11, DEC-200) e **calendário do mês** (C-12). A navegação por semanas já cobre o horizonte.

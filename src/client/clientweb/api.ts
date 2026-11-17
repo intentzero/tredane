@@ -8,6 +8,8 @@ export type ClientWebAppointment = {
   serviceName: string
   startsAt: number
   endsAt: number
+  /** Sinal pago: a cliente não cancela sozinha, pede à equipe (DEC-198). */
+  hasPaidSignal: boolean
 }
 
 export type ClientWebState = {
@@ -165,6 +167,76 @@ export async function bookSlot(input: BookInput): Promise<BookResult | 'unauthor
     if (res.status === 401) return 'unauthorized'
     if (!res.ok) return 'error'
     return (await json<BookResult>(res)) ?? 'error'
+  } catch {
+    return 'error'
+  }
+}
+
+export type CancelResult = { status: 'cancelled'; serviceName: string; startsAt: number } | { status: 'needs_team' } | { status: 'not_found' }
+
+/** Horas para remarcar: serviço e zonas vêm da própria marcação. */
+export async function fetchRescheduleSlots(input: { appointmentId: string; from: string; to: string }): Promise<SlotsResult> {
+  try {
+    const res = await fetch('/api/c/availability', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (res.status === 401) return { kind: 'unauthorized' }
+    if (res.status === 404 || res.status === 422) return { kind: 'ok', slots: [] }
+    if (!res.ok) return { kind: 'error' }
+    const body = await json<{ slots: Slot[] }>(res)
+    return body ? { kind: 'ok', slots: body.slots } : { kind: 'error' }
+  } catch {
+    return { kind: 'error' }
+  }
+}
+
+export async function rescheduleSlot(input: { appointmentId: string; slotId: string }): Promise<BookResult | 'unauthorized' | 'error'> {
+  try {
+    const res = await fetch('/api/c/reschedule', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (res.status === 401) return 'unauthorized'
+    if (!res.ok) return 'error'
+    return (await json<BookResult>(res)) ?? 'error'
+  } catch {
+    return 'error'
+  }
+}
+
+export async function cancelAppointment(input: { appointmentId: string }): Promise<CancelResult | 'unauthorized' | 'error'> {
+  try {
+    const res = await fetch('/api/c/cancel', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (res.status === 401) return 'unauthorized'
+    if (!res.ok) return 'error'
+    return (await json<CancelResult>(res)) ?? 'error'
+  } catch {
+    return 'error'
+  }
+}
+
+export async function askTeam(): Promise<'asked' | 'after_hours' | 'unauthorized' | 'error'> {
+  try {
+    const res = await fetch('/api/c/ask-team', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    if (res.status === 401) return 'unauthorized'
+    if (!res.ok) return 'error'
+    const body = await json<{ status: 'asked' | 'after_hours' }>(res)
+    return body?.status ?? 'error'
   } catch {
     return 'error'
   }

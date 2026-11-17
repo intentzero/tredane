@@ -33,7 +33,7 @@ function setup() {
           clinicName: 'Clínica Aurora',
           firstName: 'Marina',
           timezone: 'America/Sao_Paulo',
-          appointments: [{ id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: 1, endsAt: 2 }],
+          appointments: [{ id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: 1, endsAt: 2, hasPaidSignal: false }],
         }
       },
     }),
@@ -286,6 +286,96 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
       const app = new Hono<{ Bindings: WorkerBindings }>().route('/', createClientWebRoutes({ stateLookup: async () => null }))
       const res = await app.request(`${ORIGIN}/api/c/book`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' }, ENV)
       expect(res.status).toBe(403)
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('remarcar, cancelar e pedir à equipe (Fases 3 e 4)', () => {
+  function setupManage() {
+    const { db, close } = bootAdminDb()
+    const clock = createControllableClock(1_800_000_000_000)
+    const d1 = adminDbAsD1(db)
+    const seen: Array<{ kind: string; session: ClientWebSession; input?: unknown }> = []
+    const app = new Hono<{ Bindings: WorkerBindings }>().route(
+      '/',
+      createClientWebRoutes({
+        dbFactory: () => d1,
+        clockFactory: () => clock,
+        stateLookup: async () => ({ clinicName: 'Clínica Aurora', firstName: null, timezone: 'America/Sao_Paulo', appointments: [] }),
+        rescheduleSlotsLookup: async (_e, session, input) => {
+          seen.push({ kind: 'rslots', session, input })
+          return input.appointmentId === 'apt-outra'
+            ? { ok: false, error: 'appointment_not_found' }
+            : { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to }
+        },
+        rescheduleLookup: async (_e, session, input) => {
+          seen.push({ kind: 'reschedule', session, input })
+          return { status: 'booked', appointment: { id: input.appointmentId, startsAt: 1, endsAt: 2, serviceName: 'Limpeza' } }
+        },
+        cancelLookup: async (_e, session, input) => {
+          seen.push({ kind: 'cancel', session, input })
+          return { status: 'needs_team' }
+        },
+        askTeamLookup: async (_e, session) => {
+          seen.push({ kind: 'ask', session })
+          return { status: 'asked' }
+        },
+      }),
+    )
+    const call = (path: string, cookie?: string, body?: unknown) =>
+      app.request(
+        `${ORIGIN}${path}`,
+        { method: 'POST', headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body ?? {}) },
+        ENV,
+      )
+    const login = async () => {
+      const { token } = await issueClientWebLink(d1, clock, LINK)
+      return sessionCookie(await call('/api/c/exchange', undefined, { token }))
+    }
+    return { call, login, seen, close }
+  }
+
+  it('sem sessão as rotas novas respondem 401', async () => {
+    const { call, close } = setupManage()
+    try {
+      expect((await call('/api/c/reschedule', undefined, { appointmentId: 'a', slotId: '2026-11-18T10:00' })).status).toBe(401)
+      expect((await call('/api/c/cancel', undefined, { appointmentId: 'a' })).status).toBe(401)
+      expect((await call('/api/c/ask-team')).status).toBe(401)
+    } finally {
+      close()
+    }
+  })
+
+  it('com sessão, tudo é da sessão; nada de tenant ou contacto vindo do pedido', async () => {
+    const { call, login, seen, close } = setupManage()
+    try {
+      const cookie = await login()
+      const slots = await call('/api/c/availability', cookie, { appointmentId: 'apt-1', from: '2026-11-18', to: '2026-11-24', tenantId: 'clinic-evil' })
+      expect(slots.status).toBe(200)
+      expect(await slots.json()).toMatchObject({ slots: [{ id: '2026-11-18T10:00' }] })
+      expect((await call('/api/c/reschedule', cookie, { appointmentId: 'apt-1', slotId: '2026-11-18T10:00', contactId: 'ctc-evil' })).status).toBe(200)
+      expect(await (await call('/api/c/cancel', cookie, { appointmentId: 'apt-1' })).json()).toEqual({ status: 'needs_team' })
+      expect(await (await call('/api/c/ask-team', cookie)).json()).toEqual({ status: 'asked' })
+      for (const s of seen) {
+        expect(s.session).toMatchObject({ tenantId: 'clinic-a', contactId: 'ctc-1', conversationId: 'cnv-1' })
+        expect(JSON.stringify(s.input ?? {})).not.toMatch(/evil/)
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('marcação de outra cliente nas horas para remarcar dá 404; corpo inválido dá 400', async () => {
+    const { call, login, close } = setupManage()
+    try {
+      const cookie = await login()
+      expect((await call('/api/c/availability', cookie, { appointmentId: 'apt-outra', from: '2026-11-18', to: '2026-11-24' })).status).toBe(404)
+      expect((await call('/api/c/availability', cookie, { appointmentId: 5, from: '2026-11-18', to: '2026-11-24' })).status).toBe(400)
+      expect((await call('/api/c/reschedule', cookie, { appointmentId: 'a', slotId: 'amanhã' })).status).toBe(400)
+      expect((await call('/api/c/reschedule', cookie, { slotId: '2026-11-18T10:00' })).status).toBe(400)
+      expect((await call('/api/c/cancel', cookie, {})).status).toBe(400)
     } finally {
       close()
     }

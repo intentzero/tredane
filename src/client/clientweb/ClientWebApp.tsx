@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import './clientweb.css'
-import { exchangeLink, fetchState, type ClientWebState } from './api'
+import { exchangeLink, fetchCatalog, fetchState, type Catalog, type ClientWebAppointment, type ClientWebState } from './api'
+import { CancelFlow, RescheduleFlow } from './ManageFlow'
 import { BookFlow } from './BookFlow'
 import { clientWebTokenFromPath } from './routes'
 import { clinicInitials, formatAppointmentWhen, formatDurationMinutes } from './format'
@@ -9,6 +10,8 @@ type View =
   | { kind: 'loading' }
   | { kind: 'ready'; state: ClientWebState }
   | { kind: 'booking'; state: ClientWebState }
+  | { kind: 'reschedule'; state: ClientWebState; appointment: ClientWebAppointment; catalog: Catalog }
+  | { kind: 'cancel'; state: ClientWebState; appointment: ClientWebAppointment }
   | { kind: 'unavailable' }
   | { kind: 'error' }
 
@@ -57,7 +60,31 @@ export function ClientWebApp() {
           </p>
         </main>
       )}
-      {view.kind === 'ready' && <Home state={view.state} onBook={() => setView({ kind: 'booking', state: view.state })} />}
+      {view.kind === 'ready' && (
+        <Home
+          state={view.state}
+          onBook={() => setView({ kind: 'booking', state: view.state })}
+          onCancel={(appointment) => setView({ kind: 'cancel', state: view.state, appointment })}
+          onReschedule={async (appointment) => {
+            const catalog = await fetchCatalog()
+            if (catalog === 'unauthorized') return sessionLost()
+            if (catalog === 'error') return setView({ kind: 'error' })
+            setView({ kind: 'reschedule', state: view.state, appointment, catalog })
+          }}
+        />
+      )}
+      {view.kind === 'reschedule' && (
+        <RescheduleFlow
+          appointment={view.appointment}
+          catalog={view.catalog}
+          timezone={view.state.timezone}
+          onExit={() => void refresh()}
+          onSessionLost={sessionLost}
+        />
+      )}
+      {view.kind === 'cancel' && (
+        <CancelFlow appointment={view.appointment} timezone={view.state.timezone} onExit={() => void refresh()} onSessionLost={sessionLost} />
+      )}
       {view.kind === 'booking' && (
         <BookFlow clinicName={view.state.clinicName} onExit={() => void refresh()} onSessionLost={sessionLost} />
       )}
@@ -67,22 +94,34 @@ export function ClientWebApp() {
   )
 }
 
-function Header({ name }: { name: string }) {
+function Header({ name, safe = false }: { name: string; safe?: boolean }) {
   return (
-    <header className="cw-header">
-      <span className="cw-badge" aria-hidden="true">
-        {clinicInitials(name)}
-      </span>
-      <span className="cw-clinic">{name}</span>
+    <header>
+      <div className="cw-header">
+        <span className="cw-badge" aria-hidden="true">
+          {clinicInitials(name)}
+        </span>
+        <span className="cw-clinic">{name}</span>
+      </div>
+      {safe && <p className="cw-safe">Esta página não pede pagamento nem senha.</p>}
     </header>
   )
 }
 
-function Home({ state, onBook }: { state: ClientWebState; onBook: () => void }) {
+function Home({
+  state,
+  onBook,
+  onReschedule,
+  onCancel,
+}: {
+  state: ClientWebState
+  onBook: () => void
+  onReschedule: (a: ClientWebAppointment) => void
+  onCancel: (a: ClientWebAppointment) => void
+}) {
   return (
     <>
-      <Header name={state.clinicName} />
-      <p className="cw-safe">Esta página não pede pagamento nem senha.</p>
+      <Header name={state.clinicName} safe />
       <main className="cw-main">
         <div className="cw-intro">
           <h1 className="cw-title">{state.firstName ? `Olá, ${state.firstName}` : 'Olá'}</h1>
@@ -101,13 +140,18 @@ function Home({ state, onBook }: { state: ClientWebState; onBook: () => void }) 
                 <span className="cw-muted">
                   {formatAppointmentWhen(a.startsAt, state.timezone)} · {formatDurationMinutes(a.startsAt, a.endsAt)}
                 </span>
+                <div className="cw-card-actions">
+                  <button type="button" className="cw-btn cw-btn-secondary" aria-label={`Remarcar ${a.serviceName}`} onClick={() => onReschedule(a)}>
+                    Remarcar
+                  </button>
+                  <button type="button" className="cw-btn cw-btn-secondary" aria-label={`${a.hasPaidSignal ? 'Pedir cancelamento de' : 'Cancelar'} ${a.serviceName}`} onClick={() => onCancel(a)}>
+                    {a.hasPaidSignal ? 'Pedir cancelamento' : 'Cancelar'}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
-        <p className="cw-note">
-          Para remarcar ou cancelar, continue pela conversa no WhatsApp.
-        </p>
       </main>
       <footer className="cw-bar">
         <button type="button" className="cw-btn cw-btn-primary" onClick={onBook}>

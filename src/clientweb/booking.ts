@@ -191,7 +191,7 @@ export type ClientWebBookResult =
   | { status: 'pix_signal' }
   | { status: 'slot_taken' }
   | { status: 'paused' }
-  | { status: 'error'; error: WebBookingError | 'expired' | 'not_allowed' }
+  | { status: 'error'; error: WebBookingError | 'expired' | 'not_allowed' | 'appointment_not_found' }
 
 export type WebBookingInput = {
   serviceId: string

@@ -15,6 +15,7 @@ import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import type { ClientWebBookResult, ClientWebCatalog, ClientWebSlotsResult, WebBookingInput } from './booking'
+import type { RescheduleSlotsResult, WebCancelResult } from './manage'
 import {
   CLIENT_WEB_EXCHANGE_LIMIT,
   CLIENT_WEB_STATE_LIMIT,
@@ -38,6 +39,8 @@ export type ClientWebAppointment = {
   serviceName: string
   startsAt: number
   endsAt: number
+  /** Sinal pago: a cliente não cancela sozinha (DEC-198). */
+  hasPaidSignal: boolean
 }
 
 export type ClientWebState = {
@@ -61,6 +64,18 @@ export type ClientWebRouteOptions = {
     input: { serviceId: string; variantIds: string[]; from: string; to: string },
   ) => Promise<ClientWebSlotsResult | null>
   bookLookup?: (env: WorkerBindings, session: ClientWebSession, input: WebBookingInput) => Promise<ClientWebBookResult | null>
+  rescheduleSlotsLookup?: (
+    env: WorkerBindings,
+    session: ClientWebSession,
+    input: { appointmentId: string; from: string; to: string },
+  ) => Promise<RescheduleSlotsResult | null>
+  rescheduleLookup?: (
+    env: WorkerBindings,
+    session: ClientWebSession,
+    input: { appointmentId: string; slotId: string },
+  ) => Promise<ClientWebBookResult | null>
+  cancelLookup?: (env: WorkerBindings, session: ClientWebSession, input: { appointmentId: string }) => Promise<WebCancelResult | null>
+  askTeamLookup?: (env: WorkerBindings, session: ClientWebSession) => Promise<{ status: 'asked' | 'after_hours' } | null>
 }
 
 const MAX_ID = 120
@@ -256,10 +271,27 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const got = await requireSession(c, 'avail', 120)
     if ('response' in got) return got.response
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
-    const serviceId = str(body.serviceId)
-    const variantIds = strList(body.variantIds)
     const from = typeof body.from === 'string' && DATE_RE.test(body.from) ? body.from : null
     const to = typeof body.to === 'string' && DATE_RE.test(body.to) ? body.to : null
+    // Remarcar: pede as horas de uma marcação (serviço e zonas vêm dela).
+    const appointmentId = body.appointmentId === undefined ? null : str(body.appointmentId)
+    if (body.appointmentId !== undefined) {
+      if (!appointmentId || !from || !to) return c.json({ error: 'invalid_request' }, 400)
+      const rinput = { appointmentId, from, to }
+      const rres = opts.rescheduleSlotsLookup
+        ? await opts.rescheduleSlotsLookup(c.env, got.session, rinput)
+        : await clinicStub(c.env, got.session).clientWebRescheduleSlots({
+            tenantId: got.session.tenantId,
+            contactId: got.session.contactId,
+            conversationId: got.session.conversationId,
+            ...rinput,
+          })
+      if (!rres) return c.json({ error: 'session_required' }, 401)
+      if (!rres.ok) return c.json({ error: rres.error }, rres.error === 'appointment_not_found' ? 404 : 422)
+      return c.json({ slots: rres.slots, from: rres.from, to: rres.to })
+    }
+    const serviceId = str(body.serviceId)
+    const variantIds = strList(body.variantIds)
     if (!serviceId || !variantIds || !from || !to) return c.json({ error: 'invalid_request' }, 400)
     const input = { serviceId, variantIds, from, to }
     const result = opts.slotsLookup
@@ -296,6 +328,62 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     if (!result) return c.json({ error: 'session_required' }, 401)
     log({ level: 'info', event: 'client_web.book', detail: { status: result.status } })
     // 200 mesmo quando a hora já não está livre: é um resultado esperado, não um erro de pedido.
+    return c.json(result)
+  })
+
+  app.post('/api/c/reschedule', async (c) => {
+    const got = await requireSession(c, 'book', 30)
+    if ('response' in got) return got.response
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+    const appointmentId = str(body.appointmentId)
+    const slotId = typeof body.slotId === 'string' && SLOT_ID_RE.test(body.slotId) ? body.slotId : null
+    if (!appointmentId || !slotId) return c.json({ error: 'invalid_request' }, 400)
+    const input = { appointmentId, slotId }
+    const result = opts.rescheduleLookup
+      ? await opts.rescheduleLookup(c.env, got.session, input)
+      : await clinicStub(c.env, got.session).clientWebReschedule({
+          tenantId: got.session.tenantId,
+          contactId: got.session.contactId,
+          conversationId: got.session.conversationId,
+          ...input,
+        })
+    if (!result) return c.json({ error: 'session_required' }, 401)
+    log({ level: 'info', event: 'client_web.reschedule', detail: { status: result.status } })
+    return c.json(result)
+  })
+
+  app.post('/api/c/cancel', async (c) => {
+    const got = await requireSession(c, 'book', 30)
+    if ('response' in got) return got.response
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+    const appointmentId = str(body.appointmentId)
+    if (!appointmentId) return c.json({ error: 'invalid_request' }, 400)
+    const input = { appointmentId }
+    const result = opts.cancelLookup
+      ? await opts.cancelLookup(c.env, got.session, input)
+      : await clinicStub(c.env, got.session).clientWebCancel({
+          tenantId: got.session.tenantId,
+          contactId: got.session.contactId,
+          conversationId: got.session.conversationId,
+          ...input,
+        })
+    if (!result) return c.json({ error: 'session_required' }, 401)
+    log({ level: 'info', event: 'client_web.cancel', detail: { status: result.status } })
+    return c.json(result)
+  })
+
+  app.post('/api/c/ask-team', async (c) => {
+    const got = await requireSession(c, 'book', 30)
+    if ('response' in got) return got.response
+    const result = opts.askTeamLookup
+      ? await opts.askTeamLookup(c.env, got.session)
+      : await clinicStub(c.env, got.session).clientWebAskTeam({
+          tenantId: got.session.tenantId,
+          contactId: got.session.contactId,
+          conversationId: got.session.conversationId,
+        })
+    if (!result) return c.json({ error: 'session_required' }, 401)
+    log({ level: 'info', event: 'client_web.ask_team', detail: { status: result.status } })
     return c.json(result)
   })
 

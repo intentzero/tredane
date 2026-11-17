@@ -12,7 +12,7 @@ const STATE = {
   firstName: 'Marina',
   timezone: 'America/Sao_Paulo',
   appointments: [
-    { id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: Date.UTC(2026, 10, 25, 17, 15), endsAt: Date.UTC(2026, 10, 25, 18, 0) },
+    { id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: Date.UTC(2026, 10, 25, 17, 15), endsAt: Date.UTC(2026, 10, 25, 18, 0), hasPaidSignal: false },
   ],
   sessionExpiresAt: Date.UTC(2026, 10, 25, 18, 0),
 }
@@ -116,11 +116,11 @@ describe('ClientWebApp (C-01, C-09)', () => {
     expect(screen.queryByRole('list')).toBeNull()
   })
 
-  it('só mostra Agendar; Remarcar e Cancelar ainda não existem na página', async () => {
+  it('mostra Agendar e, em cada marcação, Remarcar e Cancelar', async () => {
     mockApi()
     render(<ClientWebApp />)
     await screen.findByRole('heading', { name: 'Olá, Marina' })
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Agendar novo horário'])
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Remarcar', 'Cancelar', 'Agendar novo horário'])
     expect(screen.queryByRole('link')).toBeNull()
   })
 

@@ -159,7 +159,17 @@ import {
 import { handleFaqContinueButtonClick } from '../clinic/ai/faq-clarification'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
-import { readClientWebState, sessionOwnsConversation } from '../clientweb/state'
+import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
+import {
+  cancelFromWeb,
+  cancelReceiptBody,
+  listRescheduleSlots,
+  planWebReschedule,
+  rescheduleAlreadyAt,
+  WEB_CANCEL_ACTOR,
+  type RescheduleSlotsResult,
+  type WebCancelResult,
+} from '../clientweb/manage'
 import {
   findRecentWebBooking,
   listClientWebSlots,
@@ -998,11 +1008,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     tenantId: string
     contactId: string
     conversationId: string
-  }): Promise<{
-    firstName: string | null
-    timezone: string
-    appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number }>
-  } | null> {
+  }): Promise<ClientWebClinicState | null> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
@@ -1128,6 +1134,167 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (execution.status === 'slot_refused' || execution.status === 'tempo_refused') return { status: 'slot_taken' }
     if (execution.reason === 'capability_disabled') return { status: 'paused' }
     return { status: 'error', error: execution.authorizationReason === 'expired' ? 'expired' : 'not_allowed' }
+  }
+
+  /** Página web da cliente: horas livres para remarcar (a própria marcação não ocupa a vaga). */
+  async clientWebRescheduleSlots(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    appointmentId: string
+    from: string
+    to: string
+  }): Promise<RescheduleSlotsResult | null> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    return listRescheduleSlots(this.#db, input.tenantId, this.#clock, input, input)
+  }
+
+  /** Página web da cliente: Confirmar a remarcação (DEC-197). Mesmo executor do botão, canal web. */
+  async clientWebReschedule(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    appointmentId: string
+    slotId: string
+  }): Promise<ClientWebBookResult | null> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId)
+    this.#assertInstanceTenant(caller)
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    const already = rescheduleAlreadyAt(this.#db, caller.tenantId, this.#clock, input, input)
+    if (already) return { status: 'booked', appointment: already }
+    const autoBookPaused = clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
+    if (autoBookPaused) return { status: 'paused' }
+
+    const env = this.#abuseEnv()
+    const settings = clinicConfig.ensureClinicSettings(this.#db, caller.tenantId, this.#clock)
+    const abuseLimits = clinicAi.resolveAbuseLimits(
+      clinicAi.abuseLimitsFromEnv(env),
+      clinicConfig.clinicAbuseRowFromSettings(settings),
+      env,
+    )
+    const planned = await planWebReschedule(
+      this.#db,
+      caller.tenantId,
+      this.#clock,
+      { contactId: input.contactId, conversationId: input.conversationId },
+      { appointmentId: input.appointmentId, slotId: input.slotId },
+      { abuseLimits },
+    )
+    if (!planned.ok) {
+      return planned.error === 'slot_unavailable' ? { status: 'slot_taken' } : { status: 'error', error: planned.error }
+    }
+    const execution = await clinicProposals.executeProposalConfirmOp(
+      this.#db,
+      caller,
+      {
+        handoff: planned.handoff,
+        capability: clinicAi.autoBookCapability() && !autoBookPaused,
+        providerEventKey: `web:${planned.proposal.id}:v${planned.proposal.version}`,
+        senderContactId: input.contactId,
+        channel: 'web',
+      },
+      this.#clock,
+    )
+    if (execution.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, execution.outbox, true)
+      await this.#drain(caller)
+    }
+    if (execution.status === 'booked') {
+      return {
+        status: 'booked',
+        appointment: {
+          id: execution.appointment.id,
+          startsAt: execution.appointment.startsAt,
+          endsAt: execution.appointment.endsAt,
+          serviceName: planned.proposal.serviceName,
+        },
+      }
+    }
+    if (execution.status === 'slot_refused' || execution.status === 'tempo_refused') return { status: 'slot_taken' }
+    if (execution.status === 'denied' && execution.reason === 'capability_disabled') return { status: 'paused' }
+    return { status: 'error', error: 'not_allowed' }
+  }
+
+  /**
+   * Página web da cliente: cancelar (DEC-198). Só marcações sem sinal pago; com sinal pago devolve
+   * `needs_team`. O recibo «Não foi você?» vai para o chat (melhor esforço).
+   */
+  async clientWebCancel(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    appointmentId: string
+  }): Promise<WebCancelResult | null> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId, WEB_CANCEL_ACTOR)
+    this.#assertInstanceTenant(caller)
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
+    if (done.result.status === 'cancelled' && done.outbox.length > 0) {
+      const outboxes = [...done.outbox]
+      try {
+        const sent = clinicInbox.sendOutboundMessageOp(
+          this.#db,
+          caller,
+          {
+            conversationId: input.conversationId,
+            body: cancelReceiptBody(this.#db, caller.tenantId, this.#clock, done.result),
+            clientRequestId: `web-cancel-receipt:${input.appointmentId}`,
+            authorClerkUserId: PROPOSAL_SEND_ACTOR,
+            authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
+          },
+          this.#clock,
+        )
+        outboxes.push(...sent.outbox)
+      } catch {
+        // Fora da janela de 24 h o recibo não sai; o cancelamento já está feito.
+      }
+      await this.#fanoutOutboxes(caller, outboxes, true)
+      await this.#drain(caller)
+    }
+    return done.result
+  }
+
+  /**
+   * Página web da cliente: «Pedir à equipe» (marcação com sinal pago, DEC-198). Mesmo efeito que
+   * «Falar com a equipe» no chat: pausa a IA e avisa a equipe (fora do expediente, só responde o horário).
+   */
+  async clientWebAskTeam(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+  }): Promise<{ status: 'asked' | 'after_hours' } | null> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId)
+    this.#assertInstanceTenant(caller)
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    const clientRequestId = `web-ask-team:${input.conversationId}:${this.#clock.nowMs()}`
+    if (!isHumanTeamOfferAllowed(this.#db, caller.tenantId, this.#clock)) {
+      const afterHours = replyAfterHoursHumanRequest(
+        this.#db,
+        caller.tenantId,
+        { conversationId: input.conversationId, clientRequestId },
+        this.#clock,
+      )
+      await this.#fanoutOutboxes(caller, afterHours.outbox, true)
+      await this.#drain(caller)
+      return { status: 'after_hours' }
+    }
+    const handoff = notifyHumanHandoff(
+      this.#db,
+      caller.tenantId,
+      { conversationId: input.conversationId, reason: 'customer_requested', clientRequestId },
+      this.#clock,
+    )
+    if (handoff.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, handoff.outbox, true)
+      await this.#drain(caller)
+    }
+    await this.#scheduleNextHandoffTimeout(caller.tenantId)
+    return { status: 'asked' }
   }
 
   /**
