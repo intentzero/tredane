@@ -54,6 +54,10 @@ describe('rotas da página da cliente', () => {
     expect(isClientWebPath('/c')).toBe(true)
     expect(isClientWebPath('/c/cw1_x')).toBe(true)
     expect(isClientWebPath('/clinicas')).toBe(false)
+    // O painel da equipe usa /c/:clínica/:área: nunca é a página da cliente.
+    expect(isClientWebPath('/c/tenant_dec0de000000000000000001/conversas')).toBe(false)
+    expect(isClientWebPath('/c/tenant_dec0de000000000000000001/clinica/equipe')).toBe(false)
+    expect(isClientWebPath('/c/cw1_x/')).toBe(true)
     expect(clientWebTokenFromPath('/c/cw1_abc-DEF_9')).toBe('cw1_abc-DEF_9')
     expect(clientWebTokenFromPath('/c')).toBeNull()
     expect(clientWebTokenFromPath('/c/a/b')).toBeNull()
