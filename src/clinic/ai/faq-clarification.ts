@@ -64,6 +64,52 @@ export function foldFaqText(text: string): string {
 }
 
 /**
+ * Corrige typos baratos em perguntas de inclusão (sem LLM): «incluinnariz» → «inclui nariz».
+ */
+export function normalizeInclusionAskText(text: string): string {
+  return text.replace(/\binclui([a-z]{3,})/gi, (_, glued: string) => {
+    const word = glued.replace(/^(.)\1+/, '$1')
+    return `inclui ${word}`
+  })
+}
+
+function serviceNameFolds(service: ServiceRow): string[] {
+  return [service.name, ...(service.synonyms ?? [])]
+    .map((n) => foldName(n))
+    .filter((n) => n.length >= 3)
+}
+
+function mentionsServiceName(folded: string, service: ServiceRow): boolean {
+  for (const name of serviceNameFolds(service)) {
+    const re = new RegExp(
+      `(?<![a-z0-9])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`,
+      'i',
+    )
+    if (re.test(folded)) return true
+  }
+  return false
+}
+
+/** «O que inclui a depilação íntima?» — pede a explicação do serviço, não cobertura de sinónimo. */
+function isServiceLevelInclusionAsk(folded: string): boolean {
+  return (
+    /\bo que inclui\b/.test(folded) ||
+    /\bo que vem na?\b/.test(folded) ||
+    /\binclui o que\b/.test(folded) ||
+    /\bo que faz parte da?\b/.test(folded)
+  )
+}
+
+function catalogTermDisplay(termFolded: string, zones: readonly ServiceZoneRow[]): string {
+  for (const zone of zones) {
+    if (foldName(zone.name) === termFolded) return zone.name
+    const syn = (zone.synonyms ?? []).find((s) => foldName(s) === termFolded)
+    if (syn) return syn
+  }
+  return termFolded
+}
+
+/**
  * True se o texto é pergunta/clarificação de cobertura ou significado
  * (ex.: «A íntima inclui anus?», «o que é íntima?», «é o que?», «como é feita…?»).
  */
@@ -76,7 +122,7 @@ const SCOPE_ASK =
   /(?:^|\s)(?:é|são|seria|seriam)\s+(?:(?:a|o|as|os|só|so|apenas)\s+)*(?:[a-zà-ú]+\s+)?(?:inteir[ao]s?|tod[ao]s?|complet[ao]s?)\b/i
 
 export function isCatalogClarificationAsk(text: string): boolean {
-  const t = text.trim()
+  const t = normalizeInclusionAskText(text.trim())
   if (!t) return false
   if (CLARIFICATION_CUE.test(foldFaqText(t))) return true
   return /\?\s*$/.test(t) && SCOPE_ASK.test(t.toLowerCase())
@@ -149,6 +195,16 @@ function coverageObjectTerm(
   folded: string,
   subject: ServiceZoneRow | null,
 ): string | null {
+  const glued = folded.match(/\binclui([a-z]{3,})/i)
+  if (glued) {
+    const term = glued[1]!.replace(/^(.)\1+/, '$1')
+    const foldedTerm = foldFaqText(term)
+    if (foldedTerm.length >= 3 && !COVERAGE_OBJECT_TERM_STOP.has(foldedTerm)) {
+      if (!subject || !zoneNameAliases(subject).includes(foldedTerm)) {
+        return foldedTerm
+      }
+    }
+  }
   const afterVerb =
     folded.match(
       /\b(?:inclui(?:m)?|cobre(?:m)?|contempla|abrang(?:e|em)|vem\s+com|conta\s+com)\s+(?:[ao]s?\s+)?([a-z0-9][\w-]*)/i,
@@ -290,14 +346,38 @@ export function answerFaqFromCatalog(input: {
   service: ServiceRow
   zones: readonly ServiceZoneRow[]
 }): FaqCatalogAnswer {
-  const folded = foldFaqText(input.text)
+  const folded = foldFaqText(normalizeInclusionAskText(input.text))
   const subject = findZoneByName(folded, input.zones)
-  const objectTerm = coverageObjectTerm(folded, subject)
+  let objectTerm = coverageObjectTerm(folded, subject)
+  if (isServiceLevelInclusionAsk(folded) && mentionsServiceName(folded, input.service)) {
+    objectTerm = null
+  } else if (objectTerm && serviceNameFolds(input.service).includes(objectTerm)) {
+    objectTerm = null
+  }
+
+  if (
+    subject &&
+    objectTerm == null &&
+    isServiceLevelInclusionAsk(folded) &&
+    mentionsServiceName(folded, input.service)
+  ) {
+    const explanation = input.service.clientExplanation?.trim() ?? ''
+    if (explanation) {
+      return {
+        kind: 'explanation',
+        replyText: sayAct(
+          'informar_explicacao',
+          input.conversationId,
+          { explicação: explanation },
+          explanation,
+        ),
+      }
+    }
+  }
 
   if (subject && objectTerm) {
     if (synonymCoversTerm(subject, objectTerm)) {
-      const display =
-        (subject.synonyms ?? []).find((s) => foldName(s) === objectTerm) ?? objectTerm
+      const display = catalogTermDisplay(objectTerm, input.zones)
       return {
         kind: 'covered',
         subjectZone: subject,
@@ -306,20 +386,22 @@ export function answerFaqFromCatalog(input: {
       }
     }
     if (catalogExplanationCoversTerm(subject, objectTerm)) {
+      const display = catalogTermDisplay(objectTerm, input.zones)
       return {
         kind: 'covered',
         subjectZone: subject,
-        coveredTerm: objectTerm,
-        replyText: `Sim — no cadastro, ${objectTerm} faz parte de ${subject.name}.`,
+        coveredTerm: display,
+        replyText: `Sim — no cadastro, ${display} faz parte de ${subject.name}.`,
       }
     }
     const mapped = findZoneByAnyAlias(objectTerm, input.zones)
     if (mapped && mapped.id !== subject.id) {
+      const display = catalogTermDisplay(objectTerm, input.zones)
       return {
         kind: 'mapped',
         mappedZone: mapped,
-        coveredTerm: objectTerm,
-        replyText: `No cadastro, ${objectTerm} corresponde a ${mapped.name}.`,
+        coveredTerm: display,
+        replyText: `No cadastro, ${display} corresponde a ${mapped.name}.`,
       }
     }
     // DEC-177 / Bugbot: cobertura sem prova no cadastro → missing.
@@ -334,8 +416,7 @@ export function answerFaqFromCatalog(input: {
   if (!subject && objectTerm) {
     const mapped = findZoneByAnyAlias(objectTerm, input.zones)
     if (mapped && synonymCoversTerm(mapped, objectTerm) && foldName(mapped.name) !== objectTerm) {
-      const display =
-        (mapped.synonyms ?? []).find((s) => foldName(s) === objectTerm) ?? objectTerm
+      const display = catalogTermDisplay(objectTerm, input.zones)
       return {
         kind: 'mapped',
         mappedZone: mapped,

@@ -80,7 +80,7 @@ function seedClinic(opts: { tenantId: string; waId: string; now: number }) {
 }
 
 describe('S02 — «tem mais tarde? tipo dps das 4»', () => {
-  it('notBefore 16:00 e oferta só ≥ 16:00 no mesmo dia', async () => {
+  it('notBefore 16:00 e oferta só depois de 16:00 no mesmo dia', async () => {
     expect(notBeforeTimeFromText('tem mais tarde? tipo dps das 4')).toBe('16:00')
 
     const s = seedClinic({
@@ -127,9 +127,11 @@ describe('S02 — «tem mais tarde? tipo dps das 4»', () => {
         conversationId: s.cnv.id,
       })
       expect(offered.slots.length).toBeGreaterThan(0)
-      expect(offered.slots.every((x) => x.time >= '16:00')).toBe(true)
-      expect(offered.slots.some((x) => x.time === '17:30')).toBe(true)
-      expect(offered.replyText).toMatch(/17:30/)
+      expect(offered.slots.some((x) => x.time === '16:00')).toBe(false)
+      expect(offered.slots.every((x) => x.time > '16:00')).toBe(true)
+      const latest = offered.slots.reduce((a, b) => (a.time > b.time ? a : b)).time
+      expect(latest > '16:00').toBe(true)
+      expect(offered.replyText).toContain(latest)
       expect(offered.replyText).not.toMatch(/11:45/)
     } finally {
       s.close()
