@@ -4,6 +4,7 @@ import {
   answerFaqFromCatalog,
   FAQ_MISSING_DETAIL_BODY,
   isCatalogClarificationAsk,
+  normalizeInclusionAskText,
 } from './faq-clarification'
 
 const intima: ServiceZoneRow = {
@@ -307,5 +308,71 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     })
     expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
     expect(r.replyText).not.toMatch(/Remoção dos pelos|faz parte/i)
+  })
+
+  it('rsamp_f72ce590 seq82: «O que inclui a depilação íntima?» → explicação do serviço', () => {
+    const explanation =
+      'A depilação íntima com cera remove os pelos pelas regiões íntimas, virilha e períneo.'
+    const r = answerFaqFromCatalog({
+      text: 'O que inclui a depilação íntima?',
+      conversationId: 'cnv_b8df6c59165f4668',
+      service: {
+        ...service,
+        name: 'Depilação',
+        clientExplanation: explanation,
+      } as ServiceRow,
+      zones: [{ ...intima, name: 'Íntima' }, axila],
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/depilação íntima com cera/i)
+      expect(r.replyText).not.toMatch(/faz parte de/i)
+      expect(r.replyText).not.toMatch(/\bdepilacao\b/i)
+    }
+  })
+
+  it('«o que vem na depilação íntima?» e «o que faz parte da depilação íntima?» usam o cadastro do serviço', () => {
+    const explanation = 'Inclui virilha, genital e perianal conforme cadastro.'
+    for (const text of [
+      'o que vem na depilação íntima?',
+      'o que faz parte da depilação íntima?',
+    ]) {
+      const r = answerFaqFromCatalog({
+        text,
+        conversationId: 'cnv',
+        service: {
+          ...service,
+          name: 'Depilação',
+          clientExplanation: explanation,
+        } as ServiceRow,
+        zones: [{ ...intima, name: 'Íntima' }, axila],
+      })
+      expect(r.kind).toBe('explanation')
+      if (r.kind === 'explanation') {
+        expect(r.replyText).toMatch(/virilha/)
+      }
+    }
+  })
+
+  it('cobertura usa nome do catálogo, não termo dobrado («anus» → cadastro)', () => {
+    const withSyn = { ...intima, name: 'Íntima', synonyms: ['ânus'] }
+    const r = answerFaqFromCatalog({
+      text: 'A íntima inclui anus?',
+      conversationId: 'cnv',
+      service,
+      zones: [withSyn, axila],
+    })
+    expect(r.kind).toBe('covered')
+    if (r.kind === 'covered') {
+      expect(r.replyText).toMatch(/ânus/)
+      expect(r.replyText).not.toMatch(/\banus faz parte\b/i)
+    }
+  })
+})
+
+describe('normalizeInclusionAskText (typos)', () => {
+  it('«Íntima incluinnariz?» normaliza para leitura de inclusão', () => {
+    expect(normalizeInclusionAskText('Íntima incluinnariz?')).toBe('Íntima inclui nariz?')
+    expect(isCatalogClarificationAsk('Íntima incluinnariz?')).toBe(true)
   })
 })
