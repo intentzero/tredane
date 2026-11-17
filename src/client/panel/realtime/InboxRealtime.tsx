@@ -81,6 +81,7 @@ export function isTeamEvent(event: RealtimeServerEvent): boolean {
     event.eventType.startsWith('invitation.')
     || event.eventType.startsWith('membership.')
     || event.eventType === 'team.updated'
+    || event.eventType.startsWith('support.request.')
   )
 }
 

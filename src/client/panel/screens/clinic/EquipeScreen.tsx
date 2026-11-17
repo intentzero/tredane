@@ -31,6 +31,7 @@ import { ClinicSkeleton } from './ClinicSkeleton'
 import { ClinicPageHeader } from './ClinicPageHeader'
 import { ErrorState } from '../../states/StatusScreens'
 import { ClinicSheet } from './ClinicSheet'
+import { SupportRequestsPanel } from '../../support/SupportRequestsPanel'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 
 type Props = {
@@ -40,6 +41,8 @@ type Props = {
   viewerClerkUserId: string | null
   /** DEC-175: enquanto não se sabe quem vê, a lista espera (o «(você)» não aparece depois). */
   viewerPending?: boolean
+  /** Pedido de suporte do link do e-mail (`/t/:clínica/support-requests/:id`, #897). */
+  supportRequestId?: string
 }
 
 type MemberAction = 'promote' | 'demote' | 'revoke'
@@ -151,7 +154,9 @@ function EquipeScreenInner({
   generation,
   viewerClerkUserId,
   viewerPending = false,
+  supportRequestId,
 }: Props) {
+  const [supportTick, setSupportTick] = useState(0)
   const [snap, setSnap] = useState<TeamSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -197,6 +202,7 @@ function EquipeScreenInner({
   // Aceite / resync → refetch GET /team (WS não é fonte de verdade; DEC-038).
   useInboxRealtime(() => {
     void reload()
+    setSupportTick((n) => n + 1)
   })
 
   useEffect(() => {
@@ -399,6 +405,19 @@ function EquipeScreenInner({
             Convidar pessoa
           </Button>
         }
+      />
+
+      <SupportRequestsPanel
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        members={members}
+        openRequestId={supportRequestId}
+        refreshKey={supportTick}
+        onDecided={(message) => {
+          setActionError(null)
+          setActionOk(message)
+        }}
       />
 
       {actionError ? (

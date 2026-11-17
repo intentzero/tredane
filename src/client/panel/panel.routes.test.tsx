@@ -24,6 +24,16 @@ describe('panel routes (#22)', () => {
     expect(panelHref({ kind: 'invite-accept' })).toBe('/invite/accept')
     // Token nunca entra no href tipado da rota.
     expect(panelHref({ kind: 'invite-accept' })).not.toMatch(/token/i)
+    // Link do e-mail de suporte (#897): abre o pedido na Equipe da clínica certa.
+    expect(resolvePanelRoute('/t/clinic-demo-a/support-requests/sar_1')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'equipe',
+      entityId: 'sar_1',
+    })
+    expect(resolvePanelRoute('/t/clinic-demo-a/support-requests')).toBeNull()
+    expect(resolvePanelRoute('/t/clinic-demo-a/outra/sar_1')).toBeNull()
     expect(resolvePanelRoute('/c/clinic-demo-a/conversas')).toEqual({
       kind: 'area',
       area: 'conversas',
