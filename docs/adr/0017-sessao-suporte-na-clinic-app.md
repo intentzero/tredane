@@ -55,13 +55,13 @@ Cada sessão já audita pedido, aprovação, ativação, handoff, expiração e 
 | Q-SUP-01 | O suporte lê **conversas de clientes** (`clinic.inbox.read`) ou só diagnóstico? | **Resolvida (Paulo): (b) lê conversas**, com a aprovação da owner a cada sessão (DEC-029) | — (ver «Consequência de Q-SUP-01») |
 | Q-SUP-02 | Auditar cada leitura de conteúdo (`support.access`)? | **Resolvida (Paulo): (a) sim**, agregada por rota e por minuto | — |
 | Q-SUP-03 | O interruptor liga em **staging** já, e em produção só após revisão de segurança? | **Resolvida (Paulo): (a) sim** | — |
-| Q-SUP-04 | Quem faz a revisão de segurança e o pen-test exigidos pela ADR-0007 antes de produção? | **Estrutura confirmada (Paulo, 17/11/2026): as três camadas da sugestão abaixo. Em aberto: os nomes (quem revê, quem faz o pen-test).** | ligar em produção |
+| Q-SUP-04 | Quem faz a revisão de segurança e o pen-test exigidos pela ADR-0007 antes de produção? | **Estrutura confirmada (Paulo, 17/11/2026): as três camadas da sugestão abaixo. **Nomes confirmados (Paulo, 17/11/2026): a revisão independente e o pen-test curto são feitos pelo mesmo colega de confiança** (a independência entre as duas camadas fica menor do que a recomendada, que era um freelancer externo no pen-test; registar na lista de verificação assinada). **Base legal e retenção (VAL-09, #43): o Paulo define e documenta**, ainda pendente e a bloquear a ligação em produção.** | ligar em produção |
 
 ## Consequência de Q-SUP-01: o suporte passa a ler dados pessoais de clientes
 Ler conversas é o caso de maior risco desta ADR. O que muda (**Confirmado** pelo Paulo, 17/11/2026, «Aprovo»):
 - `SUPPORT_READ_PERMISSIONS` inclui `clinic.inbox.read` e a leitura de contactos e do funil; **continua sem nenhuma escrita** e sem `clinic.contacts.delete`.
 - O aviso ao subject (DEC-036) e o e-mail às owners (DEC-035) passam a dizer que a sessão **pode ler conversas de clientes**.
-- A sessão de suporte **não vê o telefone completo** das clientes, como a Platform Admin já faz nas amostras (#857): só os 4 últimos dígitos. Q-SUP-05 (em aberto, não bloqueia): se a equipa de suporte vier a precisar do número inteiro para reproduzir um problema.
+- A sessão de suporte **não vê o telefone completo** das clientes, como a Platform Admin já faz nas amostras (#857): só os 4 últimos dígitos. Q-SUP-05 **Resolvida** (Paulo, 17/11/2026): o suporte não precisa do número inteiro; ficam os 4 últimos dígitos. Os números escritos no texto livre das mensagens continuam sem máscara: limite conhecido a declarar na base legal.
 - Fica a **base legal e a política de retenção** (VAL-09, #43), que o MVP já marca como «em aberto antes de dados reais». Esta decisão torna-as um **requisito para ligar em produção**, não um extra.
 
 ## Sugestão para Q-SUP-04 (Claude; **aprovada** pelo Paulo, 17/11/2026)
