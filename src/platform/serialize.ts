@@ -118,6 +118,11 @@ export function serializeHealth(row: HealthClinicRow) {
           uncertainOutbound: h.uncertainOutbound,
           llmJobsOpen: h.llmJobsOpen,
           llmJobsFailed1h: h.llmJobsFailed1h,
+          /** Volume (Q-PA-04): só números, nunca conteúdo. */
+          contactCount: h.contactCount,
+          messageCount: h.messageCount,
+          appointmentCount: h.appointmentCount,
+          attachmentCount: h.attachmentCount,
           schemaVersion: h.schemaVersion,
           schemaReady: h.schemaReady,
         }

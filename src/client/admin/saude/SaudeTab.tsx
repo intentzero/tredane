@@ -168,6 +168,16 @@ export function SaudeTab({ tenantId, tenantStatus, whatsapp }: Props) {
               ['Pronta', n.schemaReady === null ? '—' : <Pill key="b" tone={n.schemaReady ? 'ok' : 'bad'}>{n.schemaReady ? 'Sim' : 'Não'}</Pill>],
             ]}
           />
+          <Card
+            title="Volume"
+            rows={[
+              ['Contatos', <b key="a">{num(n.contactCount)}</b>],
+              ['Mensagens', <b key="b">{num(n.messageCount)}</b>],
+              ['Marcações', <b key="c">{num(n.appointmentCount)}</b>],
+              ['Anexos', <b key="d">{num(n.attachmentCount)}</b>],
+            ]}
+            foot="Só números: nenhum conteúdo é lido."
+          />
         </div>
       ) : (
         <section className="admin-card">

@@ -23,6 +23,10 @@ const snap = (over: Record<string, unknown> = {}) => ({
   uncertainOutbound: 0,
   llmJobsOpen: 2,
   llmJobsFailed1h: 0,
+  contactCount: 12,
+  messageCount: 340,
+  appointmentCount: 7,
+  attachmentMetaCount: 5,
   ...over,
 })
 
@@ -84,6 +88,8 @@ describe('HTTP — saúde na Platform Admin (#833, DEC-193)', () => {
       const a = body.clinics.find((c) => c.tenantId === 'clinic-demo-a')!
       expect(a).toMatchObject({ situation: 'attention', stale: false, readAt: T0 })
       expect(a.counts).toMatchObject({ failedOutbox: 2, llmJobsOpen: 2, schemaVersion: 41 })
+      // Volume (Q-PA-04): só números.
+      expect(a.counts).toMatchObject({ contactCount: 12, messageCount: 340, appointmentCount: 7, attachmentCount: 5 })
       expect(body.summaryAt).toBe(T0)
       expect(body.refreshIntervalMs).toBe(600_000)
       expect(body.totals).toMatchObject({ attention: 1, llmJobsOpen: 2 })

@@ -63,6 +63,10 @@ export type HealthCounts = {
   uncertainOutbound: number | null
   llmJobsOpen: number | null
   llmJobsFailed1h: number | null
+  contactCount: number | null
+  messageCount: number | null
+  appointmentCount: number | null
+  attachmentCount: number | null
   schemaVersion: number | null
   schemaReady: boolean | null
 }
