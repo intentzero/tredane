@@ -1,0 +1,35 @@
+/**
+ * Oferta do link da página web da cliente no chat (ADR-0018, Fase 5; DEC-196).
+ *
+ * A frase é determinística (DEC-104): a abertura do hub do chat passa a levar o botão «Abrir agenda»
+ * em vez do CTA do Flow. Texto **Proposto** (o do Flow é Confirmado; este ainda não foi revisto).
+ */
+import type { SendOutboundInteractiveInput } from '../clinic/inbox/types'
+
+export const CLIENT_WEB_CTA_TEXT = 'Abrir agenda'
+
+/** Remate da abertura do hub: troca a pergunta aberta pela indicação do botão. */
+const HUB_ASK = /\s*O que você precisa\?\s*$/
+
+export const CLIENT_WEB_OFFER_SENTENCE =
+  'Para agendar, remarcar ou cancelar, toque em «Abrir agenda». Para tirar dúvidas, escreva aqui.'
+
+/** Corpo da oferta a partir do corpo do hub (expediente de hoje incluído). */
+export function clientWebOfferBody(hubBody: string | null | undefined): string {
+  const base = (hubBody ?? '').trim().replace(HUB_ASK, '').trim()
+  return base ? `${base} ${CLIENT_WEB_OFFER_SENTENCE}` : `Olá! ${CLIENT_WEB_OFFER_SENTENCE}`
+}
+
+/** `https://app/c/<token>`; a base vem de `APP_BASE_URL`, sem barra final. */
+export function clientWebUrl(baseUrl: string, token: string): string {
+  return `${baseUrl.replace(/\/+$/, '')}/c/${token}`
+}
+
+export function clientWebOfferInteractive(url: string): SendOutboundInteractiveInput {
+  return { ctaUrl: { displayText: CLIENT_WEB_CTA_TEXT, url } }
+}
+
+/** A página só vai por https; em desenvolvimento (http://localhost) não há envio real. */
+export function isHttpsBase(baseUrl: string | undefined): baseUrl is string {
+  return typeof baseUrl === 'string' && /^https:\/\//i.test(baseUrl.trim())
+}

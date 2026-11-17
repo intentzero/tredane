@@ -128,6 +128,19 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - Página: Início com «Agendar novo horário», «Para quem é?» (só se o catálogo depende de género), serviço, zonas (só as da linha, total somado), horário (semana com setas, Manhã/Tarde/Noite), revisão e resultado (marcado, Pix, pausa, erro). Layout compacto (C-02 a C-06).
 - **Horizonte provisório:** 30 dias fixos em `CLIENT_WEB_HORIZON_DAYS`, até a configuração da clínica existir (DEC-201).
 
+**Fase 5 implementada (17/11/2026, atrás da flag e do interruptor da owner): oferta do link no chat**
+
+- A abertura do hub do chat («Oi» e pedido vago de marcar, `shouldAttachHubOpeningCta`) leva o botão **«Abrir agenda»** (`cta_url`) em vez do CTA do Flow, quando a página está ligada pela plataforma (`CLIENT_WEB_ENABLED`, base `APP_BASE_URL` https) **e** pela owner nesta clínica. É o mesmo gancho `prepareBookingFlowOffer`: o Clinic DO emite o link (`issueClientWebLink`, `purpose: 'home'`) e devolve o corpo e o botão (`src/clientweb/offer.ts`). Sem binding ativo ou sem https cai no Flow, se existir, e depois no M5.
+- Corpo determinístico (DEC-104), **Proposto**: o do hub sem a pergunta aberta + «Para agendar, remarcar ou cancelar, toque em «Abrir agenda». Para tirar dúvidas, escreva aqui.» Serviço nomeado, pedido com dia e perguntas de informação **não** abrem o link: seguem o funil e o catálogo.
+- **Interruptor da owner por clínica** (DEC-199, desligado por defeito): tabela `clinic_client_web` (migração 73 do Clinic DO), `GET|PUT /api/tenants/:id/config/client-web` (só a owner, auditoria `config.client_web_updated`) e o cartão «Agendamento por link» em Clínica. Com o interruptor desligado, todos os RPCs `clientWeb*` devolvem `null` (a página não serve) e desligar revoga as sessões abertas.
+- Família L1 **CW-01 a CW-05** (`cw-cases.ts`, harness `clientweb-driver.ts`): abertura com o botão, pedido vago, serviço nomeado, informação e página desligada. O token nunca aparece no corpo.
+
+**Fase 5, ainda não feito:**
+
+1. **Remarcar e cancelar no chat não oferecem o link.** «Quero remarcar» e «quero cancelar» seguem o caminho conversacional de hoje (DEC-091 e o botão «Cancelar marcação»). Oferecer o link com `purpose` `remarcar` ou `cancelar` muda comportamento validado e precisa de decisão do Paulo.
+2. **Fora das 24 h** o link não sai (TMPL-05 por aprovar na Meta).
+3. A base `APP_BASE_URL` de staging e produção é https; em desenvolvimento (http) a oferta não sai.
+
 **Fases 3 e 4 implementadas (17/11/2026, atrás da flag): remarcar e cancelar** (`src/clientweb/manage.ts`)
 
 - **Remarcar:** `POST /api/c/availability` aceita `appointmentId` (serviço e zonas vêm da marcação; a própria marcação não ocupa a vaga) e `POST /api/c/reschedule`. Cria a proposta com `replacesAppointmentId` e passa pelo mesmo executor, canal `web`; a mesma marcação é movida (motivo `contato_remarcou`), mantém serviço, zonas e duração, sem sinal novo. O recibo no chat começa por «Remarcado:» e leva «Marcado pela página. Não foi você?…». Toque duplo devolve a marcação (`rescheduleAlreadyAt`).
@@ -150,9 +163,9 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 **Ainda não feito (bloqueia ligar em produção):**
 
-1. **Nada emite o link ainda.** `issueClientWebLink` e o envio do botão existem, mas a oferta na conversa é a Fase 5. Em staging só se testa emitindo o link à mão.
-2. **Interruptor da owner por clínica** (DEC-199, desligado por defeito) e a pausa da owner (DEC-197): a pausa só importa quando houver ações que marcam (Fase 2); o interruptor precisa de configuração da clínica, que não existe.
+1. ~~Nada emite o link~~ e ~~interruptor da owner~~: feitos na Fase 5 (acima). A pausa da owner (DEC-197) já bloqueia marcar e remarcar (`paused`).
 3. **A casca da página** (`/c/…`) ainda segue o cache normal dos ficheiros estáticos; falta `Cache-Control: no-store` e `Referrer-Policy: no-referrer` também nela.
+4. **Retenção no D1 central:** `client_web_links`, `client_web_sessions` (hashes, ids de tenant, contacto e conversa) e `client_web_rate_limits` só expiram por regra, as linhas ficam. Falta a limpeza periódica das expiradas e o expurgo por tenant e por contacto (DEC-099, REQ-071); o Flow tem a mesma lacuna.
 4. Um erro de rede ou de D1 em `/api/c/state` mostra «Não foi possível abrir a agenda»; uma clínica suspensa mostra o aviso de «link já usado», que não é exato. Texto próprio por decidir.
 
 ## 8. Em aberto

@@ -7,6 +7,7 @@ import { AiAssistCard } from './AiAssistCard'
 import { ClientConfirmsCard } from './ClientConfirmsCard'
 import { ForecastPlaceCard } from './ForecastPlaceCard'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
+import { ClientWebCard } from './ClientWebCard'
 import { CatalogTransferCard } from './CatalogTransferCard'
 import { StagingClearAppointmentsCard } from './StagingClearAppointmentsCard'
 import { StagingResetCard } from './StagingResetCard'
@@ -404,6 +405,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             {isOwner ? (
               <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
             ) : null}
+            {isOwner ? <ClientWebCard tenantId={tenantId} api={api} generation={generation} /> : null}
             {isOwner ? (
               <ForecastPlaceCard
                 tenantId={tenantId}

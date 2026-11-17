@@ -89,6 +89,7 @@ import {
 import { DIALOG_NOW_MS } from './scenario'
 import { CC_DIALOG_CASES } from './cc-cases'
 import { FL_DIALOG_CASES } from './fl-cases'
+import { CW_DIALOG_CASES } from './cw-cases'
 import { ZONAS_DIALOG_CASES } from './zonas-cases'
 import { LAB_2026_11_16_CASES } from './lab-2026-11-16-cases'
 
@@ -3455,6 +3456,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
 
 // Família FL- (Flow + hub, DEC-138): caminho principal vigente.
 P0_DIALOG_CASES.push(...FL_DIALOG_CASES)
+P0_DIALOG_CASES.push(...CW_DIALOG_CASES)
 // Família CC- (consulta de catálogo, DEC-142) e Confirmar suspenso (A-22/A-23).
 P0_DIALOG_CASES.push(...CC_DIALOG_CASES)
 // A-25..A-27: zonas em texto livre e telemetria do funil (DEC-143, #588/#589).

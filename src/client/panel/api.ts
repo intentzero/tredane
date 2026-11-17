@@ -592,6 +592,37 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
+    /** Página web da cliente (DEC-199): interruptor da owner. Desligado por defeito. */
+    async getClientWebSetting(tenantId: string, opts?: FetchOpts): Promise<ClientWebSettingDto> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/client-web`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClientWebSettingDto
+    },
+
+    async setClientWebEnabled(
+      tenantId: string,
+      enabled: boolean,
+      opts?: FetchOpts,
+    ): Promise<ClientWebSettingDto> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/client-web`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClientWebSettingDto
+    },
+
     async getClinicAbuseLimits(
       tenantId: string,
       opts?: FetchOpts,
@@ -3194,6 +3225,9 @@ export type AbuseLimitNumbersDto = {
   proposalsPerContact: number
   proposalsPerClinic: number
 }
+
+/** Interruptor da owner da página web da cliente (DEC-199). `available` = a plataforma tem a página ligada neste ambiente. */
+export type ClientWebSettingDto = { enabled: boolean; available?: boolean; updatedAt: number | null }
 
 export type AbuseLimitsDto = {
   enabled: boolean

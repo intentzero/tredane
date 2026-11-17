@@ -104,10 +104,8 @@ function clinicStub(env: WorkerBindings, session: ClientWebSession) {
 
 const log = createChannelLogger('client_web')
 
-/** Interruptor global (DEC-199). O interruptor por clínica entra com a configuração da owner. */
-export function isClientWebEnabled(env: WorkerBindings | undefined): boolean {
-  return env?.CLIENT_WEB_ENABLED === 'true'
-}
+export { isClientWebEnabled } from './flag'
+import { isClientWebEnabled } from './flag'
 
 /**
  * Nome da clínica, só se estiver ativa. Clínica suspensa ou em exclusão não serve a página:

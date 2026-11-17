@@ -160,6 +160,15 @@ import { handleFaqContinueButtonClick } from '../clinic/ai/faq-clarification'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
 import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
+import { isClientWebEnabled } from '../clientweb/flag'
+import { clientWebOfferBody, clientWebOfferInteractive, clientWebUrl, isHttpsBase } from '../clientweb/offer'
+import { issueClientWebLink, revokeClientWebSessions } from '../clientweb/links'
+import {
+  isClientWebEnabledForClinic,
+  readClientWebSetting,
+  setClientWebEnabledOp,
+  type ClientWebClinicSetting,
+} from '../clientweb/settings'
 import {
   cancelFromWeb,
   cancelReceiptBody,
@@ -1012,13 +1021,48 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     return readClientWebState(this.#db, this.#clock, input)
   }
 
+  /** Página ligada: interruptor global (env) e interruptor da owner nesta clínica. */
+  #clientWebOn(tenantId: string): boolean {
+    return (
+      isClientWebEnabled(this.env as WorkerBindings) && isClientWebEnabledForClinic(this.#db, tenantId)
+    )
+  }
+
+  /** Interruptor da owner (DEC-199): leitura. */
+  async getClientWebSetting(caller: ClinicCaller): Promise<ClientWebClinicSetting & { available: boolean }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return {
+      ...readClientWebSetting(this.#db, caller.tenantId),
+      // A owner só vê o interruptor útil se a plataforma tiver a página ligada neste ambiente.
+      available: isClientWebEnabled(this.env as WorkerBindings),
+    }
+  }
+
+  /** Interruptor da owner (DEC-199): liga ou desliga. A permissão é verificada na rota. */
+  async setClientWebEnabled(caller: ClinicCaller, input: { enabled: boolean }): Promise<ClientWebClinicSetting> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const setting = setClientWebEnabledOp(this.#db, caller, input, this.#clock)
+    if (!input.enabled) {
+      // Desligar fecha as sessões abertas já (a página deixa de servir).
+      const d1 = (this.env as WorkerBindings).DB
+      if (d1) await revokeClientWebSessions(d1, this.#clock, { tenantId: caller.tenantId })
+    }
+    return setting
+  }
+
   /** Página web da cliente (ADR-0018): catálogo marcável e horizonte. Só leitura. */
-  async clientWebCatalog(input: { tenantId: string }): Promise<ClientWebCatalog> {
+  async clientWebCatalog(input: { tenantId: string }): Promise<ClientWebCatalog | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     return readClientWebCatalog(this.#db, input.tenantId, this.#clock)
   }
 
@@ -1034,6 +1078,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }): Promise<ClientWebSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     return listClientWebSlots(this.#db, input.tenantId, this.#clock, {
       serviceId: input.serviceId,
@@ -1059,6 +1105,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = findRecentWebBooking(this.#db, caller.tenantId, this.#clock, input, input)
     if (already) return { status: 'booked', appointment: already }
@@ -1147,6 +1195,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }): Promise<RescheduleSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     return listRescheduleSlots(this.#db, input.tenantId, this.#clock, input, input)
   }
@@ -1162,6 +1212,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = rescheduleAlreadyAt(this.#db, caller.tenantId, this.#clock, input, input)
     if (already) return { status: 'booked', appointment: already }
@@ -1231,6 +1283,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId, WEB_CANCEL_ACTOR)
     this.#assertInstanceTenant(caller)
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
@@ -1270,6 +1324,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
+    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
+    if (!this.#clientWebOn(input.tenantId)) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const clientRequestId = `web-ask-team:${input.conversationId}:${this.#clock.nowMs()}`
     if (!isHumanTeamOfferAllowed(this.#db, caller.tenantId, this.#clock)) {
@@ -5151,25 +5207,68 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /** Processa rascunhos automáticos vencidos (alarme). Público para testes. */
-  /** ADR-0016: oferta Flow quando secrets presentes; senão null → M5. */
+  /**
+   * Oferta de abertura do hub. Página web da cliente (DEC-196) quando ligada na plataforma e pela owner
+   * nesta clínica; senão a oferta Flow (ADR-0016) quando os secrets existem; senão null → M5.
+   */
   #prepareBookingFlowOffer(): PrepareBookingFlowOffer | undefined {
     const env = this.env as WorkerBindings
-    if (!isWhatsappFlowConfigured(env) || !env.DB) return undefined
-    return (input) =>
-      prepareBookingFlowOfferFromEnv({
-        env: env as WorkerBindings & { DB: D1Database },
-        clock: this.#clock,
+    const web = this.#prepareClientWebOffer()
+    const flow: PrepareBookingFlowOffer | undefined =
+      isWhatsappFlowConfigured(env) && env.DB
+        ? (input) =>
+            prepareBookingFlowOfferFromEnv({
+              env: env as WorkerBindings & { DB: D1Database },
+              clock: this.#clock,
+              tenantId: input.tenantId,
+              conversationId: input.conversationId,
+              catalogVersion: input.catalogVersion,
+              session: input.session,
+              body: input.body,
+              // T3: skipped/sent → outbox booking_session.flow (mesmo SQLite T1/T2).
+              analytics: {
+                db: this.#db,
+                attemptId: input.analyticsAttemptId ?? null,
+              },
+            })
+        : undefined
+    if (!web) return flow
+    // Sem link possível (sem binding ativo, base não https…) cai no Flow, se existir, e depois no M5.
+    return async (input) => (await web(input)) ?? (flow ? await flow(input) : null)
+  }
+
+  /** Emite o link pessoal e devolve o botão «Abrir agenda». `null` = sem oferta (o chat continua). */
+  #prepareClientWebOffer(): PrepareBookingFlowOffer | undefined {
+    const env = this.env as WorkerBindings
+    if (!env.DB || !isClientWebEnabled(env) || !isHttpsBase(env.APP_BASE_URL)) return undefined
+    const baseUrl = env.APP_BASE_URL
+    return async (input) => {
+      if (!this.#clientWebOn(input.tenantId)) return null
+      const conv = this.#db.get<{ contact_id: string }>(
+        'SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?',
+        input.tenantId,
+        input.conversationId,
+      )
+      if (!conv) return null
+      const binding = await env.DB!
+        .prepare(`SELECT id FROM whatsapp_phone_bindings WHERE tenant_id = ? AND status = 'active' LIMIT 1`)
+        .bind(input.tenantId)
+        .first<{ id: string }>()
+      if (!binding) return null
+      const link = await issueClientWebLink(env.DB!, this.#clock, {
         tenantId: input.tenantId,
+        bindingId: binding.id,
+        contactId: conv.contact_id,
         conversationId: input.conversationId,
-        catalogVersion: input.catalogVersion,
-        session: input.session,
-        body: input.body,
-        // T3: skipped/sent → outbox booking_session.flow (mesmo SQLite T1/T2).
-        analytics: {
-          db: this.#db,
-          attemptId: input.analyticsAttemptId ?? null,
-        },
+        purpose: 'home',
       })
+      return {
+        // Não é um flow_token: um marcador, para o analytics não confundir com o Flow.
+        flowToken: 'client_web',
+        body: clientWebOfferBody(input.body),
+        interactive: clientWebOfferInteractive(clientWebUrl(baseUrl, link.token)),
+      }
+    }
   }
 
   /**

@@ -29,6 +29,7 @@ import type {
   FutureAppointmentForResource,
 } from '../clinic/config'
 import type { AbuseLimits } from '../clinic/ai/abuse-limits'
+import { readClientWebSetting, setClientWebEnabledOp, type ClientWebClinicSetting } from '../clientweb/settings'
 import type {
   AllowBothSexesInput,
   AllowBothSexesResult,
@@ -54,6 +55,8 @@ export type ClinicConfigGateway = {
     },
   ): Promise<ClinicSettingsRow>
   setForecastPlace(caller: ClinicCaller, input: ForecastPlaceInput): Promise<ClinicSettingsRow>
+  getClientWebSetting(caller: ClinicCaller): Promise<ClientWebClinicSetting & { available: boolean }>
+  setClientWebEnabled(caller: ClinicCaller, input: { enabled: boolean }): Promise<ClientWebClinicSetting>
   getAbuseLimits(caller: ClinicCaller, platform?: AbuseLimits): Promise<AbuseLimitsView>
   updateAbuseLimits(
     caller: ClinicCaller,
@@ -184,6 +187,13 @@ export function createMemoryClinicConfigGateway(
     },
     async setForecastPlace(caller, input) {
       return clinicConfig.setForecastPlaceOp(db, caller, input, clock)
+    },
+    async getClientWebSetting(caller) {
+      // Em testes, a plataforma conta como ligada.
+      return { ...readClientWebSetting(db, caller.tenantId), available: true }
+    },
+    async setClientWebEnabled(caller, input) {
+      return setClientWebEnabledOp(db, caller, input, clock)
     },
     async getAbuseLimits(caller, platform) {
       return clinicConfig.getAbuseLimitsOp(db, caller, clock, platform)
