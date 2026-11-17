@@ -5,7 +5,8 @@
   "tenantId": "tenant_dec0de000000000000000001",
   "mcp": "user-tredane-staging-lab",
   "howToRun": [
-    "Chamar lab_status primeiro e confirmar que sobra teto (o conjunto completo usa ~85 turnos).",
+    "Chamar lab_status primeiro e confirmar que sobra teto (o conjunto completo usa ~105 turnos).",
+    "Cenários R26–R36 usam assertReply (mustContain, mustNotContain, slotSetMustInclude, slotSetMustExclude) na última resposta do passo; pendingOnMain indica regressão conhecida até o PR listado.",
     "Cada cenario usa um waId proprio. Para repetir num dia em que os waIds ja tem historico, somar um sufixo de corrida (ex.: 550000000101 -> 5500000001012) para comecar conversa limpa; os cenarios 'remarcacao' e 'cancelamento' dependem do agendamento criado no proprio cenario.",
     "Passo 'say' = lab_say(text, waId, displayName no 1o passo). Passo 'tap' = lab_tap usando o id devolvido em tappable cuja linha/botao tem o 'title' indicado (os ids mudam a cada corrida; procurar por title). 'tapRowIndex' = tocar na linha N (0-based) da lista de Horarios.",
     "Correr os cenarios SEQUENCIALMENTE: chamadas lab_say em paralelo misturaram o 'tappable' entre waIds na corrida de 15/11.",
@@ -451,7 +452,7 @@
       "baseline20261115": {
         "booked": false,
         "clientTurns": 4,
-        "notes": "'sim'/'ok 👍' -> «Para confirmar, toca em Confirmar 👇» só botão Confirmar (DEC-061)"
+        "notes": "'sim'/'ok 👍' -> «Para confirmar, toca em Confirmar 👇» com único botão Confirmar (DEC-061); não marca por texto"
       }
     },
     {
@@ -735,6 +736,429 @@
         "splitOrOtherDayCopy": "se terça não cabe tudo: «não cabem as N zonas» + dividir em 2 visitas ou outro dia antes de pular só para sexta",
         "requestedDayOrClearAlternative": "mantém terça na oferta ou explica ausência de bloco contínuo antes de outro dia"
       }
+    },
+    {
+      "id": "G1-lista-servicos",
+      "waId": "550000000199",
+      "displayName": "Lab G1",
+      "steps": [
+        {
+          "say": "quais servicos voce tem?"
+        }
+      ],
+      "expect": {
+        "serviceListInteractive": true,
+        "noDigaTerminar": true,
+        "note": "Com demo ≥4 serviços: lista Meta, não texto corrido"
+      }
+    },
+    {
+      "id": "H1-expediente-domingo",
+      "waId": "550000000301",
+      "displayName": "LabH1",
+      "note": "FAQ expediente sem LLM: «atende domingo» resposta determinística.",
+      "steps": [{ "say": "vocês atendem no domingo?" }],
+      "expect": {
+        "deterministicHoursReply": true,
+        "noMisunderstanding": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H2-expediente-sabado-abrev",
+      "waId": "550000000302",
+      "displayName": "LabH2",
+      "steps": [{ "say": "abrem sab?" }],
+      "expect": {
+        "mentionsSaturday": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H3-feriado-expediente",
+      "waId": "550000000303",
+      "displayName": "LabH3",
+      "steps": [{ "say": "atendem em feriado?" }],
+      "expect": {
+        "openingOrClosureCopy": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H4-faq-endereco",
+      "waId": "550000000304",
+      "displayName": "LabH4",
+      "steps": [{ "say": "qual o endereço da clínica?" }],
+      "expect": {
+        "addressFromConfigOrMissing": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H5-faq-estacionamento",
+      "waId": "550000000305",
+      "displayName": "LabH5",
+      "note": "Requer entrada published «estacionamento» no cadastro demo.",
+      "steps": [{ "say": "vocês têm estacionamento?" }],
+      "expect": {
+        "knowledgeOrMissingCopy": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "H6-expediente-mid-funil",
+      "waId": "550000000306",
+      "displayName": "LabH6",
+      "note": "Pergunta de expediente no meio do funil; quadro mantém serviço.",
+      "steps": [
+        { "say": "quero depilação feminina" },
+        { "say": "vocês abrem no sábado?" }
+      ],
+      "expect": {
+        "bookingContextKept": true,
+        "saturdayHoursMentioned": true,
+        "modelCalled": false
+      }
+    },
+    {
+      "id": "G2-ordem-pos-agendar",
+      "waId": "550000000198",
+      "displayName": "Lab G2",
+      "steps": [
+        {
+          "say": "oi queria limpeza de pele amanha"
+        }
+      ],
+      "expect": {
+        "agendadoBeforeFollowUp": true,
+        "note": "Após Confirmar: Agendado antes de Posso ajudar"
+      }
+    },
+    {
+      "id": "DB1-bolhas-seguidas",
+      "waId": "550000000197",
+      "displayName": "Lab DB1",
+      "steps": [
+        {
+          "say": "quero depilar",
+          "pauseSeconds": 2
+        },
+        {
+          "say": "axila e pernas amanha de tarde",
+          "pauseSeconds": 1
+        }
+      ],
+      "expect": {
+        "singleAiTurnAfterAggregation": true,
+        "noDoubleReply": true,
+        "note": "Produção: 1.ª bolha 7 s; 2.ª empurra o job; 1 resposta só (L1 debounce-interpreter)."
+      }
+    },
+    {
+      "id": "DB2-botao-depois-texto",
+      "waId": "550000000196",
+      "displayName": "Lab DB2",
+      "steps": [
+        {
+          "say": "quero limpeza de pele quinta a tarde"
+        },
+        {
+          "tap": {
+            "kind": "list",
+            "title": "15:15",
+            "fallbackTapRowIndex": 0
+          }
+        },
+        {
+          "tap": {
+            "kind": "button",
+            "title": "Confirmar"
+          }
+        }
+      ],
+      "expect": {
+        "booked": true,
+        "noDoubleReply": true,
+        "note": "Lista/botão = debounce 0; texto aberto anterior não gera segunda resposta."
+      }
+    },
+    {
+      "id": "DB3-sim-e-correcao",
+      "waId": "550000000195",
+      "displayName": "Lab DB3",
+      "steps": [
+        {
+          "say": "quero massagem relaxante amanha"
+        },
+        {
+          "say": "sim",
+          "pauseSeconds": 1
+        },
+        {
+          "say": "na verdade prefiro limpeza de pele",
+          "pauseSeconds": 1
+        }
+      ],
+      "expect": {
+        "noFalseConfirmation": true,
+        "noDoubleReply": true,
+        "note": "«sim» sozinho: debounce curto; correção ≤3 s cancela agregação — sem marcar massagem por engano."
+      }
+    },
+    {
+      "id": "DB4-mensagem-longa",
+      "waId": "550000000194",
+      "displayName": "Lab DB4",
+      "steps": [
+        {
+          "say": "oi boa tarde queria marcar uma limpeza de pele pra quinta feira a tarde se tiver vaga depois das 15"
+        }
+      ],
+      "expect": {
+        "offersSlotsOrAsksOneThing": true,
+        "note": "Pedido longo mas fechado: debounce ~2,5 s + typing em produção; lab_say ignora espera."
+      }
+    },
+    {
+      "id": "S23-remarcacao-e2e",
+      "waId": "550000000123",
+      "displayName": "LabS23",
+      "steps": [
+        { "say": "quero marcar microagulhamento na segunda" },
+        { "tapRowIndex": 2, "kind": "list" },
+        { "tap": { "kind": "button", "title": "Confirmar" } },
+        { "say": "opa, na vdd vou precisar remarcar pra sexta, pode ser?" },
+        { "say": "meio dia" },
+        { "tap": { "kind": "button", "title": "Confirmar" } }
+      ],
+      "expect": {
+        "rescheduled": true,
+        "confirmationSaysRemarcado": true,
+        "excludesOwnBookedSlot": true
+      }
+    },
+    {
+      "id": "S24-cancelar-so-botao",
+      "waId": "550000000124",
+      "displayName": "LabS24",
+      "steps": [
+        { "say": "quero marcar microagulhamento na sexta meio dia" },
+        { "tapRowIndex": 0, "kind": "list" },
+        { "tap": { "kind": "button", "title": "Confirmar" } },
+        { "say": "vou ter que cancelar, surgiu um imprevisto" },
+        { "say": "nao quero remarcar, so cancelar" },
+        { "tap": { "kind": "button", "title": "Cancelar marcação" } }
+      ],
+      "expect": {
+        "cancelled": true,
+        "noTeamEscalation": true,
+        "cancelRequiresButton": true
+      }
+    },
+    {
+      "id": "S25-cancelar-dia-errado",
+      "waId": "550000000125",
+      "displayName": "LabS25",
+      "steps": [
+        { "say": "quero marcar microagulhamento na sexta meio dia" },
+        { "tapRowIndex": 0, "kind": "list" },
+        { "tap": { "kind": "button", "title": "Confirmar" } },
+        { "say": "oi, vou ter q cancelar o microagulhamento de quinta" },
+        { "say": "sim, essa mesma" },
+        { "tap": { "kind": "button", "title": "Cancelar marcação" } }
+      ],
+      "expect": {
+        "wrongDayClarified": true,
+        "cancelled": true,
+        "noFalseConfirmation": true
+      }
+    },
+    {
+      "id": "R26-filtro-depois-das-10-manha",
+      "waId": "550000000126",
+      "displayName": "Clara",
+      "note": "Sintético (Clínica Estética Aurora). Filtro estrito «depois das 10» na manhã.",
+      "pendingOnMain": "https://cursor.com/agents/bc-cbfa8af7",
+      "runDuringTeamHours": true,
+      "steps": [
+        { "say": "quero depilação feminina amanhã de manhã" },
+        { "say": "só a axila" },
+        {
+          "say": "Depois das 10 tem algum horário?",
+          "assertReply": {
+            "slotSetMustInclude": ["10:30"],
+            "slotSetMustExclude": ["10:00"],
+            "mustNotContain": ["10:00"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R27-filtro-depois-das-11-manha",
+      "displayName": "Débora",
+      "note": "Continuação R26 no mesmo waId.",
+      "pendingOnMain": "https://cursor.com/agents/bc-cbfa8af7",
+      "dependsOn": "R26-filtro-depois-das-10-manha",
+      "waId": "550000000126",
+      "steps": [
+        {
+          "say": "Depois das 11?",
+          "assertReply": {
+            "mustContain": ["tarde"],
+            "mustNotContain": ["não tem horário de manhã", "sem horário na manhã"],
+            "slotSetMustInclude": ["10:30"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R28-faq-o-que-inclui-intima",
+      "waId": "550000000128",
+      "displayName": "Beatriz",
+      "note": "Sintético; inspiração amostra «Avaliar» (rsamp reescrito, sem texto real).",
+      "pendingOnMain": "https://cursor.com/agents/bc-cbfa8af7",
+      "steps": [
+        { "say": "oi, depilação feminina por favor" },
+        {
+          "say": "O que inclui a depilação íntima?",
+          "assertReply": {
+            "mustContain": ["virilha", "íntima"],
+            "mustNotContain": ["Sim — no cadastro", "depilacao", "Não peguei bem"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R29-faq-o-que-e-intima",
+      "waId": "550000000129",
+      "displayName": "Carina",
+      "note": "Controle positivo FAQ serviço.",
+      "steps": [
+        {
+          "say": "O que é a depilação íntima?",
+          "assertReply": {
+            "mustContain": ["íntima"],
+            "mustNotContain": ["Sim — no cadastro", "Não peguei bem"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R30-typo-intima-incluinnariz",
+      "waId": "550000000130",
+      "displayName": "Elisa",
+      "note": "Typo voluntário; L1 verde em main (17/11/2026).",
+      "steps": [
+        { "say": "depilação feminina amanhã" },
+        {
+          "say": "Íntima incluinnariz?",
+          "assertReply": {
+            "mustNotContain": ["Não peguei bem"],
+            "mustContain": ["inclui", "virilha", "íntima"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R31-faq-intima-inclui-o-que",
+      "waId": "550000000131",
+      "displayName": "Fátima",
+      "note": "#868 item 1 — FAQ «íntima inclui o quê?» não é zona.",
+      "steps": [
+        { "say": "quero depilação feminina na terça" },
+        {
+          "say": "A íntima inclui o quê?",
+          "assertReply": {
+            "mustNotContain": ["Não encontrei", "Não peguei bem"],
+            "mustContain": ["íntima"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R32-handoff-fora-horas-reoferta",
+      "waId": "550000000132",
+      "displayName": "Gisele",
+      "note": "#868 item 2 — fora do expediente: aviso + reoferta do funil.",
+      "runDuringTeamHours": false,
+      "steps": [
+        { "say": "oi, depilação feminina terça" },
+        { "say": "quero falar com a equipe" },
+        {
+          "say": "pode continuar a marcar então",
+          "assertReply": {
+            "mustContain": ["14:00", "Retomando", "Horários", "terça"],
+            "mustNotContain": ["Não peguei bem"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R33-qual-quais-lista-horarios",
+      "waId": "550000000133",
+      "displayName": "Helena",
+      "note": "#868 item 3 — «Quais horas» com lista pendente.",
+      "steps": [
+        { "say": "drenagem quarta" },
+        {
+          "say": "Quais horas tem?",
+          "assertReply": {
+            "mustNotContain": ["Não peguei bem", "outro jeito"],
+            "interactiveList": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "R34-idle-continuar-proposta",
+      "waId": "550000000134",
+      "displayName": "Isabela",
+      "note": "#868 item 4 — após idle, Prosseguir reoferece proposta (não lista solta).",
+      "steps": [
+        { "say": "depilação laser terça" },
+        { "tapRowIndex": 0, "kind": "list" },
+        { "say": "espera, vou pensar" },
+        { "say": "Quero continuar o atendimento" },
+        {
+          "assertReply": {
+            "mustContain": ["Confirmar"],
+            "mustNotContain": ["Olá! O que você precisa"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R35-nudge-confirmar-com-proposta",
+      "waId": "550000000135",
+      "displayName": "Joana",
+      "note": "#868 item 5 — «sim» com proposta aberta: nudge com resumo.",
+      "steps": [
+        { "say": "drenagem terça 15:15" },
+        { "tapRowIndex": 0, "kind": "list" },
+        {
+          "say": "sim pode marcar",
+          "assertReply": {
+            "mustContain": ["Confirmar", "Drenagem", "15"],
+            "mustNotContain": ["Não peguei bem"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R36-falar-com-equipe-lista-unica",
+      "waId": "550000000136",
+      "displayName": "Kelly",
+      "note": "#868/#869 — lista de horários inclui «Falar com a equipe» na secção única (Meta 131009).",
+      "steps": [
+        {
+          "say": "limpeza de pele amanhã",
+          "assertReply": {
+            "listSectionCountMax": 1,
+            "listRowTitlesMustInclude": ["Falar com a equipe"],
+            "listSectionsTitledOnlyIfMultiple": true
+          }
+        }
+      ]
     }
   ]
 }

@@ -65,8 +65,18 @@ callback `cursor://` ou agents). Sem `return_to`, o `forceRedirect` do painel ia
 1. `lab_status`; 2. `lab_say` com a frase do caso; 3. se a resposta traz opções, `lab_tap` com um id devolvido;
 4. `lab_state` para ver proposta e marcação; 5. repetir com variantes da frase (a escolha entre frases aprovadas varia
 por conversa: usar `waId` diferentes). Bateria versionada em [`laboratorio-cenarios.json`](laboratorio-cenarios.json)
-(inclui regressões S12–S14 para dia pedido, hora não inventada e duração total). Um defeito confirmado vira um caso L1
-em `src/clinic/ai/evals/dialogs/cc-cases.ts` antes da correção.
+(inclui regressões S12–S14 para dia pedido, hora não inventada e duração total; **R26–R36** de amostras «Avaliar» reescritas).
+Um defeito confirmado vira um caso L1 em `src/clinic/ai/evals/dialogs/cc-cases.ts` antes da correção.
+
+### De amostra «Avaliar» para cenário lab
+
+1. No Review MCP (`list_review_samples` / `get_review_sample`), identifique o `rsamp_…` e o sintoma — **não copie** o transcript para o JSON.
+2. Reescreva com nomes fictícios (ex.: Clínica Estética Aurora, cliente Clara) e frases novas; sem telefone real.
+3. Gere um esqueleto: `node scripts/lab-scenario-stub.mjs --id RXX-meu-caso --wa 550000000199` e preencha `assertReply` (`mustContain`, `mustNotContain`, `slotSetMustInclude`, `slotSetMustExclude`).
+4. Se o comportamento ainda falha em `main`, marque `pendingOnMain` com o link do PR/agente de correção; não apague o cenário.
+5. Adicione o espelho L1 em `src/clinic/ai/lab-review-flagged-regression.test.ts` (ou teste de unidade existente) e referencie o `id` do JSON no `note`.
+
+Par espelho JSON ↔ L1: `src/clinic/ai/lab-review-flagged-regression.test.ts`.
 
 ## Configurar a clínica demo (fase 2)
 
