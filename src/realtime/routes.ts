@@ -94,11 +94,25 @@ export type ClinicEventPublisher = {
     | { ok: true; seq: number; delivered: string[]; revoked: string[] }
     | { ok: false; error: string }
   >
+  /** Fecha as ligações WebSocket de **uma** sessão de suporte (ADR-0017 §4), sem tocar nas do subject. Best-effort. */
+  closeSupportSession?(input: {
+    tenantId: string
+    supportSessionId: string
+    reason: 'support_revoked' | 'session_expired'
+  }): Promise<{ ok: true; closedConnections: string[] } | { ok: false; error: string }>
 }
 
 /** Publica evento versionado no DO e faz fan-out (best-effort). */
 export function createDoEventPublisher(env: RealtimeBindings): ClinicEventPublisher {
   return {
+    async closeSupportSession(input) {
+      try {
+        const result = await clinicStub(env, input.tenantId).applySupportSessionFence(input)
+        return { ok: true, closedConnections: result.closedConnections }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : 'do_fence_failed' }
+      }
+    },
     async publishTenantEvent(input) {
       try {
         const result = await clinicStub(env, input.tenantId).publishTenantEvent(
@@ -132,6 +146,7 @@ export type WsTicketIdentity = {
   clerkUserId: string
   sessionId: string
   role: 'owner' | 'attendant'
+  supportSessionId?: string
 }
 
 export type WsTicketIssuer = {
@@ -176,11 +191,23 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
             identity,
           ),
       }
-      const issued = await issuer.issue(ctx.tenantId, {
-        clerkUserId: principal.clerkUserId,
-        sessionId: principal.sessionId,
-        role: ctx.role,
-      })
+      // Sessão de suporte (ADR-0017 §4): bilhete só de leitura, preso à sessão e com a identidade do subject
+      // (a ligação nunca passa por «presença» dele). O DO volta a verificar a sessão ao aceitar.
+      const issued = await issuer.issue(
+        ctx.tenantId,
+        ctx.support
+          ? {
+              clerkUserId: ctx.support.subjectClerkUserId,
+              sessionId: principal.sessionId,
+              role: ctx.role,
+              supportSessionId: ctx.support.sessionId,
+            }
+          : {
+              clerkUserId: principal.clerkUserId,
+              sessionId: principal.sessionId,
+              role: ctx.role,
+            },
+      )
       c.header('Cache-Control', 'no-store')
       return c.json({ ticket: issued.ticket, expiresAt: issued.expiresAt })
     },

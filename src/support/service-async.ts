@@ -29,6 +29,19 @@ export type AsyncSupportServices = {
   events: ClinicEventPublisher
 }
 
+/** Fecha as ligações WebSocket da sessão (ADR-0017 §4); best-effort — o DO volta a verificar a sessão a cada evento. */
+async function fenceSupportSession(services: AsyncSupportServices, session: SupportSessionRow): Promise<void> {
+  try {
+    await services.events.closeSupportSession?.({
+      tenantId: session.tenantId,
+      supportSessionId: session.id,
+      reason: 'support_revoked',
+    })
+  } catch {
+    /* best-effort */
+  }
+}
+
 async function notifySessionLifecycle(
   services: AsyncSupportServices,
   session: SupportSessionRow,
@@ -188,6 +201,7 @@ export async function endSupportSessionAsync(
     reason: input.asOwner ? 'owner_revoke' : 'actor_end',
     expectedTenantId: input.tenantId,
   })
+  await fenceSupportSession(services, session)
   const realtimeNotified = await notifySessionLifecycle(services, session, 'support.session.ended', {
     endedBy: input.actorClerkUserId,
   })
@@ -251,6 +265,7 @@ export async function ownerDecideTerminationAsync(
     ownerClerkUserId: input.ownerClerkUserId,
     decision: input.decision,
   })
+  if (input.decision === 'end') await fenceSupportSession(services, result.session)
   const type = input.decision === 'end' ? 'support.session.ended' : 'support.termination.kept'
   const published = await services.events.publishTenantEvent({
     tenantId: input.tenantId,
