@@ -189,9 +189,37 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 ## 8. Em aberto
 
-1. Valores de 60 e 30 min (DEC-199). Quem decide: Paulo; bloqueia a Fase 1.
-2. Validade do crédito do sinal (DEC-198). Quem decide: Paulo; bloqueia o cancelamento com sinal.
-3. Domínio e nome da página. Quem decide: Paulo; bloqueia o envio real do link.
-4. Interruptor da owner por clínica, desligado por defeito.
-5. Quando saem as listas M5 e o código do Flow (limpeza separada, DEC-196).
-6. Horizonte máximo de datas: **Confirmado** como configuração da clínica pela owner (DEC-201), ainda não implementada. **Em aberto:** valor padrão e opções. Bloqueia a Fase 2 (a página precisa do valor, ou de um fixo provisório).
+Índice resumido em [docs/memory/MEMORY.md](../memory/MEMORY.md) (`em-aberto-pagina-web-cliente.md`).
+
+### Paulo (produto)
+
+| # | Pergunta | Bloqueia |
+| --- | --- | --- |
+| 1 | Valores de **60 min** (token) e **30 min** (sessão), DEC-199 (**Propostos** hoje) | Afinar limites antes de produção |
+| 2 | **Validade do crédito** do sinal (DEC-198(c); liga DEC-180) | Cancelamento com sinal pago sem «Pedir à equipe» |
+| 3 | **Valor padrão** do horizonte máximo e ecrã de configuração da owner (DEC-201) | Substituir `CLIENT_WEB_HORIZON_DAYS` fixo |
+| 4 | **Revisão dos textos** das mensagens no chat e recibos (**Propostos**) | Copy definitiva (DEC-104) |
+| 5 | Aceitar ou não **remarcar** uma marcação com sinal pago **sem** aplicar a janela de crédito (hoje remarcar funciona; cancelar com sinal não) | Produção com sinal |
+
+### Engenharia
+
+| # | Lacuna | Bloqueia |
+| --- | --- | --- |
+| 1 | **Expurgo** por tenant e por contacto no D1 central (`client_web_links`, `client_web_sessions`; DEC-099, REQ-071) — o Flow tem a mesma lacuna | LGPD / offboarding |
+| 2 | Texto próprio para **erro de rede** e para **clínica suspensa** (hoje mostra «link já usado», impreciso) | UX e suporte |
+| 3 | Pré-escolher **«Para quem é?»** a partir da conversa (DEC-142) | Menos atrito na página |
+| 4 | Suprimir no canal web a frase do chat «Horário já não está livre…» quando a vaga se perde no Confirmar | Ruído no WhatsApp |
+| 5 | Template **TMPL-05** (implementação): link fora das 24 h | Clientes que só abrem o chat no dia seguinte |
+
+### Externos / gates
+
+| # | Gate | Bloqueia |
+| --- | --- | --- |
+| 1 | **GATE-04** — parecer LGPD | Dados reais e produção |
+| 2 | **TMPL-05** — template Meta com botão URL fora da janela de 24 h | Mesmo critério que o item 5 de engenharia |
+| 3 | **Revisão de segurança curta** (enumeração, CSRF, clickjacking, limites), como em [suporte-revisao-e-pentest.md](../implementation/runbooks/suporte-revisao-e-pentest.md) | Produção |
+
+### Outros (DEC-196)
+
+- Quando saem as listas M5 e o código do Flow (limpeza separada).
+- O interruptor da owner por clínica está **Confirmado** e implementado (desligado por defeito); não bloqueia staging.
