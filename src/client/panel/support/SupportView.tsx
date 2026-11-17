@@ -7,6 +7,12 @@ import {
   type PanelApi,
   type TenantContextResponse,
 } from '../api'
+import {
+  buildInboxWsUrl,
+  createRealtimeConnection,
+  RealtimeFatalError,
+  type WebSocketLike,
+} from '../realtime/connection'
 import { Banner } from '../states/Banner'
 import { AccessEndedState, ErrorState, LoadingState } from '../states/StatusScreens'
 
@@ -19,6 +25,8 @@ type Props = {
   /** Para testes e para a navegação: onde fica o Platform Admin. */
   goToAdmin?: () => void
   now?: () => number
+  /** Só para testes: substitui o `WebSocket` do navegador. */
+  createSocket?: (url: string) => WebSocketLike
 }
 
 export function formatRemaining(ms: number): string {
@@ -43,7 +51,7 @@ function fmtDate(ms: number | null): string {
  * normais do painel — assim nenhum botão de escrita existe nesta sessão e não há chamadas fora da lista de
  * leitura do servidor (que as recusaria de qualquer forma).
  */
-export function SupportView({ context, api, goToAdmin, now = Date.now }: Props) {
+export function SupportView({ context, api, goToAdmin, now = Date.now, createSocket }: Props) {
   const { sessionId, expiresAt } = context.support
   const [tick, setTick] = useState(now())
   const [ended, setEnded] = useState(false)
@@ -57,6 +65,8 @@ export function SupportView({ context, api, goToAdmin, now = Date.now }: Props) 
     { phase: 'idle' } | { phase: 'loading' } | { phase: 'error' } | { phase: 'ready'; data: InboxConversationDetail }
   >({ phase: 'idle' })
   const endedRef = useRef(false)
+  /** Sobe a cada sinal de tempo real: refaz a leitura (as rotas HTTP filtram e mascaram; o sinal não leva dados). */
+  const [reloadKey, setReloadKey] = useState(0)
 
   const markEnded = useCallback(() => {
     endedRef.current = true
@@ -84,6 +94,33 @@ export function SupportView({ context, api, goToAdmin, now = Date.now }: Props) 
     return () => window.clearInterval(id)
   }, [api, context.tenantId, ended, markEnded])
 
+  // Tempo real só de leitura (ADR-0017 §4): bilhete de suporte, só sinais sem payload.
+  useEffect(() => {
+    if (ended) return
+    const conn = createRealtimeConnection({
+      createSocket,
+      getUrl: async () => {
+        try {
+          const { ticket } = await api.getRealtimeTicket(context.tenantId)
+          return buildInboxWsUrl(window.location, context.tenantId, ticket)
+        } catch (err) {
+          if (sessionGone(err)) {
+            markEnded()
+            throw new RealtimeFatalError('support_session_gone')
+          }
+          throw err
+        }
+      },
+      onEvent: () => setReloadKey((k) => k + 1),
+      onResync: () => setReloadKey((k) => k + 1),
+      onStateChange: (state) => {
+        if (state === 'access_revoked') markEnded()
+      },
+    })
+    conn.start()
+    return () => conn.stop()
+  }, [api, context.tenantId, ended, markEnded, createSocket])
+
   useEffect(() => {
     if (ended) return
     const ac = new AbortController()
@@ -96,12 +133,13 @@ export function SupportView({ context, api, goToAdmin, now = Date.now }: Props) 
         else setList({ phase: 'error' })
       })
     return () => ac.abort()
-  }, [api, context.tenantId, ended, markEnded])
+  }, [api, context.tenantId, ended, markEnded, reloadKey])
 
   useEffect(() => {
     if (!selected || ended) return
     const ac = new AbortController()
-    setThread({ phase: 'loading' })
+    // Recarga por sinal: mantém as mensagens à vista; só o primeiro carregamento mostra «a carregar».
+    setThread((t) => (t.phase === 'ready' && t.data.id === selected ? t : { phase: 'loading' }))
     api
       .getInboxConversation(context.tenantId, selected, {}, { signal: ac.signal })
       .then((data) => setThread({ phase: 'ready', data }))
@@ -111,7 +149,7 @@ export function SupportView({ context, api, goToAdmin, now = Date.now }: Props) 
         else setThread({ phase: 'error' })
       })
     return () => ac.abort()
-  }, [api, context.tenantId, selected, ended, markEnded])
+  }, [api, context.tenantId, selected, ended, markEnded, reloadKey])
 
   const back = useMemo(() => goToAdmin ?? (() => window.location.assign('/admin')), [goToAdmin])
 
@@ -185,7 +223,10 @@ export function SupportView({ context, api, goToAdmin, now = Date.now }: Props) 
                 title="Não foi possível carregar as conversas"
                 description="Verifique a internet e tente de novo."
                 actionLabel="Tentar de novo"
-                onAction={() => setList({ phase: 'loading' })}
+                onAction={() => {
+                  setList({ phase: 'loading' })
+                  setReloadKey((k) => k + 1)
+                }}
               />
             ) : null}
             {list.phase === 'ready' && list.items.length === 0 ? <p>Sem conversas nesta clínica.</p> : null}

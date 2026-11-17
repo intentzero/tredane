@@ -59,6 +59,7 @@ export {
   deliverEventToSockets,
   closeUserSockets,
   closeAllSockets,
+  closeSupportSessionSockets,
   type DeliverySocket,
   type DeliveryResult,
 } from './fanout'

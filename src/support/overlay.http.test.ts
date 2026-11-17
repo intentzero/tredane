@@ -62,7 +62,15 @@ function testApp() {
     clock,
   }
   const transport = createSimulatedEmailTransport({ clock })
+  const fenced: Array<Record<string, unknown>> = []
+  const issued: Array<{ tenantId: string; identity: Record<string, unknown> }> = []
   const app = createApp({
+    wsTicketIssuerFactory: () => ({
+      async issue(tenantId, identity) {
+        issued.push({ tenantId, identity: { ...identity } })
+        return { ticket: 'wst_' + 'a'.repeat(43), expiresAt: T0 + 30_000 }
+      },
+    }),
     authServicesFactory: () => services,
     syncAdminDbFactory: () => admin.db,
     inboxGatewayFactory: (_env, tenantId) => registry(tenantId),
@@ -70,6 +78,10 @@ function testApp() {
     emailFactory: () => transport,
     appBaseUrlFactory: () => 'http://localhost:5173',
     eventPublisherFactory: () => ({
+      async closeSupportSession(input) {
+        fenced.push({ ...input })
+        return { ok: true, closedConnections: [] }
+      },
       async publishTenantEvent() {
         return { ok: true, seq: 1, delivered: [], revoked: [] }
       },
@@ -96,7 +108,7 @@ function testApp() {
     for (const c of clinics.values()) c.close()
     admin.close()
   }
-  return { admin, clock, authority, call, auditOf, close }
+  return { admin, clock, authority, call, auditOf, close, issued, fenced }
 }
 type Ctx = ReturnType<typeof testApp>
 type Json = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -206,7 +218,6 @@ describe('overlay de suporte — escrita e rotas fora da lista', () => {
         ['POST', `/api/tenants/${A}/inbox/conversations/x/assign`, {}],
         ['POST', `/api/tenants/${A}/inbox/conversations/x/close`, {}],
         ['PUT', `/api/tenants/${A}/config/services/x`, {}],
-        ['POST', `/api/tenants/${A}/realtime/ticket`, {}],
         ['POST', `/api/tenants/${A}/push/subscriptions`, {}],
         ['POST', `/api/tenants/${A}/members/${ATT_A}/revoke`, {}],
         ['POST', `/api/tenants/${A}/pipeline/opportunities/x/move`, {}],
@@ -428,6 +439,78 @@ describe('overlay de suporte — o cookie', () => {
       expect(clear).toMatch(/Path=\/api/)
       expect(clear).toMatch(/SameSite=Strict/)
       expect(clear).toMatch(/Max-Age=0/)
+    } finally {
+      ctx.close()
+    }
+  })
+})
+
+describe('overlay de suporte — bilhete do WebSocket (PR 4, ADR-0017 §4)', () => {
+  it('só o bilhete é um POST permitido; o bilhete leva a sessão de suporte e a identidade do subject', async () => {
+    const ctx = testApp()
+    try {
+      const { cookie, session, sessionId } = await openSupport(ctx)
+      const res = await ctx.call(SUPER, `/api/tenants/${A}/realtime/ticket`, { method: 'POST', cookie, session })
+      expect(res.status).toBe(200)
+      expect(ctx.issued).toHaveLength(1)
+      expect(ctx.issued[0]).toMatchObject({
+        tenantId: A,
+        identity: { clerkUserId: ATT_A, role: 'attendant', supportSessionId: sessionId },
+      })
+      // Nunca a identidade do actor como membro, e a leitura fica auditada.
+      expect(ctx.issued[0]!.identity.clerkUserId).not.toBe(SUPER)
+      expect(ctx.auditOf(A, 'support.access').length).toBeGreaterThan(0)
+      // Qualquer outro POST continua bloqueado.
+      const other = await ctx.call(SUPER, `/api/tenants/${A}/members/${ATT_A}/revoke`, { method: 'POST', cookie, session })
+      expect(other.status).toBe(403)
+      const otherTenant = await ctx.call(SUPER, `/api/tenants/${B}/realtime/ticket`, { method: 'POST', cookie, session })
+      expect(otherTenant.status).toBeGreaterThanOrEqual(401)
+      expect(ctx.issued).toHaveLength(1)
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('sem sessão de suporte o bilhete é o de sempre (sem supportSessionId)', async () => {
+    const ctx = testApp()
+    try {
+      const res = await ctx.call(ATT_A, `/api/tenants/${A}/realtime/ticket`, { method: 'POST' })
+      expect(res.status).toBe(200)
+      expect(ctx.issued[0]!.identity).toMatchObject({ clerkUserId: ATT_A })
+      expect(ctx.issued[0]!.identity.supportSessionId).toBeUndefined()
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('depois de encerrada a sessão, o cookie deixa de dar bilhete', async () => {
+    const ctx = testApp()
+    try {
+      const { cookie, session, sessionId } = await openSupport(ctx)
+      await ctx.call(SUPER, `/api/platform/support-sessions/${sessionId}/end`, { method: 'POST', session })
+      const res = await ctx.call(SUPER, `/api/tenants/${A}/realtime/ticket`, { method: 'POST', cookie, session })
+      expect(res.status).toBeGreaterThanOrEqual(401)
+      expect(ctx.issued).toHaveLength(0)
+    } finally {
+      ctx.close()
+    }
+  })
+})
+
+describe('overlay de suporte — fence das ligações por sessão (PR 4)', () => {
+  it('encerrar a sessão (pela actor ou pela owner) fecha as ligações dessa sessão, só dessa', async () => {
+    const ctx = testApp()
+    try {
+      const one = await openSupport(ctx)
+      const end = await ctx.call(SUPER, `/api/platform/support-sessions/${one.sessionId}/end`, { method: 'POST', session: one.session })
+      expect(end.status).toBe(200)
+      expect(ctx.fenced).toEqual([{ tenantId: A, supportSessionId: one.sessionId, reason: 'support_revoked' }])
+
+      ctx.fenced.length = 0
+      const two = await openSupport(ctx, { session: 'sess_b' })
+      const byOwner = await ctx.call(OWNER_A, `/api/tenants/${A}/support-sessions/${two.sessionId}/revoke`, { method: 'POST' })
+      expect(byOwner.status).toBe(200)
+      expect(ctx.fenced).toEqual([{ tenantId: A, supportSessionId: two.sessionId, reason: 'support_revoked' }])
     } finally {
       ctx.close()
     }

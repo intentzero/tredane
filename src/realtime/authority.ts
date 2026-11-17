@@ -12,8 +12,15 @@ export type AccessDecision =
   | { status: 'deny'; reason: AccessRevokeReason }
   | { status: 'unavailable' }
 
+export type SupportSessionDecision =
+  | { status: 'allow' }
+  | { status: 'deny'; reason: AccessRevokeReason }
+  | { status: 'unavailable' }
+
 export type AccessAuthority = {
   checkMembership(tenantId: string, clerkUserId: string): Promise<AccessDecision>
+  /** Sessão de suporte ainda ativa e dentro do prazo? Sem este método, uma ligação de suporte nunca é aceite. */
+  checkSupportSession?(tenantId: string, supportSessionId: string, nowMs: number): Promise<SupportSessionDecision>
 }
 
 export function createD1AccessAuthority(adminDb: AsyncAdminDb): AccessAuthority {
@@ -30,6 +37,20 @@ export function createD1AccessAuthority(adminDb: AsyncAdminDb): AccessAuthority 
           return { status: 'deny', reason: 'membership_revoked' }
         }
         return { status: 'allow', role: membership.role }
+      } catch {
+        return { status: 'unavailable' }
+      }
+    },
+    async checkSupportSession(tenantId, supportSessionId, nowMs) {
+      try {
+        const row = await adminDb.get<{ status: string; expires_at: number; tenant_id: string }>(
+          `SELECT status, expires_at, tenant_id FROM support_sessions WHERE id = ?`,
+          supportSessionId,
+        )
+        if (!row || row.tenant_id !== tenantId) return { status: 'deny', reason: 'support_revoked' }
+        if (row.status !== 'active') return { status: 'deny', reason: 'support_revoked' }
+        if (Number(row.expires_at) <= nowMs) return { status: 'deny', reason: 'session_expired' }
+        return { status: 'allow' }
       } catch {
         return { status: 'unavailable' }
       }
