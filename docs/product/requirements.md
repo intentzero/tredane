@@ -286,6 +286,30 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-155, Paulo 10/11/2026; revê DEC-113 no caminho pedir equipe). **Origem:** DEC-008 (expediente), DEC-083, DEC-153. **Comportamento:** fora do horário comercial da clínica (janelas efectivas já configuradas), não oferecer botão nem dica «Falar com a equipe». Pedido explícito (texto ou toque residual) → mensagem com a próxima abertura (ou lista do expediente) e a IA continua activa, sem pausa. Em expediente, DEC-083/153 + REQ-102. **Aceite:** L1 G-10; proposta/dica sem oferta humana fora do horário.
 
+### REQ-111 — Link pessoal e troca única por sessão curta
+
+**Prioridade/estado:** MVP / direção Confirmada (DEC-196, DEC-199, Paulo 17/11/2026); valores **Propostos**. **Origem:** ACT cliente final; JRN-20, JRN-23; [ADR-0018](../adr/0018-pagina-web-cliente.md). **Comportamento:** o chat envia um link pessoal ligado a uma conversa e a um contacto. Abrir o link (GET) não o consome; o POST de troca consome-o de forma atómica e abre uma sessão curta no browser. Um link novo da mesma conversa invalida o anterior. Link usado, expirado ou inexistente mostra a mesma tela, «Este link já foi usado — peça outro no chat». **Regras e exceções:** a clínica sai só da sessão; o pedido nunca traz `tenant_id` nem `contact_id`; sem token nem telefone nos logs (REQ-070). **Tempo real:** nenhum evento novo; a marcação chega ao painel pelos eventos da agenda. **Aceite:** AC-87, AC-88.
+
+### REQ-112 — Agendar na página
+
+**Prioridade/estado:** MVP / direção Confirmada (DEC-196, DEC-197). **Origem:** JRN-21; DEC-061, DEC-075, DEC-077, DEC-078, DEC-079, DEC-082. **Comportamento:** a cliente escolhe serviço, variantes e uma hora livre vinda do mesmo motor da agenda (sala, profissional, audiência, Tempo, antecedência mínima). O backend monta a proposta versionada e o toque em **Confirmar** na página marca, com revalidação na transação e idempotência por `clientRequestId`. Serviço com sinal segue o Pix no chat e não reserva antes do pagamento (DEC-047). **Regras e exceções:** vaga perdida mostra horas alternativas; a pausa da owner e o enable por clínica bloqueiam a página; o LLM não escolhe nada. **Aceite:** AC-89, AC-90.
+
+### REQ-113 — Remarcar na página
+
+**Prioridade/estado:** MVP / direção Confirmada (DEC-198). **Origem:** JRN-22; DEC-091, REQ-101. **Comportamento:** a cliente escolhe uma marcação futura e uma nova hora para o mesmo serviço e variantes; o compromisso é movido de forma atómica (motivo `contato_remarcou`) e não gera sinal novo. **Regras e exceções:** com sinal pago aplica-se a janela de crédito (REQ-114). **Aceite:** AC-91.
+
+### REQ-114 — Cancelar na página, com ou sem sinal
+
+**Prioridade/estado:** MVP / direção Confirmada (DEC-198); regras **Propostas**. **Origem:** JRN-22; DEC-061(6), DEC-180, DEC-182. **Comportamento:** a cliente cancela uma marcação futura (motivo `contato_cancelou`). Sem sinal, cancela de imediato após confirmar. Com sinal pago, o backend aplica a janela de crédito e a política da clínica; fora da janela ou com «Não devolve», a página mostra o texto gerado da política e exige aceite explícito antes de cancelar. **Regras e exceções:** até a janela de crédito ser aplicada pelo backend, marcação com sinal pago mostra «Pedir à equipe» em vez de cancelar. **Em aberto:** validade do crédito (Paulo). **Aceite:** AC-92, AC-93.
+
+### REQ-115 — Meus agendamentos
+
+**Prioridade/estado:** MVP / direção Confirmada (DEC-196). **Origem:** JRN-20. **Comportamento:** a página lista as marcações futuras do contacto da sessão e nenhuma de outro contacto ou clínica; não mostra o telefone nem dados de saúde. **Aceite:** AC-87, AC-94.
+
+### REQ-116 — Oferta do link e recibo no chat
+
+**Prioridade/estado:** MVP / direção Confirmada (DEC-196, DEC-197); frases **Propostas**. **Origem:** JRN-20, JRN-23; DEC-104. **Comportamento:** o backend oferece o link com uma frase determinística e o botão «Abrir agenda», dentro da janela de 24 h; fora dela, só com template aprovado (TMPL-05, **Em aberto**). Depois de cada marcação, remarcação ou cancelamento pela página, sai um recibo com «Não foi você? Falar com a equipe»; falha do recibo não desfaz a ação. A conversa continua como alternativa. **Aceite:** AC-95.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -333,6 +357,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
 | REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |
+| REQ-111–116 | MVP | Página web da cliente aberta pelo WhatsApp (DEC-196 a DEC-199): link pessoal e troca única, agendar, remarcar, cancelar, Meus agendamentos, oferta e recibo no chat. Detalhe acima e em [ADR-0018](../adr/0018-pagina-web-cliente.md). |
 | REQ-104–110 | MVP interno | Interface da Platform Admin (DEC-192): acesso, clínicas, estado, suporte, saúde, visão geral e qualidade da IA. Detalhe e aceite em [platform-admin.md](platform-admin.md#5-requisitos). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |

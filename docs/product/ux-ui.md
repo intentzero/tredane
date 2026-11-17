@@ -333,6 +333,18 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 - **Tempo real:** início, fim, expiração e revogação chegam por evento; ao reconectar, a tela reconcilia com a API. Revogada a sessão, a conexão do suporte cai na hora.
 - **Em aberto:** texto exato do e-mail e do que o pedido mostra como escopo (depende da lista de ações de diagnóstico, a definir com engenharia).
 
+### Página web da cliente (DEC-196 a DEC-199; mocks `C-01` a `C-09`, Proposto)
+
+- **Para quem e como chega:** a cliente final, por um link pessoal enviado no chat (botão «Abrir agenda»). Não há login, cadastro nem senha. A troca do link por uma sessão de 30 min acontece na primeira abertura; recarregar não perde a sessão. Link já usado ou expirado mostra uma tela única (C-09) e o botão de pedir outro no WhatsApp.
+- **Estrutura:** Início com «Meus agendamentos» (C-01); Agendar em quatro passos, serviço, zonas, horário, revisão (C-02 a C-05); Feito (C-06); Remarcar (C-07); Cancelar (C-08). Mobile first; alvos de toque ≥ 44 px; cada passo tem voltar e indica «n de 4».
+- **Texto fixo no topo:** «Esta página não pede pagamento nem senha.» O nome da clínica aparece sempre; o telefone da cliente nunca.
+- **Confirmar (DEC-197):** só o botão **Confirmar** da revisão marca. Mostra serviço, zonas, data, hora, local, preço e sinal; avisa que a proposta vale 30 min e que o sinal é pedido por Pix no WhatsApp, sem reservar antes do pagamento. O botão fica inativo durante o envio, e um segundo toque não duplica.
+- **Cancelar (DEC-198):** sem sinal, confirmação simples. Com sinal pago fora da janela de crédito, mostra o texto gerado da política e exige a caixa de aceite antes de ativar o botão. Enquanto o backend não aplicar a janela, a marcação com sinal pago mostra «Pedir à equipe».
+- **Acessibilidade:** rótulos e foco reais em cada controle (hoje os mocks usam `div role="button"` só como desenho; a implementação usa `<button>`, grupos de rádio e caixas reais), mensagens de estado com `role="status"`, contraste dos tokens, sem dependência de cor isolada.
+- **Estados a implementar:** carregando; sem horários (com alternativas); vaga perdida ao confirmar; erro de rede; sessão expirada; página pausada pela owner («A equipe atende por aqui»); lista vazia em C-01.
+- **Tempo real:** a página não abre WebSocket; a marcação aparece no painel pelos eventos da agenda. Sem permissões de painel: a sessão só dá acesso aos dados do próprio contacto (REQ-111, AC-88).
+- **Em aberto:** domínio e nome da página; tom do texto de segurança; confirmação com a Meta do botão com URL fora das 24 h (TMPL-05).
+
 ## 5. Componentes
 
 | Componente | Uso | Regras |

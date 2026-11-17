@@ -9,6 +9,7 @@
 | Painel e API autenticada | Identidade do usuário + associação vigente com a clínica selecionada. | Tenant informado no navegador sem associação válida não concede acesso. |
 | WebSocket | Autorização da requisição antes do upgrade; conexão vinculada à clínica e à sessão verificadas. | Conexão de A não pode ser roteada ao objeto nem receber eventos de B. |
 | Webhook do WhatsApp | Origem verificada + conta/número oficial associado a uma única clínica. | Número desconhecido ou validação falha não cria dados nem publica eventos. |
+| Página web da cliente (DEC-196, **Proposto**) | Hash do token ou da sessão no D1 devolve tenant, contacto e conversa; o Worker chama o DO dessa clínica. | Pedido com `tenant_id` ou `contact_id` próprio, token inexistente, usado ou expirado, ou `Origin` alheio não lê nem grava nada. |
 | Queue e Workflow | Contexto interno de tenant e ID de evento/ação emitidos por entrada já verificada. | Payload incompleto, adulterado ou sem associação vigente não executa efeito colateral. |
 
 **Confirmado:** um usuário pode pertencer a várias clínicas. Ele seleciona explicitamente a clínica ativa e pode trocá-la no painel; cada aba/requisição opera no tenant escolhido e revalidado contra o membership vigente. A troca não reaproveita assinatura WebSocket nem cache de outro tenant.

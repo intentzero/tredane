@@ -62,6 +62,10 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 **Extensão de engenharia (S3 #174 / S4 #175 / S5 #176):** antes de `enviada`, a proposta pode estar `preparada` → `envio_pendente` → `envio_incerto` (envio WhatsApp interactive). Vigência de 30 min conta a partir de `enviada` (relógio do backend; expiração preguiçosa sem job). Persistência: `appointment_proposals` + ligação `send_*` / `result_*` e `pending_communications` (H7, alerta 5 min) no SQLite do Clinic DO. Corpo e botões **Confirmar** / **Alterar detalhes** são montados só a partir do snapshot; clique Confirmar (S5) corre primeiro o avaliador do tempo (DEC-077; `recusada_tempo` se falhar) e só depois executa `confirmAppointmentOp` ou Pix sem hold com chaves `proposal.book:` / `proposal.pix:`. Janela 24 h fechada → handoff à equipe sem envio irregular (template de proposta com botões: **Em aberto** — gate Meta staging).
 
+## Link e sessão da página web da cliente (DEC-199, **Proposto**)
+
+Link: `emitido` → `trocado` (POST de troca consome o token) · `expirado` (60 min) · `substituído` (link novo da mesma conversa). Abrir (GET) não muda o estado. Sessão: `ativa` → `expirada` (30 min) · `revogada` (pausa da owner, clínica suspensa ou link novo). Qualquer pedido com sessão não `ativa` devolve o ecrã «link já usado ou expirado». A proposta criada pela página usa os estados da secção anterior, com canal `web`.
+
 ## Eventos de interface propostos
 
 | Evento lógico | Quando ocorre | Visões afetadas |

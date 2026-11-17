@@ -208,6 +208,50 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Alternativas:** mensagem nova reinicia a contagem; `system` no painel não conta; humano Assumir cancela o idle automático.
 - **Requisitos:** REQ-098; aceite AC-72.
 
+## JRN-20 — Abrir a página pelo link do chat
+
+- **Estado:** Direção Confirmada (DEC-196, DEC-199, Paulo, 17/11/2026); frases e valores **Propostos**.
+- **Ator:** cliente final (WhatsApp e browser do telemóvel); sistema.
+- **Gatilho:** a cliente pede para agendar, remarcar ou cancelar, ou o hub oferece «Abrir agenda».
+- **Pré-condições:** página ligada na clínica (interruptor da owner); janela de 24 h aberta; contacto e conversa conhecidos.
+- **Fluxo:** (1) o backend envia a frase determinística com o botão «Abrir agenda»; (2) a cliente toca e abre a casca da página (GET, o token não é gasto); (3) a página troca o token por uma sessão de 30 min (POST); (4) vê «Meus agendamentos» e a ação Agendar.
+- **Alternativas/erros:** link já usado ou expirado → «Este link já foi usado — peça outro no chat» e um toque devolve ao chat; janela fechada sem template aprovado → handoff (DEC-040(d)); pausa da owner → a página explica que a equipe atende.
+- **Telas:** WhatsApp; página (Início, Link usado ou expirado).
+- **Dados:** link (hash), sessão (hash), contacto, conversa; sem telefone na página.
+- **Requisitos:** REQ-111, REQ-115, REQ-116; aceite AC-87, AC-88, AC-94, AC-95.
+
+## JRN-21 — Agendar pela página
+
+- **Estado:** Direção Confirmada (DEC-196, DEC-197).
+- **Ator:** cliente final; sistema.
+- **Gatilho:** a cliente toca em Agendar na página (JRN-20).
+- **Pré-condições:** sessão válida; serviços ativos e horas livres.
+- **Fluxo:** (1) escolhe serviço; (2) escolhe género e variantes quando houver (DEC-079); (3) escolhe uma hora livre; (4) vê a revisão com serviço, variantes, data, hora, duração, preço e sinal; (5) toca em **Confirmar**; (6) o backend revalida e marca uma vez, ou abre o Pix no chat quando há sinal; (7) a página mostra «Marcado» e o chat recebe o recibo.
+- **Alternativas/erros:** vaga perdida ou Tempo que deixou de servir → horas alternativas; reenvio ou dois toques não duplicam; sessão expirada → JRN-20 de novo.
+- **Telas:** Serviço, Variantes, Horário, Revisão e Confirmar, Feito.
+- **Dados:** proposta (id, versão, validade), compromisso, auditoria `appointment.client_web_booked`. O toque não é consentimento LGPD nem prova de identidade.
+- **Requisitos:** REQ-112, REQ-116; aceite AC-89, AC-90, AC-95.
+
+## JRN-22 — Remarcar ou cancelar pela página
+
+- **Estado:** Direção Confirmada (DEC-198); regras do sinal **Propostas**.
+- **Ator:** cliente final; sistema.
+- **Gatilho:** a cliente abre uma marcação em «Meus agendamentos».
+- **Pré-condições:** marcação futura do contacto da sessão.
+- **Fluxo:** (1a) **Remarcar:** escolhe nova hora para o mesmo serviço e variantes, confirma, o compromisso é movido; (1b) **Cancelar:** vê a política (com sinal pago) e confirma; (2) a página mostra o resultado e o chat recebe o recibo.
+- **Alternativas/erros:** com sinal pago fora da janela, aceite explícito da política antes de cancelar; janela de crédito ainda não aplicada → «Pedir à equipe»; hora ocupada → alternativas.
+- **Telas:** Meus agendamentos, Remarcar, Cancelar.
+- **Dados:** compromisso, motivo `contato_remarcou` ou `contato_cancelou`, auditoria.
+- **Requisitos:** REQ-113, REQ-114, REQ-116; aceite AC-91, AC-92, AC-93.
+
+## JRN-23 — Link usado, expirado ou reencaminhado
+
+- **Estado:** Direção Confirmada (DEC-199); mitigações **Propostas**.
+- **Ator:** cliente final; sistema; atendente no fallback.
+- **Gatilho:** abrir um link já trocado ou expirado, ou receber o recibo de uma ação que a cliente não fez.
+- **Fluxo:** (1) a página mostra «Este link já foi usado — peça outro no chat»; (2) a cliente pede outro no chat e recebe um link novo, que invalida o anterior; (3) quem recebe um recibo de ação alheia toca em «Falar com a equipe», e a equipe revê a marcação.
+- **Requisitos:** REQ-111, REQ-116; aceite AC-87, AC-95.
+
 ## Validação necessária
 
 Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: permissões administrativas, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.
