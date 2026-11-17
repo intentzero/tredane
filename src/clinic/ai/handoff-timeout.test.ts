@@ -298,8 +298,8 @@ describe('DEC-155 fora do expediente', () => {
       expect(isHumanTeamOfferAllowed(s.db, s.tenantId, s.clock)).toBe(false)
       const body = afterHoursHumanRequestBody(s.db, s.tenantId, s.clock, s.cnv.id)
       expect(body).toContain('Deixei seu pedido para a equipe')
-      expect(body).toContain('A equipe responde a partir de segunda às 09:00')
-      expect(body).toMatch(/continuo por aqui|toque em Falar com a equipe/i)
+      expect(body).toMatch(/a equipe responde a partir de segunda.*09:00/i)
+      expect(body).toMatch(/continuo por aqui/i)
       expect(body).not.toContain(HUMAN_HANDOFF_TEXT)
 
       const reply = replyAfterHoursHumanRequest(
