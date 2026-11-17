@@ -6,6 +6,7 @@ import { useClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
 import { useOutsideClose } from '../../ui/useOutsideClose'
+import { useKanbanFlip } from '../../../ui/useKanbanFlip'
 import { ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { useInboxRealtime } from '../../realtime/InboxRealtime'
@@ -66,6 +67,8 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   const [profFilter, setProfFilter] = useState<string[]>([])
   const returnFocus = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
+  const boardRef = useRef<HTMLDivElement | null>(null)
+  const { captureBeforeUpdate } = useKanbanFlip(boardRef, byStage)
   useOutsideClose(panelRef, () => closePanel(), openId != null)
 
   const stages = useMemo<OpportunityStage[]>(
@@ -90,6 +93,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
       stages.forEach((stage, i) => {
         next[stage] = results[i]?.opportunities ?? []
       })
+      captureBeforeUpdate()
       setByStage(next)
     } catch (err) {
       setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
@@ -317,7 +321,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
         </p>
       ) : null}
 
-      <div className="acomp-wide-board" role="group" aria-label="Quadro por etapa">
+      <div ref={boardRef} className="acomp-wide-board" role="group" aria-label="Quadro por etapa">
         {stages.map((stage) => {
           const cards = (byStage[stage] ?? []).filter(visible)
           return (
@@ -345,6 +349,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                     <button
                       key={card.boardKey ?? card.id}
                       type="button"
+                      data-flip-key={card.boardKey ?? card.id}
                       className={`acomp-card${openId === card.id ? ' acomp-card--open' : ''}${needsPerson ? ' acomp-card--needs-person' : ''}`}
                       aria-label={`Abrir ${name}${needsPerson ? '. Precisa de alguém' : ''}`}
                       aria-expanded={openId === card.id}
