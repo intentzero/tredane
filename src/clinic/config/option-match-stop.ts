@@ -128,6 +128,8 @@ export const CATALOG_MISS_STOP: ReadonlySet<string> = new Set([
   'servico',
   'semana',
   'proxima',
+  'atender',
+  'encaixar',
 ])
 
 /**

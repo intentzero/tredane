@@ -81,7 +81,7 @@ export function looksLikeCompleteBookingRequest(text: string): boolean {
   const hasDay =
     temporal.dates.length > 0 ||
     temporal.relative.length > 0 ||
-    /\b(hoje|amanh[aã]|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|\d{1,2}\/\d{1,2})\b/i.test(
+    /\b(hoje|amanh[aã]|esta\s+(?:manh[aã]|tarde|noite)|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|\d{1,2}\/\d{1,2})\b/i.test(
       trimmed,
     )
   const hasServiceCue =

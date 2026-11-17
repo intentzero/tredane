@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { extractServices } from './autobook'
+import { hasSchedulingAvailabilityIntent } from './booking-intent-text'
 import {
   catalogMissHint,
   durationMinutesFromText,
@@ -188,6 +189,18 @@ describe('booking-object', () => {
         services: EVAL_BOOKING_CATALOG,
       }).handoffReason,
     ).toBe('inexistente')
+  })
+
+  it('rsamp_62934e: disponibilidade «pode me atender esta tarde» abre clarify de serviço', () => {
+    const hit = resolveBookingObject({
+      text: 'Você pode me atender esta tarde?',
+      services: EVAL_BOOKING_CATALOG,
+      conversationId: 'cnv_av',
+    })
+    expect(hasSchedulingAvailabilityIntent('Você pode me atender esta tarde?')).toBe(true)
+    expect(hit.kind).toBe('clarify')
+    expect(hit.missing).toContain('servico')
+    expect(hit.question).toMatch(/serviço/i)
   })
 
   it('#509 «Quero depilar» casa Depilação quando o sinónimo está na ficha', () => {

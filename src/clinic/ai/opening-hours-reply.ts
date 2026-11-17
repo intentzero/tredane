@@ -48,7 +48,14 @@ const PERIOD =
 /** Marcação no mesmo turno → cede ao funil (não só FAQ de expediente). */
 export function openingHoursMixedWithBooking(text: string): boolean {
   const body = text.trim()
-  if (!body || !isOpeningHoursFaqAsk(body)) return false
+  if (!body) return false
+  const availabilityPeriodCue =
+    /\b(?:pode(?:\s*[-–—])?(?:\s*me\s+)?atender|consegue(?:\s*me\s+)?encaixar|tem\s+hor[aá]rio|disponi|vaga)\b/i
+  if (availabilityPeriodCue.test(body) && PERIOD.test(body)) return true
+  if (/\besta\s+(?:manha|tarde|noite)\b/i.test(body) && availabilityPeriodCue.test(body)) {
+    return true
+  }
+  if (!isOpeningHoursFaqAsk(body)) return false
   if (/\b(quero|gostaria|preciso)\s+(um\s+)?hor[aá]rio\b/i.test(body)) return true
   if (/\b(marcar|agendar)\b/i.test(body) && (/\b\d{1,2}\s*h/i.test(body) || PERIOD.test(body))) {
     return true

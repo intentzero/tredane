@@ -280,6 +280,9 @@ export function scheduleFactsFromText(text: string): {
     days.push('depois de amanhã')
     scan = scan.replace(/\bdepois de amanha\b/g, ' ')
   }
+  if (/\besta\s+(?:manha|tarde|noite)\b/.test(scan) || /\bhoje\s+de\s+tarde\b/.test(scan)) {
+    days.push('hoje')
+  }
   const dayRules: Array<[RegExp, ScheduleDayLabel]> = [
     [/\bamanha\b/, 'amanhã'],
     [/\bhoje\b/, 'hoje'],
@@ -303,7 +306,8 @@ export function scheduleFactsFromText(text: string): {
   if (/\bnoite\b/.test(forPeriod)) periods.push('noite')
   if (/\b(?:depois|apos|dps)\s+(?:do|de)\s+almoco\b/.test(forPeriod)) periods.push('tarde')
   const out: { dayLabel?: ScheduleDayLabel; period?: SchedulePeriod } = {}
-  if (days.length === 1) out.dayLabel = days[0]
+  const uniqueDays = [...new Set(days)]
+  if (uniqueDays.length === 1) out.dayLabel = uniqueDays[0]
   if (periods.length === 1) out.period = periods[0]
   return out
 }

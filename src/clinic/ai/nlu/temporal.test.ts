@@ -48,6 +48,13 @@ describe('parseTemporal (#408)', () => {
       relative: ['proxima_quinta'],
     },
     {
+      id: 'B-03b',
+      text: 'Você pode me atender esta tarde?',
+      today: TODAY,
+      dates: [TODAY],
+      periods: ['tarde'],
+    },
+    {
       id: 'B-04',
       text: 'Quero massagem semana que vem de manhã',
       dates: ['2026-11-09'],
