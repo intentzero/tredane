@@ -10,10 +10,7 @@ import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
 import type { ZoneSnapshot } from '../config/types'
 import { formatBookedWhenAt } from '../scheduling/format-booked-when'
-import {
-  HUMAN_HANDOFF_BUTTON_TITLE,
-  isHumanTeamOfferAllowed,
-} from '../ai/human-handoff'
+import { HUMAN_HANDOFF_BUTTON_TITLE } from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
 import { PROPOSAL_BODY_MAX, PROPOSAL_BUTTON_TITLE_MAX } from './interactive-limits'
 
@@ -160,20 +157,18 @@ export function proposalValidityLine(timezone: string, validUntilMs: number): st
  * Monta o texto e os botões a partir da proposta persistida.
  * Qualquer mudança material exige nova versão (S3); este render só lê o snapshot.
  * `validUntilMs` (#511): se omitido, usa o `expiresAt` da proposta ou a frase relativa.
- * DEC-155: fora do expediente omite o botão «Falar com a equipe».
+ * Item 6: proposta inclui sempre «Falar com a equipe» (3.º botão).
  */
 export function renderProposalInteractive(
   proposal: AppointmentProposalRow,
   db?: ClinicDb,
   opts?: { validUntilMs?: number | null; clock?: Clock },
 ): ProposalInteractivePayload {
+  void opts
   const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
   const combo = db ? readComboSnapshot(db, proposal.tenantId, 'proposal', proposal.id) : null
   const location = proposal.clinicLocationText.trim()
-  const includeHuman =
-    db != null && opts?.clock != null
-      ? isHumanTeamOfferAllowed(db, proposal.tenantId, opts.clock)
-      : true
+  const includeHuman = true
   const serviceLabel = zoneLabel(proposal.serviceName, zones)
   const when = formatBookedWhen(proposal)
   const parts = [serviceLabel, when]

@@ -92,7 +92,7 @@ function seed(tenantId = 'clinic-demo-s4-a') {
     caller,
     {
       resourceId: pro.id,
-      // Mon–Fri — T0 é quinta; DEC-155 omite «Falar com a equipe» fora do expediente.
+      // Mon–Fri — T0 é quinta; proposta traz sempre «Falar com a equipe» (item 6).
       windows: [1, 2, 3, 4, 5].map((d) => ({
         dayOfWeek: d,
         startMinute: 9 * 60,

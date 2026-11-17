@@ -136,7 +136,7 @@ describe('DEC-135: Horários após texto livre de variantes', () => {
       )
       expect(interactive.some((m) => (m.interactive_json ?? '').includes('"Sim"'))).toBe(true)
       expect(interactive.some((m) => (m.interactive_json ?? '').includes('Falar com a equipe'))).toBe(
-        false,
+        true,
       )
     } finally {
       s.close()

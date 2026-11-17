@@ -19,6 +19,10 @@ import {
 import { createConversation, listConversations } from './conversations'
 import { insertMessage } from './messages'
 import {
+  HUMAN_HANDOFF_BUTTON_ID,
+  HUMAN_HANDOFF_BUTTON_TITLE,
+} from '../ai/human-handoff'
+import {
   flagConversationForReview,
   isReviewFlagRequest,
   parseReviewFlagAckButtonId,
@@ -478,7 +482,10 @@ describe('DEC-157 review flag', () => {
       const interactive = JSON.parse(ack?.interactive_json ?? 'null') as {
         buttons?: Array<{ id: string; title: string }>
       }
-      expect(interactive.buttons).toEqual(reviewFlagAckInteractiveButtons(cnv.id))
+      expect(interactive.buttons).toEqual([
+        ...reviewFlagAckInteractiveButtons(cnv.id),
+        { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE },
+      ])
       const stillPaused = db.get<{ at: number | null }>(
         `SELECT ai_reply_paused_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
         tenantId,

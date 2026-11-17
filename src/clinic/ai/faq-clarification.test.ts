@@ -277,6 +277,24 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     }
   })
 
+  it('cnv_b8df6c59165f4668 seq28: «A íntima inclui o que?» → explicação (não «que faz parte»)', () => {
+    const withZone = {
+      ...intima,
+      clientExplanation: 'Inclui virilha e ânus no feminino.',
+    }
+    const r = answerFaqFromCatalog({
+      text: 'A íntima inclui o que?',
+      conversationId: 'cnv_b8df6c59165f4668',
+      service,
+      zones: [withZone, axila],
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/Inclui virilha e ânus/)
+      expect(r.replyText).not.toMatch(/que faz parte/i)
+    }
+  })
+
   it('«Como é feita a depilação íntima?» sem explicação da zona → missing (não cobertura «feita»)', () => {
     const r = answerFaqFromCatalog({
       text: 'Como é feita a depilação íntima?',

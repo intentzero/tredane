@@ -172,6 +172,44 @@ describe('text-confirm-nudge (DEC-061)', () => {
     ).toBe(false)
   })
 
+  it('cnv_b8df6c59165f4668 seq47: nudge corpo inclui resumo da proposta', () => {
+    const s = seedNudge()
+    try {
+      const startsAt = zonedCivilToUtc(TZ, 2026, 11, 17, 14, 0)
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          startsAt,
+        },
+        s.clock,
+      )
+      markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+      const nudge = sendProposalConfirmNudgeOp(
+        s.db,
+        s.caller,
+        {
+          proposal,
+          conversationId: s.cnv.id,
+          clientRequestId: 'proposal.confirm_nudge:cnv_b8df:v1:msg1',
+        },
+        s.clock,
+      )
+      expect(nudge.status).toBe('queued')
+      if (nudge.status === 'queued') {
+        expect(nudge.lead).toContain(PROPOSAL_CONFIRM_NUDGE_LEAD)
+        expect(nudge.lead).toMatch(/14:00|Drenagem/)
+        expect(nudge.outbox.filter((o) => o.type === 'whatsapp.send')).toHaveLength(1)
+      }
+    } finally {
+      s.close()
+    }
+  })
+
   it('nudge copy DEC-061 (sem Show! repetido)', () => {
     expect(PROPOSAL_CONFIRM_NUDGE_LEAD).toBe('Para confirmar, toca em Confirmar 👇')
     expect(PROPOSAL_CONFIRM_NUDGE_LEAD).toMatch(/Confirmar/)
@@ -207,7 +245,8 @@ describe('text-confirm-nudge (DEC-061)', () => {
       )
       expect(nudge.status).toBe('queued')
       if (nudge.status === 'queued') {
-        expect(nudge.lead).toBe(PROPOSAL_CONFIRM_NUDGE_LEAD)
+        expect(nudge.lead).toContain(PROPOSAL_CONFIRM_NUDGE_LEAD)
+        expect(nudge.lead).toMatch(/Depilação|14:00|Confirmar/i)
         expect(nudge.interactive.buttons).toHaveLength(1)
         expect(nudge.interactive.buttons[0]?.title).toBe('Confirmar')
       }

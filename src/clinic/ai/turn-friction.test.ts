@@ -91,6 +91,8 @@ describe('turn-friction T2', () => {
   it('turnLooksLikeDayOrTimeAsk cobre as frases de staging', () => {
     expect(turnLooksLikeDayOrTimeAsk('Tem horário na próxima quarta?')).toBe(true)
     expect(turnLooksLikeDayOrTimeAsk('Quarta feira tem horário?')).toBe(true)
+    expect(turnLooksLikeDayOrTimeAsk('Quais horas')).toBe(true)
+    expect(turnLooksLikeDayOrTimeAsk('Qual horários tem disponível?')).toBe(true)
     expect(turnLooksLikeDayOrTimeAsk('axila')).toBe(false)
   })
 

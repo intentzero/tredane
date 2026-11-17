@@ -182,6 +182,7 @@ export function sendProposalConfirmNudgeOp(
   if (confirmButtons.length !== 1) {
     return { status: 'skipped_no_proposal' }
   }
+  const body = `${PROPOSAL_CONFIRM_NUDGE_LEAD}\n\n${interactive.body}`
   const sendCaller = caller.actorId
     ? caller
     : workerCaller(meta.tenantId, 'system:proposal-nudge')
@@ -191,7 +192,7 @@ export function sendProposalConfirmNudgeOp(
     sendCaller,
     {
       conversationId: input.conversationId,
-      body: PROPOSAL_CONFIRM_NUDGE_LEAD,
+      body,
       clientRequestId: input.clientRequestId,
       authorClerkUserId: 'system:proposal-nudge',
       authorDisplayName: 'IA',
@@ -205,7 +206,7 @@ export function sendProposalConfirmNudgeOp(
   const buttons = confirmButtons.map((b) => ({ id: b.id, title: b.title }))
   return {
     status: 'queued',
-    lead: PROPOSAL_CONFIRM_NUDGE_LEAD,
+    lead: body,
     interactive: { mode: 'buttons', buttons },
     outbox: sent.outbox,
     duplicate: sent.value.duplicate,

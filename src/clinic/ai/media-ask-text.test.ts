@@ -51,7 +51,7 @@ function seed() {
     clock,
   )
   setClinicAiAssistEnabled(boot.db, tenantId, true, clock)
-  // DEC-155: botão «Falar com a equipe» só com expediente aberto.
+  // Item 6: «Falar com a equipe» também fora do expediente (registo DEC-155 sem pausar IA).
   const pro = upsertResourceOp(
     boot.db,
     caller,

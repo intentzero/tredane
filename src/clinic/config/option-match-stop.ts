@@ -58,6 +58,8 @@ export const OPTION_MATCH_STOP: ReadonlySet<string> = new Set([
   'disponivel',
   'disponiveis',
   'disponibilidade',
+  'qual',
+  'quais',
   // Saudação
   'oi',
   'ola',

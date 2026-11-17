@@ -42,6 +42,7 @@ import {
   applyHumanOutboundPrefix,
   shouldPrefixHumanOutbound,
 } from './human-prefix'
+import { augmentOutboundWithHumanTeam } from '../ai/human-handoff'
 import {
   applyOutboundDeliveryUpdate,
   findOutboundByClientRequestId,
@@ -853,6 +854,18 @@ export function sendOutboundMessageOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
+
+  if (input.interactive?.buttons?.length || input.interactive?.list?.sections?.length) {
+    const augmented = augmentOutboundWithHumanTeam(db, meta.tenantId, clock, {
+      body: input.body ?? '',
+      interactive: input.interactive ?? null,
+    })
+    input = {
+      ...input,
+      body: augmented.body,
+      interactive: augmented.interactive ?? input.interactive,
+    }
+  }
 
   if (!input.clientRequestId.trim()) {
     throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')

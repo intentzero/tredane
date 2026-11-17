@@ -2174,7 +2174,11 @@ export async function runDueAutoDrafts(
           })
           continue
         }
+        const replyPreQueued = Boolean(autoBook?.outbox?.some((row) => row.type === 'whatsapp.send'))
         let body = draftText
+        if (deterministicReply && replyPreQueued) {
+          body = ''
+        }
         if (deterministicReply && body.trim()) {
           const priorOutbound = lastOutboundBody(db, tenantId, job.conversationId)
           const misReason = detectTurnMisunderstanding({
@@ -2218,7 +2222,7 @@ export async function runDueAutoDrafts(
           try {
             const replaced = await maybeReplaceM5WithFlow({
               choice: autoBook?.interactive ?? null,
-              replyBody: draftText,
+              replyBody: body,
               prepare: deps.prepareBookingFlowOffer,
               tenantId,
               conversationId: job.conversationId,
