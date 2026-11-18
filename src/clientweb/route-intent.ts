@@ -9,7 +9,7 @@
  * Perguntas de informação («quanto custa a massagem?», «quanto tempo dura?», «o que é peeling?»)
  * não são pedido de marcar, mesmo com o nome do serviço: seguem para o catálogo e a FAQ.
  */
-import { CANCEL_RE, RESCHEDULE_RE, classifySensitive, hasPolicyQuestion } from '../clinic/ai/nlu/sensitive'
+import { CANCEL_RE, RESCHEDULE_RE } from '../clinic/ai/nlu/sensitive'
 
 export type ClientWebRoutePurpose = 'agendar' | 'remarcar' | 'cancelar'
 
@@ -19,6 +19,11 @@ export type ClientWebRoute = {
   serviceId: string | null
   /** Pediu remarcar ou cancelar mas não tem marcação futura: o link abre em agendar. */
   noUpcoming: boolean
+  /**
+   * Turno misto (DEC-202, 18/11/2026): pede marcar **e** pergunta informação (preço, duração…).
+   * O chat responde à informação e junta o link na mesma mensagem.
+   */
+  mixed?: boolean
 }
 
 /** Campos do catálogo que o reconhecimento lê. */
@@ -53,18 +58,25 @@ export function isGreetingOnly(text: string): boolean {
   return GREET_ONLY.test(text.trim())
 }
 
+/**
+ * Pergunta condicional sobre remarcar/cancelar («se eu remarcar, cobram?», «se eu precisar cancelar…»)
+ * é política FAQ, não pedido (CF-04). Termos de custo (cobram/multa/taxa) sozinhos **não** bastam:
+ * com verbo explícito de cancelar/remarcar o DEC-202 ainda encaminha para a página com o propósito certo.
+ */
+const POLICY_COND =
+  /\bse\s+eu\s+(?:(?:precisar|tiver\s+que|quiser)\s+)?(?:remarcar|cancelar|desmarcar|faltar|atrasar)\b/i
+
 export function isCancelRequest(text: string): boolean {
   const body = text.trim()
   if (!body) return false
-  // Pergunta condicional sobre multa ou política não é pedido de cancelar (CF-04).
-  if (hasPolicyQuestion(classifySensitive(body))) return false
+  if (POLICY_COND.test(body)) return false
   return CANCEL_RE.test(body) && !RESCHEDULE_RE.test(body)
 }
 
 export function isRescheduleRequest(text: string): boolean {
   const body = text.trim()
   if (!body) return false
-  if (hasPolicyQuestion(classifySensitive(body))) return false
+  if (POLICY_COND.test(body)) return false
   return RESCHEDULE_RE.test(body)
 }
 
@@ -160,11 +172,11 @@ export function routeToClientWeb(input: {
       : { purpose: 'agendar', serviceId: null, noUpcoming: true }
   }
   const strong = BOOK_STRONG.test(text)
-  const info = INFO.test(text)
+  const info = INFO.test(text) || INFO.test(fold(text))
   if (info && !strong) return null
   const cited = servicesCitedInText(input.services, text)
   const serviceId = cited.length === 1 ? cited[0]!.id : null
-  if (strong) return { purpose: 'agendar', serviceId, noUpcoming: false }
+  if (strong) return { purpose: 'agendar', serviceId, noUpcoming: false, ...(info ? { mixed: true } : {}) }
   if (cited.length > 0 && (WHEN.test(text) || WANT.test(text))) {
     return { purpose: 'agendar', serviceId, noUpcoming: false }
   }

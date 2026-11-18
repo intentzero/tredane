@@ -54,6 +54,40 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
 
   it('pergunta condicional sobre cancelamento é política, não cancelamento', () => {
     expect(route('Se eu precisar cancelar, tem multa?', true)).toBeNull()
+    expect(route('Se eu remarcar em cima da hora, cobram alguma coisa?', true)).toBeNull()
+  })
+
+  it('verbo explícito de cancelar/remarcar + termo de custo ainda encaminha (DEC-202)', () => {
+    expect(route('quero cancelar, cobram?', true)).toEqual({
+      purpose: 'cancelar',
+      serviceId: null,
+      noUpcoming: false,
+    })
+    expect(route('preciso cancelar minha marcação, tem multa?', true)).toEqual({
+      purpose: 'cancelar',
+      serviceId: null,
+      noUpcoming: false,
+    })
+    expect(route('quero remarcar, cobram taxa?', true)).toEqual({
+      purpose: 'remarcar',
+      serviceId: null,
+      noUpcoming: false,
+    })
+    expect(route('quero cancelar, cobram?', false)).toEqual({
+      purpose: 'agendar',
+      serviceId: null,
+      noUpcoming: true,
+    })
+  })
+
+  it('turno misto: marcar e perguntar informação no mesmo texto', () => {
+    expect(route('quanto custa a limpeza de pele e tem horário amanhã?')).toMatchObject({
+      purpose: 'agendar',
+      serviceId: 'lim',
+      mixed: true,
+    })
+    expect(route('quero marcar limpeza de pele')?.mixed).toBeUndefined()
+    expect(route('quanto custa a limpeza de pele?')).toBeNull()
   })
 
   it('cumprimento puro', () => {
