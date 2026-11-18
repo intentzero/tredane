@@ -895,7 +895,15 @@ export function sendOutboundMessageOp(
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
 
-  if (input.interactive?.buttons?.length || input.interactive?.list?.sections?.length) {
+  // Pós-agendamento DEC-086 (fu:post:…): Paulo 18/11/2026 — T3 «Abrir agenda»|«Terminar»
+  // sem injectar «Falar com a equipe» (DEC-202: marcar só na página).
+  const isPostBookingFollowup = Boolean(
+    input.interactive?.buttons?.some((b) => b.id.startsWith('fu:post:')),
+  )
+  if (
+    !isPostBookingFollowup &&
+    (input.interactive?.buttons?.length || input.interactive?.list?.sections?.length)
+  ) {
     const augmented = augmentOutboundWithHumanTeam(db, meta.tenantId, clock, {
       body: input.body ?? '',
       interactive: input.interactive ?? null,

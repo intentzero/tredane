@@ -1401,7 +1401,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       return { handled: true, action: 'web_link' as const }
     }
     // Follow-ups que não dependem do funil: ack de revisão, idle, pós-preço e pós-agendamento.
-    // «Continuar» e «Marcar outro» passam a enviar o link; «Terminar» mantém-se.
+    // «Continuar», «Abrir agenda» (pós-agendamento) e «Marcar outro» (pós-preço) → link; «Terminar» mantém-se.
     const followups = [
       handleReviewFlagAckButtonClick(
         this.#db,

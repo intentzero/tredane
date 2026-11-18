@@ -116,7 +116,9 @@ describe('DEC-086 post-booking follow-up', () => {
         sent.outboundId,
       )
       expect(ob?.interactive_json).toContain('Terminar')
-      expect(ob?.interactive_json).toContain('Marcar outro')
+      expect(ob?.interactive_json).toContain('Abrir agenda')
+      expect(ob?.interactive_json).not.toContain('Marcar outro')
+      expect(ob?.interactive_json).not.toContain('Falar com a equipe')
 
       const again = sendPostBookingFollowupOp(
         db,
@@ -177,7 +179,7 @@ describe('DEC-086 post-booking follow-up', () => {
     }
   })
 
-  it('«Marcar outro» mantém o ciclo aberto e não envia nada pelo próprio handler (DEC-202)', () => {
+  it('«Abrir agenda» mantém o ciclo aberto e não envia nada pelo próprio handler (DEC-202)', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
     const { db, close } = bootClinicDb({ clock })
     try {
