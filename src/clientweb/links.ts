@@ -10,6 +10,7 @@
  */
 import type { Clock } from '../db/clock'
 import { generateOpaqueToken, hashToken } from '../db/tokens'
+import { serializeVariantIds } from './link-preset'
 
 /** Valores **Propostos** (DEC-199): token 60 min, sessão 30 min. */
 export const CLIENT_WEB_LINK_TTL_MS = 60 * 60 * 1000
@@ -40,6 +41,10 @@ export type ExchangedClientWebLink = ClientWebSession & {
   appointmentId: string | null
   /** Serviço a pré-escolher na página (DEC-202(4)). */
   serviceId: string | null
+  /** Linha já dita no chat (DEC-202; DEC-200(3) Proposto). */
+  audienceLine: 'feminino' | 'masculino' | null
+  /** Zonas já ditas no chat. */
+  variantIds: string[]
 }
 
 export function newClientWebLinkToken(): string {
@@ -62,6 +67,8 @@ export async function issueClientWebLink(
     purpose: ClientWebPurpose
     appointmentId?: string | null
     serviceId?: string | null
+    audienceLine?: 'feminino' | 'masculino' | null
+    variantIds?: string[]
     ttlMs?: number
   },
 ): Promise<IssuedClientWebLink> {
@@ -74,8 +81,8 @@ export async function issueClientWebLink(
     .prepare(
       `INSERT INTO client_web_links
          (token_hash, tenant_id, binding_id, contact_id, conversation_id, purpose,
-          appointment_id, service_id, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          appointment_id, service_id, audience_line, variant_ids, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       tokenHash,
@@ -86,6 +93,8 @@ export async function issueClientWebLink(
       input.purpose,
       input.appointmentId ?? null,
       input.serviceId ?? null,
+      input.audienceLine ?? null,
+      serializeVariantIds(input.variantIds ?? []),
       now,
       expiresAt,
     )
@@ -109,6 +118,19 @@ type ExchangeRow = {
   purpose: ClientWebPurpose
   appointment_id: string | null
   service_id: string | null
+  audience_line: string | null
+  variant_ids: string | null
+}
+
+function parseStoredVariantIds(raw: string | null): string[] {
+  if (!raw?.trim()) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((x): x is string => typeof x === 'string' && x.length > 0)
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -128,11 +150,14 @@ export async function exchangeClientWebLink(
     .prepare(
       `UPDATE client_web_links SET consumed_at = ?
        WHERE token_hash = ? AND consumed_at IS NULL AND replaced_at IS NULL AND expires_at > ?
-       RETURNING token_hash, tenant_id, contact_id, conversation_id, purpose, appointment_id, service_id`,
+       RETURNING token_hash, tenant_id, contact_id, conversation_id, purpose, appointment_id,
+         service_id, audience_line, variant_ids`,
     )
     .bind(now, tokenHash, now)
     .first<ExchangeRow>()
   if (!row) return null
+  const audienceLine =
+    row.audience_line === 'feminino' || row.audience_line === 'masculino' ? row.audience_line : null
 
   const sessionToken = newClientWebSessionToken()
   const sessionHash = await hashToken(sessionToken)
@@ -162,6 +187,8 @@ export async function exchangeClientWebLink(
     purpose: row.purpose,
     appointmentId: row.appointment_id,
     serviceId: row.service_id,
+    audienceLine,
+    variantIds: parseStoredVariantIds(row.variant_ids),
   }
 }
 

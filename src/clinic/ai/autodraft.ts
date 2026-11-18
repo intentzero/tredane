@@ -34,6 +34,7 @@ import {
   countRecentWebLinks,
 } from '../../clientweb/offer'
 import { isGreetingOnly, routeToClientWeb } from '../../clientweb/route-intent'
+import { clientWebLinkFieldsFromText } from '../../clientweb/route-context'
 import {
   clinicTodayOpenState,
   hubMeusBody,
@@ -780,7 +781,13 @@ export async function runDueAutoDrafts(
      * sem número ativo, base sem https, envio recusado) passa à equipe.
      */
     const sendWebRoute = async (
-      route: { purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'; serviceId: string | null; noUpcoming: boolean },
+      route: {
+        purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'
+        serviceId: string | null
+        noUpcoming: boolean
+        audienceLine?: 'feminino' | 'masculino' | null
+        variantIds?: string[]
+      },
       reasonLabel: string,
       bodyOverride?: string,
     ): Promise<void> => {
@@ -826,6 +833,8 @@ export async function runDueAutoDrafts(
                 ? (future[0]?.id ?? null)
                 : null,
             serviceId: route.serviceId,
+            audienceLine: route.audienceLine ?? null,
+            variantIds: route.variantIds ?? [],
           })
         } catch {
           offered = null
@@ -1276,11 +1285,15 @@ export async function runDueAutoDrafts(
         ? ({ purpose: 'home', serviceId: null, noUpcoming: false } as const)
         : routeToClientWeb({ text: turnText, services: turn.catalog.services, hasUpcoming })
       if (route) {
+        const linkFields =
+          route.purpose === 'agendar' && route.serviceId
+            ? clientWebLinkFieldsFromText(turnText, route.serviceId, turn.catalog.services)
+            : { audienceLine: null, variantIds: [] as string[] }
         const hubBody = greeting
           ? hubOpeningBody(deps.clinicName, clinicTodayOpenState(db, tenantId, clock))
           : undefined
         await sendWebRoute(
-          route,
+          { ...route, ...linkFields },
           greeting ? 'hub_opening' : `web_${route.purpose}_link`,
           hubBody ? (deps.autoBookPaused === true ? hubBody : clientWebOfferBody(hubBody)) : undefined,
         )

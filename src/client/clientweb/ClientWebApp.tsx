@@ -9,7 +9,13 @@ import { clinicInitials, formatAppointmentWhen, formatDurationMinutes } from './
 type View =
   | { kind: 'loading' }
   | { kind: 'ready'; state: ClientWebState }
-  | { kind: 'booking'; state: ClientWebState; serviceId: string | null }
+  | {
+      kind: 'booking'
+      state: ClientWebState
+      serviceId: string | null
+      audienceLine: import('./api').Line | null
+      variantIds: string[]
+    }
   | { kind: 'reschedule'; state: ClientWebState; appointment: ClientWebAppointment; catalog: Catalog }
   | { kind: 'cancel'; state: ClientWebState; appointment: ClientWebAppointment }
   | { kind: 'unavailable' }
@@ -31,13 +37,25 @@ export function ClientWebApp() {
     const token = clientWebTokenFromPath(window.location.pathname)
 
     async function start() {
-      let landing: { purpose: LinkPurpose; appointmentId: string | null; serviceId: string | null } | null = null
+      let landing: {
+        purpose: LinkPurpose
+        appointmentId: string | null
+        serviceId: string | null
+        audienceLine: import('./api').Line | null
+        variantIds: string[]
+      } | null = null
       if (token) {
         const result = await exchangeLink(token)
         if (cancelled) return
         if (result === 'unavailable') return setView({ kind: 'unavailable' })
         if (result === 'error') return setView({ kind: 'error' })
-        landing = { purpose: result.purpose, appointmentId: result.appointmentId, serviceId: result.serviceId }
+        landing = {
+          purpose: result.purpose,
+          appointmentId: result.appointmentId,
+          serviceId: result.serviceId,
+          audienceLine: result.audienceLine,
+          variantIds: result.variantIds,
+        }
         // O token sai do endereço: não fica no histórico nem pode ser partilhado a partir da barra.
         window.history.replaceState(null, '', '/c')
       }
@@ -61,7 +79,13 @@ export function ClientWebApp() {
       }
       // Link de agendar (DEC-202): abre já a escolha de serviço, com o serviço reconhecido no chat.
       if (landing?.purpose === 'agendar') {
-        return setView({ kind: 'booking', state: state.state, serviceId: landing.serviceId })
+        return setView({
+          kind: 'booking',
+          state: state.state,
+          serviceId: landing.serviceId,
+          audienceLine: landing.audienceLine,
+          variantIds: landing.variantIds,
+        })
       }
       setView({ kind: 'ready', state: state.state })
     }
@@ -83,7 +107,9 @@ export function ClientWebApp() {
       {view.kind === 'ready' && (
         <Home
           state={view.state}
-          onBook={() => setView({ kind: 'booking', state: view.state, serviceId: null })}
+          onBook={() =>
+            setView({ kind: 'booking', state: view.state, serviceId: null, audienceLine: null, variantIds: [] })
+          }
           onCancel={(appointment) => setView({ kind: 'cancel', state: view.state, appointment })}
           onReschedule={async (appointment) => {
             const catalog = await fetchCatalog()
@@ -106,7 +132,14 @@ export function ClientWebApp() {
         <CancelFlow appointment={view.appointment} timezone={view.state.timezone} onExit={() => void refresh()} onSessionLost={sessionLost} />
       )}
       {view.kind === 'booking' && (
-        <BookFlow clinicName={view.state.clinicName} initialServiceId={view.serviceId} onExit={() => void refresh()} onSessionLost={sessionLost} />
+        <BookFlow
+          clinicName={view.state.clinicName}
+          initialServiceId={view.serviceId}
+          initialAudienceLine={view.audienceLine}
+          initialVariantIds={view.variantIds}
+          onExit={() => void refresh()}
+          onSessionLost={sessionLost}
+        />
       )}
       {view.kind === 'unavailable' && <LinkUnavailable />}
       {view.kind === 'error' && <LoadError />}

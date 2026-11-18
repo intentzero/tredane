@@ -218,6 +218,13 @@
       "when": 1794900000000,
       "tag": "0031_drop_interpreter_shadow_events",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1795000000000,
+      "tag": "0032_client_web_link_line",
+      "breakpoints": true
     }
   ]
 }

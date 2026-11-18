@@ -160,6 +160,7 @@ import {
   isHttpsBase,
   type PrepareClientWebOffer,
 } from '../clientweb/offer'
+import { resolveClientWebLinkPreset } from '../clientweb/link-preset'
 import { issueClientWebLink } from '../clientweb/links'
 import {
   cancelFromWeb,
@@ -4777,12 +4778,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         .bind(input.tenantId)
         .first<{ id: string }>()
       if (!binding) return null
-      // Só se pré-escolhe um serviço que ainda esteja ativo no catálogo.
-      const serviceId =
-        input.serviceId &&
-        clinicConfig.listServices(this.#db, input.tenantId).some((s) => s.id === input.serviceId && s.active)
-          ? input.serviceId
-          : null
+      const services = clinicConfig.listServices(this.#db, input.tenantId)
+      const preset = resolveClientWebLinkPreset(services, {
+        serviceId: input.serviceId ?? null,
+        audienceLine: input.audienceLine ?? null,
+        variantIds: input.variantIds ?? [],
+      })
       const link = await issueClientWebLink(env.DB!, this.#clock, {
         tenantId: input.tenantId,
         bindingId: binding.id,
@@ -4790,7 +4791,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         conversationId: input.conversationId,
         purpose: input.purpose,
         appointmentId: input.appointmentId ?? null,
-        serviceId,
+        serviceId: preset.serviceId,
+        audienceLine: preset.audienceLine,
+        variantIds: preset.variantIds,
       })
       return clientWebOfferInteractive(clientWebUrl(baseUrl, link.token))
     }

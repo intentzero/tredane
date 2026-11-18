@@ -68,7 +68,14 @@ export type BookResult =
 /** Finalidade do link: abre a página já no ecrã de remarcar ou de cancelar (ADR-0018, Fase 5). */
 export type LinkPurpose = 'home' | 'agendar' | 'remarcar' | 'cancelar'
 export type ExchangeResult =
-  | { kind: 'ok'; purpose: LinkPurpose; appointmentId: string | null; serviceId: string | null }
+  | {
+      kind: 'ok'
+      purpose: LinkPurpose
+      appointmentId: string | null
+      serviceId: string | null
+      audienceLine: Line | null
+      variantIds: string[]
+    }
   | 'unavailable'
   | 'error'
 export type StateResult =
@@ -94,12 +101,25 @@ export function exchangeLink(token: string): Promise<ExchangeResult> {
         body: JSON.stringify({ token }),
       })
       if (res.ok) {
-        const body = await json<{ purpose?: LinkPurpose; appointmentId?: string | null; serviceId?: string | null }>(res)
+        const body = await json<{
+          purpose?: LinkPurpose
+          appointmentId?: string | null
+          serviceId?: string | null
+          audienceLine?: string | null
+          variantIds?: string[]
+        }>(res)
+        const audienceLine =
+          body?.audienceLine === 'feminino' || body?.audienceLine === 'masculino' ? body.audienceLine : null
+        const variantIds = Array.isArray(body?.variantIds)
+          ? body.variantIds.filter((x): x is string => typeof x === 'string')
+          : []
         return {
           kind: 'ok',
           purpose: body?.purpose ?? 'home',
           appointmentId: body?.appointmentId ?? null,
           serviceId: body?.serviceId ?? null,
+          audienceLine,
+          variantIds,
         }
       }
       return res.status === 410 ? 'unavailable' : 'error'

@@ -137,6 +137,8 @@ export type DialogCase = {
       purpose: string
       appointmentId?: string | null
       serviceId?: string | null
+      audienceLine?: 'feminino' | 'masculino' | null
+      variantIds?: string[]
     }>
     /** Equipe avisada: há alerta «Precisa de alguém» aberto nesta conversa (DEC-202: pausa/sem link). */
     teamAlert?: boolean
@@ -407,6 +409,17 @@ export async function runDialogCase(
             : null
           if ((got[i]?.serviceId ?? null) !== wantId) {
             errors.push(`link #${i}: serviço alvo ${JSON.stringify(got[i]?.serviceId)}, esperado ${JSON.stringify(w.serviceId)}`)
+          }
+        }
+        if (w.audienceLine !== undefined && (got[i]?.audienceLine ?? null) !== w.audienceLine) {
+          errors.push(
+            `link #${i}: linha ${JSON.stringify(got[i]?.audienceLine)}, esperado ${JSON.stringify(w.audienceLine)}`,
+          )
+        }
+        if (w.variantIds !== undefined) {
+          const gotZones = got[i]?.variantIds ?? []
+          if (JSON.stringify(gotZones) !== JSON.stringify(w.variantIds)) {
+            errors.push(`link #${i}: zonas ${JSON.stringify(gotZones)}, esperado ${JSON.stringify(w.variantIds)}`)
           }
         }
       })
