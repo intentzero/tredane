@@ -96,6 +96,14 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(route('quanto custa a limpeza de pele?')).toBeNull()
   })
 
+  it('início do nome com duas palavras reconhece o serviço único', () => {
+    const longo: RouteServiceHint[] = [{ id: 'prof', name: 'Limpeza de pele profunda', active: true, zones: [] }]
+    expect(servicesCitedInText(longo, 'quanto custa a limpeza de pele?').map((s) => s.id)).toEqual(['prof'])
+    expect(servicesCitedInText(longo, 'quero uma limpeza').map((s) => s.id)).toEqual([])
+    const dois: RouteServiceHint[] = [...longo, { id: 'sup', name: 'Limpeza de pele suave', active: true, zones: [] }]
+    expect(servicesCitedInText(dois, 'limpeza de pele').map((s) => s.id)).toEqual([])
+  })
+
   it('cumprimento puro', () => {
     expect(isGreetingOnly('Oi')).toBe(true)
     expect(isGreetingOnly('bom dia, tudo bem?')).toBe(true)
