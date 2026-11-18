@@ -34,24 +34,17 @@ import {
   stripScheduleOffer,
   countRecentWebLinks,
 } from '../../clientweb/offer'
-import {
-  isCancelRequest,
-  isGreetingOnly,
-  isRescheduleRequest,
-  routeToClientWeb,
-  servicesCitedInText,
-} from '../../clientweb/route-intent'
+import { isGreetingOnly, servicesCitedInText } from '../../clientweb/route-intent'
 import { clientWebLinkFieldsFromText } from '../../clientweb/route-context'
 import {
   clinicTodayOpenState,
   hubMeusBody,
   hubOpeningBody,
-  isMyAppointmentsQuery,
 } from '../../clientweb/hub'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
-import { catalogListReply } from './catalog-list'
+import { classifyTurn } from './classify-turn'
 import { catalogReply } from './catalog-reply'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 import {
@@ -1166,22 +1159,20 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    // DEC-202 (P24): cumprimento, remarcar e cancelar próprios — antes do handoff léxico.
+    // DEC-202 / P3 (Proposto): a ordem de decisão vive em `classifyTurn` (classify-turn.ts, TURN_ORDER).
+    // Cumprimento, remarcar e cancelar próprios vêm antes do handoff léxico (P24).
+    const turnClass = classifyTurn({
+      text: turnText,
+      services: turn.catalog.services,
+      hasUpcoming,
+      handoffReason: () => handoffReason(db, tenantId, turnText, clock, turn),
+      isFarewell: () =>
+        hasSoftDeclineRequest(sensitiveHits) ||
+        (FAREWELL_RE.test(turnText.trim()) &&
+          conversationAwaitingPostBookingFarewell(db, tenantId, job.conversationId)),
+    })
   {
-    let earlyRoute:
-      | { purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'; serviceId: null; noUpcoming: boolean }
-      | null = null
-    if (isGreetingOnly(turnText)) {
-      earlyRoute = { purpose: 'home', serviceId: null, noUpcoming: false }
-    } else if (isCancelRequest(turnText)) {
-      earlyRoute = hasUpcoming
-        ? { purpose: 'cancelar', serviceId: null, noUpcoming: false }
-        : { purpose: 'agendar', serviceId: null, noUpcoming: true }
-    } else if (isRescheduleRequest(turnText)) {
-      earlyRoute = hasUpcoming
-        ? { purpose: 'remarcar', serviceId: null, noUpcoming: false }
-        : { purpose: 'agendar', serviceId: null, noUpcoming: true }
-    }
+    const earlyRoute = turnClass.kind === 'link_early' ? turnClass.route : null
     if (earlyRoute) {
       const greeting = earlyRoute.purpose === 'home'
       const hubBody = greeting
@@ -1200,8 +1191,8 @@ export async function runDueAutoDrafts(
       continue
     }
   }
-    const reason = handoffReason(db, tenantId, turnText, clock, turn)
-    if (reason) {
+    if (turnClass.kind === 'handoff') {
+      const reason = turnClass.reason
       await signalTyping()
       // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).
       // Stop (DEC-114) já saiu acima; aqui customer_requested = pedir_pessoa.
@@ -1249,11 +1240,7 @@ export async function runDueAutoDrafts(
     }
     // «Terminar» e desistências educadas (DEC-147/152) fecham com a despedida; o agradecimento depois
     // de um agendamento também.
-    if (
-      hasSoftDeclineRequest(sensitiveHits) ||
-      (FAREWELL_RE.test(turnText.trim()) &&
-        conversationAwaitingPostBookingFarewell(db, tenantId, job.conversationId))
-    ) {
+    if (turnClass.kind === 'farewell') {
       await signalTyping()
       const settings = ensureClinicSettings(db, tenantId, clock)
       const tz = settings.timezone || 'America/Sao_Paulo'
@@ -1290,7 +1277,7 @@ export async function runDueAutoDrafts(
     // «Meus agendamentos» em texto livre — mesmo corpo do hub Flow (FL-07), sem LLM
     // e sem handoff. Depois de handoffReason para «falar com a equipe» continuar a ganhar.
     // Evita a promessa falsa «a equipe vai verificar» do redator de exceção.
-    if (isMyAppointmentsQuery(turnText)) {
+    if (turnClass.kind === 'my_appointments') {
       await signalTyping()
       const body = conv.contactId
         ? hubMeusBody(db, tenantId, conv.contactId, clock)
@@ -1325,8 +1312,8 @@ export async function runDueAutoDrafts(
     }
     // DEC-142 / DEC-202: «quais serviços?» é informação: lista em texto, sem estado nem botões de escolha.
     // Antes do encaminhamento para o link, para «ver os serviços» não virar pedido de marcar.
-    const catalogListText = catalogListReply(turnText, turn.catalog.services)
-    if (catalogListText) {
+    if (turnClass.kind === 'catalog_list') {
+      const catalogListText = turnClass.text
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
       try {
@@ -1354,7 +1341,7 @@ export async function runDueAutoDrafts(
     }
     // DEC-202: pedido de marcar ou de vaga → link (depois de «meus agendamentos» e handoff).
     {
-      const route = routeToClientWeb({ text: turnText, services: turn.catalog.services, hasUpcoming })
+      const route = turnClass.kind === 'link_route' ? turnClass.route : null
       if (route) {
         const linkFields =
           route.purpose === 'agendar' && route.serviceId
