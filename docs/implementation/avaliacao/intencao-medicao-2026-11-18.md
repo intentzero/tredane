@@ -6,7 +6,7 @@
 
 - **Corpus:** `src/clinic/ai/evals/intent/corpus.ts`, 160 frases fictícias rotuladas (`agendar`, `remarcar`, `cancelar`, `misto`, `nenhum`). Inclui paráfrases, erros de escrita, gíria, pedidos indiretos, informação que **não** deve virar link e ruído. É um corpus de **casos difíceis**, escrito por engenharia: os números abaixo são um piso pessimista, não a taxa real.
 - **Léxico:** `npx vitest run src/clinic/ai/evals/intent/intent.eval.test.ts` imprime precisão e recall por classe e a lista de falhas. Corre no CI sem custo; não é gate.
-- **LLM:** `EVAL_INTENT_LLM=live npm run eval:intent` (precisa de `CF_ACCOUNT_ID`, `AI_GATEWAY_ID`, `AI_GATEWAY_TOKEN`). Corre o classificador (`llm-classifier.ts`, ferramenta de saída fechada, Haiku) **só** nas frases que o léxico não decide, com teto de US$ 2. Sem segredos não gasta nada.
+- **LLM:** `EVAL_INTENT_LLM=live npm run eval:intent` (precisa de `CF_ACCOUNT_ID`, `AI_GATEWAY_ID`, `AI_GATEWAY_TOKEN`), ou o workflow manual «Avaliação de intenção (LLM)» (`.github/workflows/eval-intent.yml`, environment `staging`, relatório no resumo do job). Corre o classificador (`llm-classifier.ts`, ferramenta de saída fechada, Haiku) **só** nas frases que o léxico não decide, com teto de US$ 2. Sem segredos não gasta nada.
 
 ## Resultado do léxico (corpus de 160 frases)
 

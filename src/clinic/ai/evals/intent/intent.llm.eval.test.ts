@@ -4,6 +4,7 @@
  * e exige CF_ACCOUNT_ID, AI_GATEWAY_ID e AI_GATEWAY_TOKEN. Sem isso, não gasta nada e não falha.
  * Corre o LLM **só** nas frases que o léxico não decide, como faria em produção.
  */
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { buildAiAdapter, missingGatewayKeys } from '../../../../ai'
 import { routeToClientWeb } from '../../../../clientweb/route-intent'
@@ -29,6 +30,7 @@ describe(`intenção por LLM (${LIVE ? 'live' : 'sem execução'})`, () => {
         gatewayId: process.env.AI_GATEWAY_ID ?? '',
         gatewayToken: process.env.AI_GATEWAY_TOKEN ?? '',
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        ...(process.env.AI_GATEWAY_BYOK_ALIAS ? { byokAlias: process.env.AI_GATEWAY_BYOK_ALIAS } : {}),
       }
       const missing = missingGatewayKeys(gateway)
       if (missing.length > 0) {
@@ -82,6 +84,9 @@ describe(`intenção por LLM (${LIVE ? 'live' : 'sem execução'})`, () => {
           `  saídas inválidas:                  ${invalid}`,
         ]
         process.stdout.write(lines.join('\n') + '\n')
+        // Relatório para o resumo do job do GitHub (workflow eval-intent).
+        mkdirSync('.eval', { recursive: true })
+        writeFileSync('.eval/intent-llm.md', ['### Intenção por LLM (DEC-202)', '', '```', ...lines.slice(1), '```', ''].join('\n'))
         expect(spent).toBeLessThanOrEqual(CEILING_USD + 0.5)
       } finally {
         s.close()
