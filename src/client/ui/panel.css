@@ -1313,8 +1313,15 @@ button.panel-auth-inline-link {
   width: 100%;
 }
 
-/* Cadastro transparente: flush só no ecrã /entrar — não no UserProfile modal. */
-.panel-auth .panel-clerk-card {
+/*
+ * Cadastro transparente: flush só no ecrã /entrar — não no UserProfile modal.
+ * Especificidade acima de `.cl-card.panel-clerk-profile-card`: o Clerk concatena
+ * classes do Provider com as do SignIn; sem isto o cartão opaco do perfil
+ * (padding 0 do elevation flush) faz o «Continuar» cortar a borda inferior.
+ */
+.panel-auth .panel-clerk-card,
+.panel-auth .cl-card.panel-clerk-card,
+.panel-auth .cl-card.panel-clerk-profile-card {
   box-shadow: none !important;
   border: none !important;
   background: transparent !important;

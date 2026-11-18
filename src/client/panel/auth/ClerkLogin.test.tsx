@@ -163,12 +163,19 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
   })
 
   it('aparência flush/transparente no SignIn (cadastro transparente no SignUp é form próprio)', async () => {
-    const { clerkAppearance, clerkAuthAppearance, clerkUserProfileAppearance } =
-      await import('./clerkAppearance')
+    const {
+      clerkAppearance,
+      clerkAuthAppearance,
+      clerkProviderAppearance,
+      clerkUserProfileAppearance,
+    } = await import('./clerkAppearance')
     expect(clerkAppearance).toBe(clerkAuthAppearance)
     expect(clerkAuthAppearance.options.elevation).toBe('flush')
     expect(clerkAuthAppearance.options.logoPlacement).toBe('none')
     expect(clerkAuthAppearance.variables.colorBackground).toBe('transparent')
+    // Provider sem card de perfil — evita merge opaco+flush no SignIn.
+    expect('card' in clerkProviderAppearance.elements).toBe(false)
+    expect('rootBox' in clerkProviderAppearance.elements).toBe(false)
     // Conta / Dados pessoais: sem flush nem fundo transparente (não colide com Clínica).
     expect('elevation' in clerkUserProfileAppearance.options).toBe(false)
     expect(clerkUserProfileAppearance.variables.colorBackground).toBe(

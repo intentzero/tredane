@@ -2,12 +2,14 @@
  * Aparência Clerk (SignIn / UserProfile; OTP no SignIn).
  * Cores/fonte alinhadas aos tokens do painel (DEC-041 / DEC-050 / DEC-073).
  *
- * Dois perfis (regressão Conta após #686):
- * - `clerkAuthAppearance` — `/entrar` flush + transparente (cadastro transparente /
- *   Legal Layer). Só no `<SignIn />`.
+ * Três perfis (regressão Conta após #686; regressão Continuar no cartão após #702):
+ * - `clerkProviderAppearance` — default do ClerkProvider: variáveis partilhadas e
+ *   chrome do modal, **sem** `card`/`rootBox`. O Clerk concatena classes do
+ *   Provider com as do componente; se o Provider trouxer `panel-clerk-profile-card`,
+ *   o SignIn herda cartão opaco com padding 0 (flush) e o «Continuar» corta a borda.
+ * - `clerkAuthAppearance` — `/entrar` flush + transparente. Só no `<SignIn />`.
  * - `clerkUserProfileAppearance` — modal «Dados pessoais» (Perfil / Segurança)
- *   com cartão opaco e elevação; sem flush. Usado no ClerkProvider e em
- *   `openUserProfile`, para não empilhar o perfil por cima dos cartões da Clínica.
+ *   com cartão opaco e elevação; sem flush. Só em `openUserProfile`.
  *
  * «Cadastro transparente» (paridade Legal Layer / DEC-021):
  * - `/cadastro` usa formulário React Aria + `useSignUp` (sem `<SignUp />` vazio)
@@ -68,11 +70,10 @@ export const clerkAuthAppearance = {
 } as const
 
 /**
- * Modal «Dados pessoais» + default do ClerkProvider.
- * Elevação normal e fundo de cartão — evita o UserProfile transparente
- * a colidir com Profissionais / Serviços / Salas na Clínica.
+ * Default do ClerkProvider: tokens + chrome do modal, sem classes de cartão.
+ * SignIn e UserProfile aplicam o respectivo `card`/`rootBox` no sítio certo.
  */
-export const clerkUserProfileAppearance = {
+export const clerkProviderAppearance = {
   options: {
     logoPlacement: 'none' as const,
     unsafe_disableDevelopmentModeWarnings: true,
@@ -83,10 +84,22 @@ export const clerkUserProfileAppearance = {
   },
   elements: {
     ...clerkSharedElements,
-    rootBox: 'panel-clerk-profile-root',
-    card: 'panel-clerk-profile-card',
     modalBackdrop: 'panel-clerk-profile-backdrop',
     modalContent: 'panel-clerk-profile-modal',
+  },
+} as const
+
+/**
+ * Modal «Dados pessoais» (`openUserProfile`).
+ * Elevação normal e fundo de cartão — evita o UserProfile transparente
+ * a colidir com Profissionais / Serviços / Salas na Clínica.
+ */
+export const clerkUserProfileAppearance = {
+  ...clerkProviderAppearance,
+  elements: {
+    ...clerkProviderAppearance.elements,
+    rootBox: 'panel-clerk-profile-root',
+    card: 'panel-clerk-profile-card',
   },
 } as const
 
