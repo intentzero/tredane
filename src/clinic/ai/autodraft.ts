@@ -33,7 +33,12 @@ import {
   clientWebRouteBody,
   countRecentWebLinks,
 } from '../../clientweb/offer'
-import { isGreetingOnly, routeToClientWeb } from '../../clientweb/route-intent'
+import {
+  isCancelRequest,
+  isGreetingOnly,
+  isRescheduleRequest,
+  routeToClientWeb,
+} from '../../clientweb/route-intent'
 import { clientWebLinkFieldsFromText } from '../../clientweb/route-context'
 import {
   clinicTodayOpenState,
@@ -800,25 +805,59 @@ export async function runDueAutoDrafts(
       let sentOk = false
       let reasonOut = reasonLabel
       const paused = deps.autoBookPaused === true || overLimit
-      if (route.purpose === 'home' && paused && bodyOverride) {
-        // Cumprimento com a pausa da owner: só a abertura, sem link.
-        try {
-          const sent = sendOutboundMessageOp(
-            db,
-            caller,
-            {
+      if (route.purpose === 'home' && bodyOverride) {
+        if (!paused && deps.prepareClientWebOffer) {
+          try {
+            const offered = await deps.prepareClientWebOffer({
+              tenantId,
               conversationId: job.conversationId,
-              body: bodyOverride,
-              clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            },
-            clock,
-          )
-          replyOutbox = sent.outbox
-          sentOk = true
-        } catch (err) {
-          if (!(err instanceof ClinicError)) throw err
+              purpose: 'home',
+              appointmentId: null,
+              serviceId: null,
+              audienceLine: null,
+              variantIds: [],
+            })
+            if (offered) {
+              const sent = sendOutboundMessageOp(
+                db,
+                caller,
+                {
+                  conversationId: job.conversationId,
+                  body: bodyOverride,
+                  interactive: offered,
+                  clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
+                },
+                clock,
+              )
+              replyOutbox = sent.outbox
+              sentOk = true
+            }
+          } catch {
+            /* cai no cumprimento só texto */
+          }
+        }
+        if (!sentOk) {
+          // Sem link (página off, base http, laboratório): cumprimento determinístico, sem handoff.
+          try {
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body: bodyOverride,
+                clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            replyOutbox = sent.outbox
+            sentOk = true
+          } catch (err) {
+            if (!(err instanceof ClinicError)) throw err
+          }
         }
       } else if (!paused && deps.prepareClientWebOffer) {
         let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
@@ -1125,6 +1164,40 @@ export async function runDueAutoDrafts(
       })
       continue
     }
+    // DEC-202 (P24): cumprimento, remarcar e cancelar próprios — antes do handoff léxico.
+  {
+    let earlyRoute:
+      | { purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'; serviceId: null; noUpcoming: boolean }
+      | null = null
+    if (isGreetingOnly(turnText)) {
+      earlyRoute = { purpose: 'home', serviceId: null, noUpcoming: false }
+    } else if (isCancelRequest(turnText)) {
+      earlyRoute = hasUpcoming
+        ? { purpose: 'cancelar', serviceId: null, noUpcoming: false }
+        : { purpose: 'agendar', serviceId: null, noUpcoming: true }
+    } else if (isRescheduleRequest(turnText)) {
+      earlyRoute = hasUpcoming
+        ? { purpose: 'remarcar', serviceId: null, noUpcoming: false }
+        : { purpose: 'agendar', serviceId: null, noUpcoming: true }
+    }
+    if (earlyRoute) {
+      const greeting = earlyRoute.purpose === 'home'
+      const hubBody = greeting
+        ? hubOpeningBody(deps.clinicName, clinicTodayOpenState(db, tenantId, clock))
+        : undefined
+      const bodyOverride = hubBody
+        ? deps.autoBookPaused === true
+          ? hubBody
+          : clientWebOfferBody(hubBody)
+        : undefined
+      await sendWebRoute(
+        earlyRoute,
+        greeting ? 'hub_opening' : `web_${earlyRoute.purpose}_link`,
+        bodyOverride,
+      )
+      continue
+    }
+  }
     const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {
       await signalTyping()
@@ -1277,28 +1350,16 @@ export async function runDueAutoDrafts(
       record({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_consult', replyOutbox })
       continue
     }
-    // DEC-202: cumprimento, pedido de marcar, remarcar, cancelar ou de vaga → link «Abrir agenda»
-    // (ou equipe). Léxico puro; o LLM nunca oferece horas nem monta propostas.
+    // DEC-202: pedido de marcar ou de vaga → link (depois de «meus agendamentos» e handoff).
     {
-      const greeting = isGreetingOnly(turnText)
-      const route = greeting
-        ? ({ purpose: 'home', serviceId: null, noUpcoming: false } as const)
-        : routeToClientWeb({ text: turnText, services: turn.catalog.services, hasUpcoming })
+      const route = routeToClientWeb({ text: turnText, services: turn.catalog.services, hasUpcoming })
       if (route) {
         const linkFields =
           route.purpose === 'agendar' && route.serviceId
             ? clientWebLinkFieldsFromText(turnText, route.serviceId, turn.catalog.services)
             : { audienceLine: null, variantIds: [] as string[] }
-        const hubBody = greeting
-          ? hubOpeningBody(deps.clinicName, clinicTodayOpenState(db, tenantId, clock))
-          : undefined
-        let bodyOverride = hubBody
-          ? deps.autoBookPaused === true
-            ? hubBody
-            : clientWebOfferBody(hubBody)
-          : undefined
-        // Turno misto (DEC-202, 18/11/2026): responde à informação e junta o link na mesma mensagem.
-        if (!greeting && 'mixed' in route && route.mixed && deps.autoBookPaused !== true) {
+        let bodyOverride: string | undefined
+        if ('mixed' in route && route.mixed && deps.autoBookPaused !== true) {
           const serviceName = route.serviceId
             ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
             : null
@@ -1306,7 +1367,6 @@ export async function runDueAutoDrafts(
             conversationId: job.conversationId,
             turn,
           })
-          // Nome só por prefixo («limpeza de pele»): o serviço já foi resolvido, repete o preço com o nome inteiro.
           if (!answer && serviceName && /quanto|valor|pre[cç]o|custa/i.test(turnText)) {
             answer = catalogReply(db, tenantId, `Quanto custa ${serviceName}?`, clock, {
               conversationId: job.conversationId,
@@ -1314,18 +1374,16 @@ export async function runDueAutoDrafts(
             })
           }
           if (answer) {
-            // O link já convida a escolher o horário: tira a pergunta «Quer ver horários?» do preço.
             answer = answer
               .replace(/\s*(Quer (que eu )?ver horários\?|Posso te mostrar horários\?)\s*$/i, '')
               .trim()
             const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName })}`
-            // O corpo do botão de URL da Meta tem 1024 caracteres: acima disso fica só o link.
             if (combined.length <= 1000) bodyOverride = combined
           }
         }
         await sendWebRoute(
           { ...route, ...linkFields },
-          greeting ? 'hub_opening' : `web_${route.purpose}_link`,
+          `web_${route.purpose}_link`,
           bodyOverride,
         )
         continue

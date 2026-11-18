@@ -276,7 +276,6 @@ export function wantsHumanPause(hits: SensitiveHit[]): boolean {
       h.label === 'pedir_parar' ||
       h.label === 'saude' ||
       h.label === 'terceiro' ||
-      h.label === 'cancelar' ||
       h.label === 'ofensa' ||
       (h.label === 'injecao' && h.injectionStrength === 'forte'),
   )

@@ -134,7 +134,7 @@ describe('classifySensitive (#409)', () => {
       id: 'G-06',
       text: 'Quero cancelar meu horário',
       labels: ['cancelar'],
-      pause: true,
+      pause: false,
     },
     // CF-18 / H-01, H-02, H-03
     {
