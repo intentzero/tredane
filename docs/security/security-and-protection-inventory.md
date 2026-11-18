@@ -33,7 +33,7 @@
 | Onde | `src/auth/middleware.ts:42` (`requireAuth`), `:55` (`requireSuperadmin`), `:72` (`requireTenantAccess`); `src/auth/authorize.ts:102` (`requireClinicPermission`); `src/auth/superadmin.ts:38`; um Durable Object por clínica: `src/worker/app.ts:318` (`idFromName(tenantId)`), `src/worker/clinic-do.ts:187-190` (recusa DO sem nome estável ou com `tenantId` diferente), `:1128`, `:1248`; `src/clinic/tenant.ts:58` |
 | Decisão | ADR 0006 (Clerk), 0010 (MFA por papel), 0012 (DO com SQLite); DEC-043 (Clerk no piloto) |
 | Testes | `src/auth/auth.test.ts`, `src/auth/http.test.ts`, `src/clinic/clinic.test.ts`, `src/realtime/ticket.test.ts`, `src/security/hardening.test.ts`, `src/worker/runtime.harness.test.ts` |
-| Limites | Modo `synthetic` (`Bearer synth:<id>`, `src/auth/synthetic.ts:8`) só em development; rotas de harness devolvem 404 fora de dev (`src/security/env-gate.ts`). Produção sem `CLERK_PUBLISHABLE_KEY`/`CLERK_AUTHORIZED_PARTIES` (DEPLOY.md §5). |
+| Limites | Modo `synthetic` (`Bearer synth:<id>`, `src/auth/synthetic.ts:8`) só em development; rotas de harness devolvem 404 fora de dev (`src/security/env-gate.ts`). Produção tem as vars públicas Clerk em `env.production`; o secret `CLERK_SECRET_KEY` continua fora do git (DEPLOY.md §5). |
 
 ### 2. Bloqueio de contato (só interno, com aviso de Pix)
 

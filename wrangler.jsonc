@@ -263,8 +263,9 @@
       "vars": {
         "ENVIRONMENT": "production",
         "AUTH_MODE": "clerk",
-        // Publishable key de produção ainda não está aqui: é a chave pública da instância Clerk
-        // de produção (Dashboard → API keys). Não copiar o pk_test_ de staging.
+        // Publishable key é pública por desenho (instância Clerk de produção). Paulo, 18/11/2026.
+        "CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudHJlZGFuZS5jb20k",
+        "CLERK_AUTHORIZED_PARTIES": "https://app.tredane.com",
         // Só activar EMAIL_TRANSPORT=cloudflare após smoke staging + domínio onboarded.
         "APP_BASE_URL": "https://app.tredane.com",
         "EMAIL_TRANSPORT": "cloudflare",

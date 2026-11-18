@@ -129,7 +129,7 @@ Primeiro deploy de um Worker que ainda não existe requer Workers Scripts Edit a
 
 `scripts/check-env-placeholders.mjs production` recusa o deploy enquanto faltar:
 
-- `CLERK_PUBLISHABLE_KEY` e `CLERK_AUTHORIZED_PARTIES` em `env.production.vars` (chave pública da instância Clerk de produção; não copiar o `pk_test_` de staging);
+- `CLERK_PUBLISHABLE_KEY` e `CLERK_AUTHORIZED_PARTIES` já estão em `env.production.vars` (chave pública; Paulo, 18/11/2026);
 - secrets do Worker `tredane-dev-production`: `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY`, e com `META_MODE=live` também `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_TOKEN_SECRET`. Nenhum valor entra no git.
 
 Provisionado em 18/11/2026 na conta acima (Paulo: instância de produção em live): D1 `tredane-production` (`0fe695bb-f5bb-4bfa-b764-0a449a8a979a`), R2 `tredane-attachments-production`, filas `tredane-inbound-production`, `tredane-inbound-dlq-production`, `tredane-llm-production`, `tredane-llm-dlq-production`. `META_MODE=live`, `META_APP_ID` e `META_CONFIG_ID` estão em `env.production` (ids públicos, os mesmos do app de staging). A rota `app.tredane.com` entra no deploy. O Worker `tredane-dev-production` ainda não existe: o `check:env` pára nas chaves Clerk.
