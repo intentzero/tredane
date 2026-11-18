@@ -20,8 +20,10 @@
  *
  * OTP no SignIn (factor-one): Clerk aplica opacidade baixa a `colorBorder`. Com
  * `--color-line-border` (#D6E6DE) as 6 casas ficam quase invisíveis —
- * `otpCodeFieldInput` usa a borda de controlo (3:1, DEC-041) e o anel teal;
- * `otpCodeFieldInputs` evita overflow horizontal no mobile (flush).
+ * `otpCodeFieldInput` usa a borda de controlo (3:1, DEC-041) e o anel teal.
+ * Cada casa é um segmento (div) com lado explícito em `.panel-clerk-otp-input`.
+ * Não usar `width: auto` nem `flex-basis: 0`: o contentor input-otp encolhe ao
+ * conteúdo e as casas colapsam em barras.
  *
  * Access mode Invite-only: o create via API falha; `ClerkSignUp` mostra erro
  * «Cadastro indisponível» no formulário (não página morta). Paulo: Access → Open.

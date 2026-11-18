@@ -1366,19 +1366,23 @@ button.panel-auth-inline-link {
 }
 
 /*
- * OTP factor-one no /entrar (M-09 flush): fila das 6 casas cabe na largura mobile
- * sem estourar nem colar nas bordas do cartão fantasma do Clerk.
+ * OTP factor-one no /entrar (M-09 flush). O Clerk desenha cada dígito num
+ * segmento (div.cl-otpCodeFieldInput), não num <input>, dentro de um contentor
+ * input-otp que encolhe ao conteúdo. `width: auto` + `flex: 1 1 0` + `min-width: 0`
+ * anulavam a largura do segmento e só restava a borda — as barras verticais.
+ * Lado explícito: controlLg no desktop (DEC-081) e no máximo o alvo de toque
+ * (DEC-168), para 6 casas + intervalo caberem em 360 px com o padding do ecrã.
  */
 .panel-auth .panel-clerk-otp-inputs,
 .panel-auth .cl-otpCodeFieldInputs {
   display: flex !important;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: var(--space-2);
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--space-2) !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin-inline: auto !important;
   box-sizing: border-box;
 }
 
@@ -1387,12 +1391,14 @@ button.panel-auth-inline-link {
 .panel-auth .cl-otpCodeFieldInput.panel-clerk-otp-input,
 .panel-clerk-otp-input,
 .cl-otpCodeFieldInput.panel-clerk-otp-input {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 3rem;
-  width: auto !important;
-  height: var(--size-control-lg) !important;
-  min-height: var(--size-control-default);
+  --panel-otp-digit: min(var(--size-control-lg), var(--size-touch));
+  flex: 0 0 var(--panel-otp-digit) !important;
+  width: var(--panel-otp-digit) !important;
+  min-width: var(--panel-otp-digit) !important;
+  max-width: var(--panel-otp-digit) !important;
+  height: var(--panel-otp-digit) !important;
+  min-height: var(--panel-otp-digit) !important;
+  padding: 0 !important;
   box-sizing: border-box;
   border: var(--size-border-width) solid var(--color-line-control) !important;
   background: var(--color-surface-card) !important;
@@ -1400,6 +1406,7 @@ button.panel-auth-inline-link {
   border-radius: var(--radius-md) !important;
   box-shadow: none !important;
   font-size: var(--font-size-display) !important;
+  line-height: 1 !important;
   text-align: center;
 }
 
