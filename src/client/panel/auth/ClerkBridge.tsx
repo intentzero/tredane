@@ -3,7 +3,10 @@ import { ptBR } from '@clerk/localizations'
 import { AccountMenu } from '../shell/AccountMenu'
 import { useEffect, type ReactNode } from 'react'
 import { useAuthSession, useClientConfig } from './AuthContext'
-import { clerkUserProfileAppearance } from './clerkAppearance'
+import {
+  clerkProviderAppearance,
+  clerkUserProfileAppearance,
+} from './clerkAppearance'
 import { ClerkLogin } from './ClerkLogin'
 import { ClerkSignUp } from './ClerkSignUp'
 import { SyntheticLogin } from './SyntheticLogin'
@@ -61,7 +64,7 @@ export function AuthModeGate({ children }: { children: ReactNode }) {
         publishableKey={pk}
         afterSignOutUrl="/entrar"
         localization={ptBR}
-        appearance={clerkUserProfileAppearance}
+        appearance={clerkProviderAppearance}
       >
         <ClerkSessionBridge>{children}</ClerkSessionBridge>
       </ClerkProvider>

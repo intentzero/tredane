@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clerkAppearance,
   clerkAuthAppearance,
+  clerkProviderAppearance,
   clerkUserProfileAppearance,
 } from './clerkAppearance'
 
@@ -11,6 +12,22 @@ describe('clerkAppearance', () => {
     expect(clerkAuthAppearance.options.elevation).toBe('flush')
     expect(clerkAuthAppearance.variables.colorBackground).toBe('transparent')
     expect(clerkAuthAppearance.elements.card).toBe('panel-clerk-card')
+    expect(clerkAuthAppearance.elements.otpCodeFieldInputs).toBe('panel-clerk-otp-inputs')
+    expect(clerkAuthAppearance.elements.otpCodeFieldInput).toBe('panel-clerk-otp-input')
+  })
+
+  it('ClerkProvider não carimba card/rootBox de perfil (evita merge no SignIn)', () => {
+    expect('card' in clerkProviderAppearance.elements).toBe(false)
+    expect('rootBox' in clerkProviderAppearance.elements).toBe(false)
+    expect(clerkProviderAppearance.elements.modalBackdrop).toBe(
+      'panel-clerk-profile-backdrop',
+    )
+    expect(clerkProviderAppearance.elements.modalContent).toBe(
+      'panel-clerk-profile-modal',
+    )
+    expect(clerkProviderAppearance.variables.colorBackground).toBe(
+      'var(--color-surface-card)',
+    )
   })
 
   it('UserProfile / Conta usa cartão opaco sem elevation flush', () => {
