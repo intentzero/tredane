@@ -10,6 +10,7 @@
  * não são pedido de marcar, mesmo com o nome do serviço: seguem para o catálogo e a FAQ.
  */
 import { CANCEL_RE, RESCHEDULE_RE } from '../clinic/ai/nlu/sensitive'
+import { serviceNameHit } from '../clinic/ai/booking-object'
 
 export type ClientWebRoutePurpose = 'agendar' | 'remarcar' | 'cancelar'
 
@@ -136,9 +137,13 @@ function textCitesNamePrefix(text: string, name: string): boolean {
  */
 export function servicesCitedInText(services: readonly RouteServiceHint[], text: string): RouteServiceHint[] {
   const active = services.filter((s) => s.active)
-  const byService = active.filter(
-    (s) => textCitesTerm(text, s.name) || (s.synonyms ?? []).some((syn) => textCitesTerm(text, syn)),
-  )
+  // Mesmo reconhecedor da resposta de informação (nome, sinónimo, erro de escrita de uma letra),
+  // para o link e o preço não divergirem sobre o serviço citado.
+  const byService = active.filter((s) => {
+    if (textCitesTerm(text, s.name) || (s.synonyms ?? []).some((syn) => textCitesTerm(text, syn))) return true
+    const hit = serviceNameHit(text, s.name, s.synonyms)
+    return hit === 'exact' || hit === 'fuzzy'
+  })
   if (byService.length > 0) return dropContainedNames(byService)
   const byPrefix = active.filter((s) => textCitesNamePrefix(text, s.name))
   if (byPrefix.length === 1) return byPrefix
