@@ -28,6 +28,27 @@ export function zonesForLine(service: CatalogService, line: Line | null): Catalo
   return service.zones.filter((z) => !line || z.audience === 'ambos' || z.audience === line)
 }
 
+/** Serviço com variantes femininas e masculinas ao mesmo tempo, ou audiência fixa. */
+export function serviceNeedsLine(service: CatalogService): boolean {
+  return service.audience !== 'qualquer' || service.zones.some((z) => z.audience !== 'ambos')
+}
+
+/** Cruza o preset do link com o catálogo servido; ignora o que não casa. */
+export function resolveBookingPreset(
+  catalog: Catalog,
+  raw: { serviceId: string | null; audienceLine: Line | null; variantIds: string[] },
+): { service: CatalogService | null; line: Line | null; variantIds: string[] } {
+  const service = raw.serviceId ? catalog.services.find((s) => s.id === raw.serviceId) : undefined
+  if (!service) return { service: null, line: null, variantIds: [] }
+  const needsLine = serviceNeedsLine(service)
+  let line = raw.audienceLine
+  if (line && !needsLine) line = null
+  if (line && service.audience !== 'qualquer' && service.audience !== line) line = null
+  const allowed = new Set(zonesForLine(service, line).map((z) => z.id))
+  const variantIds = raw.variantIds.filter((id) => allowed.has(id))
+  return { service, line, variantIds }
+}
+
 /** Soma duração e preço das zonas escolhidas (sem zonas, o do serviço). */
 export function visitTotals(service: CatalogService, zoneIds: string[]): { minutes: number; priceCents: number | null } {
   if (service.zones.length === 0) return { minutes: service.durationMinutes, priceCents: service.priceCents }

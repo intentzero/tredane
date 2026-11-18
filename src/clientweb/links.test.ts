@@ -140,9 +140,31 @@ describe('link pessoal e sessão (DEC-199)', () => {
       expect(await exchangeClientWebLink(d1, clock, withService.token)).toMatchObject({
         purpose: 'agendar',
         serviceId: 'svc-massagem',
+        audienceLine: null,
+        variantIds: [],
       })
       const plain = await issueClientWebLink(d1, clock, { ...LINK, conversationId: 'cnv-9' })
       expect(await exchangeClientWebLink(d1, clock, plain.token)).toMatchObject({ serviceId: null })
+    } finally {
+      close()
+    }
+  })
+
+  it('linha e zonas do chat viajam no link e saem na troca (DEC-202, D-20261118-084800-CUR)', async () => {
+    const { d1, clock, close } = setup()
+    try {
+      const rich = await issueClientWebLink(d1, clock, {
+        ...LINK,
+        purpose: 'agendar',
+        serviceId: 'svc-laser',
+        audienceLine: 'masculino',
+        variantIds: ['z-ba', 'z-inválida'],
+      })
+      expect(await exchangeClientWebLink(d1, clock, rich.token)).toMatchObject({
+        serviceId: 'svc-laser',
+        audienceLine: 'masculino',
+        variantIds: ['z-ba', 'z-inválida'],
+      })
     } finally {
       close()
     }

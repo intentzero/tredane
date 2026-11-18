@@ -8,7 +8,16 @@ import {
   type Line,
   type Slot,
 } from './api'
-import { catalogNeedsLine, civilDayLabel, formatPrice, servicesForLine, visitTotals, zonesForLine } from './booking-model'
+import {
+  catalogNeedsLine,
+  civilDayLabel,
+  formatPrice,
+  resolveBookingPreset,
+  serviceNeedsLine,
+  servicesForLine,
+  visitTotals,
+  zonesForLine,
+} from './booking-model'
 import { TimeStep } from './TimeStep'
 import { Highlight } from './Highlight'
 import { searchCatalog, filterZones } from './search-model'
@@ -20,11 +29,22 @@ type Props = {
   clinicName: string
   /** Serviço reconhecido no chat (DEC-202): a página abre nele, se estiver ativo. */
   initialServiceId?: string | null
+  /** Linha já dita no chat (DEC-200(3) Proposto). */
+  initialAudienceLine?: Line | null
+  /** Zonas já ditas no chat. */
+  initialVariantIds?: string[]
   onExit: () => void
   onSessionLost: () => void
 }
 
-export function BookFlow({ clinicName, initialServiceId = null, onExit, onSessionLost }: Props) {
+export function BookFlow({
+  clinicName,
+  initialServiceId = null,
+  initialAudienceLine = null,
+  initialVariantIds = [],
+  onExit,
+  onSessionLost,
+}: Props) {
   const [catalog, setCatalog] = useState<Catalog | 'loading' | 'error'>('loading')
   const [line, setLine] = useState<Line | null>(null)
   const [step, setStep] = useState<Step>('service')
@@ -44,19 +64,51 @@ export function BookFlow({ clinicName, initialServiceId = null, onExit, onSessio
       if (res === 'error') return setCatalog('error')
       setCatalog(res)
       setWeekStart(res.today)
-      const preset = initialServiceId ? res.services.find((s) => s.id === initialServiceId) : undefined
-      if (preset && preset.audience === 'qualquer' && preset.zones.every((z) => z.audience === 'ambos')) {
-        // Serviço que não depende de género: salta a lista (zonas, se houver, ou horário).
-        setService(preset)
-        setStep(preset.zones.length > 0 ? 'zones' : 'time')
-        return
+      const preset = resolveBookingPreset(res, {
+        serviceId: initialServiceId,
+        audienceLine: initialAudienceLine,
+        variantIds: initialVariantIds,
+      })
+      const svc = preset.service
+      if (svc) {
+        const readyZones =
+          svc.zones.length > 0 &&
+          preset.variantIds.length > 0 &&
+          (svc.variantSelection !== 'uma' || preset.variantIds.length === 1)
+        if (svc.audience === 'qualquer' && svc.zones.every((z) => z.audience === 'ambos') && !preset.line) {
+          setService(svc)
+          if (svc.zones.length === 0) setStep('time')
+          else if (readyZones) {
+            setZoneIds(preset.variantIds)
+            setStep('time')
+          } else setStep('zones')
+          return
+        }
+        if (preset.line && serviceNeedsLine(svc)) {
+          setLine(preset.line)
+          setService(svc)
+          if (svc.zones.length === 0) setStep('time')
+          else if (readyZones) {
+            setZoneIds(preset.variantIds)
+            setStep('time')
+          } else {
+            if (preset.variantIds.length > 0) setZoneIds(preset.variantIds)
+            setStep('zones')
+          }
+          return
+        }
+        if (svc.audience === 'qualquer' && svc.zones.every((z) => z.audience === 'ambos')) {
+          setService(svc)
+          setStep(svc.zones.length > 0 ? 'zones' : 'time')
+          return
+        }
       }
       setStep(catalogNeedsLine(res) ? 'line' : 'service')
     })
     return () => {
       cancelled = true
     }
-  }, [onSessionLost, initialServiceId])
+  }, [onSessionLost, initialServiceId, initialAudienceLine, initialVariantIds])
 
   if (catalog === 'loading') {
     return (

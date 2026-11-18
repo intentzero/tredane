@@ -77,6 +77,10 @@ export type PrepareClientWebOfferInput = {
   appointmentId?: string | null
   /** Serviço reconhecido no texto (DEC-202(4)): a página abre nele. */
   serviceId?: string | null
+  /** Linha já dita no chat (DEC-200(3) Proposto). */
+  audienceLine?: 'feminino' | 'masculino' | null
+  /** Zonas já ditas no chat. */
+  variantIds?: string[]
 }
 
 /**

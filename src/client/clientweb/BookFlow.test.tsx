@@ -97,6 +97,25 @@ describe('agendar pela página (C-02 a C-06)', () => {
     expect(await screen.findByRole('heading', { name: 'Para quem é?' })).toBeTruthy()
   })
 
+  it('CW-11: link com serviço e linha masculina abre no serviço certo sem «Para quem é?»', async () => {
+    mockApi({
+      exchange: {
+        ok: true,
+        purpose: 'agendar',
+        appointmentId: null,
+        serviceId: 'svc-laser',
+        audienceLine: 'masculino',
+        variantIds: [],
+      },
+    })
+    render(<ClientWebApp />)
+    expect(await screen.findByRole('heading', { name: 'Que zonas?' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Para quem é?' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Qual serviço?' })).toBeNull()
+    expect(screen.getByText('Barba')).toBeTruthy()
+    expect(screen.queryByText('Axilas')).toBeNull()
+  })
+
   it('serviço do chat que já não existe no catálogo abre a escolha de serviço', async () => {
     mockApi({ exchange: { ok: true, purpose: 'agendar', appointmentId: null, serviceId: 'svc-removido' } })
     render(<ClientWebApp />)
