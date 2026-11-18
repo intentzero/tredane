@@ -118,6 +118,18 @@ export function textCitesTerm(text: string, term: string): boolean {
 }
 
 /**
+ * «limpeza de pele» cita «Limpeza de pele profunda»: o texto traz o início do nome (pelo menos
+ * duas palavras e metade do nome). Só vale quando um único serviço bate (ver chamador).
+ */
+function textCitesNamePrefix(text: string, name: string): boolean {
+  const words = tokens(name)
+  for (let n = words.length - 1; n >= 2 && n * 2 >= words.length; n--) {
+    if (textCitesTerm(text, words.slice(0, n).join(' '))) return true
+  }
+  return false
+}
+
+/**
  * Serviços ativos citados no texto, pelo nome, sinónimo, nome de variante ou sinónimo de variante.
  * O nome e o sinónimo do serviço ganham às variantes (uma zona com o mesmo nome em dois serviços
  * não deve impedir reconhecer o serviço nomeado).
@@ -128,6 +140,8 @@ export function servicesCitedInText(services: readonly RouteServiceHint[], text:
     (s) => textCitesTerm(text, s.name) || (s.synonyms ?? []).some((syn) => textCitesTerm(text, syn)),
   )
   if (byService.length > 0) return dropContainedNames(byService)
+  const byPrefix = active.filter((s) => textCitesNamePrefix(text, s.name))
+  if (byPrefix.length === 1) return byPrefix
   return active.filter((s) =>
     (s.zones ?? []).some(
       (z) =>

@@ -1299,14 +1299,25 @@ export async function runDueAutoDrafts(
           : undefined
         // Turno misto (DEC-202, 18/11/2026): responde à informação e junta o link na mesma mensagem.
         if (!greeting && 'mixed' in route && route.mixed && deps.autoBookPaused !== true) {
-          const answer = catalogReply(db, tenantId, turnText, clock, {
+          const serviceName = route.serviceId
+            ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
+            : null
+          let answer = catalogReply(db, tenantId, turnText, clock, {
             conversationId: job.conversationId,
             turn,
           })
+          // Nome só por prefixo («limpeza de pele»): o serviço já foi resolvido, repete o preço com o nome inteiro.
+          if (!answer && serviceName && /quanto|valor|pre[cç]o|custa/i.test(turnText)) {
+            answer = catalogReply(db, tenantId, `Quanto custa ${serviceName}?`, clock, {
+              conversationId: job.conversationId,
+              turn,
+            })
+          }
           if (answer) {
-            const serviceName = route.serviceId
-              ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
-              : null
+            // O link já convida a escolher o horário: tira a pergunta «Quer ver horários?» do preço.
+            answer = answer
+              .replace(/\s*(Quer (que eu )?ver horários\?|Posso te mostrar horários\?)\s*$/i, '')
+              .trim()
             const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName })}`
             // O corpo do botão de URL da Meta tem 1024 caracteres: acima disso fica só o link.
             if (combined.length <= 1000) bodyOverride = combined

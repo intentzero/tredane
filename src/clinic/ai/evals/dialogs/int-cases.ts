@@ -64,6 +64,7 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       clientWebOffers: 1,
       clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Limpeza de pele' }],
       outboundCount: 1,
+      outboundExcludes: [/Quer ver hor[aá]rios/i],
     },
   },
   {
