@@ -19,7 +19,14 @@ import {
   getAutoDraftJob,
 } from './autodraft'
 import { sendOutboundMessageOp } from '../inbox/operations'
-import { humanTeamOfferButtons } from './human-handoff'
+import { humanTeamOfferButtons, notifyHumanHandoff } from './human-handoff'
+import { intentLinkPurpose } from '../../ai/intent-classifier'
+import {
+  CLIENT_WEB_LINKS_PER_CONVERSATION,
+  clientWebRouteBody,
+  countRecentWebLinks,
+} from '../../clientweb/offer'
+import { loadUpcomingAppointments } from './upcoming'
 import {
   claimLlmJobOp,
   getLlmJob,
@@ -325,5 +332,124 @@ export function failLlmJobOp(
     outbox,
     resumeAutodraft: false,
     reason: input.errorCode,
+  }
+}
+
+/**
+ * P4 (Proposto, só staging): o classificador LLM reconheceu um pedido de agenda que o léxico
+ * deixou passar. Envia o link «Abrir agenda» com a frase fixa em vez da resposta do redator; com a
+ * pausa da owner, sem link possível ou acima do limite, passa à equipe. A classe e a confiança
+ * ficam no resultado do job (origem = LLM).
+ */
+export async function applyIntentLinkOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+  deps: AiAssistDeps,
+  input: ApplyLlmResultInput,
+): Promise<ApplyLlmResultOutcome> {
+  const tenantId = caller.tenantId
+  const job = getLlmJob(db, tenantId, input.jobId)
+  if (!job || job.idempotencyKey !== input.idempotencyKey) {
+    return { status: 'missing', job: null, outbox: [], resumeAutodraft: false }
+  }
+  if (job.state === 'done') return { status: 'done', job, outbox: [], resumeAutodraft: false }
+  if (job.state === 'failed' || job.state === 'stale') {
+    return { status: 'failed', job, outbox: [], resumeAutodraft: false, reason: job.errorCode ?? 'failed' }
+  }
+  if (!isAutodraftStillCurrent(db, tenantId, job.conversationId, job.messageId)) {
+    markLlmJobFailed(db, tenantId, { jobId: job.id, errorCode: 'stale_message' }, clock)
+    return { status: 'stale', job: getLlmJob(db, tenantId, job.id), outbox: [], resumeAutodraft: false, reason: 'stale_message' }
+  }
+  const snapshot = parseSnapshot<RedactSnapshot>(job)
+  const purpose = intentLinkPurpose(input.result.intent)
+  if (!snapshot || snapshot.purpose !== 'redact' || !purpose) {
+    markLlmJobFailed(db, tenantId, { jobId: job.id, errorCode: 'bad_snapshot' }, clock)
+    return { status: 'failed', job: getLlmJob(db, tenantId, job.id), outbox: [], resumeAutodraft: false, reason: 'bad_snapshot' }
+  }
+  recordModelCallTowardDailyCap(db, tenantId, clock)
+
+  const conv = db.get<{ contact_id: string }>(
+    'SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?',
+    tenantId,
+    job.conversationId,
+  )
+  const future = conv ? loadUpcomingAppointments(db, tenantId, conv.contact_id, clock.nowMs(), 2) : []
+  // Mesma regra do léxico (DEC-202): remarcar ou cancelar sem marcação futura abre em agendar.
+  const noUpcoming = (purpose === 'remarcar' || purpose === 'cancelar') && future.length === 0
+  const linkPurpose = noUpcoming ? 'agendar' : purpose
+  const overLimit =
+    countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) >= CLIENT_WEB_LINKS_PER_CONVERSATION
+  const paused = deps.autoBookPaused === true || overLimit
+
+  let offered: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
+  if (!paused && deps.prepareClientWebOffer) {
+    try {
+      offered = await deps.prepareClientWebOffer({
+        tenantId,
+        conversationId: job.conversationId,
+        purpose: linkPurpose,
+        appointmentId:
+          (linkPurpose === 'remarcar' || linkPurpose === 'cancelar') && future.length === 1
+            ? (future[0]?.id ?? null)
+            : null,
+        serviceId: null,
+        audienceLine: null,
+        variantIds: [],
+      })
+    } catch {
+      offered = null
+    }
+  }
+
+  markLlmJobDone(db, tenantId, { jobId: job.id, result: { ...input.result, intentOrigin: 'llm' } }, clock)
+  cancelAutoDraft(db, tenantId, job.conversationId)
+  console.info(
+    JSON.stringify({
+      level: 'info',
+      event: 'ai.intent_llm',
+      tenantId,
+      conversationId: job.conversationId,
+      origin: 'llm',
+      label: input.result.intent?.label,
+      confidence: input.result.intent?.confidence,
+      linkPurpose,
+      sent: Boolean(offered),
+    }),
+  )
+
+  if (offered) {
+    const sent = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId: job.conversationId,
+        body: clientWebRouteBody({ purpose: linkPurpose, serviceName: null, noUpcoming }),
+        interactive: offered,
+        clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
+        authorClerkUserId: AI_ACTOR_ID,
+        authorDisplayName: AI_ACTOR_NAME,
+      },
+      clock,
+    )
+    return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
+  }
+  const handoff = notifyHumanHandoff(
+    db,
+    tenantId,
+    {
+      conversationId: job.conversationId,
+      reason: 'human_only',
+      clientRequestId: `ai-web-handoff:${job.messageId}`,
+      inboundText: snapshot.question,
+    },
+    clock,
+  )
+  return {
+    status: 'applied',
+    job: getLlmJob(db, tenantId, job.id),
+    outbox: handoff.outbox,
+    resumeAutodraft: false,
+    reason: overLimit ? 'web_link_limit' : 'human_handoff',
   }
 }

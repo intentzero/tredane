@@ -24,6 +24,7 @@ import {
   type LlmQueueMessage,
 } from '../clinic/ai/llm-queue-types'
 import type { RedactModelResult, RedactSnapshot } from '../clinic/ai/llm-snapshot'
+import { classifyIntentWithLlm, intentLinkPurpose } from './intent-classifier'
 
 export type LlmProcessOutcome = 'ack' | { retryDelaySeconds: number }
 
@@ -86,6 +87,29 @@ async function callRedact(
       ...(env.AI_GATEWAY_BYOK_ALIAS ? { byokAlias: env.AI_GATEWAY_BYOK_ALIAS } : {}),
     },
   })
+  // P4 (Proposto, só staging): classifica a intenção antes de redigir. Um pedido de agenda que o
+  // léxico não apanhou segue para o link e dispensa o redator. Falha do classificador = segue o redator.
+  let intent: RedactModelResult['intent'] = null
+  if (snapshot.classify) {
+    try {
+      const c = await classifyIntentWithLlm(adapter, snapshot.question)
+      if (c.result) {
+        intent = {
+          label: c.result.label,
+          raw: c.result.raw,
+          confidence: c.result.confidence,
+          model: c.model,
+          inputTokens: c.inputTokens,
+          outputTokens: c.outputTokens,
+        }
+        if (intentLinkPurpose(c.result)) {
+          return { ok: true, text: '', model: c.model, inputTokens: c.inputTokens, outputTokens: c.outputTokens, latencyMs: null, intent }
+        }
+      }
+    } catch {
+      intent = null
+    }
+  }
   const userContent = buildExceptionUserContent({
     context: snapshot.context as AiContextPayload,
     question: snapshot.question,
@@ -115,6 +139,7 @@ async function callRedact(
       outputTokens: null,
       latencyMs: gen.latencyMs,
       code: gen.code,
+      intent,
     }
   }
   return {
@@ -124,6 +149,7 @@ async function callRedact(
     inputTokens: gen.inputTokens,
     outputTokens: gen.outputTokens,
     latencyMs: gen.latencyMs,
+    intent,
   }
 }
 
