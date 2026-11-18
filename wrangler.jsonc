@@ -251,13 +251,29 @@
       "observability": {
         "enabled": true
       },
+      // Domínio do painel (APP_BASE_URL já aponta para aqui). DNS na zona tredane.com, no deploy.
+      "routes": [
+        {
+          "pattern": "app.tredane.com",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "ENVIRONMENT": "production",
         "AUTH_MODE": "clerk",
+        // Publishable key de produção ainda não está aqui: é a chave pública da instância Clerk
+        // de produção (Dashboard → API keys). Não copiar o pk_test_ de staging.
         // Só activar EMAIL_TRANSPORT=cloudflare após smoke staging + domínio onboarded.
         "APP_BASE_URL": "https://app.tredane.com",
         "EMAIL_TRANSPORT": "cloudflare",
-        "EMAIL_FROM": "noreply@tredane.com"
+        "EMAIL_FROM": "noreply@tredane.com",
+        // Paulo, 18/11/2026: OK explícito para META_MODE=live na instância de produção.
+        // Mesmo app e a mesma config ES de staging (um app Meta, um webhook).
+        "META_MODE": "live",
+        // App ID Meta é público (não é segredo).
+        "META_APP_ID": "3651532788318487",
+        // Embedded Signup Configuration ID (não é segredo; Meta App Dashboard → ES Builder).
+        "META_CONFIG_ID": "1876604960374955"
       },
       "send_email": [
         {
@@ -279,7 +295,7 @@
         {
           "binding": "DB",
           "database_name": "tredane-production",
-          "database_id": "00000000-0000-4000-a000-0000000000ff",
+          "database_id": "0fe695bb-f5bb-4bfa-b764-0a449a8a979a",
           "migrations_dir": "db/migrations"
         }
       ],
