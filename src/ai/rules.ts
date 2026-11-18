@@ -17,6 +17,20 @@ const OFFENSIVE_RE = OFFENSE_RE
 const OFF_TOPIC_RE =
   /\b(bitcoin|criptomoeda|elei[cç][aã]o|candidato|apostas?\s+esport|pornograf|drogas?\s+il[ií]c)/i
 
+function explicitAudienceLine(text: string): 'feminino' | 'masculino' | null {
+  const fem = /\bfeminin[oa]\b/i.test(text)
+  const masc = /\bmasculin[oa]\b/i.test(text)
+  if (fem === masc) return null
+  return fem ? 'feminino' : 'masculino'
+}
+
+function zonesForAudienceLine<T extends { audience?: string | null }>(
+  zones: readonly T[],
+  line: 'feminino' | 'masculino',
+): T[] {
+  return zones.filter((zone) => zone.audience === line || zone.audience === 'ambos')
+}
+
 function lastInboundBody(messages: AiContextMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i]!.direction === 'inbound') return messages[i]!.body
@@ -74,8 +88,17 @@ export function analyzeContentRules(
       const named = s.zones.filter(
         (z) => z.name.trim().length >= 2 && last.toLowerCase().includes(z.name.trim().toLowerCase()),
       )
-      if (named.length === 0 || named.some((z) => z.priceCents == null) || variantAudiencesConflict(named)) {
-        if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
+      if (named.length > 0) {
+        if (named.some((z) => z.priceCents == null) || variantAudiencesConflict(named)) {
+          if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
+        }
+      } else {
+        const line = explicitAudienceLine(last)
+        const scoped = line ? zonesForAudienceLine(s.zones, line) : s.zones
+        const pool = scoped.length > 0 ? scoped : s.zones
+        if (pool.some((z) => z.priceCents == null)) {
+          if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
+        }
       }
     } else if (priceAsk && s.priceCents == null) {
       if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)

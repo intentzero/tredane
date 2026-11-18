@@ -33,8 +33,13 @@ import {
   isCatalogInfoAsk,
   isShortBookingAffirm,
 } from './booking-intent-text'
-import { sayAct } from './dialogue-acts'
-import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
+import { sayAct, serviceNameInProse } from './dialogue-acts'
+import {
+  audienceLineFromClientTexts,
+  citesServiceName,
+  claimsWholeCatalog,
+  zonesChosenInClientTexts,
+} from './schedule-choice'
 import {
   funnelMessageFilter,
   getBookingFrame,
@@ -67,6 +72,49 @@ const CLOCK =
   /(?:^|[^a-z0-9])(?:[aà]s\s+\d{1,2}(?:h(?:rs|s)?(?:\d{2})?)?|\d{1,2}[:h]\d{2}|\d{3,4})\b/i
 const SHORT_CONFIRM =
   /^(sim|pode ser|pode marcar|pode agendar|pode|confirmo|ok|okay|beleza|blz|👍|bora)([,\s]+(pode\s+marcar|confirmo|sim))?[\s!.?]*$/i
+
+const LINE_OR_ZONE_CLARIFY =
+  /feminina ou masculina|masculina ou feminina|quais zonas|qual zona|você quer\? temos/i
+
+function pendingPriceClarification(
+  inboundNewestFirst: readonly string[],
+  outboundNewestFirst: readonly string[],
+): boolean {
+  const priorPrice = inboundNewestFirst.slice(1).some((body) => PRICE.test(body))
+  if (!priorPrice) return false
+  const lastOut = outboundNewestFirst[0]
+  if (!lastOut) return true
+  return LINE_OR_ZONE_CLARIFY.test(lastOut)
+}
+
+function variantPriceTableLine(zone: {
+  name: string
+  durationMinutes: number
+  priceCents?: number | null
+}): string {
+  const preço = zone.priceCents == null ? 'a equipe confirma o valor' : formatBRL(zone.priceCents)
+  return `${zone.name} — ${preço} (${zone.durationMinutes} min)`
+}
+
+function replyVariantPriceTable(
+  service: ServiceRow,
+  zones: readonly { name: string; durationMinutes: number; priceCents?: number | null }[],
+  conversationId: string,
+): string | null {
+  const active = zones.filter((zone) => zone.name.trim().length > 0)
+  if (active.length === 0) return null
+  if (active.every((zone) => zone.priceCents == null)) {
+    return sayAct('informar_preco_sem_cadastro', conversationId, {}, 'A equipe confirma o valor.')
+  }
+  const lista = active.map(variantPriceTableLine).join('\n')
+  const fb = `Para ${serviceNameInProse(service.name)}:\n${lista}`
+  return sayAct(
+    'informar_preco_tabela',
+    conversationId,
+    { serviço: service.name, lista },
+    fb,
+  )
+}
 
 function proNames(db: ClinicDb, tenantId: string, service: ServiceRow, clock: Clock): string[] {
   const resources = listResources(db, tenantId, clock)
@@ -553,7 +601,8 @@ export function catalogReply(
     }
   }
 
-  if (!asksPrice && !openPeriod && !lineOnly) return null
+  const picksWholeCatalog = claimsWholeCatalog(source)
+  if (!asksPrice && !openPeriod && !lineOnly && !picksWholeCatalog) return null
   if (!svc) return null
 
   const active = svc.zones.filter((zone) => zone.active)
@@ -582,6 +631,11 @@ export function catalogReply(
     .map((message) => message.body)
     .reverse()
   const inboundNewestFirst = [source, ...funnelInboundNewestFirst.filter((body) => body !== source)]
+  const funnelOutboundNewestFirst = historyMsgs
+    .filter((message) => message.direction === 'outbound' && (!inFunnel || inFunnel(message)))
+    .map((message) => message.body)
+    .reverse()
+  const pendingPrice = pendingPriceClarification(inboundNewestFirst, funnelOutboundNewestFirst)
   const carried = sameFunnel && session ? session.audienceLine : heldLineNow
   // Histórico só no funil activo (sessão do serviço). Após DEC-086 a sessão foi limpa.
   const historyLine = sameFunnel ? audienceLineFromClientTexts(inboundNewestFirst) : null
@@ -657,6 +711,27 @@ export function catalogReply(
     session.variantIds.length > 0 &&
     sessionZones.length === session.variantIds.length
 
+  if (pendingPrice && active.length > 0 && inPlay && named.length === 0) {
+    const pool = scoped.length > 0 ? scoped : active
+    if (lineOnly && line) {
+      if (opts.conversationId && inPlay && line) {
+        const patch: ScheduleSessionPatch = {
+          serviceId: inPlay.id,
+          audienceLine: line,
+        }
+        if (catalogVersion != null && catalogVersion !== '') {
+          patch.catalogVersion = catalogVersion
+        }
+        saveScheduleSession(db, tenantId, opts.conversationId, patch, clock)
+      }
+      const table = replyVariantPriceTable(svc, pool, cnv)
+      if (table) return table
+    }
+    if (picksWholeCatalog) {
+      return replyVariantPriceTable(svc, pool, cnv)
+    }
+  }
+
   // Zonas já ditas neste funil (sessão do serviço + mensagens desde o início do funil).
   if (
     active.length > 0 &&
@@ -664,7 +739,8 @@ export function catalogReply(
     !asksPrice &&
     sameFunnel &&
     (chosenEarlier.zones.length > 0 || sessionKept) &&
-    !chosenEarlier.ambiguous
+    !chosenEarlier.ambiguous &&
+    !(pendingPrice && picksWholeCatalog)
   ) {
     return null
   }

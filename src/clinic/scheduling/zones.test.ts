@@ -336,7 +336,7 @@ describe('zonas do serviço (DEC-078)', () => {
       [{ direction: 'inbound', body: 'quanto custa a depilação?' }],
       services,
     )
-    expect(onlyService.warnings).toContain('no_price')
+    expect(onlyService.warnings).not.toContain('no_price')
     const named = analyzeContentRules(
       [{ direction: 'inbound', body: 'quanto custa depilação na axila e meia perna?' }],
       services,
