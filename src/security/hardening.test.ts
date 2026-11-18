@@ -378,8 +378,19 @@ describe('check:env — staging/production', () => {
     expect(r.stderr).toContain('META_APP_SECRET')
   })
 
-  it('placeholders atuais continuam bloqueados', () => {
-    const r = run('production', original, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
+  it('um database_id placeholder em produção continua a bloquear o deploy', () => {
+    // O id real do D1 de produção já está no wrangler (18/11/2026). O guarda
+    // prova-se ao repor o placeholder fictício.
+    const withPlaceholder = original.replace(
+      /"database_name": "tredane-production",\s*"database_id": "[^"]+"/,
+      '"database_name": "tredane-production",\n          "database_id": "00000000-0000-4000-a000-0000000000ff"',
+    )
+    expect(withPlaceholder).toContain('00000000-0000-4000-a000-0000000000ff')
+    const r = run(
+      'production',
+      withPlaceholder,
+      'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY,META_APP_SECRET,META_VERIFY_TOKEN,META_TOKEN_SECRET',
+    )
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/placeholders fictícios/)
   })
