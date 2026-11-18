@@ -245,9 +245,9 @@ Substitui: `Juntas, ficam {preço} e {duração} min de atendimento.` («Juntas�
 
 Tabela de preços do serviço já aberto (pesquisa legítima — Paulo, 08/11/2026): «Quanto custa?», «Qual o valor…», «valores», «preço», «tabela» a meio do ask-tipo / pergunta de zonas. `{lista}` é uma linha por variante (`Nome — R$ … (N min)`); `{pergunta}` reabre a escolha sem repetir só os nomes. Com variante já no quadro (ex. a meio da oferta de slots), usa-se `informar_preco_variante` / `informar_preco_soma` e mantém-se o quadro — não se reabre o tipo.
 
-1. `Para {serviço}:\n{lista}\n{pergunta}`
-2. `Valores de {serviço}:\n{lista}\n{pergunta}`
-3. `Para {serviço} temos:\n{lista}\n{pergunta}`
+1. `Para {serviço}:\n{lista}`
+2. `Valores de {serviço}:\n{lista}`
+3. `Para {serviço} temos:\n{lista}`
 
 ### recusar_mistura
 

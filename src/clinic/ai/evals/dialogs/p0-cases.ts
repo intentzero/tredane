@@ -29,6 +29,7 @@ import {
 
 import { zonedCivilToUtc } from '../../../scheduling'
 import { GU_DIALOG_CASES, GU_TZ as TZ, seedFutureAppointment } from './gu-cases'
+import { INT_DIALOG_CASES } from './int-cases'
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
     return {
@@ -912,5 +913,6 @@ export const P0_DIALOG_CASES: DialogCase[] = [
 
 // Família GU- (DEC-202): pedido de marcar, remarcar ou cancelar recebe o link; nunca marca.
 P0_DIALOG_CASES.push(...GU_DIALOG_CASES)
+P0_DIALOG_CASES.push(...INT_DIALOG_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)

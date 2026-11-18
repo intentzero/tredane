@@ -1,11 +1,11 @@
 /** Respostas de catálogo sem modelo: almoço, duração, quem faz, zona (sem sala/buffer ao cliente). */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
-import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { listResources, listServices, replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
-import { insertMessage } from '../inbox/messages'
+import { insertMessage, listMessages } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { catalogReply } from './catalog-reply'
 import { formatOpeningHours } from './schedule-context'
@@ -18,6 +18,32 @@ import {
 } from './schedule-session'
 
 const NOW = Date.UTC(2026, 9, 30, 21, 0)
+
+function catalogTurn(
+  db: import('../store').ClinicDb,
+  tenantId: string,
+  turnText: string,
+  clock: import('../../db/clock').Clock,
+  conversationId?: string,
+) {
+  const messages =
+    conversationId != null
+      ? listMessages(db, tenantId, { conversationId, limit: 40 }).messages.map((message) => ({
+          direction: message.direction,
+          body: message.body,
+          createdAt: message.createdAt,
+        }))
+      : []
+  return {
+    turnText,
+    messages,
+    catalog: {
+      services: listServices(db, tenantId).filter((service) => service.active),
+      resources: listResources(db, tenantId, clock),
+    },
+    session: null as ReturnType<typeof getScheduleSession>,
+  }
+}
 
 describe('catalogReply', () => {
   it('mantém o vão do almoço e responde preço e quem faz (sem sala nem buffer)', () => {
@@ -547,7 +573,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-        it('E-02 a frio: «Quanto custa depilação?» pede zonas e não cita R$', () => {
+  it('E-02 a frio: «Quanto custa depilação?» pede zonas e não cita R$', () => {
     const boot = seedMixed()
     try {
       const reply = catalogReply(boot.db, boot.tenantId, 'Quanto custa depilação?', boot.clock, {
@@ -555,6 +581,97 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       })
       expect(reply).toMatch(/feminina ou masculina|quais zonas/i)
       expect(reply).not.toMatch(/R\$/)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('INT-05: após pergunta de preço, linha masculina lista valores cadastrados', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      const ask = catalogReply(boot.db, boot.tenantId, 'Quais os valores da depilação?', boot.clock, opts)
+      expect(ask).toMatch(/feminina ou masculina/i)
+      insertMessage(
+        boot.db,
+        {
+          tenantId: boot.tenantId,
+          conversationId: boot.conversation.id,
+          direction: 'outbound',
+          body: ask!,
+          deliveryState: 'delivered',
+          createdAt: boot.clock.nowMs(),
+        },
+        boot.clock,
+      )
+      boot.clock.advance(1_000)
+      insertMessage(
+        boot.db,
+        {
+          tenantId: boot.tenantId,
+          conversationId: boot.conversation.id,
+          direction: 'inbound',
+          body: 'Quais os valores da depilação?',
+          deliveryState: 'received',
+          createdAt: boot.clock.nowMs(),
+        },
+        boot.clock,
+      )
+      boot.clock.advance(1_000)
+      const table = catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, {
+        ...opts,
+        turn: catalogTurn(boot.db, boot.tenantId, 'Masculina', boot.clock, boot.conversation.id),
+      })
+      expect(table).toMatch(/R\$\s*80,00/)
+      expect(table).toMatch(/R\$\s*180,00/)
+      expect(table).not.toMatch(/google/i)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('INT-06: linha masculina conhecida e «Todas» lista tabela após pergunta de preço', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      saveScheduleSession(boot.db, boot.tenantId, boot.conversation.id, {
+        serviceId: boot.svc.id,
+        audienceLine: 'masculino',
+      }, boot.clock)
+      const ask = catalogReply(boot.db, boot.tenantId, 'Quanto custa a depilação?', boot.clock, opts)
+      expect(ask).toMatch(/zonas/i)
+      insertMessage(
+        boot.db,
+        {
+          tenantId: boot.tenantId,
+          conversationId: boot.conversation.id,
+          direction: 'outbound',
+          body: ask!,
+          deliveryState: 'delivered',
+          createdAt: boot.clock.nowMs(),
+        },
+        boot.clock,
+      )
+      boot.clock.advance(1_000)
+      insertMessage(
+        boot.db,
+        {
+          tenantId: boot.tenantId,
+          conversationId: boot.conversation.id,
+          direction: 'inbound',
+          body: 'Quanto custa a depilação?',
+          deliveryState: 'received',
+          createdAt: boot.clock.nowMs(),
+        },
+        boot.clock,
+      )
+      boot.clock.advance(1_000)
+      const table = catalogReply(boot.db, boot.tenantId, 'Todas', boot.clock, {
+        ...opts,
+        turn: catalogTurn(boot.db, boot.tenantId, 'Todas', boot.clock, boot.conversation.id),
+      })
+      expect(table).toMatch(/R\$\s*80,00/)
+      expect(table).toMatch(/R\$\s*180,00/)
     } finally {
       boot.close()
     }
