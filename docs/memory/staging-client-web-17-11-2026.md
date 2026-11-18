@@ -10,7 +10,7 @@
 | Versão (UUID) | `fd8c3d86-726a-40a7-a5a7-17d1f8de6395` |
 | Conta Cloudflare | Tredane — `fc4be5a9597f5f05126209205ee98339` |
 | Origem | PR #898 (branch `claude/tredane-web-scheduling-16450f`) |
-| `CLIENT_WEB_ENABLED` | `true` **só** em `env.staging` de `wrangler.jsonc` (**Confirmado**); produção responde 404 |
+| `CLIENT_WEB_ENABLED` | Em 17/11 estava `true` só em staging e produção respondia 404. **Revisto** em 18/11/2026 (Paulo, «tira a flag»): a variável saiu. |
 
 ## Base de dados
 

@@ -3,8 +3,7 @@ import { createApp } from '../worker/app'
 import type { WorkerBindings } from '../worker/bindings'
 import { applyShellHeaders } from './shell'
 
-const ON = { CLIENT_WEB_ENABLED: 'true' } as unknown as WorkerBindings
-const OFF = {} as unknown as WorkerBindings
+const ON = {} as unknown as WorkerBindings
 const INDEX = '<!doctype html><html><body><div id="root"></div></body></html>'
 
 function appWith(assets?: (r: Request) => Promise<Response>) {
@@ -38,14 +37,6 @@ describe('casca da página da cliente (/c)', () => {
     }
     // Pede sempre a raiz dos assets: o token do URL nunca vai para a busca de ficheiros.
     expect(seen).toEqual(['/', '/'])
-  })
-
-  it('com a página desligada na plataforma responde 404 (também com cabeçalhos de privacidade)', async () => {
-    const { app, seen } = appWith()
-    const res = await app.request('https://app.test/c/cw1_exemplo', {}, OFF)
-    expect(res.status).toBe(404)
-    expect(res.headers.get('cache-control')).toBe('no-store')
-    expect(seen).toEqual([])
   })
 
   it('sem assets disponíveis responde 503 e não vaza o token', async () => {

@@ -294,7 +294,7 @@ export function createApp(opts: CreateAppOptions = {}) {
   }
   app.route('/', createWhatsappWebhookRoutes(webhookOpts))
 
-  // Página web da cliente (DEC-196, ADR-0018) — sem Clerk; liga com CLIENT_WEB_ENABLED.
+  // Página web da cliente (DEC-196, DEC-202) — sem Clerk; faz parte do aplicativo, sem interruptor.
   app.route('/', createClientWebRoutes(opts.clientWeb ?? {}))
   app.route('/', createClientWebShellRoutes(opts.clientWebShell ?? {}))
 

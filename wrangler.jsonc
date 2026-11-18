@@ -146,11 +146,6 @@
         // STAGING-ONLY (Paulo, 2026-11-14, DEC-186): MCP de laboratório (POST /api/mcp/lab, só tenant demo,
         // OAuth de superadmin, o mesmo do Review MCP; sem OAUTH_KV fica fechado). Nunca definir em production.
         "LAB_ENABLED": "true",
-        // STAGING-ONLY (Paulo, 2026-11-17, DEC-196/199): página web da cliente (agendar, remarcar e
-        // cancelar por link no WhatsApp). A owner liga por clínica em Clínica › Agendamento por link
-        // (desligado por defeito). Runbook: docs/implementation/runbooks/pagina-web-cliente.md.
-        // Nunca definir em production sem novo OK (GATE-04 LGPD, TMPL-05, ADR-0018 §7a).
-        "CLIENT_WEB_ENABLED": "true",
         // STAGING-ONLY (Paulo, 2026-10-27): Web Push real. Exige secrets VAPID_PUBLIC_KEY,
         // VAPID_PRIVATE_KEY, VAPID_SUBJECT (wrangler secret put --env staging).
         "PUSH_MODE": "live",
