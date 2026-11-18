@@ -365,7 +365,16 @@ describe('check:env — staging/production', () => {
   })
 
   it('production sem vars Clerk falha', () => {
-    const r = run('production', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
+    // As vars já estão no wrangler de produção. O guarda prova-se ao retirá-las da cópia.
+    const marker = '"ENVIRONMENT": "production"'
+    const at = provisioned.indexOf(marker)
+    const withoutClerk =
+      provisioned.slice(0, at) +
+      provisioned.slice(at).replace(/\n\s*"CLERK_PUBLISHABLE_KEY": "[^"]+",/, '').replace(
+        /\n\s*"CLERK_AUTHORIZED_PARTIES": "[^"]+",/,
+        '',
+      )
+    const r = run('production', withoutClerk, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('CLERK_PUBLISHABLE_KEY')
     expect(r.stderr).toContain('CLERK_AUTHORIZED_PARTIES')
