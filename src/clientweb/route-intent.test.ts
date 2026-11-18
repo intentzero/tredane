@@ -44,6 +44,12 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(route('quero cancelar', false)).toEqual({ purpose: 'agendar', serviceId: null, noUpcoming: true })
   })
 
+  it('erros de escrita do cancelar e do remarcar não viram pedido de agendar', () => {
+    expect(route('quero cancelra meu agendamento', true)).toMatchObject({ purpose: 'cancelar' })
+    expect(route('queria reagendra a depilação', true)).toMatchObject({ purpose: 'remarcar' })
+    expect(route('quero cancelra meu agendamento', false)).toMatchObject({ purpose: 'agendar', noUpcoming: true })
+  })
+
   it('perguntas de informação não são pedido de marcar', () => {
     expect(route('quanto custa a massagem?')).toBeNull()
     expect(route('quanto tempo dura a limpeza de pele?')).toBeNull()

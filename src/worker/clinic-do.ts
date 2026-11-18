@@ -4777,7 +4777,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         .prepare(`SELECT id FROM whatsapp_phone_bindings WHERE tenant_id = ? AND status = 'active' LIMIT 1`)
         .bind(input.tenantId)
         .first<{ id: string }>()
-      if (!binding) return null
+      // A clínica demo (laboratório) não tem número WhatsApp ativo: usa um id sintético para o link.
+      if (!binding && !isDemoTenantId(input.tenantId)) return null
       const services = clinicConfig.listServices(this.#db, input.tenantId)
       const preset = resolveClientWebLinkPreset(services, {
         serviceId: input.serviceId ?? null,
@@ -4786,7 +4787,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       })
       const link = await issueClientWebLink(env.DB!, this.#clock, {
         tenantId: input.tenantId,
-        bindingId: binding.id,
+        bindingId: binding?.id ?? 'lab-demo-binding',
         contactId: conv.contact_id,
         conversationId: input.conversationId,
         purpose: input.purpose,
