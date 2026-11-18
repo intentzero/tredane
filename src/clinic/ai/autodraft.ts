@@ -31,9 +31,10 @@ import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
   clientWebOfferBody,
   clientWebRouteBody,
+  stripScheduleOffer,
   countRecentWebLinks,
 } from '../../clientweb/offer'
-import { isGreetingOnly, routeToClientWeb } from '../../clientweb/route-intent'
+import { isGreetingOnly, routeToClientWeb, servicesCitedInText } from '../../clientweb/route-intent'
 import { clientWebLinkFieldsFromText } from '../../clientweb/route-context'
 import {
   clinicTodayOpenState,
@@ -1315,9 +1316,7 @@ export async function runDueAutoDrafts(
           }
           if (answer) {
             // O link já convida a escolher o horário: tira a pergunta «Quer ver horários?» do preço.
-            answer = answer
-              .replace(/\s*(Quer (que eu )?ver horários\?|Posso te mostrar horários\?)\s*$/i, '')
-              .trim()
+            answer = stripScheduleOffer(answer)
             const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName })}`
             // O corpo do botão de URL da Meta tem 1024 caracteres: acima disso fica só o link.
             if (combined.length <= 1000) bodyOverride = combined
@@ -1336,6 +1335,32 @@ export async function runDueAutoDrafts(
       conversationId: job.conversationId,
       turn,
     })
+    // P6 (Paulo, 18/11/2026): preço ou duração de um serviço único → resposta e «Abrir agenda» com esse serviço.
+    if (
+      catalogText &&
+      deps.autoBookPaused !== true &&
+      deps.prepareClientWebOffer &&
+      countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) < CLIENT_WEB_LINKS_PER_CONVERSATION
+    ) {
+      const answer = stripScheduleOffer(catalogText)
+      const cited = servicesCitedInText(turn.catalog.services, turnText)
+      const single = cited.length === 1 ? cited[0]! : null
+      const isServiceFact =
+        /R\$\s*\d|\b\d+\s*min\b/i.test(answer) &&
+        !answer.includes('?') &&
+        (answer.match(/R\$/g) ?? []).length <= 1
+      if (single && isServiceFact) {
+        const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName: single.name })}`
+        if (combined.length <= 1000) {
+          await sendWebRoute(
+            { purpose: 'agendar', serviceId: single.id, noUpcoming: false },
+            'web_agendar_link',
+            combined,
+          )
+          continue
+        }
+      }
+    }
     if (catalogText) {
       await signalTyping()
       let replyOutbox: OutboxRow[] = []

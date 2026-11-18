@@ -114,3 +114,10 @@ export function countRecentWebLinks(
     )?.n ?? 0
   )
 }
+
+/** Tira do fim da resposta de preço o convite «Quer ver horários?»: o botão «Abrir agenda» já o faz. */
+export function stripScheduleOffer(answer: string): string {
+  return answer
+    .replace(/\s*(Quer (que eu )?(ver|veja) horários\?|Posso te mostrar horários\?)\s*$/i, '')
+    .trim()
+}
