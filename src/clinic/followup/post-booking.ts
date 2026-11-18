@@ -1,7 +1,8 @@
 /**
  * DEC-086 — follow-up pós-agendamento com botões.
- * T3 (Paulo 09/11/2026): «Marcar outro» | «Terminar».
- * «Marcar outro» = B2 / DEC-142 (catálogo, mantém audiência).
+ * T3 revisto (Paulo 18/11/2026, DEC-202): «Abrir agenda» | «Terminar».
+ * «Abrir agenda» = clique devolve `another`; quem trata envia o CTA URL (não
+ * marca no chat). Sem «Falar com a equipe» neste T3 (Paulo: preferir Abrir agenda).
  * «Terminar» = limpa frame + adeus aleatório (terminar-farewell.ts; Paulo 13/11/2026).
  * O compromisso confirmado fica. Badge de não lidas zera no Terminar.
  */
@@ -33,8 +34,8 @@ export const POST_BOOKING_BODY =
 export const POST_BOOKING_BUTTONS = {
   another: {
     idSuffix: 'another',
-    // T3 (Paulo 09/11/2026) — Cloud API máx. 20 caracteres.
-    title: 'Marcar outro',
+    // T3 (Paulo 18/11/2026) — rótulo «Abrir agenda» (DEC-202); máx. 20 caracteres.
+    title: 'Abrir agenda',
   },
   end: {
     idSuffix: 'end',
@@ -202,8 +203,8 @@ export type PostBookingButtonResult =
     }
 
 /**
- * Processa clique nos botões de follow-up. Não marca horário (DEC-061 intacto).
- * «Terminar» = Class A (limpa BookingFrame). «Marcar outro» = DEC-142 / B2.
+ * Processa clique nos botões de follow-up. Não marca horário (DEC-061 / DEC-202).
+ * «Terminar» = Class A (limpa BookingFrame). «Abrir agenda» = `another` → link na página.
  */
 export function handlePostBookingButtonClick(
   db: ClinicDb,
@@ -297,9 +298,9 @@ export function handlePostBookingButtonClick(
     return { handled: true, action: 'end', closedOpportunityId: null, outbox }
   }
 
-  // Marcar outro = nova intenção → idle volta a poder armar.
+  // Abrir agenda = nova intenção → idle volta a poder armar.
   clearIdleSuppressed(db, input.tenantId, input.conversationId, clock.nowMs())
-  // DEC-202: o clique devolve «another»; quem trata o clique envia o link «Abrir agenda».
+  // DEC-202: o clique devolve «another»; quem trata o clique envia o CTA «Abrir agenda».
 
   writeOperationalAudit(
     db,
