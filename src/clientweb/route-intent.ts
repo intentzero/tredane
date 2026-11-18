@@ -66,18 +66,22 @@ export function isGreetingOnly(text: string): boolean {
 const POLICY_COND =
   /\bse\s+eu\s+(?:(?:precisar|tiver\s+que|quiser)\s+)?(?:remarcar|cancelar|desmarcar|faltar|atrasar)\b/i
 
+/** Erros de escrita frequentes do verbo: sem isto «cancelra meu agendamento» virava pedido de agendar. */
+const CANCEL_TYPO = /\b(?:cancelra|cancelr|canclear|cancellar|cacelar|cancelarr|desmarcra)\b/i
+const RESCHEDULE_TYPO = /\b(?:reagendra|reagedar|remarcra|remarcr|reagendr)\b/i
+
 export function isCancelRequest(text: string): boolean {
   const body = text.trim()
   if (!body) return false
   if (POLICY_COND.test(body)) return false
-  return CANCEL_RE.test(body) && !RESCHEDULE_RE.test(body)
+  return (CANCEL_RE.test(body) || CANCEL_TYPO.test(body)) && !RESCHEDULE_RE.test(body) && !RESCHEDULE_TYPO.test(body)
 }
 
 export function isRescheduleRequest(text: string): boolean {
   const body = text.trim()
   if (!body) return false
   if (POLICY_COND.test(body)) return false
-  return RESCHEDULE_RE.test(body)
+  return RESCHEDULE_RE.test(body) || RESCHEDULE_TYPO.test(body)
 }
 
 function fold(text: string): string {
