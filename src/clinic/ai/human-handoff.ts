@@ -29,7 +29,11 @@ import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import { dayTextPt } from './slot-offer'
 import type { ClinicDb } from '../store'
-import { isCancelRequest } from '../../clientweb/route-intent'
+import {
+  isCancelRequest,
+  isGreetingOnly,
+  isRescheduleRequest,
+} from '../../clientweb/route-intent'
 import {
   HEALTH_RE,
   OFF_TOPIC_RE,
@@ -979,6 +983,9 @@ export function handoffReason(
 ): AiReplyPauseReason | null {
   const body = text.trim()
   if (!body) return null
+  // DEC-202: abertura e pedidos de remarcar/cancelar próprios seguem no autodraft, não pausam aqui.
+  if (isGreetingOnly(body)) return null
+  if (isCancelRequest(body) || isRescheduleRequest(body)) return null
   const hits = classifySensitive(body)
   // CF-04: pergunta condicional sobre política não pausa (responde a política no autodraft).
   if (hasPolicyQuestion(hits)) return null
