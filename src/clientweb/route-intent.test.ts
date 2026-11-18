@@ -104,6 +104,11 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(servicesCitedInText(dois, 'limpeza de pele').map((s) => s.id)).toEqual([])
   })
 
+  it('erro de escrita de uma letra no nome longo ainda reconhece o serviço', () => {
+    expect(servicesCitedInText(services, 'quero marcar depilaçao').map((s) => s.id)).toEqual(['dep'])
+    expect(servicesCitedInText(services, 'quero marcar despilação').map((s) => s.id)).toEqual(['dep'])
+  })
+
   it('cumprimento puro', () => {
     expect(isGreetingOnly('Oi')).toBe(true)
     expect(isGreetingOnly('bom dia, tudo bem?')).toBe(true)

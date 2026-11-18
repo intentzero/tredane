@@ -222,7 +222,7 @@ function clientSource(
   if (turn?.turnText.trim()) return turn.turnText.trim()
   if (!conversationId) return body
   const { messages } = listMessages(db, tenantId, { conversationId, limit: 40 })
-  const text = currentClientTurnText(messages.map((message) => ({ direction: message.direction, body: message.body })))
+  const text = currentClientTurnText(messages.map((message) => ({ direction: message.direction, body: message.body, createdAt: message.createdAt })))
   return text.trim() || body
 }
 

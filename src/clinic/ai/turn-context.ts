@@ -198,7 +198,7 @@ export function loadTurnContext(
     limit: 40,
   })
   const turnText =
-    currentClientTurnText(messages.map((m) => ({ direction: m.direction, body: m.body }))).trim() ||
+    currentClientTurnText(messages.map((m) => ({ direction: m.direction, body: m.body, createdAt: m.createdAt }))).trim() ||
     (input.inboundBody ?? '')
   // ADR-0015 / #472: catalogVersion diverge → revalidar ids (sem inventar substituto).
   // Sessões migradas com '' revalidam uma vez e mantêm o que continuar válido (DEC-127.4).

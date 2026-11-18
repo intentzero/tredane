@@ -239,7 +239,7 @@ export function listBookableOptions(services: readonly ServiceRow[]): BookableOp
 }
 
 
-function serviceNameHit(
+export function serviceNameHit(
   text: string,
   name: string,
   synonyms?: readonly string[] | null,

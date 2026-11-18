@@ -48,3 +48,29 @@ describe('audiência do serviço (DEC-075 / S2)', () => {
     expect(text).toBe('quero o feminino\nhoje')
   })
 })
+
+describe('currentClientTurnText com janela de tempo', () => {
+  const H = 60 * 60 * 1000
+  it('uma pergunta de ontem sem resposta não se junta ao «Oi» de hoje', () => {
+    const text = currentClientTurnText([
+      { direction: 'inbound', body: 'mas e o parcelamento??', createdAt: 1000 },
+      { direction: 'inbound', body: 'Oi', createdAt: 1000 + 24 * H },
+    ])
+    expect(text).toBe('Oi')
+  })
+  it('mensagens seguidas continuam no mesmo turno', () => {
+    const text = currentClientTurnText([
+      { direction: 'inbound', body: 'quero marcar', createdAt: 1000 },
+      { direction: 'inbound', body: 'amanhã', createdAt: 1000 + 5 * 60 * 1000 },
+    ])
+    expect(text).toBe('quero marcar\namanhã')
+  })
+  it('sem createdAt mantém o comportamento anterior', () => {
+    expect(
+      currentClientTurnText([
+        { direction: 'inbound', body: 'a' },
+        { direction: 'inbound', body: 'b' },
+      ]),
+    ).toBe('a\nb')
+  })
+})

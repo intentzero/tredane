@@ -133,7 +133,7 @@ export async function buildAiContextPayload(
 
   const turnText =
     opts.turn?.turnText ??
-    currentClientTurnText(messages.map((m) => ({ direction: m.direction, body: m.body })))
+    currentClientTurnText(messages.map((m) => ({ direction: m.direction, body: m.body, createdAt: m.createdAt })))
   const turnLine = explicitAudienceLine(turnText)
   // Sessão: relê sempre — o funil pode ter gravado depois do TurnContext.
   const scheduleSession = getScheduleSession(db, tenantId, conversationId)
