@@ -95,6 +95,8 @@ export type WorkerBindings = {
    * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
    */
   AI_MODE?: string
+  /** P4 (Proposto): classe de intenção por LLM antes do redator. Só staging; ausente = desligado. */
+  INTENT_LLM_ENABLED?: string
   /**
    * DEC-188: Claude autodraft fora do Clinic DO.
    * `off` (omisso) | `demo` (só tenant demo) | `on` (todos os tenants do env).

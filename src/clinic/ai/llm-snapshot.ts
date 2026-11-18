@@ -19,6 +19,18 @@ export type RedactSnapshot = {
   /** Contexto DEC-120 já montado no DO (Worker não lê SQLite). */
   context: unknown
   computedFacts?: string
+  /** P4 (Proposto, só staging): o Worker classifica a intenção antes de redigir. */
+  classify?: boolean
+}
+
+/** Classe de intenção devolvida pelo classificador LLM (P4); nunca escolhe serviço nem hora. */
+export type IntentModelResult = {
+  label: 'agendar' | 'remarcar' | 'cancelar' | 'misto' | 'nenhum'
+  raw: string
+  confidence: number
+  model: string | null
+  inputTokens: number | null
+  outputTokens: number | null
 }
 
 export type RedactModelResult = {
@@ -29,6 +41,8 @@ export type RedactModelResult = {
   outputTokens: number | null
   latencyMs: number | null
   code?: string
+  /** Só presente quando `snapshot.classify`; registada no resultado do job (origem = LLM). */
+  intent?: IntentModelResult | null
 }
 
 export function frameVersionOf(
@@ -51,6 +65,7 @@ export async function buildRedactSnapshot(
     question: string
     turn?: TurnContext
     computedFacts?: string
+    classify?: boolean
   },
 ): Promise<RedactSnapshot> {
   const contextInspection = await buildAiContextPayload(db, caller.tenantId, input.conversationId, {
@@ -70,5 +85,6 @@ export async function buildRedactSnapshot(
     frameVersion: frameVersionOf(db, caller.tenantId, input.conversationId),
     context: contextInspection.payload,
     ...(input.computedFacts ? { computedFacts: input.computedFacts } : {}),
+    ...(input.classify ? { classify: true } : {}),
   }
 }

@@ -37,6 +37,7 @@ import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
 import { llmOutOfDoEnabled } from '../clinic/ai/llm-out-of-do'
 import {
   claimLlmJobForTenant,
+  applyIntentLinkOp,
   applyLlmResultOp,
   failLlmJobOp,
   type ApplyLlmResultInput,
@@ -238,6 +239,7 @@ import {
 } from '../realtime/ticket'
 import { newId } from '../clinic/ids'
 import type { WorkerBindings } from './bindings'
+import { intentLinkPurpose, isIntentLlmEnabled } from '../ai/intent-classifier'
 
 type ClinicEnv = WorkerBindings
 
@@ -2201,7 +2203,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const deps = this.#aiAssistDeps(
       clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
     )
-    const outcome = applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
+    const outcome = intentLinkPurpose(input.result.intent)
+      ? await applyIntentLinkOp(this.#db, caller, this.#clock, deps, input)
+      : applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
     if (outcome.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outcome.outbox, true)
       await this.#drain(caller)
@@ -4782,7 +4786,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     base: ReturnType<typeof clinicAi.toAiAssistDeps>,
   ): ReturnType<typeof clinicAi.toAiAssistDeps> {
     const web = this.#prepareClientWebOffer()
-    return web ? { ...base, prepareClientWebOffer: web } : base
+    const withIntent = isIntentLlmEnabled(this.env as WorkerBindings)
+      ? { ...base, intentLlmEnabled: true }
+      : base
+    return web ? { ...withIntent, prepareClientWebOffer: web } : withIntent
   }
 
   async runAutoDrafts(

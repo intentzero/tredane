@@ -126,6 +126,8 @@
       ],
       "vars": {
         "ENVIRONMENT": "staging",
+        // P4 (Proposto): classe de intenção por LLM antes do redator. Só staging; produção sem a variável.
+        "INTENT_LLM_ENABLED": "1",
         "AUTH_MODE": "clerk",
         // Publishable key é pública por desenho (instância Clerk de desenvolvimento/staging).
         "CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlYXItbWFja2VyZWwtODA0NS5jbGVyay5hY2NvdW50cy5kZXYk",
