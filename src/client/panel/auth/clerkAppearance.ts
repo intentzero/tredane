@@ -2,12 +2,14 @@
  * Aparência Clerk (SignIn / UserProfile; OTP no SignIn).
  * Cores/fonte alinhadas aos tokens do painel (DEC-041 / DEC-050 / DEC-073).
  *
- * Três perfis (regressão Conta após #686; regressão Continuar no cartão após #702):
+ * Três perfis (regressão Conta após #686; regressão Continuar/OTP no cartão após #702):
  * - `clerkProviderAppearance` — default do ClerkProvider: variáveis partilhadas e
  *   chrome do modal, **sem** `card`/`rootBox`. O Clerk concatena classes do
  *   Provider com as do componente; se o Provider trouxer `panel-clerk-profile-card`,
- *   o SignIn herda cartão opaco com padding 0 (flush) e o «Continuar» corta a borda.
- * - `clerkAuthAppearance` — `/entrar` flush + transparente. Só no `<SignIn />`.
+ *   o SignIn herda cartão opaco com padding 0 (flush) e o «Continuar» (e-mail e
+ *   factor-one / OTP) corta a borda.
+ * - `clerkAuthAppearance` — `/entrar` flush + transparente. Só no `<SignIn />`
+ *   (inclui passo do código).
  * - `clerkUserProfileAppearance` — modal «Dados pessoais» (Perfil / Segurança)
  *   com cartão opaco e elevação; sem flush. Só em `openUserProfile`.
  *
@@ -16,9 +18,10 @@
  * - `/entrar` mantém `<SignIn />` com `elevation: 'flush'`, `logoPlacement: 'none'`,
  *   fundo transparente e marca Tredane fora do Clerk (`BrandHorizontal`)
  *
- * OTP no SignIn: Clerk aplica opacidade baixa a `colorBorder`. Com
+ * OTP no SignIn (factor-one): Clerk aplica opacidade baixa a `colorBorder`. Com
  * `--color-line-border` (#D6E6DE) as 6 casas ficam quase invisíveis —
- * `otpCodeFieldInput` usa a borda de controlo (3:1, DEC-041) e o anel teal.
+ * `otpCodeFieldInput` usa a borda de controlo (3:1, DEC-041) e o anel teal;
+ * `otpCodeFieldInputs` evita overflow horizontal no mobile (flush).
  *
  * Access mode Invite-only: o create via API falha; `ClerkSignUp` mostra erro
  * «Cadastro indisponível» no formulário (não página morta). Paulo: Access → Open.
@@ -47,10 +50,11 @@ const clerkSharedElements = {
   formButtonPrimary: 'panel-clerk-primary',
   footerAction: 'panel-clerk-footer',
   logoBox: 'panel-clerk-logo',
+  otpCodeFieldInputs: 'panel-clerk-otp-inputs',
   otpCodeFieldInput: 'panel-clerk-otp-input',
 } as const
 
-/** `/entrar` — flush, sem chrome de cartão. Não usar no UserProfile. */
+/** `/entrar` — flush, sem chrome de cartão (e-mail + factor-one). Não usar no UserProfile. */
 export const clerkAuthAppearance = {
   options: {
     logoPlacement: 'none' as const,

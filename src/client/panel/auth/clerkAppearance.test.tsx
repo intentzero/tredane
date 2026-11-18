@@ -12,6 +12,8 @@ describe('clerkAppearance', () => {
     expect(clerkAuthAppearance.options.elevation).toBe('flush')
     expect(clerkAuthAppearance.variables.colorBackground).toBe('transparent')
     expect(clerkAuthAppearance.elements.card).toBe('panel-clerk-card')
+    expect(clerkAuthAppearance.elements.otpCodeFieldInputs).toBe('panel-clerk-otp-inputs')
+    expect(clerkAuthAppearance.elements.otpCodeFieldInput).toBe('panel-clerk-otp-input')
   })
 
   it('ClerkProvider não carimba card/rootBox de perfil (evita merge no SignIn)', () => {
