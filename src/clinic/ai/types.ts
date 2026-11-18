@@ -94,7 +94,7 @@ export type AiAssistDeps = {
   forecast?: import('../tempo/evaluate').ForecastAdapter
   /**
    * Página web da cliente (ADR-0018, DEC-202): emite o link pessoal e devolve o botão «Abrir
-   * agenda». Ausente (ambiente sem https, página desligada) = o chat passa à equipe.
+   * agenda». Ausente (ambiente sem https) = o chat passa à equipe.
    */
   prepareClientWebOffer?: import('../../clientweb/offer').PrepareClientWebOffer
   /**

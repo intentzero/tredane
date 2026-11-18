@@ -106,7 +106,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 ## 7a. Estado da implementação
 
-**Fase 1 implementada (staging, atrás de `CLIENT_WEB_ENABLED`, 17/11/2026):**
+**Fase 1 implementada (17/11/2026; a flag de ambiente saiu em 18/11/2026):**
 
 - migração `0027_client_web.sql` (links e sessões, só hashes); `src/clientweb/{links,routes,state,first-name}.ts`;
 - `POST /api/c/exchange` e `GET /api/c/state`, com `Origin` obrigatório nos POST e cabeçalhos de privacidade;
@@ -136,7 +136,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 **Fase 5 implementada (17/11/2026, atrás da flag e do interruptor da owner): oferta do link no chat**
 
-- A abertura do hub do chat («Oi» e pedido vago de marcar, `shouldAttachHubOpeningCta`) leva o botão **«Abrir agenda»** (`cta_url`) em vez do CTA do Flow, quando a página está ligada pela plataforma (`CLIENT_WEB_ENABLED`, base `APP_BASE_URL` https) **e** pela owner nesta clínica. É o mesmo gancho `prepareBookingFlowOffer`: o Clinic DO emite o link (`issueClientWebLink`, `purpose: 'home'`) e devolve o corpo e o botão (`src/clientweb/offer.ts`). Sem binding ativo ou sem https cai no Flow, se existir, e depois no M5.
+- A abertura do hub do chat («Oi» e pedido vago de marcar, `shouldAttachHubOpeningCta`) leva o botão **«Abrir agenda»** (`cta_url`) em vez do CTA do Flow, quando a base `APP_BASE_URL` é https. A página não tem interruptor (DEC-202, revisão 18/11/2026). É o mesmo gancho `prepareBookingFlowOffer`: o Clinic DO emite o link (`issueClientWebLink`, `purpose: 'home'`) e devolve o corpo e o botão (`src/clientweb/offer.ts`). Sem binding ativo ou sem https cai no Flow, se existir, e depois no M5.
 - Corpo determinístico (DEC-104), **Proposto**: o do hub sem a pergunta aberta + «Para agendar, remarcar ou cancelar, toque em «Abrir agenda». Para tirar dúvidas, escreva aqui.» Serviço nomeado, pedido com dia e perguntas de informação **não** abrem o link: seguem o funil e o catálogo.
 - **Interruptor da owner por clínica** (DEC-199, desligado por defeito): tabela `clinic_client_web` (migração 73 do Clinic DO), `GET|PUT /api/tenants/:id/config/client-web` (só a owner, auditoria `config.client_web_updated`) e o cartão «Agendamento por link» em Clínica. Com o interruptor desligado, todos os RPCs `clientWeb*` devolvem `null` (a página não serve) e desligar revoga as sessões abertas.
 - Família L1 **CW-01 a CW-05** (`cw-cases.ts`, harness `clientweb-driver.ts`): abertura com o botão, pedido vago, serviço nomeado, informação e página desligada. O token nunca aparece no corpo.
@@ -146,7 +146,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - Com a página ligada (plataforma e owner), a cliente **com compromisso futuro** que diz «quero remarcar» ou «quero cancelar» recebe o botão «Abrir agenda» em vez do caminho conversacional (DEC-091 e o botão «Cancelar marcação»). Gancho novo `prepareClientWebOffer` (`src/clientweb/offer.ts`), chamado em `autodraft.ts` antes de `tryAiReschedule` e de `handleCancelIntentAutodraft`.
 - O link leva a **finalidade** (`remarcar` ou `cancelar`) e, se a cliente só tem **uma** marcação futura, a **marcação alvo**: a página abre direto no ecrã de remarcar ou de cancelar dessa marcação (`exchange` devolve `purpose` e `appointmentId`). Com várias, abre as marcações. Se o alvo já não existe, abre as marcações.
 - Corpos fixos, **Propostos**: «Para remarcar, toque em «Abrir agenda» e escolha a nova data e hora. Se preferir, escreva aqui.» e «Para cancelar, toque em «Abrir agenda» e confirme a marcação. Se preferir falar com a equipe, escreva aqui.»
-- **Não** oferece o link: sem compromisso futuro (segue o caminho de hoje: equipe), com a pausa da owner ativa, com a página desligada, ou fora da janela de 24 h (o envio falha e o chat segue).
+- **Não** oferece o link: sem compromisso futuro (segue o caminho de hoje: equipe), com a pausa da owner ativa, ou fora da janela de 24 h (o envio falha e o chat segue). A página em si não se desliga (revisão 18/11/2026).
 - A conversa continua a ser a alternativa: quem escreve «quero cancelar» e prefere falar com a equipe escreve na mesma conversa.
 - L1 **CW-06 a CW-10**: remarcar com uma marcação, cancelar com uma, cancelar com duas (sem alvo), cancelar sem marcação (equipe) e página desligada (sem botão).
 
@@ -176,8 +176,8 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 **Staging preparado (17/11/2026):**
 
-- `CLIENT_WEB_ENABLED=true` em `env.staging` de `wrangler.jsonc` (não em produção); runbook [pagina-web-cliente.md](../implementation/runbooks/pagina-web-cliente.md) com o teste de fumo, os cabeçalhos a verificar, os logs e como desligar.
-- **Casca `/c` e `/c/*` servida pelo Worker** (`src/clientweb/shell.ts`, binding `ASSETS`, `run_worker_first`): devolve o `index.html` com `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` e sem moldura, e pede sempre a raiz dos assets (o token do URL não chega à busca de ficheiros). Com a página desligada responde 404.
+- A página faz parte do Worker em todos os ambientes (**Confirmado**, Paulo, 18/11/2026, «tira a flag»). Runbook [pagina-web-cliente.md](../implementation/runbooks/pagina-web-cliente.md).
+- **Casca `/c` e `/c/*` servida pelo Worker** (`src/clientweb/shell.ts`, binding `ASSETS`, `run_worker_first`): devolve o `index.html` com `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` e sem moldura, e pede sempre a raiz dos assets (o token do URL não chega à busca de ficheiros).
 - **Limpeza diária** no cron das 04:15 UTC (`src/clientweb/cleanup.ts`): links expirados há mais de 7 dias, sessões há mais de 1 dia, contadores com mais de 1 dia.
 - **Teste no runtime do Cloudflare** (`npm run test:runtime`, workerd): o ciclo completo no Clinic DO real (interruptor da owner, sessão, estado, catálogo, horas, Confirmar com erro tratado, cancelar, revogação ao desligar). Fecha a lacuna de só termos testado a lógica sem o RPC.
 
@@ -190,7 +190,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 ## 7b. DEC-202: o chat só informa e encaminha (17/11/2026, **Confirmado**)
 
 - **Encaminhamento (`src/clientweb/route-intent.ts`, léxico puro, sem LLM):** cumprimento → `home`; pedido de marcar ou de vaga → `agendar`; «remarcar» ou «cancelar» com marcação futura → `remarcar` ou `cancelar` (com a marcação alvo se só houver uma); sem marcação futura → `agendar` com «Não encontrei marcações…». Perguntas de informação (preço, duração, o que é, onde fica) e perguntas condicionais sobre política não são pedido de marcar. Um **único** serviço reconhecido (nome, sinónimo ou zona; o nome longo ganha ao curto contido) pré-escolhe o serviço no link (`client_web_links.service_id`, migração `0030`); a página salta a lista se o serviço está ativo e não depende de género, senão pergunta «Para quem é?» e, se já não existe, abre a escolha de serviço.
-- **Sempre ligada:** sai o interruptor da owner (tabela `clinic_client_web`, migração de clínica `0074`, rotas `config/client-web`, cartão do painel). `CLIENT_WEB_ENABLED` fica só como interruptor de emergência do ambiente.
+- **Sempre ligada:** sai o interruptor da owner (tabela `clinic_client_web`, migração de clínica `0074`, rotas `config/client-web`, cartão do painel). **Revisão (Paulo, 18/11/2026, «tira a flag»):** sai também `CLIENT_WEB_ENABLED`. Não há freio de ambiente. A pausa da owner continua a bloquear marcar.
 - **Pausa da owner:** o pedido passa à equipe (frase fixa e alerta «Precisa de alguém»), sem link; a página mostra as marcações e bloqueia agendar, remarcar e cancelar com «Falar com a equipe». Sem link possível (sem número ativo, base sem https) ou fora das 24 h o chat também passa à equipe; o template fora das 24 h continua **Em aberto** (TMPL-05, gate Meta).
 - **Botões antigos no WhatsApp** (listas M5, Confirmar/Alterar de propostas, cancelar no chat, «Continuar» do FAQ, «Marcar outro», «Prosseguir»): respondem com o link e nunca marcam; o «Falar com a equipe» do cartão de proposta continua a passar à equipe (`src/clientweb/legacy-buttons.ts`).
 - **Equipe:** `POST /api/tenants/:id/client-web-links` (`clinic.agenda.operate`) e o RPC `sendClientWebLinkFromStaff` enviam o link com o botão «Abrir agenda» (auditoria `client_web.link_sent_by_staff`); o painel Agendar passa de «Enviar proposta» a «Enviar link de agenda». O horário escolhido no painel não fica reservado.

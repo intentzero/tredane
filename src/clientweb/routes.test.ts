@@ -8,7 +8,7 @@ import { adminDbAsD1 } from './test-d1'
 import { createClientWebRoutes, CLIENT_WEB_COOKIE, loadActiveTenantName } from './routes'
 
 const ORIGIN = 'https://app.test'
-const ENV = { CLIENT_WEB_ENABLED: 'true' } as unknown as WorkerBindings
+const ENV = {} as unknown as WorkerBindings
 const LINK = {
   tenantId: 'clinic-a',
   bindingId: 'bind-a',
@@ -51,12 +51,12 @@ function sessionCookie(res: Response): string {
 }
 
 describe('rotas públicas da página web da cliente', () => {
-  it('sem CLIENT_WEB_ENABLED responde 404 em todas as rotas', async () => {
-    const { post, get, close } = setup()
+  it('a página responde sem variável de ambiente (DEC-202, 18/11/2026)', async () => {
+    const { get, close } = setup()
     try {
-      const off = {} as unknown as WorkerBindings
-      expect((await post('/api/c/exchange', { token: 'x' }, { Origin: ORIGIN }, off)).status).toBe(404)
-      expect((await get('/api/c/state', undefined, off)).status).toBe(404)
+      const res = await get('/api/c/state')
+      expect(res.status).not.toBe(404)
+      expect(res.status).toBe(401)
     } finally {
       close()
     }

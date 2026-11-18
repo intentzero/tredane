@@ -3,11 +3,10 @@
  * (ADR-0018 §7a): o URL leva o token do link, por isso a resposta não pode ir para cache nem
  * deixar o endereço no Referer. Devolve o `index.html` da SPA com os cabeçalhos de privacidade.
  *
- * Fora de staging com `CLIENT_WEB_ENABLED` desligado responde 404, como as rotas `/api/c/*`.
+ * A página faz parte do aplicativo (DEC-202, revisão 18/11/2026): não há interruptor de ambiente.
  */
 import { Hono } from 'hono'
 import type { WorkerBindings } from '../worker/bindings'
-import { isClientWebEnabled } from './flag'
 
 type AppEnv = { Bindings: WorkerBindings }
 
@@ -28,11 +27,6 @@ export function applyShellHeaders(headers: Headers): void {
 export function createClientWebShellRoutes(opts: ClientWebShellOptions = {}) {
   const app = new Hono<AppEnv>()
   const serve = async (c: { env: WorkerBindings; req: { url: string }; json: (b: unknown, s?: number) => Response }) => {
-    if (!isClientWebEnabled(c.env)) {
-      const headers = new Headers({ 'Content-Type': 'application/json' })
-      applyShellHeaders(headers)
-      return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers })
-    }
     const fetchAsset = opts.assetsFetch ?? (c.env.ASSETS ? (r: Request) => c.env.ASSETS!.fetch(r) : null)
     if (!fetchAsset) return c.json({ error: 'assets_unavailable' }, 503)
     // A raiz do site serve o index.html da SPA (o caminho `/index.html` redirecionaria).

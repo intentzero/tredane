@@ -104,9 +104,6 @@ function clinicStub(env: WorkerBindings, session: ClientWebSession) {
 
 const log = createChannelLogger('client_web')
 
-export { isClientWebEnabled } from './flag'
-import { isClientWebEnabled } from './flag'
-
 /**
  * Nome da clínica, só se estiver ativa. Clínica suspensa ou em exclusão não serve a página:
  * a sessão deixa de valer na prática (ADR-0018 §7a), sem depender de revogar uma a uma.
@@ -153,8 +150,7 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
   const dbOf = (env: WorkerBindings) => opts.dbFactory?.(env) ?? env.DB
 
   app.use('/api/c/*', async (c, next) => {
-    if (!isClientWebEnabled(c.env)) return c.json({ error: 'not_found' }, 404)
-    // Página pessoal: nunca em cache, sem referrer, fora dos motores de busca, sem moldura.
+    // Página pessoal, sempre presente (DEC-202, revisão 18/11/2026): nunca em cache, sem referrer, fora dos motores de busca, sem moldura.
     c.header('Cache-Control', 'no-store')
     c.header('Referrer-Policy', 'no-referrer')
     c.header('X-Robots-Tag', 'noindex')

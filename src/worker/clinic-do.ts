@@ -152,7 +152,6 @@ import { parseLegacyFunnelButton } from '../clientweb/legacy-buttons'
 import { loadUpcomingAppointments } from '../clinic/ai/upcoming'
 import type { SendOutboundInteractiveInput } from '../clinic/inbox/types'
 import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
-import { isClientWebEnabled } from '../clientweb/flag'
 import {
   clientWebOfferInteractive,
   clientWebRouteBody,
@@ -1006,22 +1005,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     return readClientWebState(this.#db, this.#clock, input)
-  }
-
-  /** Página ligada: sempre, salvo o interruptor de emergência do ambiente (DEC-202). */
-  #clientWebOn(): boolean {
-    return isClientWebEnabled(this.env as WorkerBindings)
   }
 
   /** Página web da cliente (ADR-0018): catálogo marcável e horizonte. Só leitura. */
   async clientWebCatalog(input: { tenantId: string }): Promise<ClientWebCatalog | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     return readClientWebCatalog(this.#db, input.tenantId, this.#clock)
   }
 
@@ -1038,8 +1028,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }): Promise<ClientWebSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     return listClientWebSlots(this.#db, input.tenantId, this.#clock, {
       serviceId: input.serviceId,
@@ -1066,8 +1054,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = findRecentWebBooking(this.#db, caller.tenantId, this.#clock, input, input)
     if (already) return { status: 'booked', appointment: already }
@@ -1157,8 +1143,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }): Promise<RescheduleSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     return listRescheduleSlots(this.#db, input.tenantId, this.#clock, input, input)
   }
@@ -1174,8 +1158,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = rescheduleAlreadyAt(this.#db, caller.tenantId, this.#clock, input, input)
     if (already) return { status: 'booked', appointment: already }
@@ -1245,8 +1227,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId, WEB_CANCEL_ACTOR)
     this.#assertInstanceTenant(caller)
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
@@ -1286,8 +1266,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
-    // Interruptor da owner (DEC-199): clínica sem a página ligada não serve nada.
-    if (!this.#clientWebOn()) return null
     if (!sessionOwnsConversation(this.#db, input)) return null
     const clientRequestId = `web-ask-team:${input.conversationId}:${this.#clock.nowMs()}`
     if (!isHumanTeamOfferAllowed(this.#db, caller.tenantId, this.#clock)) {
@@ -4760,11 +4738,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   /**
    * DEC-202: emite o link pessoal da página web da cliente e devolve o botão «Abrir agenda» com o
    * propósito pedido (e a marcação ou o serviço alvo, se houver). `null` = sem link possível
-   * (sem número ativo, base sem https, página desligada no ambiente): quem chama passa à equipe.
+   * (sem número ativo ou base sem https): quem chama passa à equipe.
    */
   #prepareClientWebOffer(): PrepareClientWebOffer | undefined {
     const env = this.env as WorkerBindings
-    if (!env.DB || !isClientWebEnabled(env) || !isHttpsBase(env.APP_BASE_URL)) return undefined
+    if (!env.DB || !isHttpsBase(env.APP_BASE_URL)) return undefined
     const baseUrl = env.APP_BASE_URL
     return async (input) => {
       const conv = this.#db.get<{ contact_id: string }>(
