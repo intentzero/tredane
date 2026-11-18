@@ -7,7 +7,7 @@
  * | INT-01 | Proposto  | Preço de serviço único sem modelo |
  * | INT-02 | Proposto  | Horário de funcionamento sem modelo |
  * | INT-03 | Proposto  | FAQ de cancelamento sem modelo |
- * | INT-04 | Proposto  | Dois pedidos no mesmo turno (preço + vaga) |
+ * | INT-04 | Confirmado| Dois pedidos no mesmo turno (preço + vaga): resposta e link |
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
@@ -54,22 +54,25 @@ export const INT_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'INT-04',
-    title: 'Preço e vaga no mesmo turno — deve classificar duas intenções (Proposto)',
-    turnosIdeais: 2,
-    pendingHarness: INT_PENDING_LLM_INTENT,
-    turns: [{ role: 'client', text: 'Quanto custa a depilação e tem horário amanhã?' }],
+    title: 'Preço e vaga no mesmo turno — responde ao preço e junta o link (DEC-202, 18/11/2026)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele e tem horário amanhã?' }],
     expect: {
-      // Com classificador LLM (Proposto): responde preço antes de encaminhar à página.
-      turns: [
-        {
-          turn: 0,
-          matches: [/R\$/],
-          excludes: [/Abrir agenda/i],
-        },
-      ],
+      turns: [{ turn: 0, matches: [/R\$/, /Abrir agenda/i] }],
       proposal: false,
-      clientWebOffers: 0,
+      noAppointment: true,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Limpeza de pele' }],
+      outboundCount: 1,
     },
+  },
+  {
+    id: 'INT-04b',
+    title: 'Preço e vaga no mesmo turno com a pausa da owner — passa à equipe, sem link',
+    turnosIdeais: 1,
+    ownerPaused: true,
+    turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele e tem horário amanhã?' }],
+    expect: { noCtaUrl: true, paused: true, teamAlert: true, noAppointment: true },
   },
   {
     id: 'INT-05',

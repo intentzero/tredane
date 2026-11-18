@@ -56,6 +56,16 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(route('Se eu precisar cancelar, tem multa?', true)).toBeNull()
   })
 
+  it('turno misto: marcar e perguntar informação no mesmo texto', () => {
+    expect(route('quanto custa a limpeza de pele e tem horário amanhã?')).toMatchObject({
+      purpose: 'agendar',
+      serviceId: 'lim',
+      mixed: true,
+    })
+    expect(route('quero marcar limpeza de pele')?.mixed).toBeUndefined()
+    expect(route('quanto custa a limpeza de pele?')).toBeNull()
+  })
+
   it('cumprimento puro', () => {
     expect(isGreetingOnly('Oi')).toBe(true)
     expect(isGreetingOnly('bom dia, tudo bem?')).toBe(true)

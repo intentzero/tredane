@@ -1292,10 +1292,30 @@ export async function runDueAutoDrafts(
         const hubBody = greeting
           ? hubOpeningBody(deps.clinicName, clinicTodayOpenState(db, tenantId, clock))
           : undefined
+        let bodyOverride = hubBody
+          ? deps.autoBookPaused === true
+            ? hubBody
+            : clientWebOfferBody(hubBody)
+          : undefined
+        // Turno misto (DEC-202, 18/11/2026): responde à informação e junta o link na mesma mensagem.
+        if (!greeting && 'mixed' in route && route.mixed && deps.autoBookPaused !== true) {
+          const answer = catalogReply(db, tenantId, turnText, clock, {
+            conversationId: job.conversationId,
+            turn,
+          })
+          if (answer) {
+            const serviceName = route.serviceId
+              ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
+              : null
+            const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName })}`
+            // O corpo do botão de URL da Meta tem 1024 caracteres: acima disso fica só o link.
+            if (combined.length <= 1000) bodyOverride = combined
+          }
+        }
         await sendWebRoute(
           { ...route, ...linkFields },
           greeting ? 'hub_opening' : `web_${route.purpose}_link`,
-          hubBody ? (deps.autoBookPaused === true ? hubBody : clientWebOfferBody(hubBody)) : undefined,
+          bodyOverride,
         )
         continue
       }
