@@ -8,6 +8,7 @@ import {
   upsertServiceOp,
 } from '../config'
 import { upsertContact } from '../contacts'
+import { setIdleSuppressed } from '../followup/idle-state'
 import { createConversation } from '../inbox/conversations'
 import { appendInboundToConversation } from '../inbox'
 import { workerCaller } from '../index'
@@ -344,6 +345,86 @@ describe('DEC-187 — cartão gémeo de atendimento + merge Agendado', () => {
       expect(twin.boardKey).toBe(`${opp.id}:attendance`)
       expect(cards.find((c) => c.cardKind === 'cycle')?.stage).toBe('agendado')
       expect(dual.counts.find((c) => c.stage === 'em_atendimento')?.count).toBeGreaterThanOrEqual(1)
+    } finally {
+      close()
+    }
+  })
+
+  it('Terminar (idle_suppressed) não mantém gémeo pelo inbound do próprio botão', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { tenantId, caller, pro, room, svc } = seedClinic(db, clock)
+      const contact = upsertContact(
+        db,
+        { tenantId, waId: '5511900002777', displayName: 'Gislaine Twin' },
+        clock,
+      )
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      const opp = ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv.id },
+        clock,
+      ).opportunity
+      confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-terminar-twin-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+
+      clock.advance(60_000)
+      // Toque Terminar grava inbound (button_reply) depois da confirmação.
+      appendInboundToConversation(
+        db,
+        {
+          tenantId,
+          contactId: contact.id,
+          providerEventKey: 'wa:twin:terminar:1',
+          body: '[Botão] Terminar',
+        },
+        clock,
+      )
+      expect(
+        listOpportunitiesOp(db, caller, {}, clock).items.filter((i) => i.id === opp.id),
+      ).toHaveLength(2)
+
+      // suppressFollowupsAfterClientEnd / settleIdle — mesmo instante ou depois.
+      setIdleSuppressed(db, tenantId, cnv.id, clock.nowMs())
+      const afterEnd = listOpportunitiesOp(db, caller, {}, clock).items.filter(
+        (i) => i.id === opp.id,
+      )
+      expect(afterEnd).toHaveLength(1)
+      expect(afterEnd[0]?.cardKind).toBe('cycle')
+      expect(afterEnd[0]?.stage).toBe('agendado')
+      expect(afterEnd[0]?.hasOpenAttendance).toBe(false)
+
+      // Nova mensagem real depois do Terminar volta a projectar o gémeo (DEC-187).
+      clock.advance(60_000)
+      appendInboundToConversation(
+        db,
+        {
+          tenantId,
+          contactId: contact.id,
+          providerEventKey: 'wa:twin:terminar:faq',
+          body: 'Tem estacionamento?',
+        },
+        clock,
+      )
+      const again = listOpportunitiesOp(db, caller, {}, clock).items.filter(
+        (i) => i.id === opp.id,
+      )
+      expect(again.map((c) => c.cardKind).sort()).toEqual(['cycle', 'open_attendance'])
     } finally {
       close()
     }

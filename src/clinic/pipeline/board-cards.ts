@@ -8,6 +8,8 @@
  * Confirmado (Paulo, 16/11/2026): «atendimento aberto» também cobre fio activo
  * após Agendado sem `booking_sessions` — inbound novo depois da confirmação,
  * «Precisa de alguém» / handoff (mesmo critério DEC-156) ou quadro em `remarcando`.
+ * Terminar / fecho idle (`idle_suppressed_at`) encerra esse fio: o inbound do
+ * próprio botão Terminar não conta; só mensagem nova depois do fecho.
  */
 import type { Clock } from '../../db/clock'
 import { getOpenBookingSession } from '../ai/booking-session'
@@ -48,6 +50,11 @@ export function countFutureConfirmedAppointmentsForContact(
 /**
  * Cliente voltou a escrever depois da última confirmação de horário nesta
  * conversa (ex.: nova conversa / FAQ / «quero outro» ainda sem sessão).
+ *
+ * Após Terminar / fecho idle, `idle_suppressed_at` marca o fim desse
+ * atendimento: o próprio toque «Terminar» (inbound do botão) não mantém o
+ * gémeo DEC-187 em «Em atendimento» / «Atendimento em curso». Nova mensagem
+ * depois do Terminar volta a projectar o gémeo.
  */
 export function hasInboundAfterLatestBookingConfirm(
   db: ClinicDb,
@@ -64,6 +71,15 @@ export function hasInboundAfterLatestBookingConfirm(
   )
   const confirmedAt = latest?.confirmed_at
   if (confirmedAt == null) return false
+  // Terminar / idle close (#743): watermark para não contar o inbound do próprio
+  // botão End como «atendimento aberto» (staging: Gislaine após 2× Terminar).
+  const suppressed = db.get<{ at: number | null }>(
+    `SELECT idle_suppressed_at AS at FROM conversations
+     WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    conversationId,
+  )
+  const baseline = Math.max(confirmedAt, suppressed?.at ?? 0)
   const inbound = db.get<{ id: string }>(
     `SELECT id FROM messages
      WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
@@ -71,7 +87,7 @@ export function hasInboundAfterLatestBookingConfirm(
      LIMIT 1`,
     tenantId,
     conversationId,
-    confirmedAt,
+    baseline,
   )
   return inbound != null
 }
