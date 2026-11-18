@@ -21,13 +21,14 @@ export const INT_PENDING_LLM_INTENT = 'depende da classificação de intenção 
 export const INT_DIALOG_CASES: DialogCase[] = [
   {
     id: 'INT-01',
-    title: 'Preço de serviço único — resposta do cadastro, sem modelo',
+    title: 'Preço de serviço único — resposta do cadastro, sem modelo, com «Abrir agenda» e o serviço (P6)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele?' }],
     expect: {
       turns: [{ turn: 0, matches: [/R\$\s*180,00/, /60 min/] }],
-      turnDecided: [{ modelCalled: false, route: 'catalog' }],
-      outboundExcludes: [/Abrir agenda/i],
+      turnDecided: [{ modelCalled: false, route: 'skip:web_agendar_link' }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Limpeza de pele' }],
     },
   },
   {
@@ -38,6 +39,7 @@ export const INT_DIALOG_CASES: DialogCase[] = [
     expect: {
       turns: [{ turn: 0, matches: [/Funcionamos|Nosso horário|Abrimos assim/i, /09:00/] }],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
+      outboundExcludes: [/Abrir agenda/i],
     },
   },
   {

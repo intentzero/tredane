@@ -239,19 +239,20 @@ export const GU_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'GU-15',
-    title: 'Preço é informação: responde sem link',
+    title: 'Preço de serviço único: responde e junta «Abrir agenda» com o serviço, sem marcar (P6)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele?' }],
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
-      noCtaUrl: true,
-      turns: [{ turn: 0, matches: [/R\$/] }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Limpeza de pele' }],
+      turns: [{ turn: 0, matches: [/R\$/, /Abrir agenda/] }],
     },
   },
   {
     id: 'GU-16',
-    title: 'Informação primeiro, marcar depois: só o pedido de marcar leva o link',
+    title: 'Preço leva «Abrir agenda» com o serviço (P6); marcar depois leva o link outra vez',
     turnosIdeais: 2,
     turns: [
       { role: 'client', text: 'Quanto custa a limpeza de pele?' },
@@ -260,9 +261,12 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
-      clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Limpeza de pele' }],
-      turns: [{ turn: 0, excludes: [/Abrir agenda/] }],
+      clientWebOffers: 2,
+      clientWebPurposes: [
+        { purpose: 'agendar', serviceId: 'Limpeza de pele' },
+        { purpose: 'agendar', serviceId: 'Limpeza de pele' },
+      ],
+      turns: [{ turn: 0, matches: [/R\$/, /Abrir agenda/], excludes: [/Quer ver hor[aá]rios/i] }],
     },
   },
   {
