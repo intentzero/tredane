@@ -88,6 +88,7 @@ npm run deploy -- staging
 - Migrações D1 **não** auto-aplicam por defeito.
 - Path com approval: workflow_dispatch `apply_d1_migrations=true` no job `environment: production` (required reviewers) → mesma ordem migrate → smoke → deploy.
 - Sem o flag: deploy do Worker apenas; apply D1 continua manual após revisão (`npx wrangler d1 migrations apply tredane-production --env production --remote`).
+- 18/11/2026: D1 `tredane-production` criado na conta que já tem o KV `tredane-oauth-prod`; migrações aplicadas e smoke da versão 23 passou. O deploy do Worker continua à espera das chaves Clerk (`docs/DEPLOY.md` §5).
 
 **Fora deste recorte:** fan-out de migrações do SQLite por Durable Object (clinic).
 

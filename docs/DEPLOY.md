@@ -123,16 +123,15 @@ Primeiro deploy de um Worker que ainda não existe requer Workers Scripts Edit a
 | Environment | Account ID | Fonte |
 | --- | --- | --- |
 | staging | `fc4be5a9597f5f05126209205ee98339` | indicado pelo Paulo (não está em `wrangler.jsonc`) |
-| production | **UNKNOWN** | `wrangler.jsonc` e `site/wrangler.jsonc` não têm `account_id` |
+| production | `fc4be5a9597f5f05126209205ee98339` | **Observado** 18/11/2026: a mesma conta do staging. Já tinha `tredane-site-production` e o KV `tredane-oauth-prod` (id no `wrangler.jsonc`, Paulo 11/11). O variable do GitHub environment `production` continua por confirmar nesse ecrã. |
 
 ### 5. Bloqueios de produção já existentes (o Deploy do **painel** vai falhar em `check:env` até resolver)
 
-`scripts/check-env-placeholders.mjs production` recusa hoje porque:
+`scripts/check-env-placeholders.mjs production` recusa o deploy enquanto faltar:
 
-- `env.production.d1_databases[0].database_id` é placeholder (`00000000-0000-4000-a000-0000000000ff`);
-- `env.production.vars` não tem `CLERK_PUBLISHABLE_KEY` nem `CLERK_AUTHORIZED_PARTIES`;
-- secrets do Worker `tredane-dev-production` obrigatórios: `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY` (+ Meta/Pix se `live`).
+- `CLERK_PUBLISHABLE_KEY` e `CLERK_AUTHORIZED_PARTIES` em `env.production.vars` (chave pública da instância Clerk de produção; não copiar o `pk_test_` de staging);
+- secrets do Worker `tredane-dev-production`: `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY`, e com `META_MODE=live` também `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_TOKEN_SECRET`. Nenhum valor entra no git.
 
-Também por provisionar na conta de produção: D1 `tredane-production`, R2 `tredane-attachments-production`, Queues `tredane-inbound-production` e `tredane-inbound-dlq-production`.
+Provisionado em 18/11/2026 na conta acima (Paulo: instância de produção em live): D1 `tredane-production` (`0fe695bb-f5bb-4bfa-b764-0a449a8a979a`), R2 `tredane-attachments-production`, filas `tredane-inbound-production`, `tredane-inbound-dlq-production`, `tredane-llm-production`, `tredane-llm-dlq-production`. `META_MODE=live`, `META_APP_ID` e `META_CONFIG_ID` estão em `env.production` (ids públicos, os mesmos do app de staging). A rota `app.tredane.com` entra no deploy. O Worker `tredane-dev-production` ainda não existe: o `check:env` pára nas chaves Clerk.
 
 A landing **não** passa por `check:env` do painel; o deploy de `tredane-site-production` depende só do token/conta com a zona `tredane.com` e dos environments GitHub.
