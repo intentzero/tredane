@@ -324,4 +324,72 @@ describe('staff takeover — IA não responde à cliente', () => {
       s.close()
     }
   })
+
+  it('lista: Assumir / transferir não substitui a prévia pela frase do evento', () => {
+    const s = seedConversation()
+    try {
+      const before = s.db.get<{
+        preview: string | null
+        direction: string | null
+      }>(
+        `SELECT last_message_preview AS preview, last_message_direction AS direction
+         FROM conversations WHERE id = ?`,
+        s.conversationId,
+      )
+      expect(before?.preview).toBe('oi')
+      expect(before?.direction).toBe('inbound')
+
+      assignConversationOp(
+        s.db,
+        s.caller,
+        {
+          conversationId: s.conversationId,
+          assigneeClerkUserId: 'user_synth_owner_a',
+          assigneeDisplayName: 'Paulo',
+          actorClerkUserId: 'user_synth_owner_a',
+          actorDisplayName: 'Paulo',
+        },
+        s.clock,
+      )
+      const afterAssume = s.db.get<{
+        preview: string | null
+        direction: string | null
+        unread: number
+      }>(
+        `SELECT last_message_preview AS preview, last_message_direction AS direction,
+                unread_count AS unread
+         FROM conversations WHERE id = ?`,
+        s.conversationId,
+      )
+      expect(afterAssume?.preview).toBe('oi')
+      expect(afterAssume?.direction).toBe('inbound')
+      expect(afterAssume?.unread).toBe(0)
+
+      assignConversationOp(
+        s.db,
+        workerCaller(s.tenantId, 'user_synth_owner_b'),
+        {
+          conversationId: s.conversationId,
+          assigneeClerkUserId: 'user_synth_owner_b',
+          assigneeDisplayName: 'Ana',
+          actorClerkUserId: 'user_synth_owner_a',
+          actorDisplayName: 'Paulo',
+        },
+        s.clock,
+      )
+      const afterTransfer = s.db.get<{
+        preview: string | null
+        direction: string | null
+      }>(
+        `SELECT last_message_preview AS preview, last_message_direction AS direction
+         FROM conversations WHERE id = ?`,
+        s.conversationId,
+      )
+      expect(afterTransfer?.preview).toBe('oi')
+      expect(afterTransfer?.direction).toBe('inbound')
+      expect(afterTransfer?.preview).not.toMatch(/transferiu/)
+    } finally {
+      s.close()
+    }
+  })
 })

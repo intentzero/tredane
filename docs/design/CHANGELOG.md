@@ -97,6 +97,10 @@
 
 - `PanelShell` ganha o espaço `panel-shell-slot` (`ShellSlot`); a Agenda põe ali setas, Hoje, data, Dia/Semana e Agendar. No celular, uma linha com a data curta (`formatShortDate`) e a faixa de dias com setas de semana. Mocks M-76 `mobile/AgendaTopoCompacto` e `desktop/AgendaBarraCabecalho`.
 
+## 19/11/2026 — DEC-209: Assumir a conversa = banner Devolver à IA
+
+- Com a IA a atender, `InboxThread` mostra faixa `.inbox-assign` sob o cabeçalho («A IA está atendendo esta conversa.» + **Assumir a conversa**), igual ao banner **Devolver à IA**; remove a linha fraca (ponto + link «Assumir») junto ao compositor neste caso. DEC-083 / DEC-155 intactas. M-75 e DEC-169 revistas só no caso IA a atender.
+
 ## 12/11/2026 — DEC-169: Assumir em linha no compositor
 
 - `InboxThread` troca o cartão de handoff (~132 px no celular) por uma linha de 44 px dentro do dock do compositor; **Precisa de alguém** em bloco âmbar compacto; mock M-75 `mobile/AssumirLinha`.

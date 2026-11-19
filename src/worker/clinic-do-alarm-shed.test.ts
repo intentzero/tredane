@@ -5,7 +5,10 @@ import { createConversation } from '../clinic/inbox/conversations'
 import { seedSyntheticWhatsappTemplates } from '../clinic/inbox/templates'
 import { bootClinicDb } from '../clinic/test-db'
 import { syncWhatsappChannel } from '../clinic/whatsapp/channel'
-import { IDLE_PROMPT_BODY, sweepDueIdleConversations } from '../clinic/followup/idle'
+import {
+  IDLE_AUTO_CLOSE_BODY,
+  sweepDueIdleConversations,
+} from '../clinic/followup/idle'
 import { insertMessage } from '../clinic/inbox/messages'
 import { ensureOpenOpportunity } from '../clinic/pipeline/operations'
 import {
@@ -166,7 +169,7 @@ describe('shedDueAlarmBacklog', () => {
     }
   })
 
-  it('shed por autodraft não apaga idle — o sweep DEC-087 ainda corre na passagem seguinte', () => {
+  it('shed por autodraft não apaga idle — o sweep DEC-208 ainda corre na passagem seguinte', () => {
     const clock = createControllableClock(NOW)
     const boot = bootClinicDb({ clock })
     try {
@@ -182,6 +185,7 @@ describe('shedDueAlarmBacklog', () => {
         { tenantId: TENANT, contactId: contact.id, conversationId: conv.id },
         clock,
       )
+      // Fase legada `prompt` no SQLite: o shed não a apaga; o sweep DEC-208 fecha.
       boot.db.run(
         `UPDATE conversations SET idle_due_at = ?, idle_phase = 'prompt' WHERE tenant_id = ? AND id = ?`,
         NOW - 1,
@@ -197,7 +201,8 @@ describe('shedDueAlarmBacklog', () => {
           body: 'oi',
           externalMessageId: 'wa:shed-idle',
           deliveryState: 'received',
-          createdAt: NOW - 20 * 60_000,
+          // > 30 min sem actividade (DEC-208) para o sweep fechar na passagem seguinte.
+          createdAt: NOW - 31 * 60_000,
         },
         clock,
       )
@@ -240,13 +245,13 @@ describe('shedDueAlarmBacklog', () => {
       ).toEqual({ due: NOW - 1, phase: 'prompt' })
 
       const swept = sweepDueIdleConversations(boot.db, TENANT, clock)
-      expect(swept.some((s) => s.conversationId === conv.id && s.action === 'prompted')).toBe(true)
-      const prompt = boot.db.get<{ body: string }>(
+      expect(swept.some((s) => s.conversationId === conv.id && s.action === 'closed')).toBe(true)
+      const farewell = boot.db.get<{ body: string }>(
         `SELECT body FROM messages WHERE conversation_id = ? AND body = ?`,
         conv.id,
-        IDLE_PROMPT_BODY,
+        IDLE_AUTO_CLOSE_BODY,
       )
-      expect(prompt?.body).toBe(IDLE_PROMPT_BODY)
+      expect(farewell?.body).toBe(IDLE_AUTO_CLOSE_BODY)
     } finally {
       boot.close()
     }

@@ -1,6 +1,8 @@
 /**
- * DEC-087 — idle 15 min em conversas em aberto + segundo prazo de mais 15 min.
- * Mensagens system não reiniciam o relógio; humano activo (Assumir) isenta o prompt.
+ * DEC-087 / DEC-208 — idle 30 min sem actividade → fecho gracioso.
+ * Mensagens system não reiniciam o relógio. Corre com IA ou humano (Assumir).
+ * A pergunta intermédia Prosseguir|Terminar (15+15) saiu na DEC-208; handlers
+ * de botão/texto legados mantêm-se para mensagens já enviadas.
  */
 import type { Clock } from '../../db/clock'
 import { clearBookingFrame } from '../ai/schedule-session'
@@ -23,9 +25,8 @@ import { bindOrAssertTenant } from '../tenant'
 import {
   clearConversationIdle,
   clearIdleSuppressed,
-  conversationHasActiveHuman,
   IDLE_CLOSE_AFTER_MS,
-  IDLE_PROMPT_AFTER_MS,
+  IDLE_TIMEOUT_MS,
   lastUsefulMessageAt,
   rescheduleConversationIdle,
   setConversationIdle,
@@ -40,18 +41,20 @@ export {
   conversationHasActiveHuman,
   IDLE_CLOSE_AFTER_MS,
   IDLE_PROMPT_AFTER_MS,
+  IDLE_TIMEOUT_MS,
   lastUsefulMessageAt,
   nextIdleDueAt,
   rescheduleConversationIdle,
 } from './idle-state'
 
+/** @deprecated DEC-208: já não se envia; mantido para parsers/testes de mensagens legadas. */
 export const IDLE_PROMPT_BODY =
   'Ainda está aí? Quer prosseguir com o atendimento ou terminar?'
 
 /**
- * Mensagem do fecho automático por inatividade (segundo prazo depois de
- * `IDLE_PROMPT_BODY`). Texto fixo pedido pelo Paulo (17/11/2026); o botão
- * Terminar continua a usar `pickTerminarFarewell`.
+ * Mensagem do fecho automático por inatividade (DEC-208: após 30 min).
+ * Texto fixo pedido pelo Paulo (17/11/2026); o botão Terminar continua a usar
+ * `pickTerminarFarewell`.
  */
 export const IDLE_AUTO_CLOSE_BODY =
   'Encerramos este atendimento por falta de resposta. Se precisar, é só escrever aqui que retomamos.'
@@ -106,19 +109,24 @@ export function parseIdleTextReply(raw: string): 'continue' | 'end' | null {
   return null
 }
 
-/** Prompt idle ainda é a última outbound útil (fase `close` ou já reiniciada pelo inbound). */
+/**
+ * Resposta a um prompt idle legado («Ainda está aí?…»).
+ * DEC-208 já não envia esse prompt; só reconhece linhas com
+ * `idle_prompt_sent_at` ou com o corpo legado ainda como última outbound.
+ */
 export function isAwaitingIdleClientReply(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
 ): boolean {
   assertClinicSchemaReady(db)
-  const phase = db.get<{ phase: string | null }>(
-    `SELECT idle_phase AS phase FROM conversations WHERE tenant_id = ? AND id = ?`,
+  const row = db.get<{ phase: string | null; promptAt: number | null }>(
+    `SELECT idle_phase AS phase, idle_prompt_sent_at AS promptAt
+     FROM conversations WHERE tenant_id = ? AND id = ?`,
     tenantId,
     conversationId,
   )
-  if (phase?.phase === 'close') return true
+  if (row?.phase === 'close' && row.promptAt != null) return true
   const lastOut = db.get<{ body: string }>(
     `SELECT body FROM messages
      WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
@@ -180,33 +188,9 @@ export function sweepDueIdleConversations(
   for (const row of due) {
     const conversationId = row.id
     const opp = findOpenOpportunityForConversation(db, tenantId, conversationId)
-    if (!opp || conversationHasActiveHuman(db, tenantId, conversationId)) {
+    if (!opp) {
       clearConversationIdle(db, tenantId, conversationId, now)
       results.push({ conversationId, action: 'cleared' })
-      continue
-    }
-
-    if (row.idle_phase === 'close' && row.idle_prompt_sent_at != null) {
-      const progress = lastUsefulMessageAt(db, tenantId, conversationId)
-      // Progresso após o prompt (cliente ou equipa) cancela o fecho.
-      if (progress != null && progress > row.idle_prompt_sent_at) {
-        const dueAt = rescheduleConversationIdle(db, tenantId, conversationId, clock, {
-          progressAt: progress,
-        })
-        results.push(
-          dueAt != null
-            ? { conversationId, action: 'rescheduled', dueAt }
-            : { conversationId, action: 'cleared' },
-        )
-        continue
-      }
-      const closed = closeIdleConversation(db, caller, conversationId, clock)
-      results.push({
-        conversationId,
-        action: 'closed',
-        closedOpportunityId: closed.closedOpportunityId,
-        outbox: closed.outbox,
-      })
       continue
     }
 
@@ -216,29 +200,26 @@ export function sweepDueIdleConversations(
       results.push({ conversationId, action: 'cleared' })
       continue
     }
-    if (now < progress + IDLE_PROMPT_AFTER_MS) {
-      const dueAt = progress + IDLE_PROMPT_AFTER_MS
-      setConversationIdle(db, tenantId, conversationId, {
-        phase: 'prompt',
-        dueAt,
-        promptSentAt: null,
-        updatedAt: now,
+    // Actividade recente (cliente, IA ou humano) → reagendar; senão fechar.
+    if (now < progress + IDLE_TIMEOUT_MS) {
+      const dueAt = rescheduleConversationIdle(db, tenantId, conversationId, clock, {
+        progressAt: progress,
       })
-      results.push({ conversationId, action: 'rescheduled', dueAt })
+      results.push(
+        dueAt != null
+          ? { conversationId, action: 'rescheduled', dueAt }
+          : { conversationId, action: 'cleared' },
+      )
       continue
     }
 
-    const prompted = sendIdlePromptOp(db, caller, { conversationId }, clock)
-    if (prompted.status === 'queued') {
-      results.push({
-        conversationId,
-        action: 'prompted',
-        outbox: prompted.outbox,
-      })
-    } else {
-      clearConversationIdle(db, tenantId, conversationId, now)
-      results.push({ conversationId, action: 'cleared' })
-    }
+    const closed = closeIdleConversation(db, caller, conversationId, clock)
+    results.push({
+      conversationId,
+      action: 'closed',
+      closedOpportunityId: closed.closedOpportunityId,
+      outbox: closed.outbox,
+    })
   }
 
   return results
