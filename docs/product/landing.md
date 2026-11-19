@@ -148,12 +148,13 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 | Item | Valor |
 | --- | --- |
 | Quem acompanha o piloto | Paulo Santos (foto em `site/src/assets/paulo-santos-piloto.jpg`) |
+| Frase no cartão (ao lado da foto) | **Confirmado** (Paulo Santos, 19/11/2026): «Dúvidas no começo? Fala comigo no WhatsApp.» Substitui «Acompanha o piloto…» / «Fica com a sua clínica…» (jargão e vago para o público da clínica). |
 | WhatsApp Tredane | `+55 61 99588 8039` → `wa.me/5561995888039` |
 | Estúdio | mensal R$ 149 · no anual R$ 124 · 1 profissional, 1 login |
 | Clínica | mensal R$ 247 · no anual R$ 206 · até 4 profissionais, 3 logins |
 | Casa | mensal R$ 397 · no anual R$ 331 · até 10 profissionais |
 
-Na página (`site/src/pages/index.astro`): o bloco do piloto mostra a foto e o nome; os CTAs de WhatsApp usam o número acima; a tabela de planos e a FAQ «Quanto custa?» usam estes valores. Os mocks em `docs/design/landing` continuam **desatualizados**; a fonte activa é `site/` e este documento. E-mail comercial continua **Em aberto** (só aparece se `PUBLIC_CONTACT_EMAIL` for real).
+Na página (`site/src/pages/index.astro`): o bloco do piloto mostra a foto, o nome e a frase do cartão acima; os CTAs de WhatsApp usam o número; a tabela de planos e a FAQ «Quanto custa?» usam estes valores. Os mocks em `docs/design/landing` podem ficar atrás; a fonte activa é `site/` e este documento. E-mail comercial continua **Em aberto** (só aparece se `PUBLIC_CONTACT_EMAIL` for real).
 
 ## Critérios de aceite
 
