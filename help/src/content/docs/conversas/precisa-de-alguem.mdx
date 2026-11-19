@@ -1,0 +1,39 @@
+---
+title: Entender o aviso «Precisa de alguém»
+description: Quando uma conversa fica marcada como Precisa de alguém, como você é avisado e o que fazer.
+papel: [equipe, responsavel]
+telas: [TEL-01, M-30]
+jornadas: [JRN-02]
+estado: confirmado
+revisado: 2026-11-19
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components'
+
+## O que é
+
+Quando a IA não deve continuar sozinha, ela pausa e marca a conversa como **Precisa de alguém**. Isso acontece, por exemplo, quando a cliente pede uma pessoa, faz uma pergunta sobre saúde, ou envia algo fora do assunto da clínica. A cliente recebe uma frase fixa de que a equipe vai continuar.
+
+## Como você é avisado
+
+- O título da aba do navegador mostra «(N) Precisa de alguém · Tredane».
+- Uma faixa no topo do painel aparece em qualquer área, até alguém assumir.
+- A conversa recebe um destaque e um som na lista.
+- Com [avisos no celular](/comecar/avisos-no-celular/) ativados, chega uma notificação «Precisa de alguém».
+- Se ninguém assumir em **5 minutos**, o aviso é reforçado.
+
+## O que fazer
+
+<Steps>
+
+1. Toque em <span class="ui">Ver lista</span> na faixa, ou abra a conversa marcada.
+2. Toque em <span class="ui">Assumir conversa</span>.
+3. Responda a cliente. Se a janela de 24 h estiver fechada, veja [mensagem fora da janela](/conversas/fora-da-janela-de-24h/).
+
+</Steps>
+
+<Aside type="note">
+Se ninguém assumir em **30 minutos**, a IA volta a atender e avisa a cliente: «A equipe não conseguiu assumir agora. Continuo te atendendo por aqui.»
+</Aside>
+
+Fora do expediente, quando a cliente só pede para falar com a equipe, a IA responde com o horário em que a equipe volta e continua atendendo, sem pausar.

@@ -1,0 +1,128 @@
+---
+// Lista de passos com marcação que fica guardada só neste navegador (localStorage).
+// Se o armazenamento falhar (janela privada, bloqueio), a lista funciona sem guardar.
+interface Item {
+  id: string
+  texto: string
+  href?: string
+  detalhe?: string
+}
+interface Props {
+  id: string
+  itens: Item[]
+}
+const { id, itens } = Astro.props
+---
+
+<div class="checklist" data-checklist={id}>
+  <p class="checklist__progresso" aria-live="polite"><span data-feitos>0</span> de {itens.length} feitos</p>
+  <ol>
+    {
+      itens.map((item) => (
+        <li>
+          <label>
+            <input type="checkbox" data-item={item.id} />
+            <span>
+              {item.href ? <a href={item.href}>{item.texto}</a> : <strong>{item.texto}</strong>}
+              {item.detalhe && <small>{item.detalhe}</small>}
+            </span>
+          </label>
+        </li>
+      ))
+    }
+  </ol>
+  <button type="button" class="checklist__limpar" data-limpar>Desmarcar tudo</button>
+</div>
+
+<script>
+  for (const raiz of document.querySelectorAll<HTMLElement>('[data-checklist]')) {
+    const chave = `ajuda-tredane:checklist:${raiz.dataset.checklist}`
+    const caixas = [...raiz.querySelectorAll<HTMLInputElement>('input[data-item]')]
+    const contador = raiz.querySelector('[data-feitos]')
+    let feitos: string[] = []
+    try {
+      feitos = JSON.parse(localStorage.getItem(chave) ?? '[]')
+    } catch {
+      feitos = []
+    }
+    const atualizar = () => {
+      if (contador) contador.textContent = String(caixas.filter((c) => c.checked).length)
+    }
+    const guardar = () => {
+      try {
+        localStorage.setItem(chave, JSON.stringify(caixas.filter((c) => c.checked).map((c) => c.dataset.item)))
+      } catch {
+        // Sem armazenamento: a marcação vale só até recarregar.
+      }
+      atualizar()
+    }
+    for (const c of caixas) {
+      c.checked = feitos.includes(c.dataset.item ?? '')
+      c.addEventListener('change', guardar)
+    }
+    raiz.querySelector('[data-limpar]')?.addEventListener('click', () => {
+      for (const c of caixas) c.checked = false
+      guardar()
+    })
+    atualizar()
+  }
+</script>
+
+<style>
+  .checklist {
+    margin-top: 1.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--color-line-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-card);
+  }
+  .checklist__progresso {
+    margin: 0;
+    font-weight: 500;
+    color: var(--color-primary-ink);
+  }
+  .checklist ol {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+  }
+  .checklist li {
+    margin: 0;
+    border-top: 1px solid var(--color-line-divider);
+  }
+  .checklist label {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 0;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .checklist input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+    accent-color: var(--color-primary-fill);
+  }
+  .checklist small {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--sl-text-sm);
+  }
+  .checklist input:checked + span > :first-child {
+    text-decoration: line-through;
+    color: var(--color-text-muted);
+  }
+  .checklist__limpar {
+    margin-top: 0.5rem;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--color-line-border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    cursor: pointer;
+  }
+</style>

@@ -6,6 +6,7 @@ Há **dois** workflows de publicação, ambos só por `workflow_dispatch` (sem p
 | --- | --- | --- | --- |
 | Painel / API | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | **Actions → Deploy → Run workflow** | `tredane-dev-staging` / `tredane-dev-production` |
 | Landing page (`site/`) | [`.github/workflows/deploy-site.yml`](../.github/workflows/deploy-site.yml) | **Actions → Deploy landing → Run workflow** | `tredane-site-staging` / `tredane-site-production` |
+| Central de ajuda (`help/`) | [`.github/workflows/deploy-ajuda.yml`](../.github/workflows/deploy-ajuda.yml) | **Actions → Deploy ajuda → Run workflow** | `tredane-ajuda-staging` / `tredane-ajuda-production` |
 
 **Porquê workflows separados (não um input a mais no Deploy):** o painel corre typecheck/lint/testes, migrate/smoke D1 e `check:env` do Worker principal; a landing é só `site/` (Astro estático + `wrangler deploy`). Misturar os dois no mesmo formulário aumentava o risco de publicar o Worker errado ou de saltar passos D1 por confusão de inputs.
 
@@ -47,6 +48,19 @@ Scripts: [`scripts/d1-migrate-remote.mjs`](../scripts/d1-migrate-remote.mjs), [`
 - **Não** publica a landing page `site/` — ver secção seguinte.
 - **Não** faz fan-out de migrações do SQLite dos Durable Objects (clinic).
 - **Não** cria/atualiza secrets do Worker (`wrangler secret put`).
+
+---
+
+## Deploy ajuda — `help/`
+
+**Proposto** (DEC-204, [ajuda.md](product/ajuda.md)); não usar em produção antes de a DEC ser confirmada.
+
+Workflow: [`.github/workflows/deploy-ajuda.yml`](../.github/workflows/deploy-ajuda.yml), cópia do da landing: mesmos inputs, mesmo guard de production (só commits em `main`), Node 22 e `npm ci` em `help/`.
+
+- `build:staging` publica também os artigos em rascunho (`HELP_DRAFTS=1`) e marca `noindex`; `build:production` omite os rascunhos. Os dois correm `scripts/check-estado.mjs` e o validador de links.
+- Domínios: `tredane-ajuda-staging` → `https://staging.ajuda.tredane.com`; `tredane-ajuda-production` → `https://ajuda.tredane.com`.
+- Antes do primeiro deploy: a zona `tredane.com` na conta Cloudflare precisa aceitar os Custom Domains acima e os environments `staging`/`production` do GitHub precisam dos mesmos segredos da landing.
+- Manual: `cd help && npm ci && npm run deploy:staging`.
 
 ---
 

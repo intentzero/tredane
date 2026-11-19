@@ -1,0 +1,29 @@
+---
+// Título padrão do Starlight + etiquetas de papel (quem faz este passo a passo).
+import Default from '@astrojs/starlight/components/PageTitle.astro'
+
+const ROTULOS = {
+  responsavel: 'Responsável pela clínica',
+  equipe: 'Equipe',
+  cliente: 'Cliente da clínica',
+} as const
+
+const data = Astro.locals.starlightRoute.entry.data as {
+  papel?: (keyof typeof ROTULOS)[]
+  estado?: 'confirmado' | 'proposto'
+}
+const papeis = data.papel ?? []
+const proposto = data.estado === 'proposto'
+---
+
+<Default />
+{
+  (papeis.length > 0 || proposto) && (
+    <p class="papeis" aria-label="Para quem é este artigo">
+      {papeis.map((p) => (
+        <span class={`papel papel--${p}`}>{ROTULOS[p]}</span>
+      ))}
+      {proposto && <span class="papel rascunho">Rascunho — ainda não disponível para todas as clínicas</span>}
+    </p>
+  )
+}

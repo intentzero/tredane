@@ -1,0 +1,63 @@
+---
+// Caixa de busca grande da página inicial. Abre a mesma busca do cabeçalho (Pagefind),
+// que funciona sem serviço externo. Sem JavaScript, o botão fica oculto e a busca do topo continua.
+---
+
+<div class="busca-grande" hidden>
+  <button type="button" class="busca-grande__botao">
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+    <span>Como faço para… <em>ex.: remarcar, convidar, WhatsApp</em></span>
+  </button>
+</div>
+
+<script>
+  for (const caixa of document.querySelectorAll<HTMLElement>('.busca-grande')) {
+    const abrir = document.querySelector<HTMLButtonElement>('site-search button[data-open-modal]')
+    if (!abrir) continue
+    caixa.hidden = false
+    // O Starlight fecha a busca em qualquer clique fora dele; sem stopPropagation o clique
+    // que abre a busca chegaria ao window e a fecharia na hora.
+    caixa.querySelector('button')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      abrir.click()
+    })
+  }
+</script>
+
+<style>
+  .busca-grande {
+    margin: 1.5rem 0 0.5rem;
+  }
+  .busca-grande__botao {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 56px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-line-control);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-card);
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 1.05rem;
+    text-align: start;
+    cursor: pointer;
+  }
+  .busca-grande__botao:hover {
+    border-color: var(--color-primary-base);
+  }
+  .busca-grande__botao:focus-visible {
+    outline: 2px solid var(--color-primary-base);
+    outline-offset: 2px;
+  }
+  .busca-grande__botao em {
+    font-style: normal;
+    color: var(--color-text-muted);
+    font-size: 0.9em;
+  }
+  .busca-grande__botao svg {
+    flex-shrink: 0;
+    color: var(--color-primary-ink);
+  }
+</style>
