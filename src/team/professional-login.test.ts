@@ -23,34 +23,40 @@ const emailTransport: EmailTransport = {
   },
 }
 
-describe('login da profissional (DEC-204)', () => {
-  it('e-mail novo cria a linha e um convite de profissional', async () => {
+describe('login da profissional (DEC-204 revista — Equipe primeiro)', () => {
+  it('sem membership activo recusa e não cria convite', async () => {
     const { db, close } = bootAdminDb()
     const clock = createControllableClock()
     try {
-      const out = await linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
-        tenantId: TENANT,
-        resourceId: 'pro-ana',
-        email: 'Ana@Clinica.Example',
-        alsoAttendant: false,
-        actorClerkUserId: OWNER,
-      })
-      expect(out.invitationSent).toBe(true)
-      expect(out.login.email).toBe('ana@clinica.example')
-      expect(out.login.clerkUserId).toBeNull()
-      const invite = db.get<{ role: string; status: string }>(
-        `SELECT role, status FROM tenant_invitations
-         WHERE tenant_id = ? AND normalized_email = ?`,
-        TENANT,
-        'ana@clinica.example',
-      )
-      expect(invite).toEqual({ role: 'professional', status: 'pending' })
+      await expect(
+        linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
+          tenantId: TENANT,
+          resourceId: 'pro-ana',
+          email: 'Ana@Clinica.Example',
+          alsoAttendant: false,
+          actorClerkUserId: OWNER,
+        }),
+      ).rejects.toMatchObject({ code: 'membership_required' })
+      expect(
+        db.get(
+          `SELECT 1 FROM professional_logins WHERE tenant_id = ? AND resource_id = ?`,
+          TENANT,
+          'pro-ana',
+        ),
+      ).toBeUndefined()
+      expect(
+        db.get(
+          `SELECT 1 FROM tenant_invitations WHERE tenant_id = ? AND normalized_email = ?`,
+          TENANT,
+          'ana@clinica.example',
+        ),
+      ).toBeUndefined()
     } finally {
       close()
     }
   })
 
-  it('aceitar o convite grava o utilizador Clerk na ficha', async () => {
+  it('aceitar convite de profissional legado ainda grava o Clerk na ficha', async () => {
     const { db, close } = bootAdminDb()
     const clock = createControllableClock()
     try {
@@ -97,6 +103,7 @@ describe('login da profissional (DEC-204)', () => {
         actorClerkUserId: OWNER,
         boundClerkUserId: ATTENDANT,
       })
+      expect(demoted.invitationSent).toBe(false)
       expect(demoted.membershipRole).toBe('professional')
       expect(getMembership(db, TENANT, ATTENDANT)?.role).toBe('professional')
 
@@ -142,16 +149,15 @@ describe('login da profissional (DEC-204)', () => {
         ),
       ).toBeUndefined()
 
-      // E-mail fica livre para outra ficha.
-      const reused = await linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
-        tenantId: TENANT,
-        resourceId: 'pro-outra',
-        email: 'lia@clinica.example',
-        alsoAttendant: false,
-        actorClerkUserId: OWNER,
-      })
-      expect(reused.login.email).toBe('lia@clinica.example')
-      expect(reused.invitationSent).toBe(true)
+      await expect(
+        linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
+          tenantId: TENANT,
+          resourceId: 'pro-outra',
+          email: 'lia@clinica.example',
+          alsoAttendant: false,
+          actorClerkUserId: OWNER,
+        }),
+      ).rejects.toMatchObject({ code: 'membership_required' })
 
       await linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
         tenantId: TENANT,
@@ -180,7 +186,7 @@ describe('login da profissional (DEC-204)', () => {
     }
   })
 
-  it('troca de e-mail revoga atendente só via alsoAttendant nesta ficha', async () => {
+  it('troca de membro na ficha revoga atendente só via alsoAttendant nesta ficha', async () => {
     const { db, close } = bootAdminDb()
     const clock = createControllableClock()
     try {
@@ -197,10 +203,10 @@ describe('login da profissional (DEC-204)', () => {
       await linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
         tenantId: TENANT,
         resourceId: 'pro-lia',
-        email: 'nova-lia@clinica.example',
+        email: 'owner.a@example.test',
         alsoAttendant: false,
         actorClerkUserId: OWNER,
-        boundClerkUserId: null,
+        boundClerkUserId: OWNER,
       })
       expect(getMembership(db, TENANT, ATTENDANT)?.status).toBe('revoked')
       const row = db.get<{ clerk_user_id: string | null; normalized_email: string }>(
@@ -209,8 +215,9 @@ describe('login da profissional (DEC-204)', () => {
         TENANT,
         'pro-lia',
       )
-      expect(row?.normalized_email).toBe('nova-lia@clinica.example')
-      expect(row?.clerk_user_id).toBeNull()
+      expect(row?.normalized_email).toBe('owner.a@example.test')
+      expect(row?.clerk_user_id).toBe(OWNER)
+      expect(getMembership(db, TENANT, OWNER)?.role).toBe('owner')
     } finally {
       close()
     }
@@ -223,17 +230,19 @@ describe('login da profissional (DEC-204)', () => {
       await linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
         tenantId: TENANT,
         resourceId: 'pro-ana',
-        email: 'ana@clinica.example',
+        email: 'attendant.a@example.test',
         alsoAttendant: false,
         actorClerkUserId: OWNER,
+        boundClerkUserId: ATTENDANT,
       })
       await expect(
         linkProfessionalLogin(db, clock, emailTransport, 'https://app.test', {
           tenantId: TENANT,
           resourceId: 'pro-bia',
-          email: 'ana@clinica.example',
+          email: 'attendant.a@example.test',
           alsoAttendant: false,
           actorClerkUserId: OWNER,
+          boundClerkUserId: OWNER,
         }),
       ).rejects.toBeInstanceOf(ConflictError)
     } finally {

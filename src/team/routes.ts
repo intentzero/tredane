@@ -46,6 +46,7 @@ import {
   d1GetInvitation,
   d1GetProfessionalLogin,
   d1LinkProfessionalLogin,
+  d1ListProfessionalLoginsByUser,
   d1ListTeam,
   d1ReleaseProfessionalLogin,
   d1ResendInvitation,
@@ -53,6 +54,7 @@ import {
 import {
   getProfessionalLogin,
   linkProfessionalLogin,
+  listProfessionalLoginsByUser,
   releaseProfessionalLogin,
 } from './professional-login'
 import { normalizeEmail } from '../db/admin/ids'
@@ -256,6 +258,10 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
           ? loadTeamSnapshot(services, ctx.tenantId)
           : await d1ListTeam(c.env.DB, ctx.tenantId, now)
 
+        const professionalByUser = services
+          ? listProfessionalLoginsByUser(services.db, ctx.tenantId)
+          : await d1ListProfessionalLoginsByUser(c.env.DB, ctx.tenantId)
+
         const activeOwnerCount = snap.members.filter(
           (m) => m.role === 'owner' && m.status === 'active',
         ).length
@@ -271,11 +277,14 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
           tenantId: ctx.tenantId,
           members: snap.members.map((m) => {
             const profile = profiles.get(m.clerkUserId)
+            const login = professionalByUser.get(m.clerkUserId)
             return serializeTeamMember(m, {
               callerIsOwner,
               activeOwnerCount,
               displayName: profile?.displayName ?? null,
               email: profile?.email ?? null,
+              professionalResourceId: login?.resourceId ?? null,
+              alsoAttendantFromFicha: login ? login.alsoAttendant : null,
             })
           }),
           invitations: snap.invitations.map((inv) =>
@@ -717,26 +726,36 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
       } catch (err) {
         return authErrorResponse(c, err)
       }
-      const body = await c.req.json<{ email?: string; alsoAttendant?: boolean }>().catch(() => null)
+      const body = await c.req
+        .json<{ email?: string; alsoAttendant?: boolean; clerkUserId?: string }>()
+        .catch(() => null)
       const email = body?.email?.trim()
       if (!email) return c.json({ error: 'email_required' }, 400)
       const resourceId = c.req.param('resourceId')
       const alsoAttendant = body?.alsoAttendant === true
+      const requestedUserId = body?.clerkUserId?.trim() || null
       const services = resolveTeamServices(c.env, opts)
       const clock = opts.clockFactory?.() ?? systemClock
       try {
         const snap = services
           ? { members: listMembersForTenant(services.db, ctx.tenantId, { includeRevoked: false }) }
           : await d1ListTeam(c.env.DB, ctx.tenantId, clock.nowMs())
-        const profileReader = c.get('authServices').staffProfiles
-        const profiles = profileReader
-          ? await profileReader.readStaffProfiles(snap.members.map((m) => m.clerkUserId))
-          : new Map()
-        const want = normalizeEmail(email)
-        const bound = snap.members.find((m) => {
-          const found = profiles.get(m.clerkUserId)?.email
-          return found ? normalizeEmail(found) === want : false
-        })?.clerkUserId ?? null
+        const activeMembers = snap.members.filter((m) => m.status === 'active')
+        let bound: string | null = null
+        if (requestedUserId && activeMembers.some((m) => m.clerkUserId === requestedUserId)) {
+          bound = requestedUserId
+        } else {
+          const profileReader = c.get('authServices').staffProfiles
+          const profiles = profileReader
+            ? await profileReader.readStaffProfiles(activeMembers.map((m) => m.clerkUserId))
+            : new Map()
+          const want = normalizeEmail(email)
+          bound =
+            activeMembers.find((m) => {
+              const found = profiles.get(m.clerkUserId)?.email
+              return found ? normalizeEmail(found) === want : false
+            })?.clerkUserId ?? null
+        }
         if (services) {
           const result = await linkProfessionalLogin(
             services.db,

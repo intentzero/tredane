@@ -34,7 +34,6 @@ import { ClinicSheet } from './ClinicSheet'
 import { SupportRequestsPanel } from '../../support/SupportRequestsPanel'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { navigatePanel } from '../../routes'
-import { ClinicCheck } from './ClinicCheck'
 import { writeProfessionalInviteDraft } from './professionalDraft'
 
 type Props = {
@@ -116,6 +115,10 @@ function canResendNow(inv: TeamInvitation, nowMs: number): boolean {
   return cooldownLeftMs(inv, nowMs) === 0
 }
 
+function hasLinkedFicha(m: TeamMemberLite): boolean {
+  return Boolean(m.professionalResourceId)
+}
+
 function canShowPromote(m: TeamMemberLite, viewerId: string | null): boolean {
   if (!m.manageActions?.canPromote) return false
   if (m.role !== 'attendant') return false
@@ -135,8 +138,27 @@ function canShowRevoke(m: TeamMemberLite, viewerId: string | null): boolean {
   return m.status === 'active'
 }
 
+/** DEC-204: abrir ficha já ligada (inclui profissional puro). */
+function canShowOpenFicha(m: TeamMemberLite): boolean {
+  return m.status === 'active' && hasLinkedFicha(m)
+}
+
+/** DEC-204 revista: membro da Equipe sem ficha → atalho para criar ficha. */
+function canShowAlsoExecutes(m: TeamMemberLite): boolean {
+  if (m.status !== 'active') return false
+  if (hasLinkedFicha(m)) return false
+  if (m.role !== 'attendant' && m.role !== 'owner') return false
+  return Boolean(m.email?.trim())
+}
+
 function hasMemberMenu(m: TeamMemberLite, viewerId: string | null): boolean {
-  return canShowPromote(m, viewerId) || canShowDemote(m) || canShowRevoke(m, viewerId)
+  return (
+    canShowOpenFicha(m)
+    || canShowAlsoExecutes(m)
+    || canShowPromote(m, viewerId)
+    || canShowDemote(m)
+    || canShowRevoke(m, viewerId)
+  )
 }
 
 export function EquipeScreen(props: Props) {
@@ -168,7 +190,6 @@ function EquipeScreenInner({
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'attendant' | 'owner'>('attendant')
-  const [alsoExecutes, setAlsoExecutes] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionOk, setActionOk] = useState<string | null>(null)
@@ -232,24 +253,41 @@ function EquipeScreenInner({
     return [...list].sort((a, b) => a.expiresAt - b.expiresAt)
   }, [snap])
 
+  function openNewProfessionalFicha(member: TeamMemberLite) {
+    const email = member.email?.trim()
+    if (!email) return
+    writeProfessionalInviteDraft({
+      email,
+      alsoAttendant: member.role !== 'owner',
+      clerkUserId: member.clerkUserId,
+    })
+    setMenuMember(null)
+    navigatePanel({
+      kind: 'area',
+      area: 'clinica',
+      tenantId,
+      section: 'profissional',
+      entityId: 'novo',
+    })
+  }
+
+  function openExistingProfessionalFicha(member: TeamMemberLite) {
+    const resourceId = member.professionalResourceId
+    if (!resourceId) return
+    setMenuMember(null)
+    navigatePanel({
+      kind: 'area',
+      area: 'clinica',
+      tenantId,
+      section: 'profissional',
+      entityId: resourceId,
+    })
+  }
+
   async function onInvite() {
     const email = inviteEmail.trim()
     if (!email) {
       setActionError('Informe o e-mail da pessoa.')
-      return
-    }
-    if (alsoExecutes && inviteRole === 'attendant') {
-      writeProfessionalInviteDraft({ email, alsoAttendant: true })
-      setInviteOpen(false)
-      setInviteEmail('')
-      setAlsoExecutes(false)
-      navigatePanel({
-        kind: 'area',
-        area: 'clinica',
-        tenantId,
-        section: 'profissional',
-        entityId: 'novo',
-      })
       return
     }
     setBusyId('invite')
@@ -268,8 +306,8 @@ function EquipeScreenInner({
       if (result.emailSent) {
         setActionOk(
           inviteRole === 'owner'
-            ? 'Convite de responsável enviado por e-mail. A pessoa tem 7 dias para aceitar.'
-            : 'Convite enviado por e-mail. A pessoa tem 7 dias para aceitar.',
+            ? 'Convite de responsável enviado por e-mail. A pessoa tem 7 dias para aceitar. Depois, no ⋮, use «Também executa serviços…» se ela atender na agenda.'
+            : 'Convite enviado por e-mail. A pessoa tem 7 dias para aceitar. Depois, no ⋮, use «Também executa serviços…» se ela atender na agenda.',
         )
       } else {
         setActionError(
@@ -411,14 +449,13 @@ function EquipeScreenInner({
     <div className="clinic-stack equipe-screen">
       <ClinicPageHeader
         title="Equipe"
-        description="Quem entra no painel desta clínica e o que pode fazer."
+        description="Quem entra no painel e o que pode fazer. Para quem executa serviços, depois do convite use «Também executa serviços…» no membro (abre a ficha em Profissionais)."
         action={
           <Button
             className="panel-btn panel-btn-primary equipe-invite-cta"
             onPress={() => {
               setActionError(null)
               setInviteRole('attendant')
-              setAlsoExecutes(false)
               setInviteOpen(true)
             }}
           >
@@ -481,6 +518,9 @@ function EquipeScreenInner({
                         <Badge tone={m.role === 'owner' ? 'new' : 'closed'}>
                           {roleLabel(m.role)}
                         </Badge>
+                        {hasLinkedFicha(m) ? (
+                          <Badge tone="open">Executa serviços</Badge>
+                        ) : null}
                       </span>
                       {showMenu ? (
                         <Button
@@ -577,23 +617,26 @@ function EquipeScreenInner({
             <div>
               <dt>Responsável</dt>
               <dd>
-                Faz tudo o que a atendente faz e ainda configura a clínica, convida pessoas, muda
-                papéis e remove acessos. A clínica fica sempre com pelo menos um responsável.
+                Papel do painel: faz tudo o que a atendente faz e ainda configura a clínica, convida
+                pessoas, muda papéis e remove acessos. A clínica fica sempre com pelo menos um
+                responsável. Se também executa serviços, liga a ficha no ⋮ (mantém responsável).
               </dd>
             </div>
             <div>
               <dt>Atendente</dt>
               <dd>
-                Atende conversas, marca e remarca horários e vê clientes. Não entra em Clínica nem
-                convida pessoas. Não precisa executar serviços.
+                Papel do painel: atende conversas, marca e remarca horários e vê clientes. Não entra
+                em Clínica nem convida pessoas. Não precisa executar serviços — se executar, use
+                «Também executa serviços…» depois do convite.
               </dd>
             </div>
             <div>
               <dt>Profissional</dt>
               <dd>
-                Vê o dia inteiro da agenda, com a coluna dela em destaque, o primeiro nome da
-                cliente, o horário, o serviço e a sala. Não vê conversas nem marca horários. Se
-                também atende no WhatsApp, a conta é de atendente.
+                Não se cria neste ⋮: primeiro o convite na Equipe, depois a ficha em Profissionais
+                (atalho «Também executa serviços…»). Vê o dia inteiro da agenda, com a coluna dela em
+                destaque. Não vê conversas nem marca horários. Com «Também atende no WhatsApp» na
+                ficha, a conta continua de atendente.
               </dd>
             </div>
           </dl>
@@ -608,14 +651,14 @@ function EquipeScreenInner({
           if (!open) {
             setInviteEmail('')
             setInviteRole('attendant')
-            setAlsoExecutes(false)
           }
         }}
         title="Convidar pessoa"
       >
         <p className="panel-subtitle">
           A pessoa recebe um e-mail com link válido por 7 dias. Escolha se entra como atendente ou
-          responsável.
+          responsável. Se também executar serviços, depois de aceitar use «Também executa
+          serviços…» no ⋮ do membro.
         </p>
         <RadioGroup
           className="clinic-field"
@@ -637,11 +680,6 @@ function EquipeScreenInner({
           <Label>E-mail</Label>
           <Input placeholder="nome@clinica.example" autoComplete="email" inputMode="email" />
         </TextField>
-        {inviteRole === 'attendant' ? (
-          <ClinicCheck isSelected={alsoExecutes} onChange={setAlsoExecutes}>
-            Também executa serviços
-          </ClinicCheck>
-        ) : null}
         {actionError && inviteOpen ? (
           <p className="clinic-form-error" role="alert">
             {actionError}
@@ -660,11 +698,7 @@ function EquipeScreenInner({
             isDisabled={busyId === 'invite' || !inviteEmail.trim()}
             onPress={() => void onInvite()}
           >
-            {busyId === 'invite'
-              ? 'Enviando…'
-              : alsoExecutes && inviteRole === 'attendant'
-                ? 'Continuar na ficha'
-                : 'Enviar convite'}
+            {busyId === 'invite' ? 'Enviando…' : 'Enviar convite'}
           </Button>
         </div>
       </ClinicSheet>
@@ -693,6 +727,30 @@ function EquipeScreenInner({
                 : 'Ações'}
             </Heading>
             <div className="clinic-footer-actions" style={{ flexDirection: 'column', gap: 8 }}>
+              {menuMember && canShowOpenFicha(menuMember) ? (
+                <>
+                  <Button
+                    className="panel-btn panel-btn-secondary"
+                    onPress={() => openExistingProfessionalFicha(menuMember)}
+                  >
+                    Abrir ficha na agenda
+                  </Button>
+                  {menuMember.role === 'professional' ? (
+                    <p className="clinic-footnote">
+                      O acesso desta conta gere-se na ficha; desactivar a profissional corta o login
+                      se não for também atendente ou responsável.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              {menuMember && canShowAlsoExecutes(menuMember) ? (
+                <Button
+                  className="panel-btn panel-btn-secondary"
+                  onPress={() => openNewProfessionalFicha(menuMember)}
+                >
+                  Também executa serviços…
+                </Button>
+              ) : null}
               {menuMember && canShowPromote(menuMember, viewerClerkUserId) ? (
                 <Button
                   className="panel-btn panel-btn-secondary"
@@ -762,39 +820,63 @@ function EquipeScreenInner({
                   : `Remover acesso de ${confirmName}?`}
             </Heading>
             <p id="equipe-confirm-desc" className="clinic-footnote">
-              {pendingAction?.action === 'promote'
-                ? 'A pessoa passa a configurar a clínica, convidar equipe e gerir responsáveis.'
-                : pendingAction?.action === 'demote'
-                  ? 'A pessoa deixa de ser responsável e fica só como atendente. A clínica precisa manter pelo menos um responsável.'
-                  : 'A pessoa perde o acesso a esta clínica na hora — inclusive conversas e agenda em tempo real. A conta dela no Tredane e o acesso a outras clínicas não mudam. Você pode convidar de novo depois.'}
-            </p>
-            <div className="clinic-footer-actions">
-              <Button
-                className="panel-btn panel-btn-ghost"
-                isDisabled={confirmBusy}
-                onPress={() => setPendingAction(null)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                className={
-                  pendingAction?.action === 'revoke'
-                    ? 'panel-btn panel-btn-danger'
-                    : 'panel-btn panel-btn-primary'
+              {(() => {
+                if (!pendingAction) return ''
+                if (pendingAction.action === 'promote') {
+                  return 'A pessoa passa a configurar a clínica, convidar equipe e gerir responsáveis.'
                 }
-                isDisabled={confirmBusy}
-                onPress={() => void onConfirmAction()}
-              >
-                {confirmBusy
-                  ? pendingAction?.action === 'revoke'
-                    ? 'Removendo…'
-                    : 'Salvando…'
-                  : pendingAction?.action === 'promote'
-                    ? 'Tornar responsável'
-                    : pendingAction?.action === 'demote'
-                      ? 'Tornar atendente'
-                      : 'Remover acesso'}
-              </Button>
+                if (pendingAction.action === 'demote') {
+                  return hasLinkedFicha(pendingAction.member)
+                    ? 'A pessoa deixa de ser responsável e fica só como atendente. Continua a aparecer na agenda pela ficha. A clínica precisa manter pelo menos um responsável.'
+                    : 'A pessoa deixa de ser responsável e fica só como atendente. A clínica precisa manter pelo menos um responsável.'
+                }
+                return hasLinkedFicha(pendingAction.member)
+                  ? 'A pessoa perde o acesso a esta clínica na hora — inclusive conversas e agenda em tempo real. A ficha de profissional não é apagada; horários futuros mantêm-se. A conta no Tredane e outras clínicas não mudam.'
+                  : 'A pessoa perde o acesso a esta clínica na hora — inclusive conversas e agenda em tempo real. A conta dela no Tredane e o acesso a outras clínicas não mudam. Você pode convidar de novo depois.'
+              })()}
+            </p>
+            <div className="clinic-footer-actions" style={{ flexDirection: 'column', gap: 8 }}>
+              {pendingAction?.action === 'revoke' && hasLinkedFicha(pendingAction.member) ? (
+                <Button
+                  className="panel-btn panel-btn-secondary"
+                  isDisabled={confirmBusy}
+                  onPress={() => {
+                    const member = pendingAction.member
+                    setPendingAction(null)
+                    openExistingProfessionalFicha(member)
+                  }}
+                >
+                  Abrir ficha na agenda
+                </Button>
+              ) : null}
+              <div className="clinic-footer-actions">
+                <Button
+                  className="panel-btn panel-btn-ghost"
+                  isDisabled={confirmBusy}
+                  onPress={() => setPendingAction(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className={
+                    pendingAction?.action === 'revoke'
+                      ? 'panel-btn panel-btn-danger'
+                      : 'panel-btn panel-btn-primary'
+                  }
+                  isDisabled={confirmBusy}
+                  onPress={() => void onConfirmAction()}
+                >
+                  {confirmBusy
+                    ? pendingAction?.action === 'revoke'
+                      ? 'Removendo…'
+                      : 'Salvando…'
+                    : pendingAction?.action === 'promote'
+                      ? 'Tornar responsável'
+                      : pendingAction?.action === 'demote'
+                        ? 'Tornar atendente'
+                        : 'Remover acesso'}
+                </Button>
+              </div>
             </div>
           </Dialog>
         </Modal>

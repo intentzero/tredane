@@ -545,6 +545,8 @@ describe('HTTP — Equipe e convites (#25)', () => {
           role: string
           displayName: string | null
           email: string | null
+          professionalResourceId: string | null
+          alsoAttendantFromFicha: boolean | null
           manageActions: {
             canRevoke: boolean
             canPromote?: boolean
@@ -572,6 +574,60 @@ describe('HTTP — Equipe e convites (#25)', () => {
         true,
       )
       expect(Array.isArray(body.invitations)).toBe(true)
+      // DEC-204: vínculo ficha (vazio até ligar).
+      expect(attendant?.professionalResourceId).toBeNull()
+      expect(attendant?.alsoAttendantFromFicha).toBeNull()
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('GET /team inclui professionalResourceId após ligar a ficha a um membro', async () => {
+    const ctx = testTeamApp()
+    try {
+      const put = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/professional-logins/pro_carla',
+        ctx.auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'attendant.a@example.test',
+            alsoAttendant: true,
+            clerkUserId: 'user_synth_attendant_a',
+          }),
+        }),
+      )
+      expect(put.status).toBe(200)
+      const linked = (await put.json()) as { invitationSent: boolean; membershipRole: string }
+      expect(linked.invitationSent).toBe(false)
+      expect(linked.membershipRole).toBe('attendant')
+
+      const team = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/team',
+        ctx.auth('user_synth_owner_a'),
+      )
+      expect(team.status).toBe(200)
+      const body = (await team.json()) as {
+        members: Array<{
+          email: string | null
+          professionalResourceId: string | null
+          alsoAttendantFromFicha: boolean | null
+        }>
+      }
+      const attendant = body.members.find((m) => m.email === 'attendant.a@example.test')
+      expect(attendant?.professionalResourceId).toBe('pro_carla')
+      expect(attendant?.alsoAttendantFromFicha).toBe(true)
+
+      const refuse = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/professional-logins/pro_solto',
+        ctx.auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'solto@example.test', alsoAttendant: false }),
+        }),
+      )
+      expect(refuse.status).toBe(409)
+      expect(await refuse.json()).toMatchObject({ error: 'membership_required' })
     } finally {
       ctx.close()
     }

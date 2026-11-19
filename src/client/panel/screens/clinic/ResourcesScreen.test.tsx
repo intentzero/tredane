@@ -31,20 +31,26 @@ function snap(resources: ClinicResource[]): ClinicConfigSnapshot {
   } as unknown as ClinicConfigSnapshot
 }
 
-function renderForm(resource: ClinicResource, api: Partial<PanelApi>) {
+function renderForm(resource: ClinicResource, api: Partial<PanelApi> = {}) {
   const onSaved = vi.fn(async () => {})
+  // DEC-204: a ficha profissional lê a Equipe (getTeam) e o login ligado.
+  const panelApi = {
+    getTeam: vi.fn(async () => ({ tenantId: 't', members: [], invitations: [] })),
+    getProfessionalLogin: vi.fn(async () => null),
+    ...api,
+  } as PanelApi
   render(
     <ResourceForm
       tenantId="t"
       kind={resource.kind === 'professional' ? 'professional' : 'room'}
       entityId={resource.id}
       snap={snap([resource])}
-      api={api as PanelApi}
+      api={panelApi}
       generation={1}
       onSaved={onSaved}
     />,
   )
-  return { onSaved }
+  return { onSaved, api: panelApi }
 }
 
 describe('ResourcesList — filtro de inativos', () => {
