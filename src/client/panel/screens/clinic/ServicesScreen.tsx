@@ -489,6 +489,11 @@ export function ServiceForm({
 
   // Alinha o checklist com o que o save aceita: preço opcional na linha, mas
   // obrigatório quando o sinal percentual precisa de base (DEC-047).
+  // Conta só profissionais ativas ligadas (mesma regra do selo «Sem profissional»
+  // em resourceRows e do Conferir no servidor).
+  const activeProCount = professionals.filter(
+    (p) => p.active && proIds.includes(p.id),
+  ).length
   const signalBase = signalBaseCents(withVariants, price, zones)
   const missingPrice = withVariants
     ? zones.filter((z) => z.active && parsePriceToCents(z.price) == null).length
@@ -502,9 +507,18 @@ export function ServiceForm({
     state: 'ok' | 'warn' | 'opt'
     fix?: { label: string; run: () => void }
   }[] = [
-    proIds.length > 0
-      ? { state: 'ok', text: `${proIds.length} ${proIds.length === 1 ? 'profissional' : 'profissionais'}` }
-      : { state: 'warn', text: 'Nenhuma profissional escolhida: ninguém recebe este serviço.' },
+    activeProCount > 0
+      ? {
+          state: 'ok',
+          text: `${activeProCount} ${activeProCount === 1 ? 'profissional' : 'profissionais'}`,
+        }
+      : {
+          state: 'warn',
+          text:
+            proIds.length > 0
+              ? 'Nenhuma profissional ativa: ninguém recebe este serviço.'
+              : 'Nenhuma profissional escolhida: ninguém recebe este serviço.',
+        },
     space === 'unset' || (space === 'rooms' && roomIds.length === 0)
       ? { state: 'warn', text: 'Falta dizer onde acontece.' }
       : space === 'none'
