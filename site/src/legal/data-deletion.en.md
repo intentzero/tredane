@@ -4,7 +4,7 @@
 
 **Last updated:** 27 Oct 2026
 
-This page explains how to request deletion of your personal data processed by Tredane, a service of LUCIMARK INOVA SIMPLES (I.S.) (Brazil), including data received through WhatsApp (Meta's WhatsApp Business Platform / Cloud API). For more details, see the [Privacy Policy](/privacy).
+This page explains how to request deletion of your personal data processed by Tredane, a service of LUCIMARK DESENVOLVIMENTO E TECNOLOGIA LTDA (Brazil), including data received through WhatsApp (Meta's WhatsApp Business Platform / Cloud API). For more details, see the [Privacy Policy](/privacy).
 
 ## 1. If you are a patient or client of a clinic
 
@@ -45,6 +45,6 @@ If you write to the clinic again after deletion, a new conversation may be creat
 
 ## 4. Contact
 
-LUCIMARK INOVA SIMPLES (I.S.) · CNPJ 66.552.736/0001-80 · [privacidade@tredane.com](mailto:privacidade@tredane.com)
+LUCIMARK DESENVOLVIMENTO E TECNOLOGIA LTDA · CNPJ 66.552.736/0001-80 · [privacidade@tredane.com](mailto:privacidade@tredane.com)
 
 You may also file a complaint with the ANPD (Brazil's data protection authority).

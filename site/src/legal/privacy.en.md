@@ -10,7 +10,7 @@ This policy explains, in plain language, how Tredane processes personal data und
 
 Tredane is a Lucimark service: a software-as-a-service platform that helps clinics and studios serve their clients over WhatsApp, book appointments and collect Pix deposits.
 
-- **Company:** LUCIMARK INOVA SIMPLES (I.S.), Brazil
+- **Company:** LUCIMARK DESENVOLVIMENTO E TECNOLOGIA LTDA, Brazil
 - **CNPJ (Brazilian company ID):** 66.552.736/0001-80
 - **Address:** Condomínio Ouro Vermelho II nº 0, Setor Habitacional Jardim Botânico, Brasília-DF, CEP 71680-385, Brazil
 - **Privacy and data protection contact:** [privacidade@tredane.com](mailto:privacidade@tredane.com)
