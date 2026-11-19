@@ -193,7 +193,7 @@ export function AgendaDayList({
                     onOpen={onOpen}
                     canMarkAttendance={
                       canMarkAttendance
-                      && (!attendanceForProfessionalId
+                      && (attendanceForProfessionalId == null
                         || e.item.professionalId === attendanceForProfessionalId)
                     }
                     onSetAttendance={onSetAttendance}

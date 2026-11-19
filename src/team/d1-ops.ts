@@ -860,6 +860,24 @@ export async function d1LinkProfessionalLogin(
         )
         .bind(input.now, input.tenantId, previous.clerkUserId)
         .run()
+    } else if (old?.status === 'active' && old.role === 'attendant' && previous.alsoAttendant) {
+      // Atendente só via alsoAttendant nesta ficha: não deixar WhatsApp órfão.
+      const otherLink = await db
+        .prepare(
+          `SELECT resource_id FROM professional_logins
+           WHERE tenant_id = ? AND clerk_user_id = ? AND resource_id <> ?`,
+        )
+        .bind(input.tenantId, previous.clerkUserId, input.resourceId)
+        .first<{ resource_id: string }>()
+      if (!otherLink) {
+        await db
+          .prepare(
+            `UPDATE tenant_memberships SET status = 'revoked', revoked_at = ?
+             WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'attendant'`,
+          )
+          .bind(input.now, input.tenantId, previous.clerkUserId)
+          .run()
+      }
     }
   }
   await db
@@ -960,13 +978,21 @@ export async function d1ReleaseProfessionalLogin(
 ): Promise<{ revoked: boolean }> {
   await requireOwner(db, input.tenantId, input.actorClerkUserId)
   const row = await d1GetProfessionalLogin(db, input.tenantId, input.resourceId)
-  if (!row?.clerkUserId) return { revoked: false }
-  const updated = await db
-    .prepare(
-      `UPDATE tenant_memberships SET status = 'revoked', revoked_at = ?
-       WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'professional'`,
-    )
-    .bind(input.now, input.tenantId, row.clerkUserId)
+  if (!row) return { revoked: false }
+  let revoked = false
+  if (row.clerkUserId) {
+    const updated = await db
+      .prepare(
+        `UPDATE tenant_memberships SET status = 'revoked', revoked_at = ?
+         WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'professional'`,
+      )
+      .bind(input.now, input.tenantId, row.clerkUserId)
+      .run()
+    revoked = (updated.meta.changes ?? 0) > 0
+  }
+  await db
+    .prepare(`DELETE FROM professional_logins WHERE tenant_id = ? AND resource_id = ?`)
+    .bind(input.tenantId, input.resourceId)
     .run()
-  return { revoked: (updated.meta.changes ?? 0) > 0 }
+  return { revoked }
 }

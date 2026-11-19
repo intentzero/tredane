@@ -77,6 +77,48 @@ function desiredRole(alsoAttendant: boolean): 'attendant' | 'professional' {
   return alsoAttendant ? 'attendant' : 'professional'
 }
 
+/**
+ * Ao mudar o e-mail da ficha, o utilizador antigo deixa de estar ligado a ela.
+ * Revoga `professional`; se o papel era `attendant` só via alsoAttendant nesta
+ * ficha (sem outro vínculo), também revoga — evita WhatsApp órfão (DEC-204).
+ */
+function revokeOrphanedLoginMembership(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    resourceId: string
+    clerkUserId: string
+    alsoAttendant: boolean
+    actorClerkUserId: string
+  },
+): void {
+  const old = getMembership(db, input.tenantId, input.clerkUserId)
+  if (!old || old.status !== 'active') return
+  if (old.role === 'professional') {
+    revokeMembership(db, clock, {
+      tenantId: input.tenantId,
+      clerkUserId: input.clerkUserId,
+      actorClerkUserId: input.actorClerkUserId,
+    })
+    return
+  }
+  if (old.role !== 'attendant' || !input.alsoAttendant) return
+  const otherLink = db.get<{ resource_id: string }>(
+    `SELECT resource_id FROM professional_logins
+     WHERE tenant_id = ? AND clerk_user_id = ? AND resource_id <> ?`,
+    input.tenantId,
+    input.clerkUserId,
+    input.resourceId,
+  )
+  if (otherLink) return
+  revokeMembership(db, clock, {
+    tenantId: input.tenantId,
+    clerkUserId: input.clerkUserId,
+    actorClerkUserId: input.actorClerkUserId,
+  })
+}
+
 function alignMembership(
   db: AdminDb,
   clock: Clock,
@@ -161,14 +203,13 @@ export async function linkProfessionalLogin(
   const previous = getProfessionalLogin(db, input.tenantId, input.resourceId)
   const bound = input.boundClerkUserId?.trim() || null
   if (previous?.clerkUserId && previous.clerkUserId !== bound && previous.email !== email) {
-    const old = getMembership(db, input.tenantId, previous.clerkUserId)
-    if (old?.status === 'active' && old.role === 'professional') {
-      revokeMembership(db, clock, {
-        tenantId: input.tenantId,
-        clerkUserId: previous.clerkUserId,
-        actorClerkUserId: input.actorClerkUserId,
-      })
-    }
+    revokeOrphanedLoginMembership(db, clock, {
+      tenantId: input.tenantId,
+      resourceId: input.resourceId,
+      clerkUserId: previous.clerkUserId,
+      alsoAttendant: previous.alsoAttendant,
+      actorClerkUserId: input.actorClerkUserId,
+    })
   }
 
   db.run(
@@ -241,7 +282,10 @@ export async function linkProfessionalLogin(
   }
 }
 
-/** Corta o login só quando a conta não é também atendente ou responsável. */
+/**
+ * Desativar/apagar a ficha: apaga o vínculo em `professional_logins` (e-mail
+ * fica livre) e revoga membership só quando o papel é `professional` (REQ-118).
+ */
 export function releaseProfessionalLogin(
   db: AdminDb,
   clock: Clock,
@@ -249,15 +293,23 @@ export function releaseProfessionalLogin(
 ): { revoked: boolean } {
   requireActiveOwner(db, input.tenantId, input.actorClerkUserId)
   const row = getProfessionalLogin(db, input.tenantId, input.resourceId)
-  if (!row?.clerkUserId) return { revoked: false }
-  const membership = getMembership(db, input.tenantId, row.clerkUserId)
-  if (membership?.status === 'active' && membership.role === 'professional') {
-    revokeMembership(db, clock, {
-      tenantId: input.tenantId,
-      clerkUserId: row.clerkUserId,
-      actorClerkUserId: input.actorClerkUserId,
-    })
-    return { revoked: true }
+  if (!row) return { revoked: false }
+  let revoked = false
+  if (row.clerkUserId) {
+    const membership = getMembership(db, input.tenantId, row.clerkUserId)
+    if (membership?.status === 'active' && membership.role === 'professional') {
+      revokeMembership(db, clock, {
+        tenantId: input.tenantId,
+        clerkUserId: row.clerkUserId,
+        actorClerkUserId: input.actorClerkUserId,
+      })
+      revoked = true
+    }
   }
-  return { revoked: false }
+  db.run(
+    `DELETE FROM professional_logins WHERE tenant_id = ? AND resource_id = ?`,
+    input.tenantId,
+    input.resourceId,
+  )
+  return { revoked }
 }

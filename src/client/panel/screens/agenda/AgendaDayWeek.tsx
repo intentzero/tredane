@@ -604,6 +604,9 @@ export function AgendaDayWeek({
             now={now}
             onOpen={(id) => openAppointment(id)}
             highlightProfessionalId={highlightProfessionalId}
+            canMarkAttendance={canMarkAttendance}
+            attendanceForProfessionalId={readOnly ? highlightProfessionalId : null}
+            onSetAttendance={(id, attendance) => void setAttendance(id, attendance)}
           />
         ) : (
           weekDays.map((day) => {
@@ -854,6 +857,9 @@ function DayGrid({
   now,
   onOpen,
   highlightProfessionalId,
+  canMarkAttendance = false,
+  attendanceForProfessionalId = null,
+  onSetAttendance,
 }: {
   items: AgendaAppointmentItem[]
   professionals: { id: string; name: string }[]
@@ -862,6 +868,10 @@ function DayGrid({
   now: number
   onOpen: (id: string) => void
   highlightProfessionalId?: string | null
+  /** DEC-205: owner/atendente no grid largo; profissional só na própria coluna. */
+  canMarkAttendance?: boolean
+  attendanceForProfessionalId?: string | null
+  onSetAttendance?: (id: string, attendance: 'arrived' | 'no_show' | null) => void
 }) {
   const { startHour, endHour } = visibleHours(items, timezone)
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
@@ -888,6 +898,12 @@ function DayGrid({
       startHour,
     ).map((p) => ({ ...p, col: ci })),
   )
+  const showAttendanceFor = (item: AgendaAppointmentItem) =>
+    canMarkAttendance
+    && !!onSetAttendance
+    && item.status === 'confirmed'
+    && (attendanceForProfessionalId == null
+      || item.professionalId === attendanceForProfessionalId)
 
   return (
     <>
@@ -931,34 +947,80 @@ function DayGrid({
           <span className="agenda-now-dot" />
         </div>
       ) : null}
-      {placed.map(({ item, top, height, lane, lanes, col }) => (
-        <button
-          key={item.id}
-          type="button"
-          role="listitem"
-          className={`agenda-block agenda-card--tone-${toneOf(item.professionalId)}`}
-          style={{
-            top,
-            height,
-            left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
-            width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
-          }}
-          onClick={() => onOpen(item.id)}
-        >
-          {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
-          <span className="agenda-block-title">
-            {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
-          </span>
-          <span className="agenda-block-time">
-            {item.serviceName}
-            {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
-            <span className="panel-sr-only">
-              {' '}
-              até {formatSlotTime(item.endsAt, timezone)} · {item.professionalName}
-            </span>
-          </span>
-        </button>
-      ))}
+      {placed.map(({ item, top, height, lane, lanes, col }) => {
+        const attendanceLabel =
+          item.attendance === 'arrived'
+            ? 'Chegou'
+            : item.attendance === 'no_show'
+              ? 'Não veio'
+              : null
+        const mark = showAttendanceFor(item)
+        return (
+          <div
+            key={item.id}
+            role="listitem"
+            className={`agenda-block-wrap${mark ? ' agenda-block-wrap--attendance' : ''}`}
+            style={{
+              top,
+              height: mark ? Math.max(height, 64) : height,
+              left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
+              width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
+            }}
+          >
+            <button
+              type="button"
+              className={`agenda-block agenda-card--tone-${toneOf(item.professionalId)}`}
+              onClick={() => onOpen(item.id)}
+            >
+              {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
+              <span className="agenda-block-title">
+                {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
+                {attendanceLabel ? (
+                  <span className="agenda-attendance-badge"> · {attendanceLabel}</span>
+                ) : null}
+              </span>
+              <span className="agenda-block-time">
+                {item.serviceName}
+                {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+                <span className="panel-sr-only">
+                  {' '}
+                  até {formatSlotTime(item.endsAt, timezone)} · {item.professionalName}
+                </span>
+              </span>
+            </button>
+            {mark && onSetAttendance ? (
+              <div className="agenda-attendance-actions agenda-attendance-actions--grid">
+                <button
+                  type="button"
+                  className={item.attendance === 'arrived' ? 'is-active' : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSetAttendance(
+                      item.id,
+                      item.attendance === 'arrived' ? null : 'arrived',
+                    )
+                  }}
+                >
+                  Chegou
+                </button>
+                <button
+                  type="button"
+                  className={item.attendance === 'no_show' ? 'is-active' : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSetAttendance(
+                      item.id,
+                      item.attendance === 'no_show' ? null : 'no_show',
+                    )
+                  }}
+                >
+                  Não veio
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
     </div>
     </>
   )

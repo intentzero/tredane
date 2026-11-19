@@ -80,9 +80,10 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
         highlightProfessionalId={highlightProfessionalId}
         canMarkAttendance={
           active.phase === 'ready'
-          && (active.context.role === 'professional'
-            || active.context.role === 'attendant'
-            || active.context.role === 'owner')
+          && (active.context.role === 'attendant'
+            || active.context.role === 'owner'
+            || (active.context.role === 'professional'
+              && !!active.context.professionalResourceId))
         }
       />
     </InboxRealtimeProvider>
