@@ -2297,7 +2297,10 @@ export function InboxThread({
                     data-lpignore="true"
                     data-1p-ignore
                     onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                      // Desktop: Enter envia; Shift+Enter nova linha (WhatsApp Web).
+                      // Celular: Enter continua nova linha — envio pelo botão (#941/#944).
+                      if (narrow) return;
+                      if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         void send();
                       }
