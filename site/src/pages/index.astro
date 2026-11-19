@@ -46,13 +46,13 @@ const flower = [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="${petal
 const trust = [
  { icon: 'book' as const, title: 'Fala o que você ensinou.', text: 'Preço, duração e explicação são os seus. O que ela não sabe, pergunta para a equipe.' },
  { icon: 'pointer' as const, title: 'Quem escolhe o horário é a cliente.', text: 'Só marca quando ela toca em Confirmar. Um «pode ser» escrito não marca.' },
- { icon: 'bell' as const, title: 'Na hora certa, chama a sua equipe.', text: 'Saúde, remarcação delicada ou pedido de uma pessoa: passa para a equipe, no mesmo painel.' },
+ { icon: 'bell' as const, title: 'Na hora certa, chama a sua equipe.', text: 'Saúde ou pedido de uma pessoa: passa para a equipe, no mesmo painel.' },
 ]
 const faq = [
  { q: 'Isso me ajuda a faturar mais?', a: 'A ideia é responder com o seu preço e mostrar horários livres enquanto a cliente ainda quer marcar. No piloto medimos junto com a clínica o que muda no dia a dia — sem prometer resultado financeiro.' },
  { q: 'Funciona com várias profissionais e salas?', a: 'Funciona. A agenda confere profissional, sala e intervalo antes de mostrar qualquer horário.' },
  { q: 'Preciso trocar o número da clínica?', a: 'Não necessariamente. No piloto conversamos sobre o número antes de conectar; a clínica participa da configuração com a nossa ajuda.' },
- { q: 'O que a IA responde sozinha?', a: 'O que é rotina: preço, duração, explicação do serviço e horários livres, com as frases e o cadastro da clínica. Saúde, remarcação, cancelamento e qualquer pedido para falar com alguém vão para a equipe.' },
+ { q: 'O que a IA responde sozinha?', a: 'O que é rotina: preço, duração, explicação do serviço e horários livres, com as frases e o cadastro da clínica. Marcar, remarcar e cancelar a cliente faz na página pelo link do WhatsApp. Saúde e qualquer pedido para falar com alguém vão para a equipe.' },
  { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, onde a equipe mais atende.' },
  { q: 'Quanto custa?', a: 'Três planos de referência: Estúdio R$ 149/mês (R$ 124 no anual) — 1 profissional, 1 login; Clínica R$ 247/mês (R$ 206 no anual) — até 4 profissionais, 3 logins; Casa R$ 397/mês (R$ 331 no anual) — até 10 profissionais. No piloto alinhamos o plano à sua clínica.' },
 ]
@@ -85,7 +85,7 @@ const faq = [
 <svg class="silk" aria-hidden="true" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-width="1.2"><g stroke="#F2B596" opacity=".3" set:html={silkWarm} /><g stroke="#9FD3D1" opacity=".26" set:html={silkCool} /></svg>
 <div class="wrap hero-grid">
 <div class="hero-copy">
-<p class="chip"><span class="dot"></span><span class="chip-long">Em piloto · clínicas de estética e depilação</span><span class="chip-short">Em piloto · estética e depilação</span></p>
+<p class="chip"><span class="dot"></span><span class="chip-long">clínicas de estética e depilação</span><span class="chip-short">estética e depilação</span></p>
 <h1 class="h1">O atendimento da sua clínica no WhatsApp, <em>do «oi» ao horário marcado.</em></h1>
 <p class="lead">Responde com o seu preço, mostra só horários livres e marca quando a cliente toca em Confirmar.</p>
 <div class="cta-row">
@@ -105,7 +105,7 @@ const faq = [
 <ul class="proof plain">
 <li>Atendimento no WhatsApp</li>
 <li>O preço é sempre o seu</li>
-<li>Remarcação e cancelamento vão para a equipe</li>
+<li>Marca, remarca e cancela na página da cliente</li>
 </ul>
 <p class="fine">Telas do aplicativo, com nomes e valores fictícios.</p>
 </div>
@@ -178,7 +178,7 @@ const faq = [
 <svg class="silk" aria-hidden="true" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" fill="none" stroke-linecap="round" stroke-width="1.2"><g stroke="#9FD3D1" set:html={silkCool} /></svg>
 <div class="panel-top reveal">
 <div class="stack" style="gap: 16px;"><p class="eyebrow">Pode confiar</p><h2 class="h3s">Uma parceira que joga do seu lado.</h2></div>
-<p class="lead">Não inventa preço, não decide pela cliente e diz a verdade se perguntarem se é um robô. Saúde, remarcação delicada ou pedido de uma pessoa vão para a equipe.</p>
+<p class="lead">Não inventa preço, não decide pela cliente e diz a verdade se perguntarem se é um robô. Saúde ou pedido de uma pessoa vão para a equipe.</p>
 </div>
 <ul class="feats plain">
 {trust.map((f) => (

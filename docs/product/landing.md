@@ -129,10 +129,10 @@ O mock conserva estrutura, copy, fonte Geist, símbolo da marca e imagens ilustr
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.
-2. **Abertura:** “Menos peso na recepção. Do primeiro ‘oi’ ao horário marcado.”, selo “Para clínicas de estética e depilação · Piloto aberto”, três garantias, nota “Telas ilustrativas, com nomes e valores fictícios” e composição do produto (`role="img"`, sem controles reais).
+2. **Abertura:** “Menos peso na recepção. Do primeiro ‘oi’ ao horário marcado.”, selo do hero sem «Em piloto» — **Confirmado** (Paulo Santos, 19/11/2026): `chip-long` «clínicas de estética e depilação» e `chip-short` «estética e depilação» (substitui «Em piloto · …» / o selo v7 «Para clínicas de estética e depilação · Piloto aberto»), três garantias, nota “Telas ilustrativas, com nomes e valores fictícios” e composição do produto (`role="img"`, sem controles reais).
 3. **O que pesa hoje:** “Atender no WhatsApp cansa. Não precisa ser assim.” Quatro pares “O que fica na sua cabeça × O que o Tredane carrega”. A coluna da esquerda é **hipótese** (VAL-01), a validar antes de publicar; a da direita usa só decisões confirmadas.
 4. **Como funciona:** quatro passos, do WhatsApp ao horário confirmado.
-5. **Atendimento automático (painel escuro):** garantias alinhadas às decisões de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115): só marca quando a cliente toca em Confirmar; preço só do cadastro; «Falar com a equipe» em toda resposta; saúde, remarcação e cancelamento vão para a equipe; honesta sobre ser assistente e para quando a cliente pede; a responsável pausa as marcações. **Substitui** a versão v7 («só sugere e nunca envia»), que já não descreve o produto confirmado. Estado: **Proposto** até revisão do texto pelo responsável.
+5. **Atendimento automático (painel escuro):** garantias alinhadas às decisões de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115; **DEC-202**): preço só do cadastro; o chat informa e encaminha; marcar, remarcar e cancelar são só na página web da cliente (não «vão para a equipe» pelo chat); saúde e pedido de uma pessoa vão para a equipe; honesta sobre ser assistente e para quando a cliente pede; a responsável pausa as marcações. **Substitui** a versão v7 («só sugere e nunca envia») e a frase antiga «saúde, remarcação e cancelamento vão para a equipe». Estado: **Proposto** a restante redação desta secção até revisão do texto pelo responsável; o ponto DEC-202 do proof/FAQ está **Confirmado** abaixo.
 6. **Agenda:** salas, intervalo, bloqueio e próximo horário possível (DEC-008).
 7. **Sinal por Pix:** direto na conta da clínica, valor por serviço, confirma ao pagar, política clara (DEC-047).
 8. **Rotina da recepção**, **piloto** (“Sua equipe merece terminar o dia mais leve.”), **perguntas frequentes** e **rodapé**.
@@ -140,6 +140,14 @@ O mock conserva estrutura, copy, fonte Geist, símbolo da marca e imagens ilustr
 **Confirmado (24/10/2026):** a página **não** diz que o produto está em desenvolvimento; o público inclui clínicas de depilação; as ilustrações levam a nota “Telas ilustrativas, com nomes e valores fictícios”; mensagens ofensivas aparecem só como uma garantia da IA, sem seção própria.
 
 Toda afirmação da página precisa corresponder a uma decisão confirmada: atendimento automático com frases determinísticas do backend e marcação só pelo toque da cliente em Confirmar (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115; a regra antiga «IA só sugere e uma pessoa envia» foi substituída por essas decisões); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); sinal por Pix na conta da clínica, confirmação ao pagar e prazo de 2 h (DEC-047); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (lembretes; agendamento sem o toque da cliente em Confirmar; respostas livres do modelo fora do que a DEC-104 permite).
+
+## Badge do hero sem «Em piloto» (19/11/2026)
+
+**Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o pill do hero deixa de dizer «Em piloto · …». Texto final em `site/src/pages/index.astro`: desktop/largo «clínicas de estética e depilação»; abaixo de 520px «estética e depilação».
+
+## Proof do hero: remarcação e cancelamento (19/11/2026)
+
+**Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot; alinhado à **DEC-202**): a frase «Remarcação e cancelamento vão para a equipe» sai do proof sob a abertura. Texto final do terceiro item: «Marca, remarca e cancela na página da cliente». FAQ «O que a IA responde sozinha?» e o bloco «Pode confiar» deixam de dizer que remarcação/cancelamento vão para a equipe pelo chat; saúde e pedido de uma pessoa continuam a ir.
 
 ## Contacto do piloto e preços de referência (19/11/2026)
 
