@@ -10,6 +10,11 @@
 - Desktop (≥ 1280 px): título «Clientes», ClinicSwitcher e «Ao vivo» passam ao `.panel-shell-header` full-width (padrão Agenda / Acompanhar / Clínica). A coluna da lista fica só com busca, filtros e lista.
 - Mock `desktop/ClientesLista.dc.html` actualizado; Conversas mantém identidade na coluna da lista (fora deste recorte). Sem token novo.
 
+## 19/11/2026 — Assistente como índice (**Confirmado**, DEC-212)
+
+- **M-74** passa a ser o índice do Assistente (atendimento automático, agenda online com Pausar, linhas com o valor atual) e **M-62** passa a ser «Respostas da clínica» (link do Google, regras gerais, perguntas frequentes). Substituem o desenho de 11/11/2026 (DEC-163).
+- Nenhum token novo; `check_mocks.py` passa. Previews gerados só para M-62 e M-74 (o `render_previews.py` completo falha no `expand_dc.mjs`, `r is not defined`, por razão anterior a esta alteração).
+
 ## 19/11/2026 — Agenda: presença só onde falta (**Proposto**)
 
 - Pedido de Paulo: a agenda estava «muito feia» (botões Chegou / Não veio em todos os cartões, texto cortado, horários passados a ocupar a tela). Mobile first: faixa de botões de 44 px só em horários começados sem presença; estado + Desfazer depois; horários resolvidos recolhidos numa linha. Sem token novo. Atualizadas `screens.md` (M-76) e `ux-ui.md`.

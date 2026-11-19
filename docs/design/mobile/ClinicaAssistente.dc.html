@@ -2,93 +2,50 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Assistente e automações</title>
+<title>Respostas da clínica</title>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap">
 <style>
 body{margin:0}
 a{color:#007F78}a:hover{color:#00665F}
-.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.card{background:#FFFFFF;border:1px solid #D6E6DE;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
-.h{margin:0;font-size:16px;font-weight:600}
-.sw{display:flex;align-items:center;gap:12px;min-height:44px}
-.sw span{flex:1;display:flex;flex-direction:column;gap:2px}
-.sw b{font-size:14px;font-weight:500}
-.sw small{font-size:13px;color:#52645F}
-.tg{width:44px;height:26px;border-radius:999px;position:relative;flex:none;border:0;padding:0}
-.tg i{position:absolute;top:3px;width:20px;height:20px;border-radius:999px;background:#FFFFFF}
-.f{display:flex;flex-direction:column;gap:6px}
-.f label{font-size:13px;font-weight:500;color:#435A53}
-.f input,.f textarea{font:inherit;font-size:14px;color:#203632;border:1px solid #718A81;border-radius:8px;padding:10px 12px;background:#FFFFFF;box-sizing:border-box;width:100%}
-.seg{display:flex;background:#EAF7F2;border-radius:8px;padding:3px;gap:3px}
-.seg button{flex:1;height:34px;border:0;border-radius:6px;font:inherit;font-size:13px;background:transparent;color:#435A53}
-.lnk{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:#007F78;text-decoration:none;min-height:44px}
+button{font-family:inherit}
 </style>
 </helmet>
-<div style="width:390px;height:844px;background:#FFFDF9;font-family:Roboto, 'Helvetica Neue', Arial, sans-serif;color:#203632;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden">
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #FFFDF9; color: #203632; font-family: Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.35; overflow: hidden">
 
-  <header style="display:flex;align-items:center;gap:4px;padding:8px 8px 8px 4px;background:#FFFDF9;flex:none">
-    <a href="ClinicaPronta.dc.html" aria-label="Voltar à Clínica" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#203632"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></a>
-    <h1 style="margin:0;font-size:18px;font-weight:600">Assistente e automações</h1>
-  </header>
+<header style="display: flex; align-items: center; gap: 4px; height: 56px; padding: 0 6px 0 4px; box-sizing: border-box; background: #FFFFFF; border-bottom: 1px solid #D6E6DE; flex: none">
+<a href="AssistenteDecisoes.dc.html" aria-label="Voltar ao Assistente" style="width: 44px; height: 44px; color: #203632; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>
+</a>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<h1 style="margin: 0; font-size: 18px; font-weight: 600">Respostas da clínica</h1>
+<span style="font-size: 13px; color: #52645F">Assistente</span>
+</div>
+</header>
 
-  <main style="flex:1;overflow:hidden;padding:4px 16px 16px;display:flex;flex-direction:column;gap:12px">
-
-    <section class="card" style="border-color:#6B3FD4;background:#F7F4FD">
-      <div class="sw">
-        <span><b>Sugestões de resposta com IA</b><small>A equipe revê cada sugestão antes de enviar.</small></span>
-        <button class="tg" type="button" role="switch" aria-checked="true" aria-label="Sugestões de resposta com IA" style="background:#4B2A9E"><i style="right:3px"></i></button>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="who">
-      <h2 class="h" id="who">Como se apresenta</h2>
-      <div class="f"><label for="nm">Nome (opcional)</label><input id="nm" value="Luna"></div>
-      <div class="f">
-        <span style="font-size:13px;font-weight:500;color:#435A53" id="gn">Fala como</span>
-        <div class="seg" role="radiogroup" aria-labelledby="gn">
-          <button type="button" role="radio" aria-checked="true" style="background:#FFFFFF;color:#203632;font-weight:500">Feminino</button>
-          <button type="button" role="radio" aria-checked="false">Masculino</button>
-          <button type="button" role="radio" aria-checked="false">Neutro</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="know">
-      <h2 class="h" id="know">O que sabe da clínica</h2>
-      <div class="f"><label for="ad">Endereço</label><input id="ad" value="Rua das Acácias, 120 · Campinas"></div>
-      <div class="f"><label for="rp">Remarcação e cancelamento</label><textarea id="rp" rows="2" style="resize:none">Remarcar sem custo até 24 h antes.</textarea></div>
-      <a class="lnk" href="#" style="min-height:32px"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Link do Google · cidade da previsão do tempo</a>
-    </section>
-
-    <section class="card" aria-labelledby="prot" style="gap:4px">
-      <div style="display:flex;align-items:center;gap:8px">
-        <svg class="ic" style="color:#435A53" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
-        <h2 class="h" id="prot">Proteções</h2>
-      </div>
-      <div class="sw">
-        <span><b>Limites recomendados</b><small>Travam excessos de rascunhos, marcações e Pix por contato.</small></span>
-        <button class="tg" type="button" role="switch" aria-checked="true" aria-label="Limites recomendados" style="background:#007F78"><i style="right:3px"></i></button>
-      </div>
-      <div class="sw" style="border-top:1px solid #EAF7F2;padding-top:8px">
-        <span><b>Pausar marcação por botão</b><small>O que já está marcado continua.</small></span>
-        <button class="tg" type="button" role="switch" aria-checked="false" aria-label="Pausar marcação por botão" style="background:#718A81"><i style="left:3px"></i></button>
-      </div>
-      <a class="lnk" href="#" style="border-top:1px solid #EAF7F2">Personalizar os 9 limites<svg class="ic" style="width:18px;height:18px;margin-left:auto;color:#718A81" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
-    </section>
-  </main>
+<main style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px; padding: 14px 16px">
+<section aria-label="Sobre a clínica" style="display: flex; flex-direction: column; gap: 12px; padding: 14px; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Sobre a clínica</h2>
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 500; color: #435A53">Localização: link do Google Business</span><div style="min-height: 44px; box-sizing: border-box; border: 1px solid #718A81; border-radius: 8px; padding: 10px 12px; background: #FFFFFF; font-size: 14px">https://maps.app.goo.gl/…</div><span style="font-size: 13px; color: #52645F">Enviado quando a cliente pede o local, na confirmação do chat e na página da cliente («Como chegar»).</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 500; color: #435A53">Regras gerais de remarcação e cancelamento</span><div style="min-height: 72px; box-sizing: border-box; border: 1px solid #718A81; border-radius: 8px; padding: 10px 12px; background: #FFFFFF; font-size: 14px">Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário.</div><span style="font-size: 13px; color: #52645F">Quando a clínica pede sinal, a regra do sinal (Recebimento) sai primeiro e este texto vem a seguir.</span></div>
+<button style="align-self: flex-start; min-height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: #00665F; color: #FFFFFF; font-size: 14px; font-weight: 600">Salvar</button>
+</section>
+<section aria-label="Perguntas frequentes" style="display: flex; flex-direction: column; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding: 14px 14px 10px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Perguntas frequentes</h2><span style="font-size: 13px; color: #52645F">9 de 15 publicadas</span></div>
+<div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-top: 1px solid #EAF7F2"><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Tem estacionamento?</span><span style="font-size: 13px; color: #52645F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Sim, há um estacionamento conveniado ao lado…</span></span><span style="font-size: 13px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF5EF; color: #1F7A4D">Publicada</span></div><div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-top: 1px solid #EAF7F2"><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Aceitam cartão?</span><span style="font-size: 13px; color: #52645F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Aceitamos Pix, débito e crédito…</span></span><span style="font-size: 13px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF5EF; color: #1F7A4D">Publicada</span></div><div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-top: 1px solid #EAF7F2"><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Como funciona o sinal?</span><span style="font-size: 13px; color: #52645F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Gerada a partir do Recebimento</span></span><span style="font-size: 13px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF5EF; color: #1F7A4D">Publicada</span></div><div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-top: 1px solid #EAF7F2"><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Posso levar acompanhante?</span><span style="font-size: 13px; color: #52645F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">[RESPOSTA DA CLÍNICA]</span></span><span style="font-size: 13px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF7F2; color: #435A53">Rascunho</span></div>
+</section>
+</main>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
 class Component extends DCLogic {
-  renderVals() {
-    return {};
-  }
+renderVals() {
+return {};
+}
 }
 </script>
 </body>

@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Clínica — Assistente e automações</title>
+<title>Clínica — Assistente</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -22,21 +22,21 @@ button{font-family:inherit}
 <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>
 </a>
 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
-<h1 style="margin: 0; font-size: 18px; font-weight: 600">Assistente e automações</h1>
+<h1 style="margin: 0; font-size: 18px; font-weight: 600">Assistente</h1>
 <span style="font-size: 13px; color: #52645F">Clínica</span>
 </div>
 </header>
 
 <main style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px; padding: 14px 16px">
 
-<section aria-label="Sugestões com IA" style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #F7F4FD; border: 1px solid #E7E0F8; border-radius: 12px">
+<section aria-label="Atendimento automático no WhatsApp" style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #F7F4FD; border: 1px solid #E7E0F8; border-radius: 12px">
 <div style="display: flex; align-items: center; gap: 12px">
 <label for="ia" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-<span style="font-size: 16px; font-weight: 600; color: #4B2A9E">Sugestões com IA</span>
-<span style="font-size: 13px; color: #435A53">A IA prepara um rascunho a cada mensagem. A equipe revisa antes de enviar.</span>
+<span style="font-size: 16px; font-weight: 600; color: #4B2A9E">Atendimento automático no WhatsApp</span>
+<span style="font-size: 13px; color: #435A53">Ligado. Responde sozinho com o que você cadastrou: preços, horário, localização e respostas da clínica. Para marcar, envia o botão «Abrir agenda».</span>
 </label>
-<button id="ia" role="switch" aria-checked="false" style="width: 52px; height: 44px; padding: 0; border: 0; background: none; display: flex; align-items: center; flex: none">
-<span style="width: 52px; height: 30px; border-radius: 999px; background: #718A81; display: flex; align-items: center; padding: 3px; box-sizing: border-box"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF"></span></span>
+<button id="ia" role="switch" aria-checked="true" aria-label="Atendimento automático no WhatsApp" style="width: 52px; height: 44px; padding: 0; border: 0; background: none; display: flex; align-items: center; flex: none">
+<span style="width: 52px; height: 30px; border-radius: 999px; background: #007F78; display: flex; align-items: center; justify-content: flex-end; padding: 3px; box-sizing: border-box"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF"></span></span>
 </button>
 </div>
 <button aria-expanded="false" style="align-self: flex-start; min-height: 44px; margin: -6px 0 -10px; padding: 0; border: 0; background: none; color: #4B2A9E; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px">
@@ -45,54 +45,34 @@ Como funciona e o que acontece com as mensagens
 </button>
 </section>
 
-<section aria-label="Marcação pela cliente" style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
-<label for="marca" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-<span style="font-weight: 600">A cliente confirma o horário no WhatsApp</span>
-<span style="font-size: 13px; color: #52645F">Só marca quando ela toca no botão da proposta. Mudar e cancelar continuam com a equipe.</span>
-</label>
-<button id="marca" role="switch" aria-checked="false" disabled style="width: 52px; height: 44px; padding: 0; border: 0; background: none; display: flex; align-items: center; flex: none">
-<span style="width: 52px; height: 30px; border-radius: 999px; background: #C5D8CF; display: flex; align-items: center; padding: 3px; box-sizing: border-box"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF"></span></span>
-</button>
+<section aria-label="Agenda online" style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Agenda online: aberta</h2>
+<span style="font-size: 13px; color: #52645F">A cliente marca, remarca e cancela pelo link. Pause se precisar parar tudo agora; não cancela horários já marcados.</span>
+</div>
+<button style="min-height: 44px; padding: 0 14px; border: 1px solid #A2D9CB; border-radius: 8px; background: #FFFFFF; color: #00665F; font-size: 14px; font-weight: 600">Pausar</button>
 </section>
 
-<section aria-label="Proteções" style="display: flex; flex-direction: column; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
-<div style="display: flex; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid #EAF7F2">
-<label for="lim" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-<span style="font-weight: 600">Limites de proteção</span>
-<span style="font-size: 13px; color: #52645F">Evita que a IA crie rascunhos, propostas ou marcações em excesso. Não afeta o que a equipe faz à mão.</span>
-</label>
-<button id="lim" role="switch" aria-checked="true" style="width: 52px; height: 44px; padding: 0; border: 0; background: none; display: flex; align-items: center; flex: none">
-<span style="width: 52px; height: 30px; border-radius: 999px; background: #007F78; display: flex; align-items: center; justify-content: flex-end; padding: 3px; box-sizing: border-box"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF"></span></span>
-</button>
-</div>
-<button style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 8px 0 14px; border: 0; border-bottom: 1px solid #EAF7F2; background: none; text-align: left; color: inherit; font-size: 14px">
-<span style="flex: 1">Valores recomendados em uso</span>
-<span style="color: #007F78; font-weight: 500">Personalizar</span>
+<nav aria-label="Configurar o assistente" style="display: flex; flex-direction: column; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
+<button style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px 8px 14px; border: 0; border-bottom: 1px solid #EAF7F2; background: none; text-align: left; color: inherit; font-size: 14px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Respostas da clínica</span><span style="font-size: 13px; color: #52645F">Localização preenchida · regras e perguntas frequentes</span></span>
 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#52645F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
 </button>
-<div style="display: flex; align-items: center; gap: 12px; padding: 14px">
-<label for="pausa" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-<span style="font-weight: 600">Pausar marcações automáticas</span>
-<span style="font-size: 13px; color: #52645F">Vale só para esta clínica. Horários já marcados continuam.</span>
-</label>
-<button id="pausa" role="switch" aria-checked="false" style="width: 52px; height: 44px; padding: 0; border: 0; background: none; display: flex; align-items: center; flex: none">
-<span style="width: 52px; height: 30px; border-radius: 999px; background: #718A81; display: flex; align-items: center; padding: 3px; box-sizing: border-box"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF"></span></span>
+<button style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px 8px 14px; border: 0; border-bottom: 1px solid #EAF7F2; background: none; text-align: left; color: inherit; font-size: 14px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Como se apresenta</span><span style="font-size: 13px; color: #52645F">Luna · feminino</span></span>
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#52645F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
 </button>
-</div>
-</section>
-
-<section aria-label="Local para a previsão do tempo" style="display: flex; flex-direction: column; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px">
+<button style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px 8px 14px; border: 0; border-bottom: 1px solid #EAF7F2; background: none; text-align: left; color: inherit; font-size: 14px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Proteções</span><span style="font-size: 13px; color: #52645F">Limites de respostas e de marcações por cliente</span></span>
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#52645F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+</button>
 <button style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px 8px 14px; border: 0; background: none; text-align: left; color: inherit; font-size: 14px">
-<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-<span style="font-weight: 600">Cidade para a previsão do tempo</span>
-<span style="font-size: 13px; color: #52645F">Não definida · só para serviços que dependem do tempo</span>
-</span>
-<span style="color: #007F78; font-weight: 500">Definir</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Previsão do tempo</span><span style="font-size: 13px; color: #52645F">Não definida</span></span>
 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#52645F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
 </button>
-</section>
+</nav>
 
-<p style="margin: 0 4px; font-size: 13px; color: #52645F">Cada interruptor salva ao tocar e mostra «Salvo» por um instante.</p>
+<p style="margin: 0 4px; font-size: 13px; color: #52645F">O interruptor e a pausa salvam ao tocar e mostram «Salvo» por um instante.</p>
 
 </main>
 </div>
