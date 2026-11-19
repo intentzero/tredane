@@ -4766,6 +4766,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         serviceId: input.serviceId ?? null,
         audienceLine: input.audienceLine ?? null,
         variantIds: input.variantIds ?? [],
+        preferredDate: input.preferredDate ?? null,
+        dayPart: input.dayPart ?? null,
       })
       const link = await issueClientWebLink(env.DB!, this.#clock, {
         tenantId: input.tenantId,
@@ -4777,6 +4779,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         serviceId: preset.serviceId,
         audienceLine: preset.audienceLine,
         variantIds: preset.variantIds,
+        preferredDate: preset.preferredDate,
+        dayPart: preset.dayPart,
       })
       return clientWebOfferInteractive(clientWebUrl(baseUrl, link.token))
     }

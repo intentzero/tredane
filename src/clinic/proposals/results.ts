@@ -32,6 +32,7 @@ import {
   resolvePendingByProposalKind,
 } from './pending-communication'
 import { readZoneSnapshots } from '../config/zones'
+import { readComboSnapshot } from '../config/combos'
 import { sendPostBookingFollowupOp } from '../followup/post-booking'
 import { proposalResultClientRequestId, renderProposalResultBody } from './render'
 import type { AppointmentProposalRow } from './types'
@@ -110,11 +111,14 @@ export function sendProposalResultMessageOp(
     )
     replacedStartsAt = prev?.starts_at ?? null
   }
+  const combo =
+    input.resultKind === 'booked' ? readComboSnapshot(db, meta.tenantId, 'proposal', proposal.id) : null
   const body = renderProposalResultBody(proposal, input.resultKind, {
     alternativesListing: input.alternativesListing,
     ...(input.resultKind === 'booked'
       ? {
           zones,
+          combo,
           omitDoubtFallback: window.open,
           ...(input.channel === 'web' ? { webReceipt: true } : {}),
           ...(replacedStartsAt != null ? { replacedStartsAt } : {}),

@@ -35,7 +35,10 @@ import {
   countRecentWebLinks,
 } from '../../clientweb/offer'
 import { isGreetingOnly, servicesCitedInText } from '../../clientweb/route-intent'
-import { clientWebLinkFieldsFromText } from '../../clientweb/route-context'
+import {
+  clientWebLinkFieldsFromText,
+  clientWebSchedulePrefsFromText,
+} from '../../clientweb/route-context'
 import {
   clinicTodayOpenState,
   hubMeusBody,
@@ -787,6 +790,8 @@ export async function runDueAutoDrafts(
         noUpcoming: boolean
         audienceLine?: 'feminino' | 'masculino' | null
         variantIds?: string[]
+        preferredDate?: string | null
+        dayPart?: 'manha' | 'tarde' | 'noite' | null
       },
       reasonLabel: string,
       bodyOverride?: string,
@@ -869,6 +874,8 @@ export async function runDueAutoDrafts(
             serviceId: route.serviceId,
             audienceLine: route.audienceLine ?? null,
             variantIds: route.variantIds ?? [],
+            preferredDate: route.preferredDate ?? null,
+            dayPart: route.dayPart ?? null,
           })
         } catch {
           offered = null
@@ -1343,10 +1350,19 @@ export async function runDueAutoDrafts(
     {
       const route = turnClass.kind === 'link_route' ? turnClass.route : null
       if (route) {
+        const today = clinicCivilDateFromUtc(turn.settings.timezone || 'America/Sao_Paulo', clock.nowMs())
+        const scheduleOnly = clientWebSchedulePrefsFromText(turnText, today)
         const linkFields =
           route.purpose === 'agendar' && route.serviceId
-            ? clientWebLinkFieldsFromText(turnText, route.serviceId, turn.catalog.services)
-            : { audienceLine: null, variantIds: [] as string[] }
+            ? clientWebLinkFieldsFromText(turnText, route.serviceId, turn.catalog.services, today)
+            : route.purpose === 'agendar'
+              ? { audienceLine: null, variantIds: [] as string[], ...scheduleOnly }
+              : {
+                  audienceLine: null,
+                  variantIds: [] as string[],
+                  preferredDate: null,
+                  dayPart: null,
+                }
         let bodyOverride: string | undefined
         if ('mixed' in route && route.mixed && deps.autoBookPaused !== true) {
           const serviceName = route.serviceId
@@ -1397,10 +1413,12 @@ export async function runDueAutoDrafts(
         !answer.includes('?') &&
         (answer.match(/R\$/g) ?? []).length <= 1
       if (single && isServiceFact) {
+        const today = clinicCivilDateFromUtc(turn.settings.timezone || 'America/Sao_Paulo', clock.nowMs())
+        const linkFields = clientWebLinkFieldsFromText(turnText, single.id, turn.catalog.services, today)
         const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName: single.name })}`
         if (combined.length <= 1000) {
           await sendWebRoute(
-            { purpose: 'agendar', serviceId: single.id, noUpcoming: false },
+            { purpose: 'agendar', serviceId: single.id, noUpcoming: false, ...linkFields },
             'web_agendar_link',
             combined,
           )

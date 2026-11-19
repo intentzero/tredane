@@ -13,9 +13,11 @@ import {
   civilDayLabel,
   formatPrice,
   resolveBookingPreset,
+  resolveSchedulePreset,
   serviceNeedsLine,
   servicesForLine,
   visitTotals,
+  weekStartForDay,
   zonesForLine,
 } from './booking-model'
 import { TimeStep } from './TimeStep'
@@ -33,6 +35,8 @@ type Props = {
   initialAudienceLine?: Line | null
   /** Zonas já ditas no chat. */
   initialVariantIds?: string[]
+  initialPreferredDate?: string | null
+  initialDayPart?: 'manha' | 'tarde' | 'noite' | null
   onExit: () => void
   onSessionLost: () => void
 }
@@ -42,6 +46,8 @@ export function BookFlow({
   initialServiceId = null,
   initialAudienceLine = null,
   initialVariantIds = [],
+  initialPreferredDate = null,
+  initialDayPart = null,
   onExit,
   onSessionLost,
 }: Props) {
@@ -55,6 +61,7 @@ export function BookFlow({
   const [slot, setSlot] = useState<Slot | null>(null)
   const [slotNotice, setSlotNotice] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [preferredDayPart, setPreferredDayPart] = useState<import('./booking-model').DayPart | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -63,7 +70,14 @@ export function BookFlow({
       if (res === 'unauthorized') return onSessionLost()
       if (res === 'error') return setCatalog('error')
       setCatalog(res)
-      setWeekStart(res.today)
+      const schedule = resolveSchedulePreset(res, {
+        preferredDate: initialPreferredDate,
+        dayPart: initialDayPart,
+      })
+      setPreferredDayPart(schedule.preferredDayPart)
+      const week0 = schedule.preferredDate ? weekStartForDay(schedule.preferredDate, res.today) : res.today
+      setWeekStart(week0)
+      if (schedule.preferredDate) setDay(schedule.preferredDate)
       const preset = resolveBookingPreset(res, {
         serviceId: initialServiceId,
         audienceLine: initialAudienceLine,
@@ -108,7 +122,14 @@ export function BookFlow({
     return () => {
       cancelled = true
     }
-  }, [onSessionLost, initialServiceId, initialAudienceLine, initialVariantIds])
+  }, [
+    onSessionLost,
+    initialServiceId,
+    initialAudienceLine,
+    initialVariantIds,
+    initialPreferredDate,
+    initialDayPart,
+  ])
 
   if (catalog === 'loading') {
     return (
@@ -241,6 +262,7 @@ export function BookFlow({
           setDay={setDay}
           notice={slotNotice}
           onSessionLost={onSessionLost}
+          preferredDayPart={preferredDayPart}
           onPick={(s) => {
             setSlot(s)
             setSlotNotice(null)

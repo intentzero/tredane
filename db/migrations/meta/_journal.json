@@ -225,6 +225,13 @@
       "when": 1795000000000,
       "tag": "0032_client_web_link_line",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1795100000000,
+      "tag": "0033_client_web_link_schedule_pref",
+      "breakpoints": true
     }
   ]
 }

@@ -45,6 +45,10 @@ export type ExchangedClientWebLink = ClientWebSession & {
   audienceLine: 'feminino' | 'masculino' | null
   /** Zonas já ditas no chat. */
   variantIds: string[]
+  /** Dia civil pedido no chat (YYYY-MM-DD). */
+  preferredDate: string | null
+  /** Período do dia pedido no chat. */
+  dayPart: 'manha' | 'tarde' | 'noite' | null
 }
 
 export function newClientWebLinkToken(): string {
@@ -69,6 +73,8 @@ export async function issueClientWebLink(
     serviceId?: string | null
     audienceLine?: 'feminino' | 'masculino' | null
     variantIds?: string[]
+    preferredDate?: string | null
+    dayPart?: 'manha' | 'tarde' | 'noite' | null
     ttlMs?: number
   },
 ): Promise<IssuedClientWebLink> {
@@ -81,8 +87,9 @@ export async function issueClientWebLink(
     .prepare(
       `INSERT INTO client_web_links
          (token_hash, tenant_id, binding_id, contact_id, conversation_id, purpose,
-          appointment_id, service_id, audience_line, variant_ids, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          appointment_id, service_id, audience_line, variant_ids, preferred_date, day_part,
+          created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       tokenHash,
@@ -95,6 +102,8 @@ export async function issueClientWebLink(
       input.serviceId ?? null,
       input.audienceLine ?? null,
       serializeVariantIds(input.variantIds ?? []),
+      input.preferredDate ?? null,
+      input.dayPart ?? null,
       now,
       expiresAt,
     )
@@ -120,6 +129,8 @@ type ExchangeRow = {
   service_id: string | null
   audience_line: string | null
   variant_ids: string | null
+  preferred_date: string | null
+  day_part: string | null
 }
 
 function parseStoredVariantIds(raw: string | null): string[] {
@@ -151,13 +162,18 @@ export async function exchangeClientWebLink(
       `UPDATE client_web_links SET consumed_at = ?
        WHERE token_hash = ? AND consumed_at IS NULL AND replaced_at IS NULL AND expires_at > ?
        RETURNING token_hash, tenant_id, contact_id, conversation_id, purpose, appointment_id,
-         service_id, audience_line, variant_ids`,
+         service_id, audience_line, variant_ids, preferred_date, day_part`,
     )
     .bind(now, tokenHash, now)
     .first<ExchangeRow>()
   if (!row) return null
   const audienceLine =
     row.audience_line === 'feminino' || row.audience_line === 'masculino' ? row.audience_line : null
+  const dayPart =
+    row.day_part === 'manha' || row.day_part === 'tarde' || row.day_part === 'noite' ? row.day_part : null
+  const preferredDate = row.preferred_date?.trim() && /^\d{4}-\d{2}-\d{2}$/.test(row.preferred_date.trim())
+    ? row.preferred_date.trim()
+    : null
 
   const sessionToken = newClientWebSessionToken()
   const sessionHash = await hashToken(sessionToken)
@@ -189,6 +205,8 @@ export async function exchangeClientWebLink(
     serviceId: row.service_id,
     audienceLine,
     variantIds: parseStoredVariantIds(row.variant_ids),
+    preferredDate,
+    dayPart,
   }
 }
 

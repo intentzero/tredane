@@ -25,6 +25,7 @@ export function TimeStep({
   notice,
   onPick,
   onSessionLost,
+  preferredDayPart = null,
 }: {
   catalog: Catalog
   /** Linha por baixo do título: serviço e duração. */
@@ -41,6 +42,8 @@ export function TimeStep({
   notice: string | null
   onPick: (s: Slot) => void
   onSessionLost: () => void
+  /** Período pedido no chat: mostra-o primeiro. */
+  preferredDayPart?: DayPart | null
 }) {
   const [slots, setSlots] = useState<Slot[] | 'loading' | 'error'>('loading')
   const days = useMemo(() => weekDays(weekStart, catalog.today, catalog.horizonDays), [weekStart, catalog])
@@ -70,7 +73,12 @@ export function TimeStep({
   }, [depsKey, weekStart, retry, onSessionLost])
 
   const daySlots = Array.isArray(slots) ? slots.filter((s) => s.date === day) : []
-  const parts = (['Manhã', 'Tarde', 'Noite'] as DayPart[])
+  const orderedParts = (['Manhã', 'Tarde', 'Noite'] as DayPart[]).sort((a, b) => {
+    if (preferredDayPart && a === preferredDayPart && b !== preferredDayPart) return -1
+    if (preferredDayPart && b === preferredDayPart && a !== preferredDayPart) return 1
+    return 0
+  })
+  const parts = orderedParts
     .map((p) => ({ part: p, items: daySlots.filter((s) => dayPart(s.time) === p) }))
     .filter((g) => g.items.length > 0)
   const withSlots = new Set(Array.isArray(slots) ? slots.map((s) => s.date) : [])
@@ -152,7 +160,11 @@ export function TimeStep({
         </p>
       )}
       {parts.map((g) => (
-        <section key={g.part} aria-label={g.part} className="cw-margin cw-part">
+        <section
+          key={g.part}
+          aria-label={g.part}
+          className={`cw-margin cw-part${preferredDayPart === g.part ? ' is-preferred' : ''}`}
+        >
           <h2 className="cw-caption-title">{g.part}</h2>
           <div className="cw-times">
             {g.items.map((s) => (

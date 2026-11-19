@@ -204,6 +204,8 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
       serviceId: result.serviceId,
       audienceLine: result.audienceLine,
       variantIds: result.variantIds,
+      preferredDate: result.preferredDate,
+      dayPart: result.dayPart,
       expiresAt: result.expiresAt,
     })
   })

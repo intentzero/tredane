@@ -265,7 +265,7 @@ describe('S4: render determinístico', () => {
       expect(booked).toMatch(/^Agendado:/)
       // DEC-174: curto — weekday DD/MM + só início; sem ano/fim/«feira»/dúvida (follow-up segue).
       expect(booked).toBe(
-        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Local: Rua das Flores, 100 — São Paulo.',
+        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Total: R$ 50,00. Local: Rua das Flores, 100 — São Paulo.',
       )
       expect(booked).not.toMatch(/feira|novembro|2026|–\s*\d{2}:\d{2}|Qualquer dúvida/i)
       expect(booked).not.toContain('Sala Depilação')
@@ -346,7 +346,7 @@ describe('S4: render determinístico', () => {
       ]
       const booked = renderProposalResultBody(proposal, 'booked', { zones: snaps })
       expect(booked).toBe(
-        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Local: Rua das Flores, 100 — São Paulo.',
+        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Valores: relaxante R$ 200,00. Total: R$ 200,00. Local: Rua das Flores, 100 — São Paulo.',
       )
       expect(booked).not.toContain(BOOKED_DOUBT_FALLBACK)
     } finally {

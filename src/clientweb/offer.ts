@@ -81,6 +81,8 @@ export type PrepareClientWebOfferInput = {
   audienceLine?: 'feminino' | 'masculino' | null
   /** Zonas já ditas no chat. */
   variantIds?: string[]
+  preferredDate?: string | null
+  dayPart?: 'manha' | 'tarde' | 'noite' | null
 }
 
 /**
