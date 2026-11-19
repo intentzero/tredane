@@ -9900,12 +9900,6 @@ button.panel-auth-inline-link {
   border-right: var(--size-border-width) solid var(--color-line-border);
 }
 
-.clientes-list-head {
-  flex: none;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: var(--size-border-width) solid var(--color-line-border);
-}
-
 .clientes-2col-list .inbox-root {
   flex: 1;
   min-height: 0;
@@ -10007,10 +10001,8 @@ button.panel-auth-inline-link {
 }
 
 @media (min-width: 1280px) {
-  .panel-app:has(.clientes-2col) .panel-shell-header {
-    display: none;
-  }
-
+  /* Clientes usa `.panel-shell-header` como Agenda (título + clínica + «Ao vivo»).
+     Conversas continua a esconder o shell header — padrão próprio WA. */
   .clientes-2col {
     grid-template-columns: 400px minmax(0, 1fr);
   }
