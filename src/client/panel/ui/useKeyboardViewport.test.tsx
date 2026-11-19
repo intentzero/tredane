@@ -5,11 +5,11 @@ import { useKeyboardViewport } from './useKeyboardViewport'
 
 afterEach(cleanup)
 
-function fakeViewport(height: number) {
+function fakeViewport(height: number, offsetTop = 0) {
   const listeners = new Map<string, Array<() => void>>()
   const view = {
     height,
-    offsetTop: 0,
+    offsetTop,
     scale: 1,
     addEventListener: (type: string, fn: () => void) => {
       const list = listeners.get(type) ?? []
@@ -26,7 +26,7 @@ function fakeViewport(height: number) {
 }
 
 describe('useKeyboardViewport', () => {
-  it('publica --panel-vvh só com o teclado aberto', () => {
+  it('publica --panel-vvh / --panel-vv-top só com o teclado aberto', () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
       cb(0)
       return 1
@@ -36,14 +36,19 @@ describe('useKeyboardViewport', () => {
     const { unmount } = renderHook(() => useKeyboardViewport())
     const root = document.documentElement
     expect(root.style.getPropertyValue('--panel-vvh')).toBe('')
+    expect(root.style.getPropertyValue('--panel-vv-top')).toBe('')
     view.height = 500
+    view.offsetTop = 80
     act(fire)
     expect(root.style.getPropertyValue('--panel-vvh')).toBe('500px')
-    expect(root.style.getPropertyValue('--keyboard-inset-bottom')).toBe('344px')
+    expect(root.style.getPropertyValue('--panel-vv-top')).toBe('80px')
+    expect(root.style.getPropertyValue('--keyboard-inset-bottom')).toBe('264px')
     expect(root.dataset.keyboard).toBe('open')
     view.height = 844
+    view.offsetTop = 0
     act(fire)
     expect(root.style.getPropertyValue('--panel-vvh')).toBe('')
+    expect(root.style.getPropertyValue('--panel-vv-top')).toBe('')
     expect(root.dataset.keyboard).toBeUndefined()
     unmount()
   })
