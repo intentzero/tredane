@@ -120,16 +120,6 @@ function formatUpcomingClinicClosures(
   })
 }
 
-function singleDayCopy(line: string): string {
-  const idx = line.indexOf(':')
-  if (idx < 0) return line
-  const dayName = line.slice(0, idx).trim()
-  const hours = line.slice(idx + 1).trim()
-  const cap = dayName.charAt(0).toUpperCase() + dayName.slice(1)
-  if (hours === 'fechado') return `${cap}: fechamos.`
-  return `${cap}: atendemos ${hours}.`
-}
-
 /** Rótulo do dia pedido («amanhã (sexta-feira)», «hoje (quinta-feira)», «sábado»). */
 function dayAskLabel(date: string, today: string): string {
   const wd = weekdayOfCivil(date)
