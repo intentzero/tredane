@@ -41,9 +41,9 @@ export function isEditableKeyboardTarget(el: EventTarget | null): boolean {
  * - `--panel-vv-top` = visualViewport.offsetTop (o iOS sobe o viewport ao focar)
  * - `--keyboard-inset-bottom` = espaço sob o viewport (teclado + AutoFill)
  *
- * O CSS prende `.panel-app:has(.inbox-thread)` a `top`+`height` com
- * `data-keyboard=open`, para o compositor da thread ficar acima do teclado.
- * Fora da thread o shell fica em `inset:0` (barra inferior no fundo do layout).
+ * O CSS prende `.panel-app` a `top`+`height` com `data-keyboard=open`, para a
+ * tab bar / compositor ficarem no fundo do visualViewport (acima do teclado).
+ * Fora do teclado o shell fica em `inset:0`.
  *
  * Também repõe `scrollY` a 0: o iOS desloca o documento para mostrar o campo e,
  * sem isto, a barra inferior fica a meio do ecrã com um vão vazio por baixo.

@@ -16,6 +16,7 @@ html:has(.panel-app),
 html:has(.panel-app) body,
 html:has(.panel-app) #root {
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 body { margin: 0; min-width: 320px; }
