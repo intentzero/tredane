@@ -2161,7 +2161,8 @@ button.panel-auth-inline-link {
  * cobre o campo focado (ex. Nome em Novo serviço). Some enquanto
  * useKeyboardViewport marca data-keyboard=open; volta ao fechar. */
 :root[data-keyboard='open'] .clinic-footer-sticky,
-:root[data-keyboard='open'] .clinic-footer-dock {
+:root[data-keyboard='open'] .clinic-footer-dock,
+:root[data-keyboard='open'] .kn-footer {
   display: none;
 }
 
@@ -5545,16 +5546,12 @@ button.panel-auth-inline-link {
   }
 }
 
-/* Teclado aberto: só a thread (compositor) prende o shell à área visível
-   (useKeyboardViewport sobrescreve --panel-vvh / --panel-vv-top no <html>
-   enquanto o teclado está aberto e há campo focado). Fora do teclado — e em
-   qualquer ecrã com a barra inferior (Clínica, Agenda, …) — o shell fica em
-   inset:0. Não aplicar height: var(--panel-vvh) a todo o .panel-app: o chrome
-   do Safari ou um data-keyboard residual encolhia o shell e a tab bar ficava
-   a meio com faixa branca por baixo.
-   O iOS desloca o visualViewport (offsetTop > 0) ao focar o campo: sem
-   --panel-vv-top o shell da thread fica com top:0 e o compositor some sob o
-   teclado/AutoFill. */
+/* Teclado aberto: prende o shell ao visualViewport (useKeyboardViewport
+   publica --panel-vvh / --panel-vv-top só com campo editável focado +
+   viewport encolhido — o chrome do Safari sozinho não marca teclado).
+   Sem este pin o iOS sobe o visualViewport (offsetTop > 0) e a tab bar /
+   compositor ficam a meio com vão por baixo (Clínica FAQ, thread, …).
+   Fora do teclado o shell fica em inset:0. */
 :root {
   --panel-vvh: 100dvh;
   --panel-vv-top: 0px;
@@ -5563,15 +5560,12 @@ button.panel-auth-inline-link {
   --panel-sticky-clearance: calc(var(--size-control-default) + var(--space-6) + env(safe-area-inset-bottom, 0px));
 }
 
-.panel-app:has(.inbox-thread) {
-  height: auto;
-}
-
-:root[data-keyboard='open'] .panel-app:has(.inbox-thread) {
+:root[data-keyboard='open'] .panel-app {
   top: var(--panel-vv-top, 0px);
   bottom: auto;
   height: var(--panel-vvh);
   max-height: var(--panel-vvh);
+  min-height: 0;
 }
 
 /* Conversa aberta em tela cheia: sem cabeçalho/barra do shell, então o
@@ -11899,7 +11893,8 @@ button.panel-auth-inline-link {
     align-items: center;
     gap: var(--space-1);
     min-height: 56px;
-    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-3);
+    /* --space-4 sob o chrome: mesmo ritmo do .panel-shell-main nas outras áreas. */
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
     padding: 0 var(--space-2) 0 var(--space-1);
     border-bottom: var(--size-border-width) solid var(--color-line-border);
     background: var(--color-surface-card);
@@ -14081,8 +14076,92 @@ button.panel-auth-inline-link {
 .kn-pill--draft { background: var(--color-warning-tint); color: var(--color-warning-ink); border: var(--size-border-width) solid var(--color-warning-border); }
 .kn-lock { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 12px; color: var(--color-text-muted); }
 
-.kn-footer { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; bottom: 0; padding: var(--space-3) 0; background: var(--color-surface-app); }
+/* Dock: scroll + rodapé fora do sticky (mesmo padrão clinic-form--dock). */
+.kn-dock {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  gap: 0;
+}
+.kn-dock-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.kn-footer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 2;
+  margin: 0;
+  padding: var(--space-3) 0;
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+}
 .kn-footer .panel-btn-primary { min-height: var(--size-touch); }
+
+/* Mobile Clínica: shell sem padding; dock encosta à tab bar. */
+@media (max-width: 1279.98px) {
+  .panel-shell-main:has(.clinic-sub .kn-dock) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .clinic-sub:has(.kn-dock) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .clinic-sub:has(.kn-dock) .clinic-sub-header {
+    /* Shell já está flush — sem margens negativas. */
+    margin: 0 0 var(--space-4);
+    padding-left: var(--space-1);
+    padding-right: var(--space-2);
+  }
+
+  .clinic-sub:has(.kn-dock) > .clinic-page {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-inline: var(--space-4);
+  }
+
+  .clinic-sub:has(.kn-dock) > .clinic-page > .kn-dock {
+    flex: 1;
+    min-height: 0;
+    margin-inline: calc(-1 * var(--space-4));
+  }
+
+  .clinic-sub:has(.kn-dock) .kn-dock-scroll {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  .clinic-sub:has(.kn-dock) .kn-footer {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .panel-app:has(> .panel-nav) .clinic-sub .kn-footer {
+    padding-bottom: var(--space-3);
+  }
+}
 
 .kn-first { display: flex; flex-direction: column; gap: var(--space-3); }
 .kn-first-title { margin: 0; font-size: var(--font-size-display); line-height: 1.25; }
@@ -14115,8 +14194,12 @@ button.panel-auth-inline-link {
 .kn-switch[data-selected] .kn-switch-knob { transform: translateX(20px); }
 .kn-switch[data-focus-visible] .kn-switch-track { outline: var(--size-focus-ring-width) solid var(--color-primary-base); outline-offset: var(--size-focus-ring-offset); }
 
-.kn-actions { justify-content: flex-end; }
+.kn-actions { justify-content: flex-end; width: 100%; }
 .kn-actions .panel-btn-primary { min-height: var(--size-touch); }
+.kn-footer .clinic-row-actions {
+  padding-top: 0;
+  padding-bottom: 0;
+}
 .kn-danger { align-self: flex-start; color: var(--color-danger-ink); min-height: var(--size-touch); }
 .kn-confirm { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: var(--size-border-width) solid var(--color-danger-border); background: var(--color-danger-tint); border-radius: var(--radius-lg); }
 
@@ -14127,5 +14210,21 @@ button.panel-auth-inline-link {
 .kn-icon-btn { width: var(--size-touch); height: var(--size-touch); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 @media (min-width: 768px) {
-  .kn-footer { flex-direction: row; align-items: center; justify-content: space-between; position: static; padding: 0; }
+  .kn-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) 0 0;
+    border-top: 0;
+    background: transparent;
+  }
+}
+
+@media (min-width: 1280px) {
+  .kn-dock,
+  .kn-dock-scroll {
+    overflow: visible;
+    flex: none;
+    min-height: 0;
+  }
 }

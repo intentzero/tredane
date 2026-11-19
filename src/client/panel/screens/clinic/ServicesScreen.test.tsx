@@ -898,7 +898,7 @@ describe('ServiceForm — layout do painel (overflow horizontal)', () => {
     )
     // M-64 Opção A: teclado aberto (data-keyboard=open) esconde o rodapé sticky/docado.
     expect(css).toMatch(
-      /:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-sticky\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-dock\s*\{[^}]*display:\s*none/s,
+      /:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-sticky\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-dock\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.kn-footer\s*\{[^}]*display:\s*none/s,
     )
     // Ficha docada: scroll + footer fora do sticky (variantes/combos não ficam sob Salvar).
     expect(css).toMatch(/\.clinic-form--dock\s*\{[^}]*height:\s*100%/s)
@@ -907,7 +907,7 @@ describe('ServiceForm — layout do painel (overflow horizontal)', () => {
     // Shell pregado ao viewport — evita barra inferior a meio do ecrã.
     expect(css).toMatch(/\.panel-app\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/s)
     expect(css).toMatch(
-      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app:has\(\.inbox-thread\)\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
     )
     expect(css).toMatch(/\.panel-sticky-clearance\s*\{[^}]*height:\s*var\(--panel-sticky-clearance\)/s)
     expect(css).toMatch(/\.svc-format-item\s*\{[^}]*position:\s*relative/s)

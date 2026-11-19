@@ -394,18 +394,22 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         )
       case 'conhecimento':
         return (
-          <div className="clinic-stack">
-            <AiProfileCard
-              tenantId={tenantId}
-              api={api}
-              generation={generation}
-              part="facts"
-              initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
-              initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
-              onSaved={() => void reload()}
-            />
-            <KnowledgeScreen tenantId={tenantId} api={api} generation={generation} />
-          </div>
+          <KnowledgeScreen
+            tenantId={tenantId}
+            api={api}
+            generation={generation}
+            lead={
+              <AiProfileCard
+                tenantId={tenantId}
+                api={api}
+                generation={generation}
+                part="facts"
+                initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
+                initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
+                onSaved={() => void reload()}
+              />
+            }
+          />
         )
       case 'assistente-persona':
         return (

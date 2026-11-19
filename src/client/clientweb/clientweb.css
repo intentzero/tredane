@@ -105,7 +105,8 @@
 .cw-icon-warning { background: var(--color-warning-tint); color: var(--color-warning-ink); }
 
 /* Agendar (Fase 2): mocks C-02 a C-06, layout compacto. */
-.cw-flush { padding: 0; gap: 0; }
+/* Full-bleed nas listas; mantém --space-4 sob a barra de progresso (Paulo 19/11/2026). */
+.cw-flush { padding: var(--space-4) 0 0; gap: 0; }
 .cw-margin { margin-left: 16px; margin-right: 16px; }
 .cw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cw-caption { font-size: var(--font-size-caption); color: var(--color-text-secondary); }

@@ -3,7 +3,7 @@
  * Categorias CRUD + entradas Q&A (pergunta, resposta ≤500, published/draft).
  */
 import { ChevronRight, Lock, Plus, Search, Tag, Trash2, X, Pencil } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button, Input, Label, Switch, TextArea, TextField } from 'react-aria-components'
 import type { PanelApi } from '../../api'
 import { friendlyError } from '../../copy/errors'
@@ -32,6 +32,18 @@ type Props = {
   tenantId: string
   api: PanelApi
   generation: number
+  /** Cartão acima da lista (link Google / política) — fica no scroll do dock. */
+  lead?: ReactNode
+}
+
+/** Scroll + rodapé docado (padrão clinic-form--dock; encosta à tab bar no mobile). */
+function KnDock({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  return (
+    <div className="kn-dock">
+      <div className="kn-dock-scroll">{children}</div>
+      {footer ? <div className="kn-footer">{footer}</div> : null}
+    </div>
+  )
 }
 
 const ANSWER_MAX = 500
@@ -52,7 +64,7 @@ const SUGGESTIONS: Array<{ question: string; category: string }> = [
 
 type View = 'list' | 'edit' | 'categories'
 
-export function KnowledgeScreen({ tenantId, api, generation }: Props) {
+export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
   const [categories, setCategories] = useState<KnowledgeCategoryDto[]>([])
   const [entries, setEntries] = useState<KnowledgeEntryDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -250,7 +262,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
   // ---------- Categorias ----------
   if (view === 'categories') {
     return (
-      <div className="kn-stack">
+      <KnDock>
         <Button className="panel-btn-ghost kn-back" onPress={() => setView('list')}>
           <ChevronRight size={16} aria-hidden className="kn-back-icon" /> Voltar ao conhecimento
         </Button>
@@ -346,7 +358,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
             <Plus size={16} aria-hidden /> Adicionar
           </Button>
         </div>
-      </div>
+      </KnDock>
     )
   }
 
@@ -365,7 +377,39 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
       (status === 'published' && entries.find((e) => e.id === editingId)?.status !== 'published' ? 1 : 0) -
       (status !== 'published' && entries.find((e) => e.id === editingId)?.status === 'published' ? 1 : 0)
     return (
-      <div className="kn-stack">
+      <KnDock
+        footer={
+          <>
+            <div className="clinic-row-actions kn-actions">
+              <Button className="panel-btn-ghost" onPress={closeEditor}>
+                Cancelar
+              </Button>
+              <Button className="panel-btn-primary" onPress={() => void saveEntry()} isDisabled={!canSave || locked}>
+                {editingId ? 'Salvar' : 'Criar pergunta'}
+              </Button>
+            </div>
+            {editingId && !locked ? (
+              confirmDelete ? (
+                <div className="kn-confirm" role="group" aria-label="Confirmar exclusão">
+                  <span>Apagar esta pergunta? Não dá para desfazer.</span>
+                  <div className="clinic-row-actions">
+                    <Button className="panel-btn-ghost" onPress={() => setConfirmDelete(false)}>
+                      Manter
+                    </Button>
+                    <Button className="panel-btn-danger" onPress={() => void removeEntry(editingId)} isDisabled={busy}>
+                      Apagar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button className="panel-btn-ghost kn-danger" onPress={() => setConfirmDelete(true)}>
+                  <Trash2 size={18} aria-hidden /> Apagar pergunta
+                </Button>
+              )
+            ) : null}
+          </>
+        }
+      >
         <Button className="panel-btn-ghost kn-back" onPress={closeEditor}>
           <ChevronRight size={16} aria-hidden className="kn-back-icon" /> Voltar sem salvar
         </Button>
@@ -533,36 +577,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
             edita nem se apaga aqui.
           </p>
         ) : null}
-
-        <div className="clinic-row-actions kn-actions">
-          <Button className="panel-btn-ghost" onPress={closeEditor}>
-            Cancelar
-          </Button>
-          <Button className="panel-btn-primary" onPress={() => void saveEntry()} isDisabled={!canSave || locked}>
-            {editingId ? 'Salvar' : 'Criar pergunta'}
-          </Button>
-        </div>
-
-        {editingId && !locked ? (
-          confirmDelete ? (
-            <div className="kn-confirm" role="group" aria-label="Confirmar exclusão">
-              <span>Apagar esta pergunta? Não dá para desfazer.</span>
-              <div className="clinic-row-actions">
-                <Button className="panel-btn-ghost" onPress={() => setConfirmDelete(false)}>
-                  Manter
-                </Button>
-                <Button className="panel-btn-danger" onPress={() => void removeEntry(editingId)} isDisabled={busy}>
-                  Apagar
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button className="panel-btn-ghost kn-danger" onPress={() => setConfirmDelete(true)}>
-              <Trash2 size={18} aria-hidden /> Apagar pergunta
-            </Button>
-          )
-        ) : null}
-      </div>
+      </KnDock>
     )
   }
 
@@ -581,7 +596,19 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
   const firstRun = entries.length === 0 || onlyAuto
 
   return (
-    <div className="kn-stack">
+    <KnDock
+      footer={
+        <>
+          <Button className="panel-btn-primary" onPress={() => openNew()} isDisabled={busy}>
+            <Plus size={18} aria-hidden /> {firstRun ? 'Escrever outra pergunta' : 'Nova pergunta'}
+          </Button>
+          <Button className="panel-btn-ghost" onPress={() => setView('categories')}>
+            <Tag size={16} aria-hidden /> Categorias
+          </Button>
+        </>
+      }
+    >
+      {lead}
       {errorBanner}
 
       {firstRun ? (
@@ -702,15 +729,6 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
           )}
         </>
       ) : null}
-
-      <div className="kn-footer">
-        <Button className="panel-btn-primary" onPress={() => openNew()} isDisabled={busy}>
-          <Plus size={18} aria-hidden /> {firstRun ? 'Escrever outra pergunta' : 'Nova pergunta'}
-        </Button>
-        <Button className="panel-btn-ghost" onPress={() => setView('categories')}>
-          <Tag size={16} aria-hidden /> Categorias
-        </Button>
-      </div>
-    </div>
+    </KnDock>
   )
 }
