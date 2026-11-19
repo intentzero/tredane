@@ -7,9 +7,11 @@ import { listBlocks } from '../config/blocks'
 import { listResources } from '../config/resources'
 import { ensureClinicSettings } from '../config/settings'
 import { CLINIC_SCOPE_ID } from '../config/types'
+import { clinicCivilDateFromUtc, clinicDayBounds, zonedCivilToUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
 import { sayAct } from './dialogue-acts'
 import { isOpeningDayAsk } from './opening-day-ask'
+import { addCivilDays, weekdayOfCivil } from './slot-offer'
 import { formatOpeningHours } from './schedule-context'
 
 /** Mesma família que `catalog-reply` HOURS + variantes e typos comuns. */
@@ -30,6 +32,8 @@ const WEEKDAY_ALIASES: Array<{ re: RegExp; dow: number }> = [
   { re: /\bquint[a]?(?:\s*[- ]?\s*feira)?\b/i, dow: 4 },
   { re: /\bsexta(?:\s*[- ]?\s*feira)?\b/i, dow: 5 },
 ]
+
+const WEEKDAY_NAMES = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
 
 export function isOpeningHoursFaqAsk(text: string): boolean {
   const body = text.trim()
@@ -64,11 +68,15 @@ export function openingHoursMixedWithBooking(text: string): boolean {
   return false
 }
 
-function weekdayFromText(text: string): number | null {
-  const folded = text
+function foldPt(text: string): string {
+  return text
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+}
+
+function weekdayFromText(text: string): number | null {
+  const folded = foldPt(text)
   for (const { re, dow } of WEEKDAY_ALIASES) {
     if (re.test(folded)) return dow
   }
@@ -122,6 +130,70 @@ function singleDayCopy(line: string): string {
   return `${cap}: atendemos ${hours}.`
 }
 
+/** Rótulo do dia pedido («amanhã (sexta-feira)», «hoje (quinta-feira)», «sábado»). */
+function dayAskLabel(date: string, today: string): string {
+  const wd = weekdayOfCivil(date)
+  const base = WEEKDAY_NAMES[wd]!
+  const withFeira = base === 'sábado' || base === 'domingo' ? base : `${base}-feira`
+  if (date === today) return `hoje (${withFeira})`
+  if (date === addCivilDays(today, 1)) return `amanhã (${withFeira})`
+  return withFeira
+}
+
+/**
+ * Próxima ocorrência civil do dia pedido (hoje / amanhã / depois de amanhã / weekday).
+ * Null quando a pergunta é só o expediente genérico («horário de funcionamento»).
+ */
+export function resolveOpeningHoursAskDate(text: string, today: string): string | null {
+  const folded = foldPt(text)
+  if (/\bdepois de amanha\b/.test(folded)) return addCivilDays(today, 2)
+  if (/\bamanha\b/.test(folded)) return addCivilDays(today, 1)
+  if (/\bhoje\b/.test(folded)) return today
+  const dow = weekdayFromText(text)
+  if (dow == null) return null
+  for (let i = 0; i < 7; i++) {
+    const date = addCivilDays(today, i)
+    if (weekdayOfCivil(date) === dow) return date
+  }
+  return null
+}
+
+/**
+ * Fechamento da clínica inteira no dia civil: feriado/all-day, ou todas as
+ * faixas do expediente cobertas por bloqueio `__clinic__` (como DEC-155/handoff).
+ */
+export function clinicWideClosureOnCivilDay(
+  db: ClinicDb,
+  tenantId: string,
+  date: string,
+  tz: string,
+  windows: readonly { dayOfWeek: number; startMinute: number; endMinute: number }[],
+): { closed: boolean; note: string | null } {
+  const { dayStartsAt, dayEndsAt } = clinicDayBounds(tz, date)
+  const blocks = listBlocks(db, tenantId, CLINIC_SCOPE_ID).filter(
+    (b) => b.startsAt < dayEndsAt && b.endsAt > dayStartsAt,
+  )
+  if (blocks.length === 0) return { closed: false, note: null }
+
+  const fullDay = blocks.find((b) => b.startsAt <= dayStartsAt && b.endsAt >= dayEndsAt)
+  if (fullDay) return { closed: true, note: fullDay.note?.trim() || null }
+
+  const dow = weekdayOfCivil(date)
+  const dayWindows = windows.filter((w) => w.dayOfWeek === dow)
+  if (dayWindows.length === 0) return { closed: false, note: null }
+
+  const [y, mo, d] = date.split('-').map(Number) as [number, number, number]
+  const allBlocked = dayWindows.every((w) => {
+    const hh = Math.floor(w.startMinute / 60)
+    const mm = w.startMinute % 60
+    const startsAt = zonedCivilToUtc(tz, y, mo, d, hh, mm)
+    return blocks.some((b) => b.startsAt <= startsAt && startsAt < b.endsAt)
+  })
+  if (!allBlocked) return { closed: false, note: null }
+  const note = blocks.find((b) => b.note?.trim())?.note?.trim() ?? null
+  return { closed: true, note }
+}
+
 /**
  * Resposta de expediente a partir do cadastro. Null se misto com marcação
  * (continua o funil / LLM) ou sem janelas configuradas.
@@ -149,22 +221,37 @@ export function buildOpeningHoursReply(
   }
 
   const civilTz = ensureClinicSettings(db, tenantId, clock).timezone
+  const today = clinicCivilDateFromUtc(civilTz, clock.nowMs())
+  const askedDate = resolveOpeningHoursAskDate(body, today)
 
-  const asked = weekdayFromText(body)
   let lista = lines.join('\n')
   let fallback = `Funcionamos assim:\n${lista}`
 
-  if (HOLIDAY_ASK.test(body)) {
+  if (HOLIDAY_ASK.test(body) && askedDate == null) {
     const closures = formatUpcomingClinicClosures(db, tenantId, clock, civilTz)
     if (closures.length > 0) {
       lista = `Fechamentos programados:\n${closures.join('\n')}\n\nExpediente habitual:\n${lista}`
       fallback = lista
     }
-  } else if (asked != null) {
-    const line = lines[asked - 1]
-    if (line) {
-      lista = line
-      fallback = singleDayCopy(line)
+  } else if (askedDate != null) {
+    const label = dayAskLabel(askedDate, today)
+    const closure = clinicWideClosureOnCivilDay(db, tenantId, askedDate, civilTz, windows)
+    if (closure.closed) {
+      lista = `${label}: fechado`
+      const cap = label.charAt(0).toUpperCase() + label.slice(1)
+      fallback = closure.note
+        ? `${cap} a clínica está fechada (${closure.note}).`
+        : `${cap} a clínica está fechada.`
+    } else {
+      const dow = weekdayOfCivil(askedDate)
+      const weeklyLine = lines[dow - 1]
+      if (weeklyLine) {
+        const hours = weeklyLine.slice(weeklyLine.indexOf(':') + 1).trim()
+        lista = `${label}: ${hours}`
+        const cap = label.charAt(0).toUpperCase() + label.slice(1)
+        fallback =
+          hours === 'fechado' ? `${cap}: fechamos.` : `${cap}: atendemos ${hours}.`
+      }
     }
   }
 

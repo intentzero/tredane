@@ -6,6 +6,7 @@
  * |--------|-----------|--------------------|
  * | INT-01 | Proposto  | Preço de serviço único sem modelo |
  * | INT-02 | Proposto  | Horário de funcionamento sem modelo |
+ * | INT-02b| Proposto  | «Abrem amanhã?» com feriado da clínica → fechada, sem modelo |
  * | INT-03 | Proposto  | FAQ de cancelamento sem modelo |
  * | INT-04 | Confirmado| Dois pedidos no mesmo turno (preço + vaga): resposta e link |
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
@@ -13,6 +14,9 @@
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
  * | INT-08 | Confirmado| Onde fica: só o link do Google Business, sem endereço (DEC-211) |
  */
+import { createResourceBlock } from '../../../config/blocks'
+import { CLINIC_SCOPE_ID } from '../../../config/types'
+import { clinicDayBounds } from '../../../scheduling/timezone'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 
@@ -41,6 +45,41 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 0, matches: [/Funcionamos|Nosso horário|Abrimos assim/i, /09:00/] }],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
       outboundExcludes: [/Abrir agenda/i],
+    },
+  },
+  {
+    id: 'INT-02b',
+    title:
+      '«Vocês abrem amanhã?» com feriado da clínica inteira — fechada, sem modelo (DEC-104)',
+    turnosIdeais: 1,
+    /** Qui 19/11/2026 20:46 America/Sao_Paulo (staging WhatsApp). */
+    nowMs: Date.UTC(2026, 10, 19, 23, 46),
+    prepare: (s) => {
+      const { dayStartsAt, dayEndsAt } = clinicDayBounds('America/Sao_Paulo', '2026-11-20')
+      createResourceBlock(
+        s.db,
+        s.tenantId,
+        {
+          resourceId: CLINIC_SCOPE_ID,
+          startsAt: dayStartsAt,
+          endsAt: dayEndsAt,
+          reason: 'feriado',
+          note: 'Feriado',
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Vocês abrem amanhã?' }],
+    expect: {
+      turns: [
+        {
+          turn: 0,
+          matches: [/fechad|fechamos/i, /amanh[aã]/i],
+          excludes: [/09:00/, /est[aá] aberta/i, /Abrir agenda/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
+      outboundExcludes: [/09:00/, /Abrir agenda/i],
     },
   },
   {

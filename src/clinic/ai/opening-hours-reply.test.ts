@@ -4,6 +4,7 @@ import { setWeeklyWindowsOp, upsertResourceOp } from '../config'
 import { createResourceBlock } from '../config/blocks'
 import { CLINIC_SCOPE_ID } from '../config/types'
 import { workerCaller } from '../index'
+import { clinicDayBounds } from '../scheduling/timezone'
 import { bootClinicDb } from '../test-db'
 import { catalogReply } from './catalog-reply'
 import {
@@ -15,6 +16,8 @@ import { interpretTurn } from './nlu/interpret'
 import { COVERAGE_THRESHOLD } from './nlu/interpret'
 
 const NOW = Date.UTC(2026, 10, 16, 14, 0)
+/** Qui 19/11/2026 20:46 America/Sao_Paulo — reprodução «abrem amanhã?» com feriado 20/11. */
+const BUG_NOW = Date.UTC(2026, 10, 19, 23, 46)
 
 function seedWindows(db: ReturnType<typeof bootClinicDb>['db'], tenantId: string, clock: ReturnType<typeof createControllableClock>) {
   const caller = workerCaller(tenantId)
@@ -34,11 +37,12 @@ function seedWindows(db: ReturnType<typeof bootClinicDb>['db'], tenantId: string
 }
 
 describe('opening-hours-reply (deterministic FAQ)', () => {
-  it('detecta variantes sem acento, abreviações e feriado', () => {
+  it('detecta variantes sem acento, abreviações, feriado e «abre amanhã»', () => {
     expect(isOpeningHoursFaqAsk('atende domingo?')).toBe(true)
     expect(isOpeningHoursFaqAsk('vocês abrem sab?')).toBe(true)
     expect(isOpeningHoursFaqAsk('ate que horas fecham')).toBe(true)
     expect(isOpeningHoursFaqAsk('atendem em feriado?')).toBe(true)
+    expect(isOpeningHoursFaqAsk('Vocês abrem amanhã?')).toBe(true)
     expect(isOpeningHoursFaqAsk('quero agendar depilação segunda às 15h')).toBe(false)
   })
 
@@ -49,6 +53,7 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
     expect(openingHoursMixedWithBooking('gostaria de saber se atendem domingo')).toBe(false)
     expect(openingHoursMixedWithBooking('Você pode me atender esta tarde?')).toBe(true)
     expect(openingHoursMixedWithBooking('tem horário hoje à tarde?')).toBe(true)
+    expect(openingHoursMixedWithBooking('Vocês abrem amanhã?')).toBe(false)
   })
 
   it('responde dia específico e expediente completo', () => {
@@ -97,6 +102,55 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
     )
     const reply = buildOpeningHoursReply(boot.db, tenantId, clock, 'atendem em feriado?', 'cnv_f')
     expect(reply).toMatch(/Fechamentos programados|Recesso/)
+    boot.close()
+  })
+
+  it('«Vocês abrem amanhã?» com feriado da clínica inteira → fechada (não o expediente semanal)', () => {
+    const clock = createControllableClock(BUG_NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-hours-amanha-fer'
+    seedWindows(boot.db, tenantId, clock)
+    const { dayStartsAt, dayEndsAt } = clinicDayBounds('America/Sao_Paulo', '2026-11-20')
+    createResourceBlock(
+      boot.db,
+      tenantId,
+      {
+        resourceId: CLINIC_SCOPE_ID,
+        startsAt: dayStartsAt,
+        endsAt: dayEndsAt,
+        reason: 'feriado',
+        note: 'Feriado',
+      },
+      clock,
+    )
+    const reply = buildOpeningHoursReply(
+      boot.db,
+      tenantId,
+      clock,
+      'Vocês abrem amanhã?',
+      'cnv_amanha_fer',
+    )
+    expect(reply).toMatch(/fechad|fechamos/i)
+    expect(reply).toMatch(/amanh[aã]/i)
+    expect(reply).not.toMatch(/09:00/)
+    expect(reply).not.toMatch(/est[aá] aberta/i)
+    const viaCatalog = catalogReply(boot.db, tenantId, 'Vocês abrem amanhã?', clock, {
+      conversationId: 'cnv_amanha_fer',
+    })
+    expect(viaCatalog).toMatch(/fechad|fechamos/i)
+    expect(viaCatalog).not.toMatch(/09:00/)
+    boot.close()
+  })
+
+  it('«abrem amanhã?» sem bloqueio → expediente da sexta', () => {
+    const clock = createControllableClock(BUG_NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-hours-amanha-ok'
+    seedWindows(boot.db, tenantId, clock)
+    const reply = buildOpeningHoursReply(boot.db, tenantId, clock, 'abrem amanhã?', 'cnv_ok')
+    expect(reply).toMatch(/amanh[aã]/i)
+    expect(reply).toMatch(/09:00/)
+    expect(reply).not.toMatch(/fechad/i)
     boot.close()
   })
 
