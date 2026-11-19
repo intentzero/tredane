@@ -1,0 +1,26 @@
+---
+title: Checklist da responsável
+description: A ordem sugerida para deixar a clínica pronta para atender, com marcação do que você já fez.
+papel: [responsavel]
+telas: [TEL-09]
+jornadas: [JRN-08, JRN-12]
+estado: confirmado
+revisado: 2026-11-19
+---
+
+import Checklist from '../../../components/Checklist.astro'
+
+Só o **responsável** vê a aba <span class="ui">Clínica</span> e configura a clínica. Sua marcação fica guardada neste navegador.
+
+<Checklist
+  id="responsavel"
+  itens={[
+    { id: 'entrar', texto: 'Entrar e escolher a clínica', href: '/comecar/entrar-e-escolher-clinica/' },
+    { id: 'avisos', texto: 'Ativar os avisos no celular', href: '/comecar/avisos-no-celular/' },
+    { id: 'whatsapp', texto: 'Conectar o WhatsApp da clínica', detalhe: 'Aba Clínica → WhatsApp. Artigo em preparação.' },
+    { id: 'servicos', texto: 'Cadastrar serviços, profissionais e salas', detalhe: 'Aba Clínica. Artigo em preparação.' },
+    { id: 'horarios', texto: 'Definir horários e bloqueios', detalhe: 'Aba Clínica. Artigo em preparação.' },
+    { id: 'equipe', texto: 'Convidar a equipe', detalhe: 'Aba Clínica → Equipe. Artigo em preparação.' },
+    { id: 'teste', texto: 'Fazer uma conversa de teste', detalhe: 'Na lista vazia, o painel sugere um passo de teste.' },
+  ]}
+/>

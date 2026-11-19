@@ -1,0 +1,39 @@
+---
+title: Saber qual conversa atender primeiro
+description: Como a lista de conversas se organiza por urgência e o que significam os números e filtros.
+papel: [equipe, responsavel]
+telas: [TEL-01, M-66]
+jornadas: [JRN-02]
+estado: confirmado
+revisado: 2026-11-19
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+## Quando usar
+
+Sempre que abrir a aba <span class="ui">Conversas</span>.
+
+## Os três grupos
+
+A lista agrupa as conversas pela urgência:
+
+1. **Sem responsável** — ninguém está atendendo.
+2. **Esperando sua resposta** — a cliente falou por último; a linha mostra há quanto tempo ela espera.
+3. **Em dia** — nada a fazer agora.
+
+Conversas em negrito com um número têm mensagens da cliente que ninguém leu e ainda ficaram sem resposta. Uma etiqueta só aparece quando a conversa pede ação.
+
+## Filtros e busca
+
+Os filtros são <span class="ui">Todas</span>, <span class="ui">Novas</span>, <span class="ui">Minhas</span>, <span class="ui">Sem responsável</span> e <span class="ui">Encerradas</span>. A busca encontra por nome ou telefone, só dentro da clínica ativa. Todos veem todas as conversas da clínica, inclusive as de outra pessoa.
+
+<Aside type="note">
+O número nos filtros e no ícone conta só o que ainda precisa de atenção, então pode ser menor que a quantidade de conversas da lista.
+</Aside>
+
+## O que pode dar errado
+
+- **«Nenhuma conversa neste filtro»:** toque em <span class="ui">Limpar filtro</span>.
+- **«Não foi possível carregar a caixa de entrada»:** toque em <span class="ui">Tentar de novo</span>. Se aparecer «Reconectando…», as informações podem estar desatualizadas até a conexão voltar.
+- **Lista vazia na primeira vez:** o painel mostra o estado do WhatsApp e um passo de teste.

@@ -1,0 +1,109 @@
+/* Tema da central de ajuda: mesmos tokens e fonte do painel (DEC-041, DEC-073, DEC-098),
+   para que o manual pareça a tela que ele explica. Os tokens já trocam entre claro e escuro
+   pelo atributo data-theme que o Starlight aplica no <html>. */
+@import '../../../src/client/ui/tokens.css';
+
+:root,
+:root[data-theme='light'] {
+  --sl-font: var(--font-family);
+  --sl-color-accent-low: var(--color-primary-tint);
+  --sl-color-accent: var(--color-primary-fill);
+  --sl-color-accent-high: var(--color-primary-ink);
+  --sl-color-white: var(--color-text-primary);
+  --sl-color-gray-1: var(--color-text-primary);
+  --sl-color-gray-2: var(--color-text-secondary);
+  --sl-color-gray-3: var(--color-text-muted);
+  --sl-color-gray-4: var(--color-line-control);
+  --sl-color-gray-5: var(--color-line-border);
+  --sl-color-gray-6: var(--color-surface-sunken);
+  --sl-color-gray-7: var(--color-surface-card);
+  --sl-color-black: var(--color-surface-app);
+  --sl-color-bg-nav: var(--color-surface-card);
+  --sl-color-bg-sidebar: var(--color-surface-card);
+  --sl-color-hairline: var(--color-line-divider);
+  --sl-color-hairline-light: var(--color-line-divider);
+  --sl-color-hairline-shade: var(--color-line-divider);
+  --sl-color-text-accent: var(--color-primary-ink);
+  --sl-color-orange-low: var(--color-warning-tint);
+  --sl-color-orange: var(--color-warning-ink);
+  --sl-color-orange-high: var(--color-warning-ink);
+  --sl-color-red-low: var(--color-danger-tint);
+  --sl-color-red: var(--color-danger-ink);
+  --sl-color-red-high: var(--color-danger-ink);
+  --sl-color-green-low: var(--color-success-tint);
+  --sl-color-green: var(--color-success-ink);
+  --sl-color-green-high: var(--color-success-ink);
+  --sl-color-purple-low: var(--color-ai-tint);
+  --sl-color-purple: var(--color-ai-border);
+  --sl-color-purple-high: var(--color-ai-ink);
+  --sl-text-h1: 1.75rem;
+}
+
+body {
+  background-color: var(--color-surface-app);
+}
+
+/* Termos da interface citados no texto: «Assumir», «Agendar»… */
+.ui {
+  display: inline-block;
+  padding: 0 0.4em;
+  border: 1px solid var(--color-line-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+
+/* Etiquetas de papel no topo do artigo */
+.papeis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.papel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--sl-text-xs);
+  font-weight: 500;
+  line-height: 1.6;
+  border: 1px solid transparent;
+}
+.papel--responsavel {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  border-color: var(--color-primary-border);
+}
+.papel--equipe {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+  border-color: var(--color-line-border);
+}
+.papel--cliente {
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  border-color: var(--color-warning-border);
+}
+.rascunho {
+  background: var(--color-danger-tint);
+  color: var(--color-danger-ink);
+  border-color: var(--color-danger-border);
+}
+
+/* O logotipo já diz «Tredane»; no celular o texto do título só cortaria. */
+@media (max-width: 50rem) {
+  .site-title > span {
+    display: none;
+  }
+}
+
+/* O botão de busca do Starlight mostra «⌘K» sem incluí-lo no nome acessível
+   (axe: label-content-name-mismatch). Sem a dica visual, o nome «Pesquisar» é o texto visível. */
+site-search kbd {
+  display: none !important;
+}

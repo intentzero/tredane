@@ -1,0 +1,28 @@
+---
+title: Mandar o link da agenda para a cliente
+description: Como a cliente escolhe e confirma o horário na página, e quando a equipe marca na hora.
+papel: [equipe, responsavel]
+telas: [TEL-05]
+jornadas: [JRN-03, JRN-21]
+estado: proposto
+draft: true
+revisado: 2026-11-19
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components'
+
+<Aside type="caution" title="Rascunho">
+A página web da cliente ainda está em validação em staging (ADR-0018, Proposto). Este artigo só vai ao ar quando ela estiver em produção.
+</Aside>
+
+No chat, a IA não marca, remarca nem cancela: ela informa e envia o botão <span class="ui">Abrir agenda</span>. A cliente escolhe e confirma na página.
+
+<Steps>
+
+1. Na conversa, toque em <span class="ui">Agendar</span>.
+2. Escolha serviço, profissional e horário e revise.
+3. Escolha <span class="ui">Enviar link de agenda</span> (a cliente escolhe e confirma lá; nada fica marcado antes) ou <span class="ui">Marcar já</span> (a equipe marca agora e o horário fica ocupado).
+
+</Steps>
+
+Sem conversa vinculada não dá para enviar o link pelo WhatsApp. Com a janela de 24 h fechada, retome o contato primeiro.

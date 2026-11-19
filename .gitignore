@@ -23,3 +23,7 @@ scripts/prova-entries/
 
 # Scorecard local da avaliação conversacional (a linha de base vive em docs/implementation/avaliacao/)
 .eval/
+
+help/node_modules/
+help/dist/
+help/.astro/

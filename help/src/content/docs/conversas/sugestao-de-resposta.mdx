@@ -1,0 +1,37 @@
+---
+title: Usar a sugestão de resposta da IA
+description: Como pedir um rascunho de resposta à IA, editar e enviar, e o que a IA nunca faz sozinha.
+papel: [equipe, responsavel]
+telas: [TEL-01, M-43]
+estado: confirmado
+revisado: 2026-11-19
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components'
+
+## Quando usar
+
+Quando a cliente escreveu e espera resposta. O botão <span class="ui">Sugerir resposta</span> só aparece nesse caso, e some enquanto a IA escreve o rascunho.
+
+<Steps>
+
+1. Toque no ícone <span class="ui">Sugerir resposta</span> dentro da barra do compositor.
+2. Leia o cartão «Rascunho da IA · revise antes de enviar».
+3. Se precisar, toque em <span class="ui">Outra</span> para gerar outro texto, ou edite o texto direto.
+4. Toque em <span class="ui">Enviar</span>. A IA nunca envia sozinha o rascunho.
+
+</Steps>
+
+## Regras que a IA segue
+
+- Só informa **preço** cadastrado. Sem preço, avisa «Serviço sem preço cadastrado. A IA não informou valor.».
+- Só explica um procedimento com a explicação cadastrada pela clínica.
+- Em **pergunta clínica** (contraindicação, gravidez, medicamento), avisa «Assunto clínico: encaminhe a uma profissional» e não responde o mérito.
+
+<Aside type="caution">
+O texto é uma sugestão. Revise antes de enviar.
+</Aside>
+
+## O que pode dar errado
+
+«A sugestão não está disponível agora. Você pode responder normalmente.»: o compositor continua ativo, escreva você mesma.

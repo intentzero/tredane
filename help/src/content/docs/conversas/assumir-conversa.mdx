@@ -1,0 +1,41 @@
+---
+title: Assumir uma conversa
+description: Como assumir, transferir e encerrar uma conversa, e o que acontece quando duas pessoas assumem ao mesmo tempo.
+papel: [equipe, responsavel]
+telas: [TEL-01, TEL-02, M-75]
+jornadas: [JRN-02]
+estado: confirmado
+revisado: 2026-11-19
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components'
+
+## Quando usar
+
+Quando a conversa não tem responsável ou quando você quer responder a cliente.
+
+## Assumir
+
+<Steps>
+
+1. Abra a conversa. Se ela não é sua, aparece uma linha logo acima do compositor, por exemplo «Bruno está atendendo esta conversa.», ou «Ninguém está atendendo esta conversa.».
+2. Toque em <span class="ui">Assumir</span>.
+3. Responda pelo campo de texto.
+
+</Steps>
+
+<Aside type="caution">
+**Assumir** não religa a IA. A IA só volta quando você usa [Devolver à IA](/conversas/devolver-a-ia/).
+</Aside>
+
+## Se outra pessoa assumiu antes
+
+O painel avisa «Bruno assumiu esta conversa antes de você.» e oferece <span class="ui">Assumir mesmo assim</span>. A ação fica registrada no histórico como transferência.
+
+## Transferir
+
+No menu **⋮** da conversa, escolha <span class="ui">Transferir</span>. A lista mostra só pessoas ativas da sua clínica, como «Responsável» e «Atendente».
+
+## Encerrar
+
+No menu **⋮**, escolha <span class="ui">Encerrar conversa</span> e confirme. Se a cliente escrever de novo, a conversa abre outra vez.

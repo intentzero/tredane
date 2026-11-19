@@ -47,6 +47,7 @@ jobs:
               echo "full=true"
               echo "design=true"
               echo "site=true"
+              echo "help=true"
               echo "d1=true"
               echo "scorecard=true"
             } >> "$GITHUB_OUTPUT"
@@ -60,6 +61,7 @@ jobs:
               docs/implementation/avaliacao/*) return 1 ;;
               docs/*) return 0 ;;
               site/*) return 0 ;;
+              help/*) return 0 ;;
               README.md|AGENTS.md|.editorconfig|.gitignore) return 0 ;;
               *) return 1 ;;
             esac
@@ -68,6 +70,7 @@ jobs:
           full=false
           design=false
           site=false
+          help=false
           d1=false
           scorecard=false
           while IFS= read -r f; do
@@ -75,6 +78,7 @@ jobs:
             case "$f" in
               docs/design/*) design=true ;;
               site/*) site=true ;;
+              help/*) help=true ;;
               db/*) d1=true ;;
               src/clinic/ai/*|src/clientweb/*|src/clinic/proposals/*|docs/implementation/avaliacao/*) scorecard=true ;;
             esac
@@ -92,21 +96,23 @@ jobs:
             echo "full=$full"
             echo "design=$design"
             echo "site=$site"
+            echo "help=$help"
             echo "d1=$d1"
             echo "scorecard=$scorecard"
           } >> "$GITHUB_OUTPUT"
 
-          echo "scope: full=$full design=$design site=$site d1=$d1 scorecard=$scorecard range=$range"
+          echo "scope: full=$full design=$design site=$site help=$help d1=$d1 scorecard=$scorecard range=$range"
           git diff --name-only "$range" | sed 's/^/  - /' || true
 
       - uses: actions/setup-node@v4
-        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.site == 'true'
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.site == 'true' || steps.scope.outputs.help == 'true'
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
             package-lock.json
             site/package-lock.json
+            help/package-lock.json
 
       # Design checks use the stdlib only; pin 3.12 for a stable runner Python.
       - uses: actions/setup-python@v5
@@ -214,6 +220,10 @@ jobs:
             }
           "
 
+      - name: Build central de ajuda (help/)
+        if: steps.scope.outputs.help == 'true'
+        run: npm ci --no-audit --no-fund --prefix help && npm run check --prefix help && npm run build:production --prefix help
+
       - name: Build landing page (site/)
         if: steps.scope.outputs.site == 'true'
         run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site
@@ -223,13 +233,16 @@ jobs:
         run: |
           set -euo pipefail
           echo "Lite CI path — skipped Unit/SQL tests, migrate/seed, runtime, SEG-IA, Worker build, env guard."
-          echo "full=${{ steps.scope.outputs.full }} design=${{ steps.scope.outputs.design }} site=${{ steps.scope.outputs.site }} d1=${{ steps.scope.outputs.d1 }}"
+          echo "full=${{ steps.scope.outputs.full }} design=${{ steps.scope.outputs.design }} site=${{ steps.scope.outputs.site }} help=${{ steps.scope.outputs.help }} d1=${{ steps.scope.outputs.d1 }}"
           if [ "${{ steps.scope.outputs.design }}" = "true" ]; then
             echo "Ran: design token/mock checks"
           fi
           if [ "${{ steps.scope.outputs.site }}" = "true" ]; then
             echo "Ran: site/ install+build"
           fi
-          if [ "${{ steps.scope.outputs.design }}" != "true" ] && [ "${{ steps.scope.outputs.site }}" != "true" ]; then
+          if [ "${{ steps.scope.outputs.help }}" = "true" ]; then
+            echo "Ran: help/ install+check+build"
+          fi
+          if [ "${{ steps.scope.outputs.design }}" != "true" ] && [ "${{ steps.scope.outputs.site }}" != "true" ] && [ "${{ steps.scope.outputs.help }}" != "true" ]; then
             echo "Docs/meta-only PR — smoke only (job verify still reports success for required checks)."
           fi
