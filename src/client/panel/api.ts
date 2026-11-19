@@ -2500,32 +2500,6 @@ export function createPanelApi(getToken: TokenGetter) {
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as { opportunity: PipelineOpportunityDetail }
     },
-
-    async seedPipelineDemo(
-      tenantId: string,
-      opts?: FetchOpts & { force?: boolean },
-    ): Promise<{
-      seeded: boolean
-      opportunityCount: number
-      val02Fixtures: { hypothesis: string }
-    }> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/pipeline/seed-demo`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ force: opts?.force === true }),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as {
-        seeded: boolean
-        opportunityCount: number
-        val02Fixtures: { hypothesis: string }
-      }
-    },
   }
 }
 

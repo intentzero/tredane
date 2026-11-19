@@ -12,7 +12,6 @@ import { useClinicTimezone } from '../../clinicTimezone'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import { EmptyState, ErrorState } from '../../states/StatusScreens'
-import { TestOnly } from '../../states/TestOnly'
 import {
   STAGE_ORDER,
   STAGE_TAB_LABELS,
@@ -37,7 +36,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   const [counts, setCounts] = useState<PipelineStageCount[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
   const [movingCard, setMovingCard] = useState<PipelineOpportunity | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
@@ -100,21 +98,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
     if (signals.length === 0) return
     void load({ keep: true })
   }, 400)
-
-  async function seedDemo() {
-    setSeeding(true)
-    try {
-      await api.seedPipelineDemo(tenantId, {
-        generation,
-        expectGeneration: () => generation,
-      })
-      await load()
-    } catch (err) {
-      setError(friendlyError(err, 'Não foi possível criar os exemplos.'))
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   async function handleMove(toStage: OpportunityStage) {
     if (!movingCard || !items) return
@@ -206,21 +189,10 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
 
       <div className="panel-scroll-sm acomp-list" role="tabpanel">
         {list.length === 0 ? (
-          <>
-            <EmptyState
-              title="Ninguém nesta etapa agora"
-              description="Os contatos aparecem aqui conforme o atendimento avança."
-            />
-            <TestOnly note="Cria contatos de exemplo nesta clínica de teste.">
-              <Button
-                className="panel-btn-secondary"
-                isDisabled={seeding}
-                onPress={() => void seedDemo()}
-              >
-                {seeding ? 'Criando…' : 'Criar contatos de exemplo'}
-              </Button>
-            </TestOnly>
-          </>
+          <EmptyState
+            title="Ninguém nesta etapa agora"
+            description="Os contatos aparecem aqui conforme o atendimento avança."
+          />
         ) : (
           list.map((card) => {
             const name = contactLabel(card.contact.displayName, card.contact.waId)
