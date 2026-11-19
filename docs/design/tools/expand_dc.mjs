@@ -14,7 +14,12 @@ for (const dir of ['mobile', 'desktop']) {
     // Expande mocks com <sc-for> ou com <sc-if> + renderVals (ex. M-33 Outro…).
     if (!text.includes('<sc-for') && !(text.includes('<sc-if') && text.includes('data-dc-script'))) continue;
     const out = await page.evaluate((text) => {
-      const doc = new DOMParser().parseFromString(text, 'text/html');
+      // <sc-for>/<sc-if> dentro de <table>/<tbody> seriam "foster-parented" pelo parser (as <tr>/<td> caem e o
+      // conteúdo sai da tabela). Como <template>, o parser aceita-os em qualquer contexto.
+      const doc = new DOMParser().parseFromString(
+        text.replace(/<(\/?)sc-(for|if)\b/g, (m, sl, k) => (sl ? '</template' : `<template data-sc="${k}"`)),
+        'text/html',
+      );
       const sc = doc.querySelector('script[data-dc-script]');
       const props = JSON.parse(sc.getAttribute('data-props') || '{}');
       const defaults = {};
@@ -29,21 +34,21 @@ for (const dir of ['mobile', 'desktop']) {
           if (child.nodeType === 3) { child.textContent = sub(child.textContent, scope); continue; }
           if (child.nodeType !== 1) continue;
           const tag = child.tagName.toLowerCase();
-          if (tag === 'sc-for') {
+          if (tag === 'template' && child.dataset.sc === 'for') {
             const list = ev(child.getAttribute('list').replace(/^\{\{|\}\}$/g, ''), scope) || [];
             const as = child.getAttribute('as');
             const frag = document.createDocumentFragment();
             for (const item of list) {
-              const holder = document.createElement('div');
+              const holder = document.createElement('template');
               holder.innerHTML = child.innerHTML;
-              walk(holder, { ...scope, [as]: item });
-              while (holder.firstChild) frag.appendChild(holder.firstChild);
+              walk(holder.content, { ...scope, [as]: item });
+              while (holder.content.firstChild) frag.appendChild(holder.content.firstChild);
             }
             child.replaceWith(frag); continue;
           }
-          if (tag === 'sc-if') {
+          if (tag === 'template' && child.dataset.sc === 'if') {
             const ok = ev(child.getAttribute('value').replace(/^\{\{|\}\}$/g, ''), scope);
-            if (ok) { walk(child, scope); child.replaceWith(...child.childNodes); } else child.remove();
+            if (ok) { walk(child.content, scope); child.replaceWith(child.content); } else child.remove();
             continue;
           }
           for (const a of [...child.attributes]) {
