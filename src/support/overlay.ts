@@ -160,7 +160,10 @@ export async function resolveSupportTenantContext(
   )
   const tenant = await services.adminDb.get<{ name: string }>(`SELECT name FROM tenants WHERE id = ?`, session.tenantId)
   if (!subject || !tenant) throw new AuthError('support_session_not_active', 'Sessão de suporte inativa', 403)
-  const role = subject.role === 'owner' ? 'owner' : 'attendant'
+  const role =
+    subject.role === 'owner' || subject.role === 'professional' || subject.role === 'attendant'
+      ? subject.role
+      : 'attendant'
   return {
     session,
     ctx: {

@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
-import { Button, Input, Label, TextField } from 'react-aria-components'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Input, Label, Switch, TextField } from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
@@ -32,6 +32,7 @@ import {
   defaultChoices,
   type FutureChoice,
 } from './ResourceLifecycleDialogs'
+import { takeProfessionalInviteDraft } from './professionalDraft'
 
 type ListProps = {
   tenantId: string
@@ -244,6 +245,34 @@ export function ResourceForm({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [inviteDraft] = useState(() =>
+    kind === 'professional' && entityId === 'novo' ? takeProfessionalInviteDraft() : null,
+  )
+  const [email, setEmail] = useState(inviteDraft?.email ?? '')
+  const [alsoAttendant, setAlsoAttendant] = useState(inviteDraft?.alsoAttendant ?? false)
+  const [savedLogin, setSavedLogin] = useState({
+    email: inviteDraft?.email ?? '',
+    alsoAttendant: inviteDraft?.alsoAttendant ?? false,
+  })
+  useEffect(() => {
+    if (kind !== 'professional' || !existing || !api.getProfessionalLogin) return
+    let cancelled = false
+    const load = api.getProfessionalLogin.bind(api)
+    void load(tenantId, existing.id, {
+      generation,
+      expectGeneration: () => generation,
+    })
+      .then((login) => {
+        if (cancelled || !login) return
+        setEmail(login.email)
+        setAlsoAttendant(login.alsoAttendant)
+        setSavedLogin(login)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [api, existing, generation, kind, tenantId])
   const timeZone = snap.settings?.timezone ?? 'America/Sao_Paulo'
   const label = kind === 'professional' ? 'profissional' : 'sala ou equipamento'
   const showCategory = category.trim() !== ''
@@ -315,6 +344,8 @@ export function ResourceForm({
     if (kind === 'professional') {
       if (hoursMode !== saved.hoursMode) n++
       if (hoursMode === 'own' && JSON.stringify(ownDraft) !== JSON.stringify(saved.ownDraft)) n++
+      if (email.trim() !== savedLogin.email.trim()) n++
+      if (alsoAttendant !== savedLogin.alsoAttendant) n++
     }
     return n
   })()
@@ -440,6 +471,12 @@ export function ResourceForm({
         generation,
         expectGeneration: () => generation,
       })
+      if (kind === 'professional') {
+        await api.releaseProfessionalLogin?.(tenantId, existing.id, {
+          generation,
+          expectGeneration: () => generation,
+        })
+      }
       setFutureApts(null)
       await onSaved()
       const parts = [`${existing.name} foi desativado para novos agendamentos. O histórico foi mantido.`]
@@ -501,6 +538,12 @@ export function ResourceForm({
     setLifecycleBusy(true)
     setDialogError(null)
     try {
+      if (kind === 'professional') {
+        await api.releaseProfessionalLogin?.(tenantId, existing.id, {
+          generation,
+          expectGeneration: () => generation,
+        })
+      }
       await api.deleteResource(tenantId, existing.id, {
         generation,
         expectGeneration: () => generation,
@@ -519,6 +562,10 @@ export function ResourceForm({
   async function save() {
     setFormError(null)
     setNotice(null)
+    if (kind === 'professional' && !email.trim()) {
+      setFormError('Informe o e-mail de acesso da profissional.')
+      return
+    }
     if (kind !== 'professional' && resourceKind === 'room' && !capacityValid) {
       setFormError('A sala atende de 1 a 50 pessoas ao mesmo tempo.')
       return
@@ -567,6 +614,13 @@ export function ResourceForm({
         if (hoursMode === 'own') {
           await api.setWeeklyWindows(tenantId, resourceId, fromWeekDraft(ownDraft), fo)
         }
+        await api.linkProfessionalLogin?.(
+          tenantId,
+          resourceId,
+          { email: email.trim(), alsoAttendant },
+          fo,
+        )
+        setSavedLogin({ email: email.trim(), alsoAttendant })
       } else if (resourceKind === 'room') {
         for (const s of snap.services.filter((x) => x.active)) {
           const want = draftServiceIds.includes(s.id)
@@ -687,10 +741,24 @@ export function ResourceForm({
       </TextField>
 
       {kind === 'professional' ? (
-        <p className="clinic-footnote">
-          A marcação nova ocupa uma sala livre da lista do serviço. A profissional não precisa de
-          acesso ao painel: quem usa o painel é a equipe da clínica.
-        </p>
+        <>
+          <TextField className="clinic-field" isRequired>
+            <Label>E-mail de acesso</Label>
+            <Input
+              type="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </TextField>
+          <Switch className="clinic-switch" isSelected={alsoAttendant} onChange={setAlsoAttendant}>
+            Também atende no WhatsApp
+          </Switch>
+          <p className="clinic-footnote">
+            Ao salvar, enviamos o convite para este e-mail. A profissional vê o dia inteiro da
+            agenda. Com o interruptor ligado, a mesma conta também atende no WhatsApp.
+          </p>
+        </>
       ) : (
         <>
           <Segmented

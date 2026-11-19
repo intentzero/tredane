@@ -42,6 +42,12 @@ export {
   getAppointmentDetailOp,
   queryAgendaViewOp,
 } from './operations'
+export {
+  setAppointmentAttendanceOp,
+  type AppointmentAttendance,
+  type SetAttendanceInput,
+  type SetAttendanceResult,
+} from './attendance'
 export type { AllowBothSexesInput } from './operations'
 export type {
   AgendaViewInput,

@@ -45,7 +45,12 @@ export type Permission =
   | 'clinic.inbox.read'
   | 'clinic.inbox.reply'
   | 'clinic.pipeline.move'
+  | 'clinic.agenda.read'
   | 'clinic.agenda.operate'
+  /** DEC-205: marcar chegada / não veio. */
+  | 'clinic.agenda.attendance'
+  /** DEC-206: bloquear só a própria ficha. */
+  | 'clinic.agenda.self_block'
   | 'clinic.config.write'
   | 'clinic.contacts.delete'
   | 'clinic.members.invite_attendant'

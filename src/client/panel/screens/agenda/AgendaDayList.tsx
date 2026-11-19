@@ -13,10 +13,14 @@ type Props = {
   timezone: string
   now: number
   onOpen: (id: string) => void
-  onSchedule: () => void
+  onSchedule?: () => void
   /** Livre escolhido: abre o Agendar com dia, hora e profissional. */
   onScheduleAt?: (slot: FreeSlot) => void
   onOpenHold: (hold: ScheduleHold) => void
+  /** DEC-205: quem pode marcar chegada; se houver id, só nessa coluna. */
+  attendanceForProfessionalId?: string | null
+  canMarkAttendance?: boolean
+  onSetAttendance?: (id: string, attendance: 'arrived' | 'no_show' | null) => void
 }
 
 function toneOf(professionals: AgendaProfessional[], id: string): number {
@@ -37,33 +41,68 @@ function AptCard({
   professionals,
   timezone,
   onOpen,
+  canMarkAttendance,
+  onSetAttendance,
 }: {
   item: AgendaAppointmentItem
   professionals: AgendaProfessional[]
   timezone: string
   onOpen: (id: string) => void
+  canMarkAttendance?: boolean
+  onSetAttendance?: (id: string, attendance: 'arrived' | 'no_show' | null) => void
 }) {
   // DEC-165 (tela 12): duas linhas; a profissional pela cor da margem e pelas iniciais
   // (o nome continua para leitor de tela), a sala no fim da segunda linha.
   const tone = toneOf(professionals, item.professionalId)
+  const attendanceLabel =
+    item.attendance === 'arrived' ? 'Chegou' : item.attendance === 'no_show' ? 'Não veio' : null
   return (
-    <button
-      type="button"
-      className={`agenda-card agenda-card--tone-${tone}`}
-      onClick={() => onOpen(item.id)}
-    >
-      <Mini pro={{ id: item.professionalId, name: item.professionalName }} professionals={professionals} />
-      <span className="agenda-card-body">
-        <span className="agenda-card-title">{item.contactLabel || 'Sem nome'}</span>
-        <span className="agenda-card-line">
-          {item.serviceName} · até {formatSlotTime(item.endsAt, timezone)}
-          {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
-          {item.durationAdjusted ? ' · duração ajustada' : ''}
-          {item.bookedByAi ? ' · Marcado pela IA' : ''}
-          <span className="panel-sr-only"> · {item.professionalName}</span>
+    <div className={`agenda-card-wrap agenda-card--tone-${tone}`}>
+      <button
+        type="button"
+        className={`agenda-card agenda-card--tone-${tone}`}
+        onClick={() => onOpen(item.id)}
+      >
+        <Mini pro={{ id: item.professionalId, name: item.professionalName }} professionals={professionals} />
+        <span className="agenda-card-body">
+          <span className="agenda-card-title">
+            {item.contactLabel || 'Sem nome'}
+            {attendanceLabel ? (
+              <span className="agenda-attendance-badge"> · {attendanceLabel}</span>
+            ) : null}
+          </span>
+          <span className="agenda-card-line">
+            {item.serviceName} · até {formatSlotTime(item.endsAt, timezone)}
+            {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+            {item.durationAdjusted ? ' · duração ajustada' : ''}
+            {item.bookedByAi ? ' · Marcado pela IA' : ''}
+            <span className="panel-sr-only"> · {item.professionalName}</span>
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+      {canMarkAttendance && onSetAttendance && item.status === 'confirmed' ? (
+        <div className="agenda-attendance-actions">
+          <button
+            type="button"
+            className={item.attendance === 'arrived' ? 'is-active' : undefined}
+            onClick={() =>
+              onSetAttendance(item.id, item.attendance === 'arrived' ? null : 'arrived')
+            }
+          >
+            Chegou
+          </button>
+          <button
+            type="button"
+            className={item.attendance === 'no_show' ? 'is-active' : undefined}
+            onClick={() =>
+              onSetAttendance(item.id, item.attendance === 'no_show' ? null : 'no_show')
+            }
+          >
+            Não veio
+          </button>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -78,6 +117,9 @@ export function AgendaDayList({
   onSchedule,
   onScheduleAt,
   onOpenHold,
+  attendanceForProfessionalId = null,
+  canMarkAttendance = false,
+  onSetAttendance,
 }: Props) {
   return (
     <div className="agenda-list">
@@ -115,6 +157,7 @@ export function AgendaDayList({
               )
             }
             if (e.kind === 'free') {
+              if (!onScheduleAt) return null
               return (
                 <li key={e.key} className="agenda-row">
                   <span className="agenda-row-time">{formatSlotTime(e.startsAt, timezone)}</span>
@@ -143,7 +186,18 @@ export function AgendaDayList({
                   <span className={`agenda-row-time${sameStart ? ' agenda-row-time--same' : ''}`}>
                     {formatSlotTime(e.startsAt, timezone)}
                   </span>
-                  <AptCard item={e.item} professionals={professionals} timezone={timezone} onOpen={onOpen} />
+                  <AptCard
+                    item={e.item}
+                    professionals={professionals}
+                    timezone={timezone}
+                    onOpen={onOpen}
+                    canMarkAttendance={
+                      canMarkAttendance
+                      && (attendanceForProfessionalId == null
+                        || e.item.professionalId === attendanceForProfessionalId)
+                    }
+                    onSetAttendance={onSetAttendance}
+                  />
                 </li>
               )
             }
@@ -175,7 +229,7 @@ export function AgendaDayList({
                       </span>
                     </button>
                   ))}
-                  {!full ? (
+                  {!full && onSchedule ? (
                     <button type="button" className="agenda-room-free" onClick={onSchedule}>
                       <span>
                         {e.capacity - e.peak === 1 ? '1 lugar livre' : `${e.capacity - e.peak} lugares livres`}

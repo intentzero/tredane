@@ -117,6 +117,8 @@ export type AppointmentListItem = {
   durationAdjusted: boolean
   /** Compromisso criado pela IA após confirmação explícita da cliente (28/10/2026). */
   bookedByAi: boolean
+  /** DEC-205: chegou / não veio; null = ainda sem registo. */
+  attendance?: 'arrived' | 'no_show' | null
 }
 
 export type AgendaViewInput = {

@@ -42,6 +42,7 @@ type AptSql = {
   default_duration_minutes: number | null
   applied_duration_minutes: number | null
   confirmed_by: string | null
+  attendance: string | null
 }
 
 function addCivilDays(date: string, days: number): string {
@@ -113,7 +114,8 @@ export function queryAgendaViewOp(
             starts_at, ends_at, status, contact_label,
             contact_id, conversation_id, opportunity_id,
             version, change_reason, occupies_until,
-            default_duration_minutes, applied_duration_minutes, confirmed_by
+            default_duration_minutes, applied_duration_minutes, confirmed_by,
+            attendance
      FROM appointments
      WHERE tenant_id = ?
        AND starts_at < ?
@@ -178,6 +180,8 @@ export function queryAgendaViewOp(
         && row.default_duration_minutes != null
         && row.applied_duration_minutes !== row.default_duration_minutes,
       bookedByAi: row.confirmed_by === AI_AUTOBOOK_ACTOR,
+      attendance:
+        row.attendance === 'arrived' || row.attendance === 'no_show' ? row.attendance : null,
     })
   }
 

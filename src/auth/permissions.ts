@@ -11,7 +11,9 @@ const OWNER_PERMISSIONS: ReadonlySet<Permission> = new Set([
   'clinic.inbox.read',
   'clinic.inbox.reply',
   'clinic.pipeline.move',
+  'clinic.agenda.read',
   'clinic.agenda.operate',
+  'clinic.agenda.attendance',
   'clinic.config.write',
   'clinic.contacts.delete',
   'clinic.members.invite_attendant',
@@ -28,7 +30,17 @@ const ATTENDANT_PERMISSIONS: ReadonlySet<Permission> = new Set([
   'clinic.inbox.read',
   'clinic.inbox.reply',
   'clinic.pipeline.move',
+  'clinic.agenda.read',
   'clinic.agenda.operate',
+  'clinic.agenda.attendance',
+])
+
+/** DEC-204: vê a agenda do dia inteiro. Não atende no WhatsApp nem configura a clínica. */
+const PROFESSIONAL_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  'clinic.context.read',
+  'clinic.agenda.read',
+  'clinic.agenda.attendance',
+  'clinic.agenda.self_block',
 ])
 
 const PLATFORM_SUPERADMIN_PERMISSIONS: ReadonlySet<Permission> = new Set([
@@ -39,7 +51,9 @@ const PLATFORM_SUPERADMIN_PERMISSIONS: ReadonlySet<Permission> = new Set([
 ])
 
 export function permissionsForClinicRole(role: MembershipRole): ReadonlySet<Permission> {
-  return role === 'owner' ? OWNER_PERMISSIONS : ATTENDANT_PERMISSIONS
+  if (role === 'owner') return OWNER_PERMISSIONS
+  if (role === 'professional') return PROFESSIONAL_PERMISSIONS
+  return ATTENDANT_PERMISSIONS
 }
 
 export function permissionsForPlatformSuperadmin(): ReadonlySet<Permission> {
@@ -60,7 +74,10 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   'clinic.inbox.read',
   'clinic.inbox.reply',
   'clinic.pipeline.move',
+  'clinic.agenda.read',
   'clinic.agenda.operate',
+  'clinic.agenda.attendance',
+  'clinic.agenda.self_block',
   'clinic.config.write',
   'clinic.contacts.delete',
   'clinic.members.invite_attendant',
