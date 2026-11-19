@@ -49,7 +49,6 @@ export function buildExceptionClinicFacts(ctx: AiContextPayload): string {
     c.openingHours.length > 0 ? `Expediente: ${c.openingHours.join('; ')}` : '',
     c.reschedulePolicy ? `Remarcação: ${u(c.reschedulePolicy)}` : '',
     c.cancellationPolicy ? `Cancelamento: ${u(c.cancellationPolicy)}` : '',
-    c.tempoNote ? `Nota de tempo (frase fixa): ${c.tempoNote}` : '',
     personaLine(ctx),
   ].filter(Boolean)
   return lines.join('\n')

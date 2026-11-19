@@ -29,7 +29,6 @@ export type {
   ComboSnapshot,
   ZoneSnapshot,
   UpdateAbuseLimitsInput,
-  ForecastPlaceInput,
 } from './types'
 export {
   buildAbuseLimitsView,
@@ -114,7 +113,6 @@ export {
   updateTimezoneOp,
   setAiAssistEnabledOp,
   setAiProfileOp,
-  setForecastPlaceOp,
   getAbuseLimitsOp,
   updateAbuseLimitsOp,
   upsertServiceOp,

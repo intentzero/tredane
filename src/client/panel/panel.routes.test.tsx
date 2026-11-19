@@ -225,7 +225,6 @@ describe('panel routes (#22)', () => {
       ['assistente', 'assistente'],
       ['assistente/persona', 'assistente-persona'],
       ['assistente/protecoes', 'assistente-protecoes'],
-      ['assistente/tempo', 'assistente-tempo'],
       ['conhecimento', 'conhecimento'],
     ] as const) {
       expect(resolvePanelRoute(`/c/clinic-demo-a/clinica/${path}`)).toEqual({

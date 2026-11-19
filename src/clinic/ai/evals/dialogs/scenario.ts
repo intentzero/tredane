@@ -218,7 +218,6 @@ export function bootDialogScenario(opts: {
       priceCents: 15000,
       professionalIds: [sandra.id],
       roomRequirement: { mode: 'none' },
-      tempoCeu: 'sol',
     },
     clock,
   )

@@ -37,7 +37,6 @@ import {
   supersedePendingAutoDrafts,
   updateSuggestionDecision,
 } from './suggestions'
-import { tempoDraftRejected } from './tempo-draft'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import type {
   AiAssistDeps,
@@ -102,7 +101,7 @@ async function hydrateSuggestFromCommand(
   }
   const contextInspection = await buildAiContextPayload(db, tenantId, conversationId, {
     ...(kind === 'reply'
-      ? { clock, clinicName: deps.clinicName ?? null, forecast: deps.forecast }
+      ? { clock, clinicName: deps.clinicName ?? null }
       : {}),
   })
   assertContextMinimized(contextInspection.payload)
@@ -192,7 +191,6 @@ async function runGenerate(
       ? {
           clock,
           clinicName: deps.clinicName ?? null,
-          forecast: deps.forecast,
           ...(input.turn ? { turn: input.turn } : {}),
         }
       : {},
@@ -227,16 +225,6 @@ async function runGenerate(
   // Resumo é prosa interna: guarda própria, sem exigir {mensagem, notas}.
   let guarded = gen.ok && input.kind === 'reply' ? guardReplyOutput(gen.text) : null
   const summaryGuard = gen.ok && input.kind === 'summary' ? guardSummaryOutput(gen.text) : null
-  if (
-    guarded?.ok
-    && tempoDraftRejected(
-      guarded.message,
-      contextInspection.payload.clinic,
-      contextInspection.agendaFacts,
-    )
-  ) {
-    guarded = { ok: false, reason: 'tempo_leak', notes: '' }
-  }
   // #403 + #414 + DEC-118: validador único com factos locais (agendaFacts), sem slots no gateway.
   // J-07 estrito (1 pergunta / 300 chars) fica no módulo; no LLM mantém o teto S6 até ok Paulo no M4.
   let factsViolation: string | null = null

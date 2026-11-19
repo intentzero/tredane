@@ -53,7 +53,6 @@ export async function generateExceptionReply(
   const contextInspection = await buildAiContextPayload(db, tenantId, input.conversationId, {
     clock,
     clinicName: deps.clinicName ?? null,
-    forecast: deps.forecast,
     ...(input.turn ? { turn: input.turn } : {}),
   })
 

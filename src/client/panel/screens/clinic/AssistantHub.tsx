@@ -1,4 +1,4 @@
-import { BookOpen, CloudSun, ShieldCheck, UserRound } from 'lucide-react'
+import { BookOpen, ShieldCheck, UserRound } from 'lucide-react'
 import type { ClinicConfigSnapshot, PanelApi } from '../../api'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
@@ -32,12 +32,6 @@ export function AssistantHub({
       : s.virtualAttendantGender === 'masculino'
         ? 'masculino'
         : 'neutro'
-  const place =
-    s.forecastMode === 'cidade' && s.forecastCity
-      ? s.forecastCity
-      : s.forecastMode === 'coordenadas'
-        ? 'Coordenadas'
-        : 'Não definida'
   const hasLink = Boolean(s.googleBusinessUrl?.trim())
   return (
     <div className="clinic-stack">
@@ -75,15 +69,6 @@ export function AssistantHub({
               detail="Limites de respostas e de marcações por cliente"
               state="neutral"
               onPress={go('assistente-protecoes')}
-            />
-          </li>
-          <li>
-            <NavRow
-              icon={CloudSun}
-              title="Previsão do tempo"
-              detail={place}
-              state="neutral"
-              onPress={go('assistente-tempo')}
             />
           </li>
         </ul>

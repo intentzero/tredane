@@ -649,27 +649,6 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
-    async setForecastPlace(
-      tenantId: string,
-      body:
-        | { mode: 'cidade'; city: string }
-        | { mode: 'coordenadas'; latitude: number; longitude: number },
-      opts?: FetchOpts,
-    ): Promise<ClinicConfigSnapshot['settings']> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/config/forecast-place`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as ClinicConfigSnapshot['settings']
-    },
-
     async updatePixSignalSettings(
       tenantId: string,
       body: {
@@ -1313,7 +1292,6 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as AppointmentDetailResponse & {
         createdReservation: true
         idempotentReplay: boolean
-        tempoWarnings: string[]
       }
     },
 
@@ -2958,9 +2936,6 @@ export type ClinicService = {
   /** DEC-075 — audiência do serviço (não da pessoa). */
   audiencia?: 'feminino' | 'masculino' | 'qualquer'
   /** DEC-077. Omitidos = Tanto faz. */
-  tempoCeu?: 'tanto_faz' | 'sol' | 'chuva'
-  tempoTemperatura?: 'tanto_faz' | 'acima' | 'abaixo'
-  tempoCelsius?: number | null
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -3174,10 +3149,6 @@ export type ClinicConfigSnapshot = {
     virtualAttendantName?: string | null
     virtualAttendantGender?: 'masculino' | 'feminino' | null
     /** DEC-077 — local da previsão. Independente do endereço da IA. */
-    forecastMode?: 'nenhum' | 'cidade' | 'coordenadas'
-    forecastCity?: string | null
-    forecastLatitude?: number | null
-    forecastLongitude?: number | null
     updatedAt: number
   }
   services: ClinicService[]
@@ -3289,9 +3260,6 @@ export type ServiceUpsertBody = {
   /** DEC-075 — omitido na criação = qualquer; omitido na edição = mantém. */
   audiencia?: 'feminino' | 'masculino' | 'qualquer'
   /** DEC-077 — omitir os três numa edição mantém o bloco. */
-  tempoCeu?: 'tanto_faz' | 'sol' | 'chuva'
-  tempoTemperatura?: 'tanto_faz' | 'acima' | 'abaixo'
-  tempoCelsius?: number | null
   priceCents?: number | null
   clientExplanation?: string | null
   active?: boolean
@@ -3516,8 +3484,6 @@ export type AvailabilitySlot = {
   /** Sala compartilhada: capacidade e lugares livres (exibição). */
   roomCapacity?: number | null
   roomSeatsFree?: number | null
-  /** Avisos do bloco Tempo (DEC-077). A hora continua selecionável. */
-  tempoWarnings?: string[]
 }
 
 export type AvailabilityResponse = {

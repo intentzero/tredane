@@ -122,11 +122,6 @@ export type AiClinicContext = {
   /** YYYY-MM-DD de hoje no fuso da clínica. */
   today: string
   openingHours: string[]
-  /**
-   * Frase fixa do WhatsApp quando a cliente pediu uma hora que o tempo recusou (DEC-077).
-   * Não traz payload, percentagem nem a hora recusada.
-   */
-  tempoNote?: string | null
   reschedulePolicy: string | null
   cancellationPolicy: string | null
   /** DEC-089 — nome opcional do atendente virtual (persona). */

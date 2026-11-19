@@ -42,13 +42,6 @@ export type AvailabilityQueryInput = {
   excludeAppointmentId?: string | null
   /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
   durationMinutesOverride?: number | null
-  /**
-   * DEC-077. Omisso = equipe: a hora fica na lista.
-   * Automático omite a hora que não serve; quem chama passa `tempoKeeps`.
-   */
-  tempoMode?: 'equipe' | 'automatico'
-  /** Só no modo automático, quando o serviço tem restrição. Sem isto, a lista fica vazia. */
-  tempoKeeps?: (startsAt: number) => boolean
 }
 
 export type AvailableSlot = {
@@ -66,8 +59,6 @@ export type AvailableSlot = {
   /** Sala compartilhada: capacidade e lugares livres no pico do período (só exibição; null em sala de 1). */
   roomCapacity?: number | null
   roomSeatsFree?: number | null
-  /** Avisos do bloco Tempo para a equipe (DEC-077). A hora continua na lista. */
-  tempoWarnings?: string[]
 }
 
 export type AvailabilityQueryResult = {

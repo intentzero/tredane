@@ -39,7 +39,6 @@ import { fromWeekDraft, toWeekDraft, type WeekDraft } from './clinicHours'
 import { WeekEditor } from './WeekEditor'
 import { RuleRow } from './RuleRow'
 import { SynonymsField } from './SynonymsField'
-import { TempoSheet, tempoSummary } from './TempoSheet'
 import {
   claimedElsewhere,
   firstSynonymCollision,
@@ -70,9 +69,6 @@ type ServiceDraftKeyInput = {
   duration: number
   buffer: number
   audiencia: string
-  tempoCeu: string
-  tempoTemperatura: string
-  tempoCelsius: number | null
   price: string
   variantKind: string
   variantKindPlural: string
@@ -101,9 +97,6 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
     duration: input.duration,
     buffer: input.buffer,
     audiencia: input.audiencia,
-    tempoCeu: input.tempoCeu,
-    tempoTemperatura: input.tempoTemperatura,
-    tempoCelsius: input.tempoCelsius,
     price: input.price,
     variantKind: input.variantKind,
     variantKindPlural: input.variantKindPlural,
@@ -295,15 +288,6 @@ export function ServiceForm({
       ? existing.audiencia
       : 'qualquer',
   )
-  const [tempoCeu, setTempoCeu] = useState<'tanto_faz' | 'sol' | 'chuva'>(
-    existing?.tempoCeu === 'sol' || existing?.tempoCeu === 'chuva' ? existing.tempoCeu : 'tanto_faz',
-  )
-  const [tempoTemperatura, setTempoTemperatura] = useState<'tanto_faz' | 'acima' | 'abaixo'>(
-    existing?.tempoTemperatura === 'acima' || existing?.tempoTemperatura === 'abaixo'
-      ? existing.tempoTemperatura
-      : 'tanto_faz',
-  )
-  const [tempoCelsius, setTempoCelsius] = useState<number | null>(existing?.tempoCelsius ?? null)
   const [price, setPrice] = useState(
     existing?.priceCents != null ? formatPriceAmount(existing.priceCents) : '',
   )
@@ -389,9 +373,6 @@ export function ServiceForm({
     duration,
     buffer,
     audiencia,
-    tempoCeu,
-    tempoTemperatura,
-    tempoCelsius,
     price,
     variantKind,
     variantKindPlural,
@@ -582,7 +563,6 @@ export function ServiceForm({
   const groupTakenBy = (groupKey: string, word: string) =>
     claimedElsewhere(word, `${selfId}:${groupKey}`, allClaims)
   const [spaceError, setSpaceError] = useState<string | null>(null)
-  const [tempoOpen, setTempoOpen] = useState(false)
   const [openRule, setOpenRule] = useState<
     null | 'intervalo' | 'horas' | 'explicacao' | 'equipamento'
   >(null)
@@ -607,14 +587,6 @@ export function ServiceForm({
   async function save() {
     setFormError(null)
     setSpaceError(null)
-    if (
-      tempoTemperatura !== 'tanto_faz' &&
-      (tempoCelsius == null || !Number.isInteger(tempoCelsius))
-    ) {
-      setFormError('Informe os graus em número inteiro.')
-      setTempoOpen(true)
-      return
-    }
     if (space === 'unset' || (space === 'rooms' && roomIds.length === 0)) {
       setSpaceError('Escolha uma ou mais salas, ou Sem espaço definido. O que você digitou continua aqui.')
       return
@@ -640,9 +612,6 @@ export function ServiceForm({
       signalFixedCents: existing?.signalFixedCents ?? null,
       signalPercent: existing?.signalPercent ?? null,
       weeklyWindows: fromWeekDraft(hoursDraft),
-      tempoCeu,
-      tempoTemperatura,
-      tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
       variantKind: (withVariants ? zones : []).length > 0 ? variantKind.trim() || null : null,
       variantKindPlural: (withVariants ? zones : []).length > 0 ? variantKindPlural.trim() || null : null,
       variantSelection: withVariants ? variantSelection : 'varias',
@@ -1135,15 +1104,6 @@ export function ServiceForm({
           </p>
         ) : null}
         <RuleRow
-          label="Tempo"
-          value={tempoSummary({
-            ceu: tempoCeu,
-            temperatura: tempoTemperatura,
-            celsius: tempoCelsius,
-          })}
-          onPress={() => setTempoOpen(true)}
-        />
-        <RuleRow
           label="Dias e horas"
           value={hoursLabel}
           onPress={() => toggleRule('horas')}
@@ -1276,16 +1236,6 @@ export function ServiceForm({
         continueLabel="Continuar editando"
         discardLabel="Sair sem salvar"
         message="Se sair agora, as alterações deste serviço não ficam salvas."
-      />
-      <TempoSheet
-        open={tempoOpen}
-        onOpenChange={setTempoOpen}
-        value={{ ceu: tempoCeu, temperatura: tempoTemperatura, celsius: tempoCelsius }}
-        onChange={(next) => {
-          setTempoCeu(next.ceu)
-          setTempoTemperatura(next.temperatura)
-          setTempoCelsius(next.celsius)
-        }}
       />
     </div>
   )

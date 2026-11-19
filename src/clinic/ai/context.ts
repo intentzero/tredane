@@ -21,7 +21,6 @@ import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import type { ClinicDb } from '../store'
 import { NotFoundError } from '../errors'
 import type { Clock } from '../../db/clock'
-import type { ForecastAdapter } from '../tempo/evaluate'
 import { redactMediaPlaceholderForAiContext } from './media-ask-text'
 import { buildClinicAiContext } from './schedule-context'
 import { getScheduleSession, type ScheduleSession } from './schedule-session'
@@ -81,7 +80,6 @@ export async function buildAiContextPayload(
     /** Com relógio → inclui clínica, data/hora, horários livres e agendamentos. */
     clock?: Clock
     clinicName?: string | null
-    forecast?: ForecastAdapter
     /** #411 TurnContext — evita releituras no mesmo job. */
     turn?: import('./turn-context').TurnContext
     /**
@@ -222,7 +220,6 @@ export async function buildAiContextPayload(
       clinicName: opts.clinicName ?? null,
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),
-      forecast: opts.forecast,
       agendaMode: opts.agendaMode ?? 'full',
       ...(opts.turn
         ? {

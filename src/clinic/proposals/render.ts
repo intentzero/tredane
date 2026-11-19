@@ -243,14 +243,6 @@ export function renderProposalInteractive(
   }
 }
 
-/** Frase do WhatsApp quando o tempo não serve (DEC-077). A equipe usa outro aviso. */
-export const TEMPO_REFUSED_PHRASE =
-  'Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.'
-
-/** Frase do WhatsApp quando a previsão não se confirmou (DEC-077). */
-export const TEMPO_UNCONFIRMED_PHRASE =
-  'Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.'
-
 export type ProposalResultBodyOpts = {
   /** DEC-197: marcação feita na página — acrescenta o recibo «Não foi você?». */
   webReceipt?: boolean
@@ -313,7 +305,7 @@ export const WEB_RECEIPT_SENTENCE = 'Marcado pela página. Não foi você? Fale 
 
 export function renderProposalResultBody(
   proposal: AppointmentProposalRow,
-  kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
+  kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired',
   opts: ProposalResultBodyOpts = {},
 ): string {
   const when = formatSlotRange(proposal)
@@ -371,9 +363,5 @@ export function renderProposalResultBody(
         `Essa proposta de ${proposal.serviceName} em ${when} já não está válida. ` +
         `Quer que eu veja outros horários?`
       )
-    case 'tempo_refused':
-      return TEMPO_REFUSED_PHRASE
-    case 'tempo_unconfirmed':
-      return TEMPO_UNCONFIRMED_PHRASE
   }
 }

@@ -13,8 +13,6 @@ import type {
   RoomRequirement,
   ServiceRow,
   ServiceSignalKind,
-  TempoCeu,
-  TempoTemperatura,
   UpsertServiceInput,
 } from './types'
 import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
@@ -52,9 +50,6 @@ type ServiceSql = {
   duration_minutes: number
   buffer_minutes: number
   audiencia?: string | null
-  tempo_ceu?: string | null
-  tempo_temperatura?: string | null
-  tempo_celsius?: number | null
   price_cents: number | null
   client_explanation: string | null
   active: number
@@ -130,15 +125,6 @@ function toServiceRow(
     durationMinutes: row.duration_minutes,
     bufferMinutes: row.buffer_minutes,
     audiencia: normalizeServiceAudience(row.audiencia),
-    tempoCeu: row.tempo_ceu === 'sol' || row.tempo_ceu === 'chuva' ? row.tempo_ceu : 'tanto_faz',
-    tempoTemperatura:
-      row.tempo_temperatura === 'acima' || row.tempo_temperatura === 'abaixo'
-        ? row.tempo_temperatura
-        : 'tanto_faz',
-    tempoCelsius:
-      row.tempo_temperatura === 'acima' || row.tempo_temperatura === 'abaixo'
-        ? (row.tempo_celsius ?? null)
-        : null,
     priceCents: row.price_cents,
     clientExplanation: row.client_explanation,
     active: row.active === 1,
@@ -460,46 +446,6 @@ function resolveAudience(
   return input.audiencia
 }
 
-function resolveTempo(
-  input: UpsertServiceInput,
-  existing: ServiceRow | null,
-): { ceu: TempoCeu; temperatura: TempoTemperatura; celsius: number | null } {
-  const omitted =
-    input.tempoCeu === undefined &&
-    input.tempoTemperatura === undefined &&
-    input.tempoCelsius === undefined
-  if (omitted) {
-    return {
-      ceu: existing?.tempoCeu ?? 'tanto_faz',
-      temperatura: existing?.tempoTemperatura ?? 'tanto_faz',
-      celsius: existing?.tempoCelsius ?? null,
-    }
-  }
-  const ceu = input.tempoCeu ?? existing?.tempoCeu ?? 'tanto_faz'
-  const temperatura = input.tempoTemperatura ?? existing?.tempoTemperatura ?? 'tanto_faz'
-  if (ceu !== 'tanto_faz' && ceu !== 'sol' && ceu !== 'chuva') {
-    throw new ValidationError('invalid_tempo', 'Céu deve ser Tanto faz, Sol ou Chuva.', {
-      tempoCeu: ceu,
-    })
-  }
-  if (temperatura !== 'tanto_faz' && temperatura !== 'acima' && temperatura !== 'abaixo') {
-    throw new ValidationError(
-      'invalid_tempo',
-      'Temperatura deve ser Tanto faz, Acima de ou Abaixo de.',
-      { tempoTemperatura: temperatura },
-    )
-  }
-  if (temperatura === 'tanto_faz') {
-    return { ceu, temperatura, celsius: null }
-  }
-  const raw = input.tempoCelsius === undefined ? existing?.tempoCelsius : input.tempoCelsius
-  if (raw == null || typeof raw !== 'number' || !Number.isInteger(raw)) {
-    throw new ValidationError('invalid_tempo', 'Informe os graus em número inteiro.')
-  }
-  return { ceu, temperatura, celsius: raw }
-}
-
-
 function resolveKindText(
   value: string | null | undefined,
   existing: string | null | undefined,
@@ -573,7 +519,6 @@ export function upsertService(
   )
   assertEquipment(db, tenantId, equipmentId, existing?.equipmentResourceId ?? null)
   const audiencia = resolveAudience(input, existing)
-  const tempo = resolveTempo(input, existing)
   const variantKind = resolveKindText(input.variantKind, existing?.variantKind)
   let variantKindPlural = resolveKindText(input.variantKindPlural, existing?.variantKindPlural)
   if (!variantKind) variantKindPlural = null
@@ -607,7 +552,6 @@ export function upsertService(
     db.run(
       `UPDATE services SET
         name = ?, duration_minutes = ?, buffer_minutes = ?, audiencia = ?,
-        tempo_ceu = ?, tempo_temperatura = ?, tempo_celsius = ?,
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
         duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
@@ -617,9 +561,6 @@ export function upsertService(
       input.durationMinutes,
       input.bufferMinutes,
       audiencia,
-      tempo.ceu,
-      tempo.temperatura,
-      tempo.celsius,
       priceCents,
       explanation,
       active,
@@ -661,21 +602,17 @@ export function upsertService(
   db.run(
     `INSERT INTO services (
       id, tenant_id, name, duration_minutes, buffer_minutes, audiencia,
-      tempo_ceu, tempo_temperatura, tempo_celsius,
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
       duration_adjustable, duration_min_minutes, duration_max_minutes,
       variant_kind, variant_kind_plural, variant_selection, synonyms_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
     input.durationMinutes,
     input.bufferMinutes,
     audiencia,
-    tempo.ceu,
-    tempo.temperatura,
-    tempo.celsius,
     priceCents,
     explanation,
     active,

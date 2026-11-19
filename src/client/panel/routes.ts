@@ -43,7 +43,6 @@ export type ClinicaSection =
   | 'assistente'
   | 'assistente-persona'
   | 'assistente-protecoes'
-  | 'assistente-tempo'
   | 'equipe'
 
 /** Sub-rotas de Conversas (#29): lista → thread → contato. */
@@ -180,7 +179,6 @@ function parseClinicaRest(rest: string | undefined): {
   if (head === 'assistente') {
     if (parts[1] === 'persona') return { section: 'assistente-persona' }
     if (parts[1] === 'protecoes') return { section: 'assistente-protecoes' }
-    if (parts[1] === 'tempo') return { section: 'assistente-tempo' }
     return { section: 'assistente' }
   }
   if (head === 'equipe') return { section: 'equipe' }
@@ -423,8 +421,6 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/assistente/persona`
         case 'assistente-protecoes':
           return `${base}/assistente/protecoes`
-        case 'assistente-tempo':
-          return `${base}/assistente/tempo`
         case 'equipe':
           return `${base}/equipe`
       }

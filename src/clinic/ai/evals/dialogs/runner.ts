@@ -66,8 +66,6 @@ export type DialogCase = {
   coverageOnly?: string
   /** Adaptador opcional (timeout, texto fixo…). */
   adapter?: AiProviderAdapter
-  /** Previsão fictícia (Tempo / DEC-077) — evita Open-Meteo no CI. */
-  forecast?: import('../../../tempo/evaluate').ForecastAdapter
   /** Relógio do cenário (ex. G-10 sábado 17:00). */
   nowMs?: number
   /** Pausa da owner no atendimento automático (DEC-061/DEC-202): o chat passa à equipe. */
@@ -214,7 +212,6 @@ export async function runDialogCase(
     const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
       mode: 'synthetic',
       adapter: s.adapter,
-      forecast: c.forecast,
       ...webDeps,
       ...(c.ownerPaused ? { autoBookPaused: true } : {}),
     })

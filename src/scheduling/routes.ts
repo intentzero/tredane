@@ -173,7 +173,6 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           professionalId,
           excludeHoldId,
           durationMinutesOverride,
-          tempoMode: 'equipe',
         },
       )
       return c.json(serializeAvailability(result))
@@ -427,7 +426,6 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           ...serializeAppointmentDetail(result.value),
           createdReservation: true as const,
           idempotentReplay: result.idempotentReplay,
-          tempoWarnings: result.tempoWarnings ?? [],
         },
         result.idempotentReplay ? 200 : 201,
       )
@@ -538,7 +536,6 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         return c.json({
           ...serializeAppointmentDetail(result.value),
           idempotentReplay: result.idempotentReplay,
-          tempoWarnings: result.tempoWarnings ?? [],
           rescheduleNotice: result.rescheduleNotice ?? 'skipped',
         })
       } catch (err) {

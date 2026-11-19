@@ -5,7 +5,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiProfileCard } from './AiAssistCard'
 import { AssistantHub } from './AssistantHub'
-import { ForecastPlaceCard } from './ForecastPlaceCard'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
 import { CatalogTransferCard } from './CatalogTransferCard'
 import { StagingClearAppointmentsCard } from './StagingClearAppointmentsCard'
@@ -120,8 +119,6 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
       return { title: 'Como se apresenta', shape: 'cards', header: false, mobileSub: true }
     case 'assistente-protecoes':
       return { title: 'Proteções', shape: 'cards', header: false, mobileSub: true }
-    case 'assistente-tempo':
-      return { title: 'Previsão do tempo', shape: 'cards', header: false, mobileSub: true }
     case 'whatsapp':
     case 'whatsapp-trocar':
     case 'whatsapp-historico':
@@ -286,8 +283,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const assistantSub =
     section === 'conhecimento' ||
     section === 'assistente-persona' ||
-    section === 'assistente-protecoes' ||
-    section === 'assistente-tempo'
+    section === 'assistente-protecoes'
   if (assistantSub && !isOwner) {
     return frame(
       page(
@@ -425,21 +421,6 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         )
       case 'assistente-protecoes':
         return <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
-      case 'assistente-tempo':
-        return (
-          <ForecastPlaceCard
-            tenantId={tenantId}
-            api={api}
-            generation={generation}
-            place={{
-              mode: snap.settings.forecastMode,
-              city: snap.settings.forecastCity,
-              latitude: snap.settings.forecastLatitude,
-              longitude: snap.settings.forecastLongitude,
-            }}
-            onSaved={() => void reload()}
-          />
-        )
       case 'servicos':
         return <ServicesList tenantId={tenantId} snap={snap} suggestions={termsCard} />
       case 'palavras':

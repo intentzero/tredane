@@ -90,8 +90,6 @@ export type AiAssistDeps = {
   autoBookPaused?: boolean
   /** S7 (#178): limites de abuso das automações (enable por clínica; default off). */
   abuseLimits?: AbuseLimits
-  /** Previsão fictícia nos testes do bloco Tempo (DEC-077). Sem isto, o adaptador real. */
-  forecast?: import('../tempo/evaluate').ForecastAdapter
   /**
    * Página web da cliente (ADR-0018, DEC-202): emite o link pessoal e devolve o botão «Abrir
    * agenda». Ausente (ambiente sem https) = o chat passa à equipe.

@@ -144,7 +144,6 @@ export type ReplyOutputRejection =
   | 'role_marker'
   | 'privileged_content'
   | 'claims_booking'
-  | 'tempo_leak'
   /** #403 / DEC-104: preço, horário ou reserva sem correspondência no contexto. */
   | 'factual_mismatch'
 

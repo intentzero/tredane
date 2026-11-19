@@ -115,11 +115,6 @@ function clinicBlock(ctx: AiContextPayload): string[] {
       .join('\n'),
   )
   // DEC-118: sem freeSlots / upcomingAppointments no prompt — o código oferece horários.
-  if (c.tempoNote) {
-    out.push(
-      `Nota de tempo (frase fixa): ${c.tempoNote} Pode repetir esta frase. Não cite percentagem, código de tempo nem invente HH:MM.`,
-    )
-  }
   return out
 }
 

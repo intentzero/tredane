@@ -892,7 +892,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
               </button>
             </p>
           ) : null}
-          <TempoNotice phrases={selected?.tempoWarnings} />
           {lostLabel && !times.some((t) => t.startsAt === conflict?.lostStartsAt) ? (
             <p className="agd-lost">
               <s>{lostLabel}</s> ocupado
@@ -1051,17 +1050,6 @@ function CalendarSheet(props: {
         </Dialog>
       </Modal>
     </ModalOverlay>
-  )
-}
-
-function TempoNotice({ phrases }: { phrases: string[] | undefined }) {
-  if (!phrases?.length) return null
-  return (
-    <div role="status">
-      {phrases.map((phrase) => (
-        <p key={phrase} className="agd-note">{phrase}</p>
-      ))}
-    </div>
   )
 }
 
@@ -1395,7 +1383,6 @@ function ReviewSheet(p: ReviewProps) {
                   : 'Revisar agendamento'}
           </Heading>
           <div className="agd-sheet-body">
-            <TempoNotice phrases={slot.tempoWarnings} />
             {err ? (
               <div className="agd-banner" role="alert">
                 <TriangleAlert aria-hidden size={20} strokeWidth={2} />
@@ -1471,16 +1458,11 @@ function ReviewSheet(p: ReviewProps) {
                 </section>
                 <Button
                   className="panel-btn panel-btn-primary agd-btn"
-                  isDisabled={busy || (slot.tempoWarnings?.length ?? 0) > 0}
+                  isDisabled={busy}
                   onPress={() => void run(() => sendClientWebLinkAction())}
                 >
                   {busy ? 'Enviando link…' : 'Enviar link de agenda'}
                 </Button>
-                {(slot.tempoWarnings?.length ?? 0) > 0 ? (
-                  <p className="agd-note" role="note">
-                    Este horário não passa no tempo do serviço. O link não é enviado.
-                  </p>
-                ) : null}
               </>
             ) : p.requiresSignal && p.amountCents != null ? (
               <>

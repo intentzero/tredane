@@ -57,7 +57,6 @@ describe('exception-prompt (DEC-118/120)', () => {
         openingHours: ['seg–sex 09–18'],
         reschedulePolicy: '24h',
         cancellationPolicy: '24h',
-        tempoNote: null,
         virtualAttendantName: 'Lia',
         virtualAttendantGender: 'feminino',
       },

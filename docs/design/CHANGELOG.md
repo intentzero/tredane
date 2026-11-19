@@ -10,6 +10,10 @@
 - Desktop (≥ 1280 px): título «Clientes», ClinicSwitcher e «Ao vivo» passam ao `.panel-shell-header` full-width (padrão Agenda / Acompanhar / Clínica). A coluna da lista fica só com busca, filtros e lista.
 - Mock `desktop/ClientesLista.dc.html` actualizado; Conversas mantém identidade na coluna da lista (fora deste recorte). Sem token novo.
 
+## 19/11/2026 — Sai a previsão do tempo (**Confirmado**, DEC-213)
+
+- Removidos o mock **M-53** (folha Tempo do serviço), a linha «Tempo» do mock **M-16** (Serviço) e a linha «Previsão do tempo» do M-74 (Assistente).
+
 ## 19/11/2026 — Assistente como índice (**Confirmado**, DEC-212)
 
 - **M-74** passa a ser o índice do Assistente (atendimento automático, agenda online com Pausar, linhas com o valor atual) e **M-62** passa a ser «Respostas da clínica» (link do Google, regras gerais, perguntas frequentes). Substituem o desenho de 11/11/2026 (DEC-163).
