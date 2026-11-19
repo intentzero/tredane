@@ -33,6 +33,9 @@ import { ErrorState } from '../../states/StatusScreens'
 import { ClinicSheet } from './ClinicSheet'
 import { SupportRequestsPanel } from '../../support/SupportRequestsPanel'
 import { useMediaQuery } from '../../ui/useMediaQuery'
+import { navigatePanel } from '../../routes'
+import { ClinicCheck } from './ClinicCheck'
+import { writeProfessionalInviteDraft } from './professionalDraft'
 
 type Props = {
   tenantId: string
@@ -48,7 +51,9 @@ type Props = {
 type MemberAction = 'promote' | 'demote' | 'revoke'
 
 function roleLabel(role: string): string {
-  return role === 'owner' ? 'Responsável' : 'Atendente'
+  if (role === 'owner') return 'Responsável'
+  if (role === 'professional') return 'Profissional'
+  return 'Atendente'
 }
 
 function initials(name: string): string {
@@ -163,6 +168,7 @@ function EquipeScreenInner({
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'attendant' | 'owner'>('attendant')
+  const [alsoExecutes, setAlsoExecutes] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionOk, setActionOk] = useState<string | null>(null)
@@ -230,6 +236,20 @@ function EquipeScreenInner({
     const email = inviteEmail.trim()
     if (!email) {
       setActionError('Informe o e-mail da pessoa.')
+      return
+    }
+    if (alsoExecutes && inviteRole === 'attendant') {
+      writeProfessionalInviteDraft({ email, alsoAttendant: true })
+      setInviteOpen(false)
+      setInviteEmail('')
+      setAlsoExecutes(false)
+      navigatePanel({
+        kind: 'area',
+        area: 'clinica',
+        tenantId,
+        section: 'profissional',
+        entityId: 'novo',
+      })
       return
     }
     setBusyId('invite')
@@ -398,6 +418,7 @@ function EquipeScreenInner({
             onPress={() => {
               setActionError(null)
               setInviteRole('attendant')
+              setAlsoExecutes(false)
               setInviteOpen(true)
             }}
           >
@@ -564,7 +585,15 @@ function EquipeScreenInner({
               <dt>Atendente</dt>
               <dd>
                 Atende conversas, marca e remarca horários e vê clientes. Não entra em Clínica nem
-                convida pessoas.
+                convida pessoas. Não precisa executar serviços.
+              </dd>
+            </div>
+            <div>
+              <dt>Profissional</dt>
+              <dd>
+                Vê o dia inteiro da agenda, com a coluna dela em destaque, o primeiro nome da
+                cliente, o horário, o serviço e a sala. Não vê conversas nem marca horários. Se
+                também atende no WhatsApp, a conta é de atendente.
               </dd>
             </div>
           </dl>
@@ -579,6 +608,7 @@ function EquipeScreenInner({
           if (!open) {
             setInviteEmail('')
             setInviteRole('attendant')
+            setAlsoExecutes(false)
           }
         }}
         title="Convidar pessoa"
@@ -607,6 +637,11 @@ function EquipeScreenInner({
           <Label>E-mail</Label>
           <Input placeholder="nome@clinica.example" autoComplete="email" inputMode="email" />
         </TextField>
+        {inviteRole === 'attendant' ? (
+          <ClinicCheck isSelected={alsoExecutes} onChange={setAlsoExecutes}>
+            Também executa serviços
+          </ClinicCheck>
+        ) : null}
         {actionError && inviteOpen ? (
           <p className="clinic-form-error" role="alert">
             {actionError}
@@ -625,7 +660,11 @@ function EquipeScreenInner({
             isDisabled={busyId === 'invite' || !inviteEmail.trim()}
             onPress={() => void onInvite()}
           >
-            {busyId === 'invite' ? 'Enviando…' : 'Enviar convite'}
+            {busyId === 'invite'
+              ? 'Enviando…'
+              : alsoExecutes && inviteRole === 'attendant'
+                ? 'Continuar na ficha'
+                : 'Enviar convite'}
           </Button>
         </div>
       </ClinicSheet>

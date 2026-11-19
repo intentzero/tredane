@@ -14,7 +14,7 @@
 
 ### AC-03 — Perfis e superfícies separadas
 
-**Dado** que somente atendente e responsável entram na Clinic App por membership e role; **quando** um profissional sem login ou um superadmin sem membership nem sessão de suporte válida tenta acessar dados clínicos, **então** o acesso é negado. O profissional permanece um recurso da agenda; o superadmin usa a Platform Admin e só entra em contexto clínico via sessão própria de suporte limitada e auditada. **Requisitos:** REQ-002, REQ-004, REQ-006, REQ-007.
+**Dado** que atendente, responsável e profissional entram na Clinic App por membership e role; **quando** a profissional abre a agenda, **então** vê o dia inteiro, com a coluna dela em destaque, horário, serviço, sala e só o primeiro nome da cliente, e o servidor recusa conversas, pipeline, Clínica e marcar, remarcar ou cancelar. **Quando** marca chegada ou «não veio» num horário dela, **então** o comparecimento fica no cartão; noutro horário, a gravação é recusada. **Quando** cria um bloqueio na própria ficha, **então** o intervalo deixa de oferecer horários novos e os compromissos já marcados permanecem; bloqueio da clínica ou de outra profissional é recusado. **Quando** um superadmin sem membership nem sessão de suporte válida tenta acessar dados clínicos, **então** o acesso é negado e fica na Platform Admin. **Requisitos:** REQ-002, REQ-004, REQ-006, REQ-007, REQ-118, REQ-119, REQ-120. **DEC-204, DEC-205, DEC-206.**
 
 ## Mensagens e atendimento
 

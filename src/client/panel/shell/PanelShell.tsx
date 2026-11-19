@@ -118,6 +118,25 @@ export function PanelShell({
 
   const ctx = active.context
   const isOwner = ctx.role === 'owner'
+  const isProfessional = ctx.role === 'professional'
+
+  if (isProfessional && area !== 'agenda') {
+    return (
+      <div className="panel-app" lang="pt-BR">
+        <ForbiddenState
+          title="A sua área é a agenda"
+          description="O dia inteiro da clínica fica na Agenda. Conversas e configuração são da equipe."
+          actionLabel="Ir para a Agenda"
+          onAction={() =>
+            navigatePanel(
+              { kind: 'area', area: 'agenda', tenantId: ctx.tenantId, section: 'dia' },
+              true,
+            )
+          }
+        />
+      </div>
+    )
+  }
 
   if (area === 'clinica' && !isOwner) {
     return (
@@ -207,7 +226,12 @@ export function PanelShell({
       </main>
 
       {!avisosOnly ? (
-        <BottomNav tenantId={ctx.tenantId} active={area} showClinica={isOwner} />
+        <BottomNav
+          tenantId={ctx.tenantId}
+          active={area}
+          showClinica={isOwner}
+          agendaOnly={isProfessional}
+        />
       ) : null}
     </div>
   )

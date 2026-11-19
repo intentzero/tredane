@@ -247,7 +247,7 @@ type WsUpgradeIdentity = {
   tenantId: string
   clerkUserId: string
   sessionId: string
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
   supportSessionId?: string
 }
 
@@ -578,7 +578,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
    */
   async issueWsTicket(
     caller: ClinicCaller,
-    identity: { clerkUserId: string; sessionId: string; role: 'owner' | 'attendant'; supportSessionId?: string },
+    identity: { clerkUserId: string; sessionId: string; role: 'owner' | 'attendant' | 'professional'; supportSessionId?: string },
   ): Promise<{ ticket: string; expiresAt: number }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -3906,6 +3906,37 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicScheduling.queryAgendaViewOp(this.#db, caller, input, this.#clock)
   }
 
+  /** DEC-205 — chegou / não veio. */
+  async setClinicAppointmentAttendance(
+    caller: ClinicCaller,
+    input: {
+      appointmentId: string
+      attendance: 'arrived' | 'no_show' | null
+      restrictToProfessionalId?: string | null
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicScheduling.setAppointmentAttendanceOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'appointment.attendance_updated',
+      'appointment',
+      result.appointmentId,
+      {
+        attendance: result.attendance,
+        version: result.version,
+        professionalId: result.professionalId,
+      },
+    )
+    return result
+  }
+
   async #afterHoldMutation(caller: ClinicCaller, outbox: OutboxRow[]): Promise<void> {
     if (outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outbox, true)
@@ -4992,7 +5023,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const clerkUserId = request.headers.get(WS_INTERNAL_HEADERS.clerkUserId)
     const sessionId = request.headers.get(WS_INTERNAL_HEADERS.sessionId)
     const role = request.headers.get(WS_INTERNAL_HEADERS.role)
-    if (!tenantId || !clerkUserId || !sessionId || (role !== 'owner' && role !== 'attendant')) {
+    if (!tenantId || !clerkUserId || !sessionId || (role !== 'owner' && role !== 'attendant' && role !== 'professional')) {
       return Response.json({ error: 'invalid_ws_identity' }, { status: 400 })
     }
     try {
@@ -5045,8 +5076,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       }
     }
     // Role autoritativa = D1 no momento do accept (não a do bilhete/header).
-    const role: 'owner' | 'attendant' =
-      decision.role === 'owner' || decision.role === 'attendant' ? decision.role : identity.role
+    const role: 'owner' | 'attendant' | 'professional' =
+      decision.role === 'owner' || decision.role === 'attendant' || decision.role === 'professional'
+        ? decision.role
+        : identity.role
 
     const pair = new WebSocketPair()
     const client = pair[0]

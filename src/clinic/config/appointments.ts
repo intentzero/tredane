@@ -28,6 +28,7 @@ type AppointmentSql = {
   occupies_until?: number | null
   default_duration_minutes?: number | null
   applied_duration_minutes?: number | null
+  attendance?: string | null
 }
 
 export function toAppointment(row: AppointmentSql): AppointmentRow {
@@ -55,6 +56,8 @@ export function toAppointment(row: AppointmentSql): AppointmentRow {
     occupiesUntil: row.occupies_until ?? null,
     defaultDurationMinutes: row.default_duration_minutes ?? null,
     appliedDurationMinutes: row.applied_duration_minutes ?? null,
+    attendance:
+      row.attendance === 'arrived' || row.attendance === 'no_show' ? row.attendance : null,
   }
 }
 

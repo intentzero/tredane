@@ -145,7 +145,7 @@ export function createDoEventPublisher(env: RealtimeBindings): ClinicEventPublis
 export type WsTicketIdentity = {
   clerkUserId: string
   sessionId: string
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
   supportSessionId?: string
 }
 
@@ -181,8 +181,12 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
       if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
       try {
         requireClinicPermission(ctx, 'clinic.inbox.read')
-      } catch (err) {
-        return authErrorResponse(c, err)
+      } catch (inboxErr) {
+        try {
+          requireClinicPermission(ctx, 'clinic.agenda.read')
+        } catch {
+          return authErrorResponse(c, inboxErr)
+        }
       }
       const issuer = opts.ticketIssuerFactory?.(c.env) ?? {
         issue: (tenantId: string, identity: WsTicketIdentity) =>
@@ -316,7 +320,10 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
       c.header('Cache-Control', 'no-store')
       const principal = c.get('principal')
       const visible = result.events.filter((e) =>
-        isEventVisibleToRole(e.payload, ctx.role, principal.clerkUserId),
+        isEventVisibleToRole(e.payload, ctx.role, principal.clerkUserId, {
+          type: e.type,
+          entityType: e.entityType,
+        }),
       )
       return c.json({
         tenantId: ctx.tenantId,

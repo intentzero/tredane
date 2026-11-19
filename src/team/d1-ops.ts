@@ -86,7 +86,8 @@ async function requireActiveTenant(db: D1Database, tenantId: string): Promise<vo
 }
 
 function mapInvitationRole(role: string): InvitationRow['role'] {
-  return role === 'owner' ? 'owner' : 'attendant'
+  if (role === 'owner' || role === 'professional' || role === 'attendant') return role
+  return 'attendant'
 }
 
 function mapInvitation(row: {
@@ -269,7 +270,7 @@ export async function d1CreateInvitation(
 ): Promise<{ invitation: InvitationRow; emailSent: boolean; deliveryJobId: string }> {
   if (input.asPlatformAdmin) await requireActiveTenant(db, input.tenantId)
   else await requireOwner(db, input.tenantId, input.issuedByClerkUserId)
-  const role: InvitationRow['role'] = input.role === 'owner' ? 'owner' : 'attendant'
+  const role: InvitationRow['role'] = input.role === 'owner' || input.role === 'professional' ? input.role : 'attendant'
   const email = normalizeEmail(input.email)
   // Convite vencido continua «pending» até alguém o tocar; não pode bloquear um novo (DEC-194).
   await db
@@ -679,6 +680,15 @@ export async function d1AcceptInvitation(
     })
   }
 
+  await db
+    .prepare(
+      `UPDATE professional_logins
+       SET clerk_user_id = ?
+       WHERE tenant_id = ? AND normalized_email = ?`,
+    )
+    .bind(input.acceptorClerkUserId, row.tenant_id, email)
+    .run()
+
   await audit(db, {
     actorClerkUserId: input.acceptorClerkUserId,
     subjectClerkUserId: input.acceptorClerkUserId,
@@ -772,3 +782,217 @@ export async function d1ListTeam(
 }
 
 export { getInvitation as d1GetInvitation }
+
+export type D1ProfessionalLogin = {
+  resourceId: string
+  email: string
+  clerkUserId: string | null
+  alsoAttendant: boolean
+}
+
+export async function d1GetProfessionalLogin(
+  db: D1Database,
+  tenantId: string,
+  resourceId: string,
+): Promise<D1ProfessionalLogin | null> {
+  const row = await db
+    .prepare(
+      `SELECT resource_id, normalized_email, clerk_user_id, also_attendant
+       FROM professional_logins WHERE tenant_id = ? AND resource_id = ?`,
+    )
+    .bind(tenantId, resourceId)
+    .first<{
+      resource_id: string
+      normalized_email: string
+      clerk_user_id: string | null
+      also_attendant: number
+    }>()
+  if (!row) return null
+  return {
+    resourceId: row.resource_id,
+    email: row.normalized_email,
+    clerkUserId: row.clerk_user_id,
+    alsoAttendant: row.also_attendant === 1,
+  }
+}
+
+export async function d1LinkProfessionalLogin(
+  db: D1Database,
+  transport: EmailTransport,
+  input: {
+    tenantId: string
+    resourceId: string
+    email: string
+    alsoAttendant: boolean
+    actorClerkUserId: string
+    boundClerkUserId?: string | null
+    appBaseUrl: string
+    now: number
+  },
+): Promise<{ login: D1ProfessionalLogin; invitationSent: boolean; membershipRole: string | null }> {
+  await requireOwner(db, input.tenantId, input.actorClerkUserId)
+  const email = normalizeEmail(input.email)
+  if (!email.includes('@')) throw new ConflictError('email_invalid', 'E-mail inválido')
+  const other = await db
+    .prepare(
+      `SELECT resource_id FROM professional_logins
+       WHERE tenant_id = ? AND normalized_email = ? AND resource_id <> ?`,
+    )
+    .bind(input.tenantId, email, input.resourceId)
+    .first<{ resource_id: string }>()
+  if (other) {
+    throw new ConflictError('professional_email_taken', 'Este e-mail já está ligado a outra profissional')
+  }
+  const previous = await d1GetProfessionalLogin(db, input.tenantId, input.resourceId)
+  const bound = input.boundClerkUserId?.trim() || null
+  if (previous?.clerkUserId && previous.clerkUserId !== bound && previous.email !== email) {
+    const old = await db
+      .prepare(
+        `SELECT role, status FROM tenant_memberships WHERE tenant_id = ? AND clerk_user_id = ?`,
+      )
+      .bind(input.tenantId, previous.clerkUserId)
+      .first<{ role: string; status: string }>()
+    if (old?.status === 'active' && old.role === 'professional') {
+      await db
+        .prepare(
+          `UPDATE tenant_memberships SET status = 'revoked', revoked_at = ?
+           WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'professional'`,
+        )
+        .bind(input.now, input.tenantId, previous.clerkUserId)
+        .run()
+    } else if (old?.status === 'active' && old.role === 'attendant' && previous.alsoAttendant) {
+      // Atendente só via alsoAttendant nesta ficha: não deixar WhatsApp órfão.
+      const otherLink = await db
+        .prepare(
+          `SELECT resource_id FROM professional_logins
+           WHERE tenant_id = ? AND clerk_user_id = ? AND resource_id <> ?`,
+        )
+        .bind(input.tenantId, previous.clerkUserId, input.resourceId)
+        .first<{ resource_id: string }>()
+      if (!otherLink) {
+        await db
+          .prepare(
+            `UPDATE tenant_memberships SET status = 'revoked', revoked_at = ?
+             WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'attendant'`,
+          )
+          .bind(input.now, input.tenantId, previous.clerkUserId)
+          .run()
+      }
+    }
+  }
+  await db
+    .prepare(
+      `INSERT INTO professional_logins (
+         tenant_id, resource_id, normalized_email, clerk_user_id, also_attendant
+       ) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (tenant_id, resource_id) DO UPDATE SET
+         normalized_email = excluded.normalized_email,
+         clerk_user_id = excluded.clerk_user_id,
+         also_attendant = excluded.also_attendant`,
+    )
+    .bind(input.tenantId, input.resourceId, email, bound, input.alsoAttendant ? 1 : 0)
+    .run()
+
+  const desired = input.alsoAttendant ? 'attendant' : 'professional'
+  let membershipRole: string | null = null
+  let invitationSent = false
+  if (bound) {
+    const current = await db
+      .prepare(
+        `SELECT role, status FROM tenant_memberships WHERE tenant_id = ? AND clerk_user_id = ?`,
+      )
+      .bind(input.tenantId, bound)
+      .first<{ role: string; status: string }>()
+    if (!current || current.status !== 'active') {
+      if (current) {
+        await db
+          .prepare(
+            `UPDATE tenant_memberships
+             SET role = ?, status = 'active', created_at = ?, revoked_at = NULL
+             WHERE tenant_id = ? AND clerk_user_id = ?`,
+          )
+          .bind(desired, input.now, input.tenantId, bound)
+          .run()
+      } else {
+        await db
+          .prepare(
+            `INSERT INTO tenant_memberships (tenant_id, clerk_user_id, role, status, created_at, revoked_at)
+             VALUES (?, ?, ?, 'active', ?, NULL)`,
+          )
+          .bind(input.tenantId, bound, desired, input.now)
+          .run()
+      }
+      membershipRole = desired
+    } else if (current.role === 'owner') {
+      membershipRole = 'owner'
+    } else if (current.role !== desired) {
+      await db
+        .prepare(
+          `UPDATE tenant_memberships SET role = ?
+           WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active'`,
+        )
+        .bind(desired, input.tenantId, bound)
+        .run()
+      membershipRole = desired
+    } else {
+      membershipRole = current.role
+    }
+  } else {
+    const pending = await db
+      .prepare(
+        `SELECT id, role FROM tenant_invitations
+         WHERE tenant_id = ? AND normalized_email = ? AND status = 'pending'`,
+      )
+      .bind(input.tenantId, email)
+      .first<{ id: string; role: string }>()
+    if (pending && pending.role !== desired) {
+      await db
+        .prepare(
+          `UPDATE tenant_invitations
+           SET status = 'cancelled', cancelled_at = ?, cancelled_by_clerk_user_id = ?
+           WHERE id = ? AND status = 'pending'`,
+        )
+        .bind(input.now, input.actorClerkUserId, pending.id)
+        .run()
+    }
+    if (!pending || pending.role !== desired) {
+      await d1CreateInvitation(db, transport, {
+        tenantId: input.tenantId,
+        email,
+        issuedByClerkUserId: input.actorClerkUserId,
+        appBaseUrl: input.appBaseUrl,
+        now: input.now,
+        role: desired,
+      })
+      invitationSent = true
+    }
+  }
+  const login = await d1GetProfessionalLogin(db, input.tenantId, input.resourceId)
+  if (!login) throw new ConflictError('professional_login_missing', 'Vínculo não gravado')
+  return { login, invitationSent, membershipRole }
+}
+
+export async function d1ReleaseProfessionalLogin(
+  db: D1Database,
+  input: { tenantId: string; resourceId: string; actorClerkUserId: string; now: number },
+): Promise<{ revoked: boolean }> {
+  await requireOwner(db, input.tenantId, input.actorClerkUserId)
+  const row = await d1GetProfessionalLogin(db, input.tenantId, input.resourceId)
+  if (!row) return { revoked: false }
+  let revoked = false
+  if (row.clerkUserId) {
+    const updated = await db
+      .prepare(
+        `UPDATE tenant_memberships SET status = 'revoked', revoked_at = ?
+         WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'professional'`,
+      )
+      .bind(input.now, input.tenantId, row.clerkUserId)
+      .run()
+    revoked = (updated.meta.changes ?? 0) > 0
+  }
+  await db
+    .prepare(`DELETE FROM professional_logins WHERE tenant_id = ? AND resource_id = ?`)
+    .bind(input.tenantId, input.resourceId)
+    .run()
+  return { revoked }
+}

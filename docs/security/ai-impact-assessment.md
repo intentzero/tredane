@@ -16,7 +16,7 @@
 | Cliente da clínica | Recebe preço, horário ou descrição errados; uma sugestão parece orientação de saúde; um horário é marcado sem o toque certo | DEC-046 (preço e explicação só do cadastro; pergunta de saúde sem mérito); DEC-061 (botão, versão, 30 min, revalidação); DEC-067 (imagem fora da IA); quotas e pausa | NC-01 (envio da sugestão). O clique não é consentimento LGPD. Informar no WhatsApp que houve IA: **Em aberto**. |
 | Atendente | Confia na sugestão sem ler; o resumo é usado como se fosse a conversa | Rótulo de sugestão; resumo é interno; falha da IA não bloqueia a resposta manual | Competência sem registo de formação (NC-06). |
 | Quem a audiência do serviço exclui (DEC-075) | Um horário é oferecido fora da audiência do serviço | A audiência descreve o serviço, não a pessoa; o contato não ganha sexo (DEC-075) | A avaliação não mediu um caso real. Dados reais continuam bloqueados. |
-| Profissional sem login | A pergunta de saúde é encaminhada à equipe e não chega a quem atende | DEC-046 manda encaminhar | O caminho da equipe até a profissional não está definido. |
+| Profissional fora da conversa (DEC-204) | A pergunta de saúde é encaminhada à equipe e não chega a quem atende; a profissional vê a agenda, não o WhatsApp | DEC-046 manda encaminhar | O caminho da equipe até a profissional não está definido. |
 
 Mensagem de estética pode citar gravidez, medicamento ou condição de saúde. Tratar isso como dado pessoal sensível está **Em aberto** no [dossiê jurídico](../product/legal-review-brief.md). Este ficheiro não responde. O controle de produto, enquanto o parecer não chega, é não responder o mérito (DEC-046) e não mandar a imagem à IA (DEC-067).
 

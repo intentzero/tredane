@@ -58,7 +58,7 @@ Adendo de âmbito — 31/10/2026: a DEC-084 confirma evolução autónoma sob po
 
 | Controle | Estado | Evidência | Pendência |
 | --- | --- | --- | --- |
-| **A.3.2** Papéis e responsabilidades de IA | **Parcial** | Manual §3. Atendente, responsável, produto, engenharia, jurídico, actor `system:ai-autobook` | Nomes (NC-06). Caminho da pergunta de saúde até a profissional sem login continua por definir. |
+| **A.3.2** Papéis e responsabilidades de IA | **Parcial** | Manual §3. Atendente, responsável, produto, engenharia, jurídico, actor `system:ai-autobook` | Nomes (NC-06). Caminho da pergunta de saúde até a profissional (que vê a agenda e não a conversa, DEC-204) continua por definir. |
 | **A.3.3** Comunicação de preocupações | **Parcial** | [ai-concern.md](../implementation/runbooks/ai-concern.md). Sem ecrã novo. Cliente fala com a atendente; a clínica fala com o Tredane pela sessão de suporte já existente | Procedimento **Proposto**. Nenhum caso registado. |
 
 ### A.4 Recursos dos sistemas de IA
@@ -77,7 +77,7 @@ Adendo de âmbito — 31/10/2026: a DEC-084 confirma evolução autónoma sob po
 | --- | --- | --- | --- |
 | **A.5.2** Processo de avaliação de impacto | **Parcial** | Manual §5: repetir quando mudar o que a IA vê, o que ela causa, ou o fornecedor | Primeira execução está **Proposta**, não aceite. |
 | **A.5.3** Documentação das avaliações | **Parcial** | [ai-impact-assessment.md](ai-impact-assessment.md), 30/10/2026 | Prazo de retenção acompanha GATE-04 (NC-05). |
-| **A.5.4** Impacto em pessoas ou grupos | **Parcial** | A mesma avaliação: cliente, atendente, audiência do serviço (DEC-075), profissional sem login. Mitigações DEC-046, DEC-061, DEC-067 | NC-01. Dado sensível **Em aberto** (NC-03). |
+| **A.5.4** Impacto em pessoas ou grupos | **Parcial** | A mesma avaliação: cliente, atendente, audiência do serviço (DEC-075), profissional fora da conversa (DEC-204). Mitigações DEC-046, DEC-061, DEC-067 | NC-01. Dado sensível **Em aberto** (NC-03). |
 | **A.5.5** Impacto societal | **Parcial** | Parágrafo na avaliação: atendimento comercial, risco de parecer orientação de saúde, risco de encher a agenda. Não excluído | H10 do piloto **Em aberto**. |
 
 ### A.6 Ciclo de vida

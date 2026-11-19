@@ -1,12 +1,12 @@
 # Central de ajuda (`help/`)
 
-**Estado:** desenho **Proposto** (DEC-204, 19/11/2026, escolhas de Paulo nesta conversa de planeamento); implementação inicial **Proposta** em `help/`; **não publicar em produção** antes de Paulo rever o conteúdo e confirmar a DEC-204.
+**Estado:** desenho **Proposto** (DEC-207, 19/11/2026, escolhas de Paulo nesta conversa de planeamento); implementação inicial **Proposta** em `help/`; **não publicar em produção** antes de Paulo rever o conteúdo e confirmar a DEC-207.
 
 ## Objetivo e público
 
 Um manual estático, pesquisável e público, com passo a passo das jornadas principais, perguntas frequentes e soluções, para ajudar o onboarding e a operação. Públicos da primeira versão (**Proposto**): **responsável** pela clínica, **equipe** (atendente) e **cliente** da clínica (página web da cliente, quando estiver em produção).
 
-## Decisões propostas (DEC-204)
+## Decisões propostas (DEC-207)
 
 | Item | Estado |
 | --- | --- |
@@ -44,7 +44,7 @@ Quem altera uma tela do painel atualiza os artigos cujo `telas:` a inclui (`grep
 
 ## Em aberto
 
-- Revisão do conteúdo por Paulo e confirmação da DEC-204.
+- Revisão do conteúdo por Paulo e confirmação da DEC-207.
 - Pipeline de capturas (Playwright contra o tenant demo) e artigos de Agenda, Acompanhar, Clientes, Configurar a clínica, Resolver problemas, FAQ e Glossário.
 - Provisionar o DNS `ajuda.tredane.com` e os environments do GitHub antes do primeiro deploy.
 - Link no rodapé da landing e entrada «Ajuda» no painel.

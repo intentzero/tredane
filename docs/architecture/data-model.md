@@ -25,7 +25,7 @@ Referências a memberships/owners em entidades locais são IDs lógicos: não h�
 | opportunities | id, tenant_id, contact_id, conversation_id opcional, stage_id, assignee_id |
 | opportunity_events | id, tenant_id, opportunity_id, actor_id, from_stage, to_stage, occurred_at |
 | services | id, tenant_id, nome, duração, buffer, preço opcional, ativo |
-| professionals | id, tenant_id, nome, ativo; sem login no MVP |
+| professionals | id, tenant_id, nome, ativo; ficha operacional no SQLite do DO. Login no D1 (`professional_logins`: e-mail, papel também-atendente, utilizador Clerk) — DEC-204 |
 | resources | id, tenant_id, tipo (sala/equipamento), nome, ativo |
 | service_requirements | tenant_id, service_id, resource_type e regras de seleção |
 | availability_rules / time_off | tenant_id, professional_id ou resource_id, janela, recorrência/bloqueio |

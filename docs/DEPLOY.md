@@ -53,7 +53,7 @@ Scripts: [`scripts/d1-migrate-remote.mjs`](../scripts/d1-migrate-remote.mjs), [`
 
 ## Deploy ajuda — `help/`
 
-**Proposto** (DEC-204, [ajuda.md](product/ajuda.md)); não usar em produção antes de a DEC ser confirmada.
+**Proposto** (DEC-207, [ajuda.md](product/ajuda.md)); não usar em produção antes de a DEC ser confirmada.
 
 Workflow: [`.github/workflows/deploy-ajuda.yml`](../.github/workflows/deploy-ajuda.yml), cópia do da landing: mesmos inputs, mesmo guard de production (só commits em `main`), Node 22 e `npm ci` em `help/`.
 

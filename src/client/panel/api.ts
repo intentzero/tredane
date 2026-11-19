@@ -31,7 +31,7 @@ export type MeResponse = {
 export type TenantSummary = {
   tenantId: string
   name: string
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
   status: 'active'
 }
 
@@ -39,7 +39,9 @@ export type TenantContextResponse = {
   tenantId: string
   name: string
   status: 'active'
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
+  /** Ficha de agenda ligada a esta conta (DEC-204). */
+  professionalResourceId?: string | null
   /** Sessão de suporte só de leitura (ADR-0017): presente só quando o acesso é de uma superadmin em suporte. */
   support?: { sessionId: string; expiresAt: number }
 }
@@ -1233,6 +1235,37 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as AppointmentDetailResponse
     },
 
+    /** DEC-205: chegou / não veio / limpar. */
+    async setAppointmentAttendance(
+      tenantId: string,
+      appointmentId: string,
+      attendance: 'arrived' | 'no_show' | null,
+      opts?: FetchOpts,
+    ): Promise<{
+      appointmentId: string
+      attendance: 'arrived' | 'no_show' | null
+      version: number
+      professionalId: string
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/attendance`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendance }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        appointmentId: string
+        attendance: 'arrived' | 'no_show' | null
+        version: number
+        professionalId: string
+      }
+    },
+
     async listAppointmentReasons(
       tenantId: string,
       opts?: FetchOpts,
@@ -1984,9 +2017,9 @@ export function createPanelApi(getToken: TokenGetter) {
     async inviteAttendant(
       tenantId: string,
       email: string,
-      opts?: FetchOpts & { role?: 'attendant' | 'owner' },
+      opts?: FetchOpts & { role?: 'attendant' | 'owner' | 'professional' },
     ): Promise<{ invitation: TeamInvitation; emailSent: boolean }> {
-      const role = opts?.role === 'owner' ? 'owner' : 'attendant'
+      const role = opts?.role === 'owner' || opts?.role === 'professional' ? opts.role : 'attendant'
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/invitations`,
         {
@@ -1999,6 +2032,58 @@ export function createPanelApi(getToken: TokenGetter) {
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as { invitation: TeamInvitation; emailSent: boolean }
+    },
+
+    async getProfessionalLogin(
+      tenantId: string,
+      resourceId: string,
+      opts?: FetchOpts,
+    ): Promise<{ email: string; alsoAttendant: boolean } | null> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/professional-logins/${encodeURIComponent(resourceId)}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const data = (await res.json()) as {
+        login?: { email?: string; alsoAttendant?: boolean } | null
+      }
+      if (!data.login?.email) return null
+      return { email: data.login.email, alsoAttendant: data.login.alsoAttendant === true }
+    },
+
+    async linkProfessionalLogin(
+      tenantId: string,
+      resourceId: string,
+      input: { email: string; alsoAttendant: boolean },
+      opts?: FetchOpts,
+    ): Promise<void> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/professional-logins/${encodeURIComponent(resourceId)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+    },
+
+    async releaseProfessionalLogin(
+      tenantId: string,
+      resourceId: string,
+      opts?: FetchOpts,
+    ): Promise<void> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/professional-logins/${encodeURIComponent(resourceId)}/release`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
     },
 
     /** Pedidos de suporte do Tredane a esta clínica (DEC-029; só responsável). Sem nomes: ids do Clerk. */
@@ -3507,6 +3592,8 @@ export type AgendaAppointmentItem = {
   durationAdjusted?: boolean
   /** Criado pela IA após confirmação explícita da cliente. */
   bookedByAi?: boolean
+  /** DEC-205: chegou / não veio. */
+  attendance?: 'arrived' | 'no_show' | null
 }
 
 export type AgendaInterval = { startsAt: number; endsAt: number }

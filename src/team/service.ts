@@ -71,7 +71,7 @@ export async function inviteAttendant(
     tenantId: string
     email: string
     issuedByClerkUserId: string
-    role?: 'owner' | 'attendant'
+    role?: 'owner' | 'attendant' | 'professional'
   },
 ): Promise<{
   issued: IssuedInvitation
@@ -87,7 +87,7 @@ export async function inviteAttendant(
     tenantId: input.tenantId,
     email: input.email,
     issuedByClerkUserId: input.issuedByClerkUserId,
-    role: input.role === 'owner' ? 'owner' : 'attendant',
+    role: input.role === 'owner' || input.role === 'professional' ? input.role : 'attendant',
   })
 
   const delivery = await deliverInvitationEmail(
@@ -206,7 +206,7 @@ export function peekInvitation(
     id: row.id,
     tenantId: row.tenant_id,
     normalizedEmail: row.normalized_email,
-    role: row.role === 'owner' ? 'owner' : 'attendant',
+    role: row.role === 'owner' || row.role === 'professional' ? row.role : 'attendant',
     issuedByClerkUserId: row.issued_by_clerk_user_id,
     status: row.status as InvitationRow['status'],
     issuedAt: row.issued_at,

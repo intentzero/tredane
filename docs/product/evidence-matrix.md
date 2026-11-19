@@ -31,7 +31,7 @@
 | --- | --- | --- | --- | --- |
 | AC-01 acesso cruzado | #20 #21 #29 | `journey.e2e.test.ts`; HTTP inbox/pipeline | IDs forjados negados; B intacto | Confirmado (sintético) |
 | AC-02/17 membership revogado | #23 #25 | `runtime.harness.test.ts`; `api-roles.http.test.ts` | A cortado; B e Clerk ok | Confirmado (sintético) |
-| AC-03/18 perfis e Platform Admin | #21 #24 | `src/auth/http.test.ts`; `src/platform/*.test.ts` | Superadmin booleano; profissional sem login | Confirmado (sintético) |
+| AC-03/18 perfis e Platform Admin | #21 #24 | `src/auth/http.test.ts`; `src/platform/*.test.ts`; `src/team/professional-login.test.ts` | Superadmin booleano; profissional vê só a agenda (DEC-204) | Confirmado (sintético) |
 | AC-16/21 owner vs attendant | #25 #28 | `api-roles.http.test.ts`; clinic-config HTTP | Attendant opera; não configura | Confirmado (sintético) |
 | AC-22–24 convites | #25 | `src/team/http.test.ts` | Aceite/reenvio/cancel | Confirmado (sintético) |
 | DEC-038 DO/SQLite por clínica | #20 | `runtime.harness.test.ts` | Instâncias A/B isoladas | Confirmado (sintético) |
