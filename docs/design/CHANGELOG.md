@@ -5,6 +5,10 @@
 - Desktop (≥ 1280 px): título «Clientes», ClinicSwitcher e «Ao vivo» passam ao `.panel-shell-header` full-width (padrão Agenda / Acompanhar / Clínica). A coluna da lista fica só com busca, filtros e lista.
 - Mock `desktop/ClientesLista.dc.html` actualizado; Conversas mantém identidade na coluna da lista (fora deste recorte). Sem token novo.
 
+## 19/11/2026 — Agenda: presença só onde falta (**Proposto**)
+
+- Pedido de Paulo: a agenda estava «muito feia» (botões Chegou / Não veio em todos os cartões, texto cortado, horários passados a ocupar a tela). Mobile first: faixa de botões de 44 px só em horários começados sem presença; estado + Desfazer depois; horários resolvidos recolhidos numa linha. Sem token novo. Atualizadas `screens.md` (M-76) e `ux-ui.md`.
+
 ## 17/11/2026 — Página web da cliente (C-01 a C-12)
 
 - Mocks novos em `cliente/` (DEC-196 a DEC-200): agendar, remarcar, cancelar, link usado, pesquisa e «Para quem é?».

@@ -1,7 +1,7 @@
 import type { ScheduleHold } from '../../api'
 import { AgendaDayList, type AgendaProfessional } from './AgendaDayList'
 import { AgendaMiniMonth } from './AgendaMiniMonth'
-import { initialsOf, shortName, type DayEntry } from './dayList'
+import { initialsOf, shortName } from './dayList'
 
 export type AgendaRoom = { id: string; name: string }
 
@@ -10,7 +10,6 @@ type Props = {
   today: string
   timezone: string
   now: number
-  dayTitle: string
   professionals: AgendaProfessional[]
   rooms: AgendaRoom[]
   selectedPros: string[]
@@ -19,27 +18,24 @@ type Props = {
   /** Dias do mês visível com compromisso ou reserva por período. */
   monthMarks: ReadonlyMap<string, number>
   onViewMonth: (month: string) => void
-  entries: DayEntry[]
   holds: ScheduleHold[]
   onPickDate: (iso: string) => void
   onTogglePro: (id: string) => void
   onToggleRoom: (id: string) => void
   onClearFilters: () => void
-  onSchedule: () => void
   onOpen: (id: string) => void
   onOpenHold: (hold: ScheduleHold) => void
 }
 
 /**
  * Coluna de contexto da Agenda no desktop (≥ 1280 px, DEC-068; Agendar no cabeçalho, DEC-170): mês pequeno,
- * filtros por profissional e sala e a lista do dia. A grade fica na área de trabalho ao lado.
+ * filtros por profissional e sala (e as horas a definir). A grade fica na área de trabalho ao lado.
  */
 export function AgendaContext({
   date,
   today,
   timezone,
   now,
-  dayTitle,
   professionals,
   rooms,
   selectedPros,
@@ -47,13 +43,11 @@ export function AgendaContext({
   countOf,
   monthMarks,
   onViewMonth,
-  entries,
   holds,
   onPickDate,
   onTogglePro,
   onToggleRoom,
   onClearFilters,
-  onSchedule,
   onOpen,
   onOpenHold,
 }: Props) {
@@ -126,21 +120,20 @@ export function AgendaContext({
         </button>
       ) : null}
 
-      <section className="agenda-context-day" aria-labelledby="agenda-ctx-day">
-        <h2 id="agenda-ctx-day" className="panel-legend">
-          {dayTitle}
-        </h2>
-        <AgendaDayList
-          entries={entries}
-          holds={holds}
-          professionals={professionals}
-          timezone={timezone}
-          now={now}
-          onOpen={onOpen}
-          onSchedule={onSchedule}
-          onOpenHold={onOpenHold}
-        />
-      </section>
+      {/* A lista do dia saiu daqui (repetia a grade); ficam só as horas a definir, que a grade não mostra. */}
+      {holds.length > 0 ? (
+        <section className="agenda-context-day">
+          <AgendaDayList
+            entries={[]}
+            holds={holds}
+            professionals={professionals}
+            timezone={timezone}
+            now={now}
+            onOpen={onOpen}
+            onOpenHold={onOpenHold}
+          />
+        </section>
+      ) : null}
     </aside>
   )
 }

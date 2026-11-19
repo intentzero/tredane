@@ -21,6 +21,7 @@ import { isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ShellSlot } from '../../shell/ShellSlot'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
+import { AttendanceBar, attendanceMarked, attendancePending } from './AttendanceBar'
 import { CompromissoScreen } from './CompromissoScreen'
 import { SelfBlockSheet } from './SelfBlockSheet'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
@@ -63,6 +64,10 @@ type Props = {
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
+/** Bloco com presença por marcar: texto de duas linhas + botões sem cortar. */
+const GRID_MARK_HEIGHT = 84
+/** Presença já marcada: estado + Desfazer numa linha só. */
+const GRID_DONE_HEIGHT = 76
 
 function shiftCivil(date: string, delta: number): string {
   const [y, m, d] = date.split('-').map(Number)
@@ -770,7 +775,6 @@ export function AgendaDayWeek({
         today={today}
         timezone={timezone}
         now={now}
-        dayTitle={`${date === today ? 'Hoje · ' : ''}${formatLongDate(date, timezone)}`}
         professionals={professionals}
         rooms={rooms}
         selectedPros={selected}
@@ -784,7 +788,6 @@ export function AgendaDayWeek({
           selectedRooms,
         )}
         onViewMonth={onViewMonth}
-        entries={entries}
         holds={holds}
         onPickDate={setDate}
         onTogglePro={(id) => toggle(setSelected, id)}
@@ -793,7 +796,6 @@ export function AgendaDayWeek({
           setSelected([])
           setSelectedRooms([])
         }}
-        onSchedule={goSchedule}
         onOpen={(id) => openAppointment(id)}
         onOpenHold={(h) =>
           navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
@@ -954,7 +956,7 @@ function DayGrid({
             : item.attendance === 'no_show'
               ? 'Não veio'
               : null
-        const mark = showAttendanceFor(item)
+        const mark = showAttendanceFor(item) && (attendancePending(item, now) || attendanceMarked(item))
         return (
           <div
             key={item.id}
@@ -962,7 +964,7 @@ function DayGrid({
             className={`agenda-block-wrap${mark ? ' agenda-block-wrap--attendance' : ''}`}
             style={{
               top,
-              height: mark ? Math.max(height, 64) : height,
+              height: mark ? Math.max(height, attendanceMarked(item) ? GRID_DONE_HEIGHT : GRID_MARK_HEIGHT) : height,
               left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
               width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
             }}
@@ -975,7 +977,7 @@ function DayGrid({
               {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
               <span className="agenda-block-title">
                 {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
-                {attendanceLabel ? (
+                {attendanceLabel && !mark ? (
                   <span className="agenda-attendance-badge"> · {attendanceLabel}</span>
                 ) : null}
               </span>
@@ -989,34 +991,7 @@ function DayGrid({
               </span>
             </button>
             {mark && onSetAttendance ? (
-              <div className="agenda-attendance-actions agenda-attendance-actions--grid">
-                <button
-                  type="button"
-                  className={item.attendance === 'arrived' ? 'is-active' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSetAttendance(
-                      item.id,
-                      item.attendance === 'arrived' ? null : 'arrived',
-                    )
-                  }}
-                >
-                  Chegou
-                </button>
-                <button
-                  type="button"
-                  className={item.attendance === 'no_show' ? 'is-active' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSetAttendance(
-                      item.id,
-                      item.attendance === 'no_show' ? null : 'no_show',
-                    )
-                  }}
-                >
-                  Não veio
-                </button>
-              </div>
+              <AttendanceBar item={item} now={now} onSet={onSetAttendance} variant="grid" />
             ) : null}
           </div>
         )
