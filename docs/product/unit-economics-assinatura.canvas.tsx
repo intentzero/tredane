@@ -537,7 +537,7 @@ export default function UnitEconomicsAssinatura() {
       <Stack gap={6}>
         <H1>Quanto cobrar por clínica</H1>
         <Text tone="secondary">
-          Proposta de 18/11/2026, ainda sem preço aprovado. A vitrine manda no número; a régua de
+          Preços de referência Confirmados (Paulo, 19/11/2026); premissas de custo Propostas (18/11). A vitrine manda no número; a régua de
           60% da nota só avisa quando a hora de suporte não cabe na mensalidade.
         </Text>
       </Stack>
