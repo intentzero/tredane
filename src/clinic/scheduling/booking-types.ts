@@ -122,7 +122,7 @@ export type AppointmentListItem = {
 export type AgendaViewInput = {
   /** Data civil âncora YYYY-MM-DD no fuso da clínica. */
   date: string
-  view: 'day' | 'week'
+  view: 'day' | 'week' | 'month'
   professionalId?: string | null
   roomResourceId?: string | null
   /** Incluir cancelados (default false). */
@@ -161,7 +161,7 @@ export type AgendaProfessionalAvailability = {
 export type AgendaViewResult = {
   tenantId: string
   timezone: string
-  view: 'day' | 'week'
+  view: 'day' | 'week' | 'month'
   date: string
   rangeStartsAt: number
   rangeEndsAt: number

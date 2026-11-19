@@ -1195,7 +1195,7 @@ export function createPanelApi(getToken: TokenGetter) {
       tenantId: string,
       query: {
         date: string
-        view: 'day' | 'week'
+        view: 'day' | 'week' | 'month'
         professionalId?: string
         roomResourceId?: string
         includeCancelled?: boolean
@@ -3532,7 +3532,7 @@ export type AgendaProfessionalAvailability = {
 export type AgendaViewResponse = {
   tenantId: string
   timezone: string
-  view: 'day' | 'week'
+  view: 'day' | 'week' | 'month'
   date: string
   rangeStartsAt: number
   rangeEndsAt: number

@@ -23,6 +23,7 @@ import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
+import { agendaMonthMarks } from './monthMarks'
 import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy, type FreeSlot } from './freeSlots'
 import {
   HOUR_HEIGHT,
@@ -109,6 +110,11 @@ export function AgendaDayWeek({
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [selectedRooms, setSelectedRooms] = useState<string[]>([])
+  const [visibleMonth, setVisibleMonth] = useState(() => date.slice(0, 7))
+  const [monthData, setMonthData] = useState<AgendaViewResponse | null>(null)
+  const onViewMonth = useCallback((month: string) => {
+    setVisibleMonth((cur) => (cur === month ? cur : month))
+  }, [])
   // Desktop (DEC-068): coluna de contexto ao lado da grade.
   const wide = useMediaQuery('(min-width: 1280px)')
   const returnFocus = useRef<HTMLElement | null>(null)
@@ -216,13 +222,35 @@ export function AgendaDayWeek({
     }
   }, [api, tenantId, generation, date])
 
+  const monthReq = useRef(0)
+  const loadMonth = useCallback(async () => {
+    if (!wide) return
+    const req = ++monthReq.current
+    try {
+      const res = await api.queryAgenda(
+        tenantId,
+        { date: `${visibleMonth}-01`, view: 'month' },
+        { generation, expectGeneration: () => generation },
+      )
+      if (req === monthReq.current) setMonthData(res)
+    } catch (err) {
+      if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
+      // O mês pequeno fica sem pontos; a grade da semana não depende disto.
+    }
+  }, [api, tenantId, generation, visibleMonth, wide])
+
   useEffect(() => {
     void load()
   }, [load])
 
+  useEffect(() => {
+    void loadMonth()
+  }, [loadMonth])
+
   useVisiblePolling(() => {
     setNow(Date.now())
     void load()
+    void loadMonth()
   }, 15_000)
 
   // contact.deleted anonimiza rótulos — refetch imediato (AC-52), sem esperar o poll.
@@ -232,7 +260,10 @@ export function AgendaDayWeek({
         s.kind === 'resync' ||
         (s.kind === 'event' && isScheduleEvent(s.event)),
     )
-    if (touch) void load()
+    if (touch) {
+      void load()
+      void loadMonth()
+    }
   })
 
   const timezone = data?.timezone ?? DEFAULT_TZ
@@ -663,6 +694,14 @@ export function AgendaDayWeek({
         selectedPros={selected}
         selectedRooms={selectedRooms}
         countOf={countOf}
+        monthMarks={agendaMonthMarks(
+          monthData?.appointments ?? [],
+          monthData?.holds ?? [],
+          monthData?.timezone ?? timezone,
+          selected,
+          selectedRooms,
+        )}
+        onViewMonth={onViewMonth}
         entries={entries}
         holds={holds}
         onPickDate={setDate}

@@ -16,6 +16,9 @@ type Props = {
   selectedPros: string[]
   selectedRooms: string[]
   countOf: (professionalId: string) => number
+  /** Dias do mês visível com compromisso ou reserva por período. */
+  monthMarks: ReadonlyMap<string, number>
+  onViewMonth: (month: string) => void
   entries: DayEntry[]
   holds: ScheduleHold[]
   onPickDate: (iso: string) => void
@@ -42,6 +45,8 @@ export function AgendaContext({
   selectedPros,
   selectedRooms,
   countOf,
+  monthMarks,
+  onViewMonth,
   entries,
   holds,
   onPickDate,
@@ -55,7 +60,14 @@ export function AgendaContext({
   const filtering = selectedPros.length > 0 || selectedRooms.length > 0
   return (
     <aside className="agenda-context" aria-label="Contexto da agenda">
-      <AgendaMiniMonth date={date} today={today} timezone={timezone} onPick={onPickDate} />
+      <AgendaMiniMonth
+        date={date}
+        today={today}
+        timezone={timezone}
+        marks={monthMarks}
+        onPick={onPickDate}
+        onViewMonth={onViewMonth}
+      />
 
       {professionals.length > 1 ? (
         <section className="agenda-context-block" aria-labelledby="agenda-ctx-pros">

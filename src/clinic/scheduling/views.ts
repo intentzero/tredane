@@ -75,8 +75,8 @@ export function queryAgendaViewOp(
   const settings = ensureClinicSettings(db, meta.tenantId, clock)
   const timezone = settings.timezone
 
-  if (input.view !== 'day' && input.view !== 'week') {
-    throw new ValidationError('invalid_view', 'view deve ser day ou week')
+  if (input.view !== 'day' && input.view !== 'week' && input.view !== 'month') {
+    throw new ValidationError('invalid_view', 'view deve ser day, week ou month')
   }
   parseCivilDate(input.date)
 
@@ -88,12 +88,23 @@ export function queryAgendaViewOp(
     rangeStartsAt = bounds.dayStartsAt
     rangeEndsAt = bounds.dayEndsAt
     civilDates = [input.date]
-  } else {
+  } else if (input.view === 'week') {
     const weekStart = weekStartCivil(timezone, input.date)
     const weekEnd = addCivilDays(weekStart, 7)
     rangeStartsAt = clinicDayBounds(timezone, weekStart).dayStartsAt
     rangeEndsAt = clinicDayBounds(timezone, weekEnd).dayStartsAt
     civilDates = Array.from({ length: 7 }, (_, i) => addCivilDays(weekStart, i))
+  } else {
+    // Mês civil da data âncora. O mês pequeno da Agenda só precisa dos
+    // compromissos e das reservas por período; folgas e livres não marcam o dia.
+    const { year, month } = parseCivilDate(input.date)
+    const start = formatCivilDate({ year, month, day: 1 })
+    const next = formatCivilDate(
+      month === 12 ? { year: year + 1, month: 1, day: 1 } : { year, month: month + 1, day: 1 },
+    )
+    rangeStartsAt = clinicDayBounds(timezone, start).dayStartsAt
+    rangeEndsAt = clinicDayBounds(timezone, next).dayStartsAt
+    civilDates = []
   }
 
   const includeCancelled = input.includeCancelled === true
@@ -180,15 +191,18 @@ export function queryAgendaViewOp(
     asOf: clock.nowMs(),
     appointments,
     holds: listAgendaHolds(db, meta.tenantId, rangeStartsAt, rangeEndsAt, input.professionalId ?? null),
-    availability: buildAgendaAvailability(
-      db,
-      meta.tenantId,
-      timezone,
-      civilDates,
-      input.professionalId,
-      clock.nowMs(),
-      clock,
-    ),
+    availability:
+      input.view === 'month'
+        ? []
+        : buildAgendaAvailability(
+            db,
+            meta.tenantId,
+            timezone,
+            civilDates,
+            input.professionalId,
+            clock.nowMs(),
+            clock,
+          ),
   }
 }
 

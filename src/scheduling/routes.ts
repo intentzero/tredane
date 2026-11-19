@@ -235,12 +235,12 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       const ctx = c.get('tenantContext')!
       requireClinicPermission(ctx, 'clinic.agenda.operate')
       const date = c.req.query('date')?.trim()
-      const view = (c.req.query('view')?.trim() || 'day') as 'day' | 'week'
+      const view = (c.req.query('view')?.trim() || 'day') as 'day' | 'week' | 'month'
       if (!date) {
         throw new ValidationError('missing_query', 'date (YYYY-MM-DD) é obrigatório')
       }
-      if (view !== 'day' && view !== 'week') {
-        throw new ValidationError('invalid_view', 'view deve ser day ou week')
+      if (view !== 'day' && view !== 'week' && view !== 'month') {
+        throw new ValidationError('invalid_view', 'view deve ser day, week ou month')
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
       const result = await gw.queryAgenda(
