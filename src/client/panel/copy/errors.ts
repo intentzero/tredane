@@ -109,6 +109,9 @@ const BY_CODE: Record<string, string> = {
   membership_revoke_conflict: 'Outra pessoa acabou de mudar este membro. Atualize a tela.',
   membership_role_conflict:
     'Essa pessoa já tem outro papel nesta clínica. Use promover ou despromover na lista.',
+  membership_required: 'Convide a pessoa na Equipe antes de ligar a ficha.',
+  professional_email_taken: 'Este e-mail já está ligado a outra profissional.',
+  professional_user_taken: 'Esta pessoa já está ligada a outra ficha de profissional.',
 }
 
 function byStatus(status: number): string | null {

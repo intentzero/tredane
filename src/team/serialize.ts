@@ -6,7 +6,7 @@ import {
   INVITATION_RESEND_WINDOW_MS,
 } from '../db/admin/constants'
 
-/** Membro na visão Equipe — ações conforme DEC-103. */
+/** Membro na visão Equipe — ações conforme DEC-103; vínculo ficha DEC-204. */
 export function serializeTeamMember(
   member: MembershipRow,
   opts: {
@@ -15,6 +15,9 @@ export function serializeTeamMember(
     /** DEC-102: nome e e-mail resolvidos no Worker (Clerk / sintético). */
     displayName?: string | null
     email?: string | null
+    /** Ficha de agenda ligada a esta conta (DEC-204 / Equipe). */
+    professionalResourceId?: string | null
+    alsoAttendantFromFicha?: boolean | null
   },
 ) {
   const isOwner = member.role === 'owner'
@@ -29,6 +32,10 @@ export function serializeTeamMember(
   const canDemote =
     opts.callerIsOwner && isActive && isOwner && canTouchOwners
 
+  const professionalResourceId = opts.professionalResourceId ?? null
+  const alsoAttendantFromFicha =
+    professionalResourceId == null ? null : opts.alsoAttendantFromFicha === true
+
   return {
     clerkUserId: member.clerkUserId,
     /** Nome de apresentação — nunca o id como rótulo principal na UI. */
@@ -38,6 +45,8 @@ export function serializeTeamMember(
     status: member.status,
     createdAt: member.createdAt,
     revokedAt: member.revokedAt,
+    professionalResourceId,
+    alsoAttendantFromFicha,
     manageActions: {
       canRevoke,
       canInvite: false,

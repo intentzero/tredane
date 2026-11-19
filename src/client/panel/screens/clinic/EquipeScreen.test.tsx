@@ -3,6 +3,16 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PanelApiError, type PanelApi, type TeamSnapshot } from '../../api'
 import { EquipeScreen } from './EquipeScreen'
+import { takeProfessionalInviteDraft } from './professionalDraft'
+
+const navigatePanel = vi.fn()
+vi.mock('../../routes', async (orig) => {
+  const mod = await orig<typeof import('../../routes')>()
+  return {
+    ...mod,
+    navigatePanel: (...args: unknown[]) => navigatePanel(...args),
+  }
+})
 
 let emitTeamSignal: (() => void) | null = null
 vi.mock('../../realtime/InboxRealtime', async (orig) => {
@@ -18,6 +28,8 @@ vi.mock('../../realtime/InboxRealtime', async (orig) => {
 afterEach(() => {
   cleanup()
   emitTeamSignal = null
+  navigatePanel.mockReset()
+  sessionStorage.clear()
 })
 
 function snap(over: Partial<TeamSnapshot> = {}): TeamSnapshot {
@@ -312,9 +324,9 @@ describe('EquipeScreen — S1', () => {
     expect(cta).toBeTruthy()
     const position = membros!.compareDocumentPosition(cta!)
     expect(position & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
-    // DEC-175: a contagem fica só no título da secção; o cabeçalho diz para que serve a tela.
-    expect(container.querySelector('.clinic-page-desc')?.textContent).toBe(
-      'Quem entra no painel desta clínica e o que pode fazer.',
+    // DEC-175 + DEC-204 revista: cabeçalho explica Equipe e o atalho à ficha.
+    expect(container.querySelector('.clinic-page-desc')?.textContent).toMatch(
+      /Quem entra no painel.*Também executa serviços/s,
     )
     expect(screen.getByRole('heading', { name: 'Membros · 2' })).toBeTruthy()
 
@@ -599,6 +611,7 @@ describe('EquipeScreen — S2 remoção e DEC-103', () => {
   })
 
   it('não mostra remoção no único responsável (canRevoke false)', async () => {
+    const user = userEvent.setup()
     const team = snap({
       members: [
         {
@@ -627,9 +640,11 @@ describe('EquipeScreen — S2 remoção e DEC-103', () => {
       />,
     )
     await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
-    expect(
-      screen.queryByRole('button', { name: /Ações para Luciana Moraes/ }),
-    ).toBeNull()
+    // DEC-204: o ⋮ existe para «Também executa serviços…», mas sem Remover/despromover.
+    await user.click(screen.getByRole('button', { name: /Ações para Luciana Moraes/ }))
+    expect(screen.getByRole('button', { name: 'Também executa serviços…' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Remover acesso' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Tornar atendente' })).toBeNull()
   })
 
   it('mostra erro amigável de último owner', async () => {
@@ -817,5 +832,125 @@ describe('EquipeScreen — pedidos de suporte do Tredane (#897)', () => {
     await waitFor(() =>
       expect((api.listSupportRequests as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(before),
     )
+  })
+})
+
+describe('EquipeScreen — DEC-204 revista (ficha depois do convite)', () => {
+  it('membro sem ficha: «Também executa serviços…» grava draft e abre a ficha', async () => {
+    const user = userEvent.setup()
+    const api = mockApi(snap())
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Ana Souza')).toBeTruthy())
+    expect(screen.queryByText('Executa serviços')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Ações para Ana Souza' }))
+    await user.click(screen.getByRole('button', { name: 'Também executa serviços…' }))
+    expect(navigatePanel).toHaveBeenCalledWith({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'profissional',
+      entityId: 'novo',
+    })
+    expect(takeProfessionalInviteDraft()).toEqual({
+      email: 'ana@belapele.example',
+      alsoAttendant: true,
+      clerkUserId: 'user_att',
+    })
+  })
+
+  it('membro com ficha: selo «Executa serviços» e Abrir ficha', async () => {
+    const user = userEvent.setup()
+    const base = snap()
+    const api = mockApi({
+      ...base,
+      members: base.members.map((m) =>
+        m.clerkUserId === 'user_att'
+          ? {
+              ...m,
+              professionalResourceId: 'pro_ana',
+              alsoAttendantFromFicha: true,
+            }
+          : m,
+      ),
+    })
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Ana Souza')).toBeTruthy())
+    expect(screen.getByText('Executa serviços')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Ações para Ana Souza' }))
+    expect(screen.queryByRole('button', { name: 'Também executa serviços…' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Abrir ficha na agenda' }))
+    expect(navigatePanel).toHaveBeenCalledWith({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'profissional',
+      entityId: 'pro_ana',
+    })
+  })
+
+  it('profissional puro tem Abrir ficha e não promove/despromove', async () => {
+    const user = userEvent.setup()
+    const api = mockApi(
+      snap({
+        members: [
+          {
+            clerkUserId: 'user_owner',
+            displayName: 'Luciana Moraes',
+            email: 'luciana@belapele.example',
+            role: 'owner',
+            status: 'active',
+            manageActions: {
+              canRevoke: false,
+              canInvite: false,
+              canPromote: false,
+              canDemote: false,
+            },
+          },
+          {
+            clerkUserId: 'user_pro',
+            displayName: 'Gi Profissional',
+            email: 'gi@belapele.example',
+            role: 'professional',
+            status: 'active',
+            professionalResourceId: 'pro_gi',
+            alsoAttendantFromFicha: false,
+            manageActions: {
+              canRevoke: false,
+              canInvite: false,
+              canPromote: false,
+              canDemote: false,
+            },
+          },
+        ],
+      }),
+    )
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Gi Profissional')).toBeTruthy())
+    expect(screen.getAllByText('Profissional').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Ações para Gi Profissional' }))
+    expect(screen.getByRole('button', { name: 'Abrir ficha na agenda' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Tornar responsável' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Tornar atendente' })).toBeNull()
   })
 })

@@ -2056,7 +2056,7 @@ export function createPanelApi(getToken: TokenGetter) {
     async linkProfessionalLogin(
       tenantId: string,
       resourceId: string,
-      input: { email: string; alsoAttendant: boolean },
+      input: { email: string; alsoAttendant: boolean; clerkUserId?: string },
       opts?: FetchOpts,
     ): Promise<void> {
       const res = await authFetch(
@@ -2534,8 +2534,12 @@ export type TeamMemberLite = {
   /** DEC-102: nome de apresentação (Clerk / sintético); nunca o id como rótulo principal. */
   displayName?: string | null
   email?: string | null
-  role: 'owner' | 'attendant' | string
+  role: 'owner' | 'attendant' | 'professional' | string
   status: string
+  /** Ficha de agenda ligada a esta conta (DEC-204). */
+  professionalResourceId?: string | null
+  /** Interruptor «Também atende no WhatsApp» na ficha; null se não há vínculo. */
+  alsoAttendantFromFicha?: boolean | null
   manageActions?: {
     canRevoke: boolean
     canInvite: boolean

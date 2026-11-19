@@ -5,10 +5,16 @@ import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
 import { professionalRow, roomRow } from './resourceRows'
-import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
+import type {
+  ClinicConfigSnapshot,
+  PanelApi,
+  ResourceFutureAppointment,
+  TeamMemberLite,
+} from '../../api'
 import { PanelApiError } from '../../api'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
+import { PanelSelect } from '../../ui/PanelSelect'
 import { avatarTone, initials } from '../inbox/format'
 import {
   ProfessionalExtras,
@@ -250,10 +256,38 @@ export function ResourceForm({
   )
   const [email, setEmail] = useState(inviteDraft?.email ?? '')
   const [alsoAttendant, setAlsoAttendant] = useState(inviteDraft?.alsoAttendant ?? false)
-  const [savedLogin, setSavedLogin] = useState({
+  const [boundClerkUserId, setBoundClerkUserId] = useState<string | null>(
+    inviteDraft?.clerkUserId ?? null,
+  )
+  const [teamMembers, setTeamMembers] = useState<TeamMemberLite[] | null>(null)
+  const [teamLoadError, setTeamLoadError] = useState<string | null>(null)
+  const [savedLogin, setSavedLogin] = useState<{
+    email: string
+    alsoAttendant: boolean
+    clerkUserId: string | null
+  }>({
     email: inviteDraft?.email ?? '',
     alsoAttendant: inviteDraft?.alsoAttendant ?? false,
+    clerkUserId: inviteDraft?.clerkUserId ?? null,
   })
+  useEffect(() => {
+    if (kind !== 'professional') return
+    let cancelled = false
+    void api
+      .getTeam(tenantId, { generation, expectGeneration: () => generation })
+      .then((snap) => {
+        if (cancelled) return
+        setTeamMembers(snap.members.filter((m) => m.status === 'active'))
+        setTeamLoadError(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setTeamLoadError(friendlyError(err, 'Não foi possível carregar a Equipe.'))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, generation, kind, tenantId])
   useEffect(() => {
     if (kind !== 'professional' || !existing || !api.getProfessionalLogin) return
     let cancelled = false
@@ -266,13 +300,39 @@ export function ResourceForm({
         if (cancelled || !login) return
         setEmail(login.email)
         setAlsoAttendant(login.alsoAttendant)
-        setSavedLogin(login)
+        setSavedLogin({
+          email: login.email,
+          alsoAttendant: login.alsoAttendant,
+          clerkUserId: null,
+        })
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [api, existing, generation, kind, tenantId])
+  // Quando a Equipe chega, resolve o membro do draft / e-mail já ligado.
+  useEffect(() => {
+    if (kind !== 'professional' || !teamMembers) return
+    if (boundClerkUserId && teamMembers.some((m) => m.clerkUserId === boundClerkUserId)) return
+    const byEmail = email.trim().toLowerCase()
+    if (!byEmail) return
+    const match = teamMembers.find((m) => m.email?.trim().toLowerCase() === byEmail)
+    if (match) {
+      setBoundClerkUserId(match.clerkUserId)
+      if (!email.trim()) setEmail(match.email?.trim() ?? '')
+    }
+  }, [boundClerkUserId, email, kind, teamMembers])
+
+  const eligibleMembers = useMemo(() => {
+    if (!teamMembers) return []
+    return teamMembers.filter((m) => {
+      if (m.role !== 'attendant' && m.role !== 'owner') return false
+      if (!m.email?.trim()) return false
+      if (!m.professionalResourceId) return true
+      return existing != null && m.professionalResourceId === existing.id
+    })
+  }, [existing, teamMembers])
   const timeZone = snap.settings?.timezone ?? 'America/Sao_Paulo'
   const label = kind === 'professional' ? 'profissional' : 'sala ou equipamento'
   const showCategory = category.trim() !== ''
@@ -346,6 +406,7 @@ export function ResourceForm({
       if (hoursMode === 'own' && JSON.stringify(ownDraft) !== JSON.stringify(saved.ownDraft)) n++
       if (email.trim() !== savedLogin.email.trim()) n++
       if (alsoAttendant !== savedLogin.alsoAttendant) n++
+      if ((boundClerkUserId ?? null) !== (savedLogin.clerkUserId ?? null) && !existing) n++
     }
     return n
   })()
@@ -562,9 +623,15 @@ export function ResourceForm({
   async function save() {
     setFormError(null)
     setNotice(null)
-    if (kind === 'professional' && !email.trim()) {
-      setFormError('Informe o e-mail de acesso da profissional.')
-      return
+    if (kind === 'professional') {
+      if (!boundClerkUserId) {
+        setFormError('Escolha um membro da Equipe. Convide a pessoa primeiro em Equipe.')
+        return
+      }
+      if (!email.trim()) {
+        setFormError('O membro escolhido precisa de e-mail no cadastro.')
+        return
+      }
     }
     if (kind !== 'professional' && resourceKind === 'room' && !capacityValid) {
       setFormError('A sala atende de 1 a 50 pessoas ao mesmo tempo.')
@@ -617,10 +684,14 @@ export function ResourceForm({
         await api.linkProfessionalLogin?.(
           tenantId,
           resourceId,
-          { email: email.trim(), alsoAttendant },
+          { email: email.trim(), alsoAttendant, clerkUserId: boundClerkUserId ?? undefined },
           fo,
         )
-        setSavedLogin({ email: email.trim(), alsoAttendant })
+        setSavedLogin({
+          email: email.trim(),
+          alsoAttendant,
+          clerkUserId: boundClerkUserId,
+        })
       } else if (resourceKind === 'room') {
         for (const s of snap.services.filter((x) => x.active)) {
           const want = draftServiceIds.includes(s.id)
@@ -742,21 +813,47 @@ export function ResourceForm({
 
       {kind === 'professional' ? (
         <>
-          <TextField className="clinic-field" isRequired>
-            <Label>E-mail de acesso</Label>
-            <Input
-              type="email"
-              autoComplete="off"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+          {teamLoadError ? (
+            <p className="clinic-form-error" role="alert">
+              {teamLoadError}
+            </p>
+          ) : null}
+          {eligibleMembers.length === 0 && !teamLoadError ? (
+            <p className="clinic-footnote">
+              Não há membros da Equipe sem ficha. Convide a pessoa em Equipe e, depois de aceitar,
+              volte aqui ou use «Também executa serviços…» no ⋮ do membro.
+            </p>
+          ) : (
+            <PanelSelect
+              label="Membro da Equipe"
+              placeholder={teamMembers ? 'Escolher pessoa' : 'Carregando Equipe…'}
+              value={boundClerkUserId}
+              isDisabled={!teamMembers || eligibleMembers.length === 0}
+              options={eligibleMembers.map((m) => ({
+                id: m.clerkUserId,
+                label:
+                  `${m.displayName?.trim() || m.email?.trim() || 'Sem nome'}`
+                  + (m.email?.trim() ? ` · ${m.email.trim()}` : ''),
+              }))}
+              onChange={(id) => {
+                const member = eligibleMembers.find((m) => m.clerkUserId === id)
+                setBoundClerkUserId(id)
+                setEmail(member?.email?.trim() ?? '')
+                if (member?.role === 'owner') setAlsoAttendant(false)
+                else if (member?.role === 'attendant') setAlsoAttendant(true)
+              }}
             />
-          </TextField>
+          )}
+          {email.trim() ? (
+            <p className="clinic-footnote">Acesso: {email.trim()}</p>
+          ) : null}
           <Switch className="clinic-switch" isSelected={alsoAttendant} onChange={setAlsoAttendant}>
             Também atende no WhatsApp
           </Switch>
           <p className="clinic-footnote">
-            Ao salvar, enviamos o convite para este e-mail. A profissional vê o dia inteiro da
-            agenda. Com o interruptor ligado, a mesma conta também atende no WhatsApp.
+            A pessoa já tem de ser membro da Equipe. Ao salvar, ligamos esta ficha à conta dela. A
+            profissional vê o dia inteiro da agenda. Com o interruptor ligado, a mesma conta também
+            atende no WhatsApp.
           </p>
         </>
       ) : (

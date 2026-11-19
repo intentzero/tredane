@@ -10667,6 +10667,9 @@ button.panel-auth-inline-link {
 .equipe-role {
   grid-area: role;
   display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
 }
 
 .equipe-row-menu,

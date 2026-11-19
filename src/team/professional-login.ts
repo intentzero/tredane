@@ -5,10 +5,7 @@
 import type { Clock } from '../db/clock'
 import {
   ConflictError,
-  cancelInvitation,
-  createInvitation,
   getMembership,
-  getTenant,
   requireActiveOwner,
   revokeMembership,
   upsertMembershipInTx,
@@ -17,7 +14,7 @@ import {
 import { normalizeEmail } from '../db/admin/ids'
 import type { MembershipRole } from '../db/schema'
 import type { AdminDb } from '../db/admin/store'
-import { deliverInvitationEmail, type EmailTransport } from '../email'
+import type { EmailTransport } from '../email'
 
 export type ProfessionalLoginRow = {
   tenantId: string
@@ -71,6 +68,28 @@ export function professionalResourceIdForUser(
     clerkUserId,
   )
   return row?.resource_id ?? null
+}
+
+/** Vínculos ficha↔login desta clínica, indexados por clerkUserId (Equipe / DEC-204). */
+export function listProfessionalLoginsByUser(
+  db: AdminDb,
+  tenantId: string,
+): Map<string, { resourceId: string; alsoAttendant: boolean }> {
+  const rows = db.all<LoginSql>(
+    `SELECT tenant_id, resource_id, normalized_email, clerk_user_id, also_attendant
+     FROM professional_logins
+     WHERE tenant_id = ? AND clerk_user_id IS NOT NULL`,
+    tenantId,
+  )
+  const map = new Map<string, { resourceId: string; alsoAttendant: boolean }>()
+  for (const row of rows) {
+    if (!row.clerk_user_id) continue
+    map.set(row.clerk_user_id, {
+      resourceId: row.resource_id,
+      alsoAttendant: row.also_attendant === 1,
+    })
+  }
+  return map
 }
 
 function desiredRole(alsoAttendant: boolean): 'attendant' | 'professional' {
@@ -163,11 +182,15 @@ function alignMembership(
   })
 }
 
+/**
+ * Liga a ficha a um **membro activo** da Equipe (DEC-204 revista 19/11/2026).
+ * Não envia convite: a pessoa já entrou pelo convite da Equipe.
+ */
 export async function linkProfessionalLogin(
   db: AdminDb,
   clock: Clock,
-  emailTransport: EmailTransport,
-  appBaseUrl: string,
+  _emailTransport: EmailTransport,
+  _appBaseUrl: string,
   input: {
     tenantId: string
     resourceId: string
@@ -186,6 +209,20 @@ export async function linkProfessionalLogin(
   if (!email.includes('@')) {
     throw new ConflictError('email_invalid', 'E-mail inválido')
   }
+  const bound = input.boundClerkUserId?.trim() || null
+  if (!bound) {
+    throw new ConflictError(
+      'membership_required',
+      'Convide a pessoa na Equipe antes de ligar a ficha',
+    )
+  }
+  const membership = getMembership(db, input.tenantId, bound)
+  if (!membership || membership.status !== 'active') {
+    throw new ConflictError(
+      'membership_required',
+      'Convide a pessoa na Equipe antes de ligar a ficha',
+    )
+  }
   const other = db.get<{ resource_id: string }>(
     `SELECT resource_id FROM professional_logins
      WHERE tenant_id = ? AND normalized_email = ? AND resource_id <> ?`,
@@ -199,10 +236,22 @@ export async function linkProfessionalLogin(
       'Este e-mail já está ligado a outra profissional',
     )
   }
+  const otherUser = db.get<{ resource_id: string }>(
+    `SELECT resource_id FROM professional_logins
+     WHERE tenant_id = ? AND clerk_user_id = ? AND resource_id <> ?`,
+    input.tenantId,
+    bound,
+    input.resourceId,
+  )
+  if (otherUser) {
+    throw new ConflictError(
+      'professional_user_taken',
+      'Esta pessoa já está ligada a outra ficha de profissional',
+    )
+  }
 
   const previous = getProfessionalLogin(db, input.tenantId, input.resourceId)
-  const bound = input.boundClerkUserId?.trim() || null
-  if (previous?.clerkUserId && previous.clerkUserId !== bound && previous.email !== email) {
+  if (previous?.clerkUserId && previous.clerkUserId !== bound) {
     revokeOrphanedLoginMembership(db, clock, {
       tenantId: input.tenantId,
       resourceId: input.resourceId,
@@ -227,57 +276,16 @@ export async function linkProfessionalLogin(
     input.alsoAttendant ? 1 : 0,
   )
 
-  let membershipRole: MembershipRole | null = null
-  let invitationSent = false
-  if (bound) {
-    membershipRole = alignMembership(db, clock, {
-      tenantId: input.tenantId,
-      clerkUserId: bound,
-      alsoAttendant: input.alsoAttendant,
-      actorClerkUserId: input.actorClerkUserId,
-    })
-  } else {
-    const role = desiredRole(input.alsoAttendant)
-    const pending = db.get<{ id: string; role: string }>(
-      `SELECT id, role FROM tenant_invitations
-       WHERE tenant_id = ? AND normalized_email = ? AND status = 'pending'`,
-      input.tenantId,
-      email,
-    )
-    if (pending && pending.role !== role) {
-      cancelInvitation(db, clock, {
-        invitationId: pending.id,
-        actorClerkUserId: input.actorClerkUserId,
-      })
-    }
-    if (!pending || pending.role !== role) {
-      const tenant = getTenant(db, input.tenantId)
-      if (!tenant) throw new ConflictError('tenant_not_found', 'Tenant inexistente')
-      const issued = await createInvitation(db, clock, {
-        tenantId: input.tenantId,
-        email,
-        issuedByClerkUserId: input.actorClerkUserId,
-        role,
-      })
-      await deliverInvitationEmail(db, clock, emailTransport, {
-        invitationId: issued.invitation.id,
-        issuedAt: issued.invitation.issuedAt,
-        toEmail: issued.invitation.normalizedEmail,
-        tenantId: input.tenantId,
-        tenantName: tenant.name,
-        rawToken: issued.rawToken,
-        expiresAt: issued.invitation.expiresAt,
-        appBaseUrl,
-        actorClerkUserId: input.actorClerkUserId,
-        sendNow: true,
-      })
-      invitationSent = true
-    }
-  }
+  const membershipRole = alignMembership(db, clock, {
+    tenantId: input.tenantId,
+    clerkUserId: bound,
+    alsoAttendant: input.alsoAttendant,
+    actorClerkUserId: input.actorClerkUserId,
+  })
 
   return {
     login: getProfessionalLogin(db, input.tenantId, input.resourceId)!,
-    invitationSent,
+    invitationSent: false,
     membershipRole,
   }
 }
