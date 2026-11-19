@@ -22,7 +22,6 @@ import type {
   UpsertServiceInput,
   WeeklyWindowRow,
   ClinicSettingsRow,
-  ForecastPlaceInput,
   AppointmentRow,
   DeactivateResourceInput,
   DeactivateResourceResult,
@@ -46,14 +45,12 @@ export type ClinicConfigGateway = {
   setAiProfile(
     caller: ClinicCaller,
     input: {
-      clinicAddress?: string | null
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
       virtualAttendantName?: string | null
       virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
     },
   ): Promise<ClinicSettingsRow>
-  setForecastPlace(caller: ClinicCaller, input: ForecastPlaceInput): Promise<ClinicSettingsRow>
   getAbuseLimits(caller: ClinicCaller, platform?: AbuseLimits): Promise<AbuseLimitsView>
   updateAbuseLimits(
     caller: ClinicCaller,
@@ -181,9 +178,6 @@ export function createMemoryClinicConfigGateway(
     },
     async setAiProfile(caller, input) {
       return clinicConfig.setAiProfileOp(db, caller, input, clock)
-    },
-    async setForecastPlace(caller, input) {
-      return clinicConfig.setForecastPlaceOp(db, caller, input, clock)
     },
     async getAbuseLimits(caller, platform) {
       return clinicConfig.getAbuseLimitsOp(db, caller, clock, platform)

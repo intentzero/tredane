@@ -218,7 +218,6 @@ export function bootDialogScenario(opts: {
       priceCents: 15000,
       professionalIds: [sandra.id],
       roomRequirement: { mode: 'none' },
-      tempoCeu: 'sol',
     },
     clock,
   )
@@ -259,6 +258,7 @@ export function bootDialogScenario(opts: {
     db,
     tenantId,
     {
+      googleBusinessUrl: 'https://maps.app.goo.gl/clinica-demo',
       reschedulePolicy:
         'Pode desmarcar ou remarcar até 24h antes sem multa. Depois disso o sinal é retido.',
     },

@@ -16,50 +16,37 @@ type LimitField = {
   hint: string
 }
 
+// DEC-212/214: só os limites com efeito: conversa e agenda online. Os de «marcação automática»
+// (`aiBookings*`) saíram da UI: nenhum caminho os verifica.
 const FIELDS: LimitField[] = [
   {
     key: 'windowHours',
     label: 'Janela (horas)',
-    hint: 'Janela de tempo em que os limites contam.',
+    hint: 'Período em que os limites contam.',
   },
   {
     key: 'autoDraftsPerContact',
-    label: 'Rascunhos automáticos por contato',
-    hint: 'Sugestões geradas sozinhas na janela.',
-  },
-  {
-    key: 'aiBookingsPerContact',
-    label: 'Marcações automáticas por contato',
-    hint: 'Confirmações por botão do WhatsApp na janela.',
-  },
-  {
-    key: 'aiBookingsPerClinic',
-    label: 'Marcações automáticas na clínica',
-    hint: 'Total da clínica na janela.',
-  },
-  {
-    key: 'futureAppointmentsPerContact',
-    label: 'Compromissos futuros por contato',
-    hint: 'Antes de nova marcação automática.',
-  },
-  {
-    key: 'pendingPixPerContact',
-    label: 'Pix pendentes por contato',
-    hint: 'Cobranças aguardando pagamento.',
-  },
-  {
-    key: 'pendingProposalsPerContact',
-    label: 'Propostas pendentes por contato',
-    hint: 'Uma proposta aberta de cada vez, em geral.',
-  },
-  {
-    key: 'proposalsPerContact',
-    label: 'Propostas criadas por contato',
+    label: 'Respostas automáticas por cliente',
     hint: 'Na janela.',
   },
   {
+    key: 'proposalsPerContact',
+    label: 'Marcações e mudanças por cliente',
+    hint: 'Pela agenda online, na janela.',
+  },
+  {
+    key: 'futureAppointmentsPerContact',
+    label: 'Marcações à frente por cliente',
+    hint: 'Antes de marcar mais uma pela agenda online. Remarcar não conta.',
+  },
+  {
+    key: 'pendingPixPerContact',
+    label: 'Sinais Pix por pagar por cliente',
+    hint: 'Cobranças à espera de pagamento. Só conta serviços com sinal.',
+  },
+  {
     key: 'proposalsPerClinic',
-    label: 'Propostas criadas na clínica',
+    label: 'Marcações e mudanças na clínica',
     hint: 'Total da clínica na janela.',
   },
 ]
@@ -71,8 +58,7 @@ const FIELDS: LimitField[] = [
 export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
   const [view, setView] = useState<AbuseLimitsDto | null>(null)
   const [enabled, setEnabled] = useState(false)
-  const [autoBookPaused, setAutoBookPaused] = useState(false)
-  const [limits, setLimits] = useState<AbuseLimitsDto['limits'] | null>(null)
+    const [limits, setLimits] = useState<AbuseLimitsDto['limits'] | null>(null)
   const [showNumbers, setShowNumbers] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -94,7 +80,6 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
       }
       setView(next)
       setEnabled(next.enabled)
-      setAutoBookPaused(next.autoBookPaused)
       setLimits({ ...next.limits })
     } catch (err) {
       if (err instanceof PanelApiError && err.status === 403) {
@@ -116,7 +101,6 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
 
   async function save(patch: {
     enabled?: boolean
-    autoBookPaused?: boolean
     limits?: Partial<AbuseLimitsDto['limits']>
     resetToDefaults?: boolean
   }) {
@@ -128,7 +112,6 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         tenantId,
         {
           enabled: patch.enabled,
-          autoBookPaused: patch.autoBookPaused,
           resetToDefaults: patch.resetToDefaults,
           ...(patch.limits ?? {}),
         },
@@ -136,7 +119,6 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
       )
       setView(next)
       setEnabled(next.enabled)
-      setAutoBookPaused(next.autoBookPaused)
       setLimits({ ...next.limits })
       setNote(
         patch.resetToDefaults
@@ -155,9 +137,9 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
     return (
       <section className="panel-card" aria-labelledby="abuse-limits-t">
         <h2 id="abuse-limits-t" className="panel-title-md">
-          Limites das automações
+          Limitar excessos
         </h2>
-        <ClinicSkeletonLines label="Carregando limites das automações" lines={4} />
+        <ClinicSkeletonLines label="Carregando limites" lines={4} />
       </section>
     )
   }
@@ -172,19 +154,18 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
   return (
     <section className="panel-card" aria-labelledby="abuse-limits-t">
       <h2 id="abuse-limits-t" className="panel-title-md">
-        Limites das automações
+        Limitar excessos
       </h2>
       <p className="panel-muted-sm">
-        Evita que a IA crie rascunhos, propostas ou marcações em excesso. Não afeta o que a equipe
-        faz à mão nem cancela horários já marcados.
+        Trava quem tenta conversar ou marcar em excesso. Não afeta o que a equipe faz à mão nem
+        desmarca nada.
       </p>
 
       <label className="panel-switch-row">
         <span>
-          <span className="panel-switch-label">Aplicar limites de proteção</span>
+          <span className="panel-switch-label">Limitar excessos</span>
           <span className="panel-muted-sm">
-            Recomendado ligado. Desligado, a IA não tem teto nesta clínica (a plataforma mantém o
-            seu).
+            Recomendado ligado. Desligado, a clínica fica sem teto próprio (a plataforma mantém o seu).
           </span>
         </span>
         <input
@@ -199,31 +180,7 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
             setEnabled(next)
             void save({ enabled: next })
           }}
-          aria-label="Aplicar limites de proteção"
-        />
-      </label>
-
-      <label className="panel-switch-row">
-        <span>
-          <span className="panel-switch-label">Pausar novas marcações automáticas por botão</span>
-          <span className="panel-muted-sm">
-            Impede novas propostas e confirmações pelo botão do WhatsApp nesta clínica. Não cancela
-            compromissos já marcados.
-          </span>
-        </span>
-        <input
-          type="checkbox"
-          role="switch"
-          className="panel-switch"
-          checked={autoBookPaused}
-          disabled={busy}
-          aria-checked={autoBookPaused}
-          onChange={(e) => {
-            const next = e.target.checked
-            setAutoBookPaused(next)
-            void save({ autoBookPaused: next })
-          }}
-          aria-label="Pausar novas marcações automáticas por botão"
+          aria-label="Limitar excessos"
         />
       </label>
 

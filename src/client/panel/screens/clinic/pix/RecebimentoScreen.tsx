@@ -786,7 +786,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
                     value={customPolicy}
                     onChange={(e) => setCustomPolicy(e.target.value)}
                     rows={5}
-                    placeholder="Escreva a política de agendamento, remarcação e cancelamento…"
+                    placeholder="Escreva só o texto do sinal: prazo, valor e o que acontece ao cancelar ou remarcar depois de pagar…"
                   />
                 </TextField>
               ) : livePreview ? (

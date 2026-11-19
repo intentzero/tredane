@@ -17,9 +17,7 @@ import { appendPostCancelFollowup } from '../clinic/followup/post-booking'
 import { sendOutboundMessageOp } from '../clinic/inbox/operations'
 import { zonedCivilToUtc } from '../clinic/scheduling/timezone'
 import { formatBookedWhenAt } from '../clinic/scheduling/format-booked-when'
-import { queryAutomaticAvailability } from '../clinic/tempo/automatic'
-import { readOpenMeteo } from '../clinic/tempo/open-meteo'
-import type { ForecastAdapter } from '../clinic/tempo/evaluate'
+import { queryAvailability } from '../clinic/scheduling/query'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import type { AbuseLimits } from '../clinic/ai/abuse-limits'
 import type { ClinicCaller } from '../clinic/envelopes'
@@ -118,7 +116,7 @@ export async function listRescheduleSlots(
   tenantId: string,
   clock: Clock,
   session: { contactId: string },
-  input: { appointmentId: string; from: string; to: string; daysOnly?: boolean; forecast?: ForecastAdapter },
+  input: { appointmentId: string; from: string; to: string; daysOnly?: boolean },
 ): Promise<RescheduleSlotsResult> {
   const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
   if (!apt) return { ok: false, error: 'appointment_not_found' }
@@ -127,13 +125,12 @@ export async function listRescheduleSlots(
   const catalog = readClientWebCatalog(db, tenantId, clock)
   const range = clampDateRange(catalog.today, input.from, input.to)
   if (!range) return { ok: false, error: 'range_invalid' }
-  const forecast = input.forecast ?? { read: readOpenMeteo }
   const slots: ClientWebSlot[] = []
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
     if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
     try {
-      avail = await queryAutomaticAvailability(
+      avail = queryAvailability(
         db,
         tenantId,
         {
@@ -143,7 +140,6 @@ export async function listRescheduleSlots(
           durationMinutesOverride: appointmentMinutes(apt),
         },
         clock,
-        forecast,
       )
     } catch {
       break
@@ -185,7 +181,7 @@ export async function planWebReschedule(
   clock: Clock,
   session: { contactId: string; conversationId: string },
   input: { appointmentId: string; slotId: string },
-  deps: { forecast?: ForecastAdapter; abuseLimits?: AbuseLimits } = {},
+  deps: { abuseLimits?: AbuseLimits } = {},
 ): Promise<PlannedWebReschedule> {
   const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
   if (!apt) return { ok: false, error: 'appointment_not_found' }
@@ -201,12 +197,11 @@ export async function planWebReschedule(
 
   let slot: { startsAt: number; professionalId: string } | undefined
   try {
-    const avail = await queryAutomaticAvailability(
+    const avail = queryAvailability(
       db,
       tenantId,
       { serviceId: apt.serviceId, date, excludeAppointmentId: apt.id, durationMinutesOverride: minutes },
       clock,
-      deps.forecast ?? { read: readOpenMeteo },
     )
     slot = avail.slots.find(
       (s) =>

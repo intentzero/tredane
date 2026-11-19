@@ -6,12 +6,10 @@
 import type { Clock } from '../../db/clock'
 import { quoteVisit } from '../config/zones'
 import type { ServiceRow } from '../config/types'
+import { queryAvailability } from '../scheduling/query'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { ensureClinicSettings } from '../config/settings'
 import { earliestBookableStartsAt } from '../scheduling/booking-lead'
-import { queryAutomaticAvailability } from '../tempo/automatic'
-import { readOpenMeteo } from '../tempo/open-meteo'
-import type { ForecastAdapter } from '../tempo/evaluate'
 import type { ClinicDb } from '../store'
 import {
   listContactAppointmentRanges,
@@ -171,7 +169,6 @@ async function dayHasBookableSlot(input: {
   zones: ServiceRow['zones']
   date: string
   clock: Clock
-  forecast: ForecastAdapter | undefined
   professionalId?: string
   earliest: number
 }): Promise<boolean> {
@@ -182,7 +179,6 @@ async function dayHasBookableSlot(input: {
     input.zones,
     input.date,
     input.clock,
-    input.forecast,
     input.professionalId,
   )
   return slots.some((slot) => slot.startsAt >= input.earliest)
@@ -197,7 +193,6 @@ export async function visitTooLongForRequestedDay(input: {
   date: string
   tz: string
   clock: Clock
-  forecast?: ForecastAdapter
   professionalId?: string
   earliest: number
   requestedDayEmptyIgnoringPeriod: boolean
@@ -212,7 +207,6 @@ export async function visitTooLongForRequestedDay(input: {
     zones: partial,
     date: input.date,
     clock: input.clock,
-    forecast: input.forecast,
     professionalId: input.professionalId,
     earliest: input.earliest,
   })
@@ -294,12 +288,11 @@ async function slotsOnDay(
   zones: ServiceRow['zones'],
   date: string,
   clock: Clock,
-  forecast: ForecastAdapter | undefined,
   professionalId?: string,
 ): Promise<{ schedulingAllowed: boolean; slots: Array<{ startsAt: number }> }> {
   const duration = visitDuration(db, tenantId, service, zones)
   try {
-    const avail = await queryAutomaticAvailability(
+    const avail = queryAvailability(
       db,
       tenantId,
       {
@@ -309,7 +302,6 @@ async function slotsOnDay(
         ...(professionalId ? { professionalId } : {}),
       },
       clock,
-      forecast ?? { read: readOpenMeteo },
     )
     return { schedulingAllowed: avail.schedulingAllowed, slots: avail.slots }
   } catch {
@@ -363,7 +355,6 @@ export async function offerNearestSlots(input: {
   zones: ServiceRow['zones']
   tz: string
   clock: Clock
-  forecast?: ForecastAdapter
   professionalId?: string
   date?: string | null
   period?: DayPeriod | null
@@ -394,7 +385,6 @@ export async function offerNearestSlots(input: {
     zones,
     tz,
     clock,
-    forecast,
     professionalId,
     date = null,
     period = null,
@@ -444,7 +434,6 @@ export async function offerNearestSlots(input: {
       zones,
       day,
       clock,
-      forecast,
       professionalId,
     )
     if (date && day === date) {
@@ -655,7 +644,6 @@ export async function offerNearestSlots(input: {
             date,
             tz,
             clock,
-            forecast,
             professionalId,
             earliest,
             requestedDayEmptyIgnoringPeriod,
@@ -791,7 +779,6 @@ export async function offerNearestSlots(input: {
           date,
           tz,
           clock,
-          forecast,
           professionalId,
           earliest,
           requestedDayEmptyIgnoringPeriod,

@@ -87,7 +87,6 @@ describe('llm_jobs claim/apply/fail (DEC-188)', () => {
               clinicOutboundCount: 0,
               clinic: {
                 name: 'Clínica LLM',
-                address: 'Rua A',
                 googleBusinessUrl: null,
                 reschedulePolicy: '',
                 cancelPolicy: '',

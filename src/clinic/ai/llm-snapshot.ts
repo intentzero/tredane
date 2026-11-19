@@ -71,7 +71,6 @@ export async function buildRedactSnapshot(
   const contextInspection = await buildAiContextPayload(db, caller.tenantId, input.conversationId, {
     clock,
     clinicName: deps.clinicName ?? null,
-    forecast: deps.forecast,
     skipDebugExcluded: true,
     // Sem freeSlots/queryAvailability — isso estourava CPU do DO no Lab (ca03).
     agendaMode: 'hours',

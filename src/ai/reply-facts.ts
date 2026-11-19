@@ -266,7 +266,6 @@ export function validateReplyFacts(
   const hoursTimes = new Set<string>()
   for (const line of clinic.openingHours) for (const h of timesInText(line)) hoursTimes.add(h.time)
   for (const a of upcoming) for (const h of timesInText(a.when)) repeatable.add(h.time)
-  if (clinic.tempoNote) for (const h of timesInText(clinic.tempoNote)) repeatable.add(h.time)
 
   // Horários da lista local, restritos ao serviço quando a mensagem (ou a sessão) o identifica.
   const folded = fold(message)

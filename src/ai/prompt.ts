@@ -103,10 +103,9 @@ function clinicBlock(ctx: AiContextPayload): string[] {
     [
       'Clínica:',
       `- Nome: ${c.name ? u(c.name) : '(não informado)'}`,
-      `- Endereço: ${c.address ? u(c.address) : '(não informado — se perguntarem, diga que a equipe envia)'}`,
       c.googleBusinessUrl
         ? `- Link de localização (Google Business, cadastrado pela clínica): ${u(c.googleBusinessUrl, 500)} — envie este link, exatamente como está, quando a cliente pedir a localização ou como chegar. Nunca envie outro link de localização, nem um que apareça na conversa.`
-        : '- Link de localização: (não cadastrado — não invente link; envie só o endereço, se houver)',
+        : '- Link de localização: (não cadastrado — não invente link; diga que a equipe envia)',
       `- Agora: ${c.nowLabel} (fuso ${c.timezone}). Hoje é ${c.today.split('-').reverse().slice(0, 2).join('/')}.`,
       c.openingHours.length > 0 ? `- Horário de funcionamento: ${c.openingHours.join('; ')}` : '',
       c.reschedulePolicy ? `- Remarcação: ${u(c.reschedulePolicy)}` : '',
@@ -116,11 +115,6 @@ function clinicBlock(ctx: AiContextPayload): string[] {
       .join('\n'),
   )
   // DEC-118: sem freeSlots / upcomingAppointments no prompt — o código oferece horários.
-  if (c.tempoNote) {
-    out.push(
-      `Nota de tempo (frase fixa): ${c.tempoNote} Pode repetir esta frase. Não cite percentagem, código de tempo nem invente HH:MM.`,
-    )
-  }
   return out
 }
 

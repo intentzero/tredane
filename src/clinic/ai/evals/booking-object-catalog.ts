@@ -40,9 +40,6 @@ function service(
   return {
     tenantId: 'eval-clinic',
     bufferMinutes: partial.bufferMinutes ?? 0,
-    tempoCeu: 'tanto_faz',
-    tempoTemperatura: 'tanto_faz',
-    tempoCelsius: null,
     clientExplanation: null,
     active: partial.active ?? true,
     requiresSignal: false,

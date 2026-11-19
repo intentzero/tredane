@@ -14,7 +14,6 @@ function input(clinic: Partial<AiClinicContext>, inbound: string): AiGenerateInp
       clinicOutboundCount: 0,
       clinic: {
         name: 'Clínica Fictícia',
-        address: 'Rua Fictícia, 123',
         timezone: 'America/Sao_Paulo',
         nowLabel: 'quarta, 28/10 às 10:00',
         today: '2026-10-28',

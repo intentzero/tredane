@@ -21,6 +21,7 @@ import {
   zonesForLine,
 } from './booking-model'
 import { TimeStep } from './TimeStep'
+import { DirectionsLink } from './DirectionsLink'
 import { Highlight } from './Highlight'
 import { searchCatalog, filterZones } from './search-model'
 
@@ -29,6 +30,8 @@ type Outcome = 'booked' | 'pix_signal' | 'paused' | 'error'
 
 type Props = {
   clinicName: string
+  /** DEC-211: link do Google Business para «Como chegar». */
+  locationUrl?: string | null
   /** Serviço reconhecido no chat (DEC-202): a página abre nele, se estiver ativo. */
   initialServiceId?: string | null
   /** Linha já dita no chat (DEC-200(3) Proposto). */
@@ -43,6 +46,7 @@ type Props = {
 
 export function BookFlow({
   clinicName,
+  locationUrl = null,
   initialServiceId = null,
   initialAudienceLine = null,
   initialVariantIds = [],
@@ -174,7 +178,7 @@ export function BookFlow({
     if (step === 'review') return setStep('time')
   }
 
-  if (step === 'done' && outcome) return <Done outcome={outcome} slot={slot} onExit={onExit} />
+  if (step === 'done' && outcome) return <Done outcome={outcome} slot={slot} locationUrl={locationUrl} onExit={onExit} />
 
   const titles: Record<Exclude<Step, 'done'>, string> = {
     line: 'Para quem é?',
@@ -570,7 +574,17 @@ function Review({
   )
 }
 
-function Done({ outcome, slot, onExit }: { outcome: Outcome; slot: Slot | null; onExit: () => void }) {
+function Done({
+  outcome,
+  slot,
+  locationUrl,
+  onExit,
+}: {
+  outcome: Outcome
+  slot: Slot | null
+  locationUrl: string | null
+  onExit: () => void
+}) {
   const label = slot ? civilDayLabel(slot.date) : null
   const copy: Record<Outcome, { title: string; body: string; tone: 'ok' | 'warn' }> = {
     booked: {
@@ -607,6 +621,7 @@ function Done({ outcome, slot, onExit }: { outcome: Outcome; slot: Slot | null; 
         </p>
       )}
       <p className="cw-body">{c.body}</p>
+      {outcome === 'booked' && <DirectionsLink url={locationUrl} />}
       <button type="button" className="cw-btn cw-btn-primary" onClick={onExit}>
         Ver minhas marcações
       </button>

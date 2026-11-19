@@ -3,9 +3,8 @@ import { useTenant } from '../../tenant/TenantContext'
 import { ErrorState } from '../../states/StatusScreens'
 import { useEffect, useState, type ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
-import { AiAssistCard } from './AiAssistCard'
-import { ClientConfirmsCard } from './ClientConfirmsCard'
-import { ForecastPlaceCard } from './ForecastPlaceCard'
+import { AiProfileCard } from './AiAssistCard'
+import { AssistantHub } from './AssistantHub'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
 import { CatalogTransferCard } from './CatalogTransferCard'
 import { StagingClearAppointmentsCard } from './StagingClearAppointmentsCard'
@@ -110,12 +109,16 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
       }
     case 'assistente':
       return {
-        title: 'Assistente e automações',
-        description: 'O que o assistente faz nas conversas e os limites das automações.',
+        title: 'Assistente',
+        description: 'Se responde sozinho, o que diz e as proteções.',
         shape: 'cards',
         header: true,
         mobileSub: true,
       }
+    case 'assistente-persona':
+      return { title: 'Como se apresenta', shape: 'cards', header: false, mobileSub: true }
+    case 'assistente-protecoes':
+      return { title: 'Proteções', shape: 'cards', header: false, mobileSub: true }
     case 'whatsapp':
     case 'whatsapp-trocar':
     case 'whatsapp-historico':
@@ -140,9 +143,9 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
       }
     case 'conhecimento':
       return {
-        title: 'Conhecimento da clínica',
+        title: 'Respostas da clínica',
         description:
-          'Perguntas e respostas que a assistente envia com o texto que você aprovou (estacionamento, pagamento, visita…).',
+          'O que a assistente diz sobre a clínica, com o texto que você aprovou: localização, regras e perguntas frequentes.',
         shape: 'list',
         header: true,
         mobileSub: true,
@@ -210,7 +213,9 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         back={
           section === 'palavras'
             ? { section: 'servicos', label: 'Voltar a Serviços', eyebrow: 'Serviços' }
-            : undefined
+            : section === 'conhecimento' || section.startsWith('assistente-')
+              ? { section: 'assistente', label: 'Voltar ao Assistente', eyebrow: 'Assistente' }
+              : undefined
         }
       >
         {node}
@@ -275,19 +280,18 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     return frame(page(<RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />))
   }
 
-  if (section === 'conhecimento') {
-    if (!isOwner) {
-      return frame(
-        page(
-          <ErrorState
-            title="Só a responsável edita o conhecimento"
-            description="Perguntas e respostas da clínica são configuração da owner."
-          />,
-        ),
-      )
-    }
+  const assistantSub =
+    section === 'conhecimento' ||
+    section === 'assistente-persona' ||
+    section === 'assistente-protecoes'
+  if (assistantSub && !isOwner) {
     return frame(
-      page(<KnowledgeScreen tenantId={tenantId} api={api} generation={generation} />),
+      page(
+        <ErrorState
+          title="Só a responsável configura o assistente"
+          description="Respostas, apresentação e proteções são configuração da owner."
+        />,
+      ),
     )
   }
 
@@ -386,39 +390,37 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         )
       case 'assistente':
         return (
+          <AssistantHub tenantId={tenantId} api={api} generation={generation} snap={snap} isOwner={isOwner} />
+        )
+      case 'conhecimento':
+        return (
           <div className="clinic-stack">
-            {/* DEC-163: primeiro a decisão sobre a IA; a cidade da previsão vai para o fim. */}
-            <AiAssistCard
+            <AiProfileCard
               tenantId={tenantId}
               api={api}
               generation={generation}
-              initialEnabled={snap.settings.aiAssistEnabled === true}
-              initialAddress={snap.settings.clinicAddress ?? null}
+              part="facts"
               initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
               initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
-              initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
-              initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
+              onSaved={() => void reload()}
             />
-            <ClientConfirmsCard />
-            {isOwner ? (
-              <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
-            ) : null}
-            {isOwner ? (
-              <ForecastPlaceCard
-                tenantId={tenantId}
-                api={api}
-                generation={generation}
-                place={{
-                  mode: snap.settings.forecastMode,
-                  city: snap.settings.forecastCity,
-                  latitude: snap.settings.forecastLatitude,
-                  longitude: snap.settings.forecastLongitude,
-                }}
-                onSaved={() => void reload()}
-              />
-            ) : null}
+            <KnowledgeScreen tenantId={tenantId} api={api} generation={generation} />
           </div>
         )
+      case 'assistente-persona':
+        return (
+          <AiProfileCard
+            tenantId={tenantId}
+            api={api}
+            generation={generation}
+            part="persona"
+            initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
+            initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
+            onSaved={() => void reload()}
+          />
+        )
+      case 'assistente-protecoes':
+        return <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
       case 'servicos':
         return <ServicesList tenantId={tenantId} snap={snap} suggestions={termsCard} />
       case 'palavras':

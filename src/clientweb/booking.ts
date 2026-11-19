@@ -12,9 +12,7 @@ import { listServices, getService } from '../clinic/config/services'
 import { quoteVisit } from '../clinic/config/zones'
 import { ensureClinicSettings } from '../clinic/config/settings'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../clinic/scheduling/timezone'
-import { queryAutomaticAvailability } from '../clinic/tempo/automatic'
-import { readOpenMeteo } from '../clinic/tempo/open-meteo'
-import type { ForecastAdapter } from '../clinic/tempo/evaluate'
+import { queryAvailability } from '../clinic/scheduling/query'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import type { AbuseLimits } from '../clinic/ai/abuse-limits'
 import type { ClinicDb } from '../clinic/store'
@@ -151,7 +149,6 @@ export async function listClientWebSlots(
     to: string
     /** Calendário: só a primeira hora de cada dia (sem o teto de horas). */
     daysOnly?: boolean
-    forecast?: ForecastAdapter
   },
 ): Promise<ClientWebSlotsResult> {
   const service = getService(db, tenantId, input.serviceId)
@@ -165,18 +162,16 @@ export async function listClientWebSlots(
   } catch {
     return { ok: false, error: 'variants_invalid' }
   }
-  const forecast = input.forecast ?? { read: readOpenMeteo }
   const slots: ClientWebSlot[] = []
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
     if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
     try {
-      avail = await queryAutomaticAvailability(
+      avail = queryAvailability(
         db,
         tenantId,
         { serviceId: service.id, date, durationMinutesOverride: duration },
         clock,
-        forecast,
       )
     } catch {
       break
@@ -273,7 +268,7 @@ export async function planWebProposal(
   clock: Clock,
   session: { contactId: string; conversationId: string },
   input: WebBookingInput,
-  deps: { forecast?: ForecastAdapter; abuseLimits?: AbuseLimits } = {},
+  deps: { abuseLimits?: AbuseLimits } = {},
 ): Promise<PlannedWebProposal> {
   const service = getService(db, tenantId, input.serviceId)
   if (!service || !isBookable(service)) return { ok: false, error: 'service_unavailable' }
@@ -310,12 +305,11 @@ export async function planWebProposal(
   // A hora tem de estar livre agora: o motor devolve também a profissional.
   let slot: { startsAt: number; professionalId: string } | undefined
   try {
-    const avail = await queryAutomaticAvailability(
+    const avail = queryAvailability(
       db,
       tenantId,
       { serviceId: service.id, date, durationMinutesOverride: duration },
       clock,
-      deps.forecast ?? { read: readOpenMeteo },
     )
     slot = avail.slots.find(
       (s) => s.startsAt > clock.nowMs() && localHHMM(catalog.timezone, s.startsAt) === time,

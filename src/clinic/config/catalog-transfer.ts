@@ -70,9 +70,6 @@ export type CatalogExportService = {
   durationMinutes: number
   bufferMinutes: number
   audiencia: ServiceRow['audiencia']
-  tempoCeu: ServiceRow['tempoCeu']
-  tempoTemperatura: ServiceRow['tempoTemperatura']
-  tempoCelsius: number | null
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -187,9 +184,6 @@ export function exportClinicCatalog(
         durationMinutes: s.durationMinutes,
         bufferMinutes: s.bufferMinutes,
         audiencia: s.audiencia,
-        tempoCeu: s.tempoCeu,
-        tempoTemperatura: s.tempoTemperatura,
-        tempoCelsius: s.tempoCelsius,
         priceCents: s.priceCents,
         clientExplanation: s.clientExplanation,
         active: s.active,
@@ -406,17 +400,6 @@ export function parseCatalogTransferDocument(input: unknown): CatalogTransferDoc
         durationMinutes,
         bufferMinutes,
         audiencia,
-        tempoCeu:
-          row.tempoCeu === 'sol' || row.tempoCeu === 'chuva' || row.tempoCeu === 'tanto_faz'
-            ? row.tempoCeu
-            : 'tanto_faz',
-        tempoTemperatura:
-          row.tempoTemperatura === 'acima' ||
-          row.tempoTemperatura === 'abaixo' ||
-          row.tempoTemperatura === 'tanto_faz'
-            ? row.tempoTemperatura
-            : 'tanto_faz',
-        tempoCelsius: row.tempoCelsius === null ? null : asInt(row.tempoCelsius),
         priceCents: row.priceCents === null ? null : asInt(row.priceCents),
         clientExplanation:
           row.clientExplanation === null || row.clientExplanation === undefined
@@ -882,9 +865,6 @@ export function importClinicCatalog(
             durationMinutes: svc.durationMinutes,
             bufferMinutes: svc.bufferMinutes,
             audiencia: svc.audiencia,
-            tempoCeu: svc.tempoCeu,
-            tempoTemperatura: svc.tempoTemperatura,
-            tempoCelsius: svc.tempoCelsius,
             priceCents: svc.priceCents,
             clientExplanation: svc.clientExplanation,
             active: svc.active,
@@ -942,9 +922,6 @@ export function importClinicCatalog(
               durationMinutes: svc.durationMinutes,
               bufferMinutes: svc.bufferMinutes,
               audiencia: svc.audiencia,
-              tempoCeu: svc.tempoCeu,
-              tempoTemperatura: svc.tempoTemperatura,
-              tempoCelsius: svc.tempoCelsius,
               priceCents: svc.priceCents,
               clientExplanation: svc.clientExplanation,
               active: svc.active,

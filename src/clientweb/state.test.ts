@@ -7,6 +7,7 @@ import { upsertContact } from '../clinic/contacts'
 import { createConversation } from '../clinic/inbox/conversations'
 import { ensureOpenOpportunity } from '../clinic/pipeline/operations'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../clinic/scheduling'
+import { setAiProfileOp } from '../clinic/config'
 import { readClientWebState } from './state'
 
 const TZ = 'America/Sao_Paulo'
@@ -75,6 +76,23 @@ describe('readClientWebState (ADR-0018)', () => {
       expect(state?.appointments.map((a) => a.id)).toEqual([minha.id])
       expect(state?.appointments[0]?.serviceName).toBe('Limpeza de pele')
       expect(JSON.stringify(state)).not.toMatch(/5511900/)
+    } finally {
+      close()
+    }
+  })
+
+  it('devolve o link do Google Business para «Como chegar» (DEC-211) e null sem link', () => {
+    const { db, clock, close, marina, cnvMarina } = seed()
+    try {
+      const input = { tenantId: TENANT, contactId: marina.id, conversationId: cnvMarina.id }
+      expect(readClientWebState(db, clock, input)?.locationUrl).toBeNull()
+      setAiProfileOp(
+        db,
+        workerCaller(TENANT, 'user_synth_owner_a'),
+        { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-teste' },
+        clock,
+      )
+      expect(readClientWebState(db, clock, input)?.locationUrl).toBe('https://maps.app.goo.gl/clinica-teste')
     } finally {
       close()
     }

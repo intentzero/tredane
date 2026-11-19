@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi } from '../../api'
 import { ShellSlotProvider } from '../../shell/ShellSlot'
-import { AiAssistCard } from './AiAssistCard'
+import { AiProfileCard } from './AiAssistCard'
 
 afterEach(() => {
   cleanup()
@@ -22,11 +22,11 @@ function setup(wide: boolean) {
   const api = { setClinicAiAssist: vi.fn(), setClinicAiProfile: setProfile } as unknown as PanelApi
   render(
     <ShellSlotProvider value={slot}>
-      <AiAssistCard
+      <AiProfileCard
         tenantId="clinic-demo-a"
         api={api}
         generation={1}
-        initialEnabled
+        part="persona"
         initialVirtualAttendantName="Gioconda"
         initialVirtualAttendantGender="feminino"
       />
@@ -42,7 +42,7 @@ describe('Assistente: Salvar e Descartar no cabeçalho (DEC-183)', () => {
 
   it('desktop: sem alterações os botões estão desativados e não há aviso', () => {
     const { slot } = setup(true)
-    expect(within(slot).getByRole('button', { name: 'Salvar dados para a IA' }).hasAttribute('disabled')).toBe(true)
+    expect(within(slot).getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true)
     expect(within(slot).queryByText('Alterações por salvar')).toBeNull()
   })
 
@@ -51,7 +51,7 @@ describe('Assistente: Salvar e Descartar no cabeçalho (DEC-183)', () => {
     const name = screen.getByDisplayValue('Gioconda')
     fireEvent.change(name, { target: { value: 'Marina' } })
     expect(within(slot).getByText('Alterações por salvar')).toBeTruthy()
-    expect(within(slot).getByRole('button', { name: 'Salvar dados para a IA' }).hasAttribute('disabled')).toBe(false)
+    expect(within(slot).getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(false)
     fireEvent.click(within(slot).getByRole('button', { name: 'Descartar' }))
     expect((screen.getByLabelText(/Nome do atendente virtual/) as HTMLInputElement).value).toBe('Gioconda')
     expect(within(slot).queryByText('Alterações por salvar')).toBeNull()
@@ -59,7 +59,7 @@ describe('Assistente: Salvar e Descartar no cabeçalho (DEC-183)', () => {
 
   it('celular: o botão continua dentro do cartão', () => {
     const { slot } = setup(false)
-    expect(within(slot).queryByRole('button', { name: 'Salvar dados para a IA' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Salvar dados para a IA' })).toBeTruthy()
+    expect(within(slot).queryByRole('button', { name: 'Salvar' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeTruthy()
   })
 })

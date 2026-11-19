@@ -9,8 +9,6 @@ export type AppointmentMutationResult<T> = {
   outbox: OutboxRow[]
   /** true se o clientRequestId já tinha sido processado. */
   idempotentReplay: boolean
-  /** Aviso do bloco Tempo na resposta da marcação manual (DEC-077). Não fica no compromisso. */
-  tempoWarnings?: string[]
   /** DEC-095: aviso de cancelamento no WhatsApp. A falha não desfaz o cancelamento. */
   cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
   /** DEC-097: aviso de reagendamento no WhatsApp. A falha não desfaz a mudança. */

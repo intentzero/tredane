@@ -120,7 +120,7 @@ async function seedBookable(tenantId = 'clinic-demo-s9-a') {
     },
     clock,
   )
-  setAiProfileOp(db, caller, { clinicAddress: 'Rua das Flores, 100 — São Paulo' }, clock)
+  setAiProfileOp(db, caller, { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-teste' }, clock)
   const contact = upsertContact(
     db,
     { tenantId, waId: '5511999000909', displayName: 'Ana Silva' },
@@ -238,7 +238,7 @@ function allocationCount(s: { db: ReturnType<typeof bootClinicDb>['db']; tenantI
 
 describe('S9: schema estável', () => {
   it('mantém CLINIC_SCHEMA_VERSION com propostas/envio/limites', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(75)
+    expect(CLINIC_SCHEMA_VERSION).toBe(77)
   })
 })
 
@@ -629,7 +629,7 @@ describe('S9: hibernate/restore sintético (persistência SQLite)', () => {
       { resourceId: room.id, windows: [{ dayOfWeek: 5, startMinute: 9 * 60, endMinute: 18 * 60 }] },
       clock,
     )
-    setAiProfileOp(db1, caller, { clinicAddress: 'Rua das Flores, 100 — São Paulo' }, clock)
+    setAiProfileOp(db1, caller, { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-teste' }, clock)
     const contact = upsertContact(
       db1,
       { tenantId, waId: '5511999000920', displayName: 'Ana Silva' },

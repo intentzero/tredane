@@ -1,3 +1,5 @@
+> **Revogado pela DEC-213 (Paulo, 19/11/2026):** a previsão do tempo saiu da aplicação. Este documento fica só como histórico.
+
 # Épico — Bloco Tempo no serviço (DEC-077)
 
 **Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 avalia a hora (`src/clinic/tempo/evaluate.ts`). S5 omite a hora no caminho automático e recusa o clique (`recusada_tempo`); a grade da equipe continua a mostrar a hora. S6 avisa na marcação manual e confirma na mesma. S7 manda à IA só as horas que serviram e, se a hora pedida caiu, a frase do WhatsApp.

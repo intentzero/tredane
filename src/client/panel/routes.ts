@@ -41,6 +41,8 @@ export type ClinicaSection =
   | 'recebimento'
   | 'conhecimento'
   | 'assistente'
+  | 'assistente-persona'
+  | 'assistente-protecoes'
   | 'equipe'
 
 /** Sub-rotas de Conversas (#29): lista → thread → contato. */
@@ -174,7 +176,11 @@ function parseClinicaRest(rest: string | undefined): {
   }
   if (head === 'recebimento') return { section: 'recebimento' }
   if (head === 'conhecimento') return { section: 'conhecimento' }
-  if (head === 'assistente') return { section: 'assistente' }
+  if (head === 'assistente') {
+    if (parts[1] === 'persona') return { section: 'assistente-persona' }
+    if (parts[1] === 'protecoes') return { section: 'assistente-protecoes' }
+    return { section: 'assistente' }
+  }
   if (head === 'equipe') return { section: 'equipe' }
   return { section: 'hub' }
 }
@@ -411,6 +417,10 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/conhecimento`
         case 'assistente':
           return `${base}/assistente`
+        case 'assistente-persona':
+          return `${base}/assistente/persona`
+        case 'assistente-protecoes':
+          return `${base}/assistente/protecoes`
         case 'equipe':
           return `${base}/equipe`
       }

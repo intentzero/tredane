@@ -12,7 +12,6 @@ import {
   offerNearestSlots,
   type OfferedSlot,
 } from '../ai/slot-offer'
-import type { ForecastAdapter } from '../tempo/evaluate'
 import type { AppointmentProposalRow } from './types'
 
 /**
@@ -47,7 +46,6 @@ export async function offerAlternativesForProposal(input: {
   tenantId: string
   proposal: AppointmentProposalRow
   clock: Clock
-  forecast?: ForecastAdapter
   limit?: number
 }): Promise<{ slots: OfferedSlot[]; listing: string }> {
   const service = getService(input.db, input.tenantId, input.proposal.serviceId)
@@ -73,7 +71,6 @@ export async function offerAlternativesForProposal(input: {
     zones,
     tz: input.proposal.timezone,
     clock: input.clock,
-    forecast: input.forecast,
     professionalId: input.proposal.professionalId ?? undefined,
     limit: limit + 1,
     conversationId: input.proposal.conversationId ?? '',

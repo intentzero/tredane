@@ -1,5 +1,3 @@
-import { readOpenMeteo } from '../clinic/tempo/open-meteo'
-import { tempoWarningsAt, withTempoWarnings } from '../clinic/tempo/warnings'
 import { countUnreadConversations, getConversation, touchConversationMessage } from '../clinic/inbox/conversations'
 import { messagingWindowForConversation } from '../clinic/inbox/window'
 import { isHumanAttendedConversation } from '../push/human-attended'
@@ -1128,7 +1126,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
       }
     }
-    if (execution.status === 'slot_refused' || execution.status === 'tempo_refused') return { status: 'slot_taken' }
+    if (execution.status === 'slot_refused') return { status: 'slot_taken' }
     if (execution.reason === 'capability_disabled') return { status: 'paused' }
     return { status: 'error', error: execution.authorizationReason === 'expired' ? 'expired' : 'not_allowed' }
   }
@@ -1211,7 +1209,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
       }
     }
-    if (execution.status === 'slot_refused' || execution.status === 'tempo_refused') return { status: 'slot_taken' }
+    if (execution.status === 'slot_refused') return { status: 'slot_taken' }
     if (execution.status === 'denied' && execution.reason === 'capability_disabled') return { status: 'paused' }
     return { status: 'error', error: 'not_allowed' }
   }
@@ -3322,7 +3320,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async setClinicAiProfile(
     caller: ClinicCaller,
     input: {
-      clinicAddress?: string | null
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
       virtualAttendantName?: string | null
@@ -3333,26 +3330,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     const settings = clinicConfig.setAiProfileOp(this.#db, caller, input, this.#clock)
     await this.#fanoutConfigEvent(caller, 'config.settings_updated', 'clinic_settings', '1', {})
-    return settings
-  }
-
-  async setForecastPlace(
-    caller: ClinicCaller,
-    input: {
-      mode: 'cidade'
-      city: string
-    } | {
-      mode: 'coordenadas'
-      latitude: number
-      longitude: number
-    },
-  ) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const settings = clinicConfig.setForecastPlaceOp(this.#db, caller, input, this.#clock)
-    await this.#fanoutConfigEvent(caller, 'config.settings_updated', 'clinic_settings', '1', {
-      forecastMode: settings.forecastMode,
-    })
     return settings
   }
 
@@ -3780,15 +3757,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async queryClinicAvailability(caller: ClinicCaller, input: AvailabilityQueryInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    const result = clinicScheduling.queryAvailabilityOp(this.#db, caller, input, this.#clock)
-    if (input.tempoMode === 'automatico') return result
-    return withTempoWarnings(
-      this.#db,
-      caller.tenantId,
-      result,
-      { read: readOpenMeteo },
-      this.#clock,
-    )
+    return clinicScheduling.queryAvailabilityOp(this.#db, caller, input, this.#clock)
   }
 
   /** Revalidação de horário (#35; usada no confirmar #36). */
@@ -3823,15 +3792,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const nextEnd = nextOpenAppointmentEndAt(this.#db, caller.tenantId, this.#clock.nowMs())
     if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
-    const tempoWarnings = await tempoWarningsAt(
-      this.#db,
-      caller.tenantId,
-      input.serviceId,
-      input.startsAt,
-      { read: readOpenMeteo },
-      this.#clock,
-    )
-    return { ...result, tempoWarnings }
+    return result
   }
 
   async cancelClinicAppointment(
@@ -3873,15 +3834,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const nextEnd = nextOpenAppointmentEndAt(this.#db, caller.tenantId, this.#clock.nowMs())
     if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
-    const tempoWarnings = await tempoWarningsAt(
-      this.#db,
-      caller.tenantId,
-      result.value.serviceId,
-      result.value.startsAt,
-      { read: readOpenMeteo },
-      this.#clock,
-    )
-    return { ...result, tempoWarnings }
+    return result
   }
 
   async getClinicAppointment(caller: ClinicCaller, appointmentId: string) {

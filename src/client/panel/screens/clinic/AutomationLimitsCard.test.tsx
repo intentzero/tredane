@@ -44,7 +44,7 @@ describe("AutomationLimitsCard", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("button", { name: "Salvar números" })).toBeNull();
     expect(
-      screen.getByRole("switch", { name: "Aplicar limites de proteção" }),
+      screen.getByRole("switch", { name: "Limitar excessos" }),
     ).toBeTruthy();
     await user.click(toggle);
     expect(screen.getByRole("button", { name: "Salvar números" })).toBeTruthy();

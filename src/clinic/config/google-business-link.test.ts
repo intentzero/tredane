@@ -47,17 +47,15 @@ describe('Link do Google Business — persistência e contexto da IA', () => {
         db,
         caller,
         {
-          clinicAddress: 'Rua Fictícia, 123',
           googleBusinessUrl: 'https://maps.app.goo.gl/ficticio123',
           reschedulePolicy: null,
         },
         clock,
       )
       let s = getConfigSnapshotOp(db, caller, clock).settings
-      expect(s.clinicAddress).toBe('Rua Fictícia, 123')
       expect(s.googleBusinessUrl).toBe('https://maps.app.goo.gl/ficticio123')
 
-      setAiProfileOp(db, caller, { clinicAddress: 'Rua Fictícia, 456' }, clock)
+      setAiProfileOp(db, caller, { reschedulePolicy: 'Avise com 24 h.' }, clock)
       s = getConfigSnapshotOp(db, caller, clock).settings
       expect(s.googleBusinessUrl).toBe('https://maps.app.goo.gl/ficticio123')
 

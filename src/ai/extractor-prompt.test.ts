@@ -50,7 +50,6 @@ describe('exception-prompt (DEC-118/120)', () => {
       clinicOutboundCount: 1,
       clinic: {
         name: 'Clínica Fictícia',
-        address: 'Rua A, 1',
         googleBusinessUrl: 'https://maps.example/x',
         timezone: 'America/Sao_Paulo',
         nowLabel: 'domingo 02/11 16:00',
@@ -58,7 +57,6 @@ describe('exception-prompt (DEC-118/120)', () => {
         openingHours: ['seg–sex 09–18'],
         reschedulePolicy: '24h',
         cancellationPolicy: '24h',
-        tempoNote: null,
         virtualAttendantName: 'Lia',
         virtualAttendantGender: 'feminino',
       },

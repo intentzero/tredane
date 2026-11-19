@@ -5,8 +5,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { stripLeadingGreeting } from '../../ai/continuity'
 import {
-  TEMPO_REFUSED_PHRASE,
-  TEMPO_UNCONFIRMED_PHRASE,
   renderProposalInteractive,
   renderProposalResultBody,
 } from '../proposals/render'
@@ -102,8 +100,6 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       ['AI_TRANSPARENCY_TEXT', AI_TRANSPARENCY_TEXT],
       ['MEDIA_ASK_TEXT', MEDIA_ASK_TEXT],
       ['MODEL_FALLBACK_TEXT', MODEL_FALLBACK_TEXT],
-      ['TEMPO_REFUSED_PHRASE', TEMPO_REFUSED_PHRASE],
-      ['TEMPO_UNCONFIRMED_PHRASE', TEMPO_UNCONFIRMED_PHRASE],
       ['audienceLineQuestion', audienceLineQuestion('Depilação')],
       [
         'variantListQuestion',

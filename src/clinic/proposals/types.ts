@@ -45,10 +45,6 @@ export type AppointmentProposalRow = {
   /** Outbound do resultado determinístico (após commit S5). */
   resultOutboundId: string | null
   resultKind: string | null
-  /** Snapshot do bloco Tempo no momento da proposta (DEC-077). */
-  tempoCeu: 'tanto_faz' | 'sol' | 'chuva'
-  tempoTemperatura: 'tanto_faz' | 'acima' | 'abaixo'
-  tempoCelsius: number | null
   /**
    * Confirmar suspenso: o eco de uma substituição resolvida já tirou a validade
    * deste botão (DEC-061 / DEC-137, 06/11/2026). A linha permanece.

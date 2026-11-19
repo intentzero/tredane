@@ -1,4 +1,4 @@
-import { BookOpen, Clock, DoorOpen, ListChecks, MessageCircle, Sparkles, TriangleAlert, Users, Wallet } from 'lucide-react'
+import { Clock, DoorOpen, ListChecks, MessageCircle, Sparkles, TriangleAlert, Users, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import type { ClinicConfigSnapshot } from '../../api'
@@ -12,7 +12,7 @@ import { pendingCounts } from './resourceRows'
 type Props = {
   tenantId: string
   snap: ClinicConfigSnapshot
-  /** Só a responsável vê «Assistente e automações» (DEC-042). */
+  /** Só a responsável vê «Assistente» (DEC-042). */
   showAssistant?: boolean
   /** Owner: exportar/importar catálogo (serviços e profissionais). */
   catalogTransferCard?: ReactNode
@@ -138,13 +138,13 @@ export function ClinicHub({
         <li>
           <NavRow
             icon={Sparkles}
-            title="Assistente e automações"
+            title="Assistente"
             detail={
               inUse
                 ? snap.settings?.aiAssistEnabled
-                  ? 'Sugestões com IA ligadas'
-                  : 'Sugestões com IA desligadas'
-                : 'Sugestões com IA, atendente virtual e limites de proteção'
+                  ? 'Atendimento automático ligado'
+                  : 'Atendimento automático desligado'
+                : 'Respostas, atendente virtual e proteções'
             }
             state="neutral"
             onPress={go('assistente')}
@@ -160,17 +160,6 @@ export function ClinicHub({
           onPress={go('recebimento')}
         />
       </li>
-      {showAssistant ? (
-        <li>
-          <NavRow
-            icon={BookOpen}
-            title="Conhecimento da clínica"
-            detail="FAQ que a assistente responde com o texto aprovado"
-            state="neutral"
-            onPress={go('conhecimento')}
-          />
-        </li>
-      ) : null}
       <li>
         <NavRow
           icon={Users}

@@ -18,7 +18,7 @@ import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { ensureClinicSettings, isClinicAiAssistEnabled } from '../config/settings'
 import { listServices } from '../config/services'
-import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
+import { buildCancellationPolicyReply } from './policy-reply'
 import { handleIdleTextReply } from '../followup/idle'
 import { POST_BOOKING_BODY } from '../followup/post-booking'
 import { pickTerminarFarewell } from '../followup/terminar-farewell'
@@ -1036,11 +1036,8 @@ export async function runDueAutoDrafts(
     // DEC-180: texto de sinal = mesmo efectivo que cobrança/Recebimento.
     const sensitiveHits = classifySensitive(turnText)
     if (hasPolicyQuestion(sensitiveHits)) {
-      const settings = turn.settings
-      const policy =
-        effectiveSignalCancellationPolicy(db, tenantId, clock) ||
-        settings.reschedulePolicy.trim() ||
-        ''
+      // DEC-210: sinal (Recebimento) + regras gerais (Assistente), juntos.
+      const policy = buildCancellationPolicyReply(db, tenantId, clock)
       if (policy) {
         await signalTyping()
         let replyOutbox: OutboxRow[] = []

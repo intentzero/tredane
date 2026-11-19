@@ -37,8 +37,6 @@ function seedBusyClinic() {
       priceCents: 8000,
       professionalIds: [pro.id],
       roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
-      tempoCeu: 'tanto_faz',
-      tempoTemperatura: 'tanto_faz',
     },
     clock,
   )

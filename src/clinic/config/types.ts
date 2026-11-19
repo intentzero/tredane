@@ -6,9 +6,6 @@ export type { VariantSelection }
 
 export type ServiceSignalKind = 'fixed' | 'percent'
 
-export type TempoCeu = 'tanto_faz' | 'sol' | 'chuva'
-export type TempoTemperatura = 'tanto_faz' | 'acima' | 'abaixo'
-
 export type ServiceRow = {
   id: string
   tenantId: string
@@ -17,11 +14,6 @@ export type ServiceRow = {
   bufferMinutes: number
   /** DEC-075 — audiência do serviço (não da pessoa). */
   audiencia: ServiceAudience
-  /** DEC-077 — céu exigido na hora de início. Tanto faz = sem restrição. */
-  tempoCeu: TempoCeu
-  /** DEC-077 — um lado só. Tanto faz limpa os graus. */
-  tempoTemperatura: TempoTemperatura
-  tempoCelsius: number | null
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -274,17 +266,10 @@ export type ClinicSettingsRow = {
   signalCancellationPolicy: string
   /** Opt-in de IA assistiva pela clínica (default false; política §6). */
   aiAssistEnabled: boolean
-  /** Endereço da clínica (contexto da IA). */
-  clinicAddress: string
   /** Link do Google Business (https; vazio = sem link). Definido só pela clínica; contexto da IA. */
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
   reschedulePolicy: string
-  /** DEC-077 — local da previsão. Não é `clinicAddress`. */
-  forecastMode: 'nenhum' | 'cidade' | 'coordenadas'
-  forecastCity: string | null
-  forecastLatitude: number | null
-  forecastLongitude: number | null
   /**
    * Limites de abuso — owner (DEC-042 / Paulo 29/10/2026).
    * Default enabled=false (fail-closed por clínica).
@@ -309,11 +294,6 @@ export type ClinicSettingsRow = {
   bookingLeadMinutes: number
   updatedAt: number
 }
-
-/** DEC-077 — gravação do local da previsão. Um modo apaga o outro. */
-export type ForecastPlaceInput =
-  | { mode: 'cidade'; city: string }
-  | { mode: 'coordenadas'; latitude: number; longitude: number }
 
 /** Corpo de PATCH dos limites de abuso (owner). */
 export type UpdateAbuseLimitsInput = {
@@ -371,10 +351,6 @@ export type UpsertServiceInput = {
   bufferMinutes: number
   /** Omitido na criação = qualquer; omitido na edição = mantém. Nunca inferir pelo nome. */
   audiencia?: ServiceAudience
-  /** Omitido o bloco inteiro na edição = mantém. Nunca inferir pelo nome. */
-  tempoCeu?: TempoCeu
-  tempoTemperatura?: TempoTemperatura
-  tempoCelsius?: number | null
   priceCents?: number | null
   clientExplanation?: string | null
   active?: boolean
