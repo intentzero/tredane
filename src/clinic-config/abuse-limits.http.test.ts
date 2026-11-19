@@ -58,7 +58,7 @@ const url = (tenant = 'clinic-demo-a') =>
   `http://localhost/api/tenants/${tenant}/config/abuse-limits`
 
 describe('HTTP — limites de abuso da clínica', () => {
-  it('owner lê defaults Confirmados (enabled off); attendant e cross-tenant 403', async () => {
+  it('owner lê defaults Confirmados (enabled on, DEC-214); attendant e cross-tenant 403', async () => {
     const { app, close, auth } = testConfigApp()
     try {
       const ok = await app.request(url(), auth('user_synth_owner_a'))
@@ -68,7 +68,7 @@ describe('HTTP — limites de abuso da clínica', () => {
         autoBookPaused: boolean
         limits: { autoDraftsPerContact: number; proposalsPerClinic: number }
       }
-      expect(body.enabled).toBe(false)
+      expect(body.enabled).toBe(true)
       expect(body.autoBookPaused).toBe(false)
       expect(body.limits.autoDraftsPerContact).toBe(
         DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,

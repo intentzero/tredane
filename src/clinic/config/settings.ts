@@ -105,8 +105,8 @@ export function ensureClinicSettings(
   db.run(
     `INSERT INTO clinic_settings (
       id, tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy,
-      booking_lead_minutes, updated_at
-    ) VALUES (1, ?, ?, ?, '', ?, ?)`,
+      booking_lead_minutes, abuse_limits_enabled, updated_at
+    ) VALUES (1, ?, ?, ?, '', ?, 1, ?)`,
     tenantId,
     DEFAULT_CLINIC_TIMEZONE,
     DEFAULT_SIGNAL_DEADLINE_SECONDS,
@@ -121,7 +121,8 @@ export function ensureClinicSettings(
     aiAssistEnabled: false,
     googleBusinessUrl: '',
     reschedulePolicy: '',
-    abuseLimitsEnabled: false,
+    // DEC-214: clínica nova nasce com «Limitar excessos» ligado (recomendado).
+    abuseLimitsEnabled: true,
     autoBookPaused: false,
     abuseWindowHours: DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
     abuseAutoDraftsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
