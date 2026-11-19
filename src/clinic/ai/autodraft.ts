@@ -1794,25 +1794,3 @@ export async function runDueAutoDrafts(
   }
   return out
 }
-
-/** Estado do rascunho de uma conversa para o painel. */
-export function getConversationDraftState(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  clock: Clock,
-): { job: AutoDraftJob | null; suggestion: AiSuggestionRow | null; usage: ReturnType<typeof getAiDailyUsage> } {
-  const job = getAutoDraftJob(db, tenantId, conversationId)
-  const row = db.get<{ id: string }>(
-    `SELECT id FROM ai_suggestions
-     WHERE tenant_id = ? AND conversation_id = ? AND kind = 'reply' AND status IN ('pending', 'failed')
-     ORDER BY created_at DESC LIMIT 1`,
-    tenantId,
-    conversationId,
-  )
-  return {
-    job,
-    suggestion: row ? getSuggestion(db, tenantId, row.id) : null,
-    usage: getAiDailyUsage(db, tenantId, clock),
-  }
-}

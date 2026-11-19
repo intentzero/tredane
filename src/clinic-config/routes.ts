@@ -82,7 +82,6 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     reviewServices: (caller) => stub.reviewClinicServices(caller),
     updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
     setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
-    setAiSuggestEnabled: (caller, enabled) => stub.setClinicAiSuggestEnabled(caller, enabled),
     setAiProfile: (caller, input) => stub.setClinicAiProfile(caller, input),
     getAbuseLimits: (caller) => stub.getClinicAbuseLimits(caller),
     updateAbuseLimits: (caller, input) => stub.updateClinicAbuseLimits(caller, input),
@@ -251,7 +250,6 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const body = await c.req
         .json<{
           enabled?: unknown
-          suggestEnabled?: unknown
           googleBusinessUrl?: unknown
           reschedulePolicy?: unknown
           virtualAttendantName?: unknown
@@ -267,10 +265,7 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           body.virtualAttendantGender === '' ||
           body.virtualAttendantGender === 'masculino' ||
           body.virtualAttendantGender === 'feminino')
-      if (
-        !body ||
-        (typeof body.enabled !== 'boolean' && typeof body.suggestEnabled !== 'boolean' && !hasProfile)
-      ) {
+      if (!body || (typeof body.enabled !== 'boolean' && !hasProfile)) {
         return c.json({ error: 'invalid_body' }, 400)
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
@@ -296,9 +291,6 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       }
       if (typeof body.enabled === 'boolean') {
         settings = await gw.setAiAssistEnabled(caller, body.enabled)
-      }
-      if (typeof body.suggestEnabled === 'boolean') {
-        settings = await gw.setAiSuggestEnabled(caller, body.suggestEnabled)
       }
       return c.json(serializeSettings(settings!))
     } catch (err) {
@@ -1085,8 +1077,6 @@ function parseAbuseLimitsBody(body: Record<string, unknown>): UpdateAbuseLimitsI
   }
   num('windowHours')
   num('autoDraftsPerContact')
-  num('aiBookingsPerContact')
-  num('aiBookingsPerClinic')
   num('futureAppointmentsPerContact')
   num('pendingPixPerContact')
   num('pendingProposalsPerContact')

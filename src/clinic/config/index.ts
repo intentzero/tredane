@@ -112,7 +112,6 @@ export {
   reviewClinicServicesOp,
   updateTimezoneOp,
   setAiAssistEnabledOp,
-  setAiSuggestEnabledOp,
   setAiProfileOp,
   getAbuseLimitsOp,
   updateAbuseLimitsOp,

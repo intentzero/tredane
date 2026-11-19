@@ -691,6 +691,15 @@
       "title": "M-81 Serviço: folha da opção com uma linha por público (Confirmado DEC-176)",
       "is_interactive": false,
       "radius": 32
+    },
+    "AssistenteProtecoes.dc.html": {
+      "x": 1510,
+      "y": 18740,
+      "w": 390,
+      "h": 844,
+      "title": "M-84 Assistente: Proteções (Confirmado DEC-217)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -768,7 +777,8 @@
     "EquipeCancelarConvite.dc.html",
     "ServicoTopo.dc.html",
     "ServicoOpcoesAgrupadas.dc.html",
-    "ServicoEditarOpcao.dc.html"
+    "ServicoEditarOpcao.dc.html",
+    "AssistenteProtecoes.dc.html"
   ],
   "notes": {
     "row1": {

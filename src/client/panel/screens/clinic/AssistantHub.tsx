@@ -1,7 +1,7 @@
 import { BookOpen, ShieldCheck, UserRound } from 'lucide-react'
 import type { ClinicConfigSnapshot, PanelApi } from '../../api'
 import { navigatePanel, type ClinicaSection } from '../../routes'
-import { AiAssistCard, AiSuggestCard } from './AiAssistCard'
+import { AiAssistCard } from './AiAssistCard'
 import { NavRow } from './NavRow'
 import { OnlineAgendaCard } from './OnlineAgendaCard'
 
@@ -40,12 +40,6 @@ export function AssistantHub({
         api={api}
         generation={generation}
         initialEnabled={s.aiAssistEnabled === true}
-      />
-      <AiSuggestCard
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-        initialEnabled={s.aiSuggestEnabled === true}
       />
       {isOwner ? <OnlineAgendaCard tenantId={tenantId} api={api} generation={generation} /> : null}
       {isOwner ? (

@@ -1,12 +1,9 @@
-import { CalendarPlus, ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, MessageCircle, Sparkles } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, MessageCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { requestAgendarOpen } from './agendarFocus'
-import { consumeSummaryFocus } from './summaryFocus'
-import { AiWorking } from '../../ui/AiWorking'
 import { Button, Menu, MenuItem, MenuTrigger, Popover, Switch } from 'react-aria-components'
 import {
   PanelApiError,
-  type AiSuggestion,
   type ContactAppointmentItem,
   type InboxContactDetail,
   type PanelApi,
@@ -129,14 +126,10 @@ export function InboxContactScreen({
   const [data, setData] = useState<InboxContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [summary, setSummary] = useState<AiSuggestion | null>(null)
-  const [summaryBusy, setSummaryBusy] = useState(false)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
-  const [focusSummary] = useState(consumeSummaryFocus)
   const [blockOpen, setBlockOpen] = useState(false)
   const [blockBusy, setBlockBusy] = useState(false)
   const [blockError, setBlockError] = useState<string | null>(null)
@@ -160,9 +153,6 @@ export function InboxContactScreen({
   useEffect(() => {
     setShowPhone(false)
     setShowPast(false)
-    setSummary(null)
-    setSummaryBusy(false)
-    setSummaryError(null)
     setConfirmOpen(false)
     setDeleteError(null)
     setBlockOpen(false)
@@ -639,84 +629,6 @@ export function InboxContactScreen({
               ? 'Responsável: também as regras em Recebimento (valor, prazo, política gerada).'
               : 'Atendente: só esta isenção. A responsável altera as regras em Recebimento.'}
           </p>
-        </section>
-      ) : null}
-
-      {summaryConversationId ? (
-        <section className="ic-ai" aria-labelledby="resumo-ia">
-          <div className="ic-ai-head">
-            <Sparkles aria-hidden size={16} />
-            <h2
-              className="ic-ai-title"
-              id="resumo-ia"
-              tabIndex={-1}
-              ref={(el) => {
-                if (el && focusSummary && !el.dataset.focused) {
-                  el.dataset.focused = '1'
-                  el.scrollIntoView?.({ block: 'start' })
-                  el.focus({ preventScroll: true })
-                }
-              }}
-            >
-              Resumo da IA
-            </h2>
-            {summary ? (
-              <span className="ic-ai-time">
-                {new Date(summary.createdAt).toLocaleString('pt-BR', { timeStyle: 'short' })}
-              </span>
-            ) : null}
-          </div>
-          {summary ? (
-            <>
-              <p className="ai-block-text">{summary.suggestedText}</p>
-              <p className="ai-block-source">Pode conter erros. Confira na conversa.</p>
-            </>
-          ) : (
-            <p className="ai-block-source">A IA lê a conversa e resume em poucas linhas.</p>
-          )}
-          {summaryError ? (
-            <p className="ai-block-warn" role="status">
-              {summaryError}
-            </p>
-          ) : null}
-          <Button
-            className="panel-btn-secondary ai-btn"
-            isDisabled={summaryBusy}
-            onPress={() => {
-              setSummaryBusy(true)
-              setSummaryError(null)
-              void api
-                .summarizeAiConversation(
-                  tenantId,
-                  summaryConversationId,
-                  {
-                    clientRequestId: crypto.randomUUID(),
-                    actorDisplayName: 'Atendente',
-                  },
-                  { generation, expectGeneration: () => generation },
-                )
-                .then((r) => {
-                  if (r.suggestion.status === 'failed') {
-                    setSummaryError('O resumo não está disponível agora. Tente de novo em instantes.')
-                    setSummary(null)
-                  } else {
-                    setSummary(r.suggestion)
-                  }
-                })
-                .catch(() => {
-                  setSummaryError('O resumo não está disponível agora. Tente de novo em instantes.')
-                })
-                .finally(() => setSummaryBusy(false))
-            }}
-          >
-            {summaryBusy ? (
-              <AiWorking compact label="Gerando resumo…" />
-            ) : summary ? (
-              'Gerar outro resumo'
-            ) : (
-              'Gerar resumo'
-            )}
-          </Button>
         </section>
       ) : null}
 

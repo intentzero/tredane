@@ -266,8 +266,6 @@ export type ClinicSettingsRow = {
   signalCancellationPolicy: string
   /** Opt-in de IA assistiva pela clínica (default false; política §6). */
   aiAssistEnabled: boolean
-  /** DEC-216: botão «Sugerir resposta» no painel (rascunho que a equipe revê). Independente do envio automático. */
-  aiSuggestEnabled: boolean
   /** Link do Google Business (https; vazio = sem link). Definido só pela clínica; contexto da IA. */
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
@@ -281,8 +279,6 @@ export type ClinicSettingsRow = {
   autoBookPaused: boolean
   abuseWindowHours: number
   abuseAutoDraftsPerContact: number
-  abuseAiBookingsPerContact: number
-  abuseAiBookingsPerClinic: number
   abuseFutureAppointmentsPerContact: number
   abusePendingPixPerContact: number
   abusePendingProposalsPerContact: number
@@ -303,8 +299,6 @@ export type UpdateAbuseLimitsInput = {
   autoBookPaused?: boolean
   windowHours?: number
   autoDraftsPerContact?: number
-  aiBookingsPerContact?: number
-  aiBookingsPerClinic?: number
   futureAppointmentsPerContact?: number
   pendingPixPerContact?: number
   pendingProposalsPerContact?: number

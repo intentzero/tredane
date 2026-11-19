@@ -14,15 +14,12 @@ type SettingsSql = {
   signal_deadline_seconds?: number
   signal_cancellation_policy?: string
   ai_assist_enabled?: number
-  ai_suggest_enabled?: number
   google_business_url?: string
   reschedule_policy?: string
   abuse_limits_enabled?: number
   auto_book_paused?: number
   abuse_window_hours?: number
   abuse_auto_drafts_per_contact?: number
-  abuse_ai_bookings_per_contact?: number
-  abuse_ai_bookings_per_clinic?: number
   abuse_future_appointments_per_contact?: number
   abuse_pending_pix_per_contact?: number
   abuse_pending_proposals_per_contact?: number
@@ -49,7 +46,6 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
       row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: row.signal_cancellation_policy ?? '',
     aiAssistEnabled: row.ai_assist_enabled === 1,
-    aiSuggestEnabled: row.ai_suggest_enabled === 1,
     googleBusinessUrl: row.google_business_url ?? '',
     reschedulePolicy: row.reschedule_policy ?? '',
     abuseLimitsEnabled: row.abuse_limits_enabled === 1,
@@ -57,10 +53,6 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
     abuseWindowHours: row.abuse_window_hours ?? DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
     abuseAutoDraftsPerContact:
       row.abuse_auto_drafts_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
-    abuseAiBookingsPerContact:
-      row.abuse_ai_bookings_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
-    abuseAiBookingsPerClinic:
-      row.abuse_ai_bookings_per_clinic ?? DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
     abuseFutureAppointmentsPerContact:
       row.abuse_future_appointments_per_contact ??
       DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
@@ -86,10 +78,10 @@ export function ensureClinicSettings(
   clock: Clock,
 ): ClinicSettingsRow {
   const existing = db.get<SettingsSql>(
-    `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled, ai_suggest_enabled,
+    `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
        google_business_url, reschedule_policy,
        abuse_limits_enabled, auto_book_paused, abuse_window_hours,
-       abuse_auto_drafts_per_contact, abuse_ai_bookings_per_contact, abuse_ai_bookings_per_clinic,
+       abuse_auto_drafts_per_contact,
        abuse_future_appointments_per_contact, abuse_pending_pix_per_contact,
        abuse_pending_proposals_per_contact, abuse_proposals_per_contact, abuse_proposals_per_clinic,
        virtual_attendant_name, virtual_attendant_gender, booking_lead_minutes,
@@ -121,7 +113,6 @@ export function ensureClinicSettings(
     signalDeadlineSeconds: DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: '',
     aiAssistEnabled: false,
-    aiSuggestEnabled: false,
     googleBusinessUrl: '',
     reschedulePolicy: '',
     // DEC-214: clínica nova nasce com «Limitar excessos» ligado (recomendado).
@@ -129,8 +120,6 @@ export function ensureClinicSettings(
     autoBookPaused: false,
     abuseWindowHours: DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
     abuseAutoDraftsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
-    abuseAiBookingsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
-    abuseAiBookingsPerClinic: DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
     abuseFutureAppointmentsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
     abusePendingPixPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingPixPerContact,
     abusePendingProposalsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingProposalsPerContact,
@@ -178,33 +167,7 @@ export function setClinicAiAssistEnabled(
   return ensureClinicSettings(db, tenantId, clock)
 }
 
-/** DEC-216: liga/desliga o botão «Sugerir resposta» (só o responsável). */
-export function setClinicAiSuggestEnabled(
-  db: ClinicDb,
-  tenantId: string,
-  enabled: boolean,
-  clock: Clock,
-): ClinicSettingsRow {
-  ensureClinicSettings(db, tenantId, clock)
-  db.run(
-    `UPDATE clinic_settings SET ai_suggest_enabled = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
-    enabled ? 1 : 0,
-    clock.nowMs(),
-    tenantId,
-  )
-  return ensureClinicSettings(db, tenantId, clock)
-}
-
-/** Botão «Sugerir» (origem manual). Sem linha = desligado. */
-export function isClinicAiSuggestEnabled(db: ClinicDb, tenantId: string): boolean {
-  const row = db.get<{ ai_suggest_enabled: number }>(
-    `SELECT ai_suggest_enabled FROM clinic_settings WHERE id = 1 AND tenant_id = ?`,
-    tenantId,
-  )
-  return row?.ai_suggest_enabled === 1
-}
-
-/** Lido no servidor antes de qualquer chamada ao modelo no envio automático. Sem linha = desligado. */
+/** Lido no servidor antes de qualquer chamada ao modelo. Sem linha = desligado. */
 export function isClinicAiAssistEnabled(db: ClinicDb, tenantId: string): boolean {
   const row = db.get<{ ai_assist_enabled: number }>(
     `SELECT ai_assist_enabled FROM clinic_settings WHERE id = 1 AND tenant_id = ?`,
@@ -241,7 +204,7 @@ export function setClinicAiProfile(
   const policy =
     input.reschedulePolicy == null
       ? cur.reschedulePolicy
-      : input.reschedulePolicy.trim().slice(0, 1000)
+      : input.reschedulePolicy.trim().slice(0, 500)
 
   let virtualName = cur.virtualAttendantName
   if (input.virtualAttendantName != null) {

@@ -49,33 +49,6 @@ export type AiSuggestionRow = {
   updatedAt: number
 }
 
-export type SuggestReplyInput = {
-  conversationId: string
-  clientRequestId: string
-  actorClerkUserId: string
-  actorDisplayName: string
-  /** Quando regenerate — id da sugestão anterior. */
-  parentSuggestionId?: string | null
-}
-
-export type SummarizeInput = {
-  conversationId: string
-  clientRequestId: string
-  actorClerkUserId: string
-  actorDisplayName: string
-}
-
-export type DecideSuggestionInput = {
-  suggestionId: string
-  clientRequestId: string
-  decision: AiSuggestionDecision
-  actorClerkUserId: string
-  actorDisplayName: string
-  /** Texto final no compositor (use/edit). */
-  revisedText?: string | null
-  outboundMessageId?: string | null
-}
-
 export type AiAssistDeps = {
   adapter: import('../../ai/contract').AiProviderAdapter
   mode: 'synthetic' | 'gateway'

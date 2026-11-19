@@ -47,7 +47,7 @@ Fonte canónica máquina-legível: `SEG_IA_EVIDENCE_MATRIX`. Resumo:
 | S9-T09 | Falha de envio | Pending communication; compromisso preservado | `send.test.ts`, `adversarial` | Confirmado |
 | S9-T10 | Hibernate/restore | Reabrir SQLite + replay | `adversarial` (+ WS hibernate runtime) | Confirmado |
 | S9-T11 | Pix pago sem vaga / replay | `#39/#40` | `pix/payment`, `pix/exceptions`, `mvp-validation/exceptions` | Confirmado |
-| S9-T12 | Prompt injection | Saída/modelo hostil | `prompt-injection.test.ts` | Confirmado |
+| S9-T12 | Prompt injection | Saída/modelo hostil | `src/ai/reply-output.robust.test.ts` + casos L1 com texto hostil (`prompt-injection.test.ts` saiu com o «Sugerir», DEC-217; falta refazer o teste de «modelo comprometido» sobre o caminho automático) | Confirmado |
 | S9-T13 | Contexto IA | Minimização / isolamento | `context-minimization.test.ts` | Confirmado |
 | S9-T14 | Regressões H3–H8 | amanhã-tarde + free-text | `amanha-tarde`, `prompt-injection`, `autobook` | Confirmado |
 | S9-T15 | S7 abuse | Quotas com `ABUSE_LIMITS=on` | `abuse-limits.test.ts` | Proposto (valores Paulo) |

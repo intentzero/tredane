@@ -3,7 +3,7 @@ import { insertSyntheticAppointment } from '../config/appointments'
 import { setWeeklyWindows } from '../config/availability'
 import { listResources, upsertResource } from '../config/resources'
 import { listServices, upsertService } from '../config/services'
-import { setClinicAiAssistEnabled, setClinicAiSuggestEnabled } from '../config/settings'
+import { setClinicAiAssistEnabled } from '../config/settings'
 import type { ResourceRow, ServiceRow } from '../config/types'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { upsertContact } from '../contacts'
@@ -544,7 +544,6 @@ export function seedDemoClinicOp(
   // Fora da transação do seed (syncWhatsappChannel / settings abrem a sua).
   // Lab MCP (DEC-186): IA ligada + canal WhatsApp sintético — nada sai para a Meta.
   setClinicAiAssistEnabled(db, tenantId, true, clock)
-  setClinicAiSuggestEnabled(db, tenantId, true, clock)
   syncWhatsappChannel(
     db,
     tenantId,

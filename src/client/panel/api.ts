@@ -1,18 +1,4 @@
 /** Cliente HTTP do painel — Bearer + cancelamento por geração de tenant (#22). */
-import { parseReplyOutput } from '../../ai/reply-output'
-
-/**
- * Defesa no cliente: sugestões antigas (gravadas antes da correção) podem ter
- * JSON cru do modelo. Extrai só a «mensagem»; sem nada utilizável → «failed»
- * (o painel mostra o erro amigável), nunca chaves nem notas internas.
- */
-export function sanitizeAiSuggestion<T extends AiSuggestion | null | undefined>(s: T): T {
-  if (!s || s.kind !== 'reply' || !s.suggestedText) return s
-  if (!/[{}]|```/.test(s.suggestedText)) return s
-  const parsed = parseReplyOutput(s.suggestedText)
-  if (!parsed.message) return { ...s, status: 'failed', suggestedText: '' }
-  return { ...s, suggestedText: parsed.message }
-}
 
 export type AuthMode = 'synthetic' | 'clerk'
 
@@ -584,25 +570,6 @@ export function createPanelApi(getToken: TokenGetter) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled }),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as ClinicConfigSnapshot['settings']
-    },
-
-    async setClinicAiSuggest(
-      tenantId: string,
-      suggestEnabled: boolean,
-      opts?: FetchOpts,
-    ): Promise<ClinicConfigSnapshot['settings']> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/config/ai-assist`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ suggestEnabled }),
         },
         opts,
       )
@@ -2321,107 +2288,6 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxSendResponse
     },
 
-    async suggestAiReply(
-      tenantId: string,
-      conversationId: string,
-      body: {
-        clientRequestId: string
-        parentSuggestionId?: string | null
-        actorDisplayName?: string
-      },
-      opts?: FetchOpts,
-    ): Promise<AiSuggestResponse> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/ai/suggest`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      const out = (await res.json()) as AiSuggestResponse
-      return { ...out, suggestion: sanitizeAiSuggestion(out.suggestion) }
-    },
-
-    async getAiDraft(
-      tenantId: string,
-      conversationId: string,
-      opts?: FetchOpts,
-    ): Promise<AiDraftState> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/ai/draft`,
-        {},
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      const out = (await res.json()) as AiDraftState
-      return { ...out, suggestion: sanitizeAiSuggestion(out.suggestion) }
-    },
-
-    async getAiStatus(
-      tenantId: string,
-      opts?: FetchOpts,
-    ): Promise<{ mode: string; syntheticFallback: boolean; usage: AiDailyUsage | null }> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/ai/status`,
-        {},
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as { mode: string; syntheticFallback: boolean; usage: AiDailyUsage | null }
-    },
-
-    async summarizeAiConversation(
-      tenantId: string,
-      conversationId: string,
-      body: { clientRequestId: string; actorDisplayName?: string },
-      opts?: FetchOpts,
-    ): Promise<AiSuggestResponse> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/ai/summarize`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as AiSuggestResponse
-    },
-
-    async decideAiSuggestion(
-      tenantId: string,
-      suggestionId: string,
-      body: {
-        clientRequestId: string
-        decision: 'use' | 'edit' | 'discard'
-        revisedText?: string | null
-        outboundMessageId?: string | null
-        actorDisplayName?: string
-      },
-      opts?: FetchOpts,
-    ): Promise<AiSuggestResponse> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/ai/suggestions/${encodeURIComponent(suggestionId)}/decide`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as AiSuggestResponse
-    },
-
     async listWhatsappTemplates(
       tenantId: string,
       opts?: FetchOpts & { approvedOnly?: boolean },
@@ -2635,57 +2501,6 @@ export type InboxMessage = {
   /** Mensagem da cliente lida pela equipa («Lida por Ana · 17:40»). */
   readByDisplayName?: string | null
   readAt?: number | null
-}
-
-/** Sugestão IA assistiva (#41) — nunca é mensagem enviada sem clique humano. */
-export type AiSuggestion = {
-  id: string
-  conversationId: string
-  kind: 'reply' | 'summary'
-  status: string
-  provider: string
-  model: string
-  suggestedText: string
-  warningCodes: string[]
-  warningLabels: string[]
-  sourceRefs: Array<{ serviceName: string; kind: string; label: string }>
-  requestMeta: {
-    latencyMs: number
-    inputTokens: number | null
-    outputTokens: number | null
-    messageCount: number
-    mode: string
-  }
-  errorCode: string | null
-  createdAt: number
-  messageSent: false
-  /** Mensagem a que responde (rascunho automático). */
-  replyToMessageId?: string | null
-  origin?: 'manual' | 'auto'
-  /** Notas internas para a atendente — nunca entram no texto a enviar. */
-  internalNotes?: string | null
-}
-
-export type AiDailyUsage = {
-  day: string
-  drafts: number
-  cap: number
-  capReached: boolean
-  capReachedAt: number | null
-}
-
-export type AiDraftState = {
-  job: { state: 'queued' | 'generating'; messageId: string; dueAt: number } | null
-  suggestion: AiSuggestion | null
-  usage?: AiDailyUsage | null
-  syntheticFallback?: boolean
-  mode?: string
-}
-
-export type AiSuggestResponse = {
-  suggestion: AiSuggestion
-  duplicate: boolean
-  messageSent: false
 }
 
 export type InboxCounts = {
@@ -3162,7 +2977,6 @@ export type ClinicConfigSnapshot = {
     signalCancellationPolicy?: string
     /** Opt-in de IA da clínica (default false). */
     aiAssistEnabled?: boolean
-    aiSuggestEnabled?: boolean
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
     /** DEC-089 — atendente virtual (persona da IA). */
@@ -3247,8 +3061,6 @@ export type ClinicConfigReview = {
 export type AbuseLimitNumbersDto = {
   windowHours: number
   autoDraftsPerContact: number
-  aiBookingsPerContact: number
-  aiBookingsPerClinic: number
   futureAppointmentsPerContact: number
   pendingPixPerContact: number
   pendingProposalsPerContact: number

@@ -323,23 +323,6 @@ export function assertContextMinimized(payload: AiContextPayload): void {
   }
 }
 
-/**
- * Asserts usados em testes S8: o JSON persistido de idempotência não guarda
- * prompts, corpos de mensagem nem inspeção de gateway.
- */
-export function assertAiCommandResultMinimized(resultJson: string): void {
-  if (
-    /"(contextInspection|gatewayInspection|systemPrompt|userContent|messages|services|_debugExcluded)"\s*:/.test(
-      resultJson,
-    )
-  ) {
-    throw new Error('ai_command_stores_prohibited_context')
-  }
-  if (PROHIBITED_PAYLOAD_VALUE_RE.test(resultJson)) {
-    throw new Error('ai_command_contains_prohibited_secrets')
-  }
-}
-
 /** DEC-080 — combos que valem hoje: ativos, com todas as variantes em uso, com preço e mais baratos. */
 function usableCombos(service: ServiceRow): NonNullable<AiCatalogService['combos']> {
   const zones = new Map(service.zones.map((z) => [z.id, z]))

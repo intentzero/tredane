@@ -52,7 +52,6 @@ import {
 import {
   ensureClinicSettings,
   setClinicAiAssistEnabled,
-  setClinicAiSuggestEnabled,
   setClinicAiProfile,
   updateClinicTimezone,
 } from './settings'
@@ -436,31 +435,6 @@ export function deleteBlockOp(
   })
 }
 
-export function setAiSuggestEnabledOp(
-  db: ClinicDb,
-  caller: ClinicCaller,
-  enabled: boolean,
-  clock: Clock,
-) {
-  const meta = prepare(db, caller, clock)
-  return db.transactionSync(() => {
-    const settings = setClinicAiSuggestEnabled(db, meta.tenantId, enabled, clock)
-    writeOperationalAudit(
-      db,
-      {
-        tenantId: meta.tenantId,
-        actor: caller.actorId ?? caller.kind,
-        action: enabled ? 'config.ai_suggest_enabled' : 'config.ai_suggest_disabled',
-        objectType: 'clinic_settings',
-        objectId: '1',
-        detail: { aiSuggestEnabled: settings.aiSuggestEnabled },
-      },
-      clock,
-    )
-    return settings
-  })
-}
-
 export function setAiAssistEnabledOp(
   db: ClinicDb,
   caller: ClinicCaller,
@@ -566,8 +540,6 @@ function clinicAbuseSnapshot(settings: ReturnType<typeof ensureClinicSettings>) 
     autoBookPaused: settings.autoBookPaused,
     windowHours: settings.abuseWindowHours,
     autoDraftsPerContact: settings.abuseAutoDraftsPerContact,
-    aiBookingsPerContact: settings.abuseAiBookingsPerContact,
-    aiBookingsPerClinic: settings.abuseAiBookingsPerClinic,
     futureAppointmentsPerContact: settings.abuseFutureAppointmentsPerContact,
     pendingPixPerContact: settings.abusePendingPixPerContact,
     pendingProposalsPerContact: settings.abusePendingProposalsPerContact,

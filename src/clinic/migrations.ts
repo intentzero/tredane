@@ -390,7 +390,7 @@ import {
   MIGRATION_ID as M78_ID,
   MIGRATION_NAME as M78_NAME,
   STATEMENTS as M78_STATEMENTS,
-} from './migrations/0078_ai_suggest_opt_in'
+} from './migrations/0078_faq_policy_and_ai_booking_limits'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {

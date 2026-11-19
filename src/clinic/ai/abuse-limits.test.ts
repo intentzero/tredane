@@ -112,19 +112,15 @@ describe('S7: configuração', () => {
       ABUSE_LIMITS: 'on',
       ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT: '5',
       ABUSE_LIMIT_WINDOW_HOURS: '12',
-      ABUSE_LIMIT_AI_BOOKINGS_PER_CLINIC: 'muitos',
       ABUSE_LIMIT_PENDING_PIX_PER_CONTACT: '-1',
     })
     expect(l.autoDraftsPerContact).toBe(5)
     expect(l.windowMs).toBe(12 * HOUR)
-    expect(l.aiBookingsPerClinic).toBe(DEFAULT_ABUSE_LIMITS.aiBookingsPerClinic)
     expect(l.pendingPixPerContact).toBe(DEFAULT_ABUSE_LIMITS.pendingPixPerContact)
     expect(DEFAULT_ABUSE_LIMITS).toMatchObject({
       windowMs: 24 * HOUR,
       autoDraftsPerContact: 20,
       autoDraftsPerClinic: 300,
-      aiBookingsPerContact: 1,
-      aiBookingsPerClinic: 20,
       futureAppointmentsPerContact: 3,
       pendingPixPerContact: 2,
       pendingProposalsPerContact: 1,
@@ -226,81 +222,6 @@ describe('S7: marcações automáticas e Pix (quota consultada no backend)', () 
     )
   }
 
-  it('1 marcação pela IA por contato em 24 h; outro contato não é afetado', () => {
-    const s = seed()
-    try {
-      const a = s.addContact('a', '5511900000201')
-      const b = s.addContact('b', '5511900000202')
-      const l = on()
-      const q = (contactId: string) => checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId, effect: 'ai_booking' }, s.clock)
-      expect(q(a.contactId).allowed).toBe(true)
-      insertAppt(s, 'apt_ai_1', a.contactId, { ai: true })
-      expect(q(a.contactId)).toMatchObject({ allowed: false, limit: 'aiBookingsPerContact', scope: 'contact' })
-      expect(q(b.contactId).allowed).toBe(true)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('20 marcações pela IA por clínica em 24 h', () => {
-    const s = seed()
-    try {
-      const l = on()
-      for (let i = 0; i < 20; i++) {
-        const c = s.addContact(`c${i}`, `55119000003${String(i).padStart(2, '0')}`)
-        insertAppt(s, `apt_ai_c${i}`, c.contactId, { ai: true })
-      }
-      const fresh = s.addContact('novo', '5511900000399')
-      expect(checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: fresh.contactId, effect: 'ai_booking' }, s.clock)).toMatchObject({
-        allowed: false,
-        limit: 'aiBookingsPerClinic',
-        scope: 'clinic',
-      })
-    } finally {
-      s.close()
-    }
-  })
-
-  it('3 compromissos futuros por contato (qualquer origem) bloqueiam nova marcação automática', () => {
-    const s = seed()
-    try {
-      const a = s.addContact('a', '5511900000401')
-      const l = on()
-      for (let i = 0; i < 3; i++) insertAppt(s, `apt_h_${i}`, a.contactId, { startsAt: NOW + (i + 1) * 24 * HOUR })
-      insertAppt(s, 'apt_past', a.contactId, { startsAt: NOW - 24 * HOUR })
-      expect(checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: a.contactId, effect: 'ai_booking' }, s.clock)).toMatchObject({
-        allowed: false,
-        limit: 'futureAppointmentsPerContact',
-      })
-    } finally {
-      s.close()
-    }
-  })
-
-  it('2 cobranças Pix pendentes por contato', () => {
-    const s = seed()
-    try {
-      const a = s.addContact('a', '5511900000501')
-      const l = on()
-      const add = (id: string, status: string) =>
-        s.db.run(
-          `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents, status, created_at, updated_at, contact_id)
-           VALUES (?, ?, 'acc_fake', 'synthetic', ?, 5000, ?, ?, ?, ?)`,
-          id, s.tenantId, `ref_${id}`, status, NOW, NOW, a.contactId,
-        )
-      add('pix_1', 'awaiting_payment')
-      add('pix_paid', 'paid')
-      expect(checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: a.contactId, effect: 'pix_charge' }, s.clock).allowed).toBe(true)
-      add('pix_2', 'awaiting_payment')
-      expect(checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: a.contactId, effect: 'pix_charge' }, s.clock)).toMatchObject({
-        allowed: false,
-        limit: 'pendingPixPerContact',
-      })
-    } finally {
-      s.close()
-    }
-  })
-
   it('agenda online (DEC-214): 3 marcações à frente e 2 Pix por pagar travam marcação nova, não remarcação', () => {
     const s = seed()
     try {
@@ -338,7 +259,7 @@ describe('S7: marcações automáticas e Pix (quota consultada no backend)', () 
       const a = s.addContact('a', '5511900000601')
       insertAppt(s, 'apt_ai_x', a.contactId, { ai: true })
       expect(
-        checkAutomationQuota(s.db, on(), { tenantId: 'clinic-demo-b', contactId: a.contactId, effect: 'ai_booking' }, s.clock).allowed,
+        checkAutomationQuota(s.db, on(), { tenantId: 'clinic-demo-b', contactId: a.contactId, effect: 'proposal' }, s.clock).allowed,
       ).toBe(true)
     } finally {
       s.close()
@@ -530,8 +451,6 @@ describe('S7: UI clínica — persistência e pausa', () => {
         enabled: settings.abuseLimitsEnabled,
         windowHours: settings.abuseWindowHours,
         autoDraftsPerContact: settings.abuseAutoDraftsPerContact,
-        aiBookingsPerContact: settings.abuseAiBookingsPerContact,
-        aiBookingsPerClinic: settings.abuseAiBookingsPerClinic,
         futureAppointmentsPerContact: settings.abuseFutureAppointmentsPerContact,
         pendingPixPerContact: settings.abusePendingPixPerContact,
         pendingProposalsPerContact: settings.abusePendingProposalsPerContact,
