@@ -37,7 +37,11 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import type { AppointmentListItem } from '../scheduling/booking-types'
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
 import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from '../attachments'
-import { rescheduleConversationIdle } from '../followup/idle-state'
+import {
+  clearIdleSuppressed,
+  rescheduleConversationIdle,
+} from '../followup/idle-state'
+import { CLIENT_WEB_CTA_TEXT } from '../../clientweb/offer'
 import {
   applyHumanOutboundPrefix,
   isHumanStaffAuthor,
@@ -1299,8 +1303,13 @@ export function sendOutboundMessageOp(
       bumpUnread: false,
       reopenIfClosed: true,
     })
-    // DEC-087: outbound útil reinicia idle (follow-up idle sobrescreve a fase se precisar).
+    // DEC-087 / DEC-202: outbound útil reinicia idle. «Abrir agenda» é nova intenção de
+    // marcação (substitui a sessão de funil) — limpa idle_suppressed após Terminar/tchau
+    // para o timeout DEC-208 voltar a armar (staging: farewell → Quero agendar → sem fecho).
     try {
+      if (interactiveCtaUrl?.displayText === CLIENT_WEB_CTA_TEXT) {
+        clearIdleSuppressed(db, meta.tenantId, input.conversationId, now)
+      }
       rescheduleConversationIdle(db, meta.tenantId, input.conversationId, clock, {
         progressAt: now,
       })
