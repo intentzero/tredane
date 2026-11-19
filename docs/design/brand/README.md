@@ -16,6 +16,7 @@ Todos gerados por [`tools/build_brand.py`](../tools/build_brand.py); não edite 
 | `svg/tredane-empilhado-*.svg` | Símbolo acima do nome |
 | `icon/tredane-icone.svg` | Ícone do app, 1024 × 1024, fundo opaco Petróleo |
 | `icon/tredane-icone-{1024,512,192,32}.png` | Ícone em PNG, RGB sem transparência |
+| `icon/tredane-icone-fundo-branco-1024.png` | Ícone 1024 × 1024, fundo branco (símbolo cor); para avatar / perfil em fundo claro (ex. WhatsApp Business). Não gerado por `build_brand.py` |
 | `icon/favicon.svg` · `icon/favicon.ico` | Favicon (placa arredondada; .ico com 16, 32 e 48 px) |
 
 Sufixos de cor: `cor` (fundo claro), `escuro` (fundo escuro), `mono-preto` e `mono-branco` (uma só cor).

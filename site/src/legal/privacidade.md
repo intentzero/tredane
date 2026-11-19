@@ -10,7 +10,7 @@ Esta política explica, em linguagem simples, como o Tredane trata dados pessoai
 
 O Tredane é um serviço da Lucimark: uma plataforma (SaaS) que ajuda clínicas e estúdios a atender clientes pelo WhatsApp, marcar horários e cobrar sinal por Pix.
 
-- **Empresa responsável:** LUCIMARK INOVA SIMPLES (I.S.), Brasil
+- **Empresa responsável:** LUCIMARK DESENVOLVIMENTO E TECNOLOGIA LTDA, Brasil
 - **CNPJ:** 66.552.736/0001-80
 - **Endereço:** Condomínio Ouro Vermelho II nº 0, Setor Habitacional Jardim Botânico, Brasília-DF, CEP 71680-385
 - **Contato para privacidade e proteção de dados:** [privacidade@tredane.com](mailto:privacidade@tredane.com)

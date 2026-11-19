@@ -4,7 +4,7 @@
 
 **Última atualização:** 27/10/2026
 
-Esta página explica como pedir a exclusão dos seus dados pessoais tratados pelo Tredane, serviço da LUCIMARK INOVA SIMPLES (I.S.), incluindo os dados recebidos pelo WhatsApp (WhatsApp Business Platform / Cloud API da Meta). Para mais detalhes, veja a [Política de Privacidade](/privacidade).
+Esta página explica como pedir a exclusão dos seus dados pessoais tratados pelo Tredane, serviço da LUCIMARK DESENVOLVIMENTO E TECNOLOGIA LTDA, incluindo os dados recebidos pelo WhatsApp (WhatsApp Business Platform / Cloud API da Meta). Para mais detalhes, veja a [Política de Privacidade](/privacidade).
 
 ## 1. Se você é paciente ou cliente de uma clínica
 
@@ -45,6 +45,6 @@ Se você voltar a escrever para a clínica depois da exclusão, uma nova convers
 
 ## 4. Contato
 
-LUCIMARK INOVA SIMPLES (I.S.) · CNPJ 66.552.736/0001-80 · [privacidade@tredane.com](mailto:privacidade@tredane.com)
+LUCIMARK DESENVOLVIMENTO E TECNOLOGIA LTDA · CNPJ 66.552.736/0001-80 · [privacidade@tredane.com](mailto:privacidade@tredane.com)
 
 Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
