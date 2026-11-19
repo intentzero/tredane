@@ -114,9 +114,53 @@ describe('InboxThread — cabeçalho e Assumir', () => {
     )
     await screen.findByText('A IA está pausada. Uma pessoa continua esta conversa.')
     expect(screen.getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
+    expect(screen.queryByTestId('ai-attending-banner')).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Devolver à IA' }))
     await waitFor(() => expect(resumeInboxAi).toHaveBeenCalledTimes(1))
     expect(assignInboxConversation).not.toHaveBeenCalled()
+  })
+
+  it('IA a atender: banner Assumir a conversa (DEC-209); sem linha fraca no compositor', async () => {
+    const user = userEvent.setup()
+    const assignInboxConversation = vi.fn(async () => ({
+      versionMatched: true,
+      conversation: {
+        ...detail({
+          status: 'open',
+          assigneeClerkUserId: VIEWER,
+          assigneeDisplayName: 'Paulo',
+          assignmentVersion: 1,
+        }),
+        assigneeClerkUserId: VIEWER,
+        assigneeDisplayName: 'Paulo',
+        assignmentVersion: 1,
+      },
+      systemMessage: message({
+        id: 'sys_assume',
+        direction: 'system',
+        body: 'Paulo assumiu a conversa',
+      }),
+    }))
+    const resumeInboxAi = vi.fn()
+    renderThread(
+      mockApi(
+        detail({
+          status: 'open',
+          assigneeClerkUserId: 'system:ai-autodraft',
+          assigneeDisplayName: 'IA',
+        }),
+        { assignInboxConversation, resumeInboxAi },
+      ),
+    )
+    const banner = await screen.findByTestId('ai-attending-banner')
+    expect(within(banner).getByText('A IA está atendendo esta conversa.')).toBeTruthy()
+    expect(within(banner).getByRole('button', { name: 'Assumir a conversa' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Assumir conversa' })).toBeNull()
+    expect(screen.queryByText('IA está atendendo esta conversa.')).toBeNull()
+
+    await user.click(within(banner).getByRole('button', { name: 'Assumir a conversa' }))
+    await waitFor(() => expect(assignInboxConversation).toHaveBeenCalledTimes(1))
+    expect(resumeInboxAi).not.toHaveBeenCalled()
   })
 })
 
