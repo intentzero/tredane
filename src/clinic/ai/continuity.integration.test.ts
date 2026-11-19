@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { AiGatewayAnthropicAdapter, SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
-import { setClinicAiAssistEnabled } from '../config/settings'
+import { setClinicAiAssistEnabled, setClinicAiSuggestEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
@@ -21,6 +21,7 @@ function seedConversation(hist: Array<['inbound' | 'outbound', string]>) {
   const tenantId = 'clinic-demo-a'
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
   setClinicAiAssistEnabled(db, tenantId, true, clock)
+  setClinicAiSuggestEnabled(db, tenantId, true, clock)
   const contact = upsertContact(
     db,
     { tenantId, waId: '5511900000099', displayName: 'Paulo Staging' },

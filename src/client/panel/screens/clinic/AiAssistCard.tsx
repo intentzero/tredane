@@ -105,6 +105,88 @@ export function AiAssistCard({
   )
 }
 
+/**
+ * DEC-216: «Sugestões de resposta para a equipe». O botão «Sugerir resposta» na conversa prepara um
+ * rascunho que a equipe revê; não envia nada sozinho. Independente do atendimento automático.
+ */
+export function AiSuggestCard({
+  tenantId,
+  api,
+  generation,
+  initialEnabled,
+}: {
+  tenantId: string
+  api: PanelApi
+  generation: number
+  initialEnabled: boolean
+}) {
+  const [enabled, setEnabled] = useState(initialEnabled)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+  }, [])
+
+  async function toggle(next: boolean) {
+    setBusy(true)
+    setError(null)
+    try {
+      const s = await api.setClinicAiSuggest(tenantId, next, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setEnabled(s.aiSuggestEnabled === true)
+      setSaved(true)
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setSaved(false), 2000)
+    } catch {
+      setError('Não foi possível salvar. Tente de novo.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="panel-card" aria-labelledby="ai-suggest-t">
+      <h2 id="ai-suggest-t" className="panel-title-md">
+        Sugestões para a equipe
+      </h2>
+      <label className="panel-switch-row">
+        <span>
+          <span className="panel-switch-label">{enabled ? 'Ligado' : 'Desligado'}</span>
+          <span className="panel-muted-sm">
+            {enabled
+              ? 'O botão «Sugerir resposta» na conversa prepara um rascunho. A equipe revê e envia; nada sai sozinho.'
+              : 'A equipe escreve sem rascunhos da IA.'}
+          </span>
+        </span>
+        {saved ? (
+          <span className="panel-saved-flash" role="status">
+            Salvo
+          </span>
+        ) : null}
+        <input
+          type="checkbox"
+          role="switch"
+          className="panel-switch"
+          checked={enabled}
+          disabled={busy}
+          aria-checked={enabled}
+          onChange={(e) => void toggle(e.target.checked)}
+          aria-label="Sugestões de resposta para a equipe"
+        />
+      </label>
+      {error ? (
+        <p className="clinic-footnote clinic-footnote-warn" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
 type ProfileProps = {
   tenantId: string
   api: PanelApi

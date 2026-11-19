@@ -2579,6 +2579,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         return this.createClinicBlock(caller, payload as unknown as CreateBlockInput)
       case 'ai_assist': {
         const settings = await this.setClinicAiAssistEnabled(caller, payload.enabled === true)
+        // DEC-216: o laboratório liga também «Sugerir» (o botão manual da conversa demo).
+        await this.setClinicAiSuggestEnabled(caller, payload.enabled === true)
         // Lab: canal sintético para o outbound e o readiness (nada para a Meta).
         if (payload.enabled === true) {
           clinicWhatsapp.syncWhatsappChannel(
@@ -3272,6 +3274,16 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       '1',
       { aiAssistEnabled: settings.aiAssistEnabled },
     )
+    return settings
+  }
+
+  async setClinicAiSuggestEnabled(caller: ClinicCaller, enabled: boolean) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicConfig.setAiSuggestEnabledOp(this.#db, caller, enabled, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.settings_updated', 'clinic_settings', '1', {
+      aiSuggestEnabled: settings.aiSuggestEnabled,
+    })
     return settings
   }
 

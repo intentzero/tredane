@@ -42,6 +42,7 @@ export type ClinicConfigGateway = {
   reviewServices(caller: ClinicCaller): Promise<clinicConfig.ServiceReviewResult>
   updateTimezone(caller: ClinicCaller, timezone: string): Promise<ClinicSettingsRow>
   setAiAssistEnabled(caller: ClinicCaller, enabled: boolean): Promise<ClinicSettingsRow>
+  setAiSuggestEnabled(caller: ClinicCaller, enabled: boolean): Promise<ClinicSettingsRow>
   setAiProfile(
     caller: ClinicCaller,
     input: {
@@ -175,6 +176,9 @@ export function createMemoryClinicConfigGateway(
     },
     async setAiAssistEnabled(caller, enabled) {
       return clinicConfig.setAiAssistEnabledOp(db, caller, enabled, clock)
+    },
+    async setAiSuggestEnabled(caller, enabled) {
+      return clinicConfig.setAiSuggestEnabledOp(db, caller, enabled, clock)
     },
     async setAiProfile(caller, input) {
       return clinicConfig.setAiProfileOp(db, caller, input, clock)

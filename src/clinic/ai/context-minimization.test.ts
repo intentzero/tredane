@@ -12,7 +12,7 @@ import { createControllableClock, systemClock } from '../../db/clock'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { workerCaller } from '../envelopes'
 import { upsertService } from '../config/services'
-import { setClinicAiAssistEnabled, ensureClinicSettings } from '../config/settings'
+import { setClinicAiAssistEnabled, setClinicAiSuggestEnabled, ensureClinicSettings } from '../config/settings'
 import { upsertContact, getContact, listContacts } from '../contacts'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
@@ -51,6 +51,7 @@ function seedClinic(
   const caller = workerCaller(tenantId, 'user_s8_test')
   bindOrAssertTenant(db, caller, clock)
   setClinicAiAssistEnabled(db, tenantId, true, clock)
+  setClinicAiSuggestEnabled(db, tenantId, true, clock)
   if (opts.googleBusinessUrl) {
     ensureClinicSettings(db, tenantId, clock)
     db.run(
@@ -482,6 +483,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
       setWeeklyWindowsOp(db, caller, { resourceId: pro.id, windows: week }, clock)
       setWeeklyWindowsOp(db, caller, { resourceId: room.id, windows: week }, clock)
       setClinicAiAssistEnabled(db, tenantId, true, clock)
+      setClinicAiSuggestEnabled(db, tenantId, true, clock)
       ensureClinicSettings(db, tenantId, clock)
       db.run(
         `UPDATE clinic_settings SET google_business_url = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,

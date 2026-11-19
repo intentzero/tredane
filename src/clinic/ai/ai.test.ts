@@ -6,7 +6,7 @@ import {
 } from '../../ai'
 import { CLINIC_SCHEMA_VERSION, workerCaller } from '../index'
 import { upsertService } from '../config/services'
-import { setClinicAiAssistEnabled } from '../config/settings'
+import { setClinicAiAssistEnabled, setClinicAiSuggestEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
@@ -41,6 +41,7 @@ function seedConversation(
   const caller = workerCaller(tenantId, 'user_ai_test')
   bindOrAssertTenant(db, caller, clock)
   if (opts.aiOptIn !== false) setClinicAiAssistEnabled(db, tenantId, true, clock)
+  if (opts.aiOptIn !== false) setClinicAiSuggestEnabled(db, tenantId, true, clock)
 
   for (const s of opts.services ?? []) {
     upsertService(
@@ -99,6 +100,33 @@ function seedConversation(
 }
 
 describe('clinic AI assistiva (#41)', () => {
+  it('«Sugerir» e envio automático são interruptores independentes (DEC-216)', async () => {
+    const { db, clock } = bootClinicDb()
+    const tenantId = 'clinic-demo-split'
+    const { caller, conversationId } = seedConversation(db, clock, tenantId, {
+      displayName: 'Maria Teste',
+      waId: '5511900000002',
+      inboundBodies: ['Oi, tem horário amanhã?'],
+      aiOptIn: false,
+    })
+    const deps = { mode: 'synthetic' as const, adapter: new SimulatedAiAdapter() }
+    const base = {
+      conversationId,
+      actorClerkUserId: 'user_ai_test',
+      actorDisplayName: 'Atendente',
+    }
+    // Só o envio automático ligado: o botão manual continua recusado.
+    setClinicAiAssistEnabled(db, tenantId, true, clock)
+    await expect(
+      suggestReplyOp(db, caller, { ...base, clientRequestId: 'split-1' }, clock, deps),
+    ).rejects.toMatchObject({ code: 'ai_not_enabled' })
+    // Só «Sugerir» ligado: o manual funciona (o rascunho automático usa `ai_assist_enabled`, no autodraft).
+    setClinicAiAssistEnabled(db, tenantId, false, clock)
+    setClinicAiSuggestEnabled(db, tenantId, true, clock)
+    const ok = await suggestReplyOp(db, caller, { ...base, clientRequestId: 'split-2' }, clock, deps)
+    expect(ok.suggestion.status).toBe('pending')
+  })
+
   it('opt-in por clínica: default desligado, nenhuma chamada ao modelo', async () => {
     const { db, clock } = bootClinicDb()
     const tenantId = 'clinic-demo-optin'
@@ -139,11 +167,13 @@ describe('clinic AI assistiva (#41)', () => {
     expect(db.get<{ n: number }>('SELECT COUNT(*) AS n FROM ai_suggestions')?.n).toBe(0)
 
     setClinicAiAssistEnabled(db, tenantId, true, clock)
+    setClinicAiSuggestEnabled(db, tenantId, true, clock)
     const ok = await suggestReplyOp(db, caller, { ...input, clientRequestId: 'optin-3' }, clock, deps)
     expect(ok.suggestion.status).toBe('pending')
     expect(calls).toBe(1)
 
     setClinicAiAssistEnabled(db, tenantId, false, clock)
+    setClinicAiSuggestEnabled(db, tenantId, false, clock)
     await expect(
       suggestReplyOp(db, caller, { ...input, clientRequestId: 'optin-4' }, clock, deps),
     ).rejects.toMatchObject({ code: 'ai_not_enabled' })

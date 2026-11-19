@@ -17,7 +17,7 @@ import { validateClientOutbound } from './outbound-validate'
 import type { Clock } from '../../db/clock'
 import { assertValidCaller, type ClinicCaller } from '../envelopes'
 import { ClinicError, NotFoundError, ValidationError } from '../errors'
-import { isClinicAiAssistEnabled } from '../config/settings'
+import { isClinicAiAssistEnabled, isClinicAiSuggestEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
 import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
@@ -139,7 +139,12 @@ async function runGenerate(
   const meta = bindOrAssertTenant(db, caller, clock)
 
   // Opt-in por clínica (política §6): sem opt-in, nenhuma chamada ao modelo.
-  if (!isClinicAiAssistEnabled(db, meta.tenantId)) {
+  // DEC-216: rascunho automático = interruptor do envio automático; «Sugerir» manual = o seu próprio.
+  const allowed =
+    origin === 'manual'
+      ? isClinicAiSuggestEnabled(db, meta.tenantId)
+      : isClinicAiAssistEnabled(db, meta.tenantId)
+  if (!allowed) {
     throw new ClinicError('ai_not_enabled', 'IA assistiva desligada para esta clínica')
   }
 

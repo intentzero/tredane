@@ -18,6 +18,7 @@ export function serializeSettings(row: ClinicSettingsRow) {
     signalDeadlineSeconds: row.signalDeadlineSeconds,
     signalCancellationPolicy: row.signalCancellationPolicy,
     aiAssistEnabled: row.aiAssistEnabled,
+    aiSuggestEnabled: row.aiSuggestEnabled,
     googleBusinessUrl: row.googleBusinessUrl,
     reschedulePolicy: row.reschedulePolicy,
     virtualAttendantName: row.virtualAttendantName,

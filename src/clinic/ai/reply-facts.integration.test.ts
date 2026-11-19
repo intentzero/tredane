@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../ai'
 import { createControllableClock } from '../../db/clock'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
-import { setClinicAiAssistEnabled } from '../config/settings'
+import { setClinicAiAssistEnabled, setClinicAiSuggestEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
@@ -42,6 +42,7 @@ function seed() {
   const week = [1, 2, 3, 4, 5, 6].map((d) => ({ dayOfWeek: d, startMinute: 540, endMinute: 1020 }))
   setWeeklyWindowsOp(db, caller, { resourceId: gi.id, windows: week }, clock)
   setClinicAiAssistEnabled(db, tenantId, true, clock)
+  setClinicAiSuggestEnabled(db, tenantId, true, clock)
   const contact = upsertContact(db, { tenantId, waId: '5511900000088', displayName: 'Carla Ficticia' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
   let t = NOW - 5 * 60_000

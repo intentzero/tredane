@@ -266,6 +266,8 @@ export type ClinicSettingsRow = {
   signalCancellationPolicy: string
   /** Opt-in de IA assistiva pela clínica (default false; política §6). */
   aiAssistEnabled: boolean
+  /** DEC-216: botão «Sugerir resposta» no painel (rascunho que a equipe revê). Independente do envio automático. */
+  aiSuggestEnabled: boolean
   /** Link do Google Business (https; vazio = sem link). Definido só pela clínica; contexto da IA. */
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */

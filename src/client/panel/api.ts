@@ -592,6 +592,25 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
+    async setClinicAiSuggest(
+      tenantId: string,
+      suggestEnabled: boolean,
+      opts?: FetchOpts,
+    ): Promise<ClinicConfigSnapshot['settings']> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/ai-assist`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ suggestEnabled }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicConfigSnapshot['settings']
+    },
+
     async getClinicAbuseLimits(
       tenantId: string,
       opts?: FetchOpts,
@@ -3143,6 +3162,7 @@ export type ClinicConfigSnapshot = {
     signalCancellationPolicy?: string
     /** Opt-in de IA da clínica (default false). */
     aiAssistEnabled?: boolean
+    aiSuggestEnabled?: boolean
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
     /** DEC-089 — atendente virtual (persona da IA). */
