@@ -61,8 +61,8 @@ svg { flex: none; }
 @media (max-width: 480px) { .top-link { display: none; } .cta-long { display: none; } .cta-short { display: inline; } }
 
 /* Botões */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 26px; border-radius: 999px; font-size: 16px; font-weight: 500; text-decoration: none; }
-.btn-sm { min-height: 44px; padding: 0 18px; font-size: 15px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 26px; border-radius: 16px; font-size: 16px; font-weight: 500; text-decoration: none; }
+.btn-sm { border-radius: 14px; min-height: 44px; padding: 0 18px; font-size: 15px; }
 .btn-dark { background: var(--ink); color: #FFFFFF; }
 .btn-dark:hover { background: var(--petrol-dark); }
 .btn-petrol { background: var(--petrol); color: #FFFFFF; }
