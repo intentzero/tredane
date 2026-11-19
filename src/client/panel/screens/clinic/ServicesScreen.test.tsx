@@ -819,6 +819,68 @@ describe('ServiceForm — variantes: folha, lote e prontidão', () => {
     renderForm(svc({ priceCents: 12_000, roomRequirement: { mode: 'none' } }), {})
     expect(screen.getByText('Preço e duração definidos.')).toBeTruthy()
   })
+
+  it('«Pronto para atender» não marca profissional inactiva como pronta', () => {
+    const inactive: ClinicConfigSnapshot['resources'] = [
+      {
+        id: 'p-off',
+        kind: 'professional',
+        name: 'Gi',
+        category: null,
+        active: false,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    renderForm(
+      svc({
+        professionalIds: ['p-off'],
+        priceCents: 12_000,
+        roomRequirement: { mode: 'none' },
+      }),
+      {},
+      inactive,
+    )
+    expect(screen.getByText('Nenhuma profissional ativa: ninguém recebe este serviço.')).toBeTruthy()
+    expect(screen.queryByText('1 profissional')).toBeNull()
+  })
+
+  it('«Pronto para atender» conta só profissionais ativas ligadas', () => {
+    const mixed: ClinicConfigSnapshot['resources'] = [
+      {
+        id: 'p-on',
+        kind: 'professional',
+        name: 'Thaís',
+        category: null,
+        active: true,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      {
+        id: 'p-off',
+        kind: 'professional',
+        name: 'Gi',
+        category: null,
+        active: false,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    renderForm(
+      svc({
+        professionalIds: ['p-on', 'p-off'],
+        priceCents: 12_000,
+        roomRequirement: { mode: 'none' },
+      }),
+      {},
+      mixed,
+    )
+    expect(screen.getByText('1 profissional')).toBeTruthy()
+    expect(screen.queryByText('2 profissionais')).toBeNull()
+  })
 })
 
 describe('ServiceForm — layout do painel (overflow horizontal)', () => {
