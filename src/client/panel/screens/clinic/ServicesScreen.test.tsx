@@ -845,7 +845,7 @@ describe('ServiceForm — layout do painel (overflow horizontal)', () => {
     // Shell pregado ao viewport — evita barra inferior a meio do ecrã.
     expect(css).toMatch(/\.panel-app\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/s)
     expect(css).toMatch(
-      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.panel-app:has\(\.inbox-thread\)\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app:has\(\.inbox-thread\)\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
     )
     expect(css).toMatch(/\.panel-sticky-clearance\s*\{[^}]*height:\s*var\(--panel-sticky-clearance\)/s)
     expect(css).toMatch(/\.svc-format-item\s*\{[^}]*position:\s*relative/s)
