@@ -74,7 +74,7 @@ const faq = [
 </nav>
 <div class="top-actions">
 {hasAppUrl && <a class="top-link" href={appUrl}>Entrar</a>}
-<a class="btn btn-apricot btn-sm" href={ctaHref}>{hasWhatsapp ? <><span class="cta-long">Conversar no WhatsApp</span><span class="cta-short">WhatsApp</span></> : 'Conhecer o piloto'}</a>
+<a class="btn btn-apricot btn-sm" href={ctaHref}>{hasWhatsapp ? 'Conversar no WhatsApp' : 'Conhecer o piloto'}</a>
 </div>
 </div>
 </header>
@@ -225,7 +225,7 @@ const faq = [
 <p class="pilot-status" role="status"><strong>Estado atual:</strong> em piloto.</p>
 <p class="lead">No piloto, conectamos o WhatsApp com você, cadastramos serviços juntos e acompanhamos os primeiros passos. Planos de referência abaixo.</p>
 <div class="cta-row">
-<a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>
+<a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>
 {hasContact && <a class="pilot-mail" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Prefiro e-mail</a>}
 </div>
 </div>
