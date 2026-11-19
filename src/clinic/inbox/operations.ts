@@ -477,6 +477,8 @@ export function assignConversationOp(
       at: now,
       bumpUnread: false,
       reopenIfClosed: false,
+      // Lista: não usar «X transferiu para Y» / «assumiu» — já há marcador IA/Você.
+      keepListPreview: true,
     })
 
     let clearedAwaitingTeam = false

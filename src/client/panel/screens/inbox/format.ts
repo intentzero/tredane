@@ -108,8 +108,26 @@ export function assigneeLine(
   return c.assigneeDisplayName ?? 'Membro da equipe'
 }
 
+/**
+ * Eventos de Assumir / transferir / atribuir gravados como prévia (dados antigos
+ * ou direction=system). O marcador IA/Você já diz quem atende — a lista não
+ * deve repetir «Paulo transferiu para Paulo».
+ */
+export function isAssignmentHandoffPreview(preview: string): boolean {
+  const t = preview.trim()
+  if (!t) return false
+  return (
+    / transferiu para /.test(t) ||
+    / assumiu a conversa$/.test(t) ||
+    / atribuiu a /.test(t) ||
+    / removeu o responsável$/.test(t)
+  )
+}
+
 export function previewLine(c: InboxConversation, viewerId: string | null): string {
   const preview = c.lastMessagePreview ?? ''
+  // Dados antigos: direction=system + «X transferiu…». Novos assigns já preservam a prévia útil.
+  if (isAssignmentHandoffPreview(preview)) return ''
   if (c.lastMessageDirection === 'outbound') {
     const mine =
       viewerId && c.assigneeClerkUserId === viewerId ? 'Você' : c.assigneeDisplayName ?? 'Equipe'
