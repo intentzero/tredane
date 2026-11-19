@@ -22,6 +22,7 @@ import { ShellSlot } from '../../shell/ShellSlot'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
+import { SelfBlockSheet } from './SelfBlockSheet'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
 import { agendaMonthMarks } from './monthMarks'
 import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy, type FreeSlot } from './freeSlots'
@@ -57,6 +58,8 @@ type Props = {
   readOnly?: boolean
   /** Coluna da própria profissional, em destaque. */
   highlightProfessionalId?: string | null
+  /** DEC-205: pode marcar chegada (equipa ou profissional). */
+  canMarkAttendance?: boolean
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
@@ -100,7 +103,9 @@ export function AgendaDayWeek({
   isOwner = false,
   readOnly = false,
   highlightProfessionalId = null,
+  canMarkAttendance = false,
 }: Props) {
+  const [blockOpen, setBlockOpen] = useState(false)
   const [date, setDate] = useState(
     () =>
       (isCivilDateParam(focusDate) ? focusDate : null) ??
@@ -148,6 +153,27 @@ export function AgendaDayWeek({
       date,
     })
     returnFocus.current?.focus?.({ preventScroll: true })
+  }
+
+  async function setAttendance(id: string, attendance: 'arrived' | 'no_show' | null) {
+    try {
+      const result = await api.setAppointmentAttendance(tenantId, id, attendance, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setData((cur) => {
+        if (!cur) return cur
+        return {
+          ...cur,
+          appointments: cur.appointments.map((a) =>
+            a.id === id ? { ...a, attendance: result.attendance, version: result.version } : a,
+          ),
+        }
+      })
+    } catch {
+      /* o próximo load corrige */
+      void load()
+    }
   }
 
   function openAppointment(id: string) {
@@ -438,6 +464,14 @@ export function AgendaDayWeek({
             {onToday ? <span className="agenda-bar-badge">Hoje</span> : null}
             <span className="agenda-bar-spacer" />
             {viewToggle}
+            {readOnly && highlightProfessionalId ? (
+            <Button
+              className="panel-btn-secondary panel-btn-compact agenda-add"
+              onPress={() => setBlockOpen(true)}
+            >
+              Bloquear horário
+            </Button>
+            ) : null}
             {readOnly ? null : (
             <Button className="panel-btn-primary panel-btn-accent panel-btn-compact agenda-add" onPress={goSchedule}>
               <Plus aria-hidden size={18} strokeWidth={2} />
@@ -541,7 +575,7 @@ export function AgendaDayWeek({
       ) : null}
 
       <div className="panel-scroll agenda-body">
-        {view === 'day' && narrow ? (
+        {view === 'day' && (narrow || readOnly) ? (
           <AgendaDayList
             entries={listEntries}
             holds={holds}
@@ -555,6 +589,9 @@ export function AgendaDayWeek({
               if (readOnly || !h.conversationId) return
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
             }}
+            canMarkAttendance={canMarkAttendance}
+            attendanceForProfessionalId={readOnly ? highlightProfessionalId : null}
+            onSetAttendance={(id, attendance) => void setAttendance(id, attendance)}
           />
         ) : view === 'day' ? (
           <DayGrid
@@ -693,6 +730,28 @@ export function AgendaDayWeek({
           <Plus aria-hidden size={20} strokeWidth={2} />
           Agendar {date === today ? 'hoje' : dayLabel.weekday}
         </Button>
+      ) : null}
+      {narrow && view === 'day' && readOnly && highlightProfessionalId ? (
+        <Button
+          className="agenda-fab"
+          onPress={() => setBlockOpen(true)}
+          aria-label="Bloquear o meu horário"
+        >
+          Bloquear horário
+        </Button>
+      ) : null}
+      {highlightProfessionalId ? (
+        <SelfBlockSheet
+          tenantId={tenantId}
+          professionalId={highlightProfessionalId}
+          api={api}
+          generation={generation}
+          date={date}
+          timezone={timezone}
+          isOpen={blockOpen}
+          onOpenChange={setBlockOpen}
+          onSaved={() => void load()}
+        />
       ) : null}
     </div>
   )

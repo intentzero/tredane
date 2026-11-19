@@ -102,6 +102,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGatew
     getAppointment: (caller, appointmentId) =>
       stub.getClinicAppointment(caller, appointmentId),
     queryAgenda: (caller, input) => stub.queryClinicAgenda(caller, input),
+    setAttendance: (caller, input) => stub.setClinicAppointmentAttendance(caller, input),
     previewHold: (caller, input) => stub.previewClinicHold(caller, input),
     createHold: (caller, input) => stub.createClinicHold(caller, input),
     listHolds: (caller, input) => stub.listClinicHolds(caller, input),
@@ -279,6 +280,57 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       return schedulingErrorResponse(c, err)
     }
   })
+
+  /** DEC-205: chegou / não veio / limpar. */
+  app.post(
+    '/api/tenants/:tenantId/appointments/:appointmentId/attendance',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.agenda.attendance')
+        const body = await c.req.json<{ attendance?: 'arrived' | 'no_show' | null }>().catch(() => null)
+        if (!body || !('attendance' in body)) {
+          throw new ValidationError('missing_body', 'attendance é obrigatório')
+        }
+        if (
+          body.attendance !== null
+          && body.attendance !== 'arrived'
+          && body.attendance !== 'no_show'
+        ) {
+          throw new ValidationError('invalid_attendance', 'Comparecimento inválido')
+        }
+        let restrictToProfessionalId: string | null = null
+        if (ctx.role === 'professional') {
+          const linked = await c.get('authServices').adminDb.get<{ resource_id: string }>(
+            `SELECT resource_id FROM professional_logins
+             WHERE tenant_id = ? AND clerk_user_id = ?`,
+            ctx.tenantId,
+            c.get('principal').clerkUserId,
+          )
+          if (!linked?.resource_id) {
+            throw new ValidationError(
+              'professional_login_missing',
+              'A sua conta não está ligada a uma ficha de agenda',
+            )
+          }
+          restrictToProfessionalId = linked.resource_id
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const result = await gw.setAttendance(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          {
+            appointmentId: c.req.param('appointmentId'),
+            attendance: body.attendance,
+            restrictToProfessionalId,
+          },
+        )
+        return c.json(result)
+      } catch (err) {
+        return schedulingErrorResponse(c, err)
+      }
+    },
+  )
 
   /**
    * DEC-202: a equipe envia o link «Abrir agenda» à cliente. Não marca nada: a cliente escolhe

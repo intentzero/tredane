@@ -1235,6 +1235,37 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as AppointmentDetailResponse
     },
 
+    /** DEC-205: chegou / não veio / limpar. */
+    async setAppointmentAttendance(
+      tenantId: string,
+      appointmentId: string,
+      attendance: 'arrived' | 'no_show' | null,
+      opts?: FetchOpts,
+    ): Promise<{
+      appointmentId: string
+      attendance: 'arrived' | 'no_show' | null
+      version: number
+      professionalId: string
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/attendance`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendance }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        appointmentId: string
+        attendance: 'arrived' | 'no_show' | null
+        version: number
+        professionalId: string
+      }
+    },
+
     async listAppointmentReasons(
       tenantId: string,
       opts?: FetchOpts,
@@ -3561,6 +3592,8 @@ export type AgendaAppointmentItem = {
   durationAdjusted?: boolean
   /** Criado pela IA após confirmação explícita da cliente. */
   bookedByAi?: boolean
+  /** DEC-205: chegou / não veio. */
+  attendance?: 'arrived' | 'no_show' | null
 }
 
 export type AgendaInterval = { startsAt: number; endsAt: number }

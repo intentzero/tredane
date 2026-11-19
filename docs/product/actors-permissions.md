@@ -9,7 +9,7 @@
 | ACT-01 | Contato da clínica | Confirmado | Conversar pelo WhatsApp e solicitar ou alterar um horário. Não acessa o painel do Tredane. “Contato” não implica paciente com prontuário. |
 | ACT-02 | Atendente | Confirmado | Vê todas as conversas da própria clínica, conduz atendimentos, acompanha oportunidades e opera agendamentos. Não acessa dados de outras clínicas. |
 | ACT-03 | Responsável pela clínica | Confirmado (DEC-103, 01/11/2026) | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Pode convidar attendants e owners, promover attendant→owner, despromover owner→attendant e remover attendants e outros owners do próprio tenant (DEC-103), com proteção do último owner. Superadmin/Platform Admin continua a gerir owners. Conecta ou troca o número de WhatsApp pelo Embedded Signup (DEC-009/042). Detalhes externos da ativação Meta continuam como gate. |
-| ACT-04 | Profissional que presta o serviço | Confirmado (DEC-204, 19/11/2026) | Tem login e vê o dia inteiro da agenda da própria clínica: horário, serviço, sala e o primeiro nome da cliente, com a coluna dela em destaque. Não vê conversas, telefone, pipeline nem Clínica, e não marca, remarca nem cancela. Pode ser também atendente, com a mesma conta. |
+| ACT-04 | Profissional que presta o serviço | Confirmado (DEC-204, 19/11/2026; ampliado DEC-205/206) | Tem login e vê o dia inteiro da agenda da própria clínica: horário, serviço, sala e o primeiro nome da cliente, com a coluna dela em destaque. Marca chegada ou «não veio» só nos horários dela e pode bloquear o próprio intervalo. Não vê conversas, telefone, pipeline nem Clínica, e não marca, remarca nem cancela. Pode ser também atendente, com a mesma conta. |
 | ACT-05 | Superadmin Tredane | Confirmado na Platform Admin App | Administrador com `privateMetadata.superadmin === true` validada no backend; cria/edita/suspende/inicia exclusão de tenants, e pode iniciar impersonação temporária de membro de tenant para manutenção, com auditoria. Não recebe acesso implícito irrestrito ao conteúdo da clínica. |
 | ACT-06 | Serviços externos e automações | Proposto | WhatsApp, filas e workflows agem em nome da clínica após verificação da origem e associação ao tenant. Não são usuários humanos nem recebem acesso genérico a outros tenants. |
 
@@ -26,6 +26,8 @@
 | Atribuir ou transferir conversa | — | ✓ | ✓ | — | — |
 | Mover oportunidade no pipeline | — | ✓ | ✓ | — | — |
 | Ver agenda da clínica | — | ✓ | ✓ | ✓ dia inteiro, primeiro nome (DEC-204) | — |
+| Marcar chegada / não veio | — | ✓ | ✓ | ✓ só a coluna dela (DEC-205) | — |
+| Bloquear o próprio horário | — | — | ✓ clínica/folgas | ✓ só a própria ficha (DEC-206) | — |
 | Criar, cancelar ou reagendar horário | solicitar via WhatsApp | ✓ | ✓ | — | — |
 | Alterar disponibilidade, serviços, profissionais, salas/equipamentos e bloqueios (DEC-042) | — | — | ✓ | — | — |
 | Sinalizar, ocultar e pausar automações (DEC-067, P-1) | — | ✓ | ✓ | — | — |

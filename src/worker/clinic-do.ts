@@ -3906,6 +3906,37 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicScheduling.queryAgendaViewOp(this.#db, caller, input, this.#clock)
   }
 
+  /** DEC-205 — chegou / não veio. */
+  async setClinicAppointmentAttendance(
+    caller: ClinicCaller,
+    input: {
+      appointmentId: string
+      attendance: 'arrived' | 'no_show' | null
+      restrictToProfessionalId?: string | null
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicScheduling.setAppointmentAttendanceOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'appointment.attendance_updated',
+      'appointment',
+      result.appointmentId,
+      {
+        attendance: result.attendance,
+        version: result.version,
+        professionalId: result.professionalId,
+      },
+    )
+    return result
+  }
+
   async #afterHoldMutation(caller: ClinicCaller, outbox: OutboxRow[]): Promise<void> {
     if (outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outbox, true)

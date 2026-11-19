@@ -261,6 +261,8 @@ export type AppointmentRow = {
   /** DEC-051(g) — duração padrão do serviço na marcação e a aplicada. */
   defaultDurationMinutes: number | null
   appliedDurationMinutes: number | null
+  /** DEC-205 — comparecimento; null = ainda sem registo. */
+  attendance: 'arrived' | 'no_show' | null
 }
 
 export type ClinicSettingsRow = {

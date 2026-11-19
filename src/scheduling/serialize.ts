@@ -90,6 +90,7 @@ function serializeListItem(item: AppointmentListItem, professionalView = false) 
     changeReason: item.changeReason,
     durationAdjusted: item.durationAdjusted,
     bookedByAi: item.bookedByAi,
+    attendance: item.attendance ?? null,
   }
 }
 
@@ -120,6 +121,7 @@ export function serializeAppointmentDetail(detail: AppointmentDetail) {
     changeReason: detail.changeReason,
     cancelledBy: detail.cancelledBy,
     cancelledAt: detail.cancelledAt,
+    attendance: detail.attendance ?? null,
     createdAt: detail.createdAt,
     events: detail.events.map((e) => ({
       id: e.id,

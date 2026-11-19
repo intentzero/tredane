@@ -276,8 +276,12 @@ describe('matriz de permissões automatizada', () => {
     expect(roleAllows('owner', 'clinic.config.write')).toBe(true)
     expect(roleAllows('professional', 'clinic.agenda.read')).toBe(true)
     expect(roleAllows('professional', 'clinic.agenda.operate')).toBe(false)
+    expect(roleAllows('professional', 'clinic.agenda.attendance')).toBe(true)
+    expect(roleAllows('professional', 'clinic.agenda.self_block')).toBe(true)
     expect(roleAllows('professional', 'clinic.inbox.read')).toBe(false)
     expect(roleAllows('owner', 'clinic.agenda.read')).toBe(true)
+    expect(roleAllows('attendant', 'clinic.agenda.attendance')).toBe(true)
+    expect(roleAllows('attendant', 'clinic.agenda.self_block')).toBe(false)
     // Superadmin não herda inbox clínica.
     expect(platformAllows(true, 'clinic.inbox.read')).toBe(false)
     expect(platformAllows(true, 'platform.tenants.read')).toBe(true)

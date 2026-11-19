@@ -6,6 +6,6 @@ describe('0065_idle_suppressed', () => {
   it('id e nome estáveis', () => {
     expect(MIGRATION_ID).toBe(65)
     expect(MIGRATION_NAME).toBe('0065_idle_suppressed')
-    expect(CLINIC_SCHEMA_VERSION).toBe(74)
+    expect(CLINIC_SCHEMA_VERSION).toBe(75)
   })
 })

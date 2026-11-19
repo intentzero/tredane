@@ -101,6 +101,13 @@ export {
   queryAgendaViewOp,
 }
 
+export { setAppointmentAttendanceOp } from './attendance'
+export type {
+  AppointmentAttendance,
+  SetAttendanceInput,
+  SetAttendanceResult,
+} from './attendance'
+
 export type {
   AgendaViewInput,
   AgendaViewResult,

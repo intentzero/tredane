@@ -78,6 +78,12 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
         isOwner={isOwner}
         readOnly={isProfessional}
         highlightProfessionalId={highlightProfessionalId}
+        canMarkAttendance={
+          active.phase === 'ready'
+          && (active.context.role === 'professional'
+            || active.context.role === 'attendant'
+            || active.context.role === 'owner')
+        }
       />
     </InboxRealtimeProvider>
   )

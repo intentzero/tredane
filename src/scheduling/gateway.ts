@@ -66,6 +66,19 @@ export type SchedulingGateway = {
     caller: ClinicCaller,
     input: AgendaViewInput,
   ): Promise<AgendaViewResult>
+  setAttendance(
+    caller: ClinicCaller,
+    input: {
+      appointmentId: string
+      attendance: 'arrived' | 'no_show' | null
+      restrictToProfessionalId?: string | null
+    },
+  ): Promise<{
+    appointmentId: string
+    attendance: 'arrived' | 'no_show' | null
+    version: number
+    professionalId: string
+  }>
   previewHold(caller: ClinicCaller, input: HoldPreviewInput): Promise<HoldPreviewResult>
   createHold(
     caller: ClinicCaller,
@@ -109,6 +122,9 @@ export function createMemorySchedulingGateway(
     },
     async queryAgenda(caller, input) {
       return clinicScheduling.queryAgendaViewOp(db, caller, input, clock)
+    },
+    async setAttendance(caller, input) {
+      return clinicScheduling.setAppointmentAttendanceOp(db, caller, input, clock)
     },
     async previewHold(caller, input) {
       return clinicScheduling.previewHoldOp(db, caller, input, clock)
