@@ -17,12 +17,14 @@ import {
   type AvailabilityResponse,
   type AvailabilitySlot,
   type ClinicConfigSnapshot,
+  type InboxDirectoryContact,
   type MessagingWindow,
   type PanelApi,
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
-import { maskPhone } from '../inbox/format'
+import { contactLabel, maskPhone } from '../inbox/format'
+import { ClientePicker } from './ClientePicker'
 import { priceVisit } from '../../../../clinic/catalog/combo'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
@@ -225,6 +227,16 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [pix, setPix] = useState<PixSnapshot | null>(null)
   const [contact, setContact] = useState<Contact | null>(null)
+  /**
+   * DEC-203: só o Agendar da Agenda, sem conversa e sem contactId, pede a cliente.
+   * A partir da conversa a cliente já associada é a do compromisso.
+   */
+  const needsClientPick = !ctx.conversationId && !ctx.contactId
+  const [pickedClient, setPickedClient] = useState<InboxDirectoryContact | null>(null)
+  const bookingCtx = useMemo<ScheduleContext>(
+    () => (pickedClient ? { ...ctx, contactId: pickedClient.id } : ctx),
+    [ctx, pickedClient],
+  )
   /** DEC-180 — isenção durável no Contato (salta o sinal). */
   const [contactSignalWaived, setContactSignalWaived] = useState(false)
   const [window24, setWindow24] = useState<MessagingWindow | null>(null)
@@ -632,6 +644,25 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           </p>
         ) : null}
 
+        {needsClientPick ? (
+          <ClientePicker
+            api={api}
+            tenantId={tenantId}
+            fo={fo}
+            value={pickedClient}
+            onPick={(c) => {
+              setPickedClient(c)
+              setContact({ name: c.displayName, phone: maskPhone(c.waId) })
+              setContactSignalWaived(c.signalWaived === true)
+            }}
+          />
+        ) : contact ? (
+          <section aria-labelledby="agd-client">
+            <h2 id="agd-client" className="agd-label">Cliente</h2>
+            <p className="agd-client-known">{contact.name || contact.phone}</p>
+          </section>
+        ) : null}
+
         <section aria-labelledby="agd-svc">
           <h2 id="agd-svc" className="agd-label">Serviço</h2>
           <div className="agd-services" role="group" aria-labelledby="agd-svc">
@@ -876,6 +907,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
             <span>Sinal em porcentagem precisa de preço em todas as variantes escolhidas. </span>
           ) : null}
           {service ? <strong>{service.name}</strong> : null}
+          {needsClientPick ? (pickedClient ? ` · ${contactLabel(pickedClient)}` : ' · escolha a cliente') : ''}
           {selected ? ` · ${selected.professionalName}` : professionalId !== ANY ? ` · ${professionals.find((p) => p.id === professionalId)?.name ?? ''}` : ''}
           {selected
             ? ` · ${whenLabel}${selected.roomResourceName ? ` · ${selected.roomResourceName}` : ''}`
@@ -883,7 +915,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
         </p>
         <Button
           className="panel-btn panel-btn-primary agd-btn"
-          isDisabled={!selected || percentBlocked || (visit.zoned && visit.zones.length === 0)}
+          isDisabled={!selected || percentBlocked || (visit.zoned && visit.zones.length === 0) || (needsClientPick && !pickedClient)}
           onPress={() => setReviewOpen(true)}
         >
           {ctx.conversationId && ctx.contactId ? 'Revisar' : 'Revisar e confirmar'}
@@ -910,7 +942,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           api={api}
           tenantId={tenantId}
           fo={fo}
-          ctx={ctx}
+          ctx={bookingCtx}
           service={service}
           line={line}
           zoneIds={visit.zones.map((z) => z.id)}
