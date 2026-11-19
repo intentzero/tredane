@@ -2377,6 +2377,15 @@ button.panel-auth-inline-link {
 .acomp-tabs.panel-tabs {
   scroll-padding-inline: var(--space-4);
   padding-inline-end: calc(100% - 48px);
+  /* Só horizontal: com overflow-x, o eixo Y vira auto e o chip de 44 px (DEC-168) deixava o dedo rolar na vertical. */
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  align-items: center;
+}
+
+.acomp-tabs.panel-tabs .panel-chip {
+  flex: none;
 }
 
 .acomp-tabs.panel-tabs.is-scrolled {
@@ -13366,39 +13375,102 @@ button.panel-auth-inline-link {
 /* Abaixo de 1280 px o cabeçalho da sub-tela já diz «O que a IA reconhece». */
 
 /* ——— DEC-184 (Paulo, 14/11/2026): Acompanhamento com elevação, avatar e chips ——— */
+/* Cor por etapa (tokens stage-*): cada etapa tem tinta, tom da etiqueta e fundo da coluna. */
+[data-stage='novo_contato'] {
+  --stage-ink: var(--color-stage-novo-ink);
+  --stage-tint: var(--color-stage-novo-tint);
+  --stage-wash: var(--color-stage-novo-wash);
+}
+
+[data-stage='em_atendimento'] {
+  --stage-ink: var(--color-stage-atendimento-ink);
+  --stage-tint: var(--color-stage-atendimento-tint);
+  --stage-wash: var(--color-stage-atendimento-wash);
+}
+
+[data-stage='horario_proposto'] {
+  --stage-ink: var(--color-stage-proposto-ink);
+  --stage-tint: var(--color-stage-proposto-tint);
+  --stage-wash: var(--color-stage-proposto-wash);
+}
+
+[data-stage='agendado'] {
+  --stage-ink: var(--color-stage-agendado-ink);
+  --stage-tint: var(--color-stage-agendado-tint);
+  --stage-wash: var(--color-stage-agendado-wash);
+}
+
+[data-stage='concluido'] {
+  --stage-ink: var(--color-stage-concluido-ink);
+  --stage-tint: var(--color-stage-concluido-tint);
+  --stage-wash: var(--color-stage-concluido-wash);
+}
+
+[data-stage='perdido'] {
+  --stage-ink: var(--color-stage-perdido-ink);
+  --stage-tint: var(--color-stage-perdido-tint);
+  --stage-wash: var(--color-stage-perdido-wash);
+}
+
 .acomp-col-dot {
   width: 9px;
   height: 9px;
   flex: none;
   border-radius: var(--radius-pill);
-  background: var(--color-text-muted);
+  background: var(--stage-ink, var(--color-text-muted));
 }
 
-.acomp-col-dot[data-stage='em_atendimento'] {
-  background: var(--color-primary-ink);
+.acomp-col {
+  background: var(--stage-wash, var(--color-surface-sunken));
 }
 
-.acomp-col-dot[data-stage='horario_proposto'] {
-  background: var(--color-warning-ink);
+.acomp-col-head {
+  color: var(--stage-ink, var(--color-text-primary));
+  background: var(--stage-tint, transparent);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin-bottom: var(--space-2);
 }
 
-.acomp-col-dot[data-stage='agendado'] {
-  background: var(--color-success-ink);
+.acomp-col-count {
+  background: var(--stage-ink, var(--color-surface-card));
+  color: var(--stage-tint, var(--color-text-primary));
 }
 
-.acomp-col-dot[data-stage='concluido'] {
-  background: var(--color-line-control);
+/* Celular: cada aba leva a cor da etapa; a selecionada enche com o tom e a tinta da etapa. */
+.acomp-tabs .panel-chip {
+  background: var(--stage-wash, var(--color-surface-card));
+  border-color: var(--color-line-border);
 }
 
-.acomp-col-dot[data-stage='perdido'] {
-  background: var(--color-danger-ink);
+.acomp-tabs .panel-chip .panel-chip-count {
+  background: var(--stage-tint, var(--color-surface-sunken));
+  color: var(--stage-ink, var(--color-text-secondary));
 }
 
-/* Aba selecionada inverte o chip; pontos desenhados para coluna clara falham WCAG 1.4.11. */
-.acomp-tabs .panel-chip[aria-selected='true'] .acomp-col-dot,
-.acomp-tabs .panel-chip[data-selected] .acomp-col-dot,
-.acomp-tabs .panel-chip[data-selected='true'] .acomp-col-dot {
-  background: var(--color-text-on-primary);
+.acomp-tabs .panel-chip[aria-selected='true'],
+.acomp-tabs .panel-chip[data-selected],
+.acomp-tabs .panel-chip[data-selected='true'] {
+  background: var(--stage-tint);
+  border-color: var(--stage-ink);
+  box-shadow: inset 0 0 0 1px var(--stage-ink);
+  color: var(--stage-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.acomp-tabs .panel-chip[aria-selected='true'] .panel-chip-count,
+.acomp-tabs .panel-chip[data-selected] .panel-chip-count,
+.acomp-tabs .panel-chip[data-selected='true'] .panel-chip-count {
+  background: var(--stage-ink);
+  color: var(--stage-tint);
+}
+
+.acomp-list[data-stage] {
+  background: var(--stage-wash);
+}
+
+[data-stage] .acomp-card-when {
+  background: var(--stage-tint);
+  color: var(--stage-ink);
 }
 
 .acomp-card-time {
