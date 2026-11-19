@@ -378,8 +378,8 @@ const MESSAGES: Record<string, string> = {
   autoDraftsPerContact: 'Limite de rascunhos automáticos para este contato atingido. Responda manualmente.',
   aiBookingsPerContact: 'Limite de marcações automáticas para este contato atingido. A equipe pode marcar pelo painel, se fizer sentido.',
   aiBookingsPerClinic: 'Limite diário de marcações automáticas da clínica atingido. A equipe pode marcar pelo painel.',
-  futureAppointmentsPerContact: 'Este contato já tem vários compromissos futuros. Confirme com a cliente antes de marcar outro.',
-  pendingPixPerContact: 'Este contato já tem cobranças Pix pendentes. Verifique antes de gerar outra.',
+  futureAppointmentsPerContact: 'Esta cliente já tem várias marcações à frente. A equipe confirma antes de marcar outra.',
+  pendingPixPerContact: 'Esta cliente já tem sinais Pix por pagar. Pague ou deixe expirar antes de marcar outro horário.',
   pendingProposalsPerContact:
     'Já existe uma proposta de horário pendente para este contato. Aguarde resposta ou substitua a proposta atual.',
   proposalsPerContact: 'Limite de propostas automáticas para este contato atingido. Continue pelo painel, se fizer sentido.',
@@ -393,7 +393,15 @@ const MESSAGES: Record<string, string> = {
 export function checkAutomationQuota(
   db: ClinicDb,
   limits: AbuseLimits,
-  input: { tenantId: string; contactId: string; effect: AutomatedEffect },
+  input: {
+    tenantId: string
+    contactId: string
+    effect: AutomatedEffect
+    /** `proposal`: a marcação nova exige sinal Pix (conta as cobranças pendentes). */
+    requiresSignal?: boolean
+    /** `proposal`: remarcação — não acrescenta compromisso nem cobrança, por isso não conta os tetos. */
+    isReschedule?: boolean
+  },
   clock: Clock,
 ): QuotaDecision {
   if (!limits.enabled) return { allowed: true }
@@ -423,6 +431,17 @@ export function checkAutomationQuota(
       ],
       ['proposalsPerClinic', 'clinic', () => countProposalsCreated(db, tenantId, since)],
     )
+    // DEC-214: tetos de acumulação na agenda online (marcação nova, não remarcação).
+    if (!input.isReschedule) {
+      checks.push([
+        'futureAppointmentsPerContact',
+        'contact',
+        () => countFutureAppointments(db, tenantId, contactId, now),
+      ])
+      if (input.requiresSignal) {
+        checks.push(['pendingPixPerContact', 'contact', () => countPendingPix(db, tenantId, contactId)])
+      }
+    }
   } else {
     checks.push(['pendingPixPerContact', 'contact', () => countPendingPix(db, tenantId, contactId)])
   }

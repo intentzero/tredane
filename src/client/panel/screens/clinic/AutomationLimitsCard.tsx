@@ -16,8 +16,8 @@ type LimitField = {
   hint: string
 }
 
-// DEC-212: só os limites que têm efeito (conversa e agenda online). Os de «marcação automática»,
-// compromissos futuros e Pix pendentes não são verificados por nenhum caminho e saíram da UI.
+// DEC-212/214: só os limites com efeito: conversa e agenda online. Os de «marcação automática»
+// (`aiBookings*`) saíram da UI: nenhum caminho os verifica.
 const FIELDS: LimitField[] = [
   {
     key: 'windowHours',
@@ -33,6 +33,16 @@ const FIELDS: LimitField[] = [
     key: 'proposalsPerContact',
     label: 'Marcações e mudanças por cliente',
     hint: 'Pela agenda online, na janela.',
+  },
+  {
+    key: 'futureAppointmentsPerContact',
+    label: 'Marcações à frente por cliente',
+    hint: 'Antes de marcar mais uma pela agenda online. Remarcar não conta.',
+  },
+  {
+    key: 'pendingPixPerContact',
+    label: 'Sinais Pix por pagar por cliente',
+    hint: 'Cobranças à espera de pagamento. Só conta serviços com sinal.',
   },
   {
     key: 'proposalsPerClinic',

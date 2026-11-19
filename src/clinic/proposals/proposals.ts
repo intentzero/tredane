@@ -752,7 +752,13 @@ export function createOrSupersedeProposal(
               pendingProposalsPerContact: Number.MAX_SAFE_INTEGER,
             }
           : limits,
-        { tenantId, contactId: facts.contactId, effect: 'proposal' },
+        {
+          tenantId,
+          contactId: facts.contactId,
+          effect: 'proposal',
+          requiresSignal: facts.requiresSignal,
+          isReschedule: facts.replacesAppointmentId != null,
+        },
         clock,
       )
       if (!decision.allowed) {

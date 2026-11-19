@@ -301,6 +301,37 @@ describe('S7: marcações automáticas e Pix (quota consultada no backend)', () 
     }
   })
 
+  it('agenda online (DEC-214): 3 marcações à frente e 2 Pix por pagar travam marcação nova, não remarcação', () => {
+    const s = seed()
+    try {
+      const a = s.addContact('a', '5511900000701')
+      const l = on()
+      const q = (extra: { requiresSignal?: boolean; isReschedule?: boolean } = {}) =>
+        checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: a.contactId, effect: 'proposal', ...extra }, s.clock)
+      expect(q().allowed).toBe(true)
+      for (let i = 0; i < 3; i++) insertAppt(s, `apt_w_${i}`, a.contactId, { startsAt: NOW + (i + 1) * 24 * HOUR })
+      expect(q()).toMatchObject({ allowed: false, limit: 'futureAppointmentsPerContact', scope: 'contact' })
+      expect(q({ isReschedule: true }).allowed).toBe(true)
+
+      const b = s.addContact('b', '5511900000702')
+      const addPix = (id: string) =>
+        s.db.run(
+          `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents, status, created_at, updated_at, contact_id)
+           VALUES (?, ?, 'acc_fake', 'synthetic', ?, 5000, 'awaiting_payment', ?, ?, ?)`,
+          id, s.tenantId, `ref_${id}`, NOW, NOW, b.contactId,
+        )
+      addPix('pix_w_1')
+      addPix('pix_w_2')
+      const qb = (extra: { requiresSignal?: boolean; isReschedule?: boolean } = {}) =>
+        checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: b.contactId, effect: 'proposal', ...extra }, s.clock)
+      expect(qb().allowed).toBe(true) // serviço sem sinal não conta Pix
+      expect(qb({ requiresSignal: true })).toMatchObject({ allowed: false, limit: 'pendingPixPerContact' })
+      expect(qb({ requiresSignal: true, isReschedule: true }).allowed).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
   it('isolamento entre clínicas: quotas contam só o tenant do DO', () => {
     const s = seed('clinic-demo-a')
     try {
