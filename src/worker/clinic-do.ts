@@ -163,8 +163,8 @@ import {
 import { resolveClientWebLinkPreset } from '../clientweb/link-preset'
 import { issueClientWebLink } from '../clientweb/links'
 import {
+  appendWebCancelChatEffects,
   cancelFromWeb,
-  cancelReceiptBody,
   listRescheduleSlots,
   planWebReschedule,
   rescheduleAlreadyAt,
@@ -1218,7 +1218,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   /**
    * Página web da cliente: cancelar (DEC-198). Só marcações sem sinal pago; com sinal pago devolve
-   * `needs_team`. O recibo «Não foi você?» vai para o chat (melhor esforço).
+   * `needs_team`. Um recibo «Não foi você?» + follow-up DEC-086 no chat (melhor esforço).
    */
   async clientWebCancel(input: {
     tenantId: string
@@ -1232,24 +1232,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (!sessionOwnsConversation(this.#db, input)) return null
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
-      const outboxes = [...done.outbox]
-      try {
-        const sent = clinicInbox.sendOutboundMessageOp(
-          this.#db,
-          caller,
-          {
-            conversationId: input.conversationId,
-            body: cancelReceiptBody(this.#db, caller.tenantId, this.#clock, done.result),
-            clientRequestId: `web-cancel-receipt:${input.appointmentId}`,
-            authorClerkUserId: PROPOSAL_SEND_ACTOR,
-            authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
-          },
-          this.#clock,
-        )
-        outboxes.push(...sent.outbox)
-      } catch {
-        // Fora da janela de 24 h o recibo não sai; o cancelamento já está feito.
-      }
+      const cancelled = done.result
+      const outboxes = appendWebCancelChatEffects(
+        this.#db,
+        caller,
+        {
+          conversationId: input.conversationId,
+          appointmentId: input.appointmentId,
+          serviceName: cancelled.serviceName,
+          startsAt: cancelled.startsAt,
+        },
+        this.#clock,
+        done.outbox,
+      )
       await this.#fanoutOutboxes(caller, outboxes, true)
       await this.#drain(caller)
     }

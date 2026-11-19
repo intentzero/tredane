@@ -149,6 +149,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - **Não** oferece o link: sem compromisso futuro (segue o caminho de hoje: equipe), com a pausa da owner ativa, ou fora da janela de 24 h (o envio falha e o chat segue). A página em si não se desliga (revisão 18/11/2026).
 - A conversa continua a ser a alternativa: quem escreve «quero cancelar» e prefere falar com a equipe escreve na mesma conversa.
 - L1 **CW-06 a CW-10**: remarcar com uma marcação, cancelar com uma, cancelar com duas (sem alvo), cancelar sem marcação (equipe) e página desligada (sem botão).
+- L1 **CW-12** (`gu-cases.ts`): depois do cancelamento na página, **um** recibo «Cancelado:… Cancelado pela página…» e o follow-up «Posso ajudar em algo mais?» (DEC-086); o toque na UI da página é simulado pelo mesmo `cancelFromWeb` + `appendWebCancelChatEffects` do Clinic DO.
 
 **Fase 5, ainda não feito:**
 
@@ -158,7 +159,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 **Fases 3 e 4 implementadas (17/11/2026, atrás da flag): remarcar e cancelar** (`src/clientweb/manage.ts`)
 
 - **Remarcar:** `POST /api/c/availability` aceita `appointmentId` (serviço e zonas vêm da marcação; a própria marcação não ocupa a vaga) e `POST /api/c/reschedule`. Cria a proposta com `replacesAppointmentId` e passa pelo mesmo executor, canal `web`; a mesma marcação é movida (motivo `contato_remarcou`), mantém serviço, zonas e duração, sem sinal novo. O recibo no chat começa por «Remarcado:» e leva «Marcado pela página. Não foi você?…». Toque duplo devolve a marcação (`rescheduleAlreadyAt`).
-- **Cancelar:** `POST /api/c/cancel`. Só marcações **sem sinal pago**; cancela com ator `contact:web` (motivo `contato_desistiu`), idempotente por marcação, e envia o recibo «Cancelado: … Não foi você? Fale com a equipe.» ao chat (melhor esforço; fora das 24 h não sai).
+- **Cancelar:** `POST /api/c/cancel`. Só marcações **sem sinal pago**; cancela com ator `contact:web` (motivo `contato_desistiu`), idempotente por marcação, e envia **um** recibo «Cancelado: {serviço}[ · zonas] · {quando}. Cancelado pela página. Não foi você? Fale com a equipe.» ao chat (melhor esforço; fora das 24 h não sai). O aviso genérico do painel (DEC-095) **não** sai neste caminho (`skipCancelNotice`). A seguir, o follow-up «Posso ajudar em algo mais?» com «Abrir agenda»|«Terminar» (DEC-086), com idempotência própria (`followup.postcancel:…`).
 - **Com sinal pago não cancela:** a página mostra «Pedir cancelamento» e `POST /api/c/ask-team` faz o mesmo que «Falar com a equipe» no chat (pausa a IA e avisa a equipe; fora do expediente só responde o horário, DEC-155). É a regra Proposta da DEC-198(b): a janela de crédito ainda não é aplicada pelo backend.
 - Só se mexe em marcações **do contacto da sessão**, futuras e confirmadas; qualquer outra dá `not_found`. A página mostra Remarcar e Cancelar em cada marcação.
 

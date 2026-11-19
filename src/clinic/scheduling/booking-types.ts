@@ -58,6 +58,11 @@ export type CancelAppointmentInput = {
   actorClerkUserId: string
   /** Se informado e diferente da versão actual → conflito (TEL-06). */
   expectedVersion?: number | null
+  /**
+   * Cancelamento pela página web: o recibo «Cancelado pela página…» sai noutro
+   * caminho (DEC-197/198). Sem isto, `deliverCancelNotice` duplicava o aviso.
+   */
+  skipCancelNotice?: boolean
 }
 
 export type RescheduleAppointmentInput = {
