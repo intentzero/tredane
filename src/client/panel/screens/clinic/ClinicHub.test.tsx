@@ -70,7 +70,7 @@ describe('ClinicHub — progresso', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.getByText('Quando atende')).toBeTruthy()
     expect(screen.getByText('Quem, o quê e onde')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /^Assistente e automações/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Assistente/ })).toBeTruthy()
   })
 
   it('marca «Falta» só onde falta e «Pronto» só para leitor de tela onde está pronto', () => {
@@ -112,7 +112,7 @@ describe('ClinicHub — progresso', () => {
     expect(screen.getByText('Ana Fictícia e Bia Fictícia')).toBeTruthy()
     expect(screen.getByText('Sala Fictícia')).toBeTruthy()
     expect(screen.getByText(/2 serviços ativos · de R\$\s?150 a R\$\s?480/)).toBeTruthy()
-    expect(screen.getByText('Sugestões com IA desligadas')).toBeTruthy()
+    expect(screen.getByText('Atendimento automático desligado')).toBeTruthy()
   })
 
   it('Equipe é botão e usa copy Atendente (não recepcionista)', () => {

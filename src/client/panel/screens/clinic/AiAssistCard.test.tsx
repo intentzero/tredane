@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi } from '../../api'
 import '../../../ui/panel.css'
-import { AiAssistCard } from './AiAssistCard'
+import { AiProfileCard } from './AiAssistCard'
 
 afterEach(cleanup)
 
@@ -20,11 +20,11 @@ function renderCard(over: { gender?: 'masculino' | 'feminino' | null; name?: str
   return render(
     <div className="clinic-work" style={{ height: 480, overflowY: 'auto' }}>
       <div style={{ height: 320 }} aria-hidden="true" />
-      <AiAssistCard
+      <AiProfileCard
         tenantId="clinic-demo-a"
         api={api()}
         generation={1}
-        initialEnabled
+        part="persona"
         initialVirtualAttendantName={over.name ?? 'Gioconda'}
         initialVirtualAttendantGender={over.gender ?? 'feminino'}
       />
@@ -38,10 +38,10 @@ function radioMinHeightOk(minH: string): boolean {
   return Number.isFinite(px) && px <= 1
 }
 
-describe('AiAssistCard — género do atendente (layout desktop)', () => {
+describe('AiProfileCard — género do atendente (layout desktop)', () => {
   it('mantém nome, os três géneros e «Salvar dados para a IA» visíveis ao trocar para Masculino', () => {
     renderCard()
-    const card = screen.getByRole('region', { name: 'Sugestões com IA' })
+    const card = screen.getByRole('region', { name: 'Como se apresenta' })
     const group = within(card).getByRole('radiogroup', { name: 'Género do atendente virtual' })
 
     fireEvent.click(within(group).getByRole('radio', { name: 'Masculino' }))
@@ -52,7 +52,7 @@ describe('AiAssistCard — género do atendente (layout desktop)', () => {
     const masculino = within(group).getByRole('radio', { name: 'Masculino' })
     expect(masculino).toBeTruthy()
     expect((masculino as HTMLInputElement).checked).toBe(true)
-    expect(within(card).getByRole('button', { name: 'Salvar dados para a IA' })).toBeTruthy()
+    expect(within(card).getByRole('button', { name: 'Salvar' })).toBeTruthy()
 
     // Inputs escondidos do React Aria não herdam o min-height 48px dos campos de texto.
     for (const radio of within(group).getAllByRole('radio')) {

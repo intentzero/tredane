@@ -107,7 +107,7 @@ export function ForecastPlaceCard({ tenantId, api, generation, place, onSaved }:
         Local para a previsão
       </h2>
       <p className="panel-muted-sm">
-        Serve para saber o tempo na hora do compromisso. Não é o endereço que a IA usa.
+        Serve para saber o tempo na hora do compromisso.
       </p>
       <ToggleButtonGroup
         className="panel-segmented"

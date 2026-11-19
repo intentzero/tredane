@@ -221,6 +221,23 @@ describe('panel routes (#22)', () => {
         section: 'whatsapp-desconectar',
       }),
     ).toBe('/c/clinic-demo-a/clinica/whatsapp/desconectar')
+    for (const [path, section] of [
+      ['assistente', 'assistente'],
+      ['assistente/persona', 'assistente-persona'],
+      ['assistente/protecoes', 'assistente-protecoes'],
+      ['assistente/tempo', 'assistente-tempo'],
+      ['conhecimento', 'conhecimento'],
+    ] as const) {
+      expect(resolvePanelRoute(`/c/clinic-demo-a/clinica/${path}`)).toEqual({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 'clinic-demo-a',
+        section,
+      })
+      expect(panelHref({ kind: 'area', area: 'clinica', tenantId: 'clinic-demo-a', section })).toBe(
+        `/c/clinic-demo-a/clinica/${path}`,
+      )
+    }
     expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp/historico')).toEqual({
       kind: 'area',
       area: 'clinica',

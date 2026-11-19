@@ -628,8 +628,8 @@ export function createPanelApi(getToken: TokenGetter) {
     async setClinicAiProfile(
       tenantId: string,
       body: {
-        googleBusinessUrl: string
-        reschedulePolicy: string
+        googleBusinessUrl?: string
+        reschedulePolicy?: string
         virtualAttendantName?: string
         virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
       },

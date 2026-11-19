@@ -8,7 +8,7 @@ type Props = {
   title: string
   children: ReactNode
   /** Para onde volta e o que diz; por defeito, o início da Clínica. */
-  back?: { section: 'servicos'; label: string; eyebrow: string }
+  back?: { section: 'servicos' | 'assistente'; label: string; eyebrow: string }
 }
 
 /**
