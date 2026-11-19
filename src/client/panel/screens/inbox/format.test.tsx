@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import type { InboxConversation } from '../../api'
 import {
   avatarTone,
   dayLabel,
   dualUnreadCount,
+  isAssignmentHandoffPreview,
+  previewLine,
   relativeTime,
   sameDay,
   windowHint,
@@ -60,6 +63,62 @@ describe('relativeTime', () => {
     expect(relativeTime(Date.UTC(2026, 8, 12, 18, 0), NOW)).toBe('12/09')
     expect(relativeTime(Date.UTC(2025, 8, 12, 18, 0), NOW)).toBe('12/09/25')
     expect(relativeTime(null, NOW)).toBe('')
+  })
+})
+
+describe('previewLine — sem evento de transferência na lista', () => {
+  function conv(over: Partial<InboxConversation>): InboxConversation {
+    return {
+      id: 'c1',
+      tenantId: 't1',
+      contactId: 'k1',
+      status: 'open',
+      assigneeClerkUserId: 'user_paulo',
+      assigneeDisplayName: 'Paulo',
+      assignmentVersion: 1,
+      lastMessageAt: NOW,
+      lastMessagePreview: 'oi',
+      lastMessageDirection: 'inbound',
+      unreadCount: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+      needsPerson: false,
+      contact: { id: 'k1' } as InboxConversation['contact'],
+      ...over,
+    }
+  }
+
+  it('esconde «X transferiu para Y» (prévia antiga de handoff)', () => {
+    expect(isAssignmentHandoffPreview('Paulo transferiu para Paulo')).toBe(true)
+    expect(
+      previewLine(
+        conv({
+          lastMessagePreview: 'Paulo transferiu para Paulo',
+          lastMessageDirection: 'system',
+        }),
+        'user_paulo',
+      ),
+    ).toBe('')
+  })
+
+  it('mantém mensagem útil da cliente e prévia outbound com prefixo', () => {
+    expect(
+      previewLine(
+        conv({ lastMessagePreview: 'Oi aqui é a Gi', lastMessageDirection: 'inbound' }),
+        'user_paulo',
+      ),
+    ).toBe('Oi aqui é a Gi')
+    expect(
+      previewLine(
+        conv({
+          lastMessagePreview: 'Para agendar, toque em Abrir agenda',
+          lastMessageDirection: 'outbound',
+          assigneeDisplayName: 'IA',
+          assigneeClerkUserId: 'system:ai-autodraft',
+        }),
+        'user_paulo',
+      ),
+    ).toBe('IA: Para agendar, toque em Abrir agenda')
   })
 })
 

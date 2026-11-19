@@ -203,6 +203,12 @@ export function touchConversationMessage(
     bumpUnread: boolean
     /** Reabre se encerrada (hipótese). */
     reopenIfClosed: boolean
+    /**
+     * Assumir / transferir / atribuir: atualiza ordem e unread, mas a prévia
+     * da lista fica a última mensagem útil (cliente/equipe), não o evento
+     * «X transferiu para Y» — o marcador IA/Você já mostra quem atende.
+     */
+    keepListPreview?: boolean
   },
 ): ConversationRow {
   const current = requireConversation(db, input.tenantId, input.conversationId)
@@ -220,6 +226,12 @@ export function touchConversationMessage(
     : input.direction === 'inbound'
       ? current.unreadCount
       : 0
+  const preview = input.keepListPreview
+    ? current.lastMessagePreview
+    : previewBody(input.preview)
+  const direction = input.keepListPreview
+    ? current.lastMessageDirection
+    : input.direction
   db.run(
     `UPDATE conversations SET
       status = ?,
@@ -231,8 +243,8 @@ export function touchConversationMessage(
      WHERE tenant_id = ? AND id = ?`,
     status,
     input.at,
-    previewBody(input.preview),
-    input.direction,
+    preview,
+    direction,
     unread,
     input.at,
     input.tenantId,
