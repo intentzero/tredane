@@ -4839,14 +4839,6 @@ button.panel-auth-inline-link {
   border-bottom-right-radius: 0;
 }
 
-.agenda-attendance-actions--grid {
-  padding-inline-start: var(--space-2);
-  padding-block: 2px var(--space-1);
-  background: var(--color-surface-sunken);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  flex-shrink: 0;
-}
-
 .agenda-block:focus-visible {
   outline: var(--size-focus-ring-width) solid var(--color-primary-base);
   outline-offset: var(--size-focus-ring-offset);
@@ -12186,32 +12178,124 @@ button.panel-auth-inline-link {
 }
 
 .agenda-card-wrap {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   min-width: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+  border-left: 4px solid var(--agenda-tone-edge, var(--color-primary-base));
 }
 
-.agenda-attendance-actions {
-  display: flex;
-  gap: var(--space-1);
-  padding-inline-start: calc(var(--space-2) + 28px);
+.agenda-card-wrap > .agenda-card {
+  border-left: 0;
+  border-radius: 0;
 }
 
-.agenda-attendance-actions button {
+/* Presença (Proposto, 19/11/2026): só onde falta marcar; dois botões em faixa colada ao cartão. */
+.agenda-attendance-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  background: var(--color-surface-card);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+}
+
+.agenda-attendance-btn {
   appearance: none;
-  border: 1px solid var(--color-line-control);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--size-touch);
+  border: 0;
   background: transparent;
-  border-radius: 8px;
-  padding: 4px 10px;
   font: inherit;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
 }
 
-.agenda-attendance-actions button.is-active {
-  border-color: var(--color-primary-base);
-  background: color-mix(in srgb, var(--color-primary-base) 12%, transparent);
+.agenda-attendance-btn--yes {
+  color: var(--color-primary-ink);
+  border-right: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.agenda-attendance-btn--no {
+  color: var(--color-danger-ink);
+}
+
+.agenda-attendance-btn:focus-visible,
+.agenda-attendance-undo:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: calc(-1 * var(--size-focus-ring-width));
+}
+
+.agenda-attendance-bar--grid .agenda-attendance-btn {
+  min-height: var(--size-control-md);
+  font-size: var(--font-size-small);
+}
+
+.agenda-attendance-bar--done {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding-inline-start: var(--space-3);
+}
+
+.agenda-attendance-state {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.agenda-attendance-state--arrived {
+  color: var(--color-success-ink);
+}
+
+.agenda-attendance-state--no_show {
+  color: var(--color-danger-ink);
+}
+
+.agenda-attendance-undo {
+  appearance: none;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Horários já resolvidos recolhidos numa linha (celular, hoje). */
+.agenda-resolved {
+  appearance: none;
+  flex: 1;
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agenda-resolved[aria-expanded='true'] .agenda-resolved-chev {
+  transform: rotate(180deg);
+}
+
+.agenda-resolved:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
 }
 
 .agenda-attendance-badge {

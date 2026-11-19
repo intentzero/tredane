@@ -1,7 +1,9 @@
-import { Users } from 'lucide-react'
+import { ChevronDown, Users } from 'lucide-react'
+import { useState } from 'react'
 import type { AgendaAppointmentItem, ScheduleHold } from '../../api'
 import { formatSlotTime } from './format'
 import type { FreeSlot } from './freeSlots'
+import { AttendanceBar } from './AttendanceBar'
 import { initialsOf, PROFESSIONAL_TONES, shortName, type DayEntry } from './dayList'
 
 export type AgendaProfessional = { id: string; name: string }
@@ -43,10 +45,12 @@ function AptCard({
   onOpen,
   canMarkAttendance,
   onSetAttendance,
+  now,
 }: {
   item: AgendaAppointmentItem
   professionals: AgendaProfessional[]
   timezone: string
+  now: number
   onOpen: (id: string) => void
   canMarkAttendance?: boolean
   onSetAttendance?: (id: string, attendance: 'arrived' | 'no_show' | null) => void
@@ -54,20 +58,15 @@ function AptCard({
   // DEC-165 (tela 12): duas linhas; a profissional pela cor da margem e pelas iniciais
   // (o nome continua para leitor de tela), a sala no fim da segunda linha.
   const tone = toneOf(professionals, item.professionalId)
-  const attendanceLabel =
-    item.attendance === 'arrived' ? 'Chegou' : item.attendance === 'no_show' ? 'Não veio' : null
+  const attendanceLabel = item.attendance === 'arrived' ? 'Chegou' : item.attendance === 'no_show' ? 'Não veio' : null
   return (
     <div className={`agenda-card-wrap agenda-card--tone-${tone}`}>
-      <button
-        type="button"
-        className={`agenda-card agenda-card--tone-${tone}`}
-        onClick={() => onOpen(item.id)}
-      >
+      <button type="button" className={`agenda-card agenda-card--tone-${tone}`} onClick={() => onOpen(item.id)}>
         <Mini pro={{ id: item.professionalId, name: item.professionalName }} professionals={professionals} />
         <span className="agenda-card-body">
           <span className="agenda-card-title">
             {item.contactLabel || 'Sem nome'}
-            {attendanceLabel ? (
+            {attendanceLabel && !(canMarkAttendance && onSetAttendance) ? (
               <span className="agenda-attendance-badge"> · {attendanceLabel}</span>
             ) : null}
           </span>
@@ -80,28 +79,7 @@ function AptCard({
           </span>
         </span>
       </button>
-      {canMarkAttendance && onSetAttendance && item.status === 'confirmed' ? (
-        <div className="agenda-attendance-actions">
-          <button
-            type="button"
-            className={item.attendance === 'arrived' ? 'is-active' : undefined}
-            onClick={() =>
-              onSetAttendance(item.id, item.attendance === 'arrived' ? null : 'arrived')
-            }
-          >
-            Chegou
-          </button>
-          <button
-            type="button"
-            className={item.attendance === 'no_show' ? 'is-active' : undefined}
-            onClick={() =>
-              onSetAttendance(item.id, item.attendance === 'no_show' ? null : 'no_show')
-            }
-          >
-            Não veio
-          </button>
-        </div>
-      ) : null}
+      {canMarkAttendance && onSetAttendance ? <AttendanceBar item={item} now={now} onSet={onSetAttendance} /> : null}
     </div>
   )
 }
@@ -121,6 +99,30 @@ export function AgendaDayList({
   canMarkAttendance = false,
   onSetAttendance,
 }: Props) {
+  const [showResolved, setShowResolved] = useState(false)
+  // Só hoje: o que já passou e já tem presença marcada recolhe numa linha.
+  const nowIdx = entries.findIndex((e) => e.kind === 'now')
+  const resolved =
+    nowIdx < 0
+      ? []
+      : entries.filter(
+          (e, i): e is Extract<DayEntry, { kind: 'apt' }> =>
+            i < nowIdx && e.kind === 'apt' && e.item.status === 'confirmed' && e.item.attendance != null,
+        )
+  const collapse = resolved.length >= 2 && !showResolved
+  const resolvedKeys = new Set(resolved.map((e) => e.key))
+  const visible = collapse ? entries.filter((e) => !resolvedKeys.has(e.key)) : entries
+  const arrivedN = resolved.filter((e) => e.item.attendance === 'arrived').length
+  const noShowN = resolved.length - arrivedN
+  const resolvedSummary =
+    resolved.length < 2
+      ? ''
+      : `${formatSlotTime(resolved[0]!.startsAt, timezone)}–${formatSlotTime(
+          Math.max(...resolved.map((e) => e.item.endsAt)),
+          timezone,
+        )} · ${resolved.length} anteriores${
+          arrivedN > 0 ? ` · ${arrivedN} ${arrivedN === 1 ? 'chegou' : 'chegaram'}` : ''
+        }${noShowN > 0 ? `${arrivedN > 0 ? ',' : ' ·'} ${noShowN} não ${noShowN === 1 ? 'veio' : 'vieram'}` : ''}`
   return (
     <div className="agenda-list">
       {holds.length > 0 ? (
@@ -130,7 +132,8 @@ export function AgendaDayList({
             <button key={h.id} type="button" className="agenda-hold" onClick={() => onOpenHold(h)}>
               <span className="agenda-card-title">{h.contactName || 'Sem nome'}</span>
               <span className="agenda-card-line">
-                {h.serviceName} · {formatSlotTime(h.windowStartsAt, timezone)}–{formatSlotTime(h.windowEndsAt, timezone)} · {h.durationMinutes} min
+                {h.serviceName} · {formatSlotTime(h.windowStartsAt, timezone)}–
+                {formatSlotTime(h.windowEndsAt, timezone)} · {h.durationMinutes} min
               </span>
               <span className="agenda-hold-cta">Definir horário</span>
             </button>
@@ -141,13 +144,23 @@ export function AgendaDayList({
       {/* Dia vazio sem livres: sem faixa tracejada nem «Agendar horário» — o «+ Agendar» do topo já cobre (Paulo). */}
       {entries.length === 0 ? null : (
         <ol className="agenda-rows" aria-label="Horários do dia">
-          {entries.map((e, i) => {
+          {resolved.length >= 2 ? (
+            <li className="agenda-row agenda-row--resolved">
+              <button
+                type="button"
+                className="agenda-resolved"
+                aria-expanded={!collapse}
+                onClick={() => setShowResolved((v) => !v)}
+              >
+                <ChevronDown aria-hidden size={18} strokeWidth={2} className="agenda-resolved-chev" />
+                <span>{resolvedSummary}</span>
+              </button>
+            </li>
+          ) : null}
+          {visible.map((e, i) => {
             // Horários que começam juntos partilham a hora (só a primeira linha a mostra).
-            const prev = i > 0 ? entries[i - 1] : undefined
-            const sameStart =
-              e.kind === 'apt' &&
-              prev?.kind === 'apt' &&
-              prev.startsAt === e.startsAt
+            const prev = i > 0 ? visible[i - 1] : undefined
+            const sameStart = e.kind === 'apt' && prev?.kind === 'apt' && prev.startsAt === e.startsAt
             if (e.kind === 'now') {
               return (
                 <li key={e.key} className="agenda-row agenda-row--now" aria-label="Agora">
@@ -171,7 +184,13 @@ export function AgendaDayList({
                       <strong>Livre</strong>
                       <span>
                         {formatSlotTime(e.slot.startsAt, timezone)}–{formatSlotTime(e.slot.endsAt, timezone)} ·{' '}
-                        <Mini pro={{ id: e.slot.professionalId, name: e.slot.professionalName }} professionals={professionals} />
+                        <Mini
+                          pro={{
+                            id: e.slot.professionalId,
+                            name: e.slot.professionalName,
+                          }}
+                          professionals={professionals}
+                        />
                         {shortName(e.slot.professionalName)}
                       </span>
                     </span>
@@ -190,11 +209,11 @@ export function AgendaDayList({
                     item={e.item}
                     professionals={professionals}
                     timezone={timezone}
+                    now={now}
                     onOpen={onOpen}
                     canMarkAttendance={
-                      canMarkAttendance
-                      && (attendanceForProfessionalId == null
-                        || e.item.professionalId === attendanceForProfessionalId)
+                      canMarkAttendance &&
+                      (attendanceForProfessionalId == null || e.item.professionalId === attendanceForProfessionalId)
                     }
                     onSetAttendance={onSetAttendance}
                   />
@@ -211,8 +230,15 @@ export function AgendaDayList({
                 >
                   <div className="agenda-room-head">
                     <Users aria-hidden size={16} strokeWidth={2} />
-                    <strong>{e.roomName}{full ? ' · lotada' : ''}</strong>
-                    <span className="agenda-seats" role="img" aria-label={`${e.peak} de ${e.capacity} lugares ocupados`}>
+                    <strong>
+                      {e.roomName}
+                      {full ? ' · lotada' : ''}
+                    </strong>
+                    <span
+                      className="agenda-seats"
+                      role="img"
+                      aria-label={`${e.peak} de ${e.capacity} lugares ocupados`}
+                    >
                       {Array.from({ length: Math.min(e.capacity, 8) }, (_, i) => (
                         <span key={i} className={`agenda-seat${i < e.peak ? ' agenda-seat--on' : ''}`} />
                       ))}
@@ -225,7 +251,8 @@ export function AgendaDayList({
                     <button key={it.id} type="button" className="agenda-room-person" onClick={() => onOpen(it.id)}>
                       <strong>{it.contactLabel || 'Sem nome'}</strong>
                       <span>
-                        {it.serviceName} · {formatSlotTime(it.startsAt, timezone)} – {formatSlotTime(it.endsAt, timezone)} · {shortName(it.professionalName)}
+                        {it.serviceName} · {formatSlotTime(it.startsAt, timezone)} –{' '}
+                        {formatSlotTime(it.endsAt, timezone)} · {shortName(it.professionalName)}
                       </span>
                     </button>
                   ))}

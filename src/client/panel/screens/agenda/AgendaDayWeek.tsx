@@ -21,6 +21,7 @@ import { isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ShellSlot } from '../../shell/ShellSlot'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
+import { AttendanceBar, attendancePending } from './AttendanceBar'
 import { CompromissoScreen } from './CompromissoScreen'
 import { SelfBlockSheet } from './SelfBlockSheet'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
@@ -63,6 +64,8 @@ type Props = {
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
+/** Bloco com presença por marcar: texto de duas linhas + botões sem cortar. */
+const GRID_MARK_HEIGHT = 84
 
 function shiftCivil(date: string, delta: number): string {
   const [y, m, d] = date.split('-').map(Number)
@@ -954,7 +957,7 @@ function DayGrid({
             : item.attendance === 'no_show'
               ? 'Não veio'
               : null
-        const mark = showAttendanceFor(item)
+        const mark = showAttendanceFor(item) && attendancePending(item, now)
         return (
           <div
             key={item.id}
@@ -962,7 +965,7 @@ function DayGrid({
             className={`agenda-block-wrap${mark ? ' agenda-block-wrap--attendance' : ''}`}
             style={{
               top,
-              height: mark ? Math.max(height, 64) : height,
+              height: mark ? Math.max(height, GRID_MARK_HEIGHT) : height,
               left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
               width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
             }}
@@ -975,7 +978,7 @@ function DayGrid({
               {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
               <span className="agenda-block-title">
                 {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
-                {attendanceLabel ? (
+                {attendanceLabel && !mark ? (
                   <span className="agenda-attendance-badge"> · {attendanceLabel}</span>
                 ) : null}
               </span>
@@ -989,34 +992,7 @@ function DayGrid({
               </span>
             </button>
             {mark && onSetAttendance ? (
-              <div className="agenda-attendance-actions agenda-attendance-actions--grid">
-                <button
-                  type="button"
-                  className={item.attendance === 'arrived' ? 'is-active' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSetAttendance(
-                      item.id,
-                      item.attendance === 'arrived' ? null : 'arrived',
-                    )
-                  }}
-                >
-                  Chegou
-                </button>
-                <button
-                  type="button"
-                  className={item.attendance === 'no_show' ? 'is-active' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSetAttendance(
-                      item.id,
-                      item.attendance === 'no_show' ? null : 'no_show',
-                    )
-                  }}
-                >
-                  Não veio
-                </button>
-              </div>
+              <AttendanceBar item={item} now={now} onSet={onSetAttendance} variant="grid" />
             ) : null}
           </div>
         )
