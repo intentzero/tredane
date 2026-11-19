@@ -2,13 +2,18 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components'
 import { formatLongDate } from './format'
+import { agendaDayMarkLabel } from './monthMarks'
 
 type Props = {
   /** Dia mostrado na grade (AAAA-MM-DD). */
   date: string
   today: string
   timezone: string
+  /** Compromissos confirmados + reservas por período, já filtrados. */
+  marks: ReadonlyMap<string, number>
   onPick: (iso: string) => void
+  /** Mês visível `AAAA-MM`, para carregar as marcações. */
+  onViewMonth: (month: string) => void
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -19,14 +24,19 @@ function monthOf(iso: string): { y: number; m: number } {
 }
 
 /** Mês pequeno da coluna de contexto da Agenda (desktop): escolhe o dia da grade. Segunda a domingo. */
-export function AgendaMiniMonth({ date, today, timezone, onPick }: Props) {
+export function AgendaMiniMonth({ date, today, timezone, marks, onPick, onViewMonth }: Props) {
   const [view, setView] = useState(() => monthOf(date))
   const dateMonth = date.slice(0, 7)
+  const viewMonth = `${view.y}-${pad(view.m + 1)}`
 
   // Quando o dia muda por outro caminho (Hoje, setas da grade), o mês acompanha.
   useEffect(() => {
     setView(monthOf(date))
   }, [dateMonth])
+
+  useEffect(() => {
+    onViewMonth(viewMonth)
+  }, [viewMonth, onViewMonth])
 
   const first = new Date(Date.UTC(view.y, view.m, 1))
   const lead = (first.getUTCDay() + 6) % 7
@@ -60,23 +70,24 @@ export function AgendaMiniMonth({ date, today, timezone, onPick }: Props) {
         ))}
       </div>
       <div className="agenda-month-grid">
-        {cells.map((c, i) =>
-          c ? (
+        {cells.map((c, i) => {
+          if (!c) return <span key={`x${i}`} />
+          const count = marks.get(c.iso) ?? 0
+          return (
             <button
               key={c.iso}
               type="button"
               className="agenda-month-day"
-              aria-label={formatLongDate(c.iso, timezone)}
+              aria-label={`${formatLongDate(c.iso, timezone)}, ${agendaDayMarkLabel(count)}`}
               aria-pressed={c.iso === date}
               aria-current={c.iso === today ? 'date' : undefined}
               onClick={() => onPick(c.iso)}
             >
               {c.n}
+              {count > 0 ? <span className="agenda-month-dot" aria-hidden="true" /> : null}
             </button>
-          ) : (
-            <span key={`x${i}`} />
-          ),
-        )}
+          )
+        })}
       </div>
     </div>
   )

@@ -9011,6 +9011,7 @@ button.panel-auth-inline-link {
 }
 
 .agenda-month-day {
+  position: relative;
   min-height: 36px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -9019,6 +9020,24 @@ button.panel-auth-inline-link {
   font: inherit;
   font-size: var(--font-size-small);
   cursor: pointer;
+}
+
+/* Ponto de dia com marcação: 6 px, 4 px abaixo do número. O mesmo para 1 ou várias.
+   No dia selecionado fica branco — primary.base sobre primary.fill fica abaixo de 3:1. */
+.agenda-month-dot {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 0.5em + var(--space-1));
+  width: 6px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-base);
+  pointer-events: none;
+}
+
+.agenda-month-day[aria-pressed='true'] .agenda-month-dot {
+  background: var(--color-primary-on-fill);
 }
 
 .agenda-month-day:hover {

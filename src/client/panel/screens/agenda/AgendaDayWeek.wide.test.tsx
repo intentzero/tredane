@@ -170,6 +170,102 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     expect(document.querySelector('.agenda-grid')).toBeTruthy()
   })
 
+  it('o mês marca o dia com um ponto, igual para uma ou várias, e o filtro tira o que não entra', async () => {
+    const atDay = (day: number, h: number) => Date.UTC(2026, 9, day, h + 3, 0)
+    const one = (id: string, day: number, h: number, pro: string, room: string | null, status: 'confirmed' | 'cancelled' = 'confirmed') => ({
+      ...apt(id, id, 'Massagem', 9, 0, 30, pro, room),
+      startsAt: atDay(day, h),
+      endsAt: atDay(day, h) + 30 * 60_000,
+      occupiesUntil: atDay(day, h) + 30 * 60_000,
+      status,
+    })
+    const api = mockApi()
+    ;(api.queryAgenda as ReturnType<typeof vi.fn>).mockImplementation(async (_t: string, query: { view?: string }) => {
+      if (query.view === 'month') {
+        return {
+          tenantId: 't',
+          timezone: TZ,
+          view: 'month',
+          date: '2026-10-01',
+          rangeStartsAt: Date.UTC(2026, 9, 1, 3),
+          rangeEndsAt: Date.UTC(2026, 10, 1, 3),
+          asOf: FIXED_NOW,
+          appointments: [
+            one('m1', 4, 9, 'p_paula', 'r_1'),
+            one('m2', 11, 9, 'p_bruna', 'r_bem'),
+            one('m3', 11, 11, 'p_livia', 'r_bem'),
+            one('m4', 11, 14, 'p_paula', 'r_bem'),
+            one('m5', 18, 9, 'p_paula', 'r_1', 'cancelled'),
+            one('m6', 28, 10, 'p_paula', 'r_1'),
+          ],
+          holds: [
+            {
+              id: 'h1',
+              status: 'active',
+              opportunityId: null,
+              conversationId: 'c1',
+              contactId: 'ct',
+              contactName: 'Ana',
+              serviceId: 'svc',
+              serviceName: 'Massagem',
+              professionalId: 'p_paula',
+              professionalName: 'Dra. Paula',
+              durationMinutes: 60,
+              windowStartsAt: atDay(20, 9),
+              windowEndsAt: atDay(20, 12),
+              confirmBy: null,
+              appointmentId: null,
+              responsibleClerkUserId: null,
+              responsibleDisplayName: null,
+              createdAt: atDay(20, 9),
+              updatedAt: atDay(20, 9),
+              resolvedAt: null,
+              expiredAt: null,
+              cancelledAt: null,
+              alertDismissedAt: null,
+            },
+          ],
+        }
+      }
+      return {
+        tenantId: 't',
+        timezone: TZ,
+        view: 'week',
+        date: '2026-10-28',
+        rangeStartsAt: Date.UTC(2026, 9, 26, 3),
+        rangeEndsAt: Date.UTC(2026, 10, 2, 3),
+        asOf: FIXED_NOW,
+        appointments: [apt('a1', 'Laura Pires', 'Depilação a laser', 9, 0, 30, 'p_paula', 'r_1')],
+        holds: [],
+      }
+    })
+    render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
+    const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
+    const day = async (fragment: RegExp) => within(context).findByRole('button', { name: fragment })
+    const dot = (button: HTMLElement) => button.querySelectorAll('.agenda-month-dot')
+
+    const d4 = await day(/, 4 de outubro, 1 marcação/)
+    const d11 = await day(/, 11 de outubro, 3 marcações/)
+    expect(dot(d4)).toHaveLength(1)
+    expect(dot(d11)).toHaveLength(1)
+    expect(dot(d4)[0]?.getAttribute('aria-hidden')).toBe('true')
+
+    const d18 = await day(/, 18 de outubro, sem marcações/)
+    expect(dot(d18)).toHaveLength(0)
+
+    const selected = await day(/, 28 de outubro, 1 marcação/)
+    expect(selected.getAttribute('aria-pressed')).toBe('true')
+    expect(dot(selected)).toHaveLength(1)
+
+    const held = await day(/, 20 de outubro, 1 marcação/)
+    expect(dot(held)).toHaveLength(1)
+
+    fireEvent.click(within(context).getByRole('button', { name: 'Sala 1' }))
+    expect(dot(await day(/, 4 de outubro, 1 marcação/))).toHaveLength(1)
+    expect(dot(await day(/, 11 de outubro, sem marcações/))).toHaveLength(0)
+    expect(dot(await day(/, 20 de outubro, sem marcações/))).toHaveLength(0)
+  })
+
   it('abaixo de 1280 px não há coluna de contexto', async () => {
     wideScreen = false
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)

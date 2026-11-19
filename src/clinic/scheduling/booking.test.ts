@@ -401,6 +401,78 @@ describe('agendamento atómico (#36)', () => {
     }
   })
 
+  it('visão mês devolve o mês civil e deixa de fora o cancelado', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { caller, pro, room, svc } = seedClinic(db, clock)
+      const kept = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-month-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const dropped = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-month-2',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 15, 10, 0),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      cancelAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-month-3',
+          appointmentId: dropped.value.id,
+          reason: 'contato_desistiu',
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-month-4',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 2, 5, 10, 0),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+
+      const month = queryAgendaViewOp(
+        db,
+        caller,
+        { date: '2024-01-20', view: 'month' },
+        clock,
+      )
+      expect(month.view).toBe('month')
+      expect(month.appointments.map((a) => a.id)).toEqual([kept.value.id])
+      expect(month.availability).toEqual([])
+      const span = month.rangeEndsAt - month.rangeStartsAt
+      expect(span).toBe(31 * 24 * 60 * 60 * 1000)
+    } finally {
+      close()
+    }
+  })
+
   it('rollback: falha após validação não deixa alocações órfãs', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
