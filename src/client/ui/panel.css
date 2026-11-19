@@ -10496,8 +10496,8 @@ button.panel-auth-inline-link {
 
 /* Desktop / tablet: bolhas até 65 %; timeline, compositor e handoff com o
    mesmo padding mínimo nas laterais do pai (~12 px, WhatsApp Web), sem
-   coluna centrada nem margem de 7 %. Em ≥1024 3-col o dock/handoff fechado
-   continuam centrados a 680 px (bloco abaixo). */
+   coluna centrada nem margem de 7 %. Em ≥1024 3-col o dock ocupa a largura
+   útil da coluna da thread (Paulo 19/11/2026; revê o teto de 680 px). */
 @media (min-width: 768px) {
   .inbox-timeline {
     padding-inline: var(--space-3);
@@ -11241,7 +11241,7 @@ button.panel-auth-inline-link {
 
 /* Assumir em linha colada ao compositor (proposta A, 12/11/2026): sem
    cartão, sem ícone em caixa; 44 px no celular. Dentro de .inbox-dock herda a
-   largura da coluna do compositor (680 px no desktop largo). */
+   largura útil da coluna da thread (full width no desktop). */
 .inbox-handoff {
   display: flex;
   align-items: center;
@@ -11808,14 +11808,14 @@ button.panel-auth-inline-link {
   outline-offset: -2px;
 }
 
-/* Desktop DEC-162: janela fechada em barra compacta; dock centrado 680 px
-   dentro do wrap já alinhado a 12 px. Timeline: sem coluna 680 — padding
-   12 px + bolhas 65 % nas laterais (Paulo 12/11/2026; revê DEC-162 item 7). */
+/* Desktop DEC-162 (+ revisão Paulo 19/11/2026): janela fechada em barra
+   compacta; dock/compositor na largura útil da coluna (como WhatsApp Web),
+   sem teto de 680 px. Timeline: padding 12 px + bolhas 65 % nas laterais. */
 @media (min-width: 1024px) {
   .conversas-3col .inbox-dock {
     width: 100%;
-    max-width: 680px;
-    margin-inline: auto;
+    max-width: none;
+    margin-inline: 0;
   }
 
   .conversas-3col .inbox-composer-template {
@@ -11829,9 +11829,9 @@ button.panel-auth-inline-link {
   }
 
   .conversas-3col .inbox-handoff--closed {
-    width: calc(100% - 2 * var(--space-5));
-    max-width: 680px;
-    margin-inline: auto;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
