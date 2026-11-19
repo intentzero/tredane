@@ -2,7 +2,7 @@
 
 **Estado:** Aceito quanto às decisões explícitas, com detalhes indicados como Proposto.
 **Data/origem:** 23/10/2026; decisão do responsável pelo Tredane.
-**Substitui parcialmente:** DEC-007 (identidade e multi-tenancy em aberto), DEC-012 (admin sem painel), DEC-013 (operador fora do MVP). O painel administrativo é uma app separada; o profissional da clínica continua sem login no primeiro recorte.
+**Substitui parcialmente:** DEC-007 (identidade e multi-tenancy em aberto), DEC-012 (admin sem painel), DEC-013 (operador fora do MVP). O painel administrativo é uma app separada. O acesso da profissional à agenda do dia foi decidido depois, na DEC-204.
 
 ## Decisões confirmadas
 

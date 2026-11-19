@@ -146,7 +146,11 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
   )
   applySqlFile(
     (sql) => db.exec(sql),
-    join(MIGRATIONS_DIR, '0033_client_web_link_schedule_pref.sql'),
+    join(MIGRATIONS_DIR, '0033_professional_login.sql'),
+  )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0034_client_web_link_schedule_pref.sql'),
   )
 }
 

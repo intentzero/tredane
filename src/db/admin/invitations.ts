@@ -14,7 +14,12 @@ import type { MembershipRole } from '../schema'
 import { requireActiveOwner, requireActiveTenant, upsertMembershipInTx } from './memberships'
 import type { AdminDb } from './store'
 
-export type InvitationRole = Extract<MembershipRole, 'owner' | 'attendant'>
+export type InvitationRole = MembershipRole
+
+export function parseInvitationRole(role: string | undefined | null): InvitationRole {
+  if (role === 'owner' || role === 'professional' || role === 'attendant') return role
+  return 'attendant'
+}
 
 export type InvitationRow = {
   id: string
@@ -33,7 +38,7 @@ export type InvitationRow = {
 }
 
 function mapInvitationRole(role: string): InvitationRole {
-  return role === 'owner' ? 'owner' : 'attendant'
+  return parseInvitationRole(role)
 }
 
 function mapInvitation(row: {
@@ -182,7 +187,7 @@ export async function createInvitation(
   assertAdminSchemaReady(db)
   if (input.asPlatformAdmin) requireActiveTenant(db, input.tenantId)
   else requireActiveOwner(db, input.tenantId, input.issuedByClerkUserId)
-  const role: InvitationRole = input.role === 'owner' ? 'owner' : 'attendant'
+  const role: InvitationRole = parseInvitationRole(input.role)
   const rawToken = generateOpaqueToken()
   const tokenHash = await hashToken(rawToken)
 
@@ -400,6 +405,14 @@ export async function acceptInvitation(
       role,
       actorClerkUserId: input.acceptorClerkUserId,
     })
+    db.run(
+      `UPDATE professional_logins
+       SET clerk_user_id = ?
+       WHERE tenant_id = ? AND normalized_email = ?`,
+      input.acceptorClerkUserId,
+      row.tenant_id,
+      email,
+    )
 
     writeAudit(db, clock, {
       actorClerkUserId: input.acceptorClerkUserId,

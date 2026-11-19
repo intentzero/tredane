@@ -39,7 +39,7 @@ Origem: review da landing pedido pelo responsável pelo produto ([canvas do revi
 - **Estrutura em 7 blocos** (eram 13): 1. Abertura; 2. «Uma conversa inteira» (história de uma cliente fictícia, Lívia, das 21:47 às 08:00) com «O que muda para a clínica»; 3. «Você continua no controle» (único lugar das garantias de atendimento); 4. «A equipe e a agenda» (caixa de conversas e agenda lado a lado, mais quatro fatos curtos); 5. Sinal por Pix; 6. Piloto; 7. Perguntas frequentes. Saíram «O que pesa hoje» (hipótese VAL-01 não validada), «Como funciona» (absorvido pela história) e a grade de rotina.
 - **Motivo:** a garantia «só marca com o toque da cliente» aparecia cinco vezes e soava defensiva; a página falava com a recepção, mas quem decide o piloto é a dona; cada ilustração tinha outra cliente; todos os H2 tinham o mesmo peso.
 - **Leitora:** a dona continua sendo a leitora principal; a recepção aparece como cenário.
-- **CTA:** **«Conversar no WhatsApp»** (link `wa.me` do próprio Tredane, `PUBLIC_WHATSAPP_URL`) no topo, na abertura, no piloto e nas perguntas; o e-mail passa a ser alternativa («Prefiro e-mail»). Continua **sem formulário** (DEC-044). **Substitui** o CTA «Quero participar do piloto» e o botão «Falar com o Tredane».
+- **CTA:** **«Conversar no WhatsApp»** (link `wa.me` do próprio Tredane, `PUBLIC_WHATSAPP_URL`) no topo, no piloto e nas perguntas; o e-mail passa a ser alternativa («Prefiro e-mail»). Continua **sem formulário** (DEC-044). **Substitui** o CTA «Quero participar do piloto» e o botão «Falar com o Tredane». A abertura usa «Quero minha agenda cheia» (mensagem de 05/11/2026). **Confirmado** (Paulo Santos, 19/11/2026): no celular o topo deixa de encurtar para só «WhatsApp»; o rótulo completo vale em qualquer largura (ver secção «CTA do header» abaixo).
 - **Endereços só quando reais (do PR #547):** WhatsApp, e-mail e **Entrar** só aparecem quando a variável está configurada com valor sem `.example`. Sem WhatsApp, os botões viram «Conhecer o piloto» e levam ao bloco do piloto; sem WhatsApp nem e-mail, o piloto informa que o canal de contato será divulgado.
 - **Títulos:** 56px só na abertura, na história e no piloto; os demais blocos usam um segundo nível (até 40px).
 - **«Entrar»** (**Proposto**, 18/11/2026; revê a regra de sair do topo abaixo de 480px): botão de contorno verde com ícone de entrada (Lucide log-in), 44px de altura, ao lado do botão cheio «Quero participar», que continua o único preenchido. No celular fica no topo, e o botão principal encurta para «Participar»; abaixo de 340px perde o ícone. O rodapé mantém o link de texto. Mock: `docs/design/landing/Main.dc.html`; proposta em [canvas privado](https://claude.ai/artifact/1mwjGnPazS3AK9mUp3f1qu).
@@ -129,10 +129,10 @@ O mock conserva estrutura, copy, fonte Geist, símbolo da marca e imagens ilustr
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.
-2. **Abertura:** “Menos peso na recepção. Do primeiro ‘oi’ ao horário marcado.”, selo “Para clínicas de estética e depilação · Piloto aberto”, três garantias, nota “Telas ilustrativas, com nomes e valores fictícios” e composição do produto (`role="img"`, sem controles reais).
+2. **Abertura:** “Menos peso na recepção. Do primeiro ‘oi’ ao horário marcado.”, selo do hero sem «Em piloto» — **Confirmado** (Paulo Santos, 19/11/2026): `chip-long` «clínicas de estética e depilação» e `chip-short` «estética e depilação» (substitui «Em piloto · …» / o selo v7 «Para clínicas de estética e depilação · Piloto aberto»), três garantias, nota “Telas ilustrativas, com nomes e valores fictícios” e composição do produto (`role="img"`, sem controles reais).
 3. **O que pesa hoje:** “Atender no WhatsApp cansa. Não precisa ser assim.” Quatro pares “O que fica na sua cabeça × O que o Tredane carrega”. A coluna da esquerda é **hipótese** (VAL-01), a validar antes de publicar; a da direita usa só decisões confirmadas.
 4. **Como funciona:** quatro passos, do WhatsApp ao horário confirmado.
-5. **Atendimento automático (painel escuro):** garantias alinhadas às decisões de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115): só marca quando a cliente toca em Confirmar; preço só do cadastro; «Falar com a equipe» em toda resposta; saúde, remarcação e cancelamento vão para a equipe; honesta sobre ser assistente e para quando a cliente pede; a responsável pausa as marcações. **Substitui** a versão v7 («só sugere e nunca envia»), que já não descreve o produto confirmado. Estado: **Proposto** até revisão do texto pelo responsável.
+5. **Atendimento automático (painel escuro):** garantias alinhadas às decisões de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115; **DEC-202**): preço só do cadastro; o chat informa e encaminha; marcar, remarcar e cancelar são só na página web da cliente (não «vão para a equipe» pelo chat); saúde e pedido de uma pessoa vão para a equipe; honesta sobre ser assistente e para quando a cliente pede; a responsável pausa as marcações. **Substitui** a versão v7 («só sugere e nunca envia») e a frase antiga «saúde, remarcação e cancelamento vão para a equipe». Estado: **Proposto** a restante redação desta secção até revisão do texto pelo responsável; o ponto DEC-202 do proof/FAQ está **Confirmado** abaixo.
 6. **Agenda:** salas, intervalo, bloqueio e próximo horário possível (DEC-008).
 7. **Sinal por Pix:** direto na conta da clínica, valor por serviço, confirma ao pagar, política clara (DEC-047).
 8. **Rotina da recepção**, **piloto** (“Sua equipe merece terminar o dia mais leve.”), **perguntas frequentes** e **rodapé**.
@@ -141,6 +141,18 @@ O mock conserva estrutura, copy, fonte Geist, símbolo da marca e imagens ilustr
 
 Toda afirmação da página precisa corresponder a uma decisão confirmada: atendimento automático com frases determinísticas do backend e marcação só pelo toque da cliente em Confirmar (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115; a regra antiga «IA só sugere e uma pessoa envia» foi substituída por essas decisões); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); sinal por Pix na conta da clínica, confirmação ao pagar e prazo de 2 h (DEC-047); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (lembretes; agendamento sem o toque da cliente em Confirmar; respostas livres do modelo fora do que a DEC-104 permite).
 
+## CTA do header: rótulo completo no celular (19/11/2026)
+
+**Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o botão do header no celular dizia só «WhatsApp» — rótulo vago, sem verbo de acção. Texto final em todo o canal WhatsApp da landing (header, bloco do piloto): **«Conversar no WhatsApp»**. Motivo: a leitora precisa saber que o botão abre uma conversa com o Tredane, não só o nome do app. O hero mantém «Quero minha agenda cheia»; o FAQ mantém «Pergunte no WhatsApp» (link de texto, não botão). Remove a variante curta `cta-short` / `cta-long` em `site/src/styles/global.css`. Número e `wa.me` seguem Confirmados (+55 61 99588 8039).
+
+## Badge do hero sem «Em piloto» (19/11/2026)
+
+**Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o pill do hero deixa de dizer «Em piloto · …». Texto final em `site/src/pages/index.astro`: desktop/largo «clínicas de estética e depilação»; abaixo de 520px «estética e depilação».
+
+## Proof do hero: remarcação e cancelamento (19/11/2026)
+
+**Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot; alinhado à **DEC-202**): a frase «Remarcação e cancelamento vão para a equipe» sai do proof sob a abertura. Texto final do terceiro item: «Marca, remarca e cancela na página da cliente». FAQ «O que a IA responde sozinha?» e o bloco «Pode confiar» deixam de dizer que remarcação/cancelamento vão para a equipe pelo chat; saúde e pedido de uma pessoa continuam a ir.
+
 ## Contacto do piloto e preços de referência (19/11/2026)
 
 **Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo):
@@ -148,12 +160,13 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 | Item | Valor |
 | --- | --- |
 | Quem acompanha o piloto | Paulo Santos (foto em `site/src/assets/paulo-santos-piloto.jpg`) |
+| Frase no cartão (ao lado da foto) | **Confirmado** (Paulo Santos, 19/11/2026): «Dúvidas no começo? Fala comigo no WhatsApp.» Substitui «Acompanha o piloto…» / «Fica com a sua clínica…» (jargão e vago para o público da clínica). |
 | WhatsApp Tredane | `+55 61 99588 8039` → `wa.me/5561995888039` |
 | Estúdio | mensal R$ 149 · no anual R$ 124 · 1 profissional, 1 login |
 | Clínica | mensal R$ 247 · no anual R$ 206 · até 4 profissionais, 3 logins |
 | Casa | mensal R$ 397 · no anual R$ 331 · até 10 profissionais |
 
-Na página (`site/src/pages/index.astro`): o bloco do piloto mostra a foto e o nome; os CTAs de WhatsApp usam o número acima; a tabela de planos e a FAQ «Quanto custa?» usam estes valores. Os mocks em `docs/design/landing` continuam **desatualizados**; a fonte activa é `site/` e este documento. E-mail comercial continua **Em aberto** (só aparece se `PUBLIC_CONTACT_EMAIL` for real).
+Na página (`site/src/pages/index.astro`): o bloco do piloto mostra a foto, o nome e a frase do cartão acima; os CTAs de WhatsApp usam o número; a tabela de planos e a FAQ «Quanto custa?» usam estes valores. Os mocks em `docs/design/landing` podem ficar atrás; a fonte activa é `site/` e este documento. E-mail comercial continua **Em aberto** (só aparece se `PUBLIC_CONTACT_EMAIL` for real).
 
 ## Critérios de aceite
 

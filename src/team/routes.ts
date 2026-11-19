@@ -44,9 +44,19 @@ import {
   d1CancelInvitation,
   d1CreateInvitation,
   d1GetInvitation,
+  d1GetProfessionalLogin,
+  d1LinkProfessionalLogin,
   d1ListTeam,
+  d1ReleaseProfessionalLogin,
   d1ResendInvitation,
 } from './d1-ops'
+import {
+  getProfessionalLogin,
+  linkProfessionalLogin,
+  releaseProfessionalLogin,
+} from './professional-login'
+import { normalizeEmail } from '../db/admin/ids'
+import { listMembersForTenant } from '../db/admin'
 import {
   conflictRetryHints,
   serializeInvitation,
@@ -298,10 +308,10 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
       if (!email) return c.json({ error: 'email_required' }, 400)
 
       const roleRaw = body?.role?.trim()
-      if (roleRaw && roleRaw !== 'attendant' && roleRaw !== 'owner') {
+      if (roleRaw && roleRaw !== 'attendant' && roleRaw !== 'owner' && roleRaw !== 'professional') {
         return c.json({ error: 'invalid_invitation_role' }, 400)
       }
-      const role = roleRaw === 'owner' ? 'owner' : 'attendant'
+      const role = roleRaw === 'owner' || roleRaw === 'professional' ? roleRaw : 'attendant'
       const invitePermission: Permission =
         role === 'owner'
           ? 'clinic.members.invite_owner'
@@ -666,6 +676,137 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
         })
         c.header('Cache-Control', 'no-store')
         return c.json({ membership })
+      } catch (err) {
+        return teamErrorResponse(c, err)
+      }
+    },
+  )
+
+  routes.get(
+    '/api/tenants/:tenantId/professional-logins/:resourceId',
+    requireAuth(),
+    requireTenantAccess({}),
+    async (c) => {
+      const ctx = c.get('tenantContext')
+      if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+      try {
+        requireClinicPermission(ctx, 'clinic.config.write')
+      } catch (err) {
+        return authErrorResponse(c, err)
+      }
+      const resourceId = c.req.param('resourceId')
+      const services = resolveTeamServices(c.env, opts)
+      const login = services
+        ? getProfessionalLogin(services.db, ctx.tenantId, resourceId)
+        : await d1GetProfessionalLogin(c.env.DB, ctx.tenantId, resourceId)
+      c.header('Cache-Control', 'no-store')
+      return c.json({ login })
+    },
+  )
+
+  routes.put(
+    '/api/tenants/:tenantId/professional-logins/:resourceId',
+    requireAuth(),
+    requireTenantAccess({}),
+    async (c) => {
+      const ctx = c.get('tenantContext')
+      const principal = c.get('principal')
+      if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+      try {
+        requireClinicPermission(ctx, 'clinic.config.write')
+      } catch (err) {
+        return authErrorResponse(c, err)
+      }
+      const body = await c.req.json<{ email?: string; alsoAttendant?: boolean }>().catch(() => null)
+      const email = body?.email?.trim()
+      if (!email) return c.json({ error: 'email_required' }, 400)
+      const resourceId = c.req.param('resourceId')
+      const alsoAttendant = body?.alsoAttendant === true
+      const services = resolveTeamServices(c.env, opts)
+      const clock = opts.clockFactory?.() ?? systemClock
+      try {
+        const snap = services
+          ? { members: listMembersForTenant(services.db, ctx.tenantId, { includeRevoked: false }) }
+          : await d1ListTeam(c.env.DB, ctx.tenantId, clock.nowMs())
+        const profileReader = c.get('authServices').staffProfiles
+        const profiles = profileReader
+          ? await profileReader.readStaffProfiles(snap.members.map((m) => m.clerkUserId))
+          : new Map()
+        const want = normalizeEmail(email)
+        const bound = snap.members.find((m) => {
+          const found = profiles.get(m.clerkUserId)?.email
+          return found ? normalizeEmail(found) === want : false
+        })?.clerkUserId ?? null
+        if (services) {
+          const result = await linkProfessionalLogin(
+            services.db,
+            services.clock,
+            services.email,
+            services.appBaseUrl,
+            {
+              tenantId: ctx.tenantId,
+              resourceId,
+              email,
+              alsoAttendant,
+              actorClerkUserId: principal.clerkUserId,
+              boundClerkUserId: bound,
+            },
+          )
+          c.header('Cache-Control', 'no-store')
+          return c.json({
+            login: result.login,
+            invitationSent: result.invitationSent,
+            membershipRole: result.membershipRole,
+          })
+        }
+        const result = await d1LinkProfessionalLogin(c.env.DB, resolveEmail(c.env, opts, clock), {
+          tenantId: ctx.tenantId,
+          resourceId,
+          email,
+          alsoAttendant,
+          actorClerkUserId: principal.clerkUserId,
+          boundClerkUserId: bound,
+          appBaseUrl: resolveAppBaseUrl(c.env, opts),
+          now: clock.nowMs(),
+        })
+        c.header('Cache-Control', 'no-store')
+        return c.json(result)
+      } catch (err) {
+        return teamErrorResponse(c, err)
+      }
+    },
+  )
+
+  routes.post(
+    '/api/tenants/:tenantId/professional-logins/:resourceId/release',
+    requireAuth(),
+    requireTenantAccess({}),
+    async (c) => {
+      const ctx = c.get('tenantContext')
+      const principal = c.get('principal')
+      if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+      try {
+        requireClinicPermission(ctx, 'clinic.config.write')
+      } catch (err) {
+        return authErrorResponse(c, err)
+      }
+      const services = resolveTeamServices(c.env, opts)
+      const resourceId = c.req.param('resourceId')
+      try {
+        const result = services
+          ? releaseProfessionalLogin(services.db, services.clock, {
+              tenantId: ctx.tenantId,
+              resourceId,
+              actorClerkUserId: principal.clerkUserId,
+            })
+          : await d1ReleaseProfessionalLogin(c.env.DB, {
+              tenantId: ctx.tenantId,
+              resourceId,
+              actorClerkUserId: principal.clerkUserId,
+              now: (opts.clockFactory?.() ?? systemClock).nowMs(),
+            })
+        c.header('Cache-Control', 'no-store')
+        return c.json(result)
       } catch (err) {
         return teamErrorResponse(c, err)
       }

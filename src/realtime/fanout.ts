@@ -170,7 +170,12 @@ export async function deliverEventToSockets(
     }
 
     // DEC-030/036: filtrar por audiência (owners / subject / all).
-    if (!isEventVisibleToRole(event.payload, attachment.role, attachment.clerkUserId)) {
+    if (
+      !isEventVisibleToRole(event.payload, attachment.role, attachment.clerkUserId, {
+        type: event.type,
+        entityType: event.entityType,
+      })
+    ) {
       continue
     }
 

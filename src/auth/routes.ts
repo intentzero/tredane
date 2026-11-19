@@ -62,12 +62,27 @@ export function createAuthRoutes(): Hono<AuthEnv> {
       } catch (err) {
         return authErrorResponse(c, err)
       }
+      const principal = c.get('principal')
+      const services = c.get('authServices')
+      let professionalResourceId: string | null = null
+      try {
+        const linked = await services.adminDb.get<{ resource_id: string }>(
+          `SELECT resource_id FROM professional_logins
+           WHERE tenant_id = ? AND clerk_user_id = ?`,
+          ctx.tenantId,
+          principal.clerkUserId,
+        )
+        professionalResourceId = linked?.resource_id ?? null
+      } catch {
+        professionalResourceId = null
+      }
       c.header('Cache-Control', 'no-store')
       return c.json({
         tenantId: ctx.tenantId,
         name: ctx.tenantName,
         status: ctx.tenantStatus,
         role: ctx.role,
+        professionalResourceId,
         // ADR-0017: o cliente sabe que está numa sessão de suporte (só leitura) e quando ela acaba.
         ...(ctx.support ? { support: { sessionId: ctx.support.sessionId, expiresAt: ctx.support.expiresAt } } : {}),
       })

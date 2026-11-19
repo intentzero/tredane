@@ -273,6 +273,46 @@ describe('InboxThread — estado de envio', () => {
     expect(screen.queryByRole('region', { name: 'Horários livres' })).toBeNull()
   })
 
+  it('enquanto gera sugestão: estado visível sem botão Enviar (sem overlap na barra)', async () => {
+    let release!: (v: unknown) => void
+    const suggestAiReply = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        }),
+    )
+    renderThread(mockApi(detail(), { suggestAiReply } as unknown as Partial<PanelApi>))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Sugerir resposta com IA' }))
+    const generating = await screen.findByText('Gerando sugestão…')
+    expect(generating.closest('.ai-working')).toBeTruthy()
+    expect(generating.closest('form')?.querySelector('textarea')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Sugerir resposta com IA' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Enviar' })).toBeNull()
+    release!({
+      suggestion: {
+        id: 'ais_busy',
+        conversationId: 'cnv_ficticia',
+        kind: 'reply',
+        status: 'ok',
+        provider: 'teste',
+        model: 'teste',
+        suggestedText: 'Posso ajudar.',
+        warningCodes: [],
+        warningLabels: [],
+        sourceRefs: [],
+        requestMeta: { latencyMs: 1, inputTokens: null, outputTokens: null, messageCount: 1, mode: 'test' },
+        errorCode: null,
+        createdAt: NOW,
+        messageSent: false,
+      },
+      duplicate: false,
+      messageSent: false,
+    })
+    await waitFor(() => expect(screen.queryByText('Gerando sugestão…')).toBeNull())
+    expect(await screen.findByRole('region', { name: 'Sugestão da IA' })).toBeTruthy()
+  })
+
   it('DEC-063: «Enviar» manda a sugestão da IA inteira em 1 toque, com a origem registrada', async () => {
     const suggestion = {
       id: 'ais_ficticia',

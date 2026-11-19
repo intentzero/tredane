@@ -19,7 +19,7 @@ import {
 } from '../clinic'
 import type { WorkerBindings } from '../worker/bindings'
 import { isVariantSelection } from '../clinic/catalog/variant-selection'
-import { isVariantAudience } from '../clinic/config/types'
+import { CLINIC_SCOPE_ID, isVariantAudience } from '../clinic/config/types'
 import type { ClinicConfigGateway } from './gateway'
 import {
   serializeAbuseLimits,
@@ -865,7 +865,6 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
   app.post('/api/tenants/:tenantId/config/blocks', ...tenant, async (c) => {
     try {
       const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.config.write')
       const body = await c.req.json<Record<string, unknown>>()
       if (
         typeof body.resourceId !== 'string'
@@ -874,6 +873,29 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         || typeof body.reason !== 'string'
       ) {
         return c.json({ error: 'invalid_body' }, 400)
+      }
+      if (ctx.role === 'professional') {
+        requireClinicPermission(ctx, 'clinic.agenda.self_block')
+        if (body.resourceId === CLINIC_SCOPE_ID) {
+          throw new ValidationError(
+            'self_block_clinic_forbidden',
+            'A profissional não bloqueia a clínica inteira',
+          )
+        }
+        const linked = await c.get('authServices').adminDb.get<{ resource_id: string }>(
+          `SELECT resource_id FROM professional_logins
+           WHERE tenant_id = ? AND clerk_user_id = ?`,
+          ctx.tenantId,
+          c.get('principal').clerkUserId,
+        )
+        if (!linked?.resource_id || linked.resource_id !== body.resourceId) {
+          throw new ValidationError(
+            'self_block_not_own',
+            'Só bloqueia o próprio horário',
+          )
+        }
+      } else {
+        requireClinicPermission(ctx, 'clinic.config.write')
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
       const result = await gw.createBlock(
@@ -899,8 +921,36 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
     async (c) => {
       try {
         const ctx = c.get('tenantContext')!
-        requireClinicPermission(ctx, 'clinic.config.write')
         const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (ctx.role === 'professional') {
+          requireClinicPermission(ctx, 'clinic.agenda.self_block')
+          const linked = await c.get('authServices').adminDb.get<{ resource_id: string }>(
+            `SELECT resource_id FROM professional_logins
+             WHERE tenant_id = ? AND clerk_user_id = ?`,
+            ctx.tenantId,
+            c.get('principal').clerkUserId,
+          )
+          const blockId = c.req.param('blockId')
+          const snap = await gw.getSnapshot(
+            callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          )
+          const block = snap.blocks.find((b) => b.id === blockId)
+          if (!block) {
+            throw new ValidationError('block_not_found', 'Bloqueio não encontrado')
+          }
+          if (
+            !linked?.resource_id
+            || block.resourceId !== linked.resource_id
+            || block.resourceId === CLINIC_SCOPE_ID
+          ) {
+            throw new ValidationError(
+              'self_block_not_own',
+              'Só remove o próprio bloqueio',
+            )
+          }
+        } else {
+          requireClinicPermission(ctx, 'clinic.config.write')
+        }
         await gw.deleteBlock(
           callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
           c.req.param('blockId'),

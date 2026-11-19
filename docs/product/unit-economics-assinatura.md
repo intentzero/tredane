@@ -16,6 +16,8 @@ O modelo editável está em [unit-economics-assinatura.canvas.tsx](unit-economic
 
 Colunas Mensal / No anual / Cabe: **Confirmadas**. Colunas de sobra: **Propostas** (modelo).
 
+**O que conta como login (DEC-204, Paulo, 19/11/2026):** a célula «3 logins» do plano Clínica permanece como publicada. Login passa a ser cada profissional mais cada atendente que não executa serviços; a mesma pessoa nas duas funções usa um login. Esta nota não altera o preço.
+
 Anexo V a 15,5%, remessa de SaaS técnico, hora interna a R$ 80. O piloto do estúdio conta 1 h e 3 h de onboarding diluídas; o da clínica, 1,5 h e 4 h; o da casa, 2,5 h e 6 h. Em regime essas horas caem para 0,3 h, 0,4 h e 0,6 h. Abaixo de R$ 149 o estúdio não paga a hora do piloto: a R$ 97 a sobra do mês de entrada fica negativa.
 
 O que segura esses preços é teto de suporte, não um número maior na tabela. Depois do onboarding o canal é chat. Hora extra de alguém da operação não entra na mensalidade. Se a casa exigir as 2,5 h todo mês, o preço de R$ 397 não segura o piloto: cobra-se um setup único (a Belle cobra R$ 190 de adesão; a Clinicorp cobra implementação) em vez de subir a mensalidade para R$ 697.

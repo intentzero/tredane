@@ -19,7 +19,7 @@ export const TENANT_STATUSES = [
 ] as const
 export type TenantStatus = (typeof TENANT_STATUSES)[number]
 
-export const MEMBERSHIP_ROLES = ['owner', 'attendant'] as const
+export const MEMBERSHIP_ROLES = ['owner', 'attendant', 'professional'] as const
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number]
 
 export const MEMBERSHIP_STATUSES = ['active', 'revoked'] as const
@@ -117,7 +117,7 @@ export const tenantInvitations = sqliteTable('tenant_invitations', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   normalizedEmail: text('normalized_email').notNull(),
-  role: text('role', { enum: ['owner', 'attendant'] }).notNull().default('attendant'),
+  role: text('role', { enum: ['owner', 'attendant', 'professional'] }).notNull().default('attendant'),
   issuedByClerkUserId: text('issued_by_clerk_user_id').notNull(),
   tokenHash: text('token_hash').notNull(),
   status: text('status', { enum: INVITATION_STATUSES }).notNull().default('pending'),

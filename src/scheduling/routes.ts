@@ -1,6 +1,7 @@
 /**
  * Rotas de disponibilidade + agendamento atómico (#35/#36).
- * Permissão: `clinic.agenda.operate` (owner + attendant).
+ * Permissão: `clinic.agenda.operate` (owner + attendant). A leitura do dia
+ * (`GET /agenda`) também aceita `clinic.agenda.read` da profissional (DEC-204).
  * Mensagem WhatsApp fica no inbox (#33) — falha de envio não toca reserva (REQ-033).
  */
 import { Hono } from 'hono'
@@ -101,6 +102,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGatew
     getAppointment: (caller, appointmentId) =>
       stub.getClinicAppointment(caller, appointmentId),
     queryAgenda: (caller, input) => stub.queryClinicAgenda(caller, input),
+    setAttendance: (caller, input) => stub.setClinicAppointmentAttendance(caller, input),
     previewHold: (caller, input) => stub.previewClinicHold(caller, input),
     createHold: (caller, input) => stub.createClinicHold(caller, input),
     listHolds: (caller, input) => stub.listClinicHolds(caller, input),
@@ -120,7 +122,9 @@ async function resolveGateway(
 }
 
 function displayNameFromRole(role: string): string {
-  return role === 'owner' ? 'Responsável' : 'Atendente'
+  if (role === 'owner') return 'Responsável'
+  if (role === 'professional') return 'Profissional'
+  return 'Atendente'
 }
 
 function finiteNumber(v: unknown, field: string): number {
@@ -233,7 +237,8 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
   app.get('/api/tenants/:tenantId/agenda', ...tenant, async (c) => {
     try {
       const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      if (ctx.role === 'professional') requireClinicPermission(ctx, 'clinic.agenda.read')
+      else requireClinicPermission(ctx, 'clinic.agenda.operate')
       const date = c.req.query('date')?.trim()
       const view = (c.req.query('view')?.trim() || 'day') as 'day' | 'week' | 'month'
       if (!date) {
@@ -253,7 +258,9 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           includeCancelled: c.req.query('includeCancelled') === '1',
         },
       )
-      return c.json(serializeAgendaView(result))
+      return c.json(
+        serializeAgendaView(result, { professionalView: ctx.role === 'professional' }),
+      )
     } catch (err) {
       return schedulingErrorResponse(c, err)
     }
@@ -273,6 +280,57 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       return schedulingErrorResponse(c, err)
     }
   })
+
+  /** DEC-205: chegou / não veio / limpar. */
+  app.post(
+    '/api/tenants/:tenantId/appointments/:appointmentId/attendance',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.agenda.attendance')
+        const body = await c.req.json<{ attendance?: 'arrived' | 'no_show' | null }>().catch(() => null)
+        if (!body || !('attendance' in body)) {
+          throw new ValidationError('missing_body', 'attendance é obrigatório')
+        }
+        if (
+          body.attendance !== null
+          && body.attendance !== 'arrived'
+          && body.attendance !== 'no_show'
+        ) {
+          throw new ValidationError('invalid_attendance', 'Comparecimento inválido')
+        }
+        let restrictToProfessionalId: string | null = null
+        if (ctx.role === 'professional') {
+          const linked = await c.get('authServices').adminDb.get<{ resource_id: string }>(
+            `SELECT resource_id FROM professional_logins
+             WHERE tenant_id = ? AND clerk_user_id = ?`,
+            ctx.tenantId,
+            c.get('principal').clerkUserId,
+          )
+          if (!linked?.resource_id) {
+            throw new ValidationError(
+              'professional_login_missing',
+              'A sua conta não está ligada a uma ficha de agenda',
+            )
+          }
+          restrictToProfessionalId = linked.resource_id
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const result = await gw.setAttendance(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          {
+            appointmentId: c.req.param('appointmentId'),
+            attendance: body.attendance,
+            restrictToProfessionalId,
+          },
+        )
+        return c.json(result)
+      } catch (err) {
+        return schedulingErrorResponse(c, err)
+      }
+    },
+  )
 
   /**
    * DEC-202: a equipe envia o link «Abrir agenda» à cliente. Não marca nada: a cliente escolhe

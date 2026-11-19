@@ -44,9 +44,15 @@ export function eventAudience(payload: Record<string, unknown>): RealtimeAudienc
 
 export function isEventVisibleToRole(
   payload: Record<string, unknown>,
-  role: 'owner' | 'attendant',
+  role: 'owner' | 'attendant' | 'professional',
   clerkUserId?: string,
+  event?: { type?: string; entityType?: string },
 ): boolean {
+  if (role === 'professional') {
+    const type = event?.type ?? ''
+    const entity = event?.entityType ?? ''
+    return type.startsWith('appointment.') || type.startsWith('schedule_hold.') || entity === 'appointment'
+  }
   const audience = eventAudience(payload)
   const subjectId =
     typeof payload.subjectClerkUserId === 'string' ? payload.subjectClerkUserId : null

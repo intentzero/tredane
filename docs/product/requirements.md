@@ -314,6 +314,18 @@
 
 **Prioridade/estado:** MVP / pedido Confirmado (DEC-200, Paulo 17/11/2026); desenho **Proposto**. **Origem:** JRN-21; DEC-075, DEC-079, DEC-110, DEC-142. **Comportamento:** na escolha de serviço e de zonas, um campo de pesquisa filtra o catálogo ativo pelo nome e pelos sinónimos, sem acentos e com plural leve, e destaca o termo; tocar numa zona abre a escolha de zonas com ela marcada; sem resultado, mostra «Perguntar no WhatsApp» e «Ver todos os serviços». O género não é determinado pelo sistema: a página pergunta «Para quem é?» só quando o catálogo depende dele, respeita a linha já definida na conversa e não grava o género no contacto. **Regras e exceções:** serviço «qualquer» e zona «ambos» aparecem sempre; a pesquisa nunca mostra serviço inativo nem não agendável por aqui. **Aceite:** AC-96, AC-97.
 
+### REQ-118 — Login da profissional e agenda do dia inteiro
+
+**Prioridade/estado:** MVP / **Confirmado** (DEC-204, Paulo, 19/11/2026). **Origem:** ACT-04; revê DEC-013. **Comportamento:** a profissional entra no painel com a própria conta e abre na Agenda. Vê o dia inteiro da clínica, com a coluna dela em destaque, horário, serviço, sala e o primeiro nome da cliente. O servidor omite telefone, identificadores de contacto, conversa e oportunidade. Marcar, remarcar, cancelar, Conversas, Acompanhamento, Clientes e Clínica respondem com recusa. A ficha da profissional exige e-mail; ao salvar, a responsável envia o convite. «Também atende no WhatsApp» faz da mesma conta uma atendente, sem segundo login. Uma atendente convidada sem esse interruptor não vira recurso de agenda. Desativar a ficha impede horários novos e revoga o membership só quando o papel é `professional`. **Regras e exceções:** responsável que também executa serviços mantém o papel de responsável. Folga e expediente continuam só dela. **Aceite:** AC-03.
+
+### REQ-119 — Marcar chegada
+
+**Prioridade/estado:** MVP / **Confirmado** (DEC-205, Paulo, 19/11/2026). **Origem:** ACT-04; DEC-204. **Comportamento:** num compromisso confirmado, a equipe ou a profissional regista comparecimento `chegou` ou `não veio`, ou limpa o valor. A profissional só nos horários dela. O cartão do dia mostra o estado. Não cancela o compromisso e não altera a conversa. **Aceite:** AC-03.
+
+### REQ-120 — Bloquear o próprio horário
+
+**Prioridade/estado:** MVP / **Confirmado** (DEC-206, Paulo, 19/11/2026). **Origem:** ACT-04; DEC-204. **Comportamento:** a profissional, a partir da Agenda, cria ou remove um bloqueio só na própria ficha, com os mesmos motivos da clínica. A pré-visualização mostra compromissos no intervalo sem os cancelar. Recusa bloqueio da clínica inteira ou de outra profissional. Expediente semanal continua só da responsável. **Aceite:** AC-03.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -362,11 +374,14 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
 | REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |
 | REQ-111–117 | MVP | Página web da cliente aberta pelo WhatsApp (DEC-196 a DEC-199): link pessoal e troca única, agendar, remarcar, cancelar, Meus agendamentos, oferta e recibo no chat. Detalhe acima (REQ-117: pesquisa e género) e em [ADR-0018](../adr/0018-pagina-web-cliente.md). |
+| REQ-118 | MVP | Login da profissional: vê o dia inteiro da agenda, com o primeiro nome da cliente (DEC-204). |
+| REQ-119 | MVP | Marcar chegada / não veio no compromisso (DEC-205). |
+| REQ-120 | MVP | Profissional bloqueia o próprio horário (DEC-206). |
 | REQ-104–110 | MVP interno | Interface da Platform Admin (DEC-192): acesso, clínicas, estado, suporte, saúde, visão geral e qualidade da IA. Detalhe e aceite em [platform-admin.md](platform-admin.md#5-requisitos). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |
 
-**Fora do MVP (já definido):** prontuário, pagamentos além do sinal por Pix (DEC-047), estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
+**Fora do MVP (já definido):** prontuário, pagamentos além do sinal por Pix (DEC-047), estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas e relatórios avançados. O login só de agenda da profissional entrou no MVP (DEC-204, REQ-118); um painel da profissional além do dia da agenda continua fora. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
 
 **Gate para aprovar a prioridade:** responsável pelo produto confirmar o recorte e aceitar que os itens administrativos internos podem avançar na F1 sem atrasar a demonstração Inbox → pipeline → agenda da clínica. Os detalhes ainda em aberto estão em [decisões](decisions.md) e [registro de validação](validation-register.md).
 

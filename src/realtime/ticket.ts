@@ -19,7 +19,7 @@ export type WsTicketGrant = {
   tenantId: string
   clerkUserId: string
   sessionId: string
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
   /** Bilhete de sessão de suporte (ADR-0017 §4): a ligação resultante é só de leitura e presa à sessão. */
   supportSessionId?: string
   expiresAt: number

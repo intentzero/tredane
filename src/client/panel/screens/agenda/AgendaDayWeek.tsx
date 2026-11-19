@@ -22,6 +22,7 @@ import { ShellSlot } from '../../shell/ShellSlot'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
+import { SelfBlockSheet } from './SelfBlockSheet'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
 import { agendaMonthMarks } from './monthMarks'
 import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy, type FreeSlot } from './freeSlots'
@@ -53,6 +54,12 @@ type Props = {
   focusDate?: string
   /** Responsável: «Permitir os dois» no detalhe (DEC-075 / S5). */
   isOwner?: boolean
+  /** DEC-204: vê o dia, sem marcar nem abrir a ficha com telefone. */
+  readOnly?: boolean
+  /** Coluna da própria profissional, em destaque. */
+  highlightProfessionalId?: string | null
+  /** DEC-205: pode marcar chegada (equipa ou profissional). */
+  canMarkAttendance?: boolean
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
@@ -94,7 +101,11 @@ export function AgendaDayWeek({
   openId,
   focusDate,
   isOwner = false,
+  readOnly = false,
+  highlightProfessionalId = null,
+  canMarkAttendance = false,
 }: Props) {
+  const [blockOpen, setBlockOpen] = useState(false)
   const [date, setDate] = useState(
     () =>
       (isCivilDateParam(focusDate) ? focusDate : null) ??
@@ -144,7 +155,29 @@ export function AgendaDayWeek({
     returnFocus.current?.focus?.({ preventScroll: true })
   }
 
+  async function setAttendance(id: string, attendance: 'arrived' | 'no_show' | null) {
+    try {
+      const result = await api.setAppointmentAttendance(tenantId, id, attendance, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setData((cur) => {
+        if (!cur) return cur
+        return {
+          ...cur,
+          appointments: cur.appointments.map((a) =>
+            a.id === id ? { ...a, attendance: result.attendance, version: result.version } : a,
+          ),
+        }
+      })
+    } catch {
+      /* o próximo load corrige */
+      void load()
+    }
+  }
+
   function openAppointment(id: string) {
+    if (readOnly) return
     if (wide && openId === id) {
       closePanel()
       return
@@ -284,9 +317,14 @@ export function AgendaDayWeek({
   }
 
   const allAppointments = (data?.appointments ?? []).filter((a) => a.status !== 'cancelled')
-  const professionals = (config?.resources ?? [])
+  const fromConfig = (config?.resources ?? [])
     .filter((r) => r.kind === 'professional' && r.active)
     .map((r) => ({ id: r.id, name: r.name }))
+  const fromAgenda = (data?.availability ?? []).map((a) => ({
+    id: a.professionalId,
+    name: a.professionalName,
+  }))
+  const professionals = fromConfig.length > 0 ? fromConfig : fromAgenda
   const rooms = (config?.resources ?? [])
     .filter((r) => r.kind === 'room' && r.active)
     .map((r) => ({ id: r.id, name: r.name }))
@@ -308,8 +346,10 @@ export function AgendaDayWeek({
       ? formatDateRange(weekDays[0]!, weekDays[6]!, timezone)
       : formatLongDate(date, timezone)
 
-  const goSchedule = () =>
+  const goSchedule = () => {
+    if (readOnly) return
     navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'agendar', date })
+  }
 
   const dayLabel = formatDayLabel(date, timezone)
   const passesFilters = (a: AgendaAppointmentItem) =>
@@ -327,7 +367,8 @@ export function AgendaDayWeek({
     date === today ? now : null,
     freeToday,
   )
-  const goScheduleAt = (slot: FreeSlot) =>
+  const goScheduleAt = (slot: FreeSlot) => {
+    if (readOnly) return
     navigatePanel({
       kind: 'area',
       area: 'agenda',
@@ -337,6 +378,7 @@ export function AgendaDayWeek({
       time: formatSlotTime(slot.startsAt, timezone),
       professionalId: slot.professionalId,
     })
+  }
   const holds: ScheduleHold[] = (data?.holds ?? []).filter(
     (h) => h.status === 'active' && civilDayOf(h.windowStartsAt, timezone) === date,
   )
@@ -422,10 +464,20 @@ export function AgendaDayWeek({
             {onToday ? <span className="agenda-bar-badge">Hoje</span> : null}
             <span className="agenda-bar-spacer" />
             {viewToggle}
+            {readOnly && highlightProfessionalId ? (
+            <Button
+              className="panel-btn-secondary panel-btn-compact agenda-add"
+              onPress={() => setBlockOpen(true)}
+            >
+              Bloquear horário
+            </Button>
+            ) : null}
+            {readOnly ? null : (
             <Button className="panel-btn-primary panel-btn-accent panel-btn-compact agenda-add" onPress={goSchedule}>
               <Plus aria-hidden size={18} strokeWidth={2} />
               Agendar
             </Button>
+            )}
           </div>
         </ShellSlot>
       )}
@@ -523,7 +575,7 @@ export function AgendaDayWeek({
       ) : null}
 
       <div className="panel-scroll agenda-body">
-        {view === 'day' && narrow ? (
+        {view === 'day' && (narrow || readOnly) ? (
           <AgendaDayList
             entries={listEntries}
             holds={holds}
@@ -531,11 +583,15 @@ export function AgendaDayWeek({
             timezone={timezone}
             now={now}
             onOpen={(id) => openAppointment(id)}
-            onSchedule={goSchedule}
-            onScheduleAt={goScheduleAt}
-            onOpenHold={(h) =>
+            onSchedule={readOnly ? undefined : goSchedule}
+            onScheduleAt={readOnly ? undefined : goScheduleAt}
+            onOpenHold={(h) => {
+              if (readOnly || !h.conversationId) return
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
-            }
+            }}
+            canMarkAttendance={canMarkAttendance}
+            attendanceForProfessionalId={readOnly ? highlightProfessionalId : null}
+            onSetAttendance={(id, attendance) => void setAttendance(id, attendance)}
           />
         ) : view === 'day' ? (
           <DayGrid
@@ -547,6 +603,10 @@ export function AgendaDayWeek({
             isToday={date === today}
             now={now}
             onOpen={(id) => openAppointment(id)}
+            highlightProfessionalId={highlightProfessionalId}
+            canMarkAttendance={canMarkAttendance}
+            attendanceForProfessionalId={readOnly ? highlightProfessionalId : null}
+            onSetAttendance={(id, attendance) => void setAttendance(id, attendance)}
           />
         ) : (
           weekDays.map((day) => {
@@ -668,11 +728,33 @@ export function AgendaDayWeek({
         )}
       </div>
 
-      {narrow && view === 'day' ? (
+      {narrow && view === 'day' && !readOnly ? (
         <Button className="agenda-fab" onPress={goSchedule} aria-label={`Agendar ${dayLabel.weekday} ${dayLabel.day}`}>
           <Plus aria-hidden size={20} strokeWidth={2} />
           Agendar {date === today ? 'hoje' : dayLabel.weekday}
         </Button>
+      ) : null}
+      {narrow && view === 'day' && readOnly && highlightProfessionalId ? (
+        <Button
+          className="agenda-fab"
+          onPress={() => setBlockOpen(true)}
+          aria-label="Bloquear o meu horário"
+        >
+          Bloquear horário
+        </Button>
+      ) : null}
+      {highlightProfessionalId ? (
+        <SelfBlockSheet
+          tenantId={tenantId}
+          professionalId={highlightProfessionalId}
+          api={api}
+          generation={generation}
+          date={date}
+          timezone={timezone}
+          isOpen={blockOpen}
+          onOpenChange={setBlockOpen}
+          onSaved={() => void load()}
+        />
       ) : null}
     </div>
   )
@@ -774,6 +856,10 @@ function DayGrid({
   isToday,
   now,
   onOpen,
+  highlightProfessionalId,
+  canMarkAttendance = false,
+  attendanceForProfessionalId = null,
+  onSetAttendance,
 }: {
   items: AgendaAppointmentItem[]
   professionals: { id: string; name: string }[]
@@ -781,6 +867,11 @@ function DayGrid({
   isToday: boolean
   now: number
   onOpen: (id: string) => void
+  highlightProfessionalId?: string | null
+  /** DEC-205: owner/atendente no grid largo; profissional só na própria coluna. */
+  canMarkAttendance?: boolean
+  attendanceForProfessionalId?: string | null
+  onSetAttendance?: (id: string, attendance: 'arrived' | 'no_show' | null) => void
 }) {
   const { startHour, endHour } = visibleHours(items, timezone)
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
@@ -807,6 +898,12 @@ function DayGrid({
       startHour,
     ).map((p) => ({ ...p, col: ci })),
   )
+  const showAttendanceFor = (item: AgendaAppointmentItem) =>
+    canMarkAttendance
+    && !!onSetAttendance
+    && item.status === 'confirmed'
+    && (attendanceForProfessionalId == null
+      || item.professionalId === attendanceForProfessionalId)
 
   return (
     <>
@@ -817,7 +914,10 @@ function DayGrid({
         aria-hidden
       >
         {columns.map((c) => (
-          <span key={c.id} className={`agenda-grid-head agenda-card--tone-${toneOf(c.id)}`}>
+          <span
+            key={c.id}
+            className={`agenda-grid-head agenda-card--tone-${toneOf(c.id)}${c.id === highlightProfessionalId ? ' is-self' : ''}`}
+          >
             <span className={`agenda-mini agenda-tone-${toneOf(c.id)}`}>
               {c.name
                 .split(/\s+/)
@@ -847,34 +947,80 @@ function DayGrid({
           <span className="agenda-now-dot" />
         </div>
       ) : null}
-      {placed.map(({ item, top, height, lane, lanes, col }) => (
-        <button
-          key={item.id}
-          type="button"
-          role="listitem"
-          className={`agenda-block agenda-card--tone-${toneOf(item.professionalId)}`}
-          style={{
-            top,
-            height,
-            left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
-            width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
-          }}
-          onClick={() => onOpen(item.id)}
-        >
-          {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
-          <span className="agenda-block-title">
-            {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
-          </span>
-          <span className="agenda-block-time">
-            {item.serviceName}
-            {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
-            <span className="panel-sr-only">
-              {' '}
-              até {formatSlotTime(item.endsAt, timezone)} · {item.professionalName}
-            </span>
-          </span>
-        </button>
-      ))}
+      {placed.map(({ item, top, height, lane, lanes, col }) => {
+        const attendanceLabel =
+          item.attendance === 'arrived'
+            ? 'Chegou'
+            : item.attendance === 'no_show'
+              ? 'Não veio'
+              : null
+        const mark = showAttendanceFor(item)
+        return (
+          <div
+            key={item.id}
+            role="listitem"
+            className={`agenda-block-wrap${mark ? ' agenda-block-wrap--attendance' : ''}`}
+            style={{
+              top,
+              height: mark ? Math.max(height, 64) : height,
+              left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
+              width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
+            }}
+          >
+            <button
+              type="button"
+              className={`agenda-block agenda-card--tone-${toneOf(item.professionalId)}`}
+              onClick={() => onOpen(item.id)}
+            >
+              {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
+              <span className="agenda-block-title">
+                {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
+                {attendanceLabel ? (
+                  <span className="agenda-attendance-badge"> · {attendanceLabel}</span>
+                ) : null}
+              </span>
+              <span className="agenda-block-time">
+                {item.serviceName}
+                {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+                <span className="panel-sr-only">
+                  {' '}
+                  até {formatSlotTime(item.endsAt, timezone)} · {item.professionalName}
+                </span>
+              </span>
+            </button>
+            {mark && onSetAttendance ? (
+              <div className="agenda-attendance-actions agenda-attendance-actions--grid">
+                <button
+                  type="button"
+                  className={item.attendance === 'arrived' ? 'is-active' : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSetAttendance(
+                      item.id,
+                      item.attendance === 'arrived' ? null : 'arrived',
+                    )
+                  }}
+                >
+                  Chegou
+                </button>
+                <button
+                  type="button"
+                  className={item.attendance === 'no_show' ? 'is-active' : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSetAttendance(
+                      item.id,
+                      item.attendance === 'no_show' ? null : 'no_show',
+                    )
+                  }}
+                >
+                  Não veio
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
     </div>
     </>
   )

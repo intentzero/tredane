@@ -8,8 +8,17 @@ import { ErrorState, LoadingState } from '../states/StatusScreens'
 import { useTenant } from '../tenant/TenantContext'
 import { BrandHorizontal, BrandStacked } from '../ui/Brand'
 
-function roleLabel(role: 'owner' | 'attendant'): string {
-  return role === 'owner' ? 'Responsável' : 'Atendente'
+function roleLabel(role: 'owner' | 'attendant' | 'professional'): string {
+  if (role === 'owner') return 'Responsável'
+  if (role === 'professional') return 'Profissional'
+  return 'Atendente'
+}
+
+function homeRoute(tenantId: string, role: 'owner' | 'attendant' | 'professional') {
+  if (role === 'professional') {
+    return { kind: 'area' as const, area: 'agenda' as const, tenantId, section: 'dia' as const }
+  }
+  return { kind: 'area' as const, area: 'conversas' as const, tenantId, section: 'lista' as const }
 }
 
 /**
@@ -33,10 +42,7 @@ export function ClinicSelector() {
     if (!only) return
     void selectTenant(only.tenantId, only.name).then((ok) => {
       if (ok) {
-        navigatePanel(
-          { kind: 'area', area: 'conversas', tenantId: only.tenantId, section: 'lista' },
-          true,
-        )
+        navigatePanel(homeRoute(only.tenantId, only.role), true)
       }
     })
   }, [listState, active.phase, selectTenant])
@@ -53,10 +59,7 @@ export function ClinicSelector() {
     if (!resumeTenantId || active.phase !== 'none') return
     void selectTenant(resumeTenantId, resumeName).then((ok) => {
       if (ok) {
-        navigatePanel(
-          { kind: 'area', area: 'conversas', tenantId: resumeTenantId, section: 'lista' },
-          true,
-        )
+        navigatePanel(homeRoute(resumeTenantId, resumeId?.role ?? 'attendant'), true)
       }
     })
   }, [resumeTenantId, resumeName, active.phase, selectTenant])
@@ -139,15 +142,7 @@ export function ClinicSelector() {
           if (!tenant) return
           void selectTenant(tenant.tenantId, tenant.name).then((ok) => {
             if (ok) {
-              navigatePanel(
-                {
-                  kind: 'area',
-                  area: 'conversas',
-                  tenantId: tenant.tenantId,
-                  section: 'lista',
-                },
-                true,
-              )
+              navigatePanel(homeRoute(tenant.tenantId, tenant.role), true)
             }
           })
         }}
