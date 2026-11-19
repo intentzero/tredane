@@ -17,8 +17,6 @@ import {
   formatPhone,
   formatWhen,
   historyLabel,
-  templateStatus,
-  templateTitle,
 } from './format'
 import {
   EmbeddedSignupError,
@@ -46,7 +44,6 @@ function embeddedSignupUserMessage(kind: EmbeddedSignupErrorKind): string {
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
 import { friendlyError, friendlyReason } from '../../../copy/errors'
-import { Badge } from '../../../states/Badge'
 import { Banner } from '../../../states/Banner'
 import { NavRow } from '../NavRow'
 
@@ -520,35 +517,7 @@ export function WhatsappScreen({
         </dl>
       </section>
 
-      <section aria-labelledby="wa-tpl" className="panel-card clinic-card">
-        <div className="clinic-card-head">
-          <h2 id="wa-tpl" className="panel-title-md">
-            Modelos de mensagem
-          </h2>
-          <Badge tone="closed">{templateCount(conn.messageTemplates)}</Badge>
-        </div>
-        {conn.messageTemplates.length === 0 ? (
-          <p className="clinic-footnote">
-            Servem para falar com a cliente depois de 24 horas sem resposta. A Meta aprova cada um;
-            pode levar alguns dias.
-          </p>
-        ) : (
-          <ul className="whatsapp-tpl-list clinic-nav-list">
-            {conn.messageTemplates.map((t) => {
-              const st = templateStatus(t.status)
-              return (
-                <li key={t.name} className="whatsapp-tpl">
-                  <span className="clinic-nav-copy">
-                    <strong>{templateTitle(t.name)}</strong>
-                    <span>{t.name}</span>
-                  </span>
-                  <Badge tone={st.tone}>{st.label}</Badge>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
+      {/* DEC-208: cartão «Modelos de mensagem» retirado do MVP (sem envio de templates). */}
 
       <p className="whatsapp-secure-note">
         Os dados de acesso à conta da Meta ficam guardados com segurança e não aparecem aqui.
@@ -604,11 +573,6 @@ export function WhatsappScreen({
       {devSync}
     </div>
   )
-}
-
-function templateCount(items: WhatsappConnection['messageTemplates']): string {
-  const approved = items.filter((t) => t.status.toUpperCase() === 'APPROVED').length
-  return approved === 1 ? '1 aprovado' : `${approved} aprovados`
 }
 
 function historyCount(n: number): string {

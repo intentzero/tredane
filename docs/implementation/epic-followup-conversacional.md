@@ -1,8 +1,8 @@
 # Épico — Follow-up conversacional e atendente virtual (DEC-086 a DEC-089)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 31/10/2026, America/Sao_Paulo; idle **15 + 15 min** Confirmado Paulo 14/11/2026 America/Sao_Paulo). Este documento é o épico. Issue: [#354](https://github.com/intentzero/tredane/issues/354).
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 31/10/2026, America/Sao_Paulo; idle **30 min** Confirmado Paulo 19/11/2026 (DEC-208; unifica 15+15)). Este documento é o épico. Issue: [#354](https://github.com/intentzero/tredane/issues/354).
 
-**Decisões:** [DEC-086](../product/decisions.md) (pós-agendamento), [DEC-087](../product/decisions.md) (idle 15+15 min), [DEC-088](../product/decisions.md) (prefixo humano), [DEC-089](../product/decisions.md) (atendente virtual). Mantém DEC-061 (só botão versionado marca), DEC-042 (só a responsável configura), DEC-011 (contexto e retenção da IA), DEC-083 (pausa humana) e a ausência de sexo na ficha do contacto.
+**Decisões:** [DEC-086](../product/decisions.md) (pós-agendamento), [DEC-087](../product/decisions.md) / [DEC-208](../product/decisions.md) (idle 30 min), [DEC-088](../product/decisions.md) (prefixo humano), [DEC-089](../product/decisions.md) (atendente virtual). Mantém DEC-061 (só botão versionado marca), DEC-042 (só a responsável configura), DEC-011 (contexto e retenção da IA), DEC-083 (pausa humana) e a ausência de sexo na ficha do contacto.
 
 **Onde vive o dado:** SQLite do Durable Object da clínica (DEC-038). Nada disto vai para o D1 central. Exemplos só com nomes fictícios (Ana, Carla, clínica Aurora). Sem dados reais de paciente.
 
@@ -41,7 +41,7 @@ Depois de a marcação ficar confirmada pelo botão da proposta (DEC-061), o sis
 
 DEC-061 inalterado: texto livre nunca marca.
 
-### 2. Conversas em aberto — idle 15+15 min (DEC-087)
+### 2. Conversas em aberto — idle 30 min (DEC-087 / DEC-208)
 
 **Critério único de «sem progresso útil»:** tempo decorrido desde a **última mensagem inbound ou outbound da conversa**, a que for mais recente. Mensagens `system` do painel **não** reiniciam o relógio. O alarme usa este instante único.
 
@@ -77,7 +77,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 | S2 | `clinic_settings` nome+género + API owner + UI hub | código |
 | S3 | Prefixo `[Nome]` no outbound humano | código |
 | S4 | Follow-up pós-agendamento + botões + `concluido` | código |
-| S5 | Idle 15+15 min + pergunta + fecho no segundo prazo (alarme DO) | código |
+| S5 | Idle 30 min → fecho directo (alarme DO; DEC-208) | código |
 
 ---
 
@@ -87,7 +87,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 **Critérios de aceite.**
 
-- [ ] `docs/product/decisions.md` tem DEC-086…089 com idle **15+15 min** e segundo prazo **Confirmados**.
+- [ ] `docs/product/decisions.md` tem DEC-086…089 com idle **30 min** Confirmado (DEC-208).
 - [ ] A etapa de fecho documentada é `concluido` / Concluído.
 - [ ] Issue/épico GitHub aponta para este ficheiro.
 - [ ] `docs/MVP.md` resume as quatro regras sem duplicar o detalhe.
@@ -122,7 +122,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 ## S5 — Idle 15+15 min + fecho
 
-**Comportamento.** Em cada inbound/outbound de mensagem da conversa, agenda (ou reagenda) o alarme do DO para `last_message_at + 15 min` nas conversas elegíveis (ciclo aberto, sem responsável humano activo). No alarme: se ainda idle, envia pergunta prosseguir/terminar e agenda o segundo prazo (+15 min, Confirmado Paulo 14/11/2026). **Terminar** e esse silêncio: com horário futuro confirmado agradece e permanece em `agendado`; sem horário futuro agradece e vai para `perdido` (DEC-087).
+**Comportamento.** Em cada inbound/outbound de mensagem da conversa, agenda (ou reagenda) o alarme do DO para `last_message_at + 30 min` nas conversas elegíveis (ciclo aberto; **também com humano**, DEC-208). No alarme: se ainda idle, fecha com frase fixa. Destino: com horário futuro confirmado agradece e permanece em `agendado`; sem horário futuro agradece e vai para `perdido` (DEC-087 / DEC-208).
 
 **Aceite:** AC-72; REQ-098.
 

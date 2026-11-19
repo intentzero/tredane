@@ -202,7 +202,10 @@ export function windowHint(closesAt: number | null, now: number = Date.now()): s
   return `Você pode responder livremente até ${when} às ${time}.`
 }
 
-/** DEC-161: forma curta do prazo, dentro da barra do compositor («Janela 24 h · até amanhã 10:12»). */
+/**
+ * Forma curta do prazo Meta («Janela 24 h · até amanhã 10:12»).
+ * DEC-208: já não se mostra no compositor; mantida para testes / uso futuro.
+ */
 export function windowHintShort(closesAt: number | null, now: number = Date.now()): string | null {
   if (closesAt == null || closesAt <= now) return null
   const time = new Intl.DateTimeFormat('pt-BR', {

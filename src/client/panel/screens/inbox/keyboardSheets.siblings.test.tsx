@@ -24,10 +24,9 @@ describe('TR-569 — folhas sibling com teclado iOS', () => {
 
   it('call sites importam useVisualViewportSheet em modo lift', () => {
     const review = readFileSync(join(__dirname, '../agenda/AgendarScreen.tsx'), 'utf8')
-    const thread = readFileSync(join(__dirname, './InboxThread.tsx'), 'utf8')
     const conversas = readFileSync(join(__dirname, './ConversasArea.tsx'), 'utf8')
     expect(review).toMatch(/useVisualViewportSheet\(p\.isOpen,\s*\{\s*mode:\s*'lift'\s*\}\)/)
-    expect(thread).toMatch(/useVisualViewportSheet\(pickerOpen,\s*\{\s*mode:\s*"lift"\s*\}\)/)
+    // DEC-208: seletor de modelos saiu do InboxThread (sem envio de templates no MVP).
     expect(conversas).toMatch(/useVisualViewportSheet\(agendarOpen,\s*\{\s*mode:\s*'lift'\s*\}\)/)
   })
 })
