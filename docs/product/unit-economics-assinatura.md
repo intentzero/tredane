@@ -1,18 +1,20 @@
 # Unit economics da assinatura por clínica
 
-**Estado:** **Proposto.** Estudo de 18/11/2026 para estimar quanto cobrar por clínica. Não é preço aprovado, não cria DEC e não muda o recorte do MVP.
+**Estado:** tabela de preços de referência **Confirmada** (Paulo Santos, 19/11/2026, America/Sao_Paulo); premissas de custo, margem e regime continuam **Propostas**. Estudo de 18/11/2026; a lista Estúdio / Clínica / Casa abaixo é a mesma que a landing publica. Não muda o recorte do MVP.
 
-O modelo editável está em [unit-economics-assinatura.canvas.tsx](unit-economics-assinatura.canvas.tsx), ao lado deste texto. Ele importa `cursor/canvas` e serve para refinar premissas (conversas, horas de suporte, regime, quem paga a Meta). A leitura abaixo é o caso-base gravado nesta data. Se o canvas divergir, vale o que estiver no arquivo do repositório depois da próxima revisão.
+O modelo editável está em [unit-economics-assinatura.canvas.tsx](unit-economics-assinatura.canvas.tsx), ao lado deste texto. Ele importa `cursor/canvas` e serve para refinar premissas (conversas, horas de suporte, regime, quem paga a Meta). A leitura abaixo é o caso-base gravado nesta data. Se o canvas divergir na tabela de preços, vale a tabela Confirmada; nas premissas de custo, vale o que estiver no arquivo do repositório depois da próxima revisão.
 
-## Proposta ajustada ao mercado
+## Preços de referência Confirmados
 
-**Proposto em 18/11/2026.** Três mensalidades, Meta na conta da clínica, sinal Pix em todos os planos. Anual = 10 meses (dois grátis). A régua de «60% da nota» deixa de definir o preço: ela só avisa quando o piloto, com hora de gente dentro da mensalidade, fica fino.
+**Confirmado (Paulo Santos, 19/11/2026):** três mensalidades de referência na landing. **Proposto** (estudo de 18/11/2026): Meta na conta da clínica, sinal Pix em todos os planos, anual = 10 meses (dois grátis). A régua de «60% da nota» deixa de definir o preço: ela só avisa quando o piloto, com hora de gente dentro da mensalidade, fica fino.
 
 | Plano | Mensal | No anual | Cabe | Sobra no piloto | Sobra em regime |
 | --- | ---: | ---: | --- | ---: | ---: |
 | Estúdio | R$ 149 | R$ 124 | 1 profissional, 1 login | cerca de 11% | cerca de 62% |
 | Clínica | R$ 247 | R$ 206 | até 4 profissionais, 3 logins | cerca de 20% | cerca de 67% |
 | Casa | R$ 397 | R$ 331 | até 10 profissionais | cerca de 20% | cerca de 68% |
+
+Colunas Mensal / No anual / Cabe: **Confirmadas**. Colunas de sobra: **Propostas** (modelo).
 
 Anexo V a 15,5%, remessa de SaaS técnico, hora interna a R$ 80. O piloto do estúdio conta 1 h e 3 h de onboarding diluídas; o da clínica, 1,5 h e 4 h; o da casa, 2,5 h e 6 h. Em regime essas horas caem para 0,3 h, 0,4 h e 0,6 h. Abaixo de R$ 149 o estúdio não paga a hora do piloto: a R$ 97 a sobra do mês de entrada fica negativa.
 
@@ -151,10 +153,10 @@ O canvas separa um custo fixo mensal (hipótese de partida R$ 12.000, ferramenta
 - Horas reais de suporte no piloto e volume real de conversas. Ainda não há clínica pagante.
 - Quem paga a Meta no contrato: a clínica, como na DEC-009, ou o Tredane por dentro da mensalidade.
 - ISS do município, quando houver sede.
-- Se a lista fica nesta proposta (R$ 149 / R$ 247 / R$ 397) ou se o piloto mostra que o estúdio só assina mais perto de R$ 97. Abaixo de R$ 149 a hora do piloto deixa de se pagar.
+- Condições comerciais do piloto com cada clínica (desconto, adesão, setup) e se o estúdio na prática assina mais perto de outro valor. Abaixo de R$ 149 a hora do piloto deixa de se pagar (leitura do modelo).
 
 ## Ao refinar
 
 1. Mudar a premissa no [canvas](unit-economics-assinatura.canvas.tsx) e conferir o degrau.
 2. Se a leitura de caso-base mudar, atualizar a tabela deste arquivo na mesma alteração.
-3. Preço só vira decisão quando o responsável pelo produto escolher regime, quem paga a Meta e a mensalidade. Aí o registro é uma DEC, e este estudo continua como a conta que a sustentou.
+3. A lista de preços de referência já está **Confirmada** (19/11/2026) e publicada na landing ([landing.md](landing.md)). Regime tributário, quem paga a Meta e condições do piloto por clínica continuam **Em aberto**; quando fecharem, registam-se em DEC e este estudo continua como a conta que as sustentou.

@@ -6,21 +6,30 @@ import { Image } from 'astro:assets'
 import shotConversas from '../assets/app/conversas.png'
 import shotConversa from '../assets/app/conversa.png'
 import shotAgenda from '../assets/app/agenda.png'
-// Itens com «PENDENTE: Paulo» na página ainda dependem do responsável pelo produto (DEC-044).
+import pauloSantos from '../assets/paulo-santos-piloto.jpg'
 // Toda afirmação desta página precisa de uma decisão confirmada (docs/product/landing.md).
 // Mensagem de 05/11/2026: a clínica cresce e a Tredane é a parceira do lado (docs/product/landing.md).
 // Endereços só aparecem quando configurados com valor real, sem .example (padrão do PR #547).
 const isReal = (v?: string) => Boolean(v && !v.includes('.example'))
 const appUrl = import.meta.env.PUBLIC_APP_URL
 const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL
-// Link wa.me do WhatsApp do próprio Tredane, já com a mensagem pronta (revisão de 04/11/2026).
-// Exemplo: https://wa.me/55DDDNUMERO?text=Quero%20conhecer%20o%20Tredane
-const whatsappUrl = import.meta.env.PUBLIC_WHATSAPP_URL
+// WhatsApp do Tredane: Confirmado Paulo Santos 19/11/2026 (+55 61 99588 8039).
+// Mensagem pronta no padrão já documentado na landing (docs/product/landing.md).
+const WHATSAPP_DEFAULT =
+  'https://wa.me/5561995888039?text=Quero%20conhecer%20o%20piloto%20do%20Tredane'
+const whatsappUrl = isReal(import.meta.env.PUBLIC_WHATSAPP_URL)
+  ? import.meta.env.PUBLIC_WHATSAPP_URL
+  : WHATSAPP_DEFAULT
 const hasAppUrl = isReal(appUrl)
 const hasContact = isReal(contactEmail)
-const hasWhatsapp = isReal(whatsappUrl)
-// Sem WhatsApp configurado, os botões levam ao bloco do piloto.
-const ctaHref = hasWhatsapp ? whatsappUrl : '#piloto'
+const hasWhatsapp = true
+const ctaHref = whatsappUrl
+// Preços de referência Confirmados (Paulo Santos, 19/11/2026). Mesmos valores do estudo em docs/product/unit-economics-assinatura.md.
+const plans = [
+  { name: 'Estúdio', monthly: 'R$ 149', annual: 'R$ 124', fits: '1 profissional, 1 login' },
+  { name: 'Clínica', monthly: 'R$ 247', annual: 'R$ 206', fits: 'até 4 profissionais, 3 logins' },
+  { name: 'Casa', monthly: 'R$ 397', annual: 'R$ 331', fits: 'até 10 profissionais' },
+]
 // Telas do aplicativo: a conversa e a agenda na abertura; Conversas em «Feito para equipe» (13/11/2026).
 const shots = [
  { src: shotConversas, alt: 'Tela Conversas do aplicativo: Júlia Santos no topo com «Precisa de alguém», Lívia Moraes agendada para sexta às 10:00 e marcada pela IA, Carla Dias com a IA e Bianca Lima com a atendente Ana.' },
@@ -45,7 +54,7 @@ const faq = [
  { q: 'Preciso trocar o número da clínica?', a: 'Não necessariamente. No piloto conversamos sobre o número antes de conectar; a clínica participa da configuração com a nossa ajuda.' },
  { q: 'O que a IA responde sozinha?', a: 'O que é rotina: preço, duração, explicação do serviço e horários livres, com as frases e o cadastro da clínica. Saúde, remarcação, cancelamento e qualquer pedido para falar com alguém vão para a equipe.' },
  { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, onde a equipe mais atende.' },
- { q: 'Quanto custa?', a: 'Em piloto. Condições para clínicas pioneiras em definição. PENDENTE: Paulo (preço e condições comerciais).' },
+ { q: 'Quanto custa?', a: 'Três planos de referência: Estúdio R$ 149/mês (R$ 124 no anual) — 1 profissional, 1 login; Clínica R$ 247/mês (R$ 206 no anual) — até 4 profissionais, 3 logins; Casa R$ 397/mês (R$ 331 no anual) — até 10 profissionais. No piloto alinhamos o plano à sua clínica.' },
 ]
 ---
 <Base
@@ -215,25 +224,32 @@ const faq = [
 <p class="eyebrow">Em piloto</p>
 <h2 class="h2">Sua clínica merece crescer. Vamos começar?</h2>
 <p class="pilot-status" role="status"><strong>Estado atual:</strong> em piloto.</p>
-<p class="lead">Condições para clínicas pioneiras em definição. No piloto, conectamos o WhatsApp com você, cadastramos serviços juntos e acompanhamos os primeiros passos.</p>
-{(hasWhatsapp || hasContact) ? (
+<p class="lead">No piloto, conectamos o WhatsApp com você, cadastramos serviços juntos e acompanhamos os primeiros passos. Planos de referência abaixo.</p>
 <div class="cta-row">
-{hasWhatsapp && <a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>}
-{hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-dark'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
+<a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>
+{hasContact && <a class="pilot-mail" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Prefiro e-mail</a>}
 </div>
-) : (
-<p class="pilot-pending">
-<!-- PENDENTE Paulo: número e mensagem wa.me do WhatsApp comercial do Tredane -->
-<span class="pendente">PENDENTE: Paulo</span> — canal de contato do piloto (WhatsApp ou e-mail) será publicado aqui.
-</p>
-)}
-<span class="fine">Condições para clínicas pioneiras em definição.</span>
 </div>
 <div class="pilot-person reveal">
-<!-- PENDENTE Paulo: nome e foto de quem acompanha o piloto -->
-<span class="pilot-photo pilot-photo-empty" aria-hidden="true"></span>
-<p><strong class="pendente">PENDENTE: Paulo</strong><span>Nome e foto de quem acompanha o piloto.</span><span>Fica com a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
+<Image class="pilot-photo" src={pauloSantos} alt="Paulo Santos" widths={[128, 256]} sizes="64px" width={128} height={128} format="webp" quality={82} loading="lazy" decoding="async" />
+<p><strong>Paulo Santos</strong><span>Acompanha o piloto da sua clínica.</span><span>Fica com a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
 </div>
+</div>
+<div class="pilot-plans reveal">
+<h3>Planos de referência</h3>
+<table>
+<thead><tr><th scope="col">Plano</th><th scope="col">Mensal</th><th scope="col">No anual</th><th scope="col">Cabe</th></tr></thead>
+<tbody>
+{plans.map((p) => (
+<tr>
+<th scope="row">{p.name}</th>
+<td data-label="Mensal">{p.monthly}</td>
+<td data-label="No anual">{p.annual}</td>
+<td data-label="Cabe">{p.fits}</td>
+</tr>
+))}
+</tbody>
+</table>
 </div>
 <div class="grid2 pilot-lists">
 <div class="pilot-box reveal"><h3>A clínica recebe</h3><ul><li>Ajuda para conectar o WhatsApp</li><li>Serviços, preços e agenda configurados junto com você</li><li>Contato direto com quem constrói o produto</li></ul></div>

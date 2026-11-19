@@ -43,7 +43,8 @@ Origem: review da landing pedido pelo responsável pelo produto ([canvas do revi
 - **Endereços só quando reais (do PR #547):** WhatsApp, e-mail e **Entrar** só aparecem quando a variável está configurada com valor sem `.example`. Sem WhatsApp, os botões viram «Conhecer o piloto» e levam ao bloco do piloto; sem WhatsApp nem e-mail, o piloto informa que o canal de contato será divulgado.
 - **Títulos:** 56px só na abertura, na história e no piloto; os demais blocos usam um segundo nível (até 40px).
 - **«Entrar»** (**Proposto**, 18/11/2026; revê a regra de sair do topo abaixo de 480px): botão de contorno verde com ícone de entrada (Lucide log-in), 44px de altura, ao lado do botão cheio «Quero participar», que continua o único preenchido. No celular fica no topo, e o botão principal encurta para «Participar»; abaixo de 340px perde o ícone. O rodapé mantém o link de texto. Mock: `docs/design/landing/Main.dc.html`; proposta em [canvas privado](https://claude.ai/artifact/1mwjGnPazS3AK9mUp3f1qu).
-- **Em aberto (bloqueia a publicação):** número de WhatsApp do Tredane e mensagem pronta do `wa.me` (sem ele, a página não mostra o CTA de WhatsApp); como a política de privacidade trata o contato por WhatsApp; nome e foto de quem acompanha o piloto (hoje `[A DEFINIR]`); confirmar com o backend que a marcação pelo botão Confirmar funciona fora do expediente, como a história mostra (21:47, clínica fechada; a DEC-110 cobre só a passagem para a equipe). Responsável: responsável pelo produto.
+- **Confirmado (Paulo Santos, 19/11/2026, America/Sao_Paulo):** WhatsApp do Tredane `+55 61 99588 8039` (`PUBLIC_WHATSAPP_URL` / default `https://wa.me/5561995888039?text=…`); quem acompanha o piloto é **Paulo Santos**, com foto em `site/src/assets/paulo-santos-piloto.jpg`. A mensagem pronta do `wa.me` segue o padrão já documentado («Quero conhecer o piloto do Tredane») — **Proposto** o texto exacto da pré-mensagem.
+- **Em aberto (bloqueia a publicação):** como a política de privacidade trata o contato por WhatsApp; confirmar com o backend que a marcação pelo botão Confirmar funciona fora do expediente, como a história mostra (21:47, clínica fechada; a DEC-110 cobre só a passagem para a equipe). Responsável: responsável pelo produto.
 - **Mocks:** os `.dc.html` de `docs/design/landing` continuam na v7 e **desatualizados**; a referência visual desta rodada é o canvas do review e o próprio site.
 
 ## Telas do aplicativo na landing (04/11/2026)
@@ -66,7 +67,7 @@ Origem: três rodadas de `/design` com o responsável pelo produto em 05/11/2026
 - **Estrutura:** 1. Abertura com as telas do aplicativo (três no computador, Conversas e Agenda no celular) no lugar da cena ilustrativa; 2. «Como o Tredane ajuda» (três cartões: cliente perguntou, cliente marcou; cresce sem virar bagunça; sua equipe cuidando de gente); 3. «Na prática» (a conversa da Lívia em quatro passos numerados, sem horário noturno); 4. Sinal por Pix («Marcou, pagou o sinal, garantiu.»); 5. «Pode confiar» (três garantias: fala o que você ensinou; quem escolhe o horário é a cliente; na hora certa, chama a equipe; transparência sobre IA e pausa ficam no texto de abertura do bloco); 6. «Feito para equipe» (quatro fatos, sem as telas, que subiram para a abertura); 7. Piloto («Sua clínica merece crescer. Vamos começar?»); 8. Perguntas, abrindo com «Isso me ajuda a faturar mais?» e «Funciona com várias profissionais e salas?».
 - **Limites:** «cresce» é desejo, não garantia; nenhum número de faturamento até medir no piloto. A IA só marca com o toque da cliente em Confirmar (DEC-061).
 - **Proposto:** a reação das donas a este tom; validar com clínicas do piloto.
-- **Em aberto (bloqueia a publicação):** os itens das seções acima continuam (número de WhatsApp, nome e foto de quem acompanha o piloto, capturas do aplicativo real, `og-image.png`); faixa de porte («pequeno e médio») sem definição de quantas profissionais e salas o piloto aceita. Responsável: responsável pelo produto.
+- **Em aberto (bloqueia a publicação):** capturas do aplicativo real, `og-image.png`; faixa de porte («pequeno e médio») — os tetos de profissionais/logins dos planos Confirmados em 19/11/2026 (Estúdio 1 / Clínica até 4 / Casa até 10) fecham a referência comercial, mas a definição de porte do piloto em copy continua a validar. Responsável: responsável pelo produto.
 - **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; revisão visual em 1440px e 360px. axe e Lighthouse **não** foram rodados nesta rodada.
 
 ## Logo maior e fundos com ritmo (05/11/2026)
@@ -140,6 +141,20 @@ O mock conserva estrutura, copy, fonte Geist, símbolo da marca e imagens ilustr
 
 Toda afirmação da página precisa corresponder a uma decisão confirmada: atendimento automático com frases determinísticas do backend e marcação só pelo toque da cliente em Confirmar (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115; a regra antiga «IA só sugere e uma pessoa envia» foi substituída por essas decisões); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); sinal por Pix na conta da clínica, confirmação ao pagar e prazo de 2 h (DEC-047); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (lembretes; agendamento sem o toque da cliente em Confirmar; respostas livres do modelo fora do que a DEC-104 permite).
 
+## Contacto do piloto e preços de referência (19/11/2026)
+
+**Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo):
+
+| Item | Valor |
+| --- | --- |
+| Quem acompanha o piloto | Paulo Santos (foto em `site/src/assets/paulo-santos-piloto.jpg`) |
+| WhatsApp Tredane | `+55 61 99588 8039` → `wa.me/5561995888039` |
+| Estúdio | mensal R$ 149 · no anual R$ 124 · 1 profissional, 1 login |
+| Clínica | mensal R$ 247 · no anual R$ 206 · até 4 profissionais, 3 logins |
+| Casa | mensal R$ 397 · no anual R$ 331 · até 10 profissionais |
+
+Na página (`site/src/pages/index.astro`): o bloco do piloto mostra a foto e o nome; os CTAs de WhatsApp usam o número acima; a tabela de planos e a FAQ «Quanto custa?» usam estes valores. Os mocks em `docs/design/landing` continuam **desatualizados**; a fonte activa é `site/` e este documento. E-mail comercial continua **Em aberto** (só aparece se `PUBLIC_CONTACT_EMAIL` for real).
+
 ## Critérios de aceite
 
 - **LP-AC-01:** em 360px e 390px de largura não há rolagem horizontal; no computador, o conteúdo fica limitado a 1120px.
@@ -158,9 +173,9 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 | Domínio de **produção** do site | Responsável pelo produto |
 | Endereço do painel para **Entrar** (`PUBLIC_APP_URL`): produção `https://app.tredane.com`, staging `https://staging.app.tredane.com` | **Confirmado** (Paulo Santos, 18/11/2026) |
 | E-mail de contato (hoje `contato@tredane.example`) | Responsável pelo produto |
-| WhatsApp do Tredane para o CTA (`PUBLIC_WHATSAPP_URL`, hoje sem valor) e nome/foto de quem acompanha o piloto | Responsável pelo produto |
+| WhatsApp do Tredane para o CTA (`PUBLIC_WHATSAPP_URL`) e nome/foto de quem acompanha o piloto | **Confirmado** (Paulo Santos, 19/11/2026): `+55 61 99588 8039`; piloto acompanhado por Paulo Santos com foto em `site/src/assets/paulo-santos-piloto.jpg`. Mensagem pronta do `wa.me` **Proposta** («Quero conhecer o piloto do Tredane») |
 | Política de privacidade publicada em `/privacidade`; depende do parecer jurídico ([dossiê](legal-review-brief.md)) e do CNPJ (VAL-13); rastreio GATE-03 em [pilot-gates.md](pilot-gates.md) | Responsável pelo produto + advogado |
-| Condições e preço do piloto (não inventar valores neste repositório) | Responsável pelo produto |
+| Preços de referência da assinatura na landing (Estúdio / Clínica / Casa) | **Confirmado** (Paulo Santos, 19/11/2026): Estúdio R$ 149 mensal · R$ 124 no anual (1 profissional, 1 login); Clínica R$ 247 · R$ 206 (até 4 profissionais, 3 logins); Casa R$ 397 · R$ 331 (até 10 profissionais). Alinhado a [unit-economics-assinatura.md](unit-economics-assinatura.md). Condições comerciais do piloto com cada clínica (desconto, adesão, quem paga a Meta) continuam **Em aberto** |
 | Logo e marca definitivos (hoje provisórios) | Responsável pelo produto |
 | `SITE_URL` de **produção** (canônica, Open Graph e mapa do site; staging usa `https://staging.tredane.com` via `npm run build:staging`) e o e-mail em `PUBLIC_CONTACT_EMAIL` | Responsável pelo produto |
 | Medição de visitas: só com ferramenta sem cookies e após a política de privacidade | Responsável pelo produto |
