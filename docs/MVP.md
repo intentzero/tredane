@@ -75,6 +75,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-34, componentes, tokens e previews
 - [Landing page do piloto](product/landing.md) (DEC-044): fora do fluxo piloto do painel; site Astro estático em `site/`, sem publicação até fechar domínio, contato e política de privacidade
 - [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
+- [Unit economics da assinatura](product/unit-economics-assinatura.md) — **Proposto (18/11/2026):** estudo de mensalidade por clínica, com imposto da nota e tributos da remessa. Não fixa preço.
 - [Liberações Meta, privacidade e condições do piloto](product/pilot-gates.md) (issue #18) — gates, evidências e terceiros antes de dados reais; [rascunhos de modelos WhatsApp](product/whatsapp-templates-draft.md).
 
 ## Documentação de arquitetura e execução
