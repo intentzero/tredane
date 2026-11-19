@@ -19,4 +19,29 @@ describe('autodraft → link «Abrir agenda» com serviço e linha (DEC-202, D-2
     })
     expect(r.ok, r.expectErrors?.join('; ') ?? r.error).toBe(true)
   })
+
+  it('P18 fictício: depilação amanhã de manhã leva data e período no link', async () => {
+    const r = await runDialogCase({
+      id: 'CW-RSAMP-P18',
+      title: 'depilação amanhã na parte da manhã',
+      nowMs: Date.UTC(2026, 10, 18, 22, 28),
+      turnosIdeais: 1,
+      turns: [{ role: 'client', text: 'Boa noite\nGostaria fazer uma depilação amanhã na parte da manhã?' }],
+      expect: {
+        clientWebOffers: 1,
+        clientWebPurposes: [
+          {
+            purpose: 'agendar',
+            serviceId: 'Depilação',
+            preferredDate: '2026-11-19',
+            dayPart: 'manha',
+          },
+        ],
+        outboundIncludes: ['Para agendar Depilação', 'toque em «Abrir agenda»'],
+        proposal: false,
+        appointments: 0,
+      },
+    })
+    expect(r.ok, r.expectErrors?.join('; ') ?? r.error).toBe(true)
+  })
 })

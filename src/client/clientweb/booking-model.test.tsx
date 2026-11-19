@@ -6,6 +6,8 @@ import {
   catalogNeedsLine,
   civilDayLabel,
   dayPart,
+  resolveSchedulePreset,
+  weekStartForDay,
   formatPrice,
   prevWeekStart,
   servicesForLine,
@@ -91,5 +93,14 @@ describe('semanas e dias', () => {
     expect(dayPart('09:00')).toBe('Manhã')
     expect(dayPart('12:00')).toBe('Tarde')
     expect(dayPart('18:00')).toBe('Noite')
+  })
+  it('resolveSchedulePreset valida data no horizonte', () => {
+    const catalog = { today: '2026-11-18', horizonDays: 30, timezone: 'America/Sao_Paulo', services: [] }
+    expect(resolveSchedulePreset(catalog, { preferredDate: '2026-11-19', dayPart: 'manha' })).toEqual({
+      preferredDate: '2026-11-19',
+      preferredDayPart: 'Manhã',
+    })
+    expect(resolveSchedulePreset(catalog, { preferredDate: '2025-01-01', dayPart: null }).preferredDate).toBeNull()
+    expect(weekStartForDay('2026-11-19', '2026-11-18')).toBe('2026-11-19')
   })
 })

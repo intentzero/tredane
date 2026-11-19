@@ -21,6 +21,8 @@ export type ClientWebIssued = {
   serviceId: string | null
   audienceLine: 'feminino' | 'masculino' | null
   variantIds: string[]
+  preferredDate: string | null
+  dayPart: 'manha' | 'tarde' | 'noite' | null
 }
 
 export type ClientWebHarness = {
@@ -44,6 +46,8 @@ export function createClientWebHarness(): ClientWebHarness {
       serviceId: input.serviceId ?? null,
       audienceLine: input.audienceLine ?? null,
       variantIds: input.variantIds ?? [],
+      preferredDate: input.preferredDate ?? null,
+      dayPart: input.dayPart ?? null,
     })
     return clientWebOfferInteractive(url)
   }

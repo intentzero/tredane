@@ -34,6 +34,25 @@ export function serviceNeedsLine(service: CatalogService): boolean {
 }
 
 /** Cruza o preset do link com o catálogo servido; ignora o que não casa. */
+export function resolveSchedulePreset(
+  catalog: Catalog,
+  raw: { preferredDate: string | null; dayPart: 'manha' | 'tarde' | 'noite' | null },
+): { preferredDate: string | null; preferredDayPart: DayPart | null } {
+  let preferredDate = raw.preferredDate
+  if (preferredDate) {
+    const last = addDays(catalog.today, catalog.horizonDays - 1)
+    if (preferredDate < catalog.today || preferredDate > last) preferredDate = null
+  }
+  const preferredDayPart =
+    raw.dayPart === 'manha' ? 'Manhã' : raw.dayPart === 'tarde' ? 'Tarde' : raw.dayPart === 'noite' ? 'Noite' : null
+  return { preferredDate, preferredDayPart }
+}
+
+/** Primeiro dia da faixa de 7 dias que contém `date`, sem ir antes de hoje. */
+export function weekStartForDay(date: string, today: string): string {
+  return date < today ? today : date
+}
+
 export function resolveBookingPreset(
   catalog: Catalog,
   raw: { serviceId: string | null; audienceLine: Line | null; variantIds: string[] },

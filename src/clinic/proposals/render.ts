@@ -8,7 +8,7 @@ import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
-import type { ZoneSnapshot } from '../config/types'
+import type { ComboSnapshot, ZoneSnapshot } from '../config/types'
 import { formatBookedWhenAt } from '../scheduling/format-booked-when'
 import { HUMAN_HANDOFF_BUTTON_TITLE } from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
@@ -275,6 +275,36 @@ export type ProposalResultBodyOpts = {
   omitDoubtFallback?: boolean
   /** Horário civil do compromisso substituído (remarcação DEC-091 / lab S23). */
   replacedStartsAt?: number | null
+  combo?: ComboSnapshot | null
+}
+
+function formatBookedPriceSuffix(
+  proposal: AppointmentProposalRow,
+  zones: readonly Pick<ZoneSnapshot, 'name' | 'priceCents'>[],
+  combo: ComboSnapshot | null | undefined,
+): string {
+  const pricedZones = zones.filter((z) => z.priceCents != null)
+  const chunks: string[] = []
+  if (pricedZones.length > 0) {
+    chunks.push(
+      `Valores: ${pricedZones.map((z) => `${z.name} ${formatBrl(z.priceCents!)}`).join('; ')}`,
+    )
+  }
+  if (proposal.priceCents != null) {
+    if (proposal.priceCents === 0) {
+      chunks.push('Gratuito')
+    } else if (combo) {
+      chunks.push(
+        `Total: ${formatBrl(proposal.priceCents)} (combo ${combo.name}, economia de ${formatBrl(
+          combo.listPriceCents - combo.priceCents,
+        )})`,
+      )
+    } else {
+      chunks.push(`Total: ${formatBrl(proposal.priceCents)}`)
+    }
+  }
+  if (chunks.length === 0) return ''
+  return ` ${chunks.join('. ')}.`
 }
 
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
@@ -301,10 +331,12 @@ export function renderProposalResultBody(
       const head = rescheduled
         ? `Remarcado: de ${formatBookedWhenAt(proposal.timezone, opts.replacedStartsAt!)} para ${bookedWhen}`
         : `Agendado: ${service} · ${bookedWhen}`
+      const priceLine = formatBookedPriceSuffix(proposal, opts.zones ?? [], opts.combo)
       return (
         head +
         (!rescheduled && proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
+        priceLine +
         (location ? ` Local: ${location}.` : '') +
         (opts.webReceipt ? ` ${WEB_RECEIPT_SENTENCE}` : '') +
         (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)

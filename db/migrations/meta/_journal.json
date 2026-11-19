@@ -232,6 +232,13 @@
       "when": 1795100000000,
       "tag": "0033_professional_login",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1795200000000,
+      "tag": "0034_client_web_link_schedule_pref",
+      "breakpoints": true
     }
   ]
 }

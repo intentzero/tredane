@@ -15,6 +15,8 @@ type View =
       serviceId: string | null
       audienceLine: import('./api').Line | null
       variantIds: string[]
+      preferredDate: string | null
+      dayPart: 'manha' | 'tarde' | 'noite' | null
     }
   | { kind: 'reschedule'; state: ClientWebState; appointment: ClientWebAppointment; catalog: Catalog }
   | { kind: 'cancel'; state: ClientWebState; appointment: ClientWebAppointment }
@@ -43,6 +45,8 @@ export function ClientWebApp() {
         serviceId: string | null
         audienceLine: import('./api').Line | null
         variantIds: string[]
+        preferredDate: string | null
+        dayPart: 'manha' | 'tarde' | 'noite' | null
       } | null = null
       if (token) {
         const result = await exchangeLink(token)
@@ -55,6 +59,8 @@ export function ClientWebApp() {
           serviceId: result.serviceId,
           audienceLine: result.audienceLine,
           variantIds: result.variantIds,
+          preferredDate: result.preferredDate,
+          dayPart: result.dayPart,
         }
         // O token sai do endereço: não fica no histórico nem pode ser partilhado a partir da barra.
         window.history.replaceState(null, '', '/c')
@@ -85,6 +91,8 @@ export function ClientWebApp() {
           serviceId: landing.serviceId,
           audienceLine: landing.audienceLine,
           variantIds: landing.variantIds,
+          preferredDate: landing.preferredDate,
+          dayPart: landing.dayPart,
         })
       }
       setView({ kind: 'ready', state: state.state })
@@ -108,7 +116,15 @@ export function ClientWebApp() {
         <Home
           state={view.state}
           onBook={() =>
-            setView({ kind: 'booking', state: view.state, serviceId: null, audienceLine: null, variantIds: [] })
+            setView({
+              kind: 'booking',
+              state: view.state,
+              serviceId: null,
+              audienceLine: null,
+              variantIds: [],
+              preferredDate: null,
+              dayPart: null,
+            })
           }
           onCancel={(appointment) => setView({ kind: 'cancel', state: view.state, appointment })}
           onReschedule={async (appointment) => {
@@ -137,6 +153,8 @@ export function ClientWebApp() {
           initialServiceId={view.serviceId}
           initialAudienceLine={view.audienceLine}
           initialVariantIds={view.variantIds}
+          initialPreferredDate={view.preferredDate}
+          initialDayPart={view.dayPart}
           onExit={() => void refresh()}
           onSessionLost={sessionLost}
         />

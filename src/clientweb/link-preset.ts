@@ -4,11 +4,20 @@
 import { serviceMatchesAudience } from '../clinic/catalog/audience'
 import { needsAudienceLine, zonesForAudienceLine, type AudienceLine } from '../clinic/ai/variant-line'
 import type { ServiceRow, ServiceZoneRow } from '../clinic/config/types'
+import type { ClientWebDayPart } from './route-context'
 
 export type ClientWebLinkPreset = {
   serviceId: string | null
   audienceLine: AudienceLine | null
   variantIds: string[]
+  preferredDate: string | null
+  dayPart: ClientWebDayPart | null
+}
+
+const CIVIL = /^\d{4}-\d{2}-\d{2}$/
+
+function asDayPart(raw: string | null | undefined): ClientWebDayPart | null {
+  return raw === 'manha' || raw === 'tarde' || raw === 'noite' ? raw : null
 }
 
 function parseVariantIdsJson(raw: string | null | undefined): string[] {
@@ -42,12 +51,17 @@ export function resolveClientWebLinkPreset(
     serviceId?: string | null
     audienceLine?: string | null
     variantIds?: string | null | string[]
+    preferredDate?: string | null
+    dayPart?: string | null
   },
 ): ClientWebLinkPreset {
+  const preferredDate =
+    raw.preferredDate && CIVIL.test(raw.preferredDate) ? raw.preferredDate : null
+  const dayPart = asDayPart(raw.dayPart ?? null)
   const serviceId =
     raw.serviceId && services.some((s) => s.id === raw.serviceId && s.active) ? raw.serviceId : null
   if (!serviceId) {
-    return { serviceId: null, audienceLine: null, variantIds: [] }
+    return { serviceId: null, audienceLine: null, variantIds: [], preferredDate, dayPart }
   }
   const service = services.find((s) => s.id === serviceId)!
   const activeZones = service.zones.filter((z) => z.active)
@@ -64,7 +78,7 @@ export function resolveClientWebLinkPreset(
     : parseVariantIdsJson(raw.variantIds ?? null)
   const variantIds = validVariantIds(service, audienceLine, rawIds)
 
-  return { serviceId, audienceLine, variantIds }
+  return { serviceId, audienceLine, variantIds, preferredDate, dayPart }
 }
 
 /** Serializa variantIds para a coluna D1. */

@@ -139,6 +139,8 @@ export type DialogCase = {
       serviceId?: string | null
       audienceLine?: 'feminino' | 'masculino' | null
       variantIds?: string[]
+      preferredDate?: string | null
+      dayPart?: 'manha' | 'tarde' | 'noite' | null
     }>
     /** Equipe avisada: há alerta «Precisa de alguém» aberto nesta conversa (DEC-202: pausa/sem link). */
     teamAlert?: boolean
@@ -421,6 +423,16 @@ export async function runDialogCase(
           if (JSON.stringify(gotZones) !== JSON.stringify(w.variantIds)) {
             errors.push(`link #${i}: zonas ${JSON.stringify(gotZones)}, esperado ${JSON.stringify(w.variantIds)}`)
           }
+        }
+        if (w.preferredDate !== undefined && (got[i]?.preferredDate ?? null) !== w.preferredDate) {
+          errors.push(
+            `link #${i}: data ${JSON.stringify(got[i]?.preferredDate)}, esperado ${JSON.stringify(w.preferredDate)}`,
+          )
+        }
+        if (w.dayPart !== undefined && (got[i]?.dayPart ?? null) !== w.dayPart) {
+          errors.push(
+            `link #${i}: período ${JSON.stringify(got[i]?.dayPart)}, esperado ${JSON.stringify(w.dayPart)}`,
+          )
         }
       })
     }

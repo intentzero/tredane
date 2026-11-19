@@ -28,6 +28,8 @@ describe('resolveClientWebLinkPreset', () => {
       serviceId: null,
       audienceLine: null,
       variantIds: [],
+      preferredDate: null,
+      dayPart: null,
     })
   })
 
@@ -38,6 +40,12 @@ describe('resolveClientWebLinkPreset', () => {
         audienceLine: 'masculino',
         variantIds: ['z-m', 'z-outra'],
       }),
-    ).toEqual({ serviceId: 'svc-dep', audienceLine: 'masculino', variantIds: ['z-m'] })
+    ).toEqual({
+      serviceId: 'svc-dep',
+      audienceLine: 'masculino',
+      variantIds: ['z-m'],
+      preferredDate: null,
+      dayPart: null,
+    })
   })
 })

@@ -75,6 +75,8 @@ export type ExchangeResult =
       serviceId: string | null
       audienceLine: Line | null
       variantIds: string[]
+      preferredDate: string | null
+      dayPart: 'manha' | 'tarde' | 'noite' | null
     }
   | 'unavailable'
   | 'error'
@@ -107,12 +109,20 @@ export function exchangeLink(token: string): Promise<ExchangeResult> {
           serviceId?: string | null
           audienceLine?: string | null
           variantIds?: string[]
+          preferredDate?: string | null
+          dayPart?: string | null
         }>(res)
         const audienceLine =
           body?.audienceLine === 'feminino' || body?.audienceLine === 'masculino' ? body.audienceLine : null
         const variantIds = Array.isArray(body?.variantIds)
           ? body.variantIds.filter((x): x is string => typeof x === 'string')
           : []
+        const preferredDate =
+          typeof body?.preferredDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.preferredDate)
+            ? body.preferredDate
+            : null
+        const dayPart =
+          body?.dayPart === 'manha' || body?.dayPart === 'tarde' || body?.dayPart === 'noite' ? body.dayPart : null
         return {
           kind: 'ok',
           purpose: body?.purpose ?? 'home',
@@ -120,6 +130,8 @@ export function exchangeLink(token: string): Promise<ExchangeResult> {
           serviceId: body?.serviceId ?? null,
           audienceLine,
           variantIds,
+          preferredDate,
+          dayPart,
         }
       }
       return res.status === 410 ? 'unavailable' : 'error'
