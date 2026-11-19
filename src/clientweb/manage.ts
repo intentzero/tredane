@@ -11,7 +11,10 @@ import type { Clock } from '../db/clock'
 import { ConflictError, ValidationError } from '../clinic/errors'
 import { getService } from '../clinic/config/services'
 import { ensureClinicSettings } from '../clinic/config/settings'
-import { readZoneSnapshots } from '../clinic/config/zones'
+import { readZoneSnapshots, zoneLabel } from '../clinic/config/zones'
+import { PROPOSAL_SEND_ACTOR, PROPOSAL_SEND_ACTOR_DISPLAY } from '../clinic/constants'
+import { appendPostCancelFollowup } from '../clinic/followup/post-booking'
+import { sendOutboundMessageOp } from '../clinic/inbox/operations'
 import { zonedCivilToUtc } from '../clinic/scheduling/timezone'
 import { formatBookedWhenAt } from '../clinic/scheduling/format-booked-when'
 import { queryAutomaticAvailability } from '../clinic/tempo/automatic'
@@ -21,6 +24,7 @@ import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import type { AbuseLimits } from '../clinic/ai/abuse-limits'
 import type { ClinicCaller } from '../clinic/envelopes'
 import { cancelAppointmentOp } from '../clinic/scheduling'
+import type { OutboxRow } from '../clinic/outbox'
 import type { ClinicDb } from '../clinic/store'
 import {
   createOrSupersedeProposal,
@@ -324,6 +328,8 @@ export function cancelFromWeb(
       appointmentId: apt.id,
       reason: 'contato_desistiu',
       actorClerkUserId: WEB_CANCEL_ACTOR,
+      // Recibo web + follow-up DEC-086 saem em appendWebCancelChatEffects (evita duplicar DEC-095).
+      skipCancelNotice: true,
     },
     clock,
   )
@@ -333,9 +339,65 @@ export function cancelFromWeb(
   }
 }
 
-/** Texto do recibo de cancelamento no chat (DEC-197). */
-export function cancelReceiptBody(db: ClinicDb, tenantId: string, clock: Clock, input: { serviceName: string; startsAt: number }): string {
+/** Texto do recibo de cancelamento no chat (DEC-197): serviço · zonas · quando + frase da página. */
+export function cancelReceiptBody(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  input: { serviceName: string; startsAt: number; appointmentId?: string },
+): string {
   const tz = ensureClinicSettings(db, tenantId, clock).timezone || 'America/Sao_Paulo'
-  return `Cancelado: ${input.serviceName} · ${formatBookedWhenAt(tz, input.startsAt)}. ${WEB_CANCEL_RECEIPT_SENTENCE}`
+  const zones = input.appointmentId
+    ? readZoneSnapshots(db, tenantId, 'appointment', input.appointmentId)
+    : []
+  const label = zoneLabel(input.serviceName, zones)
+  return `Cancelado: ${label} · ${formatBookedWhenAt(tz, input.startsAt)}. ${WEB_CANCEL_RECEIPT_SENTENCE}`
+}
+
+/**
+ * Um recibo claro + «Posso ajudar em algo mais?» (DEC-086) após cancelar na página.
+ * Melhor esforço: falha de envio não desfaz o cancelamento; fora das 24 h não sai.
+ */
+export function appendWebCancelChatEffects(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: {
+    conversationId: string
+    appointmentId: string
+    serviceName: string
+    startsAt: number
+  },
+  clock: Clock,
+  outbox: OutboxRow[],
+): OutboxRow[] {
+  let next = outbox
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId: input.conversationId,
+        body: cancelReceiptBody(db, caller.tenantId, clock, {
+          serviceName: input.serviceName,
+          startsAt: input.startsAt,
+          appointmentId: input.appointmentId,
+        }),
+        clientRequestId: `web-cancel-receipt:${input.appointmentId}`,
+        authorClerkUserId: PROPOSAL_SEND_ACTOR,
+        authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
+      },
+      clock,
+    )
+    next = [...next, ...sent.outbox]
+  } catch {
+    // Fora da janela de 24 h o recibo não sai; o cancelamento já está feito.
+  }
+  return appendPostCancelFollowup(
+    db,
+    caller,
+    { conversationId: input.conversationId, appointmentId: input.appointmentId },
+    clock,
+    next,
+  )
 }
 

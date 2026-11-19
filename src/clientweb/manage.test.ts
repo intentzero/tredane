@@ -9,7 +9,9 @@ import { seedSyntheticWhatsappTemplates } from '../clinic/inbox/templates'
 import { executeProposalConfirmOp } from '../clinic/proposals/execute-confirm'
 import { WEB_RECEIPT_SENTENCE } from '../clinic/proposals/render'
 import { planWebProposal } from './booking'
+import { POST_BOOKING_BODY } from '../clinic/followup/post-booking'
 import {
+  appendWebCancelChatEffects,
   cancelFromWeb,
   cancelReceiptBody,
   hasPaidSignal,
@@ -17,6 +19,7 @@ import {
   loadWebAppointment,
   planWebReschedule,
   rescheduleAlreadyAt,
+  WEB_CANCEL_RECEIPT_SENTENCE,
 } from './manage'
 
 const TENANT = 'clinic-demo-a'
@@ -150,10 +153,69 @@ describe('cancelar pela página (REQ-114, DEC-198)', () => {
       const first = cancelFromWeb(db, workerCaller(TENANT, 'contact:web'), clock, marina, apt.id)
       expect(first.result).toMatchObject({ status: 'cancelled', serviceName: 'Depilação a laser' })
       expect(db.get('SELECT status, cancelled_by FROM appointments WHERE id = ?', apt.id)).toMatchObject({ status: 'cancelled', cancelled_by: 'contact:web' })
+      // skipCancelNotice: o aviso genérico DEC-095 não sai aqui (só o recibo web).
+      const afterCancel = (db.all("SELECT body FROM messages WHERE direction = 'outbound'") as Array<{ body: string }>).map((m) => m.body)
+      expect(afterCancel.filter((b) => b.startsWith('Cancelado:'))).toEqual([])
       const again = cancelFromWeb(db, caller, clock, marina, apt.id)
       expect(again.result).toMatchObject({ status: 'cancelled' })
       expect(again.outbox).toEqual([])
-      expect(cancelReceiptBody(db, TENANT, clock, first.result as { serviceName: string; startsAt: number })).toMatch(/^Cancelado: Depilação a laser · .*Não foi você\? Fale com a equipe\.$/)
+      const cancelled = first.result as { status: 'cancelled'; serviceName: string; startsAt: number }
+      expect(
+        cancelReceiptBody(db, TENANT, clock, { ...cancelled, appointmentId: apt.id }),
+      ).toMatch(/^Cancelado: Depilação a laser · Axilas, Virilha · .*Não foi você\? Fale com a equipe\.$/)
+    } finally {
+      close()
+    }
+  })
+
+  it('um recibo com zonas + follow-up Posso ajudar (sem duplicar Cancelado)', async () => {
+    const { db, close, clock, marina, book } = seed()
+    try {
+      const apt = await book(marina, '2024-01-08T10:00')
+      const beforeHelp = (
+        db.all("SELECT body FROM messages WHERE direction = 'outbound'") as Array<{ body: string }>
+      ).filter((m) => m.body === POST_BOOKING_BODY).length
+      const webCaller = workerCaller(TENANT, 'contact:web')
+      const done = cancelFromWeb(db, webCaller, clock, marina, apt.id)
+      expect(done.result.status).toBe('cancelled')
+      const cancelled = done.result as { status: 'cancelled'; serviceName: string; startsAt: number }
+      appendWebCancelChatEffects(
+        db,
+        webCaller,
+        {
+          conversationId: marina.conversationId,
+          appointmentId: apt.id,
+          serviceName: cancelled.serviceName,
+          startsAt: cancelled.startsAt,
+        },
+        clock,
+        done.outbox,
+      )
+      const bodies = (db.all("SELECT body FROM messages WHERE direction = 'outbound' ORDER BY created_at") as Array<{ body: string }>).map(
+        (m) => m.body,
+      )
+      const cancelados = bodies.filter((b) => b.startsWith('Cancelado:'))
+      expect(cancelados).toHaveLength(1)
+      expect(cancelados[0]).toContain('Axilas, Virilha')
+      expect(cancelados[0]).toContain(WEB_CANCEL_RECEIPT_SENTENCE)
+      // Pós-cancelamento acrescenta um DEC-086 (clientRequestId distinto do pós-Agendado).
+      expect(bodies.filter((b) => b === POST_BOOKING_BODY)).toHaveLength(beforeHelp + 1)
+      // Idempotente: segundo efeito não duplica recibo nem follow-up pós-cancel.
+      appendWebCancelChatEffects(
+        db,
+        webCaller,
+        {
+          conversationId: marina.conversationId,
+          appointmentId: apt.id,
+          serviceName: cancelled.serviceName,
+          startsAt: cancelled.startsAt,
+        },
+        clock,
+        [],
+      )
+      const bodiesAgain = (db.all("SELECT body FROM messages WHERE direction = 'outbound'") as Array<{ body: string }>).map((m) => m.body)
+      expect(bodiesAgain.filter((b) => b.startsWith('Cancelado:'))).toHaveLength(1)
+      expect(bodiesAgain.filter((b) => b === POST_BOOKING_BODY)).toHaveLength(beforeHelp + 1)
     } finally {
       close()
     }

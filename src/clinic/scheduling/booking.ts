@@ -749,9 +749,10 @@ export function cancelAppointmentOp(
     return { value: detail, outbox, idempotentReplay: false as const }
   })
 
-  const cancelNotice = committed.value.conversationId
-    ? deliverCancelNotice(db, committed.value, clock)
-    : { status: 'skipped' as const, outbox: [] as OutboxRow[] }
+  const cancelNotice =
+    input.skipCancelNotice || !committed.value.conversationId
+      ? { status: 'skipped' as const, outbox: [] as OutboxRow[] }
+      : deliverCancelNotice(db, committed.value, clock)
   rememberAppointmentNotice(db, meta.tenantId, clientRequestId, 'cancelNotice', cancelNotice.status)
   return {
     ...committed,

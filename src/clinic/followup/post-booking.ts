@@ -77,6 +77,11 @@ export function postBookingClientRequestId(appointmentId: string): string {
   return `followup.postbook:${appointmentId}`
 }
 
+/** Idempotência do follow-up após cancelamento (recibo web); distinto do pós-marcação. */
+export function postCancelClientRequestId(appointmentId: string): string {
+  return `followup.postcancel:${appointmentId}`
+}
+
 function assertButtonTitles(): void {
   for (const b of Object.values(POST_BOOKING_BUTTONS)) {
     if (b.title.length > PROPOSAL_BUTTON_TITLE_MAX) {
@@ -107,6 +112,11 @@ export function sendPostBookingFollowupOp(
   input: {
     conversationId: string
     appointmentId: string
+    /**
+     * Por omissão pós-marcação (`followup.postbook:…`). Após cancelamento na
+     * página usa `postCancelClientRequestId` para não colidir com o pós-Agendado.
+     */
+    clientRequestId?: string
   },
   clock: Clock,
 ): SendPostBookingFollowupResult {
@@ -144,7 +154,8 @@ export function sendPostBookingFollowupOp(
     {
       conversationId: input.conversationId,
       body: POST_BOOKING_BODY,
-      clientRequestId: postBookingClientRequestId(input.appointmentId),
+      clientRequestId:
+        input.clientRequestId?.trim() || postBookingClientRequestId(input.appointmentId),
       authorClerkUserId: FOLLOWUP_ACTOR,
       authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
       interactive: { buttons },
@@ -184,6 +195,38 @@ export function appendPostBookingFollowup(
     if (follow.status === 'queued') return [...outbox, ...follow.outbox]
   } catch {
     /* marcação já confirmada */
+  }
+  return outbox
+}
+
+/**
+ * Best-effort após cancelamento pela página (DEC-198 + DEC-086).
+ * Mesmos botões «Abrir agenda»|«Terminar»; idempotente por appointmentId
+ * (`followup.postcancel:…`), distinto do pós-Agendado.
+ */
+export function appendPostCancelFollowup(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: { conversationId: string | null | undefined; appointmentId: string },
+  clock: Clock,
+  outbox: OutboxRow[],
+): OutboxRow[] {
+  const conversationId = input.conversationId?.trim()
+  if (!conversationId || !input.appointmentId.trim()) return outbox
+  try {
+    const follow = sendPostBookingFollowupOp(
+      db,
+      caller,
+      {
+        conversationId,
+        appointmentId: input.appointmentId,
+        clientRequestId: postCancelClientRequestId(input.appointmentId),
+      },
+      clock,
+    )
+    if (follow.status === 'queued') return [...outbox, ...follow.outbox]
+  } catch {
+    /* cancelamento já feito */
   }
   return outbox
 }
