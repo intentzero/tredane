@@ -28,8 +28,10 @@
 .hero .aurora i:nth-child(1) { background: #27C6B1; opacity: .23; }
 .hero .aurora i:nth-child(2) { background: #FFAD8D; opacity: .32; }
 .hero .aurora i:nth-child(3) { background: #B5EDC5; opacity: .15; }
-.btn-apricot { background: #FF745F; color: #203632; box-shadow: 0 8px 22px -12px #C14438; }
-.btn-apricot:hover { background: #FF8D77; }
+/* Texto branco no coral claro #FF745F fica em 2,65:1. O botão usa o coral
+   profundo do painel: #C34334 com branco é 5,03:1; hover #C84738 é 4,76:1. */
+.btn-apricot { background: #C34334; color: #FFFFFF; box-shadow: 0 8px 22px -12px #8A2A22; }
+.btn-apricot:hover { background: #C84738; color: #FFFFFF; }
 .stage-phone, .stage-phone.light { background: #FFFFFF; border-color: #D6E6DE; box-shadow: 0 24px 50px -22px #286B5E55; }
 .hero-toast { box-shadow: 0 20px 40px -16px #286B5E55; }
 .glow-corner::before { background: #FFD0BD; opacity: .5; }
