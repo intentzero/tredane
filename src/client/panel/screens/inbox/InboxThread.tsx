@@ -2352,27 +2352,34 @@ export function InboxThread({
                     {canSuggest &&
                     !aiSuggestion &&
                     autoDraftState !== "generating" ? (
-                      <Button
-                        className="inbox-composer-icon inbox-composer-icon--ai"
-                        aria-label="Sugerir resposta com IA"
-                        onPress={() => void requestAiSuggestion(null)}
-                        isDisabled={aiBusy || busy}
-                      >
-                        {aiBusy ? (
-                          <AiWorking compact label="Gerando sugestão…" />
-                        ) : (
+                      aiBusy ? (
+                        <AiWorking
+                          compact
+                          label="Gerando sugestão…"
+                        />
+                      ) : (
+                        <Button
+                          className="inbox-composer-icon inbox-composer-icon--ai"
+                          aria-label="Sugerir resposta com IA"
+                          onPress={() => void requestAiSuggestion(null)}
+                          isDisabled={busy}
+                        >
                           <Sparkles aria-hidden size={22} strokeWidth={1.8} />
-                        )}
+                        </Button>
+                      )
+                    ) : null}
+                    {/* Enquanto a IA gera, o estado ocupa o sítio do ícone+enviar
+                        (evita overlap faíscas/texto/avião/pontos na barra). */}
+                    {!aiBusy ? (
+                      <Button
+                        className="inbox-send"
+                        type="submit"
+                        aria-label="Enviar"
+                        isDisabled={busy || !draft.trim()}
+                      >
+                        <SendHorizontal aria-hidden size={20} strokeWidth={2} />
                       </Button>
                     ) : null}
-                    <Button
-                      className="inbox-send"
-                      type="submit"
-                      aria-label="Enviar"
-                      isDisabled={busy || !draft.trim()}
-                    >
-                      <SendHorizontal aria-hidden size={20} strokeWidth={2} />
-                    </Button>
                   </>
                 )}
               </form>

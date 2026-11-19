@@ -5549,11 +5549,15 @@ button.panel-auth-inline-link {
 }
 
 /* Teclado aberto: a app ocupa só a área visível (useKeyboardViewport
-   sobrescreve --panel-vvh no <html> enquanto o teclado está aberto).
-   Fora do teclado a app fica em inset:0 — não usar --panel-vvh como altura
-   por defeito (um valor residual encolhia o shell e a barra ficava a meio). */
+   sobrescreve --panel-vvh / --panel-vv-top no <html> enquanto o teclado está
+   aberto). Fora do teclado a app fica em inset:0 — não usar --panel-vvh como
+   altura por defeito (um valor residual encolhia o shell e a barra ficava a meio).
+   O iOS desloca o visualViewport (offsetTop > 0) ao focar o campo: sem
+   --panel-vv-top o shell fica com top:0 e o compositor some sob o teclado/AutoFill. */
 :root {
   --panel-vvh: 100dvh;
+  --panel-vv-top: 0px;
+  --keyboard-inset-bottom: 0px;
   /* Folga para conteúdo rolar acima de um rodapé sticky ainda no fluxo. */
   --panel-sticky-clearance: calc(var(--size-control-default) + var(--space-6) + env(safe-area-inset-bottom, 0px));
 }
@@ -5564,8 +5568,10 @@ button.panel-auth-inline-link {
 
 :root[data-keyboard='open'] .panel-app,
 :root[data-keyboard='open'] .panel-app:has(.inbox-thread) {
+  top: var(--panel-vv-top, 0px);
   bottom: auto;
   height: var(--panel-vvh);
+  max-height: var(--panel-vvh);
 }
 
 /* Conversa aberta em tela cheia: sem cabeçalho/barra do shell, então o
@@ -5582,7 +5588,8 @@ button.panel-auth-inline-link {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Com o teclado aberto o home indicator fica atrás dele: sem folga extra. */
+/* Com o teclado aberto o home indicator fica atrás dele: sem folga extra.
+   sticky+bottom mantém o compositor no fim do flex se o scroll interno mexer. */
 :root[data-keyboard='open'] .inbox-composer-wrap {
   padding-bottom: 0;
   flex: none;
@@ -7117,14 +7124,37 @@ button.panel-auth-inline-link {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  /* iOS Safari: input[type=date|time] vazio colapsa o ::-webkit-datetime-edit
+     e a caixa fica uma fenda (Folga De/Até). min-height + appearance + edit
+     interno mantêm a altura do controlo do painel. */
   height: var(--size-control-md);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-md);
   font: inherit;
-  font-size: var(--font-size-body);
+  font-size: max(16px, var(--font-size-body));
+  line-height: normal;
   background: var(--color-surface-card);
   color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.block-form-date input::-webkit-datetime-edit,
+.block-form-date input::-webkit-date-and-time-value {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25em;
+  line-height: normal;
+  padding: 0;
+}
+
+.block-form-date input::-webkit-date-and-time-value {
+  text-align: left;
+  width: 100%;
 }
 
 .block-form-chips {
@@ -10284,6 +10314,21 @@ button.panel-auth-inline-link {
 
 :root[data-keyboard='open'] .inbox-composer-wrap {
   padding-bottom: var(--space-2);
+}
+
+/* «Gerando sugestão…»: fora do botão 44×44 — flex livre, sem overlap com Enviar. */
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) > .ai-working {
+  flex: none;
+  max-width: min(52%, 11.5rem);
+  min-height: var(--size-touch);
+  padding-inline: var(--space-2);
+  align-self: center;
+  white-space: nowrap;
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) > .ai-working .ai-working-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .inbox-dock {
