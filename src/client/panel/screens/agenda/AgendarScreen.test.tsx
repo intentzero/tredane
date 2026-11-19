@@ -150,6 +150,11 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     renderScreen(api)
     expect(await screen.findByRole('heading', { name: 'Agendar · Marina Souza' })).toBeTruthy()
     expect(screen.getByText(/\+55 11 9••••-4321 · da conversa/)).toBeTruthy()
+    const cliente = screen.getByRole('region', { name: 'Cliente' })
+    expect(within(cliente).getByText('Marina Souza')).toBeTruthy()
+    expect(within(cliente).queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Escolha a cliente/ })).toBeNull()
+    expect(screen.queryByRole('searchbox', { name: 'Buscar pelo nome' })).toBeNull()
     expect(screen.queryByText(/Contato sintético/)).toBeNull()
     const svc = screen.getByRole('button', { name: /Limpeza/ })
     expect(svc.getAttribute('aria-pressed')).toBe('true')
@@ -444,5 +449,132 @@ describe('AgendarScreen — painel único', () => {
     )
     await screen.findByRole('button', { name: /Axila/ })
     expect(screen.queryByRole('button', { name: 'Reservar bloco' })).toBeNull()
+  })
+})
+
+describe('Agendar pela Agenda sem cliente (DEC-203)', () => {
+  const directory = [
+    { id: 'c_marina', waId: '5511987654321', displayName: 'Marina Souza', createdAt: 0, blockedAt: null },
+    { id: 'c_lia', waId: '5511977770000', displayName: 'Lia Costa', createdAt: 0, blockedAt: null },
+  ]
+
+  function withDirectory(api: ReturnType<typeof makeApi>) {
+    return Object.assign(api, {
+      listInboxContacts: vi.fn(async (_t: string, query?: { q?: string }) => {
+        const q = (query?.q ?? '').trim().toLowerCase()
+        const contacts = q
+          ? directory.filter((c) => (c.displayName ?? '').toLowerCase().includes(q))
+          : directory
+        return { contacts, nextBefore: null }
+      }),
+    })
+  }
+
+  function ctaDisabled() {
+    const cta = screen.getByRole('button', { name: 'Revisar e confirmar', hidden: true })
+    return cta.hasAttribute('disabled') || cta.getAttribute('data-disabled') === 'true' || cta.getAttribute('aria-disabled') === 'true'
+  }
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/t/t1/agenda/agendar')
+  })
+
+  it('sem cliente escolhida, «Revisar e confirmar» fica desativado mesmo com horário', async () => {
+    renderScreen(withDirectory(makeApi()))
+    expect(await screen.findByRole('heading', { name: 'Agendar horário' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Escolha a cliente/ })).toBeTruthy()
+    expect(screen.queryByRole('searchbox', { name: 'Buscar pelo nome' })).toBeNull()
+    await pickTime()
+    expect(ctaDisabled()).toBe(true)
+    expect(screen.getByText(/escolha a cliente/)).toBeTruthy()
+  })
+
+  it('texto digitado na busca não conta como cliente e não há criar cliente', async () => {
+    const api = withDirectory(makeApi())
+    renderScreen(api)
+    await screen.findByRole('heading', { name: 'Agendar horário' })
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: /Escolha a cliente/ }))
+    const search = await screen.findByRole('searchbox', { name: 'Buscar pelo nome' })
+    fireEvent.change(search, { target: { value: 'Pessoa inventada' } })
+    expect(await screen.findByText('Nenhum cliente com esse nome.')).toBeTruthy()
+    expect(screen.queryByRole('option')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Nova cliente|Criar cliente/ })).toBeNull()
+    expect(api.listInboxContacts).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ q: 'Pessoa inventada' }),
+      expect.anything(),
+    )
+    expect(ctaDisabled()).toBe(true)
+    expect(api.confirmAppointment).not.toHaveBeenCalled()
+  })
+
+  it('escolhe da lista, mostra o nome no rodapé e confirma com esse contactId', async () => {
+    const api = withDirectory(makeApi())
+    renderScreen(api)
+    await screen.findByRole('heading', { name: 'Agendar horário' })
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: /Escolha a cliente/ }))
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Buscar pelo nome' }), {
+      target: { value: 'Marina' },
+    })
+    await waitFor(() => expect(screen.queryByRole('option', { name: /Lia Costa/ })).toBeNull())
+    const option = screen.getByRole('option', { name: /Marina Souza/ })
+    expect(api.listInboxContacts).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ q: 'Marina' }),
+      expect.anything(),
+    )
+    fireEvent.click(option)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Agendar · Marina Souza' })).toBeTruthy()
+    const summary = document.querySelector('.agd-summary')
+    expect(summary?.textContent).toContain('Limpeza')
+    expect(summary?.textContent).toContain('Marina Souza')
+    expect(ctaDisabled()).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Marina Souza')).toBeTruthy()
+    expect(within(dialog).queryByText('Sem contato vinculado')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }))
+    await waitFor(() => expect(api.confirmAppointment).toHaveBeenCalled())
+    expect(api.confirmAppointment).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({
+        contactId: 'c_marina',
+        contactLabel: 'Marina Souza',
+        conversationId: undefined,
+      }),
+      expect.anything(),
+    )
+    expect(api.sendClientWebLink).not.toHaveBeenCalled()
+  })
+
+  it('com contactId e sem conversa mostra a cliente já associada e não pede outra', async () => {
+    window.history.replaceState(null, '', '/t/t1/agenda/agendar?contactId=c1')
+    const api = makeApi()
+    api.getInboxContact.mockResolvedValue({
+      contact: { id: 'c1', waId: '5511987654321', displayName: 'Marina Souza', createdAt: 0 },
+      conversations: [],
+    })
+    renderScreen(api)
+    expect(await screen.findByRole('heading', { name: 'Agendar · Marina Souza' })).toBeTruthy()
+    expect(screen.getByText(/da agenda/)).toBeTruthy()
+    const cliente = screen.getByRole('region', { name: 'Cliente' })
+    expect(within(cliente).getByText('Marina Souza')).toBeTruthy()
+    expect(within(cliente).queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Escolha a cliente/ })).toBeNull()
+    await pickTime()
+    const cta = screen.getByRole('button', { name: 'Revisar e confirmar' })
+    expect(cta.hasAttribute('disabled') || cta.getAttribute('aria-disabled') === 'true').toBe(false)
+    fireEvent.click(cta)
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirmar agendamento' }))
+    await waitFor(() => expect(api.confirmAppointment).toHaveBeenCalled())
+    expect(api.confirmAppointment).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ contactId: 'c1', conversationId: undefined }),
+      expect.anything(),
+    )
+    expect('listInboxContacts' in api).toBe(false)
   })
 })

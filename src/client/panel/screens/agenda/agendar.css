@@ -169,6 +169,13 @@
 }
 .agd-empty p { margin: 0; }
 .agd-footer { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }
+.agd-client-known {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.agd-client-search { margin-inline: 0; margin-bottom: var(--space-2); }
 .agd-summary { margin: 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .agd-summary strong { color: var(--color-text-primary); }
 .agd-btn { width: 100%; }
