@@ -5,8 +5,9 @@
  * (`system:ai-autodraft`).
  *
  * Também marca `idle_suppressed_at` para inbound/outbound de small talk (ex.
- * «Gratidão!») não rearmarem o nudge DEC-087 enquanto a oportunidade ficar
- * em Agendado. Limpa com Marcar outro / nova sessão de marcação / Prosseguir.
+ * «Gratidão!») não rearmarem o idle DEC-087/208 enquanto a oportunidade ficar
+ * em Agendado. Limpa com Marcar outro / Prosseguir / «Abrir agenda» (DEC-202:
+ * o CTA da página substitui a antiga sessão de marcação no chat).
  *
  * O alarme Durable Object do DEC-155 é cancelado/rearmado no fanout do
  * `conversation.ai_pause` (paused=false) em `clinic-do.ts` — esta helper só

@@ -14,6 +14,8 @@ import { ensureOpenOpportunity } from '../pipeline/operations'
 import { insertMessage } from '../inbox/messages'
 import { touchConversationMessage } from '../inbox/conversations'
 import { getBookingFrame, saveBookingFrame } from '../ai/schedule-session'
+import { CLIENT_WEB_CTA_TEXT } from '../../clientweb/offer'
+import { sendOutboundMessageOp } from '../inbox/operations'
 import {
   handleIdleButtonClick,
   handleIdleTextReply,
@@ -25,6 +27,7 @@ import {
   rescheduleConversationIdle,
   sweepDueIdleConversations,
 } from './idle'
+import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
 import { isTerminarFarewellBody } from './terminar-farewell'
 
 function connectWa(
@@ -463,6 +466,100 @@ describe('DEC-208 idle timeout 30 min', () => {
         conversationId,
       )
       expect(thanksClose?.body).toBe(IDLE_AUTO_CLOSE_BODY)
+    } finally {
+      close()
+    }
+  })
+
+  it('após farewell/suppress, «Abrir agenda» limpa suppress e rearma idle 30 min (DEC-202/208)', () => {
+    // Staging Paulo: tchau → adeus → «Quero agendar» + Abrir agenda → ~25 min sem fecho.
+    const clock = createControllableClock(Date.UTC(2026, 10, 19, 20, 6))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:abrir-rearm',
+          waId: '5511987001999',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      suppressFollowupsAfterClientEnd(db, 'clinic-demo-a', conversationId, clock)
+      expect(
+        db.get<{ at: number | null }>(
+          `SELECT idle_suppressed_at AS at FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.at,
+      ).not.toBeNull()
+
+      clock.advance(60_000)
+      ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:abrir-rearm:ask',
+          waId: '5511987001999',
+          body: 'Oi tudo bem? Quero agendar uma depilação para amanha',
+        },
+        clock,
+      )
+      expect(
+        db.get<{ due: number | null }>(
+          `SELECT idle_due_at AS due FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.due,
+      ).toBeNull()
+
+      sendOutboundMessageOp(
+        db,
+        workerCaller('clinic-demo-a', 'system:ai-autodraft'),
+        {
+          conversationId,
+          body: 'Para agendar depilação, toque em «Abrir agenda» e escolha o dia e a hora. Se tiver dúvidas, escreva aqui.',
+          interactive: {
+            ctaUrl: {
+              displayText: CLIENT_WEB_CTA_TEXT,
+              url: 'https://staging.app.tredane.com/c/cw1_testtokenabcdefghijklmnop',
+            },
+          },
+          clientRequestId: 'wa:idle:abrir-rearm:cta',
+          authorClerkUserId: 'system:ai-autodraft',
+          authorDisplayName: 'Assistente',
+        },
+        clock,
+      )
+      const afterCta = db.get<{ due: number | null; suppressed: number | null }>(
+        `SELECT idle_due_at AS due, idle_suppressed_at AS suppressed
+         FROM conversations WHERE id = ?`,
+        conversationId,
+      )
+      expect(afterCta?.suppressed).toBeNull()
+      expect(afterCta?.due).toBe(clock.nowMs() + IDLE_TIMEOUT_MS)
+
+      clock.advance(IDLE_TIMEOUT_MS + 1)
+      const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(closed.some((s) => s.action === 'closed')).toBe(true)
+      const farewell = db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        conversationId,
+      )
+      expect(farewell?.body).toBe(IDLE_AUTO_CLOSE_BODY)
     } finally {
       close()
     }
