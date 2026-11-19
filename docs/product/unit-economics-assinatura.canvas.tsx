@@ -412,7 +412,6 @@ export default function UnitEconomicsAssinatura() {
   const floor = pisoBruto(piloto.cogs, aliquota);
   const degrau = degrauDe(piloto.cogs);
   const margemPiloto = preco > 0 ? (preco - imposto - piloto.cogs) / preco : 0;
-  const margemRegime = preco > 0 ? (preco - imposto - estavel.cogs) / preco : 0;
   const contribPiloto = preco - imposto - piloto.cogs;
   const contribRegime = preco - imposto - estavel.cogs;
 
