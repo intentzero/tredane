@@ -1397,6 +1397,11 @@ export function InboxThread({
   const teamPending = openPending.filter((c) => c.kind === "alter_awaiting_team");
   const otherPending = openPending.filter((c) => c.kind !== "alter_awaiting_team");
   const canAssume = !isMine && detail.status !== "closed";
+  // DEC-209: IA a atender → banner `.inbox-assign` (mesmo UX do Devolver à IA),
+  // não a linha fraca junto ao compositor. Assumir não religa (DEC-083).
+  const aiAttending =
+    detail.assigneeClerkUserId === "system:ai-autodraft" &&
+    !detail.aiReplyPause;
   const needsSinceCandidates = needsAlert
     ? [
         ...teamPending.map((c) => c.alertedAt ?? c.startedAt),
@@ -1430,11 +1435,12 @@ export function InboxThread({
     otherPending.length === 0;
   const composerShown =
     !blocked && detail.status !== "closed" && !unassignedClosed;
-  // Assumir em linha colada ao compositor (proposta A, 12/11/2026): 44 px em
-  // vez do cartão flutuante. Alerta e «sem responsável» mantêm o botão cheio.
+  // Assumir em linha colada ao compositor (DEC-169): 44 px. Alerta e «sem
+  // responsável» mantêm o botão cheio. IA a atender sai daqui (DEC-209).
   const pendingNotice = otherPending.length > 0;
   const handoffStrip =
-    !unassignedClosed && (needsAlert || pendingNotice || canAssume) ? (
+    !unassignedClosed &&
+    (needsAlert || pendingNotice || (canAssume && !aiAttending)) ? (
       <div
         className={`inbox-handoff${needsAlert ? " inbox-handoff--alert" : ""}${composerShown ? "" : " inbox-handoff--solo"}`}
         role={needsAlert ? "alert" : "status"}
@@ -1715,6 +1721,17 @@ export function InboxThread({
             isDisabled={busy}
           >
             Devolver à IA
+          </Button>
+        </div>
+      ) : aiAttending && canAssume ? (
+        <div className="inbox-assign" role="status" data-testid="ai-attending-banner">
+          <p>A IA está atendendo esta conversa.</p>
+          <Button
+            className="panel-btn-secondary panel-btn-compact"
+            onPress={() => void assume()}
+            isDisabled={busy}
+          >
+            {busy ? "Assumindo…" : "Assumir a conversa"}
           </Button>
         </div>
       ) : null}
