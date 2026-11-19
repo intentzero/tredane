@@ -2384,10 +2384,6 @@ button.panel-auth-inline-link {
   align-items: center;
 }
 
-.acomp-tabs.panel-tabs .panel-chip {
-  flex: none;
-}
-
 .acomp-tabs.panel-tabs.is-scrolled {
   mask-image: linear-gradient(
     90deg,
