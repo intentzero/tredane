@@ -14,6 +14,8 @@ import { hasPaidSignal } from './manage'
 export type ClientWebClinicState = {
   firstName: string | null
   timezone: string
+  /** DEC-211: link do Google Business («Como chegar»); null sem link cadastrado. */
+  locationUrl: string | null
   appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number; hasPaidSignal: boolean }>
 }
 
@@ -46,10 +48,15 @@ export function readClientWebState(
     'SELECT timezone FROM clinic_settings WHERE tenant_id = ?',
     input.tenantId,
   )
+  const gb = db.get<{ google_business_url: string | null }>(
+    'SELECT google_business_url FROM clinic_settings WHERE tenant_id = ?',
+    input.tenantId,
+  )
   const upcoming = loadUpcomingAppointments(db, input.tenantId, input.contactId, clock.nowMs(), 20)
   return {
     firstName: clientWebFirstName(contact.display_name),
     timezone: tz?.timezone ?? 'America/Sao_Paulo',
+    locationUrl: gb?.google_business_url?.trim() || null,
     appointments: upcoming.map((a) => ({
       id: a.id,
       serviceName: a.serviceName,

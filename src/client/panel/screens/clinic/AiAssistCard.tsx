@@ -15,7 +15,6 @@ type Props = {
   api: PanelApi
   generation: number
   initialEnabled: boolean
-  initialAddress?: string | null
   initialGoogleBusinessUrl?: string | null
   initialReschedulePolicy?: string | null
   initialVirtualAttendantName?: string | null
@@ -33,14 +32,12 @@ export function AiAssistCard({
   api,
   generation,
   initialEnabled,
-  initialAddress = null,
   initialGoogleBusinessUrl = null,
   initialReschedulePolicy = null,
   initialVirtualAttendantName = null,
   initialVirtualAttendantGender = null,
 }: Props) {
   const [enabled, setEnabled] = useState(initialEnabled)
-  const [address, setAddress] = useState(initialAddress ?? '')
   const [gbUrl, setGbUrl] = useState(initialGoogleBusinessUrl ?? '')
   const [gbError, setGbError] = useState<string | null>(null)
   const [policy, setPolicy] = useState(initialReschedulePolicy ?? '')
@@ -49,7 +46,6 @@ export function AiAssistCard({
     initialVirtualAttendantGender ?? '',
   )
   const [baseline, setBaseline] = useState({
-    address: initialAddress ?? '',
     gbUrl: initialGoogleBusinessUrl ?? '',
     policy: initialReschedulePolicy ?? '',
     virtualName: initialVirtualAttendantName ?? '',
@@ -60,14 +56,12 @@ export function AiAssistCard({
   const [profileNote, setProfileNote] = useState<string | null>(null)
 
   const profileDirty =
-    address !== baseline.address ||
     gbUrl !== baseline.gbUrl ||
     policy !== baseline.policy ||
     virtualName !== baseline.virtualName ||
     virtualGender !== baseline.virtualGender
 
   function discardProfile() {
-    setAddress(baseline.address)
     setGbUrl(baseline.gbUrl)
     setPolicy(baseline.policy)
     setVirtualName(baseline.virtualName)
@@ -89,7 +83,6 @@ export function AiAssistCard({
       await api.setClinicAiProfile(
         tenantId,
         {
-          clinicAddress: address.trim(),
           googleBusinessUrl: gb.value,
           reschedulePolicy: policy.trim(),
           virtualAttendantName: virtualName.trim(),
@@ -97,7 +90,7 @@ export function AiAssistCard({
         },
         { generation, expectGeneration: () => generation },
       )
-      setBaseline({ address, gbUrl, policy, virtualName, virtualGender })
+      setBaseline({ gbUrl, policy, virtualName, virtualGender })
       setProfileNote('Salvo. A IA passa a usar estes dados nos rascunhos.')
     } catch (err) {
       if (err instanceof PanelApiError && err.status === 400) {
@@ -169,17 +162,12 @@ export function AiAssistCard({
       <details className="ai-optin-more">
         <summary>Como funciona e o que acontece com as mensagens</summary>
         <p className="panel-muted-sm">
-          A IA só marca um horário depois de a cliente confirmar tocando no botão do WhatsApp, e
-          apenas quando essa opção estiver ligada. Alterações e cancelamentos ficam com a equipe. As
-          mensagens não ficam guardadas pelo provedor de IA nem são usadas para treinar modelos.
+          Marcar, remarcar e cancelar são só na agenda online da cliente; o chat informa e envia o botão
+          «Abrir agenda». As mensagens não ficam guardadas pelo provedor de IA nem são usadas para treinar modelos.
         </p>
       </details>
       {enabled ? (
         <>
-          <TextField className="clinic-field">
-            <Label>Endereço da clínica (para a IA)</Label>
-            <TextArea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} />
-          </TextField>
           <TextField
             className="clinic-field"
             isInvalid={gbError != null}
@@ -189,7 +177,7 @@ export function AiAssistCard({
               if (gbError) setGbError(null)
             }}
           >
-            <Label>Link do Google Business (opcional)</Label>
+            <Label>Localização: link do Google Business (opcional)</Label>
             <Input
               type="url"
               inputMode="url"
@@ -197,7 +185,7 @@ export function AiAssistCard({
               maxLength={GOOGLE_BUSINESS_URL_MAX_LENGTH}
             />
             <Text slot="description" className="panel-muted-sm">
-              A IA envia este link quando a cliente pedir a localização ou como chegar.
+              Enviado quando a cliente pede o local, na confirmação do chat e na página da cliente («Como chegar»).
             </Text>
             {gbError ? (
               <p className="clinic-footnote clinic-footnote-warn" role="alert">
@@ -206,8 +194,12 @@ export function AiAssistCard({
             ) : null}
           </TextField>
           <TextField className="clinic-field">
-            <Label>Regras de remarcação e cancelamento</Label>
+            <Label>Regras gerais de remarcação e cancelamento</Label>
             <TextArea value={policy} onChange={(e) => setPolicy(e.target.value)} rows={3} />
+            <Text slot="description" className="panel-muted-sm">
+              Aviso prévio, atrasos, faltas. Quando a clínica pede sinal, a regra do sinal (Recebimento)
+              sai primeiro e este texto vem a seguir.
+            </Text>
           </TextField>
           <TextField className="clinic-field">
             <Label>Nome do atendente virtual (opcional)</Label>

@@ -47,6 +47,8 @@ export type ClientWebState = {
   clinicName: string
   firstName: string | null
   timezone: string
+  /** DEC-211: «Como chegar» (link do Google Business). */
+  locationUrl?: string | null
   appointments: ClientWebAppointment[]
   sessionExpiresAt: number
 }

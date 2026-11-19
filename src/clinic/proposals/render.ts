@@ -190,7 +190,7 @@ export function renderProposalInteractive(
   }
   const summary = parts.join(' · ')
   const lines: string[] = [`Fica assim: ${summary}.`, '', 'Posso confirmar?']
-  if (location) lines.push('', `Local: ${location}.`)
+  if (location) lines.push('', `Local: ${location}`)
   const signal = formatSignal(proposal)
   if (signal) lines.push(signal)
   lines.push(
@@ -337,7 +337,7 @@ export function renderProposalResultBody(
         (!rescheduled && proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
         priceLine +
-        (location ? ` Local: ${location}.` : '') +
+        (location ? ` Local: ${location}` : '') +
         (opts.webReceipt ? ` ${WEB_RECEIPT_SENTENCE}` : '') +
         (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)
       )

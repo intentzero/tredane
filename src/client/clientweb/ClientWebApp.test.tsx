@@ -120,6 +120,27 @@ describe('ClientWebApp (C-01, C-09)', () => {
     expect(screen.queryByRole('list')).toBeNull()
   })
 
+  it('mostra «Como chegar» em cada marcação só quando há link (DEC-211)', async () => {
+    mockApi()
+    const { unmount } = render(<ClientWebApp />)
+    await screen.findByRole('heading', { name: 'Olá, Marina' })
+    expect(screen.queryByRole('link', { name: 'Como chegar' })).toBeNull()
+    unmount()
+    resetExchangesForTest()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).endsWith('/api/c/exchange')
+          ? new Response('{}', { status: 200 })
+          : new Response(JSON.stringify({ ...STATE, locationUrl: 'https://maps.app.goo.gl/clinica-teste' }), { status: 200 }),
+      ),
+    )
+    render(<ClientWebApp />)
+    const link = await screen.findByRole('link', { name: 'Como chegar' })
+    expect(link.getAttribute('href')).toBe('https://maps.app.goo.gl/clinica-teste')
+    expect(link.getAttribute('rel')).toContain('noopener')
+  })
+
   it('mostra Agendar e, em cada marcação, Remarcar e Cancelar', async () => {
     mockApi()
     render(<ClientWebApp />)

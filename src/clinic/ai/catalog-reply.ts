@@ -379,25 +379,12 @@ export function catalogReply(
 
   if (LOCAL.test(body) && !PRICE.test(body) && !CLOCK.test(body)) {
     const settings = ensureClinicSettings(db, tenantId, clock)
-    const address = settings.clinicAddress.trim()
     const link = settings.googleBusinessUrl.trim()
-    if (!address) {
-      return sayAct(
-        'esclarecer',
-        cnv,
-        {},
-        'Não tenho o endereço cadastrado; a equipe confirma.',
-      )
+    // DEC-211: sem link cadastrado, a equipe confirma.
+    if (!link) {
+      return sayAct('esclarecer', cnv, {}, 'Não tenho a localização cadastrada; a equipe confirma.')
     }
-    if (link) {
-      return sayAct(
-        'informar_local_link',
-        cnv,
-        { endereço: address, link },
-        `${address}\n${link}`,
-      )
-    }
-    return sayAct('informar_local', cnv, { endereço: address }, address)
+    return sayAct('informar_local_link', cnv, { link }, `Estamos aqui: ${link}`)
   }
 
   const bookingIntentCold = hasSchedulingAvailabilityIntent(body) && !isCatalogInfoAsk(body)

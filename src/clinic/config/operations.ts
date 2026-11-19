@@ -466,7 +466,6 @@ export function setAiProfileOp(
   db: ClinicDb,
   caller: ClinicCaller,
   input: {
-    clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
     virtualAttendantName?: string | null

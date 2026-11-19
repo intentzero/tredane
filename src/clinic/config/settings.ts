@@ -14,7 +14,6 @@ type SettingsSql = {
   signal_deadline_seconds?: number
   signal_cancellation_policy?: string
   ai_assist_enabled?: number
-  clinic_address?: string
   google_business_url?: string
   reschedule_policy?: string
   tempo_local?: string
@@ -53,7 +52,6 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
       row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: row.signal_cancellation_policy ?? '',
     aiAssistEnabled: row.ai_assist_enabled === 1,
-    clinicAddress: row.clinic_address ?? '',
     googleBusinessUrl: row.google_business_url ?? '',
     reschedulePolicy: row.reschedule_policy ?? '',
     forecastMode:
@@ -98,7 +96,7 @@ export function ensureClinicSettings(
 ): ClinicSettingsRow {
   const existing = db.get<SettingsSql>(
     `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
-       clinic_address, google_business_url, reschedule_policy,
+       google_business_url, reschedule_policy,
        tempo_local, tempo_cidade, tempo_latitude, tempo_longitude,
        abuse_limits_enabled, auto_book_paused, abuse_window_hours,
        abuse_auto_drafts_per_contact, abuse_ai_bookings_per_contact, abuse_ai_bookings_per_clinic,
@@ -133,7 +131,6 @@ export function ensureClinicSettings(
     signalDeadlineSeconds: DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: '',
     aiAssistEnabled: false,
-    clinicAddress: '',
     googleBusinessUrl: '',
     reschedulePolicy: '',
     forecastMode: 'nenhum',
@@ -204,12 +201,11 @@ export function isClinicAiAssistEnabled(db: ClinicDb, tenantId: string): boolean
 
 const VIRTUAL_ATTENDANT_NAME_MAX = 60
 
-/** Endereço, link do Google Business, regras e atendente virtual (DEC-089) — só o responsável. */
+/** Link do Google Business (DEC-211), regras e atendente virtual (DEC-089) — só o responsável. */
 export function setClinicAiProfile(
   db: ClinicDb,
   tenantId: string,
   input: {
-    clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
     virtualAttendantName?: string | null
@@ -228,8 +224,6 @@ export function setClinicAiProfile(
     }
     googleBusinessUrl = check.value
   }
-  const address =
-    input.clinicAddress == null ? cur.clinicAddress : input.clinicAddress.trim().slice(0, 300)
   const policy =
     input.reschedulePolicy == null
       ? cur.reschedulePolicy
@@ -258,10 +252,9 @@ export function setClinicAiProfile(
 
   db.run(
     `UPDATE clinic_settings
-       SET clinic_address = ?, google_business_url = ?, reschedule_policy = ?,
+       SET google_business_url = ?, reschedule_policy = ?,
            virtual_attendant_name = ?, virtual_attendant_gender = ?, updated_at = ?
      WHERE id = 1 AND tenant_id = ?`,
-    address,
     googleBusinessUrl,
     policy,
     virtualName,
@@ -274,7 +267,7 @@ export function setClinicAiProfile(
 
 const FORECAST_CITY_MAX = 80
 
-/** Local da previsão (DEC-077). Não altera `clinic_address`. Um modo apaga o outro. */
+/** Local da previsão (DEC-077). Um modo apaga o outro. */
 export function setForecastPlace(
   db: ClinicDb,
   tenantId: string,

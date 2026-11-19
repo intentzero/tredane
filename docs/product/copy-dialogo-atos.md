@@ -89,16 +89,12 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 2. `Nosso horário:\n{lista}`
 3. `Abrimos assim:\n{lista}`
 
-### informar_local
-
-1. `Ficamos em {endereço}.`
-2. `O endereço é {endereço}.`
-3. `Estamos em {endereço}.`
-
 ### informar_local_link
 
-1. `Ficamos em {endereço}. Para chegar: {link}`
-2. `O endereço é {endereço}. Para chegar: {link}`
+DEC-211: a localização é só o link do Google Business; o ato `informar_local` (com endereço) foi removido.
+
+1. `Estamos aqui: {link}`
+2. `Para chegar: {link}`
 
 ### informar_quem_faz
 

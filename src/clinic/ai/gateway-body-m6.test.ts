@@ -88,8 +88,8 @@ function seedClinicWithAgenda() {
   setClinicAiAssistEnabled(db, tenantId, true, clock)
   ensureClinicSettings(db, tenantId, clock)
   db.run(
-    `UPDATE clinic_settings SET clinic_address = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
-    'Rua Fictícia, 10',
+    `UPDATE clinic_settings SET google_business_url = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+    'https://maps.app.goo.gl/clinica-teste',
     clock.nowMs(),
     tenantId,
   )

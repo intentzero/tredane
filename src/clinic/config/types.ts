@@ -274,13 +274,11 @@ export type ClinicSettingsRow = {
   signalCancellationPolicy: string
   /** Opt-in de IA assistiva pela clínica (default false; política §6). */
   aiAssistEnabled: boolean
-  /** Endereço da clínica (contexto da IA). */
-  clinicAddress: string
   /** Link do Google Business (https; vazio = sem link). Definido só pela clínica; contexto da IA. */
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
   reschedulePolicy: string
-  /** DEC-077 — local da previsão. Não é `clinicAddress`. */
+  /** DEC-077 — local da previsão. */
   forecastMode: 'nenhum' | 'cidade' | 'coordenadas'
   forecastCity: string | null
   forecastLatitude: number | null

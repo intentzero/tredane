@@ -11,6 +11,7 @@
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
+ * | INT-08 | Confirmado| Onde fica: só o link do Google Business, sem endereço (DEC-211) |
  */
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
@@ -51,6 +52,18 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       notPaused: true,
       outboundIncludes: ['24h'],
       outboundExcludes: [/Não entendi/i, /Quer ver as op[cç][oõ]es/i],
+      turnDecided: [{ modelCalled: false }],
+    },
+  },
+  {
+    id: 'INT-08',
+    title: 'Onde fica — responde só com o link do Google Business, sem modelo (DEC-211)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Onde fica a clínica?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['https://maps.app.goo.gl/clinica-demo'],
+      outboundExcludes: [/Não tenho/i, /Rua /i],
       turnDecided: [{ modelCalled: false }],
     },
   },

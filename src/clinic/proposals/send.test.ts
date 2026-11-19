@@ -101,7 +101,7 @@ function seed(tenantId = 'clinic-demo-s4-a') {
     },
     clock,
   )
-  setAiProfileOp(db, caller, { clinicAddress: 'Rua das Flores, 100 — São Paulo' }, clock)
+  setAiProfileOp(db, caller, { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-teste' }, clock)
   const contact = upsertContact(
     db,
     { tenantId, waId: '5511999000202', displayName: 'Ana Silva' },
@@ -199,7 +199,7 @@ describe('S4: render determinístico', () => {
       )
       const rendered = renderProposalInteractive(proposal)
       expect(rendered.body).toContain('Limpeza de pele')
-      expect(rendered.body).toContain('Rua das Flores')
+      expect(rendered.body).toContain('maps.app.goo.gl/clinica-teste')
       expect(rendered.body).not.toMatch(/Beneficiár/)
       expect(rendered.body).not.toMatch(/LLM|sugestão livre/i)
       // Relógio local da clínica; IANA fica só no snapshot interno.
@@ -254,7 +254,7 @@ describe('S4: render determinístico', () => {
         s.clock,
       )
       const rendered = renderProposalInteractive(proposal, s.db)
-      expect(rendered.body).toContain('Local: Rua das Flores, 100 — São Paulo')
+      expect(rendered.body).toContain('Local: https://maps.app.goo.gl/clinica-teste')
       expect(rendered.body).toMatch(/R\$ 50,00/)
       expect(rendered.body).not.toMatch(/Sala:/i)
       expect(rendered.body).not.toContain('Sala Depilação')
@@ -265,7 +265,7 @@ describe('S4: render determinístico', () => {
       expect(booked).toMatch(/^Agendado:/)
       // DEC-174: curto — weekday DD/MM + só início; sem ano/fim/«feira»/dúvida (follow-up segue).
       expect(booked).toBe(
-        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Total: R$ 50,00. Local: Rua das Flores, 100 — São Paulo.',
+        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Total: R$ 50,00. Local: https://maps.app.goo.gl/clinica-teste',
       )
       expect(booked).not.toMatch(/feira|novembro|2026|–\s*\d{2}:\d{2}|Qualquer dúvida/i)
       expect(booked).not.toContain('Sala Depilação')
@@ -274,7 +274,7 @@ describe('S4: render determinístico', () => {
       expect(booked).not.toMatch(/\([A-Za-z]+\/[A-Za-z_]+\)/)
       expect(rendered.body).not.toContain('America/Sao_Paulo')
 
-      setAiProfileOp(s.db, s.caller, { clinicAddress: '' }, s.clock)
+      setAiProfileOp(s.db, s.caller, { googleBusinessUrl: '' }, s.clock)
       const bare = createProposal(
         s.db,
         s.tenantId,
@@ -346,7 +346,7 @@ describe('S4: render determinístico', () => {
       ]
       const booked = renderProposalResultBody(proposal, 'booked', { zones: snaps })
       expect(booked).toBe(
-        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Valores: relaxante R$ 200,00. Total: R$ 200,00. Local: Rua das Flores, 100 — São Paulo.',
+        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Valores: relaxante R$ 200,00. Total: R$ 200,00. Local: https://maps.app.goo.gl/clinica-teste',
       )
       expect(booked).not.toContain(BOOKED_DOUBT_FALLBACK)
     } finally {

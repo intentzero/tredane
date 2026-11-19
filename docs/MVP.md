@@ -132,7 +132,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **FAQ na escolha de zona (Confirmado, DEC-177, Paulo, 13/11/2026):** perguntas («inclui?», «o que é?») durante a escolha de variantes não viram leftover; resposta com explicação da variante nomeada, sinónimos do cadastro ou — se a pergunta não nomeia variante — Explicação para clientes do serviço; zona nomeada sem explicação própria → frase fixa + Continuar / Falar com a equipe (não a prosa do serviço); sem LLM neste recorte. Detalhe: [DEC-177](product/decisions.md).
 
-**FAQ / conhecimento institucional da clínica (Confirmado, DEC-185, Paulo, 14/11/2026):** Q&A publicadas pela owner no DO (categorias CRUD livres; piloto 5–15; resposta ≤500 caracteres); resposta determinística com o texto cadastrado (modo A); mid-funnel park/resume; política de sinal (DEC-180) também como entrada FAQ; alarga DEC-120 sob esses limites sem paráfrase LLM; saúde continua handoff (DEC-046); DEC-177 inalterada. Detalhe: [DEC-185](product/decisions.md); discovery no Project store.
+**FAQ / conhecimento institucional da clínica (Confirmado, DEC-185, Paulo, 14/11/2026):** Q&A publicadas pela owner no DO (categorias CRUD livres; piloto 5–15; resposta ≤500 caracteres); resposta determinística com o texto cadastrado (modo A); mid-funnel park/resume; política de sinal gerada a partir do Recebimento, não escrita à mão (revisto pela DEC-210); alarga DEC-120 sob esses limites sem paráfrase LLM; saúde continua handoff (DEC-046); DEC-177 inalterada. Detalhe: [DEC-185](product/decisions.md); discovery no Project store.
 
 **LLM de caminho aberto fora do Clinic DO (Confirmado, DEC-188, Paulo, 15/11/2026):** Claude do interpretador/extrator e do redator (autodraft) corre no Worker via fila dedicada `tredane-llm-*`; o DO só faz snapshot + `claim`/`apply`/`fail` (staging e produção). Lab: `lab_say` espera a resposta (~15–20 s). Sombra H1 na demo só depois de N turnos LLM estáveis. `suggestReply` do painel fica no DO neste recorte. Detalhe: [DEC-188](product/decisions.md).
 
@@ -160,7 +160,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Prazo do Pix (Confirmado, DEC-182, Paulo, 14/11/2026; revê DEC-179):** em Recebimento (M-33), só **15 min** ou **30 min** (padrão 30); servidor em `deadlineSeconds`. Detalhe em [ux-ui](product/ux-ui.md) TEL-11.
 
-**Sinal global + Contato (Confirmado, DEC-180, Paulo, 13/11/2026; timing DEC-182):** cartão unificado em Recebimento (valor global, antecedência mínima, política Aplica/Não devolve/Outro…, janela com Outro…, texto gerado); isenção no Contato com faixa na conversa. Revê o valor por serviço da DEC-047.
+**Sinal global + Contato (Confirmado, DEC-180, Paulo, 13/11/2026; timing DEC-182):** cartão unificado em Recebimento (valor global, antecedência mínima, política Aplica/Não devolve/Outro…, janela com Outro…, texto gerado); isenção no Contato com faixa na conversa. Revê o valor por serviço da DEC-047. **DEC-210** (Confirmado, Paulo, 19/11/2026): uma fonte por facto — regras de dinheiro só no Recebimento; resposta «Remarcar e cancelar» = texto do sinal + texto geral da clínica; implementação neste PR.
 
 **Ficha do serviço revista (Confirmado, DEC-176, Paulo, 12/11/2026):** opções agrupadas pelo nome com sinônimos partilhados, modo e público em segmentos, a conta certa em «Como fica na agenda» e a vista «O que a IA reconhece». Detalhe em [ux-ui](product/ux-ui.md).
 

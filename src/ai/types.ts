@@ -114,7 +114,6 @@ export type AiUpcomingAppointment = {
  */
 export type AiClinicContext = {
   name: string | null
-  address: string | null
   /** Link do Google Business definido pela clínica (nunca vindo da conversa). */
   googleBusinessUrl?: string | null
   timezone: string

@@ -45,17 +45,17 @@ function seedClinic(
       priceCents: number | null
       clientExplanation: string | null
     }>
-    clinicAddress?: string
+    googleBusinessUrl?: string
   },
 ) {
   const caller = workerCaller(tenantId, 'user_s8_test')
   bindOrAssertTenant(db, caller, clock)
   setClinicAiAssistEnabled(db, tenantId, true, clock)
-  if (opts.clinicAddress) {
+  if (opts.googleBusinessUrl) {
     ensureClinicSettings(db, tenantId, clock)
     db.run(
-      `UPDATE clinic_settings SET clinic_address = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
-      opts.clinicAddress,
+      `UPDATE clinic_settings SET google_business_url = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+      opts.googleBusinessUrl,
       clock.nowMs(),
       tenantId,
     )
@@ -202,7 +202,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
         displayName: 'Carla A',
         waId: '5511987009020',
         inboundBodies: ['Meu tel 11 97777-6666 e Bearer sk-clinicA-SECRET99'],
-        clinicAddress: 'Rua Alfa 100, São Paulo',
+        googleBusinessUrl: 'https://maps.app.goo.gl/alfa100',
         services: [
           { name: 'Limpeza A', priceCents: 9000, clientExplanation: null },
         ],
@@ -211,7 +211,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
         displayName: 'Diana B',
         waId: '5511987009021',
         inboundBodies: ['Segredo clínica B'],
-        clinicAddress: 'Rua Beta Segredo 999, Campinas',
+        googleBusinessUrl: 'https://maps.app.goo.gl/beta-segredo-999',
         services: [
           { name: 'Segredo B Premium', priceCents: 50000, clientExplanation: 'Só B' },
         ],
@@ -234,8 +234,8 @@ describe('S8 minimização de contexto IA (#179)', () => {
       assertContextMinimized(payload)
       const json = JSON.stringify(payload)
       const sent = JSON.stringify(result.gatewayInspection)
-      expect(json).not.toMatch(/5511987009021|Segredo B|Rua Beta|Campinas|sk-clinicA/)
-      expect(sent).not.toMatch(/5511987009021|Segredo B|Rua Beta|Campinas|sk-clinicA|97777-6666/)
+      expect(json).not.toMatch(/5511987009021|Segredo B|beta-segredo-999|sk-clinicA/)
+      expect(sent).not.toMatch(/5511987009021|Segredo B|beta-segredo-999|sk-clinicA|97777-6666/)
       expect(payload.messages.every((m) => m.body.includes('[redacted]'))).toBe(true)
       expect(payload.services.map((s) => s.name)).toEqual(['Limpeza A'])
       expect(result.gatewayInspection?.headers['cf-aig-collect-log-payload']).toBe('false')
@@ -484,8 +484,8 @@ describe('S8 minimização de contexto IA (#179)', () => {
       setClinicAiAssistEnabled(db, tenantId, true, clock)
       ensureClinicSettings(db, tenantId, clock)
       db.run(
-        `UPDATE clinic_settings SET clinic_address = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
-        'Rua Fictícia, 10',
+        `UPDATE clinic_settings SET google_business_url = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+        'https://maps.app.goo.gl/clinica-teste',
         clock.nowMs(),
         tenantId,
       )

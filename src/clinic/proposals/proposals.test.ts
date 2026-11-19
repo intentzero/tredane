@@ -81,7 +81,7 @@ function seed(tenantId = 'clinic-demo-proposals-a') {
   setAiProfileOp(
     db,
     caller,
-    { clinicAddress: 'Rua das Flores, 100 — São Paulo' },
+    { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-teste' },
     clock,
   )
   const contact = upsertContact(
@@ -148,7 +148,7 @@ describe('S3: persistência e validação', () => {
       expect(proposal.lineageId).toBe(proposal.id)
       expect(proposal.serviceName).toBe('Limpeza de pele')
       expect(proposal.priceCents).toBe(18_000)
-      expect(proposal.clinicLocationText).toContain('Rua das Flores')
+      expect(proposal.clinicLocationText).toContain('maps.app.goo.gl/clinica-teste')
       expect(proposal.beneficiaryName).toBe('Ana Silva')
       expect(proposal.expiresAt).toBeNull()
       expect(proposal.id.startsWith('aprop_')).toBe(true)

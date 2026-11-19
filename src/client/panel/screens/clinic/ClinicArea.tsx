@@ -393,7 +393,6 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
               api={api}
               generation={generation}
               initialEnabled={snap.settings.aiAssistEnabled === true}
-              initialAddress={snap.settings.clinicAddress ?? null}
               initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
               initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
               initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}

@@ -3322,7 +3322,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async setClinicAiProfile(
     caller: ClinicCaller,
     input: {
-      clinicAddress?: string | null
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
       virtualAttendantName?: string | null

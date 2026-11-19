@@ -24,7 +24,7 @@ describe('bloco Tempo (S1)', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(75)
+      expect(CLINIC_SCHEMA_VERSION).toBe(76)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
@@ -89,7 +89,7 @@ describe('bloco Tempo (S1)', () => {
       setClinicAiProfile(
         db,
         'clinic-demo-a',
-        { clinicAddress: 'Rua Fictícia, 10, Campinas' },
+        { reschedulePolicy: 'Avise com 24 h.' },
         clock,
       )
       const settings = db.get<{
@@ -97,9 +97,8 @@ describe('bloco Tempo (S1)', () => {
         tempo_cidade: string | null
         tempo_latitude: number | null
         tempo_longitude: number | null
-        clinic_address: string
       }>(
-        `SELECT tempo_local, tempo_cidade, tempo_latitude, tempo_longitude, clinic_address
+        `SELECT tempo_local, tempo_cidade, tempo_latitude, tempo_longitude
          FROM clinic_settings WHERE id = 1`,
       )
       expect(settings).toEqual({
@@ -107,7 +106,6 @@ describe('bloco Tempo (S1)', () => {
         tempo_cidade: null,
         tempo_latitude: null,
         tempo_longitude: null,
-        clinic_address: 'Rua Fictícia, 10, Campinas',
       })
 
       const contactCols = columnNames(db, 'contacts')

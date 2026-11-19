@@ -113,7 +113,7 @@ async function seedBookable(tenantId = 'clinic-demo-s5-a') {
     },
     clock,
   )
-  setAiProfileOp(db, caller, { clinicAddress: 'Rua das Flores, 100 — São Paulo' }, clock)
+  setAiProfileOp(db, caller, { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-teste' }, clock)
   const contact = upsertContact(
     db,
     { tenantId, waId: '5511999000505', displayName: 'Ana Silva' },
@@ -264,7 +264,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(75)
+    expect(CLINIC_SCHEMA_VERSION).toBe(76)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')

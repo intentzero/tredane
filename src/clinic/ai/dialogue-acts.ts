@@ -26,7 +26,6 @@ export type DialogueActId =
   | 'informar_preco_sem_cadastro'
   | 'informar_duracao'
   | 'informar_expediente'
-  | 'informar_local'
   | 'informar_local_link'
   | 'informar_quem_faz'
   | 'informar_explicacao'
@@ -99,15 +98,8 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Nosso horário:\n{lista}',
     'Abrimos assim:\n{lista}',
   ],
-  informar_local: [
-    'Ficamos em {endereço}.',
-    'O endereço é {endereço}.',
-    'Estamos em {endereço}.',
-  ],
-  informar_local_link: [
-    'Ficamos em {endereço}. Para chegar: {link}',
-    'O endereço é {endereço}. Para chegar: {link}',
-  ],
+  // DEC-211: a localização é só o link do Google Business.
+  informar_local_link: ['Estamos aqui: {link}', 'Para chegar: {link}'],
   informar_quem_faz: [
     'Quem atende: {pessoas}.',
     'Esse atendimento é feito por {pessoas}.',

@@ -109,7 +109,6 @@ describe('HTTP — configuração da clínica (#28)', () => {
       expect(badBody.error).toBe('invalid_google_business_url')
       expect(badBody.message).toMatch(/https:\/\//)
       const ok = await put({
-        clinicAddress: 'Rua Fictícia, 123',
         googleBusinessUrl: 'https://maps.app.goo.gl/ficticio123',
         reschedulePolicy: '',
       })
@@ -370,7 +369,6 @@ describe('HTTP — configuração da clínica (#28)', () => {
 describe('HTTP — local da previsão (DEC-077 S2)', () => {
   type Place = {
     aiAssistEnabled: boolean
-    clinicAddress: string
     forecastMode: string
     forecastCity: string | null
     forecastLatitude: number | null
@@ -409,7 +407,6 @@ describe('HTTP — local da previsão (DEC-077 S2)', () => {
       expect(city.status).toBe(200)
       expect(await snap()).toMatchObject({
         aiAssistEnabled: false,
-        clinicAddress: '',
         forecastMode: 'cidade',
         forecastCity: 'Campinas',
         forecastLatitude: null,
@@ -451,7 +448,7 @@ describe('HTTP — local da previsão (DEC-077 S2)', () => {
         auth('user_synth_owner_a', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clinicAddress: 'Rua Fictícia, 10' }),
+          body: JSON.stringify({ googleBusinessUrl: 'https://maps.app.goo.gl/ficticio10' }),
         }),
       )
       expect(address.status).toBe(200)
@@ -466,7 +463,7 @@ describe('HTTP — local da previsão (DEC-077 S2)', () => {
       expect(tz.status).toBe(200)
       expect(await snap()).toMatchObject({
         aiAssistEnabled: false,
-        clinicAddress: 'Rua Fictícia, 10',
+        googleBusinessUrl: 'https://maps.app.goo.gl/ficticio10',
         forecastMode: 'coordenadas',
         forecastCity: null,
         forecastLatitude: -90,

@@ -46,7 +46,6 @@ export type ClinicConfigGateway = {
   setAiProfile(
     caller: ClinicCaller,
     input: {
-      clinicAddress?: string | null
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
       virtualAttendantName?: string | null

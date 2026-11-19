@@ -38,6 +38,8 @@ const ANSWER_MAX = 500
 const PUBLISHED_MAX = 15
 const CUES_MAX = 12
 const SIGNAL_KEY = 'signal_policy'
+/** DEC-210: política de sinal, multa e cancelamento já têm uma fonte única. */
+const POLICY_TOPIC = /\b(sinal|multa|cancel\w*|remarc\w*|reagend\w*)/i
 
 /** Primeira vez: o dono toca e abre o editor com a pergunta e a categoria prontas. */
 const SUGGESTIONS: Array<{ question: string; category: string }> = [
@@ -380,6 +382,12 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
           />
           <span className="clinic-muted">Do jeito que a cliente costuma perguntar.</span>
         </TextField>
+        {!locked && POLICY_TOPIC.test(`${question} ${cues}`) ? (
+          <p className="clinic-footnote clinic-footnote-warn" role="status">
+            Já respondido: sinal em Recebimento e regras de remarcação e cancelamento em Assistente. Edite
+            lá em vez de criar outra resposta.
+          </p>
+        ) : null}
 
         {categories.length > 0 ? (
           <fieldset className="kn-fieldset">

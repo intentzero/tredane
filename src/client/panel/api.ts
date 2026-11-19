@@ -628,7 +628,6 @@ export function createPanelApi(getToken: TokenGetter) {
     async setClinicAiProfile(
       tenantId: string,
       body: {
-        clinicAddress: string
         googleBusinessUrl: string
         reschedulePolicy: string
         virtualAttendantName?: string
@@ -3169,7 +3168,6 @@ export type ClinicConfigSnapshot = {
     signalCancellationPolicy?: string
     /** Opt-in de IA da clínica (default false). */
     aiAssistEnabled?: boolean
-    clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
     /** DEC-089 — atendente virtual (persona da IA). */

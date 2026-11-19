@@ -3,6 +3,7 @@ import './clientweb.css'
 import { exchangeLink, fetchCatalog, fetchState, type Catalog, type ClientWebAppointment, type ClientWebState, type LinkPurpose } from './api'
 import { CancelFlow, RescheduleFlow } from './ManageFlow'
 import { BookFlow } from './BookFlow'
+import { DirectionsLink } from './DirectionsLink'
 import { clientWebTokenFromPath } from './routes'
 import { clinicInitials, formatAppointmentWhen, formatDurationMinutes } from './format'
 
@@ -150,6 +151,7 @@ export function ClientWebApp() {
       {view.kind === 'booking' && (
         <BookFlow
           clinicName={view.state.clinicName}
+          locationUrl={view.state.locationUrl ?? null}
           initialServiceId={view.serviceId}
           initialAudienceLine={view.audienceLine}
           initialVariantIds={view.variantIds}
@@ -211,6 +213,7 @@ function Home({
                 <span className="cw-muted">
                   {formatAppointmentWhen(a.startsAt, state.timezone)} · {formatDurationMinutes(a.startsAt, a.endsAt)}
                 </span>
+                <DirectionsLink url={state.locationUrl} />
                 <div className="cw-card-actions">
                   <button type="button" className="cw-btn cw-btn-secondary" aria-label={`Remarcar ${a.serviceName}`} onClick={() => onReschedule(a)}>
                     Remarcar

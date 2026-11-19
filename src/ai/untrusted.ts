@@ -2,7 +2,7 @@
  * S6 (#177) — fronteira entre instruções e dados não confiáveis.
  *
  * Entradas não confiáveis (nunca instrução): mensagens da conversa (cliente e equipe),
- * nome do contato, nome/explicação dos serviços, políticas, nome/endereço/link Google
+ * nome do contato, nome/explicação dos serviços, políticas, nome/link Google
  * Business da clínica, e a própria saída do modelo. A direção/autoria vem de metadados
  * (`direction`), nunca do texto. Estas funções não tornam o modelo imune a prompt
  * injection: reduzem a superfície e alimentam avisos; a autorização de qualquer efeito

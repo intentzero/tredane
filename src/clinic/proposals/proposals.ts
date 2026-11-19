@@ -565,7 +565,8 @@ function resolveFacts(
   return {
     contactId: contact.id,
     conversationId: conversation.id,
-    clinicLocationText: settings.clinicAddress || '',
+    // DEC-211: o local da confirmação é o link do Google Business.
+    clinicLocationText: settings.googleBusinessUrl || '',
     beneficiaryKind,
     beneficiaryName,
     serviceId: service.id,

@@ -24,7 +24,6 @@ function ctx(over: Partial<AiContextPayload> = {}): AiContextPayload {
     clinicOutboundCount: 0,
     clinic: {
       name: 'Clínica Aurora',
-      address: 'Rua Fictícia, 10',
       timezone: 'America/Sao_Paulo',
       nowLabel: 'sexta-feira, 06/11/2026 10:00',
       today: '2026-11-06',

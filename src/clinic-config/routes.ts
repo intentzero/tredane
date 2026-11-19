@@ -251,7 +251,6 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const body = await c.req
         .json<{
           enabled?: unknown
-          clinicAddress?: unknown
           googleBusinessUrl?: unknown
           reschedulePolicy?: unknown
           virtualAttendantName?: unknown
@@ -260,8 +259,7 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         .catch(() => null)
       const hasProfile =
         body != null &&
-        (typeof body.clinicAddress === 'string' ||
-          typeof body.googleBusinessUrl === 'string' ||
+        (typeof body.googleBusinessUrl === 'string' ||
           typeof body.reschedulePolicy === 'string' ||
           typeof body.virtualAttendantName === 'string' ||
           body.virtualAttendantGender === null ||
@@ -283,7 +281,6 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
               ? (genderRaw as '' | null)
               : undefined
         settings = await gw.setAiProfile(caller, {
-          clinicAddress: typeof body.clinicAddress === 'string' ? body.clinicAddress : null,
           googleBusinessUrl:
             typeof body.googleBusinessUrl === 'string' ? body.googleBusinessUrl : null,
           reschedulePolicy:

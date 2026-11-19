@@ -281,7 +281,6 @@ export async function buildClinicAiContext(
   return {
     clinic: {
       name: opts.clinicName?.trim() || null,
-      address: settings.clinicAddress || null,
       googleBusinessUrl: settings.googleBusinessUrl || null,
       timezone: tz,
       nowLabel,
