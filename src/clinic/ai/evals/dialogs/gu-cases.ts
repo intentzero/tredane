@@ -2,8 +2,18 @@
  * Família GU- (DEC-202): o chat não marca, não remarca e não cancela.
  * Pedido de marcar, remarcar, cancelar ou de vaga recebe uma frase fixa e o botão «Abrir agenda»
  * com o propósito certo; a IA só informa. Com a pausa da owner, passa à equipe.
+ *
+ * CW-12: efeito no chat depois do cancelamento **na página** (recibo único + DEC-086).
  */
+import { workerCaller } from '../../../envelopes'
+import { POST_BOOKING_BODY } from '../../../followup/post-booking'
 import { zonedCivilToUtc } from '../../../scheduling'
+import {
+  appendWebCancelChatEffects,
+  cancelFromWeb,
+  WEB_CANCEL_ACTOR,
+  WEB_CANCEL_RECEIPT_SENTENCE,
+} from '../../../../clientweb/manage'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
 
@@ -317,6 +327,66 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       appointments: 0,
       noCtaUrl: true,
       paused: true,
+    },
+  },
+  {
+    id: 'CW-12',
+    title:
+      'Cancelar na página: um só recibo Cancelado (com frase da página) + Posso ajudar (DEC-086)',
+    turnosIdeais: 1,
+    prepare: withOneAppointment,
+    turns: [
+      { role: 'client', text: 'Preciso cancelar minha marcação' },
+      {
+        role: 'owner',
+        note: 'cliente confirma o cancelamento na página web (mesmo caminho do Clinic DO)',
+        act: (s) => {
+          const webCaller = workerCaller(s.tenantId, WEB_CANCEL_ACTOR)
+          const done = cancelFromWeb(s.db, webCaller, s.clock, { contactId: s.contactId }, 'apt_gu_1')
+          if (done.result.status !== 'cancelled') {
+            throw new Error(`CW-12: esperava cancelled, veio ${done.result.status}`)
+          }
+          const cancelled = done.result
+          appendWebCancelChatEffects(
+            s.db,
+            webCaller,
+            {
+              conversationId: s.conversationId,
+              appointmentId: 'apt_gu_1',
+              serviceName: cancelled.serviceName,
+              startsAt: cancelled.startsAt,
+            },
+            s.clock,
+            done.outbox,
+          )
+        },
+      },
+    ],
+    expect: {
+      proposal: false,
+      appointments: 1, // linha cancelada continua na BD; status assert abaixo
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'cancelar', appointmentId: 'apt_gu_1' }],
+      outboundIncludes: ['Para cancelar', 'Cancelado:', WEB_CANCEL_RECEIPT_SENTENCE, POST_BOOKING_BODY],
+      assert: (s) => {
+        const errs: string[] = []
+        const cancelados = s.outboundBodies().filter((b) => b.startsWith('Cancelado:'))
+        if (cancelados.length !== 1) {
+          errs.push(`esperava 1 «Cancelado:…», saíram ${cancelados.length}`)
+        } else if (!cancelados[0]!.includes(WEB_CANCEL_RECEIPT_SENTENCE)) {
+          errs.push('recibo sem frase da página')
+        }
+        const row = s.db.get<{ status: string; cancelled_by: string | null }>(
+          `SELECT status, cancelled_by FROM appointments WHERE id = ?`,
+          'apt_gu_1',
+        )
+        if (row?.status !== 'cancelled' || row.cancelled_by !== WEB_CANCEL_ACTOR) {
+          errs.push(`marcação não cancelada por ${WEB_CANCEL_ACTOR}`)
+        }
+        const help = s.outboundBodies().filter((b) => b === POST_BOOKING_BODY)
+        if (help.length !== 1) errs.push(`esperava 1 «${POST_BOOKING_BODY}», saíram ${help.length}`)
+        return errs
+      },
     },
   },
 ]

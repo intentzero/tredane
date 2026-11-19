@@ -168,7 +168,7 @@ describe('cancelar pela página (REQ-114, DEC-198)', () => {
     }
   })
 
-  it('um recibo com zonas + follow-up Posso ajudar (sem duplicar Cancelado)', async () => {
+  it('CW-12 (unidade): um recibo com zonas + follow-up Posso ajudar (sem duplicar Cancelado)', async () => {
     const { db, close, clock, marina, book } = seed()
     try {
       const apt = await book(marina, '2024-01-08T10:00')

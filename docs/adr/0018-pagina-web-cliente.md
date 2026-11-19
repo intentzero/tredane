@@ -149,6 +149,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 - **Não** oferece o link: sem compromisso futuro (segue o caminho de hoje: equipe), com a pausa da owner ativa, ou fora da janela de 24 h (o envio falha e o chat segue). A página em si não se desliga (revisão 18/11/2026).
 - A conversa continua a ser a alternativa: quem escreve «quero cancelar» e prefere falar com a equipe escreve na mesma conversa.
 - L1 **CW-06 a CW-10**: remarcar com uma marcação, cancelar com uma, cancelar com duas (sem alvo), cancelar sem marcação (equipe) e página desligada (sem botão).
+- L1 **CW-12** (`gu-cases.ts`): depois do cancelamento na página, **um** recibo «Cancelado:… Cancelado pela página…» e o follow-up «Posso ajudar em algo mais?» (DEC-086); o toque na UI da página é simulado pelo mesmo `cancelFromWeb` + `appendWebCancelChatEffects` do Clinic DO.
 
 **Fase 5, ainda não feito:**
 
