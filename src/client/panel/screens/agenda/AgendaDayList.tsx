@@ -13,7 +13,7 @@ type Props = {
   timezone: string
   now: number
   onOpen: (id: string) => void
-  onSchedule: () => void
+  onSchedule?: () => void
   /** Livre escolhido: abre o Agendar com dia, hora e profissional. */
   onScheduleAt?: (slot: FreeSlot) => void
   onOpenHold: (hold: ScheduleHold) => void
@@ -115,6 +115,7 @@ export function AgendaDayList({
               )
             }
             if (e.kind === 'free') {
+              if (!onScheduleAt) return null
               return (
                 <li key={e.key} className="agenda-row">
                   <span className="agenda-row-time">{formatSlotTime(e.startsAt, timezone)}</span>
@@ -175,7 +176,7 @@ export function AgendaDayList({
                       </span>
                     </button>
                   ))}
-                  {!full ? (
+                  {!full && onSchedule ? (
                     <button type="button" className="agenda-room-free" onClick={onSchedule}>
                       <span>
                         {e.capacity - e.peak === 1 ? '1 lugar livre' : `${e.capacity - e.peak} lugares livres`}

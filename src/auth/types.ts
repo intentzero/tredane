@@ -45,6 +45,7 @@ export type Permission =
   | 'clinic.inbox.read'
   | 'clinic.inbox.reply'
   | 'clinic.pipeline.move'
+  | 'clinic.agenda.read'
   | 'clinic.agenda.operate'
   | 'clinic.config.write'
   | 'clinic.contacts.delete'

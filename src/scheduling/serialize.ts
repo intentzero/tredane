@@ -63,7 +63,13 @@ export function serializeCheckSlot(result: CheckSlotResult) {
   }
 }
 
-function serializeListItem(item: AppointmentListItem) {
+function agendaFirstName(label: string | null | undefined): string | null {
+  const trimmed = label?.trim()
+  if (!trimmed) return null
+  return trimmed.split(/\s+/)[0] || null
+}
+
+function serializeListItem(item: AppointmentListItem, professionalView = false) {
   return {
     id: item.id,
     serviceId: item.serviceId,
@@ -76,10 +82,10 @@ function serializeListItem(item: AppointmentListItem) {
     endsAt: item.endsAt,
     occupiesUntil: item.occupiesUntil,
     status: item.status,
-    contactLabel: item.contactLabel,
-    contactId: item.contactId,
-    conversationId: item.conversationId,
-    opportunityId: item.opportunityId,
+    contactLabel: professionalView ? agendaFirstName(item.contactLabel) : item.contactLabel,
+    contactId: professionalView ? null : item.contactId,
+    conversationId: professionalView ? null : item.conversationId,
+    opportunityId: professionalView ? null : item.opportunityId,
     version: item.version,
     changeReason: item.changeReason,
     durationAdjusted: item.durationAdjusted,
@@ -134,7 +140,11 @@ export function serializeAppointmentDetail(detail: AppointmentDetail) {
   }
 }
 
-export function serializeAgendaView(result: AgendaViewResult) {
+export function serializeAgendaView(
+  result: AgendaViewResult,
+  opts?: { professionalView?: boolean },
+) {
+  const professionalView = opts?.professionalView === true
   return {
     tenantId: result.tenantId,
     timezone: result.timezone,
@@ -143,8 +153,18 @@ export function serializeAgendaView(result: AgendaViewResult) {
     rangeStartsAt: result.rangeStartsAt,
     rangeEndsAt: result.rangeEndsAt,
     asOf: result.asOf,
-    appointments: result.appointments.map(serializeListItem),
-    holds: result.holds.map(serializeHold),
+    appointments: result.appointments.map((item) => serializeListItem(item, professionalView)),
+    holds: result.holds.map((hold) => {
+      const row = serializeHold(hold)
+      if (!professionalView) return row
+      return {
+        ...row,
+        contactName: agendaFirstName(row.contactName),
+        contactId: null,
+        conversationId: null,
+        opportunityId: null,
+      }
+    }),
     availability: result.availability,
   }
 }

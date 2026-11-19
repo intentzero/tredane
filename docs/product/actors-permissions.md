@@ -9,7 +9,7 @@
 | ACT-01 | Contato da clínica | Confirmado | Conversar pelo WhatsApp e solicitar ou alterar um horário. Não acessa o painel do Tredane. “Contato” não implica paciente com prontuário. |
 | ACT-02 | Atendente | Confirmado | Vê todas as conversas da própria clínica, conduz atendimentos, acompanha oportunidades e opera agendamentos. Não acessa dados de outras clínicas. |
 | ACT-03 | Responsável pela clínica | Confirmado (DEC-103, 01/11/2026) | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Pode convidar attendants e owners, promover attendant→owner, despromover owner→attendant e remover attendants e outros owners do próprio tenant (DEC-103), com proteção do último owner. Superadmin/Platform Admin continua a gerir owners. Conecta ou troca o número de WhatsApp pelo Embedded Signup (DEC-009/042). Detalhes externos da ativação Meta continuam como gate. |
-| ACT-04 | Profissional que presta o serviço | Confirmado fora do painel do MVP | É recurso de agenda; não recebe perfil de acesso ao painel nesta primeira entrega. |
+| ACT-04 | Profissional que presta o serviço | Confirmado (DEC-204, 19/11/2026) | Tem login e vê o dia inteiro da agenda da própria clínica: horário, serviço, sala e o primeiro nome da cliente, com a coluna dela em destaque. Não vê conversas, telefone, pipeline nem Clínica, e não marca, remarca nem cancela. Pode ser também atendente, com a mesma conta. |
 | ACT-05 | Superadmin Tredane | Confirmado na Platform Admin App | Administrador com `privateMetadata.superadmin === true` validada no backend; cria/edita/suspende/inicia exclusão de tenants, e pode iniciar impersonação temporária de membro de tenant para manutenção, com auditoria. Não recebe acesso implícito irrestrito ao conteúdo da clínica. |
 | ACT-06 | Serviços externos e automações | Proposto | WhatsApp, filas e workflows agem em nome da clínica após verificação da origem e associação ao tenant. Não são usuários humanos nem recebem acesso genérico a outros tenants. |
 
@@ -25,7 +25,7 @@
 | Consultar sugestão de IA e decidir envio | — | ✓ | ✓ | — | — |
 | Atribuir ou transferir conversa | — | ✓ | ✓ | — | — |
 | Mover oportunidade no pipeline | — | ✓ | ✓ | — | — |
-| Ver agenda da clínica | — | ✓ | ✓ | — | — |
+| Ver agenda da clínica | — | ✓ | ✓ | ✓ dia inteiro, primeiro nome (DEC-204) | — |
 | Criar, cancelar ou reagendar horário | solicitar via WhatsApp | ✓ | ✓ | — | — |
 | Alterar disponibilidade, serviços, profissionais, salas/equipamentos e bloqueios (DEC-042) | — | — | ✓ | — | — |
 | Sinalizar, ocultar e pausar automações (DEC-067, P-1) | — | ✓ | ✓ | — | — |
@@ -69,7 +69,7 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 | Q-ACT-05 | **Resolvido:** um usuário pode pertencer a várias clínicas; memberships e roles por tenant no D1, sem Organizations do Clerk. A seleção e a troca de clínica são explícitas. | Implementar seletor, revalidar o tenant ao trocar e preservar os outros memberships na revogação. |
 | Q-ACT-06 | **Resolvido em parte:** Platform Admin gerencia tenants e superadmin pode iniciar impersonação auditável de usuário membro para suporte. Mecanismo de sessão própria do Tredane confirmado; detalhes de segurança, limites e política de acesso a dados reais em aberto. | Suporte e auditoria; [ADR-0007](../adr/0007-support-impersonation.md). |
 
-**Q-ACT-01, Q-ACT-02 e Q-ACT-03 resolvidas:** atendente vê todas as conversas da própria clínica; responsável pode executar todas as ações do atendente, inclusive responder e operar agenda; só esses dois perfis acessam o painel. Profissional permanece como recurso de agenda sem login. Decisões do responsável pelo produto em 23 de outubro de 2026.
+**Q-ACT-01, Q-ACT-02 e Q-ACT-03 resolvidas em 23/10/2026 e revistas pela DEC-204 (19/11/2026):** atendente vê todas as conversas da própria clínica; responsável pode executar todas as ações da atendente, inclusive responder e operar agenda. A profissional também entra no painel, só na agenda do dia inteiro (REQ-118). A frase de 23/10 que a deixava sem login fica substituída.
 
 **Nova decisão de 23/10/2026:** Clerk sem Organizations; `privateMetadata.superadmin`; memberships multi-tenant no D1; Platform Admin separada e impersonação de suporte auditável. Conferir [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md).
 

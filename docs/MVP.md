@@ -27,7 +27,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Integração com a API oficial do WhatsApp Business.
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
 - **DEC-038:** um Durable Object por clínica, com SQLite nativo para dados operacionais e coordenação/WebSockets. D1 central mantém tenants, memberships, convites e suporte; R2 privado mantém anexos. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).
-- Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
+- Atendente, responsável e profissional acessam o painel. **Confirmado (DEC-204, Paulo, 19/11/2026):** a profissional tem login e vê o dia inteiro da agenda (coluna dela em destaque; horário, serviço, sala e só o primeiro nome). Não vê conversas, telefone, pipeline nem Clínica, e não marca. A atendente que não executa serviços tem login e não ocupa horário. A mesma pessoa pode ser as duas, com um login. Revê a DEC-013 nesse ponto. Requisito: [REQ-118](product/requirements.md).
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
 - **Gestão de membros (opção B confirmada; DEC-103, 01/11/2026):** superadmin cria tenant e define o primeiro owner. Owner do tenant, na Equipe, convida attendants e owners, promove attendant→owner, despromove owner→attendant e remove attendants e outros owners — com proteção do último owner. Superadmin/Platform Admin continua a gerir owners. Memberships do mesmo usuário noutros tenants são independentes.
 - **Revogação por tenant (DEC-026 confirmada):** ao remover um attendant de A, bloquear imediatamente novas APIs, eventos e WebSockets de A; informar a perda de acesso no painel, sem encerrar a sessão Clerk nem interromper memberships válidos em B. Sessões de suporte que representem esse attendant em A também perdem autorização.
@@ -215,7 +215,7 @@ A fundação F0 (React/Vite, Hono/Worker, D1/Drizzle, migrações, fixtures com 
 
 ## Fora do primeiro MVP
 
-Prontuário ou registro clínico, pagamentos além do sinal por Pix, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho (exceto o agendamento confirmado pela própria cliente, DEC-061, e a página web da cliente, DEC-196), relatórios avançados e painel de profissional. **A Platform Admin interna passa a integrar o escopo**, sem acesso operacional irrestrito aos dados clínicos. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
+Prontuário ou registro clínico, pagamentos além do sinal por Pix, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho (exceto o agendamento confirmado pela própria cliente, DEC-061, e a página web da cliente, DEC-196) e relatórios avançados. O login da profissional limitado à agenda do dia entrou no MVP (DEC-204); um painel da profissional além disso continua fora. **A Platform Admin interna passa a integrar o escopo**, sem acesso operacional irrestrito aos dados clínicos. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
 
 ## Decisões pendentes antes de integrar serviços reais
 

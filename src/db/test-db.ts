@@ -144,6 +144,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0032_client_web_link_line.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0033_professional_login.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

@@ -1,6 +1,7 @@
 /**
  * Rotas de disponibilidade + agendamento atómico (#35/#36).
- * Permissão: `clinic.agenda.operate` (owner + attendant).
+ * Permissão: `clinic.agenda.operate` (owner + attendant). A leitura do dia
+ * (`GET /agenda`) também aceita `clinic.agenda.read` da profissional (DEC-204).
  * Mensagem WhatsApp fica no inbox (#33) — falha de envio não toca reserva (REQ-033).
  */
 import { Hono } from 'hono'
@@ -120,7 +121,9 @@ async function resolveGateway(
 }
 
 function displayNameFromRole(role: string): string {
-  return role === 'owner' ? 'Responsável' : 'Atendente'
+  if (role === 'owner') return 'Responsável'
+  if (role === 'professional') return 'Profissional'
+  return 'Atendente'
 }
 
 function finiteNumber(v: unknown, field: string): number {
@@ -233,7 +236,8 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
   app.get('/api/tenants/:tenantId/agenda', ...tenant, async (c) => {
     try {
       const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      if (ctx.role === 'professional') requireClinicPermission(ctx, 'clinic.agenda.read')
+      else requireClinicPermission(ctx, 'clinic.agenda.operate')
       const date = c.req.query('date')?.trim()
       const view = (c.req.query('view')?.trim() || 'day') as 'day' | 'week' | 'month'
       if (!date) {
@@ -253,7 +257,9 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           includeCancelled: c.req.query('includeCancelled') === '1',
         },
       )
-      return c.json(serializeAgendaView(result))
+      return c.json(
+        serializeAgendaView(result, { professionalView: ctx.role === 'professional' }),
+      )
     } catch (err) {
       return schedulingErrorResponse(c, err)
     }

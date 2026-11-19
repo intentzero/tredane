@@ -53,6 +53,10 @@ type Props = {
   focusDate?: string
   /** Responsável: «Permitir os dois» no detalhe (DEC-075 / S5). */
   isOwner?: boolean
+  /** DEC-204: vê o dia, sem marcar nem abrir a ficha com telefone. */
+  readOnly?: boolean
+  /** Coluna da própria profissional, em destaque. */
+  highlightProfessionalId?: string | null
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
@@ -94,6 +98,8 @@ export function AgendaDayWeek({
   openId,
   focusDate,
   isOwner = false,
+  readOnly = false,
+  highlightProfessionalId = null,
 }: Props) {
   const [date, setDate] = useState(
     () =>
@@ -145,6 +151,7 @@ export function AgendaDayWeek({
   }
 
   function openAppointment(id: string) {
+    if (readOnly) return
     if (wide && openId === id) {
       closePanel()
       return
@@ -284,9 +291,14 @@ export function AgendaDayWeek({
   }
 
   const allAppointments = (data?.appointments ?? []).filter((a) => a.status !== 'cancelled')
-  const professionals = (config?.resources ?? [])
+  const fromConfig = (config?.resources ?? [])
     .filter((r) => r.kind === 'professional' && r.active)
     .map((r) => ({ id: r.id, name: r.name }))
+  const fromAgenda = (data?.availability ?? []).map((a) => ({
+    id: a.professionalId,
+    name: a.professionalName,
+  }))
+  const professionals = fromConfig.length > 0 ? fromConfig : fromAgenda
   const rooms = (config?.resources ?? [])
     .filter((r) => r.kind === 'room' && r.active)
     .map((r) => ({ id: r.id, name: r.name }))
@@ -308,8 +320,10 @@ export function AgendaDayWeek({
       ? formatDateRange(weekDays[0]!, weekDays[6]!, timezone)
       : formatLongDate(date, timezone)
 
-  const goSchedule = () =>
+  const goSchedule = () => {
+    if (readOnly) return
     navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'agendar', date })
+  }
 
   const dayLabel = formatDayLabel(date, timezone)
   const passesFilters = (a: AgendaAppointmentItem) =>
@@ -327,7 +341,8 @@ export function AgendaDayWeek({
     date === today ? now : null,
     freeToday,
   )
-  const goScheduleAt = (slot: FreeSlot) =>
+  const goScheduleAt = (slot: FreeSlot) => {
+    if (readOnly) return
     navigatePanel({
       kind: 'area',
       area: 'agenda',
@@ -337,6 +352,7 @@ export function AgendaDayWeek({
       time: formatSlotTime(slot.startsAt, timezone),
       professionalId: slot.professionalId,
     })
+  }
   const holds: ScheduleHold[] = (data?.holds ?? []).filter(
     (h) => h.status === 'active' && civilDayOf(h.windowStartsAt, timezone) === date,
   )
@@ -422,10 +438,12 @@ export function AgendaDayWeek({
             {onToday ? <span className="agenda-bar-badge">Hoje</span> : null}
             <span className="agenda-bar-spacer" />
             {viewToggle}
+            {readOnly ? null : (
             <Button className="panel-btn-primary panel-btn-accent panel-btn-compact agenda-add" onPress={goSchedule}>
               <Plus aria-hidden size={18} strokeWidth={2} />
               Agendar
             </Button>
+            )}
           </div>
         </ShellSlot>
       )}
@@ -531,11 +549,12 @@ export function AgendaDayWeek({
             timezone={timezone}
             now={now}
             onOpen={(id) => openAppointment(id)}
-            onSchedule={goSchedule}
-            onScheduleAt={goScheduleAt}
-            onOpenHold={(h) =>
+            onSchedule={readOnly ? undefined : goSchedule}
+            onScheduleAt={readOnly ? undefined : goScheduleAt}
+            onOpenHold={(h) => {
+              if (readOnly || !h.conversationId) return
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
-            }
+            }}
           />
         ) : view === 'day' ? (
           <DayGrid
@@ -547,6 +566,7 @@ export function AgendaDayWeek({
             isToday={date === today}
             now={now}
             onOpen={(id) => openAppointment(id)}
+            highlightProfessionalId={highlightProfessionalId}
           />
         ) : (
           weekDays.map((day) => {
@@ -668,7 +688,7 @@ export function AgendaDayWeek({
         )}
       </div>
 
-      {narrow && view === 'day' ? (
+      {narrow && view === 'day' && !readOnly ? (
         <Button className="agenda-fab" onPress={goSchedule} aria-label={`Agendar ${dayLabel.weekday} ${dayLabel.day}`}>
           <Plus aria-hidden size={20} strokeWidth={2} />
           Agendar {date === today ? 'hoje' : dayLabel.weekday}
@@ -774,6 +794,7 @@ function DayGrid({
   isToday,
   now,
   onOpen,
+  highlightProfessionalId,
 }: {
   items: AgendaAppointmentItem[]
   professionals: { id: string; name: string }[]
@@ -781,6 +802,7 @@ function DayGrid({
   isToday: boolean
   now: number
   onOpen: (id: string) => void
+  highlightProfessionalId?: string | null
 }) {
   const { startHour, endHour } = visibleHours(items, timezone)
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
@@ -817,7 +839,10 @@ function DayGrid({
         aria-hidden
       >
         {columns.map((c) => (
-          <span key={c.id} className={`agenda-grid-head agenda-card--tone-${toneOf(c.id)}`}>
+          <span
+            key={c.id}
+            className={`agenda-grid-head agenda-card--tone-${toneOf(c.id)}${c.id === highlightProfessionalId ? ' is-self' : ''}`}
+          >
             <span className={`agenda-mini agenda-tone-${toneOf(c.id)}`}>
               {c.name
                 .split(/\s+/)

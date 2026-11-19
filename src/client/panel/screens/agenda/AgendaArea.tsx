@@ -24,6 +24,9 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
   const { active, generation } = useTenant()
   const wide = useMediaQuery('(min-width: 1280px)')
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
+  const isProfessional = active.phase === 'ready' && active.context.role === 'professional'
+  const highlightProfessionalId =
+    active.phase === 'ready' ? (active.context.professionalResourceId ?? null) : null
 
   if (active.phase === 'switching') {
     return <LoadingState label="A mudar de clínica…" />
@@ -40,7 +43,7 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
     return <LoadingState label="Preparando a agenda…" />
   }
 
-  if (section === 'agendar') {
+  if (section === 'agendar' && !isProfessional) {
     return (
       <AgendarScreen
         tenantId={tenantId}
@@ -51,7 +54,7 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
   }
 
   // Desktop: o compromisso abre por cima da grade (DEC-069); abaixo disso, em tela cheia.
-  if (section === 'compromisso' && appointmentId && !wide) {
+  if (section === 'compromisso' && appointmentId && !wide && !isProfessional) {
     return (
       <CompromissoScreen
         tenantId={tenantId}
@@ -70,9 +73,11 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
         api={api}
         generation={generation}
         view={section === 'semana' ? 'week' : 'day'}
-        openId={section === 'compromisso' ? appointmentId : undefined}
+        openId={!isProfessional && section === 'compromisso' ? appointmentId : undefined}
         focusDate={focusDate}
         isOwner={isOwner}
+        readOnly={isProfessional}
+        highlightProfessionalId={highlightProfessionalId}
       />
     </InboxRealtimeProvider>
   )

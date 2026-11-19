@@ -251,7 +251,7 @@ describe('tenants e roles D1 — AC-17 / DEC-026', () => {
 
 describe('matriz de permissões automatizada', () => {
   const cases: Array<{
-    role: 'owner' | 'attendant' | 'superadmin' | 'none'
+    role: 'owner' | 'attendant' | 'professional' | 'superadmin' | 'none'
     permission: Permission
     allowed: boolean
   }> = []
@@ -259,9 +259,11 @@ describe('matriz de permissões automatizada', () => {
   for (const permission of ALL_PERMISSIONS) {
     const ownerOk = roleAllows('owner', permission)
     const attendantOk = roleAllows('attendant', permission)
+    const professionalOk = roleAllows('professional', permission)
     const platformOk = platformAllows(true, permission)
     cases.push({ role: 'owner', permission, allowed: ownerOk })
     cases.push({ role: 'attendant', permission, allowed: attendantOk })
+    cases.push({ role: 'professional', permission, allowed: professionalOk })
     cases.push({ role: 'superadmin', permission, allowed: platformOk })
     cases.push({ role: 'none', permission, allowed: false })
   }
@@ -272,6 +274,10 @@ describe('matriz de permissões automatizada', () => {
     expect(roleAllows('attendant', 'clinic.config.write')).toBe(false)
     expect(roleAllows('attendant', 'clinic.members.invite_attendant')).toBe(false)
     expect(roleAllows('owner', 'clinic.config.write')).toBe(true)
+    expect(roleAllows('professional', 'clinic.agenda.read')).toBe(true)
+    expect(roleAllows('professional', 'clinic.agenda.operate')).toBe(false)
+    expect(roleAllows('professional', 'clinic.inbox.read')).toBe(false)
+    expect(roleAllows('owner', 'clinic.agenda.read')).toBe(true)
     // Superadmin não herda inbox clínica.
     expect(platformAllows(true, 'clinic.inbox.read')).toBe(false)
     expect(platformAllows(true, 'platform.tenants.read')).toBe(true)
@@ -281,7 +287,7 @@ describe('matriz de permissões automatizada', () => {
   it.each(cases)(
     '$role / $permission => $allowed',
     ({ role, permission, allowed }) => {
-      if (role === 'owner' || role === 'attendant') {
+      if (role === 'owner' || role === 'attendant' || role === 'professional') {
         expect(roleAllows(role, permission)).toBe(allowed)
         if (!allowed) {
           expect(() =>

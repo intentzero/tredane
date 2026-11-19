@@ -57,7 +57,7 @@ export type SocketAttachment = {
   clerkUserId: string
   /** ID de sessão Clerk (correlação); não é credencial reutilizável. */
   sessionId: string
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
   tenantId: string
   /** Epoch local do fence no momento do accept. */
   authEpoch: number
@@ -95,7 +95,7 @@ export type HelloMessage = {
   connectionId: string
   tenantId: string
   eventSeq: number
-  role: 'owner' | 'attendant'
+  role: 'owner' | 'attendant' | 'professional'
   connectionState: 'live'
 }
 

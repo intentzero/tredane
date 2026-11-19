@@ -11,6 +11,8 @@ type Props = {
   tenantId: string
   active: PanelArea
   showClinica: boolean
+  /** DEC-204: profissional vê só a agenda. */
+  agendaOnly?: boolean
 }
 
 function areaIcon(area: PanelArea) {
@@ -28,8 +30,12 @@ function areaIcon(area: PanelArea) {
   }
 }
 
-export function BottomNav({ tenantId, active, showClinica }: Props) {
-  const areas: PanelArea[] = showClinica ? [...BASE_AREAS, 'clinica'] : BASE_AREAS
+export function BottomNav({ tenantId, active, showClinica, agendaOnly }: Props) {
+  const areas: PanelArea[] = agendaOnly
+    ? ['agenda']
+    : showClinica
+      ? [...BASE_AREAS, 'clinica']
+      : BASE_AREAS
 
   return (
     <nav
