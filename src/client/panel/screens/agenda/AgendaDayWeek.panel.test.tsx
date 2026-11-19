@@ -126,11 +126,12 @@ describe('Agenda — compromisso em painel por cima no desktop (DEC-069)', () =>
 
   it('tocar de novo no item aberto fecha; noutro item abre esse', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" openId="a1" />)
-    const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
+    await screen.findByRole('complementary', { name: 'Contexto da agenda' })
     await screen.findByRole('complementary', { name: 'Compromisso' })
-    fireEvent.click(within(context).getByText('Laura Pires'))
+    const grid = document.querySelector('.agenda-grid') as HTMLElement
+    fireEvent.click(within(grid).getByText(/Laura Pires/))
     expect(navigatePanel).toHaveBeenLastCalledWith(dayRoute)
-    fireEvent.click(within(context).getByText('Carla Mendes'))
+    fireEvent.click(within(grid).getByText(/Carla Mendes/))
     expect(navigatePanel).toHaveBeenLastCalledWith(
       expect.objectContaining({ section: 'compromisso', appointmentId: 'a2' }),
     )
@@ -186,7 +187,7 @@ describe('Agenda — deep link do compromisso', () => {
         expect.anything(),
       ),
     )
-    expect(screen.getByRole('heading', { name: /Hoje ·/ })).toBeTruthy()
+    expect(document.querySelector('.agenda-bar-badge')?.textContent).toBe('Hoje')
   })
 
   it('sem openId nem focusDate abre o dia de hoje', async () => {

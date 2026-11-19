@@ -85,7 +85,7 @@ afterEach(() => {
 })
 
 describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
-  it('mostra mês, filtros e a lista do dia ao lado da grade; Agendar fica na barra (DEC-170)', async () => {
+  it('mostra mês e filtros ao lado da grade, sem repetir a lista do dia; Agendar fica na barra (DEC-170)', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
     expect(within(context).queryByRole('button', { name: 'Agendar' })).toBeNull()
@@ -95,8 +95,8 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     expect(within(context).getByRole('group', { name: 'Escolher o dia' })).toBeTruthy()
     expect(within(context).getByRole('group', { name: 'Filtrar por profissional' })).toBeTruthy()
     expect(within(context).getByRole('group', { name: 'Filtrar por sala' })).toBeTruthy()
-    expect(within(context).getByText('Laura Pires')).toBeTruthy()
-    expect(document.querySelector('.agenda-grid')).toBeTruthy()
+    expect(within(context).queryByText(/Laura Pires/)).toBeNull()
+    expect(within(document.querySelector('.agenda-grid') as HTMLElement).getByText(/Laura Pires/)).toBeTruthy()
     expect(document.querySelector('.agenda-weekstrip')).toBeNull()
   })
 
@@ -106,7 +106,7 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
     // A agenda e o cadastro chegam em chamadas separadas: espera as duas antes de mexer no mês,
     // senão a segunda resposta pode redesenhar a coluna depois do clique (teste instável no CI).
-    await within(context).findByText('Laura Pires')
+    await screen.findByText(/Laura Pires/)
     await within(within(context).getByRole('group', { name: 'Filtrar por profissional' })).findByRole('button', { name: /Dra\. Paula/ })
     const today = within(context).getByRole('button', { name: /, 28 de outubro/ })
     expect(today.getAttribute('aria-pressed')).toBe('true')
@@ -122,18 +122,18 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     )
   })
 
-  it('filtro por sala vale para a lista do dia e para a grade; «Limpar filtros» volta a tudo', async () => {
+  it('filtro por sala vale para a grade; «Limpar filtros» volta a tudo', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
     fireEvent.click(within(context).getByRole('button', { name: 'Sala 1' }))
-    expect(within(context).queryByText('Carla Mendes')).toBeNull()
-    expect(within(context).getByText('Laura Pires')).toBeTruthy()
     const grid = document.querySelector('.agenda-grid') as HTMLElement
+    expect(within(grid).queryByText(/Carla Mendes/)).toBeNull()
+    expect(within(grid).getByText(/Laura Pires/)).toBeTruthy()
     // DEC-165: o bloco começa pela cliente; o serviço vem na segunda linha (com a sala).
     expect(within(grid).queryByText(/Drenagem/)).toBeNull()
     expect(within(grid).getByText(/Depilação a laser/)).toBeTruthy()
     fireEvent.click(within(context).getByRole('button', { name: 'Limpar filtros' }))
-    expect(await within(context).findByText('Carla Mendes')).toBeTruthy()
+    expect(await within(grid).findByText(/Carla Mendes/)).toBeTruthy()
   })
 
   it('«Agendar» da barra leva o dia que está a ver', async () => {
@@ -161,9 +161,8 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
       holds: [],
     })
     render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
-    const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
+    await screen.findByRole('complementary', { name: 'Contexto da agenda' })
     expect(screen.getByRole('button', { name: 'Agendar' })).toBeTruthy()
-    expect(within(context).getByText(/Hoje ·/)).toBeTruthy()
     expect(document.querySelector('.agenda-empty')).toBeNull()
     expect(screen.queryByText(/Nenhum horário marcado/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Agendar horário' })).toBeNull()

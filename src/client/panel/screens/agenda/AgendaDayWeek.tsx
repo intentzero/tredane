@@ -21,7 +21,7 @@ import { isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ShellSlot } from '../../shell/ShellSlot'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
-import { AttendanceBar, attendancePending } from './AttendanceBar'
+import { AttendanceBar, attendanceMarked, attendancePending } from './AttendanceBar'
 import { CompromissoScreen } from './CompromissoScreen'
 import { SelfBlockSheet } from './SelfBlockSheet'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
@@ -66,6 +66,8 @@ type Props = {
 const DEFAULT_TZ = 'America/Sao_Paulo'
 /** Bloco com presença por marcar: texto de duas linhas + botões sem cortar. */
 const GRID_MARK_HEIGHT = 84
+/** Presença já marcada: estado + Desfazer numa linha só. */
+const GRID_DONE_HEIGHT = 76
 
 function shiftCivil(date: string, delta: number): string {
   const [y, m, d] = date.split('-').map(Number)
@@ -773,7 +775,6 @@ export function AgendaDayWeek({
         today={today}
         timezone={timezone}
         now={now}
-        dayTitle={`${date === today ? 'Hoje · ' : ''}${formatLongDate(date, timezone)}`}
         professionals={professionals}
         rooms={rooms}
         selectedPros={selected}
@@ -787,7 +788,6 @@ export function AgendaDayWeek({
           selectedRooms,
         )}
         onViewMonth={onViewMonth}
-        entries={entries}
         holds={holds}
         onPickDate={setDate}
         onTogglePro={(id) => toggle(setSelected, id)}
@@ -796,7 +796,6 @@ export function AgendaDayWeek({
           setSelected([])
           setSelectedRooms([])
         }}
-        onSchedule={goSchedule}
         onOpen={(id) => openAppointment(id)}
         onOpenHold={(h) =>
           navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
@@ -957,7 +956,7 @@ function DayGrid({
             : item.attendance === 'no_show'
               ? 'Não veio'
               : null
-        const mark = showAttendanceFor(item) && attendancePending(item, now)
+        const mark = showAttendanceFor(item) && (attendancePending(item, now) || attendanceMarked(item))
         return (
           <div
             key={item.id}
@@ -965,7 +964,7 @@ function DayGrid({
             className={`agenda-block-wrap${mark ? ' agenda-block-wrap--attendance' : ''}`}
             style={{
               top,
-              height: mark ? Math.max(height, GRID_MARK_HEIGHT) : height,
+              height: mark ? Math.max(height, attendanceMarked(item) ? GRID_DONE_HEIGHT : GRID_MARK_HEIGHT) : height,
               left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
               width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
             }}
