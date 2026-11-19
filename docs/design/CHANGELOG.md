@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 19/11/2026 — Conhecimento da clínica redesenhado (M-84 a M-87, **Proposto**)
+
+- Quatro mocks novos em `mobile/` para o FAQ institucional (DEC-185): lista agrupada com quota, editor com prévia do WhatsApp, categorias em ecrã próprio e primeira vez com sugestões. Implementado em `KnowledgeScreen.tsx` (PR #947).
+- Nenhum token novo; `check_mocks.py` passa. Previews gerados só para M-84 a M-87.
+- **Em aberto:** aceite visual da prévia do WhatsApp, das sugestões e da confirmação ao apagar.
+
 ## 17/11/2026 — Página web da cliente (C-01 a C-12)
 
 - Mocks novos em `cliente/` (DEC-196 a DEC-200): agendar, remarcar, cancelar, link usado, pesquisa e «Para quem é?».

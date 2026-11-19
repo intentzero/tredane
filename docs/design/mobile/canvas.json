@@ -699,6 +699,42 @@
       "title": "M-81 Serviço: folha da opção com uma linha por público (Confirmado DEC-176)",
       "is_interactive": false,
       "radius": 32
+    },
+    "ConhecimentoLista.dc.html": {
+      "x": 0,
+      "y": 19704,
+      "w": 390,
+      "h": 844,
+      "title": "M-84 Conhecimento: lista agrupada com quota (Proposto)",
+      "is_interactive": true,
+      "radius": 32
+    },
+    "ConhecimentoEditor.dc.html": {
+      "x": 470,
+      "y": 19704,
+      "w": 390,
+      "h": 844,
+      "title": "M-85 Conhecimento: editar pergunta com prévia (Proposto)",
+      "is_interactive": true,
+      "radius": 32
+    },
+    "ConhecimentoCategorias.dc.html": {
+      "x": 940,
+      "y": 19704,
+      "w": 390,
+      "h": 844,
+      "title": "M-86 Conhecimento: categorias (Proposto)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ConhecimentoVazio.dc.html": {
+      "x": 1410,
+      "y": 19704,
+      "w": 390,
+      "h": 844,
+      "title": "M-87 Conhecimento: primeira vez com sugestões (Proposto)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -777,7 +813,11 @@
     "EquipeCancelarConvite.dc.html",
     "ServicoTopo.dc.html",
     "ServicoOpcoesAgrupadas.dc.html",
-    "ServicoEditarOpcao.dc.html"
+    "ServicoEditarOpcao.dc.html",
+    "ConhecimentoLista.dc.html",
+    "ConhecimentoEditor.dc.html",
+    "ConhecimentoCategorias.dc.html",
+    "ConhecimentoVazio.dc.html"
   ],
   "notes": {
     "row1": {
