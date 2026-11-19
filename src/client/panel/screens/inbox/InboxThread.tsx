@@ -45,7 +45,6 @@ import type {
   PanelApi,
   PixChargeDetail,
   PixPaymentAlert,
-  WhatsappTemplateItem,
 } from "../../api";
 import { PanelApiError } from "../../api";
 import { useClinicTimezone } from "../../clinicTimezone";
@@ -60,7 +59,6 @@ import {
 import { TransferSheet } from "./TransferSheet";
 import { PixPendingBar, PixPendingSheet } from "./PixPendingSheet";
 import { useMediaQuery } from "../../ui/useMediaQuery";
-import { useVisualViewportSheet } from "../../ui/useVisualViewportSheet";
 import { AiWorking } from "../../ui/AiWorking";
 import { navigatePanel } from "../../routes";
 import { ErrorState } from "../../states/StatusScreens";
@@ -73,8 +71,6 @@ import {
   deliveryLabel,
   initials,
   sameDay,
-  windowHint,
-  windowHintShort,
   statusTone,
   statusLabel,
 } from "./format";
@@ -402,10 +398,6 @@ export function InboxThread({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  // iOS: parâmetros do modelo no fundo da folha ficam acima do teclado.
-  const templateSheetStyle = useVisualViewportSheet(pickerOpen, { mode: "lift" });
   const [confirmClose, setConfirmClose] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -417,14 +409,9 @@ export function InboxThread({
   const narrow = useMediaQuery("(max-width: 767.98px)");
   // Datas e horas no fuso da clínica (Agenda → Horários).
   useClinicTimezone(api, tenantId, generation);
-  const [selectedTemplate, setSelectedTemplate] =
-    useState<WhatsappTemplateItem | null>(null);
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([]);
   const [pixSheetId, setPixSheetId] = useState<string | null>(null);
   const [pixAlerts, setPixAlerts] = useState<PixPaymentAlert[]>([]);
-  const [templateParams, setTemplateParams] = useState<Record<string, string>>(
-    {},
-  );
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
@@ -586,15 +573,6 @@ export function InboxThread({
           .catch(() => {
             /* leitura best-effort */
           });
-      }
-      if (!res.messagingWindow?.open) {
-        void api
-          .listWhatsappTemplates(tenantId, {
-            generation,
-            expectGeneration: () => generation,
-          })
-          .then((t) => setTemplates(t.items))
-          .catch(() => setTemplates([]));
       }
       void api
         .listConversationPixCharges(tenantId, conversationId, {
@@ -829,25 +807,6 @@ export function InboxThread({
     } finally {
       setBusy(false);
     }
-  }
-
-  /** Abre a lista de modelos (janela fechada) e carrega-a na primeira vez. */
-  function openTemplatePicker() {
-    setPickerOpen(true);
-    if (templates.length === 0) {
-      void api
-        .listWhatsappTemplates(tenantId, {
-          generation,
-          expectGeneration: () => generation,
-        })
-        .then((t) => setTemplates(t.items));
-    }
-  }
-
-  /** DEC-162: assumir e, quando correu bem, abrir já a escolha de modelo. */
-  async function assumeAndPickTemplate() {
-    const ok = await assume();
-    if (ok) openTemplatePicker();
   }
 
   async function assume(): Promise<boolean> {
@@ -1233,9 +1192,6 @@ export function InboxThread({
         setAiDraftTagged(false);
         setAiSuggestion(null);
       }
-      setSelectedTemplate(null);
-      setTemplateParams({});
-      setPickerOpen(false);
       setDetail((prev) =>
         prev
           ? {
@@ -1267,9 +1223,8 @@ export function InboxThread({
   async function retryLocal(o: LocalOutbound) {
     if (!detail?.messagingWindow?.open) {
       setNotice(
-        "Passaram 24 horas desde a última mensagem da cliente. Use um modelo de mensagem para tentar de novo.",
+        "Passaram 24 horas desde a última mensagem da cliente. Espere ela escrever de novo para reabrir a conversa.",
       );
-      setPickerOpen(true);
       return;
     }
     await sendPayload(
@@ -1283,28 +1238,11 @@ export function InboxThread({
     if (!body || !detail) return;
     if (!detail.messagingWindow?.open) {
       setNotice(
-        "Passaram 24 horas desde a última mensagem da cliente. Para voltar a falar com ela, envie um modelo de mensagem.",
+        "Passaram 24 horas desde a última mensagem da cliente. Espere ela escrever de novo para reabrir a conversa.",
       );
       return;
     }
     await sendPayload({ body });
-  }
-
-  async function sendTemplate() {
-    if (!selectedTemplate) return;
-    for (const key of selectedTemplate.paramKeys) {
-      if (!templateParams[key]?.trim()) {
-        setNotice(`Preencha o parâmetro: ${key}`);
-        return;
-      }
-    }
-    await sendPayload({
-      template: {
-        name: selectedTemplate.name,
-        language: selectedTemplate.language,
-        params: templateParams,
-      },
-    });
   }
 
   async function retryFailed(m: InboxMessage) {
@@ -1313,9 +1251,8 @@ export function InboxThread({
       await sendPayload({ body: m.body });
     } else {
       setNotice(
-        "Passaram 24 horas desde a última mensagem da cliente. Use um modelo de mensagem para tentar de novo.",
+        "Passaram 24 horas desde a última mensagem da cliente. Espere ela escrever de novo para reabrir a conversa.",
       );
-      setPickerOpen(true);
     }
   }
 
@@ -1448,10 +1385,6 @@ export function InboxThread({
   const windowOpen = detail.messagingWindow?.open !== false && !blocked;
   // Última mensagem relevante nossa (ignora sistema/notas): sem «Sugerir resposta» nem sugestão automática.
   const canSuggest = awaitingClinicReply(detail.messages);
-  const closesAt = detail.messagingWindow?.closesAt ?? null;
-  const hint = windowHint(closesAt);
-  // Menos de 1 h para fechar a janela: a pílula passa a aviso.
-  const windowSoon = closesAt != null && closesAt - Date.now() < 60 * 60 * 1000;
   // DEC-161: estado de atendimento + alerta de handoff num só cartão, junto ao compositor.
   // «Precisa de alguém» usa o mesmo critério do servidor que a lista, os
   // contadores e o Acompanhar (NEEDS_PERSON_SQL → `detail.needsPerson`).
@@ -2039,23 +1972,16 @@ export function InboxThread({
               Ninguém respondeu · janela de 24 h fechada
             </strong>
             <p>
-              Para voltar a falar com {contactFirstName}, o WhatsApp só aceita um
-              modelo de mensagem aprovado.
+              Para voltar a falar com {contactFirstName}, espere ela escrever de
+              novo. No MVP não enviamos modelos de mensagem.
             </p>
           </div>
           <Button
             className="panel-btn-primary inbox-handoff-btn"
-            onPress={() => void assumeAndPickTemplate()}
-            isDisabled={busy}
-          >
-            {busy ? "Assumindo…" : "Assumir e escolher modelo"}
-          </Button>
-          <Button
-            className="panel-link-btn inbox-handoff-secondary"
             onPress={() => void assume()}
             isDisabled={busy}
           >
-            Só assumir
+            {busy ? "Assumindo…" : "Assumir conversa"}
           </Button>
         </section>
       ) : composerShown ? null : (
@@ -2182,16 +2108,7 @@ export function InboxThread({
                   role="status"
                 >
                   <Clock aria-hidden size={14} strokeWidth={2} />
-                  Passaram 24 horas: use um modelo de mensagem
-                </p>
-              ) : null}
-              {windowOpen && hint && windowSoon ? (
-                <p
-                  className="inbox-window-banner inbox-window-banner--soon"
-                  role="status"
-                >
-                  <Clock aria-hidden size={14} strokeWidth={2} />
-                  {hint}
+                  Passaram 24 horas: espere a cliente escrever de novo
                 </p>
               ) : null}
               {windowOpen &&
@@ -2344,14 +2261,7 @@ export function InboxThread({
                   </div>
                 ) : (
                   <>
-                    {/* DEC-161: prazo da janela discreto dentro da barra; pílula só com < 1 h. */}
-                    {hint && !windowSoon ? (
-                      <span className="inbox-composer-window" role="status">
-                        <Clock aria-hidden size={14} strokeWidth={2} />
-                        <span aria-hidden>{windowHintShort(closesAt)}</span>
-                        <span className="panel-sr-only">{hint}</span>
-                      </span>
-                    ) : null}
+                    {/* DEC-208: faixa «Janela 24 h · até …» retirada do compositor. */}
                     {canSuggest &&
                     !aiSuggestion &&
                     autoDraftState !== "generating" ? (
@@ -2387,17 +2297,11 @@ export function InboxThread({
                 )}
               </form>
             ) : (
-              <div className="inbox-composer inbox-composer-template">
-                <Button
-                  className="panel-btn-primary"
-                  onPress={() => {
-                    if (pickerOpen) setPickerOpen(false);
-                    else openTemplatePicker();
-                  }}
-                  isDisabled={busy}
-                >
-                  Escolher modelo
-                </Button>
+              <div className="inbox-composer inbox-composer-template" role="status">
+                <p className="panel-subtitle" style={{ margin: 0 }}>
+                  Passaram 24 horas. Espere {contactFirstName} escrever de novo
+                  para reabrir a conversa.
+                </p>
               </div>
             )}
           </div>
@@ -2479,125 +2383,6 @@ export function InboxThread({
             </Modal>
           </ModalOverlay>
 
-          <ModalOverlay
-            isOpen={pickerOpen}
-            onOpenChange={(next) => {
-              if (!next && !busy) setPickerOpen(false);
-            }}
-            className="panel-overlay"
-            style={{ position: "fixed", inset: 0, zIndex: 30 }}
-            isDismissable={!busy}
-          >
-            <Modal>
-              <Dialog
-                className="panel-sheet inbox-template-picker"
-                style={{
-                  position: "fixed",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  ...templateSheetStyle,
-                }}
-                aria-labelledby="wa-template-title"
-              >
-                {({ close }) => (
-                  <>
-                    <span className="panel-sheet-handle" aria-hidden="true" />
-                    <Heading
-                      slot="title"
-                      id="wa-template-title"
-                      className="panel-title"
-                      style={{ margin: "8px 0 2px" }}
-                    >
-                      Modelos WhatsApp
-                    </Heading>
-                    {templates.length === 0 ? (
-                      <p className="panel-subtitle">
-                        Nenhum modelo aprovado sincronizado.
-                      </p>
-                    ) : (
-                      <ul className="inbox-template-list">
-                        {templates.map((t) => (
-                          <li key={`${t.name}:${t.language}`}>
-                            <button
-                              type="button"
-                              className={
-                                selectedTemplate?.name === t.name
-                                  ? "inbox-template-item inbox-template-item-active"
-                                  : "inbox-template-item"
-                              }
-                              aria-pressed={selectedTemplate?.name === t.name}
-                              onClick={() => {
-                                setSelectedTemplate(t);
-                                const next: Record<string, string> = {};
-                                for (const k of t.paramKeys)
-                                  next[k] = templateParams[k] ?? "";
-                                setTemplateParams(next);
-                              }}
-                            >
-                              <strong>{t.name}</strong>
-                              <span>
-                                {t.category}
-                                {t.pricingCategory
-                                  ? ` · ${t.pricingCategory}`
-                                  : ""}
-                              </span>
-                              <span className="inbox-template-pricing">
-                                {t.pricingNote}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {selectedTemplate ? (
-                      <div className="inbox-template-form">
-                        <p className="inbox-template-preview">
-                          <PlainText text={selectedTemplate.bodyPreview} />
-                        </p>
-                        <p className="inbox-template-pricing" role="note">
-                          {selectedTemplate.pricingNote}
-                        </p>
-                        {selectedTemplate.paramKeys.map((key) => (
-                          <label key={key} className="inbox-template-param">
-                            <span>{key}</span>
-                            <input
-                              autoComplete="off"
-                              value={templateParams[key] ?? ""}
-                              onChange={(e) =>
-                                setTemplateParams((prev) => ({
-                                  ...prev,
-                                  [key]: e.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                        ))}
-                        <Button
-                          className="panel-btn-primary"
-                          onPress={() => void sendTemplate()}
-                          isDisabled={busy}
-                        >
-                          Enviar modelo
-                        </Button>
-                      </div>
-                    ) : null}
-                    <Button
-                      className="panel-btn-secondary"
-                      style={{ marginTop: 8 }}
-                      isDisabled={busy}
-                      onPress={() => {
-                        close();
-                        setPickerOpen(false);
-                      }}
-                    >
-                      Fechar
-                    </Button>
-                  </>
-                )}
-              </Dialog>
-            </Modal>
-          </ModalOverlay>
         </div>
       ) : (
         <p className="inbox-composer-closed">

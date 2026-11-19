@@ -1,5 +1,5 @@
 /**
- * DEC-087 — idle 15 min + segundo prazo de mais 15 min.
+ * DEC-087 / DEC-208 — idle 30 min sem actividade → fecho gracioso.
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
@@ -18,9 +18,7 @@ import {
   handleIdleButtonClick,
   handleIdleTextReply,
   IDLE_AUTO_CLOSE_BODY,
-  IDLE_CLOSE_AFTER_MS,
-  IDLE_PROMPT_AFTER_MS,
-  IDLE_PROMPT_BODY,
+  IDLE_TIMEOUT_MS,
   idleButtonId,
   parseIdleButtonId,
   parseIdleTextReply,
@@ -49,8 +47,8 @@ function connectWa(
   seedSyntheticWhatsappTemplates(db, 'clinic-demo-a', clock)
 }
 
-describe('DEC-087 idle follow-up', () => {
-  it('migração 46 e parse de botões', () => {
+describe('DEC-208 idle timeout 30 min', () => {
+  it('migração 46 e parse de botões legados', () => {
     expect(CLINIC_SCHEMA_VERSION).toBe(75)
     expect(parseIdleButtonId(idleButtonId('cnv_1', 'continue'))).toEqual({
       conversationId: 'cnv_1',
@@ -63,7 +61,7 @@ describe('DEC-087 idle follow-up', () => {
     expect(parseIdleTextReply('quero terminar depois')).toBeNull()
   })
 
-  it('após 30 min envia prompt; Terminar sem horário futuro vai a Perdido', () => {
+  it('após 30 min fecha sem pergunta; Terminar legado sem horário futuro vai a Perdido', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 12))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -92,25 +90,15 @@ describe('DEC-087 idle follow-up', () => {
       const due = rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
         progressAt: clock.nowMs(),
       })
-      expect(due).toBe(clock.nowMs() + IDLE_PROMPT_AFTER_MS)
+      expect(due).toBe(clock.nowMs() + IDLE_TIMEOUT_MS)
 
-      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
-      const swept = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
-      expect(swept.some((s) => s.action === 'prompted')).toBe(true)
-
-      const prompt = db.get<{ body: string; phase: string | null; due: number | null }>(
-        `SELECT m.body AS body, c.idle_phase AS phase, c.idle_due_at AS due
-         FROM messages m
-         JOIN conversations c ON c.id = m.conversation_id
-         WHERE m.conversation_id = ? AND m.direction = 'outbound'
-         ORDER BY m.created_at DESC LIMIT 1`,
+      // Botão Terminar legado (mensagem antiga) ainda fecha.
+      clock.advance(1_000)
+      db.run(
+        `UPDATE conversations SET idle_phase = 'close', idle_prompt_sent_at = ? WHERE id = ?`,
+        clock.nowMs(),
         conversationId,
       )
-      expect(prompt?.body).toBe(IDLE_PROMPT_BODY)
-      expect(prompt?.phase).toBe('close')
-      expect(prompt?.due).toBe(clock.nowMs() + IDLE_CLOSE_AFTER_MS)
-
-      clock.advance(1_000)
       const click = handleIdleButtonClick(
         db,
         {
@@ -143,7 +131,7 @@ describe('DEC-087 idle follow-up', () => {
     }
   })
 
-  it('fecho automático com horário futuro agradece e permanece Agendado (DEC-087)', () => {
+  it('fecho automático com horário futuro agradece e permanece Agendado', () => {
     const clock = createControllableClock(Date.UTC(2026, 10, 14, 13, 43))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -173,7 +161,6 @@ describe('DEC-087 idle follow-up', () => {
         'clinic-demo-a',
         opp.id,
       )
-      // Compromisso futuro na mesma conversa (ciclo anterior / Marcar outro).
       const startsAt = clock.nowMs() + 7 * 24 * 60 * 60_000
       db.run(
         `INSERT INTO appointments (
@@ -193,16 +180,7 @@ describe('DEC-087 idle follow-up', () => {
       rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
         progressAt: clock.nowMs(),
       })
-      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
-      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
-      expect(
-        db.get<{ phase: string | null }>(
-          `SELECT idle_phase AS phase FROM conversations WHERE id = ?`,
-          conversationId,
-        )?.phase,
-      ).toBe('close')
-
-      clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      clock.advance(IDLE_TIMEOUT_MS + 1)
       const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
       expect(closed.some((s) => s.action === 'closed')).toBe(true)
       const still = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)
@@ -215,7 +193,6 @@ describe('DEC-087 idle follow-up', () => {
         conversationId,
       )
       expect(thanks?.body).toBe(IDLE_AUTO_CLOSE_BODY)
-      expect(thanks?.body).not.toBe(IDLE_PROMPT_BODY)
       const suppressed = db.get<{ at: number | null }>(
         `SELECT idle_suppressed_at AS at FROM conversations WHERE id = ?`,
         conversationId,
@@ -226,7 +203,7 @@ describe('DEC-087 idle follow-up', () => {
     }
   })
 
-  it('segundo prazo sem resposta fecha; system não reinicia; humano isenta', () => {
+  it('30 min sem resposta fecha; system não reinicia; humano também encerra', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 14))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -256,7 +233,6 @@ describe('DEC-087 idle follow-up', () => {
         progressAt: clock.nowMs(),
       })
 
-      // Mensagem system NÃO cancela o prazo.
       const beforeDue = db.get<{ due: number | null }>(
         `SELECT idle_due_at AS due FROM conversations WHERE id = ?`,
         conversationId,
@@ -293,21 +269,13 @@ describe('DEC-087 idle follow-up', () => {
       )!.due
       expect(afterSys).toBe(beforeDue)
 
-      clock.advance(IDLE_PROMPT_AFTER_MS)
-      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
-      const phase = db.get<{ phase: string | null }>(
-        `SELECT idle_phase AS phase FROM conversations WHERE id = ?`,
-        conversationId,
-      )?.phase
-      expect(phase).toBe('close')
-
-      clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      clock.advance(IDLE_TIMEOUT_MS)
       const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
       expect(closed.some((s) => s.action === 'closed')).toBe(true)
       const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)
       expect(opp).toBeNull()
 
-      // Nova conversa com humano activo não agenda idle.
+      // Humano activo: ainda agenda e encerra após 30 min (DEC-208).
       const ingested2 = ingestContactMessage(
         db,
         caller,
@@ -339,18 +307,32 @@ describe('DEC-087 idle follow-up', () => {
         clock,
       )
       const due2 = rescheduleConversationIdle(db, 'clinic-demo-a', cnv2, clock)
-      expect(due2).toBeNull()
+      expect(due2).toBe(clock.nowMs() + IDLE_TIMEOUT_MS)
       const idleCols = db.get<{ due: number | null; phase: string | null }>(
         `SELECT idle_due_at AS due, idle_phase AS phase FROM conversations WHERE id = ?`,
         cnv2,
       )
-      expect(idleCols).toEqual({ due: null, phase: null })
+      expect(idleCols?.phase).toBe('close')
+      expect(idleCols?.due).toBe(clock.nowMs() + IDLE_TIMEOUT_MS)
+
+      clock.advance(IDLE_TIMEOUT_MS + 1)
+      const closedHuman = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(closedHuman.some((s) => s.action === 'closed' && s.conversationId === cnv2)).toBe(
+        true,
+      )
+      const thanksHuman = db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        cnv2,
+      )
+      expect(thanksHuman?.body).toBe(IDLE_AUTO_CLOSE_BODY)
     } finally {
       close()
     }
   })
 
-  it('texto livre Terminar após o prompt limpa BookingFrame (mesmo settleIdle)', () => {
+  it('texto livre Terminar após prompt legado limpa BookingFrame', () => {
     const clock = createControllableClock(Date.UTC(2026, 10, 8, 13, 0))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -383,30 +365,17 @@ describe('DEC-087 idle follow-up', () => {
         { serviceId: 'svc_liberacao', date: '2026-11-11' },
         clock,
       )
-      rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
-        progressAt: clock.nowMs(),
-      })
-      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
-      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
-
-      // Ingest real reinicia idle_phase (close → prompt); o texto ainda tem de fechar.
-      clock.advance(1_000)
-      ingestContactMessage(
-        db,
-        caller,
-        {
-          providerEventKey: 'wa:idle:text-end:terminar',
-          waId: '5511987001444',
-          body: 'Terminar',
-        },
-        clock,
-      )
-      const phaseAfterIngest = db.get<{ phase: string | null }>(
-        `SELECT idle_phase AS phase FROM conversations WHERE id = ?`,
+      // Simula conversa à espera de resposta a um prompt legado.
+      db.run(
+        `UPDATE conversations
+         SET idle_phase = 'close', idle_prompt_sent_at = ?, idle_due_at = ?
+         WHERE id = ?`,
+        clock.nowMs(),
+        clock.nowMs() + IDLE_TIMEOUT_MS,
         conversationId,
       )
-      expect(phaseAfterIngest?.phase).not.toBe('close')
 
+      clock.advance(1_000)
       const text = handleIdleTextReply(
         db,
         {
@@ -430,7 +399,6 @@ describe('DEC-087 idle follow-up', () => {
       expect(
         isTerminarFarewellBody(thanksText?.body ?? '', 'America/Sao_Paulo', clock.nowMs()),
       ).toBe(true)
-      // [Botão] fica no handler de botão — não no texto.
       expect(
         handleIdleTextReply(
           db,
@@ -447,7 +415,7 @@ describe('DEC-087 idle follow-up', () => {
     }
   })
 
-  it('promptSentAt alinha ao created_at do prompt; fecho limpa BookingFrame', () => {
+  it('fecho automático limpa BookingFrame e envia frase fixa', () => {
     const clock = createControllableClock(Date.UTC(2026, 10, 8, 14, 55))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -484,25 +452,7 @@ describe('DEC-087 idle follow-up', () => {
         progressAt: clock.nowMs(),
       })
 
-      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
-      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
-
-      const promptMsg = db.get<{ at: number }>(
-        `SELECT created_at AS at FROM messages
-         WHERE conversation_id = ? AND body = ?
-         ORDER BY created_at DESC LIMIT 1`,
-        conversationId,
-        IDLE_PROMPT_BODY,
-      )
-      const idleCols = db.get<{ phase: string | null; promptAt: number | null }>(
-        `SELECT idle_phase AS phase, idle_prompt_sent_at AS promptAt
-         FROM conversations WHERE id = ?`,
-        conversationId,
-      )
-      expect(idleCols?.phase).toBe('close')
-      expect(idleCols?.promptAt).toBe(promptMsg?.at)
-
-      clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      clock.advance(IDLE_TIMEOUT_MS + 1)
       const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
       expect(closed.some((s) => s.action === 'closed')).toBe(true)
       expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()

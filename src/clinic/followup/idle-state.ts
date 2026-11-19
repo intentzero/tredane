@@ -1,5 +1,5 @@
 /**
- * DEC-087 — estado e reagendamento de idle (sem envio WhatsApp).
+ * DEC-087 / DEC-208 — estado e reagendamento de idle (sem envio WhatsApp).
  * Separado de `idle.ts` para evitar ciclo com `inbox/operations`.
  */
 import type { Clock } from '../../db/clock'
@@ -7,11 +7,25 @@ import { assertClinicSchemaReady } from '../migrations'
 import { findOpenOpportunityForConversation } from '../pipeline'
 import type { ClinicDb } from '../store'
 
-/** Confirmado (DEC-087, Paulo 14/11/2026): 15 minutos sem progresso útil. */
-export const IDLE_PROMPT_AFTER_MS = 15 * 60_000
-/** Confirmado (DEC-087, Paulo 14/11/2026): mais 15 minutos sem resposta à pergunta de idle. */
-export const IDLE_CLOSE_AFTER_MS = 15 * 60_000
+/**
+ * Confirmado (DEC-208, Paulo 19/11/2026): 30 minutos sem actividade
+ * (última inbound ou outbound) → encerrar. Unifica o antigo 15+15 (DEC-087).
+ */
+export const IDLE_TIMEOUT_MS = 30 * 60_000
 
+/** @deprecated Alias de IDLE_TIMEOUT_MS (DEC-208). */
+export const IDLE_PROMPT_AFTER_MS = IDLE_TIMEOUT_MS
+
+/**
+ * @deprecated Segundo prazo removido pela DEC-208 (já não há pergunta intermédia).
+ * Mantido a 0 para testes/importações legadas.
+ */
+export const IDLE_CLOSE_AFTER_MS = 0
+
+/**
+ * Fase gravada no SQLite. Desde DEC-208 só se agenda `close` (fecho directo);
+ * `prompt` pode existir em linhas antigas e o sweep trata-as como fecho.
+ */
 export type IdlePhase = 'prompt' | 'close'
 
 /** Última mensagem inbound ou outbound (system não conta — DEC-087). */
@@ -135,7 +149,8 @@ export function setConversationIdle(
 }
 
 /**
- * Após inbound/outbound útil: reinicia o prazo de prompt (+15 min) se elegível.
+ * Após inbound/outbound útil: reinicia o prazo de fecho (+30 min) se elegível.
+ * DEC-208: corre também com responsável humano activo (Assumir).
  * Após Terminar (`idle_suppressed_at`), small talk não rearma — Paulo 14/11/2026.
  */
 export function rescheduleConversationIdle(
@@ -148,19 +163,15 @@ export function rescheduleConversationIdle(
   assertClinicSchemaReady(db)
   const now = clock.nowMs()
   const opp = findOpenOpportunityForConversation(db, tenantId, conversationId)
-  if (
-    !opp ||
-    conversationHasActiveHuman(db, tenantId, conversationId) ||
-    isIdleSuppressed(db, tenantId, conversationId)
-  ) {
+  if (!opp || isIdleSuppressed(db, tenantId, conversationId)) {
     clearConversationIdle(db, tenantId, conversationId, now)
     return null
   }
   const progressAt =
     opts?.progressAt ?? lastUsefulMessageAt(db, tenantId, conversationId) ?? now
-  const dueAt = progressAt + IDLE_PROMPT_AFTER_MS
+  const dueAt = progressAt + IDLE_TIMEOUT_MS
   setConversationIdle(db, tenantId, conversationId, {
-    phase: 'prompt',
+    phase: 'close',
     dueAt,
     promptSentAt: null,
     updatedAt: now,

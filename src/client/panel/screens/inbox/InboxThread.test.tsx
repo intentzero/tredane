@@ -172,10 +172,11 @@ describe('InboxThread — bolhas com estado de entrega', () => {
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
   })
 
-  it('mostra «Hoje» e a dica da janela de 24 h', async () => {
+  it('mostra «Hoje» sem a faixa «Janela 24 h» no compositor (DEC-208)', async () => {
     renderThread(mockApi(detail({ status: 'open', assigneeClerkUserId: VIEWER })))
     await screen.findByText('Hoje')
-    expect(screen.getByText(/Você pode responder livremente até/)).toBeTruthy()
+    expect(screen.queryByText(/Você pode responder livremente até/)).toBeNull()
+    expect(screen.queryByText(/Janela 24 h/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeTruthy()
   })
 
@@ -197,7 +198,7 @@ describe('InboxThread — bolhas com estado de entrega', () => {
     expect(box.value).toBe('Oi')
     expect(screen.queryByRole('listbox')).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByText(/Você pode responder livremente até/)).toBeTruthy()
+    expect(screen.queryByText(/Você pode responder livremente até/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeTruthy()
   })
 })
@@ -205,7 +206,7 @@ describe('InboxThread — bolhas com estado de entrega', () => {
 describe('InboxThread — estado de envio', () => {
   it('mostra «Enviando…» na hora; se falhar fica «Não enviada» com Tentar de novo, que reenvia o mesmo texto', async () => {
     const user = userEvent.setup()
-    const d = detail()
+    const d = detail({ status: 'open', assigneeClerkUserId: VIEWER })
     let fail = true
     let release: (() => void) | null = null
     const sendInboxMessage = vi.fn(async (_t: string, _c: string, body: { body?: string }) => {
@@ -241,8 +242,8 @@ describe('InboxThread — estado de envio', () => {
 
   it('duplo Enviar não duplica POST (guard in-flight)', async () => {
     const user = userEvent.setup()
-    const d = detail()
-  let release: (() => void) | null = null
+    const d = detail({ status: 'open', assigneeClerkUserId: VIEWER })
+    let release: (() => void) | null = null
     const sendInboxMessage = vi.fn(async () => {
       await new Promise<void>((r) => {
         release = r
