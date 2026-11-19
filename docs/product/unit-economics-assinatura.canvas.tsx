@@ -538,10 +538,47 @@ export default function UnitEconomicsAssinatura() {
       <Stack gap={6}>
         <H1>Quanto cobrar por clínica</H1>
         <Text tone="secondary">
-          Assinatura mensal do Tredane para uma clínica de estética. A leitura de baixo é hipótese
-          editável: o preço ainda não está decidido.
+          Proposta de 18/11/2026, ainda sem preço aprovado. A vitrine manda no número; a régua de
+          60% da nota só avisa quando a hora de suporte não cabe na mensalidade.
         </Text>
       </Stack>
+
+      <H2>Preço proposto, na prateleira de novembro de 2026</H2>
+      <Table
+        headers={["Plano", "Mensal", "No anual", "Cabe", "Sobra no piloto", "Sobra em regime"]}
+        columnAlign={["left", "right", "right", "left", "right", "right"]}
+        rows={[
+          ["Estúdio", "R$ 149", "R$ 124", "1 profissional, 1 login", "11%", "62%"],
+          ["Clínica", "R$ 247", "R$ 206", "até 4 profissionais, 3 logins", "20%", "67%"],
+          ["Casa", "R$ 397", "R$ 331", "até 10 profissionais", "20%", "68%"],
+        ]}
+        rowTone={["success", "info", "info"]}
+        striped
+      />
+      <Text size="small" tone="tertiary">
+        Anexo V a 15,5%, Meta na clínica, Pix nos três planos, anual = 10 meses. Sobra já com
+        imposto da nota e com a remessa de Cloudflare e Anthropic. Fonte do custo: premissas deste
+        painel. Abaixo de R$ 149 o estúdio não paga a hora do piloto.
+      </Text>
+      <Table
+        headers={["O que a clínica vê", "Preço publicado", "Contra o Tredane"]}
+        columnAlign={["left", "right", "left"]}
+        rows={[
+          ["Gendo Básico, 1 profissional", "R$ 24,70", "Metade da tabela, no anual. 100 avisos."],
+          ["Trinks, 1 a 2", "R$ 55", "WhatsApp à parte, preço fechado. Anual R$ 38."],
+          ["Simples Agenda, 1", "R$ 89,90", "No anual R$ 59,90. WhatsApp por QR, com espera."],
+          ["Avec, 1 a 2", "R$ 99,90", "API oficial e IA de recepção sem preço."],
+          ["Clinicorp Standard", "R$ 111,93", "Tabela R$ 159,90. Mensagem a R$ 0,12, número deles."],
+          ["Atendize, caixa de entrada", "R$ 197", "Até 3 pessoas. A IA que marca só a R$ 397."],
+          ["Belle com módulo de WhatsApp", "R$ 371", "R$ 142 + adesão R$ 190 + módulo R$ 229."],
+          ["Atendize com Pix", "R$ 497", "Até 10 pessoas. O Pix do Tredane entra antes."],
+        ]}
+        striped
+      />
+      <Text size="small" tone="tertiary">
+        Páginas públicas em 18/11/2026. Gendo, Trinks, Simples Agenda, Avec, Clinicorp, Belle e
+        Atendize. O preço da promoção é o que a clínica compara, não a tabela cheia.
+      </Text>
 
       <Row gap={24} wrap>
         <Stat value={brl(degrau)} label="Degrau com 60% da nota, já com imposto" tone="info" />
