@@ -1,5 +1,10 @@
 # Histórico do design
 
+## 19/11/2026 — Acompanhamento: cor por etapa (DEC-215, **Confirmado**)
+
+- Tokens `stage*` (ink, tint, wash) para as seis etapas, claro e escuro; versão v0.11.0. Colunas do quadro e abas/lista do celular usam a cor da etapa. 138 pares de contraste passam.
+- Faixa de etapas do celular só rola na horizontal (`overflow-y: hidden`, `touch-action: pan-x`). Mocks `desktop/AcompanhamentoQuadro.dc.html` (M-83) e `mobile/Pipeline.dc.html` (M-05) atualizados; PNG de preview regenerados com `render_previews.py` (o mock `ServicosPalavras` não expande e ficou como estava).
+
 ## 19/11/2026 — Clientes: navbar alinhada à Agenda (**Confirmado**, Paulo 19/11/2026)
 
 - Desktop (≥ 1280 px): título «Clientes», ClinicSwitcher e «Ao vivo» passam ao `.panel-shell-header` full-width (padrão Agenda / Acompanhar / Clínica). A coluna da lista fica só com busca, filtros e lista.

@@ -171,7 +171,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
             aria-label="Etapas"
           >
             {STAGE_ORDER.map((id) => (
-              <Tab key={id} id={id} className="panel-chip">
+              <Tab key={id} id={id} className="panel-chip" data-stage={id}>
                 <span className="acomp-col-dot" data-stage={id} aria-hidden />
                 {STAGE_TAB_LABELS[id]}
                 <span className="panel-chip-count">{countMap.get(id) ?? 0}</span>
@@ -187,7 +187,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
         </p>
       ) : null}
 
-      <div className="panel-scroll-sm acomp-list" role="tabpanel">
+      <div className="panel-scroll-sm acomp-list" role="tabpanel" data-stage={stage}>
         {list.length === 0 ? (
           <EmptyState
             title="Ninguém nesta etapa agora"

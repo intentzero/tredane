@@ -328,6 +328,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
             <section
               key={stage}
               className="acomp-col"
+              data-stage={stage}
               aria-label={`${STAGE_LABELS[stage]}, ${cards.length}`}
             >
               <h2 className="acomp-col-head">
