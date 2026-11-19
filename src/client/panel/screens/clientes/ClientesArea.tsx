@@ -6,7 +6,6 @@ import type { ClientesSection } from '../../routes'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { InboxContactScreen } from '../inbox/InboxContact'
 import { ClientesList } from './ClientesList'
-import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 
 type Props = {
   tenantId: string
@@ -14,30 +13,10 @@ type Props = {
   contactId?: string
 }
 
-function ClientesListHead() {
-  const { active, listState } = useTenant()
-  const online = useOnline()
-  if (active.phase !== 'ready') return null
-  const ctx = active.context
-  return (
-    <div className="clientes-list-head">
-      <div className="panel-shell-titles">
-        <h1 className="panel-title-lg">Clientes</h1>
-        <ShellIdentity
-          tenantId={ctx.tenantId}
-          name={ctx.name}
-          area="clientes"
-          tenants={listState.phase === 'ready' ? listState.tenants : []}
-          offline={!online}
-        />
-      </div>
-    </div>
-  )
-}
-
 /**
  * Área Clientes (Opção C Confirmada, Paulo 31/10/2026): lista + ficha partilhada com Contato.
  * Fase 1 = só leitura (dados, conversas, horários). Sem sexo / prontuário.
+ * Desktop: chrome em `.panel-shell-header` (como Agenda); coluna da lista só busca/filtros/lista.
  */
 export function ClientesArea({ tenantId, section, contactId }: Props) {
   const { api, status } = useAuthSession()
@@ -53,7 +32,6 @@ export function ClientesArea({ tenantId, section, contactId }: Props) {
     return (
       <div className="clientes-2col">
         <section className="clientes-2col-list" aria-label="Lista de clientes">
-          <ClientesListHead />
           <ClientesList
             tenantId={tenantId}
             api={api}

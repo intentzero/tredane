@@ -27,7 +27,7 @@ O contacto vive sobretudo no sidepane Contato da thread ([#365](https://github.c
 
 ## Recorte MVP+
 
-1. **Fase 1 — leitura:** **Confirmado** no produto; **implementado** no painel (TEL-12 / mocks `desktop/Clientes*`). Lista, busca, ficha com dados existentes, conversas e compromissos derivados; Resumo da IA e Bloquear como em #365; exclusão REQ-071 intacta. Sem sexo / prontuário.
+1. **Fase 1 — leitura:** **Confirmado** no produto; **implementado** no painel (TEL-12 / mocks `desktop/Clientes*`). Lista, busca, ficha com dados existentes, conversas e compromissos derivados; Resumo da IA e Bloquear como em #365; exclusão REQ-071 intacta. Sem sexo / prontuário. Desktop: chrome em `.panel-shell-header` como Agenda (**Confirmado**, Paulo 19/11/2026).
 2. **Fase 2 — edição + comparecimento (Proposto):** nome (e só campos explícitos aprovados); estados compareceu/faltou alinhados a REQ-032 (**Proposto**).
 3. **Fora:** prontuário, sexo na ficha, marketing, campos novos sem decisão LGPD.
 
