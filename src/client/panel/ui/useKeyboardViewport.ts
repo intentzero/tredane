@@ -47,8 +47,9 @@ export function layoutViewportHeight(): number {
  * - `--panel-vv-top` = visualViewport.offsetTop (o iOS sobe o viewport ao focar)
  * - `--keyboard-inset-bottom` = espaço sob o viewport (teclado + AutoFill)
  *
- * O CSS prende `.panel-app` a `top`+`height` com `data-keyboard=open`, para a
- * tab bar / compositor ficarem no fundo do visualViewport (acima do teclado).
+ * O CSS prende `.panel-app` a `top`+`height` com `data-keyboard=open`, para o
+ * shell alinhar ao visualViewport (sem vão sob o chrome). A tab bar móvel
+ * some nesse estado; o compositor da thread fica sticky no fundo do VV.
  * Fora do teclado o shell fica em `inset:0`.
  *
  * Detecção: não basta `innerHeight - vv.height` — com `interactive-widget=resizes-content`,

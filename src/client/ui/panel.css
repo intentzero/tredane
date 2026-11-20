@@ -2159,11 +2159,21 @@ button.panel-auth-inline-link {
 
 /* Opção A Confirmada (Paulo 09/11/2026, M-64): com teclado aberto o rodapé
  * cobre o campo focado (ex. Nome em Novo serviço). Some enquanto
- * useKeyboardViewport marca data-keyboard=open; volta ao fechar. */
+ * useKeyboardViewport marca data-keyboard=open; volta ao fechar.
+ * Tab bar móvel: o pin do shell (#959) alinha .panel-app ao visualViewport,
+ * o que colocava a nav acima do teclado (Respostas da clínica). Esconde-a
+ * no mesmo estado — o main ganha a altura; no desktop (≥768) a nav é lateral
+ * e não usa esta regra. */
 :root[data-keyboard='open'] .clinic-footer-sticky,
 :root[data-keyboard='open'] .clinic-footer-dock,
 :root[data-keyboard='open'] .kn-footer {
   display: none;
+}
+
+@media (max-width: 767.98px) {
+  :root[data-keyboard='open'] .panel-nav {
+    display: none;
+  }
 }
 
 .svc-format {
@@ -5511,10 +5521,12 @@ button.panel-auth-inline-link {
    publica --panel-vvh / --panel-vv-top só com campo editável focado +
    viewport encolhido — o chrome do Safari sozinho não marca teclado;
    a detecção cobre innerHeight encolhido, offsetTop e baseline idle).
-   Sem este pin o iOS sobe o visualViewport (offsetTop > 0) e a tab bar /
-   compositor ficam a meio / sob o teclado (Clínica FAQ, thread inbox, …).
-   Fora do teclado o shell fica em inset:0. Preserva o pin de todo
-   .panel-app de #959 (não voltar a limitar a :has(.inbox-thread)). */
+   Sem este pin o iOS sobe o visualViewport (offsetTop > 0) e o shell
+   fixo fica desalinhado (vão sob a nav / compositor sob o teclado).
+   A tab bar móvel some com data-keyboard=open (ver regra .panel-nav);
+   o compositor da thread fica sticky no fundo do VV. Fora do teclado o
+   shell fica em inset:0. Preserva o pin de todo .panel-app de #959
+   (não voltar a limitar a :has(.inbox-thread)). */
 :root {
   --panel-vvh: 100dvh;
   --panel-vv-top: 0px;
