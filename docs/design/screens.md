@@ -139,7 +139,7 @@ Página pública pessoal aberta pelo link do chat (DEC-196 a DEC-199; [ADR-0018]
 
 | ID | Tela | Jornadas · requisitos | O que mostra |
 | --- | --- | --- | --- |
-| C-01 | Início | JRN-20 · REQ-115 | Marcações futuras, Agendar, Falar com a equipe |
+| C-01 | Início | JRN-20 · REQ-115 | Marcações futuras (zonas/combo · preço), Agendar, Falar com a equipe |
 | C-02 a C-05 | Agendar (4 passos) | JRN-21 · REQ-112, REQ-117 | Serviço (com pesquisa e «Para quem é?»), zonas (com pesquisa), horário, revisão e **Confirmar** |
 | C-10, C-11 | Procurar | JRN-21 · REQ-117 | Resultados com termo destacado; nada encontrado |
 | C-12 | Escolher data | JRN-21, JRN-22 · REQ-112, REQ-113 | Calendário do mês em folha inferior; dias com horários marcados; primeira data livre |

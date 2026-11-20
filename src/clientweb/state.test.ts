@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../db/clock'
 import { workerCaller } from '../clinic'
 import { bootClinicDb } from '../clinic/test-db'
-import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../clinic/config'
+import {
+  replaceServiceCombosOp,
+  replaceServiceZonesOp,
+  setAiProfileOp,
+  setWeeklyWindowsOp,
+  upsertResourceOp,
+  upsertServiceOp,
+} from '../clinic/config'
 import { upsertContact } from '../clinic/contacts'
 import { createConversation } from '../clinic/inbox/conversations'
 import { ensureOpenOpportunity } from '../clinic/pipeline/operations'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../clinic/scheduling'
-import { setAiProfileOp } from '../clinic/config'
 import { readClientWebState } from './state'
 
 const TZ = 'America/Sao_Paulo'
@@ -26,6 +32,7 @@ function seed() {
       name: 'Limpeza de pele',
       durationMinutes: 60,
       bufferMinutes: 0,
+      priceCents: 12_000,
       professionalIds: [pro.id],
       roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
     },
@@ -57,7 +64,7 @@ function seed() {
       clock,
     ).value
   }
-  return { db, clock, close, marina, outra, cnvMarina, cnvOutra, book }
+  return { db, clock, close, marina, outra, cnvMarina, cnvOutra, book, pro, svc, room, caller }
 }
 
 describe('readClientWebState (ADR-0018)', () => {
@@ -75,7 +82,114 @@ describe('readClientWebState (ADR-0018)', () => {
       expect(state?.timezone).toBe(TZ)
       expect(state?.appointments.map((a) => a.id)).toEqual([minha.id])
       expect(state?.appointments[0]?.serviceName).toBe('Limpeza de pele')
+      expect(state?.appointments[0]).toMatchObject({
+        zoneNames: [],
+        comboName: null,
+        priceCents: 12_000,
+      })
       expect(JSON.stringify(state)).not.toMatch(/5511900/)
+    } finally {
+      close()
+    }
+  })
+
+  it('expõe zonas e preço (ou combo) a partir dos snapshots da visita (TRE-92)', () => {
+    const { db, clock, close, marina, cnvMarina, pro, room, caller } = seed()
+    try {
+      const laser = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Depilação a laser',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
+        },
+        clock,
+      )
+      const zones = replaceServiceZonesOp(
+        db,
+        caller,
+        laser.id,
+        [
+          { name: 'Axilas', durationMinutes: 15, priceCents: 9_000, audience: 'ambos' },
+          { name: 'Virilha', durationMinutes: 30, priceCents: 14_000, audience: 'ambos' },
+          { name: 'Buço', durationMinutes: 10, priceCents: 5_000, audience: 'ambos' },
+        ],
+        clock,
+      )
+      const opp = ensureOpenOpportunity(
+        db,
+        { tenantId: TENANT, contactId: marina.id, conversationId: cnvMarina.id },
+        clock,
+      ).opportunity
+      const zoned = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-zonas',
+          serviceId: laser.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 11, 0),
+          contactId: marina.id,
+          conversationId: cnvMarina.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+          zoneIds: [zones[0]!.id, zones[1]!.id],
+        },
+        clock,
+      ).value
+
+      const withZones = readClientWebState(db, clock, {
+        tenantId: TENANT,
+        contactId: marina.id,
+        conversationId: cnvMarina.id,
+      })
+      expect(withZones?.appointments.find((a) => a.id === zoned.id)).toMatchObject({
+        zoneNames: ['Axilas', 'Virilha'],
+        comboName: null,
+        priceCents: 23_000,
+      })
+
+      replaceServiceCombosOp(
+        db,
+        caller,
+        laser.id,
+        [{ name: 'Combo axilas + virilha', priceCents: 18_000, zoneIds: [zones[0]!.id, zones[1]!.id] }],
+        clock,
+      )
+      const comboApt = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-combo',
+          serviceId: laser.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 15, 0),
+          contactId: marina.id,
+          conversationId: cnvMarina.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+          zoneIds: [zones[0]!.id, zones[1]!.id],
+        },
+        clock,
+      ).value
+      const withCombo = readClientWebState(db, clock, {
+        tenantId: TENANT,
+        contactId: marina.id,
+        conversationId: cnvMarina.id,
+      })
+      expect(withCombo?.appointments.find((a) => a.id === comboApt.id)).toMatchObject({
+        zoneNames: ['Axilas', 'Virilha'],
+        comboName: 'Combo axilas + virilha',
+        priceCents: 18_000,
+      })
     } finally {
       close()
     }

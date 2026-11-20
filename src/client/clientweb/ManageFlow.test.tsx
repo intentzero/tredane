@@ -15,6 +15,9 @@ const APT = {
   professionalId: 'pro-gi',
   professionalName: 'Gi',
   hasPaidSignal: false,
+  zoneNames: [] as string[],
+  comboName: null as string | null,
+  priceCents: 12_000 as number | null,
 }
 
 const CATALOG = {

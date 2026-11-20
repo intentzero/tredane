@@ -43,6 +43,9 @@ function setup() {
               professionalId: 'pro-1',
               professionalName: 'Gi',
               hasPaidSignal: false,
+              zoneNames: [],
+              comboName: null,
+              priceCents: 12_000,
             },
           ],
         }

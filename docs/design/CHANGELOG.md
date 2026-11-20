@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 20/11/2026 — C-01: zonas/combo e preço no card (**Confirmado**, Paulo «layout confirmado»)
+
+- Card «Suas próximas marcações»: linha 3 com variantes (ou nome do combo) · preço; serviço sem zonas mostra só o R$. Quando/duração ficam na linha 2. Preview: regenerar `cliente/previews/C-01-Inicio.png` com `render_previews.py` quando Playwright estiver disponível.
+
 ## 20/11/2026 — Serviços lista: preço e badge na mesma coluna (**Confirmado**, Paulo «fix layout»)
 
 - M-72: quando a linha tem preço e badge («Sem profissional» / «Inativo»), ambos empilham em `.clinic-service-meta` (`flex-direction: column; align-items: center`) à direita do nome. Sem mock `.dc.html` novo (referência no Project store).
