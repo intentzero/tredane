@@ -11874,19 +11874,57 @@ button.panel-auth-inline-link {
     display: none;
   }
 
+  /*
+   * Sub-rotas da Clínica (DEC-163): cabeçalho único fora do scroll.
+   * Antes: sticky + margin negativa sobre .panel-shell-main padded — o
+   * conteúdo (ex. «Atendimento…» no Assistente) ficava a espreitar no vão
+   * de --space-4 entre a faixa «Precisa de alguém» e o chrome. Shell flush;
+   * o corpo (.clinic-page) rola por baixo do header in-flow.
+   */
+  .panel-shell-main:has(> .clinic-sub) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .clinic-sub {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
+
   .clinic-sub-header {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 2;
+    flex: none;
     display: flex;
     align-items: center;
     gap: var(--space-1);
     min-height: 56px;
-    /* --space-4 sob o chrome: mesmo ritmo do .panel-shell-main nas outras áreas. */
-    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
+    margin: 0;
     padding: 0 var(--space-2) 0 var(--space-1);
     border-bottom: var(--size-border-width) solid var(--color-line-border);
     background: var(--color-surface-card);
+  }
+
+  /* Sem faixa acima do main, o sub-header herda a safe-area do shell header oculto. */
+  .panel-app:not(:has(> .panel-strip, > .whatsapp-global-banner)) .clinic-sub-header {
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .clinic-sub > .clinic-page {
+    flex: 1;
+    min-height: 0;
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-4);
   }
 
   .clinic-sub-titles {
@@ -14099,38 +14137,15 @@ button.panel-auth-inline-link {
 }
 .kn-footer .panel-btn-primary { min-height: var(--size-touch); }
 
-/* Mobile Clínica: shell sem padding; dock encosta à tab bar. */
+/* Mobile Clínica + kn-dock: scroll interno + rodapé; shell já é flush (clinic-sub). */
 @media (max-width: 1279.98px) {
-  .panel-shell-main:has(.clinic-sub .kn-dock) {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-    padding: 0;
-  }
-
-  .clinic-sub:has(.kn-dock) {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-  }
-
-  .clinic-sub:has(.kn-dock) .clinic-sub-header {
-    /* Shell já está flush — sem margens negativas. */
-    margin: 0 0 var(--space-4);
-    padding-left: var(--space-1);
-    padding-right: var(--space-2);
-  }
-
   .clinic-sub:has(.kn-dock) > .clinic-page {
-    flex: 1;
-    min-height: 0;
+    /* O dock rola; a página não — evita scroll duplo sob o header. */
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    padding-inline: var(--space-4);
+    overflow: hidden;
+    padding: 0 var(--space-4);
   }
 
   .clinic-sub:has(.kn-dock) > .clinic-page > .kn-dock {
