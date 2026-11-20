@@ -575,6 +575,67 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'GU-27',
+    title:
+      '«Pode me atender amanhã?»: expediente do sábado + Abrir agenda; sem pedir serviço nem equipe (TRE-77)',
+    turnosIdeais: 1,
+    /** Sex 20/11/2026 16:20 America/Sao_Paulo — evidência horario-abrir-agenda/wa2.jpg. */
+    nowMs: Date.UTC(2026, 10, 20, 19, 20),
+    turns: [{ role: 'client', text: 'Você pode-me atender amanhã?' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      outboundIncludes: ['Abrir agenda'],
+      outboundExcludes: [
+        /Qual serviço/i,
+        /procedimento/i,
+        /Falar com a equipe/i,
+        /equipe confirma/i,
+        /nossa equipe/i,
+      ],
+      turns: [
+        {
+          turn: 0,
+          matches: [/amanh[aã]/i, /s[aá]bado/i, /09:00/i, /Abrir agenda/i],
+          excludes: [
+            /Qual serviço/i,
+            /procedimento/i,
+            /equipe confirma/i,
+            /Me conta/i,
+          ],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'skip:web_agendar_link' }],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['GU-27: resposta sem interactivo']
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: Array<{ id: string; title: string }>
+          ctaUrl?: { displayText?: string }
+        }
+        if (parsed.ctaUrl?.displayText !== 'Abrir agenda') {
+          return [`GU-27: esperava cta_url Abrir agenda, veio ${row.interactive_json}`]
+        }
+        const buttons = parsed.buttons ?? []
+        const hasTeam = buttons.some(
+          (b) => b.id === HUMAN_HANDOFF_BUTTON_ID || b.title === HUMAN_HANDOFF_BUTTON_TITLE,
+        )
+        if (hasTeam) return ['GU-27: não devia ter «Falar com a equipe»']
+        return []
+      },
+    },
+  },
+  {
     id: 'CW-12',
     title:
       'Cancelar na página: um só recibo Cancelado (com frase da página) + Posso ajudar (DEC-086)',

@@ -49,17 +49,14 @@ export function isOpeningHoursFaqAsk(text: string): boolean {
   )
 }
 
-/** Marcação no mesmo turno → cede ao funil (não só FAQ de expediente). */
+/**
+ * Marcação no mesmo turno → cede ao encaminhamento «Abrir agenda» (DEC-202), não só FAQ.
+ * TRE-77: «pode me atender amanhã?» / disponibilidade sem verbo de marcar **não** é misto —
+ * responde o expediente e orienta ao toque em Abrir agenda (sem pedir serviço nem equipe).
+ */
 export function openingHoursMixedWithBooking(text: string): boolean {
   const body = text.trim()
   if (!body) return false
-  const availabilityPeriodCue =
-    /\b(?:pode(?:\s*[-–—])?(?:\s*me\s+)?atender|consegue(?:\s*me\s+)?encaixar|tem\s+hor[aá]rio|disponi|vaga)\b/i
-  // «Boa tarde, tem horário?» não é período de marcação (TRE-60).
-  if (availabilityPeriodCue.test(body) && hasBookingDayOrPeriodCue(body)) return true
-  if (/\besta\s+(?:manha|tarde|noite)\b/i.test(body) && availabilityPeriodCue.test(body)) {
-    return true
-  }
   if (!isOpeningHoursFaqAsk(body)) return false
   if (/\b(quero|gostaria|preciso)\s+(um\s+)?hor[aá]rio\b/i.test(body)) return true
   if (

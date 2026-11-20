@@ -181,15 +181,10 @@ describe('booking-object', () => {
     ).toBe('inexistente')
   })
 
-  it('rsamp_62934e: disponibilidade «pode me atender esta tarde» abre clarify de serviço', () => {
-    const hit = resolveBookingObject({
-      text: 'Você pode me atender esta tarde?',
-      services: EVAL_BOOKING_CATALOG,
-      conversationId: 'cnv_av',
-    })
+  it('rsamp_62934e: «pode me atender esta tarde» continua intenção de disponibilidade', () => {
+    // TRE-77 / DEC-202: o outbound (expediente + Abrir agenda) fica no L1 GU-27 / route-intent;
+    // aqui só a detecção de intenção.
     expect(hasSchedulingAvailabilityIntent('Você pode me atender esta tarde?')).toBe(true)
-    expect(hit.kind).toBe('clarify')
-    expect(hit.missing).toContain('servico')
-    expect(hit.question).toMatch(/serviço/i)
+    expect(hasSchedulingAvailabilityIntent('Você pode-me atender amanhã?')).toBe(true)
   })
 })

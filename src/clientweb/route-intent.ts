@@ -9,6 +9,7 @@
  * Perguntas de informação («quanto custa a massagem?», «quanto tempo dura?», «o que é peeling?»)
  * não são pedido de marcar, mesmo com o nome do serviço: seguem para o catálogo e a FAQ.
  */
+import { SCHEDULING_AVAILABILITY_CUE } from '../clinic/ai/booking-intent-text'
 import { CANCEL_RE, RESCHEDULE_RE } from '../clinic/ai/nlu/sensitive'
 import { serviceNameHit } from '../clinic/ai/booking-object'
 import { withoutGreetingPeriodFalsePositives } from '../clinic/ai/nlu/temporal'
@@ -218,13 +219,22 @@ export function routeToClientWeb(input: {
       : { purpose: 'agendar', serviceId: null, noUpcoming: false }
   }
   const strong = BOOK_STRONG.test(text)
-  const info = INFO.test(text) || INFO.test(fold(text))
-  if (info && !strong) return null
-  const cited = servicesCitedInText(input.services, text)
-  const serviceId = cited.length === 1 ? cited[0]!.id : null
-  if (strong) return { purpose: 'agendar', serviceId, noUpcoming: false, ...(info ? { mixed: true } : {}) }
   // «Boa tarde, limpeza de pele» não é WHEN — cumprimento ≠ período (TRE-60).
   const whenProbe = withoutGreetingPeriodFalsePositives(text)
+  // TRE-77 / DEC-202: «pode me atender amanhã?» é pedido de vaga — Abrir agenda, sem pedir serviço.
+  const availabilityAsk = SCHEDULING_AVAILABILITY_CUE.test(text) && WHEN.test(whenProbe)
+  const info = INFO.test(text) || INFO.test(fold(text))
+  if (info && !strong && !availabilityAsk) return null
+  const cited = servicesCitedInText(input.services, text)
+  const serviceId = cited.length === 1 ? cited[0]!.id : null
+  if (strong || availabilityAsk) {
+    return {
+      purpose: 'agendar',
+      serviceId,
+      noUpcoming: false,
+      ...(info && strong ? { mixed: true } : {}),
+    }
+  }
   if (cited.length > 0 && (WHEN.test(whenProbe) || WANT.test(text))) {
     return { purpose: 'agendar', serviceId, noUpcoming: false }
   }

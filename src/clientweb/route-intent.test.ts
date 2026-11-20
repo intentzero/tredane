@@ -39,6 +39,20 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(route('quero marcar massagem e depilação')).toMatchObject({ purpose: 'agendar', serviceId: null })
   })
 
+  it('TRE-77: «pode me atender amanhã?» encaminha Abrir agenda sem pedir serviço', () => {
+    expect(route('Você pode-me atender amanhã?')).toEqual({
+      purpose: 'agendar',
+      serviceId: null,
+      noUpcoming: false,
+    })
+    expect(route('Você pode me atender esta tarde?')).toMatchObject({
+      purpose: 'agendar',
+      serviceId: null,
+    })
+    // FAQ pura de expediente (sem disponibilidade) não é pedido de marcar.
+    expect(route('Vocês abrem amanhã?')).toBeNull()
+  })
+
   it('serviço inativo não é reconhecido', () => {
     expect(route('quero marcar peeling antigo')).toMatchObject({ purpose: 'agendar', serviceId: null })
   })

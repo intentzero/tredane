@@ -36,6 +36,7 @@ import {
   stripScheduleOffer,
   countRecentWebLinks,
   isOpenAgendaButtonTitle,
+  openAgendaReplyButton,
 } from '../../clientweb/offer'
 import { isGreetingOnly, isSlotTimePickByText, servicesCitedInText } from '../../clientweb/route-intent'
 import {
@@ -51,6 +52,7 @@ import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { classifyTurn } from './classify-turn'
 import { catalogReply } from './catalog-reply'
+import { buildOpeningHoursReply, isOpeningHoursFaqAsk } from './opening-hours-reply'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 import {
   autodraftDebounceMs,
@@ -1446,6 +1448,17 @@ export async function runDueAutoDrafts(
             const combined = `${answer}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName })}`
             if (combined.length <= 1000) bodyOverride = combined
           }
+        } else if (route.purpose === 'agendar' && deps.autoBookPaused !== true) {
+          // TRE-77 / DEC-202: «pode me atender amanhã?» — expediente do dia + Abrir agenda;
+          // sem pedir serviço/procedimento e sem «Falar com a equipe» (CTA URL só).
+          const hours = buildOpeningHoursReply(db, tenantId, clock, turnText, job.conversationId)
+          if (hours) {
+            const serviceName = route.serviceId
+              ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
+              : null
+            const combined = `${hours}\n\n${clientWebRouteBody({ purpose: 'agendar', serviceName })}`
+            if (combined.length <= 1000) bodyOverride = combined
+          }
         }
         await sendWebRoute(
           { ...route, ...linkFields },
@@ -1497,13 +1510,16 @@ export async function runDueAutoDrafts(
         /\bSomando tudo, ficam\b/i.test(catalogText)
       // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
       // Localização (opção B): Abrir mapa · Abrir agenda · Equipe — mapa abre cta_url no toque.
+      // TRE-77 / DEC-202: FAQ de expediente — só «Abrir agenda» (sem Equipe nem pedido de serviço).
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
         : isLocationMapOfferReply(catalogText)
           ? locationMapOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
-          : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
+          : isOpeningHoursFaqAsk(turnText)
+            ? [openAgendaReplyButton(catalogServiceId)]
+            : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
       try {
         const sent = sendOutboundMessageOp(
           db,
