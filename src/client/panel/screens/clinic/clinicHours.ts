@@ -165,8 +165,19 @@ export function civilClock(ms: number, tz: string): { day: number; minute: numbe
   return { day, minute: Number(get('hour')) * 60 + Number(get('minute')) }
 }
 
-/** Se a clínica está aberta agora pelo expediente da semana, e até que horas. */
-export function openNow(week: WeekDraft, ms: number, tz: string): { open: boolean; closesAt?: number } {
+/**
+ * Se a clínica está aberta agora: expediente da semana, menos bloqueios
+ * da clínica inteira (`__clinic__` / Folgas e fechamentos) que cobrem `ms`.
+ */
+export function openNow(
+  week: WeekDraft,
+  ms: number,
+  tz: string,
+  clinicBlocks: ReadonlyArray<{ startsAt: number; endsAt: number }> = [],
+): { open: boolean; closesAt?: number } {
+  if (clinicBlocks.some((b) => b.startsAt <= ms && ms < b.endsAt)) {
+    return { open: false }
+  }
   const { day, minute } = civilClock(ms, tz)
   const w = (week[day] ?? []).find((x) => minute >= x.startMinute && minute < x.endMinute)
   return w ? { open: true, closesAt: w.endMinute } : { open: false }

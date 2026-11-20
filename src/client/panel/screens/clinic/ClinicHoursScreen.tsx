@@ -141,7 +141,8 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
     .sort((a, b) => a.startsAt - b.startsAt)
     .map((b) => ({ ...b, who: nameOf(b.resourceId), color: colorOf(b.resourceId) }))
   const nextClosure = upcoming.find((b) => b.resourceId === CLINIC_SCOPE_ID)
-  const status = openNow(saved, now, tz)
+  const clinicBlocks = snap.blocks.filter((b) => b.resourceId === CLINIC_SCOPE_ID)
+  const status = openNow(saved, now, tz, clinicBlocks)
 
   async function guard(fn: () => Promise<void>, fallback: string) {
     setError(null)

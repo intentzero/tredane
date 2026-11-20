@@ -154,6 +154,40 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
     boot.close()
   })
 
+  it('«está atendendo hoje?» com feriado no próprio dia → fechada (não o expediente)', () => {
+    /** Sex 20/11/2026 09:23 America/Sao_Paulo — evidência feriado-contradicao. */
+    const clock = createControllableClock(Date.UTC(2026, 10, 20, 12, 23))
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-hours-hoje-fer'
+    seedWindows(boot.db, tenantId, clock)
+    const { dayStartsAt, dayEndsAt } = clinicDayBounds('America/Sao_Paulo', '2026-11-20')
+    createResourceBlock(
+      boot.db,
+      tenantId,
+      {
+        resourceId: CLINIC_SCOPE_ID,
+        startsAt: dayStartsAt,
+        endsAt: dayEndsAt,
+        reason: 'feriado',
+        note: 'Feriado',
+      },
+      clock,
+    )
+    const text = 'Bom dia. Gostaria de saber se está atendendo hoje?'
+    expect(isOpeningHoursFaqAsk(text)).toBe(true)
+    const reply = buildOpeningHoursReply(boot.db, tenantId, clock, text, 'cnv_hoje_fer')
+    expect(reply).toMatch(/fechad|fechamos/i)
+    expect(reply).toMatch(/hoje/i)
+    expect(reply).not.toMatch(/09:00/)
+    expect(reply).not.toMatch(/estamos atendendo/i)
+    const viaCatalog = catalogReply(boot.db, tenantId, text, clock, {
+      conversationId: 'cnv_hoje_fer',
+    })
+    expect(viaCatalog).toMatch(/fechad|fechamos/i)
+    expect(viaCatalog).not.toMatch(/09:00/)
+    boot.close()
+  })
+
   it('interpretador não pede extrator em FAQ de expediente', () => {
     const interp = interpretTurn({
       turnText: 'você atende no domingo?',

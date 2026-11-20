@@ -138,6 +138,25 @@ describe('Horário da clínica', () => {
     await waitFor(() => expect(a.deleteBlock).toHaveBeenCalledWith('t', 'b2', expect.anything()))
   })
 
+  it('feriado da clínica que cobre agora: badge «Fechada agora», não «Aberta agora»', () => {
+    const s = snap()
+    const now = Date.now()
+    s.blocks = [
+      {
+        id: 'b-hoje',
+        resourceId: '__clinic__',
+        startsAt: now - 60_000,
+        endsAt: now + day,
+        reason: 'feriado',
+      },
+    ] as unknown as ClinicConfigSnapshot['blocks']
+    render(<ClinicHoursScreen tenantId="t" snap={s} api={api()} generation={1} onSaved={async () => undefined} />)
+    expect(screen.getByText('Fechada agora')).toBeTruthy()
+    expect(screen.queryByText(/Aberta agora/)).toBeNull()
+    const closure = screen.getByText((_, el) => el?.classList.contains('hours-summary-closure') === true)
+    expect(closure.textContent).toMatch(/Feriado/)
+  })
+
   it('fechar a clínica mostra o impacto antes de salvar e cria o bloqueio no escopo da clínica', async () => {
     const a = api()
     ;(a.createBlock as ReturnType<typeof vi.fn>).mockImplementation(async (_t: string, body: { dryRun?: boolean }) =>

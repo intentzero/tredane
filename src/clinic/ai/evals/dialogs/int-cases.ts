@@ -7,6 +7,7 @@
  * | INT-01 | Proposto  | Preço de serviço único sem modelo |
  * | INT-02 | Proposto  | Horário de funcionamento sem modelo |
  * | INT-02b| Proposto  | «Abrem amanhã?» com feriado da clínica → fechada, sem modelo |
+ * | INT-02c| Proposto  | «Está atendendo hoje?» com feriado no próprio dia → fechada |
  * | INT-03 | Proposto  | FAQ de cancelamento sem modelo |
  * | INT-04 | Confirmado| Dois pedidos no mesmo turno (preço + vaga): resposta e link |
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
@@ -76,6 +77,46 @@ export const INT_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/fechad|fechamos/i, /amanh[aã]/i],
           excludes: [/09:00/, /est[aá] aberta/i, /Abrir agenda/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
+      outboundExcludes: [/09:00/, /Abrir agenda/i],
+    },
+  },
+  {
+    id: 'INT-02c',
+    title:
+      '«Está atendendo hoje?» com feriado no próprio dia — fechada, sem modelo (DEC-104)',
+    turnosIdeais: 1,
+    /** Sex 20/11/2026 09:23 America/Sao_Paulo (evidência feriado-contradicao). */
+    nowMs: Date.UTC(2026, 10, 20, 12, 23),
+    prepare: (s) => {
+      const { dayStartsAt, dayEndsAt } = clinicDayBounds('America/Sao_Paulo', '2026-11-20')
+      createResourceBlock(
+        s.db,
+        s.tenantId,
+        {
+          resourceId: CLINIC_SCOPE_ID,
+          startsAt: dayStartsAt,
+          endsAt: dayEndsAt,
+          reason: 'feriado',
+          note: 'Feriado',
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      {
+        role: 'client',
+        text: 'Bom dia. Gostaria de saber se está atendendo hoje?',
+      },
+    ],
+    expect: {
+      turns: [
+        {
+          turn: 0,
+          matches: [/fechad|fechamos/i, /hoje/i],
+          excludes: [/09:00/, /estamos atendendo/i, /Abrir agenda/i],
         },
       ],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
