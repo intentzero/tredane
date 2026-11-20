@@ -56,6 +56,17 @@ describe('interpretTurn (#416)', () => {
     expect(r.acts).toContain('informar_horario_funcionamento')
     expect(r.acts).not.toContain('desconhecido')
   })
+
+  it('«Onde atendem?» → informar_local (não expediente)', () => {
+    const r = interpretTurn({
+      turnText: 'Onde atendem?',
+      messageId: 'msg_onde',
+      today: '2026-11-20',
+      services: [],
+    })
+    expect(r.acts).toContain('informar_local')
+    expect(r.acts).not.toContain('informar_horario_funcionamento')
+  })
   it('reconhece preço e serviço com cobertura alta', () => {
     const svc = service({ id: 'svc_1', name: 'Limpeza de pele' })
     const r = interpretTurn({

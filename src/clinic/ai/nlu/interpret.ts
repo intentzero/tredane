@@ -10,6 +10,8 @@ import { citesServiceName } from '../schedule-choice'
 import { classifySensitive } from './sensitive'
 import { extractDates, extractTimes, parseTemporal, norm } from './temporal'
 import { SCHEDULING_AVAILABILITY_CUE } from '../booking-intent-text'
+import { isLocationAsk } from '../location-map-offer'
+import { isOpeningDayAsk } from '../opening-day-ask'
 import { isOpeningHoursFaqAsk } from '../opening-hours-reply'
 
 export const COVERAGE_THRESHOLD = 0.55
@@ -73,7 +75,6 @@ export type TurnInterpretation = {
 const PRICE = /\b(pre[cç]o|custa|valor|quanto|qnto|qto)\b/i
 const HOURS =
   /\b(hor[aá]rio de funcionamento|que horas|abrem|funcionam|atendem)\b/i
-const LOCAL = /\b(onde fica|endere[cç]o|localiza[cç][aã]o|como chegar|maps?|google)\b/i
 const EXPLAIN = /\b(como funciona|o que [eé]|explica|procedimento)\b/i
 const GREET = /^(oi|ol[aá]|bom dia|boa tarde|boa noite|oie|opa)[\s!.?]*$/i
 const AFFIRM = /^(sim|pode ser|pode|ok|okay|beleza|blz|👍|bora|fechado|combinado)[\s!.?]*$/i
@@ -232,13 +233,15 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     acts.push('informar_preco')
     markTokens(PRICE)
   }
-  if (HOURS.test(text) || isOpeningHoursFaqAsk(text)) {
+  // «Onde atendem?» = localização; «atendem» sozinho no HOURS não deve ganhar.
+  const locationAsk = isLocationAsk(text) && !isOpeningDayAsk(text)
+  if ((HOURS.test(text) || isOpeningHoursFaqAsk(text)) && !locationAsk) {
     acts.push('informar_horario_funcionamento')
     markTokens(text)
   }
-  if (LOCAL.test(text)) {
+  if (locationAsk) {
     acts.push('informar_local')
-    markTokens(LOCAL)
+    markTokens(text)
   }
   if (EXPLAIN.test(text)) {
     acts.push('explicar')

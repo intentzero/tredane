@@ -62,9 +62,9 @@ import { answerClinicKnowledge } from './clinic-knowledge-reply'
 import { KNOWLEDGE_SIGNAL_SOURCE_KEY } from '../config/knowledge'
 import { buildCancellationPolicyReply } from './policy-reply'
 import { buildOpeningHoursReply } from './opening-hours-reply'
+import { isLocationAsk } from './location-map-offer'
+import { isOpeningDayAsk } from './opening-day-ask'
 
-const LOCAL =
-  /\b(onde fica|endere[cç]o|localiza[cç][aã]o|como chegar|maps?|google)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 /** Alias estável — ver `CATALOG_PRICE_ASK` (singular «valor», tabela, sinónimos). */
 const PRICE = CATALOG_PRICE_ASK
@@ -374,12 +374,14 @@ export function catalogReply(
   }
   const cnv = opts.conversationId ?? ''
   const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
-  if (!PRICE.test(body)) {
-    const hoursReply = buildOpeningHoursReply(db, tenantId, clock, body, cnv)
-    if (hoursReply) return hoursReply
-  }
-
-  if (LOCAL.test(body) && !PRICE.test(body) && !CLOCK.test(body)) {
+  // Localização antes do expediente: «Onde atendem?» é mapa, não horário.
+  // «Onde atendem no domingo?» (dia) continua no FAQ de expediente.
+  if (
+    isLocationAsk(body) &&
+    !isOpeningDayAsk(body) &&
+    !PRICE.test(body) &&
+    !CLOCK.test(body)
+  ) {
     const settings = ensureClinicSettings(db, tenantId, clock)
     const link = settings.googleBusinessUrl.trim()
     // DEC-211: sem link cadastrado, a equipe confirma.
@@ -393,6 +395,10 @@ export function catalogReply(
       { link },
       'Estamos aqui — abra o mapa para ver o caminho.',
     )
+  }
+  if (!PRICE.test(body)) {
+    const hoursReply = buildOpeningHoursReply(db, tenantId, clock, body, cnv)
+    if (hoursReply) return hoursReply
   }
 
   const bookingIntentCold = hasSchedulingAvailabilityIntent(body) && !isCatalogInfoAsk(body)
