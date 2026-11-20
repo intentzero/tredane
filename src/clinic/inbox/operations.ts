@@ -71,7 +71,11 @@ import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { OPPORTUNITY_STAGE_LABELS } from '../constants'
-import { getActiveProposalForConversation } from '../proposals/proposals'
+import { closeOpenOpportunityIfNoFuture } from '../followup/terminar-close-opportunity'
+import {
+  getActiveProposalForConversation,
+  retireActiveProposal,
+} from '../proposals/proposals'
 import {
   listOpenPendingCommunicationsForConversation,
   resolvePendingCommunication,
@@ -811,7 +815,9 @@ export function closeConversationOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
-  return db.transactionSync(() => {
+  // `moveOpportunityStageOp` (via closeOpenOpportunityIfNoFuture) já abre
+  // transactionSync — corre depois do fecho da conversa para evitar nested BEGIN.
+  const closed = db.transactionSync(() => {
     const now = clock.nowMs()
     setConversationStatus(db, {
       tenantId: meta.tenantId,
@@ -857,6 +863,7 @@ export function closeConversationOp(
     )
     const outbox: OutboxRow[] = []
     // CF-28 / #508: encerrar no painel limpa o BookingFrame (não salta passos ao reabrir).
+    retireActiveProposal(db, meta.tenantId, input.conversationId, clock)
     const frameOb = clearBookingFrame(db, meta.tenantId, input.conversationId, clock)
     if (frameOb) outbox.push(frameOb)
     outbox.push(
@@ -879,6 +886,26 @@ export function closeConversationOp(
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
     return { value: { conversation: item, systemMessage }, outbox }
   })
+
+  // Sem horário futuro: Perdido (parity Terminar / #989). Com futuro: Agendado
+  // permanece (DEC-066); o gémeo «Atendimento em curso» some porque a conversa
+  // está closed (`hasOpenAttendance`).
+  const closedOpp = closeOpenOpportunityIfNoFuture(
+    db,
+    caller,
+    meta.tenantId,
+    input.conversationId,
+    clock,
+    'Equipe: Encerrar conversa',
+    {
+      actorClerkUserId: input.actorClerkUserId,
+      actorDisplayName: input.actorDisplayName,
+    },
+  )
+  return {
+    value: closed.value,
+    outbox: [...closed.outbox, ...closedOpp.outbox],
+  }
 }
 
 /**

@@ -15,7 +15,7 @@ import type { Clock } from '../../db/clock'
 import { getOpenBookingSession } from '../ai/booking-session'
 import { getBookingFrame } from '../ai/schedule-session'
 import type { OpportunityStage } from '../constants'
-import { conversationNeedsPerson } from '../inbox/conversations'
+import { conversationNeedsPerson, getConversation } from '../inbox/conversations'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { OpportunityListItem } from './types'
@@ -96,6 +96,7 @@ export function hasInboundAfterLatestBookingConfirm(
  * Atendimento/marcação em curso na conversa: sessão de booking aberta,
  * proposta activa, quadro de marcação activo (incl. remarcando),
  * «Precisa de alguém» (DEC-156), ou inbound novo após a última confirmação.
+ * Conversa encerrada no painel: não projecta gémeo «Atendimento em curso».
  */
 export function hasOpenAttendance(
   db: ClinicDb,
@@ -103,6 +104,8 @@ export function hasOpenAttendance(
   conversationId: string,
   clock: Clock,
 ): boolean {
+  const conv = getConversation(db, tenantId, conversationId)
+  if (!conv || conv.status === 'closed') return false
   if (getOpenBookingSession(db, tenantId, conversationId)) return true
   if (getActiveProposalForConversation(db, tenantId, conversationId, clock)) return true
   const frame = getBookingFrame(db, tenantId, conversationId)
