@@ -14,6 +14,8 @@ type Props = {
 /**
  * DEC-163: no celular, as telas internas da Clínica têm um só cabeçalho de 56 px
  * (voltar, título, «Clínica»); o cabeçalho global e os «Voltar» soltos somem (CSS).
+ * O chrome fica fora do scroll (shell flush + .clinic-page rola) — sem sticky com
+ * margem negativa sobre o padding do main.
  */
 export function ClinicSubScreen({ tenantId, title, children, back }: Props) {
   return (
