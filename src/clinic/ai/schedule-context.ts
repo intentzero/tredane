@@ -9,14 +9,13 @@ import type {
   AiFreeSlotDay,
   AiUpcomingAppointment,
 } from '../../ai/types'
-import { listEffectiveWeeklyWindows } from '../config/availability'
-import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import type { ClinicDb } from '../store'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { queryAvailability } from '../scheduling/query'
+import { clinicClosureLinesForAi, listProfessionalOpeningWindows } from './opening-source'
 
 export const AI_FREE_SLOT_DAYS = 7
 export const AI_FREE_SLOT_MAX_SERVICES = 3
@@ -172,19 +171,11 @@ export async function buildClinicAiContext(
   }).format(new Date(now))
 
   // Horário de funcionamento = união das janelas semanais dos profissionais
-  // (salas/equipamentos não têm expediente — decisão 28/10/2026).
-  const resources = opts.turn?.catalog.resources ?? listResources(db, tenantId, clock)
-  const proIds = new Set(
-    resources.filter((r) => r.kind === 'professional').map((r) => r.id),
-  )
-  const windows = listEffectiveWeeklyWindows(db, tenantId).filter((w) => proIds.has(w.resourceId))
-  const openingHours = formatOpeningHours(
-    windows.map((w) => ({
-      dayOfWeek: w.dayOfWeek,
-      startMinute: w.startMinute,
-      endMinute: w.endMinute,
-    })),
-  )
+  // (salas/equipamentos não têm expediente — decisão 28/10/2026), mais
+  // fechamentos da clínica inteira — a mesma fonte do handoff e do FAQ.
+  const windows = listProfessionalOpeningWindows(db, tenantId, clock)
+  const openingHours = formatOpeningHours(windows)
+  const closureLines = clinicClosureLinesForAi(db, tenantId, today, tz, windows)
 
   const freeSlots: AiFreeSlotDay[] = []
   if (agendaMode === 'full') {
@@ -247,7 +238,7 @@ export async function buildClinicAiContext(
       timezone: tz,
       nowLabel,
       today,
-      openingHours: windows.length > 0 ? openingHours : [],
+      openingHours: windows.length > 0 ? [...openingHours, ...closureLines] : [],
       reschedulePolicy: settings.reschedulePolicy || null,
       // DEC-180: mesmo texto efectivo que Recebimento/cobrança (não a coluna legada só).
       cancellationPolicy: effectiveSignalCancellationPolicy(db, tenantId, clock) || null,

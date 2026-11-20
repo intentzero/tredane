@@ -108,6 +108,16 @@ export const AI_TRANSPARENCY_RE =
 export { HEALTH_RE, OFFENSE_RE }
 
 export const OFF_TOPIC_RE = /\b(piada|esquece a cl[ií]nica)\b/i
+
+/**
+ * Conversa fiada (piada). Não pausa a IA: o autodraft redireciona.
+ * «esquece a clínica» continua no handoff (exclusão do recomeço).
+ * Injeção forte no mesmo texto não é conversa fiada.
+ */
+export function isOffTopicSmallTalk(text: string): boolean {
+  if (!text?.trim() || detectStrongInjectionSignals(text)) return false
+  return /\bpiadas?\b/i.test(text)
+}
 export const PIX_OFF_PURPOSE_RE = /\b(chave\s+pix|j[aá] paguei|pix copia)\b/i
 
 /**
@@ -267,7 +277,8 @@ export function isWeakInjection(hits: SensitiveHit[]): boolean {
 
 /**
  * Motivos que pausam a IA (DEC-083). Não inclui pergunta_politica nem injeção fraca.
- * Ofensa, off_topic e pix off-purpose também pausam via handoffReason.
+ * Ofensa, «esquece a clínica» e pix off-purpose também pausam via handoffReason.
+ * Piada é conversa fiada: não pausa.
  */
 export function wantsHumanPause(hits: SensitiveHit[]): boolean {
   return hits.some(
