@@ -575,7 +575,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'GU-23',
+    id: 'GU-27',
     title:
       '«Pode me atender amanhã?»: expediente do sábado + Abrir agenda; sem pedir serviço nem equipe (TRE-77)',
     turnosIdeais: 1,
@@ -618,19 +618,19 @@ export const GU_DIALOG_CASES: DialogCase[] = [
           s.tenantId,
           s.conversationId,
         )
-        if (!row?.interactive_json) return ['GU-23: resposta sem interactivo']
+        if (!row?.interactive_json) return ['GU-27: resposta sem interactivo']
         const parsed = JSON.parse(row.interactive_json) as {
           buttons?: Array<{ id: string; title: string }>
           ctaUrl?: { displayText?: string }
         }
         if (parsed.ctaUrl?.displayText !== 'Abrir agenda') {
-          return [`GU-23: esperava cta_url Abrir agenda, veio ${row.interactive_json}`]
+          return [`GU-27: esperava cta_url Abrir agenda, veio ${row.interactive_json}`]
         }
         const buttons = parsed.buttons ?? []
         const hasTeam = buttons.some(
           (b) => b.id === HUMAN_HANDOFF_BUTTON_ID || b.title === HUMAN_HANDOFF_BUTTON_TITLE,
         )
-        if (hasTeam) return ['GU-23: não devia ter «Falar com a equipe»']
+        if (hasTeam) return ['GU-27: não devia ter «Falar com a equipe»']
         return []
       },
     },

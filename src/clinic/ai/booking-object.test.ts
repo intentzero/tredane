@@ -182,7 +182,7 @@ describe('booking-object', () => {
   })
 
   it('rsamp_62934e: «pode me atender esta tarde» continua intenção de disponibilidade', () => {
-    // TRE-77 / DEC-202: o outbound (expediente + Abrir agenda) fica no L1 GU-23 / route-intent;
+    // TRE-77 / DEC-202: o outbound (expediente + Abrir agenda) fica no L1 GU-27 / route-intent;
     // aqui só a detecção de intenção.
     expect(hasSchedulingAvailabilityIntent('Você pode me atender esta tarde?')).toBe(true)
     expect(hasSchedulingAvailabilityIntent('Você pode-me atender amanhã?')).toBe(true)
