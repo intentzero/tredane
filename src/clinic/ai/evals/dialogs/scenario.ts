@@ -61,6 +61,11 @@ export type DialogScenario = {
   outboundBodies: () => string[]
   proposalCount: () => number
   appointmentCount: () => number
+  /**
+   * Gancho L1 do runner: emite link «Abrir agenda» (conta em `clientWebOffers`).
+   * Presente depois de `runDialogCase` ligar o harness.
+   */
+  prepareClientWebOffer?: import('../../../../clientweb/offer').PrepareClientWebOffer
   ids: {
     ana: string
     bia: string

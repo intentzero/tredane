@@ -277,6 +277,49 @@ describe('DEC-086 post-booking follow-up', () => {
     }
   })
 
+  it('com agendaUrl: Posso ajudar usa cta_url Abrir agenda (sem reply Terminar)', () => {
+    const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:cta',
+          waId: '5511987001888',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      const url = 'https://app.example.test/c/cw1_abcdefghijklmnopqrst'
+      const sent = sendPostBookingFollowupOp(
+        db,
+        caller,
+        { conversationId, appointmentId: 'apt_fu_cta', agendaUrl: url },
+        clock,
+      )
+      expect(sent.status).toBe('queued')
+      if (sent.status !== 'queued') return
+      const ob = db.get<{ interactive_json: string | null }>(
+        `SELECT interactive_json FROM outbound_messages WHERE id = ?`,
+        sent.outboundId,
+      )
+      const parsed = JSON.parse(ob?.interactive_json ?? '{}') as {
+        ctaUrl?: { displayText?: string; url?: string }
+        buttons?: unknown
+      }
+      expect(parsed.ctaUrl).toEqual({ displayText: 'Abrir agenda', url })
+      expect(parsed.buttons).toBeUndefined()
+      expect(ob?.interactive_json).not.toContain('Terminar')
+      expect(ob?.interactive_json).not.toContain('fu:post:')
+    } finally {
+      close()
+    }
+  })
+
   it('«Abrir agenda» mantém o ciclo aberto e não envia nada pelo próprio handler (DEC-202)', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
     const { db, close } = bootClinicDb({ clock })

@@ -886,6 +886,38 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
       )
+      // DEC-202 / Meta: «Posso ajudar…» com cta_url Abrir agenda (evita reply →
+      // «Para agendar, toque em Abrir agenda…»). Só emite o link se o Agendado for
+      // o resultado que vai disparar o follow-up.
+      let agendaUrl: string | null = null
+      if (input.outcome === 'succeeded') {
+        const bookedForFollowup = clinicProposals.findProposalByResultOutboundId(
+          this.#db,
+          caller.tenantId,
+          result.value.outbound.id,
+        )
+        const needsPostBooking =
+          bookedForFollowup?.resultKind === 'booked' &&
+          Boolean(bookedForFollowup.appointmentId?.trim()) &&
+          Boolean(bookedForFollowup.conversationId)
+        if (needsPostBooking) {
+          const prepare = this.#prepareClientWebOffer()
+          if (prepare) {
+            try {
+              const offered = await prepare({
+                tenantId: caller.tenantId,
+                conversationId: bookedForFollowup!.conversationId,
+                purpose: 'agendar',
+                appointmentId: null,
+                serviceId: null,
+              })
+              agendaUrl = offered?.ctaUrl?.url?.trim() || null
+            } catch {
+              agendaUrl = null
+            }
+          }
+        }
+      }
       const reconciled = clinicProposals.reconcileProposalResultOutboundSend(
         this.#db,
         caller.tenantId,
@@ -893,6 +925,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
         caller,
+        agendaUrl,
       )
       if (reconciled.outbox.length > 0) {
         await this.#fanoutOutboxes(caller, reconciled.outbox, true)
@@ -1235,6 +1268,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
       const cancelled = done.result
+      let agendaUrl: string | null = null
+      const prepare = this.#prepareClientWebOffer()
+      if (prepare) {
+        try {
+          const offered = await prepare({
+            tenantId: input.tenantId,
+            conversationId: input.conversationId,
+            purpose: 'agendar',
+            appointmentId: null,
+            serviceId: null,
+          })
+          agendaUrl = offered?.ctaUrl?.url?.trim() || null
+        } catch {
+          agendaUrl = null
+        }
+      }
       const outboxes = appendWebCancelChatEffects(
         this.#db,
         caller,
@@ -1243,6 +1292,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           appointmentId: input.appointmentId,
           serviceName: cancelled.serviceName,
           startsAt: cancelled.startsAt,
+          agendaUrl,
         },
         this.#clock,
         done.outbox,

@@ -6,11 +6,12 @@
  * CW-12: efeito no chat depois do cancelamento **na página** (recibo único + DEC-086).
  * CW-13: serviço sem profissional — a página e a proposta recusam marcar (Conferir / DEC-085).
  * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
+ * GU-23: «Posso ajudar…» com cta_url Abrir agenda (sem reply que reenvia a frase).
  */
 import { listServices, upsertServiceOp } from '../../../config'
 import { ValidationError } from '../../../errors'
 import { workerCaller } from '../../../envelopes'
-import { POST_BOOKING_BODY } from '../../../followup/post-booking'
+import { POST_BOOKING_BODY, sendPostBookingFollowupOp } from '../../../followup/post-booking'
 import { createOrSupersedeProposal } from '../../../proposals/proposals'
 import { queryAvailability, zonedCivilToUtc } from '../../../scheduling'
 import {
@@ -19,7 +20,7 @@ import {
   WEB_CANCEL_ACTOR,
   WEB_CANCEL_RECEIPT_SENTENCE,
 } from '../../../../clientweb/manage'
-import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
+import { CLIENT_WEB_CTA_TEXT, OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
 import { readClientWebCatalog } from '../../../../clientweb/booking'
 import { OPEN_MAP_CTA_TEXT } from '../../location-map-offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
@@ -357,6 +358,95 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'GU-23',
+    title:
+      'Posso ajudar: cta_url Abrir agenda (sem reply que reenvia «toque em Abrir agenda»)',
+    turnosIdeais: 0,
+    // Janela 24 h; o autodraft não corre (sem turno client no harness após o prepare).
+    prepare: (s) => {
+      s.sayInbound('(cliente acabou de confirmar)')
+    },
+    turns: [
+      {
+        role: 'owner',
+        note: 'follow-up pós-agendamento com URL → cta_url na mesma bolha (DEC-202 / Meta)',
+        act: async (s) => {
+          const offered = await s.prepareClientWebOffer?.({
+            tenantId: s.tenantId,
+            conversationId: s.conversationId,
+            purpose: 'agendar',
+            appointmentId: null,
+            serviceId: null,
+          })
+          const url = offered?.ctaUrl?.url
+          if (!url) throw new Error('GU-23: harness sem URL')
+          const follow = sendPostBookingFollowupOp(
+            s.db,
+            s.caller,
+            {
+              conversationId: s.conversationId,
+              appointmentId: 'apt_gu23',
+              agendaUrl: url,
+            },
+            s.clock,
+          )
+          if (follow.status !== 'queued') {
+            throw new Error(`GU-23: esperava queued, veio ${follow.status}`)
+          }
+        },
+      },
+    ],
+    expect: {
+      outboundIncludes: [POST_BOOKING_BODY],
+      outboundExcludes: [/Para agendar, toque em/i],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      assert: (s) => {
+        const errs: string[] = []
+        const help = s.outboundBodies().filter((b) => b === POST_BOOKING_BODY)
+        if (help.length !== 1) {
+          errs.push(`esperava 1 «${POST_BOOKING_BODY}», saíram ${help.length}`)
+        }
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ? AND m.body = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+          POST_BOOKING_BODY,
+        )
+        if (!row?.interactive_json) {
+          errs.push('GU-23: Posso ajudar sem interactivo')
+          return errs
+        }
+        const parsed = JSON.parse(row.interactive_json) as {
+          ctaUrl?: { displayText?: string; url?: string }
+          buttons?: unknown[]
+        }
+        if (parsed.ctaUrl?.displayText !== CLIENT_WEB_CTA_TEXT) {
+          errs.push(
+            `esperava cta_url «${CLIENT_WEB_CTA_TEXT}», veio ${JSON.stringify(parsed.ctaUrl?.displayText)}`,
+          )
+        }
+        if (!/^https:\/\/[^/]+\/c\/cw1_[A-Za-z0-9_-]{20,}$/.test(parsed.ctaUrl?.url ?? '')) {
+          errs.push(`cta_url sem forma de token, veio ${JSON.stringify(parsed.ctaUrl?.url)}`)
+        }
+        if (parsed.buttons?.length) {
+          errs.push(
+            `Posso ajudar não deve ter reply (Meta: cta_url exclusivo); veio ${JSON.stringify(parsed.buttons)}`,
+          )
+        }
+        const bookPhrases = s.outboundBodies().filter((b) => /Para agendar, toque em/i.test(b))
+        if (bookPhrases.length > 0) {
+          errs.push('não deve sair a frase redundante «Para agendar, toque em Abrir agenda»')
+        }
+        return errs
+      },
+    },
+  },
+  {
     id: 'GU-19',
     title: 'Pergunta de política de cancelamento é informação, não pedido de cancelar',
     turnosIdeais: 1,
@@ -433,13 +523,18 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       {
         role: 'owner',
         note: 'cliente confirma o cancelamento na página web (mesmo caminho do Clinic DO)',
-        act: (s) => {
+        act: async (s) => {
           const webCaller = workerCaller(s.tenantId, WEB_CANCEL_ACTOR)
           const done = cancelFromWeb(s.db, webCaller, s.clock, { contactId: s.contactId }, 'apt_gu_1')
           if (done.result.status !== 'cancelled') {
             throw new Error(`CW-12: esperava cancelled, veio ${done.result.status}`)
           }
           const cancelled = done.result
+          const offered = await s.prepareClientWebOffer?.({
+            tenantId: s.tenantId,
+            conversationId: s.conversationId,
+            purpose: 'agendar',
+          })
           appendWebCancelChatEffects(
             s.db,
             webCaller,
@@ -448,6 +543,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
               appointmentId: 'apt_gu_1',
               serviceName: cancelled.serviceName,
               startsAt: cancelled.startsAt,
+              agendaUrl: offered?.ctaUrl?.url ?? null,
             },
             s.clock,
             done.outbox,
@@ -458,8 +554,12 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     expect: {
       proposal: false,
       appointments: 1, // linha cancelada continua na BD; status assert abaixo
-      clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'cancelar', appointmentId: 'apt_gu_1' }],
+      // cancelar (pedido no chat) + agendar (Posso ajudar cta_url)
+      clientWebOffers: 2,
+      clientWebPurposes: [
+        { purpose: 'cancelar', appointmentId: 'apt_gu_1' },
+        { purpose: 'agendar', serviceId: null },
+      ],
       outboundIncludes: ['Para cancelar', 'Cancelado:', WEB_CANCEL_RECEIPT_SENTENCE, POST_BOOKING_BODY],
       assert: (s) => {
         const errs: string[] = []
@@ -478,6 +578,26 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         }
         const help = s.outboundBodies().filter((b) => b === POST_BOOKING_BODY)
         if (help.length !== 1) errs.push(`esperava 1 «${POST_BOOKING_BODY}», saíram ${help.length}`)
+        const helpRow = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ? AND m.body = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+          POST_BOOKING_BODY,
+        )
+        const parsed = JSON.parse(helpRow?.interactive_json ?? '{}') as {
+          ctaUrl?: { displayText?: string }
+          buttons?: unknown[]
+        }
+        if (parsed.ctaUrl?.displayText !== CLIENT_WEB_CTA_TEXT) {
+          errs.push(`Posso ajudar sem cta_url Abrir agenda, veio ${JSON.stringify(parsed)}`)
+        }
+        if (parsed.buttons?.length) {
+          errs.push('Posso ajudar não deve misturar reply com cta_url')
+        }
         return errs
       },
     },

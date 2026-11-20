@@ -132,7 +132,10 @@ export type PrepareClientWebOffer = (
 export const CLIENT_WEB_LINKS_PER_CONVERSATION = 5
 export const CLIENT_WEB_LINKS_WINDOW_MS = 60 * 60 * 1000
 
-/** Quantos links o chat já enviou nesta conversa na janela (mensagens de `ai-web-*`). */
+/**
+ * Quantos links «Abrir agenda» o chat já enviou nesta conversa na janela
+ * (`ai-web-*` ou `cta_url` no follow-up «Posso ajudar…» / outros).
+ */
 export function countRecentWebLinks(
   db: ClinicDb,
   tenantId: string,
@@ -143,8 +146,15 @@ export function countRecentWebLinks(
     db.get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM outbound_messages o
        JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
-       WHERE o.tenant_id = ? AND o.conversation_id = ? AND o.client_request_id LIKE 'ai-web-%'
-         AND m.created_at > ?`,
+       WHERE o.tenant_id = ? AND o.conversation_id = ?
+         AND m.created_at > ?
+         AND (
+           o.client_request_id LIKE 'ai-web-%'
+           OR (
+             o.interactive_json LIKE '%ctaUrl%'
+             AND o.interactive_json LIKE '%Abrir agenda%'
+           )
+         )`,
       tenantId,
       conversationId,
       nowMs - CLIENT_WEB_LINKS_WINDOW_MS,
