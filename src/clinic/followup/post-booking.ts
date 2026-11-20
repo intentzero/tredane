@@ -4,7 +4,9 @@
  * «Abrir agenda» = clique devolve `another`; quem trata envia o CTA URL (não
  * marca no chat). Sem «Falar com a equipe» neste T3 (Paulo: preferir Abrir agenda).
  * «Terminar» = limpa frame + adeus aleatório (terminar-farewell.ts; Paulo 13/11/2026).
- * O compromisso confirmado fica. Badge de não lidas zera no Terminar.
+ * Com horário futuro: etapa fica Agendado (DEC-086). Sem horário futuro
+ * (ex. pós-cancelamento DEC-092 → Em atendimento): fecha em Perdido (DEC-087).
+ * Badge de não lidas zera no Terminar.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
@@ -23,6 +25,7 @@ import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { clearIdleSuppressed } from './idle-state'
 import { suppressFollowupsAfterClientEnd } from './suppress-after-end'
+import { closeOpenOpportunityIfNoFuture } from './terminar-close-opportunity'
 import { pickTerminarFarewell } from './terminar-farewell'
 
 export const FOLLOWUP_ACTOR = 'system:conversational-followup'
@@ -277,6 +280,17 @@ export function handlePostBookingButtonClick(
         clock,
       ),
     )
+    // Sem horário futuro (pós-cancel / Em atendimento): Perdido — parity DEC-087.
+    const closed = closeOpenOpportunityIfNoFuture(
+      db,
+      caller,
+      input.tenantId,
+      input.conversationId,
+      clock,
+      'Cliente: Terminar (pós-agendamento)',
+    )
+    outbox.push(...closed.outbox)
+
     const timezone = ensureClinicSettings(db, input.tenantId, clock).timezone
     const replyText = pickTerminarFarewell({
       timezone,
@@ -332,13 +346,18 @@ export function handlePostBookingButtonClick(
         objectId: input.conversationId,
         detail: {
           appointmentId: parsed.appointmentId,
-          closedOpportunityId: null,
+          closedOpportunityId: closed.closedOpportunityId,
         },
       },
       clock,
     )
 
-    return { handled: true, action: 'end', closedOpportunityId: null, outbox }
+    return {
+      handled: true,
+      action: 'end',
+      closedOpportunityId: closed.closedOpportunityId,
+      outbox,
+    }
   }
 
   // Abrir agenda = nova intenção → idle volta a poder armar.
@@ -416,6 +435,16 @@ export function handlePriceFollowupButtonClick(
         input.conversationId,
         clock,
       ),
+    )
+    outbox.push(
+      ...closeOpenOpportunityIfNoFuture(
+        db,
+        caller,
+        input.tenantId,
+        input.conversationId,
+        clock,
+        'Cliente: Terminar (pós-preço)',
+      ).outbox,
     )
     const timezone = ensureClinicSettings(db, input.tenantId, clock).timezone
     const replyText = pickTerminarFarewell({
