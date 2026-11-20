@@ -11953,19 +11953,14 @@ button.panel-auth-inline-link {
   margin: 0;
 }
 
-.clinic-service-top {
+/* Preço + badge numa coluna direita (alinham entre si; a linha centra a coluna). */
+.clinic-service-meta {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: none;
   min-width: 0;
-}
-
-.clinic-service-top > strong {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .clinic-service-price {
@@ -11975,7 +11970,13 @@ button.panel-auth-inline-link {
   color: var(--color-text-primary);
 }
 
-.clinic-service-list .clinic-nav-copy > span:not(.clinic-service-top) {
+.clinic-service-list .clinic-nav-copy > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-service-list .clinic-nav-copy > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
