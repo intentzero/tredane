@@ -51,6 +51,7 @@ import {
 import {
   augmentOutboundWithHumanTeam,
   pauseAiForStaffTakeover,
+  resumeAiReply,
 } from '../ai/human-handoff'
 import { AI_ACTOR_NAME, isAiActorId } from '../ai-actor'
 import {
@@ -71,7 +72,11 @@ import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { OPPORTUNITY_STAGE_LABELS } from '../constants'
-import { getActiveProposalForConversation } from '../proposals/proposals'
+import { closeOpenOpportunityIfNoFuture } from '../followup/terminar-close-opportunity'
+import {
+  getActiveProposalForConversation,
+  retireActiveProposal,
+} from '../proposals/proposals'
 import {
   listOpenPendingCommunicationsForConversation,
   resolvePendingCommunication,
@@ -802,6 +807,16 @@ export function unblockContactOp(
   })
 }
 
+/**
+ * Aviso WhatsApp à cliente quando a equipe encerra no painel (Paulo 20/11/2026).
+ * Distinto do evento system «X encerrou a conversa» (só painel).
+ * Actor = mesmos ids de `post-booking` (sem import circular).
+ */
+export const STAFF_CLOSE_CLIENT_BODY =
+  'Encerramos este atendimento. Se precisar de algo, é só escrever aqui.'
+const STAFF_CLOSE_WA_ACTOR = 'system:conversational-followup'
+const STAFF_CLOSE_WA_DISPLAY = 'Sistema'
+
 export function closeConversationOp(
   db: ClinicDb,
   caller: ClinicCaller,
@@ -811,7 +826,40 @@ export function closeConversationOp(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
-  return db.transactionSync(() => {
+  const outbox: OutboxRow[] = []
+  const notifyAt = clock.nowMs()
+
+  // Aviso à cliente enquanto a conversa ainda está aberta (sendOutbound rearma
+  // reopenIfClosed). Best-effort: fora da janela 24 h não bloqueia o Encerrar.
+  try {
+    const window = messagingWindowForConversation(
+      db,
+      meta.tenantId,
+      input.conversationId,
+      notifyAt,
+    )
+    if (window.open) {
+      const notice = sendOutboundMessageOp(
+        db,
+        caller,
+        {
+          conversationId: input.conversationId,
+          body: STAFF_CLOSE_CLIENT_BODY,
+          clientRequestId: `conversation.close.notify:${input.conversationId}:${notifyAt}`,
+          authorClerkUserId: STAFF_CLOSE_WA_ACTOR,
+          authorDisplayName: STAFF_CLOSE_WA_DISPLAY,
+        },
+        clock,
+      )
+      outbox.push(...notice.outbox)
+    }
+  } catch {
+    /* janela / canal — Encerrar segue */
+  }
+
+  // `moveOpportunityStageOp` (via closeOpenOpportunityIfNoFuture) já abre
+  // transactionSync — corre depois do fecho da conversa para evitar nested BEGIN.
+  const closed = db.transactionSync(() => {
     const now = clock.nowMs()
     setConversationStatus(db, {
       tenantId: meta.tenantId,
@@ -855,11 +903,12 @@ export function closeConversationOp(
       },
       clock,
     )
-    const outbox: OutboxRow[] = []
+    const txOutbox: OutboxRow[] = []
     // CF-28 / #508: encerrar no painel limpa o BookingFrame (não salta passos ao reabrir).
+    retireActiveProposal(db, meta.tenantId, input.conversationId, clock)
     const frameOb = clearBookingFrame(db, meta.tenantId, input.conversationId, clock)
-    if (frameOb) outbox.push(frameOb)
-    outbox.push(
+    if (frameOb) txOutbox.push(frameOb)
+    txOutbox.push(
       insertOutboxEvent(
         db,
         {
@@ -877,8 +926,39 @@ export function closeConversationOp(
       ),
     )
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
-    return { value: { conversation: item, systemMessage }, outbox }
+    return { value: { conversation: item, systemMessage }, outbox: txOutbox }
   })
+  outbox.push(...closed.outbox)
+
+  // Paulo 20/11/2026: Encerrar devolve à IA mesmo após Assumir — próxima mensagem
+  // da cliente não fica «pendente de resposta humana».
+  outbox.push(
+    ...resumeAiReply(db, meta.tenantId, input.conversationId, clock, {
+      source: 'manual_resume',
+    }),
+  )
+
+  // Sem horário futuro: Perdido (parity Terminar / #989). Com futuro: Agendado
+  // permanece (DEC-066); o gémeo «Atendimento em curso» some porque a conversa
+  // está closed (`hasOpenAttendance`).
+  const closedOpp = closeOpenOpportunityIfNoFuture(
+    db,
+    caller,
+    meta.tenantId,
+    input.conversationId,
+    clock,
+    'Equipe: Encerrar conversa',
+    {
+      actorClerkUserId: input.actorClerkUserId,
+      actorDisplayName: input.actorDisplayName,
+    },
+  )
+  outbox.push(...closedOpp.outbox)
+
+  return {
+    value: closed.value,
+    outbox,
+  }
 }
 
 /**

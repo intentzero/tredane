@@ -167,10 +167,14 @@ describe('Etapa automática (DEC-062, DEC-066)', () => {
     }
   })
 
-  it('encerrar a conversa não altera a etapa (DEC-066)', () => {
+  it('Encerrar sem horário futuro fecha em Perdido (parity Terminar / #989)', () => {
+    // DEC-066: Encerrar não vai para Concluído. Sem horário futuro alinha ao
+    // Terminar (DEC-087): Perdido. Com futuro, Agendado permanece (testes #992).
     const ctx = setup()
     try {
-      const before = stageOf(ctx)
+      assume(ctx, { id: ANA, name: 'Ana' })
+      expect(stageOf(ctx).stage).toBe('em_atendimento')
+      const oppId = stageOf(ctx).id
       closeConversationOp(
         ctx.db,
         ctx.caller,
@@ -181,8 +185,14 @@ describe('Etapa automática (DEC-062, DEC-066)', () => {
         },
         ctx.clock,
       )
-      const after = findOpenOpportunityForConversation(ctx.db, 'clinic-demo-a', ctx.conversationId)!
-      expect(after.stage).toBe(before.stage)
+      expect(
+        findOpenOpportunityForConversation(ctx.db, 'clinic-demo-a', ctx.conversationId),
+      ).toBeNull()
+      const closed = ctx.db.get<{ stage: string; status: string }>(
+        `SELECT stage, status FROM opportunities WHERE id = ?`,
+        oppId,
+      )
+      expect(closed).toEqual({ stage: 'perdido', status: 'closed' })
     } finally {
       ctx.close()
     }
