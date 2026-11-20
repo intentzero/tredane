@@ -1,6 +1,6 @@
 # Prompt injection — fronteira de capacidades (S6, #177)
 
-Estado: **implementado em PR** (reland de #198 / S6 sobre `main`; S2 já em #191). Sem deploy. Não afirma imunidade total: o modelo pode ser enganado no texto do rascunho, que continua a exigir revisão humana.
+Estado: **implementado em PR** (reland de #198 / S6 sobre `main`; S2 já em #191). Sem deploy. Não afirma imunidade total: o modelo pode ser enganado no texto. DEC-217 removeu «Sugerir»/resumo para a equipe; a fronteira cobre o caminho automático.
 
 ## Entradas não confiáveis
 
@@ -10,17 +10,17 @@ Nunca são instrução, venham de onde vierem: mensagens da conversa (cliente **
 
 1. **Prompt** (`src/ai/untrusted.ts`, `src/ai/prompt.ts`): todo texto não confiável passa por `sanitizeUntrusted` (uma linha só, sem marcadores de papel `[sistema]`/`[clínica]`, tags `<system>`, delimitadores `<<<`/`>>>`, cercas de código, caracteres invisíveis; truncado). Conversa e catálogo ficam entre `<<<DADOS … DADOS>>>`, com regra explícita no prompt de sistema.
 2. **Aviso e pausa** (`detectInjectionSignals`, `src/ai/untrusted.ts`; `src/clinic/ai/human-handoff.ts`): heurística → aviso `injection_suspected`. No rascunho automático (DEC-083), o mesmo texto — e saúde, ofensa, Pix, remarcar, cancelar, terceiro ou profissional fora do serviço — pausa a IA e envia uma frase fixa, sem chamar o modelo. Não autoriza marcação. Sonda de staging: [staging-conversational-probe-2026-10-30.md](staging-conversational-probe-2026-10-30.md).
-3. **Schema fechado da saída** (`guardReplyOutput`, `src/ai/reply-output.ts`; usado em `src/clinic/ai/operations.ts`): só `{mensagem, notas}` (string). Rejeita campos extras, IDs internos, tipos inválidos, array no topo, texto > 1000/600 caracteres, marcadores de papel, chave Pix / Pix copia e cola, e afirmações de que algo foi marcado/confirmado. Rejeição → rascunho descartado, aviso `output_rejected`, fallback humano.
-4. **Sem autoridade do modelo**: texto livre nunca marca. O rascunho automático envia a resposta segura e o botão «Falar com a equipe» (DEC-083). Saída rejeitada (`output_rejected`) não vai à cliente: segue a mesma frase fixa e a pausa. Tenant, remetente, preço, sinal, Pix e horários vêm do backend no escopo da clínica.
+3. **Schema fechado da saída** (`guardReplyOutput`, `src/ai/reply-output.ts`; usado no redator/apply do autodraft): só `{mensagem, notas}` (string). Rejeita campos extras, IDs internos, tipos inválidos, array no topo, texto > 1000/600 caracteres, marcadores de papel, chave Pix / Pix copia e cola, e afirmações de que algo foi marcado/confirmado. Rejeição → saída descartada, aviso `output_rejected`, fallback (DEC-107).
+4. **Sem autoridade do modelo**: texto livre nunca marca. Entrada hostil no autodraft pausa e manda a frase fixa sem chamar o modelo (DEC-083). Saída rejeitada (`output_rejected`) não vai à cliente: frase de fallback. Tenant, remetente, preço, sinal, Pix e horários vêm do backend no escopo da clínica.
 5. **Imagens nunca vão à IA** (DEC-011): anexos fora do contexto (AC-37), coberto também pelo teste de ataque.
 
 ## Testes (CI)
 
-`src/clinic/ai/prompt-injection.test.ts`: instruções na mensagem, JSON colado, mudança de papel, «ignore as regras», texto que imita `[sistema]`/`[clínica]` e tags XML, falsa nota do Tredane, pedido de dados de outra clínica, Pix sem pagar, catálogo/nome malicioso; saída de modelo comprometido; zero compromissos, auditoria `appointment.*` ou envios, com `AI_AUTOBOOK` ligado e clínica autorizada; anexos fora do prompt.
+`src/clinic/ai/prompt-injection.test.ts` (caminho automático, DEC-217): instruções na mensagem, JSON colado, mudança de papel, «ignore as regras», texto que imita `[sistema]`/`[clínica]` e tags XML, falsa nota do Tredane, pedido de dados de outra clínica, Pix sem pagar, catálogo/nome malicioso; saída de modelo comprometido no autodraft → fallback; zero compromissos / auditoria `appointment.*`; anexos fora do contexto.
 
 ## Limites
 
 - Heurística de deteção é Proposta (pode ter falsos positivos/negativos). No autodraft, acertar a heurística pausa a resposta (DEC-083); errar deixa o schema da saída como segunda rede.
 - Sonda ao vivo, 30/10/2026, só no chat de teste da Clínica Teste Paulo: [staging-conversational-probe-2026-10-30.md](staging-conversational-probe-2026-10-30.md). **Observado**, sem fechar o piloto.
-- O resumo (`kind: summary`) não usa o schema `{mensagem, notas}` (é texto interno para a equipe). `guardSummaryOutput` descarta marcador de papel, chamada de ferramenta e frase em que o modelo diz que marcou ou enviou. «Ficou marcado» continua válido.
+- `guardSummaryOutput` permanece no módulo (descarta marcador de papel, tool call e «marquei/enviei»; «ficou marcado» passa). O caminho de resumo no painel saiu com DEC-217; o teste unitário da guarda fica como regressão da função.
 - Proposta/clique por botão (S3–S5) estão no código; a validação do clique fica no backend (`executeProposalConfirmOp`, #176). Validação ponta a ponta e liberação controlada: S9 [#180](https://github.com/intentzero/tredane/issues/180) / [seg-ia-s9-e2e-validation.md](seg-ia-s9-e2e-validation.md) — **sem** activar piloto neste documento.

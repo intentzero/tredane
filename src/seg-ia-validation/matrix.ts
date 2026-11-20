@@ -188,11 +188,15 @@ export const SEG_IA_EVIDENCE_MATRIX: readonly SegIaEvidenceRow[] = [
     requirement: 'Prompt injection / saída de modelo',
     scenario: 'Instruções hostis + JSON do modelo → zero book / zero envio autónomo',
     issues: [177, 180, 263],
-    tests: ['src/ai/reply-output.robust.test.ts', 'src/clinic/ai/evals/dialogs/dialogs.test.ts'],
+    tests: [
+      'src/ai/reply-output.robust.test.ts',
+      'src/clinic/ai/prompt-injection.test.ts',
+      'src/clinic/ai/evals/dialogs/dialogs.test.ts',
+    ],
     docs: ['docs/security/prompt-injection.md'],
     gate: 'auth_isolation',
     state: 'Confirmado',
-    notes: 'S6; não afirma imunidade total do rascunho. prompt-injection.test.ts saiu com o «Sugerir» (DEC-217): ficam a guarda de saída e os casos L1 com texto hostil; perdeu-se o teste ponta a ponta de «modelo comprometido» do caminho manual (a refazer sobre o caminho automático).',
+    notes: 'S6; não afirma imunidade total. DEC-217: «Sugerir»/resumo saíram; prompt-injection.test.ts cobre sanitização, schema fechado e o caminho automático (handoff sem modelo + modelo comprometido → fallback).',
   },
   {
     id: 'S9-T13',
