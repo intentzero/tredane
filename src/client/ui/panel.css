@@ -8303,18 +8303,6 @@ button.panel-auth-inline-link {
   gap: var(--space-2);
 }
 
-.acomp-card-late {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--color-warning-tint);
-  color: var(--color-warning-ink);
-  font-weight: var(--font-weight-semibold);
-}
-
 /* DEC-156 no Acompanhar: mesma barra de atenção da lista Conversas. */
 .acomp-card--needs-person {
   box-shadow: inset 3px 0 0 var(--color-warning-ink);
