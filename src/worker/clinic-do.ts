@@ -153,7 +153,6 @@ import {
   clientWebOfferInteractive,
   clientWebRouteBody,
   clientWebUrl,
-  countRecentWebLinks,
   isHttpsBase,
   parseOpenAgendaReplyButton,
   type PrepareClientWebOffer,
@@ -1395,22 +1394,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       return { handled: true, action: 'map_link' as const }
     }
     // DEC-216: reply «Abrir agenda» (junto a «Falar com a equipe») → envia o CTA URL.
-    // Se o CTA já saiu nesta hora (ex. toque após localização + eco do título), não reenvia a frase.
+    // Sempre oferece o link (TRE-82): silenciar quando já havia cta recente deixava o
+    // toque só com o eco «Abrir agenda» e sem página. O título ecoado sem button_id
+    // continua a poder ser ignorado no autodraft (`open_agenda_title_already_offered`).
     const openAgendaTap = parseOpenAgendaReplyButton(input.buttonId)
     if (openAgendaTap) {
       cancelAutoDraft(this.#db, caller.tenantId, conversationId)
-      if (countRecentWebLinks(this.#db, caller.tenantId, conversationId, this.#clock.nowMs()) === 0) {
-        const outbox = await this.#offerWebLinkInChat(
-          caller,
-          conversationId,
-          'agendar',
-          input.providerEventKey,
-          openAgendaTap.serviceId,
-        )
-        if (outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, outbox, true)
-          await this.#drain(caller)
-        }
+      const outbox = await this.#offerWebLinkInChat(
+        caller,
+        conversationId,
+        'agendar',
+        input.providerEventKey,
+        openAgendaTap.serviceId,
+      )
+      if (outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, outbox, true)
+        await this.#drain(caller)
       }
       await this.#scheduleNextHandoffTimeout(caller.tenantId)
       return { handled: true, action: 'web_link' as const }
@@ -2304,7 +2303,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
     const outcome = intentLinkPurpose(input.result.intent)
       ? await applyIntentLinkOp(this.#db, caller, this.#clock, deps, input)
-      : applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
+      : await applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
     if (outcome.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outcome.outbox, true)
       await this.#drain(caller)

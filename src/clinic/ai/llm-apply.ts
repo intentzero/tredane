@@ -27,6 +27,7 @@ import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
   clientWebRouteBody,
   countRecentWebLinks,
+  looksLikeClosingAssistOutbound,
 } from '../../clientweb/offer'
 import { loadUpcomingAppointments } from './upcoming'
 import {
@@ -99,13 +100,13 @@ export function claimLlmJobForTenant(
 /**
  * Aplica o resultado do redator de exceção: sugestão + envio, ou DEC-107 em falha.
  */
-export function applyLlmResultOp(
+export async function applyLlmResultOp(
   db: ClinicDb,
   caller: ClinicCaller,
   clock: Clock,
   deps: AiAssistDeps,
   input: ApplyLlmResultInput,
-): ApplyLlmResultOutcome {
+): Promise<ApplyLlmResultOutcome> {
   const tenantId = caller.tenantId
   const job = getLlmJob(db, tenantId, input.jobId)
   if (!job || job.idempotencyKey !== input.idempotencyKey) {
@@ -266,20 +267,50 @@ export function applyLlmResultOp(
   })
 
   // Opção B: redator que cola o URL da clínica → corpo sem link + Abrir mapa.
+  // TRE-82: fecho («Tudo bem, então…») → cta_url Abrir agenda (não reply+Equipe).
   const mapsUrl = ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
   const rewritten = rewriteRawMapsUrlOutbound(suggestedText, job.conversationId, mapsUrl)
   const outboundBody = rewritten.body
+  let closingCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
+  if (
+    !rewritten.useMapButtons &&
+    looksLikeClosingAssistOutbound(outboundBody) &&
+    deps.autoBookPaused !== true &&
+    deps.prepareClientWebOffer
+  ) {
+    try {
+      closingCta = await deps.prepareClientWebOffer({
+        tenantId,
+        conversationId: job.conversationId,
+        purpose: 'agendar',
+        appointmentId: null,
+        serviceId: null,
+        audienceLine: null,
+        variantIds: [],
+      })
+      if (!closingCta?.ctaUrl) closingCta = null
+    } catch {
+      closingCta = null
+    }
+  }
   const buttons = rewritten.useMapButtons
     ? locationMapOfferButtons(db, tenantId, clock)
-    : humanTeamOfferButtons(db, tenantId, clock)
+    : closingCta
+      ? null
+      : humanTeamOfferButtons(db, tenantId, clock)
   const sent = sendOutboundMessageOp(
     db,
     caller,
     {
       conversationId: job.conversationId,
       body: outboundBody,
-      interactive: buttons.length > 0 ? { buttons } : null,
-      clientRequestId: `ai-reply:${suggestion.id}`,
+      interactive: closingCta
+        ? closingCta
+        : buttons && buttons.length > 0
+          ? { buttons }
+          : null,
+      omitHumanTeamAugment: Boolean(closingCta),
+      clientRequestId: closingCta ? `ai-web-agendar:${job.messageId}` : `ai-reply:${suggestion.id}`,
       authorClerkUserId: AI_ACTOR_ID,
       authorDisplayName: AI_ACTOR_NAME,
       aiSuggestionId: suggestion.id,

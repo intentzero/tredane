@@ -10,6 +10,7 @@ import {
   CLIENT_WEB_OFFER_SENTENCE,
   isHttpsBase,
   isOpenAgendaButtonTitle,
+  looksLikeClosingAssistOutbound,
   openAgendaReplyButton,
   OPEN_AGENDA_REPLY_BUTTON_ID,
   parseOpenAgendaReplyButton,
@@ -21,6 +22,21 @@ describe('oferta do link no chat', () => {
     expect(isOpenAgendaButtonTitle('  abrir agenda  ')).toBe(true)
     expect(isOpenAgendaButtonTitle('[Botão] Abrir agenda')).toBe(false)
     expect(isOpenAgendaButtonTitle('Quero Abrir agenda agora')).toBe(false)
+  })
+
+  it('detecta fecho do redator (TRE-82) para preferir cta_url', () => {
+    expect(
+      looksLikeClosingAssistOutbound(
+        'Tudo bem, então! Se tiver qualquer dúvida depois, é só escrever aqui.',
+      ),
+    ).toBe(true)
+    expect(
+      looksLikeClosingAssistOutbound(
+        'Por nada! Fico à disposição sempre que precisar. Tenha um ótimo fim de semana!',
+      ),
+    ).toBe(true)
+    expect(looksLikeClosingAssistOutbound('Quem atende: Gi.')).toBe(false)
+    expect(looksLikeClosingAssistOutbound('Funcionamos assim:\nseg–sex 9–18')).toBe(false)
   })
 
   it('reply «Abrir agenda» (DEC-216) e parse do serviço opcional', () => {
