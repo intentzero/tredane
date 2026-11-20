@@ -276,7 +276,10 @@ export function ServiceForm({
   onSaved,
 }: FormProps) {
   const existing = entityId === 'novo' ? null : snap.services.find((s) => s.id === entityId)
-  const professionals = snap.resources.filter((r) => r.kind === 'professional')
+  // Paulo (TRE-89): inativas não entram no picker «Quem faz» nem na seleção editável.
+  // Ao abrir a ficha, ids inativos saem do rascunho; gravar limpa a ligação no serviço.
+  // Salas mantêm o padrão distinto: inativa já ligada continua no chip «Onde acontece».
+  const professionals = snap.resources.filter((r) => r.kind === 'professional' && r.active)
   const rooms = snap.resources.filter((r) => r.kind === 'room')
   const equipment = snap.resources.filter((r) => r.kind === 'equipment' && r.active)
 
@@ -340,9 +343,12 @@ export function ServiceForm({
   const signalPercent =
     existing?.signalPercent != null ? String(existing.signalPercent) : '30'
   // Serviço novo: todas as profissionais ativas fazem, até a dona desmarcar.
-  const [proIds, setProIds] = useState<string[]>(
-    existing?.professionalIds ?? professionals.filter((p) => p.active).map((p) => p.id),
-  )
+  // Serviço existente: só ids ainda ativos (inativas somem do UI e do próximo save).
+  const [proIds, setProIds] = useState<string[]>(() => {
+    const activeIds = new Set(professionals.map((p) => p.id))
+    if (!existing) return [...activeIds]
+    return existing.professionalIds.filter((id) => activeIds.has(id))
+  })
   const [space, setSpace] = useState<'unset' | 'none' | 'rooms'>(
     !existing ? 'unset' : existing.roomRequirement.mode === 'rooms' ? 'rooms' : 'none',
   )
@@ -470,11 +476,9 @@ export function ServiceForm({
 
   // Alinha o checklist com o que o save aceita: preço opcional na linha, mas
   // obrigatório quando o sinal percentual precisa de base (DEC-047).
-  // Conta só profissionais ativas ligadas (mesma regra do selo «Sem profissional»
-  // em resourceRows e do Conferir no servidor).
-  const activeProCount = professionals.filter(
-    (p) => p.active && proIds.includes(p.id),
-  ).length
+  // Conta profissionais ativas ligadas (mesma regra do selo «Sem profissional»
+  // em resourceRows e do Conferir no servidor). A lista já exclui inativas.
+  const activeProCount = professionals.filter((p) => proIds.includes(p.id)).length
   const signalBase = signalBaseCents(withVariants, price, zones)
   const missingPrice = withVariants
     ? zones.filter((z) => z.active && parsePriceToCents(z.price) == null).length
@@ -977,7 +981,6 @@ export function ServiceForm({
               }
             >
               {p.name}
-              {!p.active ? ' (inativa)' : ''}
             </button>
           ))}
         </div>
