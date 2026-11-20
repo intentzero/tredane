@@ -3,6 +3,7 @@ import { PanelApiError, type PanelApi } from '../api'
 import { applyAppBadge } from '../badge'
 import {
   installSoundUnlock,
+  maybePlayAppointmentConfirmedSound,
   maybePlayHandoffEscalateSound,
   maybePlayHandoffSound,
   maybePlayInboundSound,
@@ -194,14 +195,17 @@ export function InboxRealtimeProvider({
         }
       },
       onEvent: (event) => {
+        // Sons do painel aberto: fora de acceptEvent — `appointment.confirmed`
+        // não é inbox event, mas a campainha deve tocar em qualquer área com WS.
+        if (!soundSeen.has(event.eventId)) {
+          soundSeen.add(event.eventId)
+          if (soundSeen.size > 200) soundSeen.delete(soundSeen.values().next().value as string)
+          maybePlayInboundSound(event)
+          maybePlayHandoffSound(event)
+          maybePlayHandoffEscalateSound(event)
+          maybePlayAppointmentConfirmedSound(event)
+        }
         if (acceptEvent(event)) {
-          if (isInboxEvent(event) && !soundSeen.has(event.eventId)) {
-            soundSeen.add(event.eventId)
-            if (soundSeen.size > 200) soundSeen.delete(soundSeen.values().next().value as string)
-            maybePlayInboundSound(event)
-            maybePlayHandoffSound(event)
-            maybePlayHandoffEscalateSound(event)
-          }
           emit({ kind: 'event', event })
           refreshBadge()
         }

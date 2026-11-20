@@ -1,14 +1,21 @@
 /**
- * Som de nova mensagem com o painel aberto.
- * Sintetizado (Web Audio), sem ficheiro de áudio. Preferência só neste aparelho.
- * Com o app fechado ou em segundo plano quem avisa é o push do sistema (public/sw.js).
+ * Sons com o painel aberto (foreground). Preferência só neste aparelho.
+ * Mensagens/handoff: sintetizados (Web Audio). Agendamento confirmado: WAV Mixkit.
+ * Com o app fechado ou em segundo plano quem avisa é o push do sistema (public/sw.js) —
+ * este módulo NÃO controla o tom de notificação do SO (iOS PWA incluído).
  */
 
 const STORAGE_KEY = 'tredane.sound.messages'
 
+/** Mixkit doorbell (Sound Effects License — uso livre; atribuição não obrigatória). */
+export const APPOINTMENT_CONFIRMED_SOUND_URL =
+  '/sounds/mixkit-doorbell-tone-2864.wav'
+
 type AudioCtor = typeof AudioContext
 
 let ctx: AudioContext | null = null
+let doorbellBuffer: AudioBuffer | null = null
+let doorbellLoad: Promise<AudioBuffer | null> | null = null
 
 export function isSoundEnabled(): boolean {
   try {
@@ -179,7 +186,85 @@ export function maybePlayHandoffEscalateSound(event: {
   return playHandoffEscalateSound()
 }
 
+function loadDoorbellBuffer(c: AudioContext): Promise<AudioBuffer | null> {
+  if (doorbellBuffer) return Promise.resolve(doorbellBuffer)
+  if (doorbellLoad) return doorbellLoad
+  doorbellLoad = (async () => {
+    try {
+      const res = await fetch(APPOINTMENT_CONFIRMED_SOUND_URL)
+      if (!res.ok) throw new Error(`doorbell ${res.status}`)
+      const raw = await res.arrayBuffer()
+      const buf = await new Promise<AudioBuffer>((resolve, reject) => {
+        let settled = false
+        const ok = (b: AudioBuffer) => {
+          if (settled) return
+          settled = true
+          resolve(b)
+        }
+        const bad = (err: unknown) => {
+          if (settled) return
+          settled = true
+          reject(err)
+        }
+        try {
+          // Promise API (moderno) + callback (Safari antigo).
+          const ret = c.decodeAudioData(raw.slice(0), ok, bad) as unknown
+          if (ret && typeof (ret as Promise<AudioBuffer>).then === 'function') {
+            ;(ret as Promise<AudioBuffer>).then(ok, bad)
+          }
+        } catch (err) {
+          bad(err)
+        }
+      })
+      doorbellBuffer = buf
+      return buf
+    } catch {
+      doorbellLoad = null
+      return null
+    }
+  })()
+  return doorbellLoad
+}
+
+/**
+ * Campainha Mixkit ao confirmar marcação (painel aberto + gesto de unlock).
+ * Carrega o WAV sob demanda; falhas silenciosas (rede / decode).
+ */
+export function playAppointmentConfirmedSound(): boolean {
+  const c = audioContext()
+  if (!c || c.state !== 'running') return false
+  void loadDoorbellBuffer(c).then((buf) => {
+    if (!buf || !ctx || ctx.state !== 'running') return
+    try {
+      const src = ctx.createBufferSource()
+      const gain = ctx.createGain()
+      src.buffer = buf
+      gain.gain.value = 0.85
+      src.connect(gain).connect(ctx.destination)
+      src.start(0)
+    } catch {
+      /* best-effort */
+    }
+  })
+  return true
+}
+
+/**
+ * `appointment.confirmed` (marcação criada/confirmada — botão, Pix, página cliente).
+ * Não toca em proposta, hold, draft nem remarcação.
+ */
+export function maybePlayAppointmentConfirmedSound(event: {
+  eventType: string
+  payload?: Record<string, unknown> | null
+}): boolean {
+  if (event.eventType !== 'appointment.confirmed') return false
+  if (!canPlayAlertSound()) return false
+  return playAppointmentConfirmedSound()
+}
+
 /** Só para testes. */
 export function resetSoundForTests(): void {
   ctx = null
+  doorbellBuffer = null
+  doorbellLoad = null
 }
