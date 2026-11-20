@@ -209,6 +209,8 @@
 | G-11 | P0 | Pedido humano no meio de várias bolhas | C: «quero falar com alguém» · «obrigada» | Handoff. | INV-06 | 1 | ⚠ CF-13 |
 | G-12 | P1 | Botão «Falar com a equipe» | [qualquer mensagem da IA] ⟶ clique no botão | Frase; a proposta pendente não é encaminhada. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-13 | P1 | Dica humana na 1.ª oferta de Horários | [1.ª lista Horários] ⟶ [2.ª oferta na sessão] | 1.ª inclui «escreva falar com a equipe…»; 2.ª não; sem pausa só por mostrar a dica (DEC-153). | INV-06, EF-03 | 1 | ✅ L1 A-42 · `human-help-hint.test` |
+| G-14 | P0 | «Adeus» com pausa / alerta aberto | C: «Quero falar com uma pessoa» ⟶ «Adeus» | Adeus Terminar; **não** repete «Recebi sua mensagem…»; limpa pausa/alerta. | INV-06, TRE-39 | 2 | ✅ L1 |
+| G-14b | P0 | «Tchau» após off_purpose | C: injecção → «Tchau» | Idem G-14 (pausa `off_purpose`). | INV-06, TRE-39 | 2 | ✅ L1 |
 
 ## H. Saúde e temas sensíveis (DEC-046)
 
