@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isGreetingOnly, routeToClientWeb, servicesCitedInText, type RouteServiceHint } from './route-intent'
+import {
+  isGreetingOnly,
+  isSlotTimePickByText,
+  routeToClientWeb,
+  servicesCitedInText,
+  type RouteServiceHint,
+} from './route-intent'
 
 const services: RouteServiceHint[] = [
   { id: 'dep', name: 'Depilação', active: true, synonyms: ['depilar'], zones: [{ name: 'Axila', active: true }, { name: 'Pernas', active: true }] },
@@ -122,5 +128,24 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
       purpose: 'agendar',
       serviceId: 'lim',
     })
+  })
+
+  it('DEC-202: aceite de hora por texto reencaminha (não cai no LLM)', () => {
+    expect(isSlotTimePickByText('Pode ser as 10:15')).toBe(true)
+    expect(isSlotTimePickByText('às 10:45')).toBe(true)
+    expect(isSlotTimePickByText('10:15')).toBe(true)
+    expect(isSlotTimePickByText('pode ser 10h15')).toBe(true)
+    expect(isSlotTimePickByText('quanto custa às 10:15?')).toBe(false)
+    expect(route('Pode ser as 10:15', true)).toEqual({
+      purpose: 'remarcar',
+      serviceId: null,
+      noUpcoming: false,
+    })
+    expect(route('Pode ser as 10:15', false)).toEqual({
+      purpose: 'agendar',
+      serviceId: null,
+      noUpcoming: false,
+    })
+    expect(route('10:15', true)).toMatchObject({ purpose: 'remarcar' })
   })
 })

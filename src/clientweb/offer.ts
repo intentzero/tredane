@@ -81,6 +81,10 @@ export const CLIENT_WEB_BOOK_BODY =
 export const CLIENT_WEB_NO_UPCOMING_BODY =
   'Não encontrei marcações futuras no seu nome. Para agendar, toque em «Abrir agenda». Se tiver dúvidas, escreva aqui.'
 
+/** Aceite de hora por texto («Pode ser as 10:15»): o chat não marca; reenvia o botão (DEC-202). */
+export const CLIENT_WEB_TIME_PICK_BODY =
+  'Para escolher data e hora, toque em «Abrir agenda». O chat não marca nem remarca por texto. Se tiver dúvidas, escreva aqui.'
+
 
 /**
  * Corpo fixo do encaminhamento (DEC-202). Com um serviço reconhecido, nomeia-o: a página abre

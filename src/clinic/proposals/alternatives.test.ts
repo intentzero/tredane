@@ -60,24 +60,26 @@ describe('#511 validade visível e Confirmar expirado (copy)', () => {
     expect(proposalValidityLine('America/Sao_Paulo', until)).toBe('Válida até 13:30.')
   })
 
-  it('expirada com alternativas explica e lista horas; sem frase da equipe', () => {
+  it('DEC-202: expirada aponta Abrir agenda e ignora lista de horas', () => {
     const body = renderProposalResultBody(sampleProposal(), 'expired', {
       alternativesListing: 'sexta 06/11 às 14:00, 16:00',
     })
     expect(body).toMatch(/já não está válida/i)
-    expect(body).toMatch(/14:00/)
-    expect(body).toMatch(/16:00/)
+    expect(body).toMatch(/Abrir agenda/)
+    expect(body).not.toMatch(/Qual fica melhor/i)
+    expect(body).not.toMatch(/14:00/)
     expect(body).not.toMatch(/A equipe pode enviar uma nova proposta/i)
     expect(body).not.toContain('America/')
   })
 
-  it('vaga perdida com alternativas oferece horas; sem «equipe envia»', () => {
+  it('DEC-202: vaga perdida aponta Abrir agenda e não oferece horas', () => {
     const body = renderProposalResultBody(sampleProposal(), 'slot_refused', {
       alternativesListing: 'sexta 06/11 às 14:00, 16:00',
     })
     expect(body).toMatch(/já não está livre/i)
-    expect(body).toMatch(/14:00/)
-    expect(body).toMatch(/16:00/)
+    expect(body).toMatch(/Abrir agenda/)
+    expect(body).not.toMatch(/14:00/)
+    expect(body).not.toMatch(/Qual fica melhor/i)
     expect(body).not.toMatch(/A equipe envia outra opção/i)
   })
 

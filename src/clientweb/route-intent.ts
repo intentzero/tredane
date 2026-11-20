@@ -61,6 +61,22 @@ export function isGreetingOnly(text: string): boolean {
 }
 
 /**
+ * Aceite de horário por texto («Pode ser as 10:15», «às 10:45», «10:15»).
+ * DEC-202: o chat nunca marca nem remarca por texto — reencaminha para «Abrir agenda».
+ */
+const SLOT_TIME_PICK =
+  /^(?:(?:pode ser|fica(?:\s+melhor)?|quero|sim|ok|okay|beleza|blz|fechado|combinado|pode)[\s,!.?]*)?(?:(?:às?|as)\s*)?\d{1,2}(?::|h)\d{2}(?:\s*h(?:oras?)?)?[\s!.?]*$/iu
+
+export function isSlotTimePickByText(text: string): boolean {
+  const body = text.trim()
+  if (!body) return false
+  // Exige HH:MM / NhMM e, se não for só a hora, um aceite curto («pode ser», «às», …).
+  if (!/\d{1,2}(?::|h)\d{2}/.test(body)) return false
+  if (/^\d{1,2}(?::|h)\d{2}(?:\s*h(?:oras?)?)?[\s!.?]*$/iu.test(body)) return true
+  return SLOT_TIME_PICK.test(body)
+}
+
+/**
  * Pergunta condicional sobre remarcar/cancelar («se eu remarcar, cobram?», «se eu precisar cancelar…»)
  * é política FAQ, não pedido (CF-04). Termos de custo (cobram/multa/taxa) sozinhos **não** bastam:
  * com verbo explícito de cancelar/remarcar o DEC-202 ainda encaminha para a página com o propósito certo.
@@ -194,6 +210,12 @@ export function routeToClientWeb(input: {
     return input.hasUpcoming
       ? { purpose: 'remarcar', serviceId: null, noUpcoming: false }
       : { purpose: 'agendar', serviceId: null, noUpcoming: true }
+  }
+  // «Pode ser as 10:15» / «10:15»: aceite de vaga por texto → página (nunca LLM / equipa confirma).
+  if (isSlotTimePickByText(text)) {
+    return input.hasUpcoming
+      ? { purpose: 'remarcar', serviceId: null, noUpcoming: false }
+      : { purpose: 'agendar', serviceId: null, noUpcoming: false }
   }
   const strong = BOOK_STRONG.test(text)
   const info = INFO.test(text) || INFO.test(fold(text))

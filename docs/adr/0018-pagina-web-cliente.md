@@ -172,7 +172,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 **Fase 2, ainda não feito:**
 
 2. **«Para quem é?» não vem pré-escolhido** da conversa (DEC-142); a cliente escolhe sempre.
-3. **Hora perdida entre Confirmar e a marcação** também gera a frase do chat «Horário já não está livre… Tenho …» (reaproveitada do executor). Para a página basta o aviso no ecrã; falta suprimir a mensagem do chat neste canal.
+3. **Hora perdida entre Confirmar e a marcação** (DEC-202): no canal web o executor **já não** envia a frase do chat; a página mostra o aviso. No WhatsApp legado (Confirmar já redireccionado para o link) a cópia aponta «Abrir agenda» sem listar horas.
 4. Sem caso L1 novo: o canal web não é um diálogo. O comportamento está coberto por `booking.test.ts` e `BookFlow.test.tsx`; o scorecard (222 casos) não regrediu.
 
 **Staging preparado (17/11/2026):**
@@ -220,7 +220,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 | 1 | **Expurgo** por tenant e por contacto no D1 central (`client_web_links`, `client_web_sessions`; DEC-099, REQ-071) — o Flow tem a mesma lacuna | LGPD / offboarding |
 | 2 | Texto próprio para **erro de rede** e para **clínica suspensa** (hoje mostra «link já usado», impreciso) | UX e suporte |
 | 3 | Pré-escolher **«Para quem é?»** a partir da conversa (DEC-142) | Menos atrito na página |
-| 4 | Suprimir no canal web a frase do chat «Horário já não está livre…» quando a vaga se perde no Confirmar | Ruído no WhatsApp |
+| 4 | ~~Suprimir no canal web a frase do chat «Horário já não está livre…»~~ **Feito** (DEC-202) | — |
 | 5 | Template **TMPL-05** (implementação): link fora das 24 h | Clientes que só abrem o chat no dia seguinte |
 
 ### Externos / gates

@@ -605,13 +605,14 @@ describe('S5: book sem sinal', () => {
         `SELECT body FROM messages WHERE tenant_id = ?`,
         s.tenantId,
       )
-      expect(bodies.some((row) => row.body.includes('Horário já não está livre'))).toBe(true)
-      expect(bodies.some((row) => row.body.includes('tempo não serve'))).toBe(false)
-      // #511: alternativas do mesmo pedido (não «equipe envia»).
-      const refusedBody = bodies.find((row) => row.body.includes('Horário já não está livre'))?.body
+      // DEC-202: aponta para «Abrir agenda»; não lista alternativas nem pergunta «Qual fica melhor?».
+      const refusedBody = bodies.find((row) => /já não está livre/i.test(row.body))?.body
       expect(refusedBody).toBeTruthy()
+      expect(refusedBody!).toMatch(/Abrir agenda/)
       expect(refusedBody!).not.toMatch(/A equipe envia outra opção/i)
-      expect(refusedBody!).toMatch(/\b\d{2}:\d{2}\b/)
+      expect(refusedBody!).not.toMatch(/Qual fica melhor/i)
+      expect(refusedBody!).not.toMatch(/Tenho .+\d{2}:\d{2}/)
+      expect(bodies.some((row) => row.body.includes('tempo não serve'))).toBe(false)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
       const replay = await confirmClick(s, proposal.id, proposal.version, {
         providerEventKey: 'evt_s5_slot_replay',
@@ -631,7 +632,7 @@ describe('S5: book sem sinal', () => {
     }
   })
 
-  it('#511 Confirmar depois da validade: sem marcação; explica e oferece ≥2 horas', async () => {
+  it('DEC-202: Confirmar depois da validade aponta Abrir agenda (sem lista de horas)', async () => {
     const s = await seedBookable()
     try {
       const proposal = makeSent(s)
@@ -649,9 +650,79 @@ describe('S5: book sem sinal', () => {
       )
       const expiredMsg = bodies.find((row) => /já não está válida|expirou/i.test(row.body))
       expect(expiredMsg).toBeTruthy()
-      expect(expiredMsg!.body).toMatch(/\b\d{2}:\d{2}\b.*\b\d{2}:\d{2}\b/)
+      expect(expiredMsg!.body).toMatch(/Abrir agenda/)
+      expect(expiredMsg!.body).not.toMatch(/Qual fica melhor/i)
+      expect(expiredMsg!.body).not.toMatch(/Tenho .+\d{2}:\d{2}/)
       expect(expiredMsg!.body).not.toMatch(/A equipe pode enviar uma nova proposta/i)
       expect(expiredMsg!.body).not.toContain('America/')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('DEC-202 / ADR-0018: canal web com vaga perdida não espalha mensagem no chat', async () => {
+    const s = await seedBookable()
+    try {
+      const proposal = makeSent(s)
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'manual-occupy-web-s5',
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          roomResourceId: s.room.id,
+          startsAt: s.startsAt,
+          contactId: s.contact.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        s.clock,
+      )
+      const click = handleProposalButtonClick(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          buttonId: proposalButtonId(proposal.id, proposal.version, 'confirm'),
+          contextMessageId: 'wamid.proposal_s5',
+          providerEventKey: 'evt_s5_web_slot',
+        },
+        s.clock,
+      )
+      expect(click.handled).toBe(true)
+      if (!('handoff' in click)) throw new Error('expected handoff')
+      const before = s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction IN ('outbound','system')`,
+        s.tenantId,
+        s.conversation.id,
+      )?.n
+      const result = await executeProposalConfirmOp(
+        s.db,
+        s.caller,
+        {
+          handoff: click.handoff,
+          capability: true,
+          providerEventKey: 'evt_s5_web_slot',
+          contextMessageId: 'wamid.proposal_s5',
+          senderContactId: s.contact.id,
+          channel: 'web',
+        },
+        s.clock,
+      )
+      expect(result.status).toBe('slot_refused')
+      const after = s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction IN ('outbound','system')`,
+        s.tenantId,
+        s.conversation.id,
+      )?.n
+      expect(after).toBe(before)
+      const bodies = s.db.all<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ?`,
+        s.tenantId,
+        s.conversation.id,
+      )
+      expect(bodies.some((row) => /já não está livre|Qual fica melhor/i.test(row.body))).toBe(false)
     } finally {
       s.close()
     }
