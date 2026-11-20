@@ -34,7 +34,12 @@ import {
 import { readZoneSnapshots } from '../config/zones'
 import { readComboSnapshot } from '../config/combos'
 import { sendPostBookingFollowupOp } from '../followup/post-booking'
-import { proposalResultClientRequestId, renderProposalResultBody } from './render'
+import { locationMapCtaInteractive } from '../ai/location-map-offer'
+import {
+  proposalBookedMapUrl,
+  proposalResultClientRequestId,
+  renderProposalResultBody,
+} from './render'
 import type { AppointmentProposalRow } from './types'
 
 export type SendProposalResultOutcome =
@@ -206,6 +211,10 @@ export function sendProposalResultMessageOp(
     }
   }
 
+  // DEC-211 opção B: Agendado / Remarcado com localização → cta_url «Abrir mapa»
+  // (mesmo padrão da FAQ; Meta não cola URL cru no corpo).
+  const mapUrl =
+    input.resultKind === 'booked' ? proposalBookedMapUrl(proposal) : null
   let sent
   try {
     sent = sendOutboundMessageOp(
@@ -217,6 +226,7 @@ export function sendProposalResultMessageOp(
         clientRequestId,
         authorClerkUserId: PROPOSAL_SEND_ACTOR,
         authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
+        ...(mapUrl ? { interactive: locationMapCtaInteractive(mapUrl) } : {}),
       },
       clock,
     )
