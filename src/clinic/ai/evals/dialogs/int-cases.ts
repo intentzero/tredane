@@ -11,6 +11,8 @@
  * | INT-02d| Proposto  | Qui 21:42 sem bloqueio: amanhã (sexta) aberta às 09:00 (P26) |
  * | INT-02e| Proposto  | Sex 08:55 sem bloqueio: hoje aberto às 09:00 (P26) |
  * | INT-03 | Proposto  | FAQ de cancelamento sem modelo |
+ * | INT-03b| Confirmado| Sinal + B atraso: junção A + frase + B (DEC-210 revisão) |
+ * | INT-03c| Confirmado| Sinal ligado + B vazio: só texto do Recebimento |
  * | INT-04 | Confirmado| Dois pedidos no mesmo turno (preço + vaga): resposta e link |
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
@@ -23,8 +25,11 @@
 import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
 import { upsertKnowledgeCategory, upsertKnowledgeEntry } from '../../../config/knowledge'
+import { setClinicAiProfile } from '../../../config/settings'
 import { CLINIC_SCOPE_ID } from '../../../config/types'
+import { updatePixSignalSettings } from '../../../pix/signal-settings'
 import { clinicDayBounds } from '../../../scheduling/timezone'
+import { POLICY_JOIN_PHRASE } from '../../policy-join'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
@@ -211,6 +216,53 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       notPaused: true,
       outboundIncludes: ['24h'],
       outboundExcludes: [/Não entendi/i, /Quer ver as op[cç][oõ]es/i],
+      turnDecided: [{ modelCalled: false }],
+    },
+  },
+  {
+    id: 'INT-03b',
+    title: 'Sinal + regras gerais de atraso: cliente recebe A e B juntos (DEC-210)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      updatePixSignalSettings(
+        s.db,
+        s.tenantId,
+        { enabled: true, amountKind: 'fixed', fixedCents: 5000 },
+        s.clock,
+      )
+      setClinicAiProfile(
+        s.db,
+        s.tenantId,
+        { reschedulePolicy: 'Atrasos acima de 15 minutos podem perder o horário.' },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'como funciona o cancelamento se eu marcar?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: [POLICY_JOIN_PHRASE, 'Atrasos acima de 15 minutos', 'R$'],
+      outboundExcludes: [/Não entendi/i],
+      turnDecided: [{ modelCalled: false }],
+    },
+  },
+  {
+    id: 'INT-03c',
+    title: 'Sinal ligado e B vazio: só o texto do Recebimento',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      updatePixSignalSettings(
+        s.db,
+        s.tenantId,
+        { enabled: true, amountKind: 'fixed', fixedCents: 5000 },
+        s.clock,
+      )
+      setClinicAiProfile(s.db, s.tenantId, { reschedulePolicy: '' }, s.clock)
+    },
+    turns: [{ role: 'client', text: 'como funciona o cancelamento se eu marcar?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['R$'],
+      outboundExcludes: [new RegExp(POLICY_JOIN_PHRASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), /Não entendi/i],
       turnDecided: [{ modelCalled: false }],
     },
   },

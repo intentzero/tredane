@@ -160,7 +160,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Prazo do Pix (Confirmado, DEC-182, Paulo, 14/11/2026; revê DEC-179):** em Recebimento (M-33), só **15 min** ou **30 min** (padrão 30); servidor em `deadlineSeconds`. Detalhe em [ux-ui](product/ux-ui.md) TEL-11.
 
-**Sinal global + Contato (Confirmado, DEC-180, Paulo, 13/11/2026; timing DEC-182):** cartão unificado em Recebimento (valor global, antecedência mínima, política Aplica/Não devolve/Outro…, janela com Outro…, texto gerado); isenção no Contato com faixa na conversa. Revê o valor por serviço da DEC-047. **DEC-210** (Confirmado, Paulo, 19/11/2026): uma fonte por facto — regras de dinheiro só no Recebimento; resposta «Remarcar e cancelar» = texto do sinal + texto geral da clínica; implementação neste PR.
+**Sinal global + Contato (Confirmado, DEC-180, Paulo, 13/11/2026; timing DEC-182):** cartão unificado em Recebimento (valor global, antecedência mínima, política Aplica/Não devolve/Outro…, janela com Outro…, texto gerado); isenção no Contato com faixa na conversa. Revê o valor por serviço da DEC-047. **DEC-210** (Confirmado, Paulo, 19/11/2026; **revisão 20/11/2026** Q1–Q5): uma fonte por facto — regras de dinheiro e prazos de cancelar/remarcar só no Recebimento; B (Assistente) só atraso/falta, campo «só se precisar»; conflito bloqueia gravar (U1); legado conflituoso só aviso no painel (sem strip no chat); resposta «Remarcar e cancelar» = A + B complementar.
 
 **Ficha do serviço revista (Confirmado, DEC-176, Paulo, 12/11/2026):** opções agrupadas pelo nome com sinônimos partilhados, modo e público em segmentos, a conta certa em «Como fica na agenda» e a vista «O que a IA reconhece». Detalhe em [ux-ui](product/ux-ui.md).
 

@@ -7,6 +7,10 @@ import type { ClinicSettingsRow } from './types'
 import { normalizeTimezone } from './validation'
 import { checkGoogleBusinessUrl } from './google-business-link'
 import { ValidationError } from '../errors'
+import {
+  analyzeGeneralPolicyConflict,
+  formatPolicyConflictMessage,
+} from '../ai/policy-conflict'
 
 type SettingsSql = {
   tenant_id: string
@@ -188,6 +192,24 @@ export function setClinicAiProfile(
     input.reschedulePolicy == null
       ? cur.reschedulePolicy
       : input.reschedulePolicy.trim().slice(0, 500)
+
+  // DEC-210 revisão (Q1/Q2): com o sinal ligado, B não pode trazer prazos/dinheiro do Recebimento.
+  // Legado conflituoso já gravado só é barrado se a owner gravar de novo esse texto.
+  if (input.reschedulePolicy != null) {
+    const signalOn =
+      (db.get<{ signal_enabled: number | null }>(
+        `SELECT signal_enabled FROM clinic_settings WHERE id = 1 AND tenant_id = ?`,
+        tenantId,
+      )?.signal_enabled ?? 0) === 1
+    const conflict = analyzeGeneralPolicyConflict(policy, { signalOn })
+    if (conflict.blocksSave) {
+      throw new ValidationError(
+        'reschedule_policy_conflicts_with_signal',
+        formatPolicyConflictMessage(conflict),
+        { field: 'reschedulePolicy', kinds: conflict.conflicts.map((c) => c.kind) },
+      )
+    }
+  }
 
   db.run(
     `UPDATE clinic_settings

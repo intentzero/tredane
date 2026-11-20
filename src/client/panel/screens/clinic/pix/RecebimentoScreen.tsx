@@ -16,6 +16,7 @@ import {
 } from 'react-aria-components'
 import type { PanelApi, PixSnapshot, PixSignalSettings } from '../../../api'
 import { PanelApiError } from '../../../api'
+import { navigatePanel } from '../../../routes'
 import { ErrorState } from '../../../states/StatusScreens'
 import { friendlyError } from '../../../copy/errors'
 import { Banner } from '../../../states/Banner'
@@ -805,6 +806,23 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
                     <em>Cancelamento</em>
                     <p>{livePreview.cancel}</p>
                   </div>
+                  <p className="panel-muted-sm" style={{ marginTop: '0.75rem' }}>
+                    A cliente vê isto primeiro; regras gerais de atraso/falta (se existirem no
+                    Assistente) vêm a seguir, sem repetir estes prazos.{' '}
+                    <Button
+                      className="panel-btn panel-btn-ghost"
+                      onPress={() =>
+                        navigatePanel({
+                          kind: 'area',
+                          area: 'clinica',
+                          tenantId,
+                          section: 'conhecimento',
+                        })
+                      }
+                    >
+                      Abrir Assistente › Respostas
+                    </Button>
+                  </p>
                 </div>
               ) : null}
             </div>

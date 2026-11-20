@@ -24,6 +24,7 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 | Prazo padrão para pagar: **30 min** (DEC-182; antes 2 h na DEC-047 / presets largos na DEC-179); a responsável escolhe só **15 min** ou **30 min** em Recebimento (M-33) | **Confirmado** (24/10/2026; forma revista DEC-182, 14/11/2026) |
 | Antecedência mínima do agendamento: **Desligado** · 30 min · 1 h · Outro… (min\|h); padrão Desligado; corta oferta e Agendar | **Confirmado** (DEC-182, 14/11/2026) |
 | Janela para cancelar/remarcar com crédito: **12 / 24 / 48 h** + **Outro…** (min\|h); padrão 24 h; texto gerado reflecte o valor | **Confirmado** (DEC-180 + DEC-182); **aplicação automática da janela no cancelamento operacional** ainda é gap de backend |
+| Precedência do Recebimento sobre regras gerais do Assistente (prazos, crédito, devolução); B só atraso/falta; conflito bloqueia gravar; legado sem strip no chat | **Confirmado** (revisão DEC-210, Paulo, 20/11/2026) |
 | A atendente pode **Confirmar sem sinal** um serviço que exige sinal, informando o motivo; o histórico guarda quem fez e o motivo | **Confirmado** (24/10/2026) |
 
 ## Fluxo principal (JRN-16)

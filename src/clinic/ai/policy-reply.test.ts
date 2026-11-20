@@ -76,12 +76,38 @@ describe('resposta «Remarcar e cancelar» (DEC-210)', () => {
   })
 
   it('não repete o texto quando as regras gerais copiam o do sinal', () => {
-    const { db, close, clock, caller } = boot()
+    const { db, close, clock } = boot()
     try {
       updatePixSignalSettings(db, TENANT, { enabled: true, amountKind: 'fixed', fixedCents: 5000 }, clock)
       const sinalOnly = buildCancellationPolicyReply(db, TENANT, clock)
-      setAiProfileOp(db, caller, { reschedulePolicy: sinalOnly }, clock)
+      // Cópia exacta de A em B seria rejeitada pelo U1; simula legado já gravado.
+      db.run(
+        `UPDATE clinic_settings SET reschedule_policy = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+        sinalOnly,
+        clock.nowMs(),
+        TENANT,
+      )
       expect(buildCancellationPolicyReply(db, TENANT, clock)).toBe(sinalOnly)
+    } finally {
+      close()
+    }
+  })
+
+  it('B legado conflituoso continua a sair no chat até a owner editar (Q3)', () => {
+    const { db, close, clock } = boot()
+    try {
+      updatePixSignalSettings(db, TENANT, { enabled: true, amountKind: 'fixed', fixedCents: 5000 }, clock)
+      // Gravação directa (legado): contorna a validação U1 do setClinicAiProfile.
+      db.run(
+        `UPDATE clinic_settings SET reschedule_policy = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+        'Avise com 24 h de antecedência.',
+        clock.nowMs(),
+        TENANT,
+      )
+      const out = buildCancellationPolicyReply(db, TENANT, clock)
+      expect(out).toContain(POLICY_JOIN_PHRASE)
+      expect(out).toContain('Avise com 24 h')
+      expect(out).toMatch(/sinal|R\$ 50/i)
     } finally {
       close()
     }
