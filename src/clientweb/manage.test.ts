@@ -25,7 +25,7 @@ import {
 const TENANT = 'clinic-demo-a'
 
 /** Domingo 07/01/2024; segunda 08/01 tem expediente 09–18. */
-function seed() {
+function seed(opts: { requireRoom?: boolean } = {}) {
   const clock = createControllableClock(Date.UTC(2024, 0, 7, 15))
   const { db, close } = bootClinicDb({ clock })
   const caller = workerCaller(TENANT, 'user_synth_owner_a')
@@ -37,7 +37,16 @@ function seed() {
   const laser = upsertServiceOp(
     db,
     caller,
-    { name: 'Depilação a laser', durationMinutes: 60, bufferMinutes: 0, priceCents: 12_000, variantKind: 'Zona', variantKindPlural: 'Zonas', professionalIds: [pro.id], roomRequirement: { mode: 'none' } },
+    {
+      name: 'Depilação a laser',
+      durationMinutes: 60,
+      bufferMinutes: 0,
+      priceCents: 12_000,
+      variantKind: 'Zona',
+      variantKindPlural: 'Zonas',
+      professionalIds: [pro.id],
+      roomRequirement: opts.requireRoom ? { mode: 'rooms', resourceIds: [room.id] } : { mode: 'none' },
+    },
     clock,
   )
   replaceServiceZonesOp(
@@ -108,6 +117,44 @@ describe('remarcar pela página (REQ-113, DEC-198)', () => {
       expect(audit.some((a) => a.actor === 'contact:web')).toBe(true)
       const bodies = (db.all("SELECT body FROM messages WHERE direction = 'outbound'") as Array<{ body: string }>).map((m) => m.body)
       expect(bodies.some((b) => b.startsWith('Remarcado:') && b.includes(WEB_RECEIPT_SENTENCE))).toBe(true)
+    } finally {
+      close()
+    }
+  })
+
+  it('confirma remarcação que sobrepõe a própria vaga (serviço com sala)', async () => {
+    // Reproduz Gi 09:00→09:30: a lista libera o horário, mas Confirmar falhava ao
+    // resolver a sala sem excludeAppointmentId (self-overlap).
+    const { db, close, clock, caller, marina, book } = seed({ requireRoom: true })
+    try {
+      const apt = await book(marina, '2024-01-08T10:00')
+      const listed = await listRescheduleSlots(db, TENANT, clock, marina, {
+        appointmentId: apt.id,
+        from: '2024-01-08',
+        to: '2024-01-08',
+      })
+      if (!listed.ok) throw new Error('sem horas')
+      expect(listed.slots.map((s) => s.time)).toContain('10:15')
+
+      const planned = await planWebReschedule(db, TENANT, clock, marina, {
+        appointmentId: apt.id,
+        slotId: '2024-01-08T10:15',
+      })
+      if (!planned.ok) throw new Error(planned.error)
+      const done = await executeProposalConfirmOp(
+        db,
+        caller,
+        { handoff: planned.handoff, capability: true, channel: 'web' },
+        clock,
+      )
+      expect(done.status).toBe('booked')
+      const row = db.get<{ starts_at: number; ends_at: number; status: string }>(
+        'SELECT starts_at, ends_at, status FROM appointments WHERE id = ?',
+        apt.id,
+      )
+      expect(row).toMatchObject({ status: 'confirmed' })
+      expect(row!.starts_at).toBe(apt.startsAt + 15 * 60_000)
+      expect(row!.ends_at - row!.starts_at).toBe(apt.endsAt - apt.startsAt)
     } finally {
       close()
     }
