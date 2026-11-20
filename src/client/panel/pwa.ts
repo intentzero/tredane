@@ -55,12 +55,17 @@ export async function subscribePush(
   if (permission !== 'granted') return null
   const reg = await navigator.serviceWorker.ready
   const existing = await reg.pushManager.getSubscription()
-  if (existing) return existing
+  if (existing) {
+    notifyPushSubscriptionChanged()
+    return existing
+  }
   const key = urlBase64ToUint8Array(vapidPublicKey)
-  return reg.pushManager.subscribe({
+  const created = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: key.buffer as ArrayBuffer,
   })
+  notifyPushSubscriptionChanged()
+  return created
 }
 
 /** Subscrição push já existente neste aparelho (sem pedir permissão). */
@@ -75,13 +80,24 @@ export async function getExistingPushSubscription(): Promise<PushSubscription | 
   }
 }
 
+/** Evento no `window` quando a subscrição push deste aparelho muda (activar / desactivar). */
+export const PUSH_SUBSCRIPTION_CHANGED_EVENT = 'tredane:push-subscription-changed'
+
+/** Avisa o chrome (sino no cabeçalho/rail) para reler o estado da subscrição. */
+export function notifyPushSubscriptionChanged(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(PUSH_SUBSCRIPTION_CHANGED_EVENT))
+}
+
 export async function unsubscribePush(): Promise<boolean> {
   if (!('serviceWorker' in navigator)) return false
   const reg = await navigator.serviceWorker.getRegistration()
   if (!reg) return false
   const sub = await reg.pushManager.getSubscription()
   if (!sub) return false
-  return sub.unsubscribe()
+  const ok = await sub.unsubscribe()
+  if (ok) notifyPushSubscriptionChanged()
+  return ok
 }
 
 /** Limpa caches do SW — logout / troca de clínica / acesso revogado (UX-05). */

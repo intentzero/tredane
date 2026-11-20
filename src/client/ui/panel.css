@@ -141,6 +141,15 @@
   flex: none;
 }
 
+/* Sino de avisos no chrome — estado push neste aparelho (mock notif-estado-sino). */
+.panel-icon-btn--avisos-on {
+  color: var(--color-success-ink);
+}
+
+.panel-icon-btn--avisos-off {
+  color: var(--color-danger-ink);
+}
+
 .panel-title {
   margin: 0;
   font-size: var(--font-size-title);
