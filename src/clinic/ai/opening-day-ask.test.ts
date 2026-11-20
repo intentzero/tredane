@@ -13,6 +13,9 @@ describe('opening-day-ask', () => {
     expect(isOpeningDayAsk('abrem amanha')).toBe(true)
     expect(isOpeningDayAsk('vocês atendem hoje?')).toBe(true)
     expect(isOpeningDayAsk('funciona depois de amanhã?')).toBe(true)
+    // TRE-77: infinitivo («pode me atender amanhã?»).
+    expect(isOpeningDayAsk('Você pode-me atender amanhã?')).toBe(true)
+    expect(isOpeningDayAsk('Você pode me atender amanhã?')).toBe(true)
   })
   it('reconhece gerúndio e «aberto» («está atendendo hoje?»)', () => {
     expect(isOpeningDayAsk('está atendendo hoje?')).toBe(true)

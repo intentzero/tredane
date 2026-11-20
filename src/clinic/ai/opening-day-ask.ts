@@ -10,8 +10,11 @@ const WEEKDAY = 'domingo|segunda|terca|quarta|quinta|sexta|sabado'
 
 const RELATIVE_DAY = 'hoje|amanha|depois\\s+de\\s+amanha'
 
-/** Inclui gerúndio («está atendendo hoje?») e «aberto/a» — sem isso cai no LLM com só o expediente. */
-const OPEN_VERB = 'atend(?:e|em|endo)|abre(?:m)?|abert[oa]s?|funciona(?:m|ndo)?'
+/**
+ * Inclui gerúndio («está atendendo hoje?»), infinitivo («pode me atender amanhã?», TRE-77)
+ * e «aberto/a» — sem isso cai no LLM com só o expediente.
+ */
+const OPEN_VERB = 'atend(?:e|em|endo|er)|abre(?:m)?|abert[oa]s?|funciona(?:m|ndo)?'
 
 /** Dia (semana ou relativo) + verbo de funcionamento (ordem flexível, até ~60 chars). */
 export const OPENING_DAY_ASK_RE = new RegExp(

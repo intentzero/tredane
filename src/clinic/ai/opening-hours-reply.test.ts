@@ -51,12 +51,36 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
       true,
     )
     expect(openingHoursMixedWithBooking('gostaria de saber se atendem domingo')).toBe(false)
-    expect(openingHoursMixedWithBooking('Você pode me atender esta tarde?')).toBe(true)
-    expect(openingHoursMixedWithBooking('tem horário hoje à tarde?')).toBe(true)
+    // TRE-77: disponibilidade sem verbo de marcar não é misto — responde expediente + Abrir agenda.
+    expect(openingHoursMixedWithBooking('Você pode me atender esta tarde?')).toBe(false)
+    expect(openingHoursMixedWithBooking('Você pode-me atender amanhã?')).toBe(false)
+    expect(openingHoursMixedWithBooking('tem horário hoje à tarde?')).toBe(false)
     expect(openingHoursMixedWithBooking('Vocês abrem amanhã?')).toBe(false)
     // TRE-60: cumprimento ≠ período — «Boa tarde, tem horário?» não mistura com marcação.
     expect(openingHoursMixedWithBooking('Boa tarde, tem horário?')).toBe(false)
     expect(openingHoursMixedWithBooking('Boa noite, tem vaga?')).toBe(false)
+  })
+
+  it('TRE-77: «pode me atender amanhã?» é FAQ de dia (infinitivo) e responde o sábado', () => {
+    expect(isOpeningHoursFaqAsk('Você pode-me atender amanhã?')).toBe(true)
+    expect(isOpeningHoursFaqAsk('Você pode me atender amanhã?')).toBe(true)
+    /** Sex 20/11/2026 16:20 America/Sao_Paulo. */
+    const clock = createControllableClock(Date.UTC(2026, 10, 20, 19, 20))
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-hours-pode-amanha'
+    seedWindows(boot.db, tenantId, clock)
+    const reply = buildOpeningHoursReply(
+      boot.db,
+      tenantId,
+      clock,
+      'Você pode-me atender amanhã?',
+      'cnv_pode',
+    )
+    expect(reply).toMatch(/amanh[aã]/i)
+    expect(reply).toMatch(/s[aá]bado/i)
+    expect(reply).toMatch(/09:00/)
+    expect(reply).not.toMatch(/serviço|procedimento|equipe confirma/i)
+    boot.close()
   })
 
   it('responde dia específico e expediente completo', () => {
