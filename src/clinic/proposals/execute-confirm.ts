@@ -189,6 +189,7 @@ function materialDrift(
 /**
  * Proposta não guarda sala (S3); resolve na hora pelo caminho de disponibilidade.
  * Sem sala livre → null (tratado como conflito de vaga).
+ * Em remarcação, a própria marcação não ocupa a vaga (`excludeAppointmentId`).
  */
 function resolveRoomForProposal(
   db: ClinicDb,
@@ -208,6 +209,9 @@ function resolveRoomForProposal(
       serviceId: proposal.serviceId,
       date,
       professionalId: proposal.professionalId ?? undefined,
+      ...(proposal.replacesAppointmentId
+        ? { excludeAppointmentId: proposal.replacesAppointmentId }
+        : {}),
       ...(snaps.length > 0 ? { durationMinutesOverride: proposal.durationMinutes } : {}),
     },
     clock,
