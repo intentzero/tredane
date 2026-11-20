@@ -19,9 +19,11 @@ import { insertMessage } from '../inbox/messages'
 import { ensureOpenOpportunity } from '../pipeline/operations'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
+import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../clientweb/offer'
 import {
   AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK,
   HANDOFF_TIMEOUT_RESUME_TEXT,
+  HUMAN_HANDOFF_BUTTON_ID,
   HUMAN_HANDOFF_TEXT,
   afterHoursHumanRequestBody,
   isHumanTeamOfferAllowed,
@@ -329,6 +331,13 @@ describe('DEC-155 fora do expediente', () => {
       expect(reply.outbox.some((o) => o.type === 'whatsapp.send')).toBe(true)
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
       expect(readHandoffTimeoutAt(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const ob = s.db.get<{ interactive_json: string | null }>(
+        `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 1`,
+        s.tenantId,
+      )
+      expect(ob?.interactive_json).toContain(OPEN_AGENDA_REPLY_BUTTON_ID)
+      expect(ob?.interactive_json).not.toContain(HUMAN_HANDOFF_BUTTON_ID)
+      expect(ob?.interactive_json).not.toContain('Falar com a equipe')
     } finally {
       s.close()
     }

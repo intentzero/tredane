@@ -306,6 +306,11 @@ export type SendOutboundInput = {
   authorClerkUserId: string
   authorDisplayName: string
   /**
+   * Não injectar «Abrir agenda» / «Falar com a equipe» (DEC-216).
+   * Ack de pedido de equipe já registado: só «Abrir agenda», sem repetir Equipe.
+   */
+  omitHumanTeamAugment?: boolean
+  /**
    * Sugestão IA usada neste envio humano (#41 / AC-06).
    * Origem da sugestão. O rascunho automático envia sozinho; o clique em Enviar continua válido.
    */

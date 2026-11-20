@@ -21,6 +21,7 @@ import {
   reviewFlagAckInteractiveButtons,
 } from '../../../inbox/review-flag'
 import { ensureOpenOpportunity } from '../../../pipeline/operations'
+import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
 import {
   HANDOFF_TIMEOUT_RESUME_TEXT,
   HUMAN_HANDOFF_BUTTON_ID,
@@ -222,6 +223,52 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       outboundIncludes: ['a equipe responde a partir de hoje', '09:00'],
       outboundExcludes: [/amanh[aã]/i, /s[aá]bado/i],
       turnDecided: [{ modelCalled: false, route: 'skip:after_hours_human_keep_ai' }],
+    },
+  },
+  {
+    // TRE-54 / screenshot handoff-btn: ack «Deixei seu pedido…» repetia «Falar com a equipe».
+    id: 'G-10d',
+    title:
+      'Ack fora do expediente: «Abrir agenda» sem «Falar com a equipe» (TRE-54)',
+    turnosIdeais: 1,
+    nowMs: Date.UTC(2026, 10, 7, 20, 0),
+    turns: [{ role: 'client', text: 'Falar com a equipe' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['Deixei seu pedido para a equipe'],
+      turnDecided: [{ modelCalled: false, route: 'skip:after_hours_human_keep_ai' }],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['G-10d: ack sem botões interactivos']
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: Array<{ id: string; title: string }>
+        }
+        const buttons = parsed.buttons ?? []
+        const hasAgenda = buttons.some(
+          (b) => b.title === 'Abrir agenda' && b.id.startsWith(OPEN_AGENDA_REPLY_BUTTON_ID),
+        )
+        const hasTeam = buttons.some(
+          (b) => b.id === HUMAN_HANDOFF_BUTTON_ID || b.title === HUMAN_HANDOFF_BUTTON_TITLE,
+        )
+        if (!hasAgenda) {
+          return [`G-10d: esperava Abrir agenda, veio ${JSON.stringify(buttons)}`]
+        }
+        if (hasTeam) {
+          return [`G-10d: Equipe não deve repetir no ack, veio ${JSON.stringify(buttons)}`]
+        }
+        if (buttons.length !== 1) {
+          return [`G-10d: esperava só Abrir agenda, veio ${buttons.length} botões`]
+        }
+        return []
+      },
     },
   },
   {

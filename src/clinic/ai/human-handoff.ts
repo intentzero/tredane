@@ -5,6 +5,7 @@
  * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
  * fora do expediente: pedido registado, IA activa; botão «Falar com a equipe» nas interactivas (21/11/2026).
  * DEC-216 (Paulo 19/11/2026): onde há «Falar com a equipe», há também «Abrir agenda» (reply → CTA URL no toque).
+ * TRE-54: ack do pedido de equipe («Deixei seu pedido…» / pausa) só com «Abrir agenda» — sem repetir Equipe.
  */
 import type { SendOutboundInteractiveInput } from '../inbox/types'
 /** Limites da lista interativa da Meta (linhas e título da linha). */
@@ -359,7 +360,11 @@ export function humanTeamOfferButtons(
  * Pedido explícito de equipe fora do expediente (DEC-155): horário + IA activa.
  * Prefere a próxima abertura (como DEC-113); senão lista o expediente.
  */
-/** Botões no pedido de equipe (inclui fora do expediente — registo sem pausar a IA). DEC-216: também «Abrir agenda». */
+/**
+ * Botões no ack de pedido de equipe já registado (fora do expediente, mal-entendido, pausa).
+ * Só «Abrir agenda» — «Falar com a equipe» seria redundante (TRE-54).
+ * DEC-216 continua a valer nas respostas de informação (`humanTeamOfferButtons`).
+ */
 export function humanHelpRequestButtons(
   db: ClinicDb,
   tenantId: string,
@@ -369,7 +374,7 @@ export function humanHelpRequestButtons(
   void db
   void tenantId
   void clock
-  return [openAgendaReplyButton(opts?.serviceId), { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+  return [openAgendaReplyButton(opts?.serviceId)]
 }
 
 export { OPEN_AGENDA_REPLY_BUTTON_ID, openAgendaReplyButton, parseOpenAgendaReplyButton }
@@ -489,6 +494,8 @@ export function replyAfterHoursHumanRequest(
         conversationId: input.conversationId,
         body: afterHoursHumanRequestBody(db, tenantId, clock, input.conversationId),
         interactive: buttons.length > 0 ? { buttons } : undefined,
+        // Já registámos o pedido: não re-injectar «Falar com a equipe» (TRE-54).
+        omitHumanTeamAugment: true,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
         authorDisplayName: 'IA',
@@ -687,6 +694,7 @@ export function replyMisunderstandingEscalation(
         conversationId: input.conversationId,
         body: MISUNDERSTANDING_ESCALATION_TEXT,
         interactive: buttons.length > 0 ? { buttons } : undefined,
+        omitHumanTeamAugment: true,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
         authorDisplayName: 'IA',
@@ -708,18 +716,16 @@ export function replyWhileHandoffPaused(
 ): { outbox: OutboxRow[] } {
   const outbox: OutboxRow[] = []
   try {
+    const buttons = humanHelpRequestButtons(db, tenantId, clock)
     const sent = sendOutboundMessageOp(
       db,
       workerCaller(tenantId, AI_ASSIGNEE),
       {
         conversationId: input.conversationId,
         body: HANDOFF_PAUSED_ACK_TEXT,
-        interactive: (() => {
-          const buttons = humanTeamOfferButtons(db, tenantId, clock)
-          return buttons.length > 0 ? { buttons } : humanHelpRequestButtons(db, tenantId, clock).length
-            ? { buttons: humanHelpRequestButtons(db, tenantId, clock) }
-            : undefined
-        })(),
+        interactive: buttons.length > 0 ? { buttons } : undefined,
+        // Equipe já avisada: só «Abrir agenda» (TRE-54).
+        omitHumanTeamAugment: true,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
         authorDisplayName: 'IA',

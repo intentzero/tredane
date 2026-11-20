@@ -903,11 +903,13 @@ export function sendOutboundMessageOp(
 
   // Pós-agendamento DEC-086 (fu:post:…): Paulo 18/11/2026 — T3 «Abrir agenda»|«Terminar»
   // sem injectar «Falar com a equipe» (DEC-202: marcar só na página).
+  // Ack de pedido de equipe: só «Abrir agenda» (Equipe seria redundante).
   const isPostBookingFollowup = Boolean(
     input.interactive?.buttons?.some((b) => b.id.startsWith('fu:post:')),
   )
   if (
     !isPostBookingFollowup &&
+    !input.omitHumanTeamAugment &&
     (input.interactive?.buttons?.length || input.interactive?.list?.sections?.length)
   ) {
     const augmented = augmentOutboundWithHumanTeam(db, meta.tenantId, clock, {
