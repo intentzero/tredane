@@ -132,8 +132,11 @@ describe('catálogo da página (REQ-112)', () => {
       expect(l.combos[0]).toMatchObject({
         name: 'Axilas + sobrancelha',
         priceCents: 6_000,
-        zoneIds: [zoneId('Axilas'), zoneId('Sobrancelha')],
       })
+      // A ordem das zonas no combo vem do SQLite; o conjunto é o que importa (DEC-080).
+      expect([...l.combos[0]!.zoneIds].sort()).toEqual(
+        [zoneId('Axilas'), zoneId('Sobrancelha')].sort(),
+      )
     } finally {
       close()
     }
