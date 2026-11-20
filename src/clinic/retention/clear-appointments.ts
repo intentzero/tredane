@@ -1,6 +1,8 @@
 /**
  * STAGING-ONLY (Paulo, 16/11/2026): apaga todos os compromissos da clínica no Clinic DO.
  * Mantém contatos, conversas, serviços, salas, Pix e restante configuração.
+ * Oportunidades com vínculo a horário são realinhadas (DEC-092): Agendado sem
+ * compromisso futuro volta a Em atendimento; Agendado manual sem vínculo (DEC-040) fica.
  * O gate de ambiente/papel/confirmação é feito no Worker (src/clinic-reset/routes.ts).
  */
 import type { Clock } from '../../db/clock'
@@ -8,6 +10,7 @@ import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
 import { assertClinicSchemaReady } from '../migrations'
+import { alignOpportunityToAppointments } from '../pipeline/appointment-stage'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 
@@ -75,6 +78,21 @@ export function clearClinicAppointments(
   return db.transactionSync(() => {
     const deletedCounts: Record<string, number> = {}
     let totalDeleted = 0
+    const now = clock.nowMs()
+    const actorId = caller.actorId ?? caller.kind
+
+    // Conversas cuja oportunidade aberta apontava a um compromisso — realinhar
+    // depois do DELETE (DEC-092). Não inclui Agendado manual sem vínculo (DEC-040).
+    const linkedConversations = tableExists(db, 'opportunities')
+      ? db.all<{ conversation_id: string }>(
+          `SELECT DISTINCT conversation_id AS conversation_id
+           FROM opportunities
+           WHERE tenant_id = ?
+             AND status = 'open'
+             AND linked_appointment_id IS NOT NULL`,
+          tenantId,
+        )
+      : []
 
     const visitSnapshots = deleteVisitSnapshotsForAppointments(db, tenantId)
     deletedCounts.visit_snapshots = visitSnapshots
@@ -88,11 +106,26 @@ export function clearClinicAppointments(
       totalDeleted += n
     }
 
-    // Evita ponteiros órfãos no pipeline sem apagar oportunidades.
+    for (const row of linkedConversations) {
+      alignOpportunityToAppointments(
+        db,
+        {
+          tenantId,
+          conversationId: row.conversation_id,
+          now,
+          actorClerkUserId: actorId,
+          actorDisplayName: actorId,
+        },
+        clock,
+      )
+    }
+
+    // Evita ponteiros órfãos restantes (ex.: ciclos fechados) sem apagar oportunidades.
     if (tableExists(db, 'opportunities')) {
       db.run(
-        `UPDATE opportunities SET linked_appointment_id = NULL
+        `UPDATE opportunities SET linked_appointment_id = NULL, updated_at = ?
          WHERE tenant_id = ? AND linked_appointment_id IS NOT NULL`,
+        now,
         tenantId,
       )
     }
@@ -101,7 +134,7 @@ export function clearClinicAppointments(
       db,
       {
         tenantId,
-        actor: caller.actorId ?? caller.kind,
+        actor: actorId,
         action: 'clinic.appointments_cleared',
         objectType: 'clinic',
         objectId: tenantId,

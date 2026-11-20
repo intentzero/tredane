@@ -94,9 +94,9 @@ export function StagingClearAppointmentsCard({ tenantId, api, generation, onDone
             <li>Snapshots de zonas/combo ligados a visitas já marcadas</li>
           </ul>
           <p style={{ margin: 0 }}>
-            Mantém contatos, conversas e mensagens, oportunidades no pipeline (só desliga o vínculo
-            com horário), serviços, profissionais, salas, horários da clínica, Pix, WhatsApp e demais
-            configuração. Não dá para desfazer.
+            Mantém contatos, conversas e mensagens, oportunidades no pipeline (desliga o vínculo com
+            horário; Agendado que tinha marcação volta a Em atendimento), serviços, profissionais,
+            salas, horários da clínica, Pix, WhatsApp e demais configuração. Não dá para desfazer.
           </p>
         </>
       }
