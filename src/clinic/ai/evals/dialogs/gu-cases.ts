@@ -8,6 +8,7 @@
  * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
  * CW-15: preferência / Sem preferência — filtra horas e rodízio por serviço (DEC-218).
  * CW-16: combos de zonas no catálogo da página e preço DEC-080 na proposta (TRE-88).
+ * CW-17: Remarcado na página — «de <hora antiga> para <hora nova>» (TRE-93; não «de X para X»).
  * GU-23: «Posso ajudar…» reply Abrir agenda|Terminar; toque → cta_url corpo mínimo (TRE-81).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
  * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
@@ -29,6 +30,7 @@ import { queryAvailability, zonedCivilToUtc } from '../../../scheduling'
 import {
   appendWebCancelChatEffects,
   cancelFromWeb,
+  planWebReschedule,
   WEB_CANCEL_ACTOR,
   WEB_CANCEL_RECEIPT_SENTENCE,
 } from '../../../../clientweb/manage'
@@ -43,6 +45,7 @@ import { OPEN_MAP_CTA_TEXT } from '../../location-map-offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
 import {
   createProposal,
+  executeProposalConfirmOp,
   markProposalConfirmed,
   markProposalSent,
   sendProposalResultMessageOp,
@@ -1252,6 +1255,77 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         const errs: string[] = []
         if (s.appointmentCount() !== 0) errs.push('marcação inesperada (só proposta web)')
         if (s.proposalCount() < 1) errs.push('esperava proposta com combo aplicado')
+        return errs
+      },
+    },
+  },
+  {
+    id: 'CW-17',
+    title:
+      'Remarcado pela página: de <hora antiga> para <hora nova> (TRE-93; não de X para X)',
+    turnosIdeais: 0,
+    // Marcação em `prepare` → baseline INV-01; o act só remarca (não cria linha nova).
+    prepare: (s) => {
+      s.sayInbound('(cliente remarca na página)')
+      seedFutureAppointment(s, {
+        id: 'apt_cw17',
+        serviceId: s.ids.limpeza,
+        professionalId: s.ids.ana,
+        startsAt: zonedCivilToUtc(GU_TZ, 2026, 11, 21, 9, 0),
+      })
+    },
+    turns: [
+      {
+        role: 'owner',
+        note: 'remarca 09:00→09:30 na página; recibo lê o horário antigo do evento rescheduled',
+        act: async (s) => {
+          const session = { contactId: s.contactId, conversationId: s.conversationId }
+          const planned = await planWebReschedule(s.db, s.tenantId, s.clock, session, {
+            appointmentId: 'apt_cw17',
+            slotId: '2026-11-21T09:30',
+          })
+          if (!planned.ok) throw new Error(`CW-17: remarcar falhou (${planned.error})`)
+          if (planned.proposal.replacesAppointmentId !== 'apt_cw17') {
+            throw new Error('CW-17: proposta sem replacesAppointmentId da marcação')
+          }
+          if (planned.previousStartsAt !== zonedCivilToUtc(GU_TZ, 2026, 11, 21, 9, 0)) {
+            throw new Error('CW-17: previousStartsAt do plano não é 09:00')
+          }
+          const done = await executeProposalConfirmOp(
+            s.db,
+            s.caller,
+            { handoff: planned.handoff, capability: true, channel: 'web' },
+            s.clock,
+          )
+          if (done.status !== 'booked') {
+            throw new Error(`CW-17: remarcação veio ${done.status}`)
+          }
+        },
+      },
+    ],
+    expect: {
+      appointments: 1,
+      outboundIncludes: ['Remarcado:', WEB_RECEIPT_SENTENCE],
+      outboundExcludes: [/Remarcado: de (.+) para \1/],
+      assert: (s) => {
+        const errs: string[] = []
+        const remarcados = s.outboundBodies().filter((b) => b.startsWith('Remarcado:'))
+        if (remarcados.length !== 1) {
+          errs.push(`esperava 1 «Remarcado:…», saíram ${remarcados.length}`)
+          return errs
+        }
+        const body = remarcados[0]!
+        if (
+          !/Remarcado: de sábado 21\/11 às 09:00 para sábado 21\/11 às 09:30/.test(body)
+        ) {
+          errs.push(`recibo sem de 09:00 para 09:30, veio: ${body.slice(0, 120)}`)
+        }
+        if (!body.includes(WEB_RECEIPT_SENTENCE)) {
+          errs.push('recibo remarcado sem frase da página')
+        }
+        if (/Remarcado: de (.+) para \1/.test(body)) {
+          errs.push('Remarcado com horários idênticos (TRE-93)')
+        }
         return errs
       },
     },
