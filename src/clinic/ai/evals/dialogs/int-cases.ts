@@ -13,7 +13,7 @@
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
- * | INT-08 | Confirmado| Onde fica: só o link do Google Business, sem endereço (DEC-211) |
+ * | INT-08 | Confirmado| Onde fica: corpo sem URL + Abrir mapa/agenda/equipe (DEC-211 opção B) |
  */
 import { createResourceBlock } from '../../../config/blocks'
 import { CLINIC_SCOPE_ID } from '../../../config/types'
@@ -137,14 +137,46 @@ export const INT_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'INT-08',
-    title: 'Onde fica — responde só com o link do Google Business, sem modelo (DEC-211)',
+    title:
+      'Onde fica — corpo sem URL + Abrir mapa · Abrir agenda · Equipe (DEC-211 opção B)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Onde fica a clínica?' }],
     expect: {
       notPaused: true,
-      outboundIncludes: ['https://maps.app.goo.gl/clinica-demo'],
-      outboundExcludes: [/Não tenho/i, /Rua /i],
+      outboundIncludes: ['mapa'],
+      outboundExcludes: [/Não tenho/i, /Rua /i, /https?:\/\//i, /toque em «Abrir agenda»/i],
       turnDecided: [{ modelCalled: false }],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null; body: string }>(
+          `SELECT o.interactive_json AS interactive_json, m.body AS body
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['INT-08: resposta sem interactivo']
+        if (/https?:\/\//i.test(row.body ?? '')) {
+          return ['INT-08: corpo ainda tem URL (opção B remove o link da bolha)']
+        }
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: Array<{ id: string; title: string }>
+          ctaUrl?: unknown
+        }
+        if (parsed.ctaUrl) return ['INT-08: cta_url na 1.ª bolha (mapa só após toque)']
+        const buttons = parsed.buttons ?? []
+        const titles = buttons.map((b) => b.title)
+        if (
+          titles.length !== 3 ||
+          titles[0] !== 'Abrir mapa' ||
+          titles[1] !== 'Abrir agenda' ||
+          titles[2] !== 'Falar com a equipe'
+        ) {
+          return [`INT-08: esperava Abrir mapa · Abrir agenda · Equipe, veio ${JSON.stringify(buttons)}`]
+        }
+        return []
+      },
     },
   },
   {

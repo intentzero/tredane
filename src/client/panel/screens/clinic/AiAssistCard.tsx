@@ -119,7 +119,7 @@ type ProfileProps = {
   onSaved?: () => void
 }
 
-const GB_INVALID_MESSAGE = `Link do Google Business inválido: use um link https:// com até ${GOOGLE_BUSINESS_URL_MAX_LENGTH} caracteres.`
+const GB_INVALID_MESSAGE = `Link da localização inválido: use um link https:// com até ${GOOGLE_BUSINESS_URL_MAX_LENGTH} caracteres.`
 
 /**
  * Dados da assistente que a owner edita: persona (DEC-089) ou factos da clínica (DEC-210/211).
@@ -293,7 +293,7 @@ export function AiProfileCard({
               if (gbError) setGbError(null)
             }}
           >
-            <Label>Localização: link do Google Business</Label>
+            <Label>Localização: link da localização Google</Label>
             <Input
               type="url"
               inputMode="url"
@@ -301,8 +301,9 @@ export function AiProfileCard({
               maxLength={GOOGLE_BUSINESS_URL_MAX_LENGTH}
             />
             <Text slot="description" className="panel-muted-sm">
-              Enviado quando a cliente pede o local, na confirmação do chat e na página da cliente
-              («Como chegar»).
+              Cole o link da localização no Google Maps (preferível o curto maps.app.goo.gl). Enviado
+              quando a cliente pede o local, na confirmação do chat e na página da cliente («Como
+              chegar»).
             </Text>
             {gbError ? (
               <p className="clinic-footnote clinic-footnote-warn" role="alert">

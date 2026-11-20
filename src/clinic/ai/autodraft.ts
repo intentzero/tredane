@@ -33,6 +33,7 @@ import {
   clientWebRouteBody,
   stripScheduleOffer,
   countRecentWebLinks,
+  isOpenAgendaButtonTitle,
 } from '../../clientweb/offer'
 import { isGreetingOnly, servicesCitedInText } from '../../clientweb/route-intent'
 import {
@@ -71,6 +72,7 @@ import {
   resumeAiReply,
   shouldAcknowledgeWhileHandoffPaused,
 } from './human-handoff'
+import { isLocationMapOfferReply, locationMapOfferButtons } from './location-map-offer'
 import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
@@ -815,6 +817,16 @@ export async function runDueAutoDrafts(
     )
     const turnText = turn.turnText
     const hasUpcoming = Boolean(turn.upcoming)
+    // Título «Abrir agenda» sozinho após um CTA URL já enviado: não reenvia a frase «toque em…».
+    // (Toque autenticado `cw:abrir-agenda` continua no handler dedicado e manda o CTA se ainda não saiu.)
+    // Recolhido de #974 (supersedido pela opção B): útil com Agenda como reply na bolha de localização.
+    if (
+      isOpenAgendaButtonTitle(turnText) &&
+      countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) > 0
+    ) {
+      skip('open_agenda_title_already_offered')
+      continue
+    }
     /**
      * DEC-202: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda» com o
      * propósito certo e, se reconheceu um serviço único, com ele. Sem link possível (pausa da owner,
@@ -1468,11 +1480,14 @@ export async function runDueAutoDrafts(
         /\bNo total, ficam\b/i.test(catalogText) ||
         /\bSomando tudo, ficam\b/i.test(catalogText)
       // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
+      // Localização (opção B): Abrir mapa · Abrir agenda · Equipe — mapa abre cta_url no toque.
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
-        : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
+        : isLocationMapOfferReply(catalogText)
+          ? locationMapOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
+          : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
       try {
         const sent = sendOutboundMessageOp(
           db,

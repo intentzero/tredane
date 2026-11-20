@@ -138,18 +138,19 @@ describe('#414 dialogue acts', () => {
     for (const x of DIALOGUE_ACTS.servico_inexistente) expect(x).not.toMatch(/a clínica oferece/)
   })
 
-  it('o eco só sai quando há {assunto}; o link só no ato com {link}', () => {
+  it('o eco só sai quando há {assunto}; localização (opção B) não leva URL no corpo', () => {
     const semAssunto = renderEveryVariant('perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas' })
     // Sem {assunto} e sem {hora} ficam de fora o eco e a variante «Para fechar às {hora}».
     expect(semAssunto.length).toBe(DIALOGUE_ACTS.perguntar_variantes.length - 2)
     expect(semAssunto.every((t) => !t.startsWith('Perfeito') && !t.includes('Para fechar às'))).toBe(true)
     const comAssunto = renderEveryVariant('perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', assunto: 'depilação feminina' })
     expect(comAssunto.some((t) => t.startsWith('Perfeito, depilação feminina.'))).toBe(true)
-    // Sem link, o ato com link não tem nenhuma redação utilizável.
-    expect(renderEveryVariant('informar_local_link', { endereço: 'Rua Fictícia, 10' })).toEqual([])
-    expect(() => renderDialogueAct('informar_local_link', 'cnv_1', { endereço: 'Rua Fictícia, 10' })).toThrow(/faltam variáveis/)
-    for (const t of renderEveryVariant('informar_local_link', { endereço: 'Rua Fictícia, 10', link: 'https://maps.example.invalid/c' })) {
-      expect(t).toContain('https://maps.example.invalid/c')
+    // Opção B: corpo sem URL — redacções utilizáveis sem {link}.
+    const localBodies = renderEveryVariant('informar_local_link', {})
+    expect(localBodies.length).toBe(DIALOGUE_ACTS.informar_local_link.length)
+    for (const t of localBodies) {
+      expect(t).not.toMatch(/https?:\/\//i)
+      expect(t.toLocaleLowerCase('pt-BR')).toMatch(/mapa/)
     }
   })
 
@@ -187,16 +188,21 @@ describe('#414 dialogue acts', () => {
       seen.push(String(line))
     }
     try {
-      const out = sayAct('informar_local_link', 'cnv_x', { endereço: 'Rua Fictícia, 1' }, 'Literal anterior.')
-      expect(out).toBe('Literal anterior.')
+      // Ato sem variáveis obrigatórias: sayAct devolve a redação (não cai no fallback).
+      const out = sayAct('informar_local_link', 'cnv_x', {}, 'Literal anterior.')
+      expect(out).toMatch(/mapa/i)
+      expect(out).not.toBe('Literal anterior.')
+      expect(seen.length).toBe(0)
+      // Ato com variáveis em falta (ex. preço) ainda cai no fallback literal.
+      const missing = sayAct('informar_preco', 'cnv_x', {}, 'Literal anterior.')
+      expect(missing).toBe('Literal anterior.')
       expect(seen.length).toBe(1)
       const payload = JSON.parse(seen[0]!) as { event: string; act: string; reason: string }
       expect(payload.event).toBe('ai.dialogue_act_fallback')
-      expect(payload.act).toBe('informar_local_link')
+      expect(payload.act).toBe('informar_preco')
       expect(payload.reason).toBe('missing_vars')
-      // Sem texto da conversa / endereço no log.
-      expect(seen[0]).not.toMatch(/Rua Fictícia|Literal/)
-      const toFallback = sayAct('informar_local_link', 'cnv_x', { endereço: 'Rua' }, '   ')
+      expect(seen[0]).not.toMatch(/Literal/)
+      const toFallback = sayAct('informar_preco', 'cnv_x', {}, '   ')
       expect(toFallback).toBe(MODEL_FALLBACK_TEXT)
     } finally {
       console.warn = warn

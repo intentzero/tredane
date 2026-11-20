@@ -58,7 +58,7 @@ const SIGNAL_KEY = 'signal_policy'
 const POLICY_TOPIC = /\b(sinal|multa|cancel\w*|remarc\w*|reagend\w*)/i
 
 /** Primeira vez: o dono toca e abre o editor com a pergunta e a categoria prontas. */
-// A localização não é sugestão: vem do link do Google Business no cartão «Sobre a clínica».
+// A localização não é sugestão: vem do link da localização Google no cartão «Sobre a clínica».
 const SUGGESTIONS: Array<{ question: string; category: string; example: string }> = [
   {
     question: 'Tem estacionamento?',

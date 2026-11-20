@@ -6,12 +6,20 @@ import {
   clientWebUrl,
   CLIENT_WEB_OFFER_SENTENCE,
   isHttpsBase,
+  isOpenAgendaButtonTitle,
   openAgendaReplyButton,
   OPEN_AGENDA_REPLY_BUTTON_ID,
   parseOpenAgendaReplyButton,
 } from './offer'
 
 describe('oferta do link no chat', () => {
+  it('detecta inbound que é só o título «Abrir agenda»', () => {
+    expect(isOpenAgendaButtonTitle('Abrir agenda')).toBe(true)
+    expect(isOpenAgendaButtonTitle('  abrir agenda  ')).toBe(true)
+    expect(isOpenAgendaButtonTitle('[Botão] Abrir agenda')).toBe(false)
+    expect(isOpenAgendaButtonTitle('Quero Abrir agenda agora')).toBe(false)
+  })
+
   it('reply «Abrir agenda» (DEC-216) e parse do serviço opcional', () => {
     expect(openAgendaReplyButton()).toEqual({ id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' })
     expect(openAgendaReplyButton('svc_dep')).toEqual({

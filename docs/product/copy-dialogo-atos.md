@@ -91,10 +91,11 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 ### informar_local_link
 
-DEC-211: a localização é só o link do Google Business; o ato `informar_local` (com endereço) foi removido.
+DEC-211: a localização é só o link da localização Google / Maps; o ato `informar_local` (com endereço) foi removido.
+**Confirmado (Paulo, 20/11/2026, opção B):** corpo **sem** URL; o link sai no toque «Abrir mapa» → `cta_url`.
 
-1. `Estamos aqui: {link}`
-2. `Para chegar: {link}`
+1. `Estamos aqui — abra o mapa para ver o caminho.`
+2. `Para chegar, abra o mapa e veja o caminho.`
 
 ### informar_quem_faz
 

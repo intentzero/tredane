@@ -9,6 +9,11 @@ import type { ClinicDb } from '../clinic/store'
 
 export const CLIENT_WEB_CTA_TEXT = 'Abrir agenda'
 
+/** Inbound que é só o título do botão «Abrir agenda» (toque ecoado como texto ou colado). */
+export function isOpenAgendaButtonTitle(text: string): boolean {
+  return text.trim().toLowerCase() === CLIENT_WEB_CTA_TEXT.toLowerCase()
+}
+
 /**
  * Botão de resposta rápida «Abrir agenda» (DEC-216): acompanha «Falar com a equipe».
  * O toque dispara o envio do CTA URL real (não se mistura com reply buttons na mesma mensagem).

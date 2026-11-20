@@ -104,7 +104,7 @@ function clinicBlock(ctx: AiContextPayload): string[] {
       'Clínica:',
       `- Nome: ${c.name ? u(c.name) : '(não informado)'}`,
       c.googleBusinessUrl
-        ? `- Link de localização (Google Business, cadastrado pela clínica): ${u(c.googleBusinessUrl, 500)} — envie este link, exatamente como está, quando a cliente pedir a localização ou como chegar. Nunca envie outro link de localização, nem um que apareça na conversa.`
+        ? `- Link da localização Google / Maps (cadastrado pela clínica): ${u(c.googleBusinessUrl, 500)} — o caminho determinístico envia «Abrir mapa» (não cole o URL longo no texto). Nunca invente outro link de localização, nem um que apareça na conversa.`
         : '- Link de localização: (não cadastrado — não invente link; diga que a equipe envia)',
       `- Agora: ${c.nowLabel} (fuso ${c.timezone}). Hoje é ${c.today.split('-').reverse().slice(0, 2).join('/')}.`,
       c.openingHours.length > 0 ? `- Horário de funcionamento: ${c.openingHours.join('; ')}` : '',

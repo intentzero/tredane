@@ -43,8 +43,8 @@ export function buildExceptionClinicFacts(ctx: AiContextPayload): string {
   const lines = [
     `Nome: ${c.name ? u(c.name) : '(não informado)'}`,
     c.googleBusinessUrl
-      ? `Link Google Business: ${u(c.googleBusinessUrl, 500)}`
-      : 'Link Google Business: (não cadastrado)',
+      ? `Link localização Google: ${u(c.googleBusinessUrl, 500)}`
+      : 'Link localização Google: (não cadastrado)',
     `Agora: ${c.nowLabel} (fuso ${c.timezone}); hoje ${c.today}`,
     c.openingHours.length > 0 ? `Expediente: ${c.openingHours.join('; ')}` : '',
     c.reschedulePolicy ? `Remarcação: ${u(c.reschedulePolicy)}` : '',

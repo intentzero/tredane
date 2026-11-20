@@ -98,8 +98,11 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Nosso horário:\n{lista}',
     'Abrimos assim:\n{lista}',
   ],
-  // DEC-211: a localização é só o link do Google Business.
-  informar_local_link: ['Estamos aqui: {link}', 'Para chegar: {link}'],
+  // DEC-211 + opção B (Paulo 20/11/2026): corpo sem URL; o link vai no cta_url «Abrir mapa».
+  informar_local_link: [
+    'Estamos aqui — abra o mapa para ver o caminho.',
+    'Para chegar, abra o mapa e veja o caminho.',
+  ],
   informar_quem_faz: [
     'Quem atende: {pessoas}.',
     'Esse atendimento é feito por {pessoas}.',
