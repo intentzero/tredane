@@ -11,14 +11,21 @@ import {
   replaceServiceZonesOp,
   upsertServiceOp,
 } from '../../../config'
+import { HANDOFF_TIMEOUT_MS } from '../../../constants'
 import {
+  IDLE_AUTO_CLOSE_BODY,
+  IDLE_TIMEOUT_MS,
+  sweepDueIdleConversations,
 } from '../../../followup/idle'
 import {
   reviewFlagAckInteractiveButtons,
 } from '../../../inbox/review-flag'
+import { ensureOpenOpportunity } from '../../../pipeline/operations'
 import {
+  HANDOFF_TIMEOUT_RESUME_TEXT,
   HUMAN_HANDOFF_BUTTON_ID,
   HUMAN_HANDOFF_BUTTON_TITLE,
+  sweepDueHandoffTimeouts,
 } from '../../human-handoff'
 import {
   saveScheduleSession,
@@ -243,6 +250,51 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           excludes: [/Recebi sua mensagem/i],
         },
       ],
+    },
+  },
+  {
+    // TRE-41 / staging Paulo: após DEC-155 resume, idle DEC-208 não fechava (~9 h).
+    id: 'F-11',
+    title: 'Após timeout DEC-155, idle DEC-208 fecha em 30 min',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contactId,
+          conversationId: s.conversationId,
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quero falar com uma pessoa' },
+      {
+        role: 'owner',
+        note: 'DEC-155: 30 min sem Assumir → timeout_resume',
+        act: (s) => {
+          s.clock.advance(HANDOFF_TIMEOUT_MS + 1)
+          sweepDueHandoffTimeouts(s.db, s.tenantId, s.clock)
+        },
+      },
+      {
+        role: 'owner',
+        note: 'DEC-208: +30 min sem actividade → fecho idle',
+        act: (s) => {
+          s.clock.advance(IDLE_TIMEOUT_MS + 1)
+          sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+        },
+      },
+    ],
+    expect: {
+      notPaused: true,
+      outboundIncludes: [
+        'Vou pedir para a equipe continuar daqui.',
+        HANDOFF_TIMEOUT_RESUME_TEXT,
+        IDLE_AUTO_CLOSE_BODY,
+      ],
+      outboundExcludes: [/Recebi sua mensagem\. A equipe já foi avisada/i],
     },
   },
   {
