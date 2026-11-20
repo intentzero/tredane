@@ -10,6 +10,7 @@
  * GU-23: «Posso ajudar…» reply Abrir agenda|Terminar; toque → cta_url corpo mínimo (TRE-81).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
  * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
+ * GU-29: remarcar fora do expediente → Abrir agenda, sem handoff DEC-113 (TRE-83).
  */
 import { listServices, upsertServiceOp } from '../../../config'
 import { ValidationError } from '../../../errors'
@@ -560,6 +561,28 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       clientWebOffers: 1,
       clientWebPurposes: [{ purpose: 'cancelar', appointmentId: 'apt_gu_1' }],
       outboundIncludes: ['Para cancelar', 'Abrir agenda'],
+      outboundExcludes: [
+        /Vou pedir para a equipe/i,
+        /A equipe responde a partir/i,
+      ],
+      notPaused: true,
+    },
+  },
+  {
+    id: 'GU-29',
+    title:
+      'Fora do expediente, «Quero remarcar o meu agendamento» manda Abrir agenda — não handoff DEC-113 (TRE-83)',
+    turnosIdeais: 1,
+    /** Qui 19/11/2026 21:42 America/Sao_Paulo (mesmo relógio GU-26). */
+    nowMs: Date.UTC(2026, 10, 20, 0, 42),
+    prepare: withOneAppointment,
+    turns: [{ role: 'client', text: 'Quero remarcar o meu agendamento' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 1,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'remarcar', appointmentId: 'apt_gu_1' }],
+      outboundIncludes: ['Para remarcar', 'Abrir agenda'],
       outboundExcludes: [
         /Vou pedir para a equipe/i,
         /A equipe responde a partir/i,

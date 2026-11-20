@@ -4,7 +4,8 @@
  *   300 ms abertura do hub (opção C, 04/11/2026), 7 s texto aberto.
  * - DEC-202: o chat não marca, não remarca e não cancela. Pedido de marcar, remarcar,
  *   cancelar ou de vaga recebe uma frase fixa e o botão «Abrir agenda» (página web da
- *   cliente, ADR-0018); com a pausa da owner ou sem link possível, passa à equipe.
+ *   cliente, ADR-0018; cta_url se o link sair, senão reply «Abrir agenda»). Só a pausa
+ *   da owner ou o teto de links passa à equipe — nunca só por pedido de marcação.
  * - A IA só informa: catálogo, horário, preço, FAQ e, para pergunta aberta, o redator de
  *   exceção com validador (DEC-104).
  * - O texto da IA sai sozinho, sem clique em Enviar, com o botão de falar com a equipe.
@@ -880,8 +881,9 @@ export async function runDueAutoDrafts(
     }
     /**
      * DEC-202: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda» com o
-     * propósito certo e, se reconheceu um serviço único, com ele. Sem link possível (pausa da owner,
-     * sem número ativo, base sem https, envio recusado) passa à equipe.
+     * propósito certo e, se reconheceu um serviço único, com ele. Sem cta_url possível (sem
+     * número ativo, base sem https, envio recusado) envia a frase + reply «Abrir agenda» e
+     * **não** pausa nem passa à equipe. Só a pausa da owner ou o teto de links escalam.
      */
     const sendWebRoute = async (
       route: {
@@ -904,7 +906,20 @@ export async function runDueAutoDrafts(
       let replyOutbox: OutboxRow[] = []
       let sentOk = false
       let reasonOut = reasonLabel
-      const paused = deps.autoBookPaused === true || overLimit
+      const ownerPaused = deps.autoBookPaused === true
+      const paused = ownerPaused || overLimit
+      const serviceName = route.serviceId
+        ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
+        : null
+      const routeBody =
+        bodyOverride ??
+        (route.purpose === 'home'
+          ? undefined
+          : clientWebRouteBody({
+              purpose: route.purpose === 'home' ? 'agendar' : route.purpose,
+              serviceName,
+              noUpcoming: route.noUpcoming,
+            }))
       if (route.purpose === 'home' && bodyOverride) {
         if (!paused && deps.prepareClientWebOffer) {
           try {
@@ -935,11 +950,16 @@ export async function runDueAutoDrafts(
               sentOk = true
             }
           } catch {
-            /* cai no cumprimento só texto */
+            /* cai no cumprimento só texto / reply */
           }
         }
         if (!sentOk) {
-          // Sem link (página off, base http, laboratório): cumprimento determinístico, sem handoff.
+          // Cumprimento / home: sem cta_url (ou pausa da owner) → texto; reply só se a
+          // página puder sair. Nunca handoff no cumprimento (GU-14).
+          const homeInteractive =
+            !ownerPaused && !overLimit
+              ? { buttons: [openAgendaReplyButton(route.serviceId)] }
+              : undefined
           try {
             const sent = sendOutboundMessageOp(
               db,
@@ -947,6 +967,7 @@ export async function runDueAutoDrafts(
               {
                 conversationId: job.conversationId,
                 body: bodyOverride,
+                interactive: homeInteractive,
                 clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
                 authorClerkUserId: AUTODRAFT_ACTOR_ID,
                 authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -957,6 +978,26 @@ export async function runDueAutoDrafts(
             sentOk = true
           } catch (err) {
             if (!(err instanceof ClinicError)) throw err
+            if (homeInteractive) {
+              try {
+                const sent = sendOutboundMessageOp(
+                  db,
+                  caller,
+                  {
+                    conversationId: job.conversationId,
+                    body: bodyOverride,
+                    clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+                    authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                    authorDisplayName: AUTODRAFT_ACTOR_NAME,
+                  },
+                  clock,
+                )
+                replyOutbox = sent.outbox
+                sentOk = true
+              } catch (err2) {
+                if (!(err2 instanceof ClinicError)) throw err2
+              }
+            }
           }
         }
       } else if (!paused && deps.prepareClientWebOffer) {
@@ -980,24 +1021,14 @@ export async function runDueAutoDrafts(
         } catch {
           offered = null
         }
-        if (offered) {
-          const serviceName = route.serviceId
-            ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
-            : null
-          const body =
-            bodyOverride ??
-            clientWebRouteBody({
-              purpose: route.purpose === 'home' ? 'agendar' : route.purpose,
-              serviceName,
-              noUpcoming: route.noUpcoming,
-            })
+        if (offered && routeBody) {
           try {
             const sent = sendOutboundMessageOp(
               db,
               caller,
               {
                 conversationId: job.conversationId,
-                body,
+                body: routeBody,
                 interactive: offered,
                 clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
                 authorClerkUserId: AUTODRAFT_ACTOR_ID,
@@ -1012,7 +1043,50 @@ export async function runDueAutoDrafts(
           }
         }
       }
+      // DEC-202 / TRE-83: agendar/remarcar/cancelar sem cta_url → frase + reply, sem pausa.
+      // (home já caiu acima; pausa da owner / teto de links continuam a escalar abaixo.)
+      if (!sentOk && route.purpose !== 'home' && !ownerPaused && !overLimit && routeBody) {
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            {
+              conversationId: job.conversationId,
+              body: routeBody,
+              interactive: { buttons: [openAgendaReplyButton(route.serviceId)] },
+              clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            clock,
+          )
+          replyOutbox = sent.outbox
+          sentOk = true
+          reasonOut = reasonLabel
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+          try {
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body: routeBody,
+                clientRequestId: `ai-web-${route.purpose}:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            replyOutbox = sent.outbox
+            sentOk = true
+          } catch (err2) {
+            if (!(err2 instanceof ClinicError)) throw err2
+          }
+        }
+      }
       if (!sentOk) {
+        // Pausa da owner ou teto de links: ainda passa à equipe (GU-12/13, web-link-limit).
         const handoff = notifyHumanHandoff(
           db,
           tenantId,

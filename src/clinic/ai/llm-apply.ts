@@ -28,6 +28,7 @@ import {
   clientWebRouteBody,
   countRecentWebLinks,
   looksLikeClosingAssistOutbound,
+  openAgendaReplyButton,
 } from '../../clientweb/offer'
 import { loadUpcomingAppointments } from './upcoming'
 import {
@@ -457,13 +458,14 @@ export async function applyIntentLinkOp(
     }),
   )
 
+  const body = clientWebRouteBody({ purpose: linkPurpose, serviceName: null, noUpcoming })
   if (offered) {
     const sent = sendOutboundMessageOp(
       db,
       caller,
       {
         conversationId: job.conversationId,
-        body: clientWebRouteBody({ purpose: linkPurpose, serviceName: null, noUpcoming }),
+        body,
         interactive: offered,
         clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
         authorClerkUserId: AI_ACTOR_ID,
@@ -472,6 +474,44 @@ export async function applyIntentLinkOp(
       clock,
     )
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
+  }
+  // DEC-202 / TRE-83: sem cta_url → frase + reply; só pausa da owner / teto escalam.
+  if (!paused) {
+    try {
+      const sent = sendOutboundMessageOp(
+        db,
+        caller,
+        {
+          conversationId: job.conversationId,
+          body,
+          interactive: { buttons: [openAgendaReplyButton()] },
+          clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
+          authorClerkUserId: AI_ACTOR_ID,
+          authorDisplayName: AI_ACTOR_NAME,
+        },
+        clock,
+      )
+      return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
+    } catch {
+      /* cai no handoff só se owner/teto; senão tenta texto */
+    }
+    try {
+      const sent = sendOutboundMessageOp(
+        db,
+        caller,
+        {
+          conversationId: job.conversationId,
+          body,
+          clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
+          authorClerkUserId: AI_ACTOR_ID,
+          authorDisplayName: AI_ACTOR_NAME,
+        },
+        clock,
+      )
+      return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
+    } catch {
+      /* envio recusado */
+    }
   }
   const handoff = notifyHumanHandoff(
     db,

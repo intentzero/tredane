@@ -167,7 +167,8 @@ export type PrepareClientWebOfferInput = {
 
 /**
  * Gancho do autodraft e do painel: emite o link pessoal e devolve o botão «Abrir agenda».
- * `null` = não há link possível (sem número ativo, base sem https); quem chama passa à equipe.
+ * `null` = não há link possível (sem número ativo, base sem https); o autodraft envia a
+ * frase + reply «Abrir agenda» sem pausar (DEC-202 / TRE-83) — só pausa da owner / teto escalam.
  */
 export type PrepareClientWebOffer = (
   input: PrepareClientWebOfferInput,
