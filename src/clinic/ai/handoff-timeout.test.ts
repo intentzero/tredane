@@ -7,10 +7,16 @@ import { HANDOFF_TIMEOUT_MS } from '../constants'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
+import {
+  IDLE_AUTO_CLOSE_BODY,
+  IDLE_TIMEOUT_MS,
+  sweepDueIdleConversations,
+} from '../followup/idle'
 import { workerCaller } from '../index'
 import { assignConversationOp } from '../inbox/operations'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
+import { ensureOpenOpportunity } from '../pipeline/operations'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import {
@@ -172,6 +178,63 @@ describe('DEC-155 handoff timeout', () => {
         s.tenantId,
       )?.body
       expect(body).toBe(HANDOFF_TIMEOUT_RESUME_TEXT)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('DEC-208: após timeout_resume com ciclo aberto, idle arma 30 min e fecha (staging Paulo)', () => {
+    const s = seed(TZ_OPEN)
+    try {
+      ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.db.get<{ contact_id: string }>(
+            `SELECT contact_id FROM conversations WHERE id = ?`,
+            s.cnv.id,
+          )!.contact_id,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      )
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        {
+          conversationId: s.cnv.id,
+          reason: 'customer_requested',
+          clientRequestId: 'timeout-idle-rearm',
+        },
+        s.clock,
+      )
+      const idleAfterHandoff = s.db.get<{ due: number | null }>(
+        `SELECT idle_due_at AS due FROM conversations WHERE id = ?`,
+        s.cnv.id,
+      )?.due
+      expect(idleAfterHandoff).toBe(s.clock.nowMs() + IDLE_TIMEOUT_MS)
+
+      s.clock.advance(HANDOFF_TIMEOUT_MS + 1)
+      const swept = sweepDueHandoffTimeouts(s.db, s.tenantId, s.clock)
+      expect(swept).toHaveLength(1)
+      const idleAfterResume = s.db.get<{ due: number | null }>(
+        `SELECT idle_due_at AS due FROM conversations WHERE id = ?`,
+        s.cnv.id,
+      )?.due
+      expect(idleAfterResume).toBe(s.clock.nowMs() + IDLE_TIMEOUT_MS)
+
+      s.clock.advance(IDLE_TIMEOUT_MS + 1)
+      const closed = sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+      expect(closed.some((c) => c.action === 'closed' && c.conversationId === s.cnv.id)).toBe(
+        true,
+      )
+      const farewell = s.db.get<{ body: string }>(
+        `SELECT body FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        s.cnv.id,
+      )
+      expect(farewell?.body).toBe(IDLE_AUTO_CLOSE_BODY)
     } finally {
       s.close()
     }
