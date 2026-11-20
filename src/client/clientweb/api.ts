@@ -36,6 +36,14 @@ export type CatalogZone = {
   priceCents: number | null
 }
 
+/** Combo activo e aplicável (DEC-080): preço próprio, 2+ zonas activas. */
+export type CatalogCombo = {
+  id: string
+  name: string
+  priceCents: number
+  zoneIds: string[]
+}
+
 export type CatalogProfessional = { id: string; name: string }
 
 export type CatalogService = {
@@ -51,6 +59,8 @@ export type CatalogService = {
   variantSelection: 'uma' | 'varias'
   requiresSignal: boolean
   zones: CatalogZone[]
+  /** DEC-080 — omitido ou vazio = sem combos. */
+  combos?: CatalogCombo[]
   /** DEC-218: profissionais ativas do serviço (ordenadas por nome). */
   professionals: CatalogProfessional[]
 }

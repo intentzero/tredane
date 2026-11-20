@@ -4,6 +4,7 @@ import {
   fetchCatalog,
   fetchSlots,
   type Catalog,
+  type CatalogCombo,
   type CatalogService,
   type Line,
   type Slot,
@@ -11,6 +12,7 @@ import {
 import {
   catalogNeedsLine,
   civilDayLabel,
+  combosForLine,
   formatPrice,
   resolveBookingPreset,
   resolveSchedulePreset,
@@ -23,7 +25,7 @@ import {
 import { TimeStep } from './TimeStep'
 import { DirectionsLink } from './DirectionsLink'
 import { Highlight } from './Highlight'
-import { searchCatalog, filterZones } from './search-model'
+import { searchCatalog, filterCombos, filterZones } from './search-model'
 
 type Step = 'line' | 'service' | 'zones' | 'time' | 'review' | 'done'
 type Outcome = 'booked' | 'pix_signal' | 'paused' | 'error'
@@ -164,9 +166,9 @@ export function BookFlow({
   const totalSteps = hasZones ? 4 : 3
   const position = step === 'service' || step === 'line' ? 1 : step === 'zones' ? 2 : step === 'time' ? (hasZones ? 3 : 2) : totalSteps
 
-  function chooseService(s: CatalogService, preselectZoneId?: string) {
+  function chooseService(s: CatalogService, preselectZoneIds?: string[]) {
     setService(s)
-    setZoneIds(preselectZoneId ? [preselectZoneId] : [])
+    setZoneIds(preselectZoneIds?.length ? [...new Set(preselectZoneIds)] : [])
     setDay(null)
     setSlot(null)
     setSlotNotice(null)
@@ -263,6 +265,13 @@ export function BookFlow({
             setZoneIds((cur) =>
               service.variantSelection === 'uma' ? [id] : cur.includes(id) ? cur.filter((z) => z !== id) : [...cur, id],
             )
+          }
+          onToggleCombo={(combo) =>
+            setZoneIds((cur) => {
+              const allOn = combo.zoneIds.every((id) => cur.includes(id))
+              if (allOn) return cur.filter((id) => !combo.zoneIds.includes(id))
+              return [...new Set([...cur, ...combo.zoneIds])]
+            })
           }
           onNext={() => setStep('time')}
         />
@@ -367,7 +376,7 @@ function ServiceList({
 }: {
   catalog: Catalog
   line: Line | null
-  onPick: (s: CatalogService, preselectZoneId?: string) => void
+  onPick: (s: CatalogService, preselectZoneIds?: string[]) => void
   onChangeLine: (() => void) | null
 }) {
   const [query, setQuery] = useState('')
@@ -428,8 +437,33 @@ function ServiceList({
                     </span>
                   </button>
                 )}
+                {g.combos.map((c) => {
+                  const members = g.service.zones.filter((z) => c.zoneIds.includes(z.id))
+                  const minutes = members.reduce((n, z) => n + z.durationMinutes, 0)
+                  const names = members.map((z) => z.name).join(', ')
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="cw-row"
+                      onClick={() => onPick(g.service, c.zoneIds)}
+                    >
+                      <span className="cw-row-main">
+                        <span className="cw-row-title">
+                          <Highlight text={c.name} query={q} />
+                        </span>
+                        <span className="cw-muted">
+                          Combo · inclui {names} · {minutes} min · {formatPrice(c.priceCents)}
+                        </span>
+                      </span>
+                      <span aria-hidden="true" className="cw-chevron">
+                        ›
+                      </span>
+                    </button>
+                  )
+                })}
                 {g.zones.map((z) => (
-                  <button key={z.id} type="button" className="cw-row" onClick={() => onPick(g.service, z.id)}>
+                  <button key={z.id} type="button" className="cw-row" onClick={() => onPick(g.service, [z.id])}>
                     <span className="cw-row-main">
                       <span className="cw-row-title">
                         <Highlight text={z.name} query={q} />
@@ -445,7 +479,7 @@ function ServiceList({
                 ))}
               </section>
             ))}
-            <p className="cw-muted cw-margin cw-pad">Resultados agrupados pelo serviço. Tocar numa zona abre a escolha de zonas com ela já marcada.</p>
+            <p className="cw-muted cw-margin cw-pad">Resultados agrupados pelo serviço. Tocar numa zona ou combo abre a escolha de zonas com ela já marcada.</p>
           </nav>
         )
       ) : services.length === 0 ? (
@@ -483,47 +517,97 @@ function ZoneStep({
   line,
   selected,
   onToggle,
+  onToggleCombo,
   onNext,
 }: {
   service: CatalogService
   line: Line | null
   selected: string[]
   onToggle: (id: string) => void
+  onToggleCombo: (combo: CatalogCombo) => void
   onNext: () => void
 }) {
   const [zoneQuery, setZoneQuery] = useState('')
   const allZones = zonesForLine(service, line)
   const zones = filterZones(allZones, zoneQuery)
+  const allCombos = combosForLine(service, line)
+  const combos = filterCombos(allCombos, allZones, zoneQuery)
   const totals = visitTotals(service, selected)
   const single = service.variantSelection === 'uma'
+  const empty = zones.length === 0 && combos.length === 0
   return (
     <>
       <main className="cw-main cw-flush">
         <p className="cw-muted cw-margin">
-          {service.name}. {single ? 'Escolha uma.' : 'Escolha uma ou mais. A duração e o preço somam.'}
+          {service.name}.{' '}
+          {single
+            ? 'Escolha uma.'
+            : allCombos.length > 0
+              ? 'Escolha um combo ou uma ou mais zonas. O combo aplica-se sozinho quando todas as suas zonas estão marcadas.'
+              : 'Escolha uma ou mais. A duração e o preço somam.'}
         </p>
         <div className="cw-search-wrap">
           <SearchField label={`Procurar ${(service.variantKind ?? 'opção').toLowerCase()}`} value={zoneQuery} onChange={setZoneQuery} />
         </div>
-        {zones.length === 0 && (
+        {empty && (
           <p role="status" className="cw-note cw-margin">
             Nada encontrado para «{zoneQuery.trim()}».
           </p>
         )}
+        {combos.length > 0 && (
+          <fieldset className="cw-fieldset">
+            <legend className="cw-group-title">Combos</legend>
+            {combos.map((c) => {
+              const members = allZones.filter((z) => c.zoneIds.includes(z.id))
+              const minutes = members.reduce((n, z) => n + z.durationMinutes, 0)
+              const listCents = members.every((z) => z.priceCents != null)
+                ? members.reduce((n, z) => n + (z.priceCents ?? 0), 0)
+                : null
+              const save = listCents != null ? listCents - c.priceCents : null
+              const on = c.zoneIds.every((id) => selected.includes(id))
+              return (
+                <label key={c.id} className={`cw-check-row${on ? ' is-on' : ''}`}>
+                  <input
+                    type="checkbox"
+                    name="combo"
+                    checked={on}
+                    aria-label={`Combo ${c.name}`}
+                    onChange={() => onToggleCombo(c)}
+                  />
+                  <span className="cw-row-main" aria-hidden="true">
+                    <span className="cw-row-title">
+                      <Highlight text={c.name} query={zoneQuery} />
+                    </span>
+                    <span className="cw-muted">
+                      Inclui {members.map((z) => z.name).join(', ')} · {minutes} min
+                      {save != null && save > 0 ? ` · economia ${formatPrice(save)}` : ''}
+                    </span>
+                  </span>
+                  <span className="cw-muted" aria-hidden="true">
+                    {formatPrice(c.priceCents)}
+                  </span>
+                </label>
+              )
+            })}
+          </fieldset>
+        )}
         <fieldset className="cw-fieldset">
-          <legend className="cw-sr">{service.variantKindPlural ?? 'Opções'}</legend>
+          <legend className={combos.length > 0 ? 'cw-group-title' : 'cw-sr'}>
+            {service.variantKindPlural ?? 'Opções'}
+          </legend>
           {zones.map((z) => (
             <label key={z.id} className={`cw-check-row${selected.includes(z.id) ? ' is-on' : ''}`}>
               <input
                 type={single ? 'radio' : 'checkbox'}
                 name="zona"
                 checked={selected.includes(z.id)}
+                aria-label={z.name}
                 onChange={() => onToggle(z.id)}
               />
-              <span className="cw-row-title">
+              <span className="cw-row-title" aria-hidden="true">
                 <Highlight text={z.name} query={zoneQuery} />
               </span>
-              <span className="cw-muted">
+              <span className="cw-muted" aria-hidden="true">
                 {z.durationMinutes} min · {formatPrice(z.priceCents)}
               </span>
             </label>
@@ -534,8 +618,12 @@ function ZoneStep({
         <div role="status" className="cw-bar-sum">
           <span className="cw-muted">
             {selected.length} {selected.length === 1 ? 'opção' : 'opções'} · {totals.minutes} min
+            {totals.combo ? ` · combo ${totals.combo.name}` : ''}
           </span>
           <strong>{formatPrice(totals.priceCents)}</strong>
+          {totals.combo ? (
+            <span className="cw-muted">economia {formatPrice(totals.combo.discountCents)}</span>
+          ) : null}
         </div>
         <button type="button" className="cw-btn cw-btn-primary" disabled={selected.length === 0} onClick={onNext}>
           Ver horários
@@ -612,7 +700,15 @@ function Review({
           </div>
           <div><dt>Quando</dt><dd>{label.weekday} {label.dayMonth}, {slot.time}</dd></div>
           <div><dt>Duração</dt><dd>{totals.minutes} min</dd></div>
-          <div><dt>Preço</dt><dd>{formatPrice(totals.priceCents)}</dd></div>
+          <div>
+            <dt>Preço</dt>
+            <dd>
+              {formatPrice(totals.priceCents)}
+              {totals.combo
+                ? ` (combo ${totals.combo.name}, economia de ${formatPrice(totals.combo.discountCents)})`
+                : ''}
+            </dd>
+          </div>
         </dl>
         {preferredProfessionalId == null && (service.professionals?.length ?? 0) > 1 && (
           <p className="cw-note" role="note">

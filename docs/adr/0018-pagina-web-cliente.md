@@ -66,6 +66,7 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 ### 3.5 Pesquisa e género (DEC-200, **Proposto**)
 
 - `GET /api/c/state` devolve o catálogo ativo e agendável (serviços, zonas, sinónimos, audiência e género de cada zona). A pesquisa corre no navegador: normaliza (minúsculas, sem acentos), tolera plural leve e compara com nome e sinónimos. Sem índice nem rota de pesquisa no servidor; o tamanho esperado são dezenas de itens. Se um catálogo crescer muito, a decisão volta a ser aberta.
+- `GET /api/c/catalog` inclui **combos activos aplicáveis** (DEC-080): nome, preço e `zoneIds`. O passo «Que zonas?» lista os combos da linha acima das zonas soltas; tocar num combo marca as zonas dele. O total usa `priceVisit` (o combo entra sozinho quando todas as suas zonas estão escolhidas) e mostra a economia, como no painel Agendar.
 - O género da cliente **não é determinado nem guardado**: o contacto não tem sexo (DEC-075). `availability` e `book` recebem a linha escolhida (`feminino` | `masculino`) como parte do pedido, validada contra a audiência do serviço e o género das zonas (DEC-079). O valor inicial vem do quadro da conversa (DEC-142), quando existir.
 
 ### 3.6 Preferência de profissional (DEC-218, **Confirmado**)

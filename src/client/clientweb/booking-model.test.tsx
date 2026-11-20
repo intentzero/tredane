@@ -66,11 +66,43 @@ describe('género no catálogo (DEC-200)', () => {
 
 describe('totais e preço', () => {
   it('soma zonas; sem zonas usa o serviço; sem preço numa zona fica «sob consulta»', () => {
-    expect(visitTotals(laser, ['ax', 'so'])).toEqual({ minutes: 30, priceCents: 7_050 })
-    expect(visitTotals(limpeza, [])).toEqual({ minutes: 60, priceCents: 12_000 })
+    expect(visitTotals(laser, ['ax', 'so'])).toEqual({
+      minutes: 30,
+      priceCents: 7_050,
+      listPriceCents: null,
+      combo: null,
+    })
+    expect(visitTotals(limpeza, [])).toEqual({
+      minutes: 60,
+      priceCents: 12_000,
+      listPriceCents: null,
+      combo: null,
+    })
     const semPreco = svc({ id: 'x', zones: [{ id: 'z', name: 'Z', synonyms: [], audience: 'ambos', durationMinutes: 10, priceCents: null }] })
     expect(visitTotals(semPreco, ['z']).priceCents).toBeNull()
     expect(formatPrice(null)).toBe('Sob consulta')
+  })
+  it('aplica o combo sozinho quando todas as zonas dele estão escolhidas (DEC-080)', () => {
+    const withCombo = svc({
+      id: 'laser-combo',
+      zones: [
+        { id: 'ax', name: 'Axilas', synonyms: [], audience: 'feminino', durationMinutes: 15, priceCents: 4_000 },
+        { id: 'vi', name: 'Virilha', synonyms: [], audience: 'feminino', durationMinutes: 20, priceCents: 5_000 },
+        { id: 'bu', name: 'Buço', synonyms: [], audience: 'feminino', durationMinutes: 5, priceCents: 2_000 },
+      ],
+      combos: [{ id: 'c1', name: 'Buço + axila', priceCents: 5_000, zoneIds: ['ax', 'bu'] }],
+    })
+    expect(visitTotals(withCombo, ['ax', 'bu'])).toEqual({
+      minutes: 20,
+      priceCents: 5_000,
+      listPriceCents: 6_000,
+      combo: { name: 'Buço + axila', discountCents: 1_000 },
+    })
+    expect(visitTotals(withCombo, ['ax', 'bu', 'vi'])).toMatchObject({
+      priceCents: 10_000,
+      combo: { name: 'Buço + axila', discountCents: 1_000 },
+    })
+    expect(visitTotals(withCombo, ['ax']).combo).toBeNull()
   })
   it('formata em reais, sem centavos quando inteiro', () => {
     expect(formatPrice(9_000).replace(/\s/g, ' ')).toBe('R$ 90')

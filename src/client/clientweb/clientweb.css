@@ -133,8 +133,9 @@
 .cw-fieldset { margin: 0; padding: 0; border: 0; }
 .cw-check-row { min-height: 52px; box-sizing: border-box; padding: 8px 16px; display: flex; align-items: center; gap: 12px; background: var(--color-surface-card); border-bottom: 1px solid var(--color-line-divider); cursor: pointer; }
 .cw-check-row.is-on { background: var(--color-primary-tint); }
-.cw-check-row input { width: 20px; height: 20px; margin: 0; accent-color: var(--color-primary-base); }
+.cw-check-row input { width: 20px; height: 20px; margin: 0; accent-color: var(--color-primary-base); flex: none; }
 .cw-check-row .cw-row-title { flex: 1; }
+.cw-check-row .cw-row-main { flex: 1; min-width: 0; }
 .cw-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 16px; padding: 10px 16px 16px; background: var(--color-surface-card); border-top: 1px solid var(--color-line-divider); }
 .cw-bar .cw-btn-primary { flex: 1; }
 .cw-bar-col { flex-direction: column; align-items: stretch; gap: 4px; }
