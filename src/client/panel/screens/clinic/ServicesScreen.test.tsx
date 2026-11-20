@@ -820,7 +820,101 @@ describe('ServiceForm — variantes: folha, lote e prontidão', () => {
     expect(screen.getByText('Preço e duração definidos.')).toBeTruthy()
   })
 
-  it('«Pronto para atender» não marca profissional inactiva como pronta', () => {
+  it('«Quem faz» não lista profissional inactiva nem chip «(inativa)»', () => {
+    const mixed: ClinicConfigSnapshot['resources'] = [
+      {
+        id: 'p-on',
+        kind: 'professional',
+        name: 'Thaís',
+        category: null,
+        active: true,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      {
+        id: 'p-off',
+        kind: 'professional',
+        name: 'Gi',
+        category: null,
+        active: false,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      {
+        id: 'p-off-2',
+        kind: 'professional',
+        name: 'Samua',
+        category: null,
+        active: false,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    renderForm(
+      svc({
+        professionalIds: ['p-on', 'p-off', 'p-off-2'],
+        priceCents: 12_000,
+        roomRequirement: { mode: 'none' },
+      }),
+      {},
+      mixed,
+    )
+    const who = screen.getByRole('group', { name: 'Quem faz este serviço' })
+    expect(within(who).getByRole('button', { name: 'Thaís' })).toBeTruthy()
+    expect(within(who).queryByRole('button', { name: 'Gi' })).toBeNull()
+    expect(within(who).queryByRole('button', { name: 'Samua' })).toBeNull()
+    expect(within(who).queryByText(/inativa/i)).toBeNull()
+    expect(screen.getByText('1 profissional')).toBeTruthy()
+  })
+
+  it('ao abrir a ficha, ids inativos saem da seleção; salvar grava só ativas', async () => {
+    const upsertService = vi.fn(async () => svc({}))
+    const mixed: ClinicConfigSnapshot['resources'] = [
+      {
+        id: 'p-on',
+        kind: 'professional',
+        name: 'Thaís',
+        category: null,
+        active: true,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      {
+        id: 'p-off',
+        kind: 'professional',
+        name: 'Gi',
+        category: null,
+        active: false,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    renderForm(
+      svc({
+        professionalIds: ['p-on', 'p-off'],
+        priceCents: 12_000,
+        roomRequirement: { mode: 'none' },
+      }),
+      { upsertService },
+      mixed,
+    )
+    // Abrir já remove inativas do rascunho (baseline = só ativas); Salvar limpa a ligação.
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() =>
+      expect(upsertService).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ professionalIds: ['p-on'] }),
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('só inativas ligadas: «Quem faz» vazio e aviso de ninguém escolhida', () => {
     const inactive: ClinicConfigSnapshot['resources'] = [
       {
         id: 'p-off',
@@ -842,7 +936,9 @@ describe('ServiceForm — variantes: folha, lote e prontidão', () => {
       {},
       inactive,
     )
-    expect(screen.getByText('Nenhuma profissional ativa: ninguém recebe este serviço.')).toBeTruthy()
+    const who = screen.getByRole('group', { name: 'Quem faz este serviço' })
+    expect(within(who).queryByRole('button')).toBeNull()
+    expect(screen.getByText('Nenhuma profissional escolhida: ninguém recebe este serviço.')).toBeTruthy()
     expect(screen.queryByText('1 profissional')).toBeNull()
   })
 
