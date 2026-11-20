@@ -17,8 +17,8 @@
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
- * | INT-08 | Confirmado| Onde fica: corpo sem URL + Abrir mapa/agenda/equipe (DEC-211 opção B) |
- * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo CTA Abrir mapa (sem URL no corpo) |
+ * | INT-08 | Confirmado| Onde fica: corpo sem URL + cta_url Abrir mapa (um toque; DEC-211) |
+ * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo cta_url Abrir mapa (sem URL no corpo) |
  * | INT-09 | Confirmado| Valor da massagem → tipo → «Relaxante» responde R$ (sem modelo) |
  * | INT-10 | Confirmado| FAQ DEC-185 com cumprimento «Boa tarde» → texto publicado (TRE-60) |
  */
@@ -37,7 +37,7 @@ import type { DialogScenario } from './scenario'
 /** Equivalente a `it.todo` / `it.skip` no harness L1 (DEC-108). */
 export const INT_PENDING_LLM_INTENT = 'depende da classificação de intenção por LLM (DEC-202, Proposto)'
 
-/** INT-08 / INT-08b: 1.ª bolha sem URL + replies Abrir mapa · Abrir agenda · Equipe. */
+/** INT-08 / INT-08b: 1.ª bolha sem URL + só cta_url «Abrir mapa» (um toque; Meta). */
 function assertLocationMapOffer(s: DialogScenario, caseId: string): string[] {
   const row = s.db.get<{ interactive_json: string | null; body: string }>(
     `SELECT o.interactive_json AS interactive_json, m.body AS body
@@ -54,18 +54,20 @@ function assertLocationMapOffer(s: DialogScenario, caseId: string): string[] {
   }
   const parsed = JSON.parse(row.interactive_json) as {
     buttons?: Array<{ id: string; title: string }>
-    ctaUrl?: unknown
+    ctaUrl?: { displayText?: string; url?: string }
   }
-  if (parsed.ctaUrl) return [`${caseId}: cta_url na 1.ª bolha (mapa só após toque)`]
-  const buttons = parsed.buttons ?? []
-  const titles = buttons.map((b) => b.title)
-  if (
-    titles.length !== 3 ||
-    titles[0] !== 'Abrir mapa' ||
-    titles[1] !== 'Abrir agenda' ||
-    titles[2] !== 'Falar com a equipe'
-  ) {
-    return [`${caseId}: esperava Abrir mapa · Abrir agenda · Equipe, veio ${JSON.stringify(buttons)}`]
+  if (parsed.buttons?.length) {
+    return [
+      `${caseId}: 1.ª bolha não deve misturar reply com cta_url; veio ${JSON.stringify(parsed.buttons)}`,
+    ]
+  }
+  if (parsed.ctaUrl?.displayText !== 'Abrir mapa') {
+    return [
+      `${caseId}: esperava cta_url «Abrir mapa», veio ${JSON.stringify(parsed.ctaUrl?.displayText)}`,
+    ]
+  }
+  if (!parsed.ctaUrl?.url?.startsWith('https://')) {
+    return [`${caseId}: cta_url sem https Maps, veio ${JSON.stringify(parsed.ctaUrl?.url)}`]
   }
   return []
 }
@@ -268,28 +270,38 @@ export const INT_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'INT-08',
-    title:
-      'Onde fica — corpo sem URL + Abrir mapa · Abrir agenda · Equipe (DEC-211 opção B)',
+    title: 'Onde fica — corpo sem URL + cta_url Abrir mapa (um toque; DEC-211)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Onde fica a clínica?' }],
     expect: {
       notPaused: true,
       outboundIncludes: ['mapa'],
-      outboundExcludes: [/Não tenho/i, /Rua /i, /https?:\/\//i, /toque em «Abrir agenda»/i],
+      outboundExcludes: [
+        /Não tenho/i,
+        /Rua /i,
+        /https?:\/\//i,
+        /toque em «Abrir agenda»/i,
+        /Para ver o caminho, toque/i,
+      ],
       turnDecided: [{ modelCalled: false }],
       assert: (s) => assertLocationMapOffer(s, 'INT-08'),
     },
   },
   {
     id: 'INT-08b',
-    title:
-      'Onde atendem — paráfrase com o mesmo Abrir mapa · Abrir agenda · Equipe (sem URL)',
+    title: 'Onde atendem — paráfrase com o mesmo cta_url Abrir mapa (um toque)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Onde atendem?' }],
     expect: {
       notPaused: true,
       outboundIncludes: ['mapa'],
-      outboundExcludes: [/Não tenho/i, /Rua /i, /https?:\/\//i, /toque em «Abrir agenda»/i],
+      outboundExcludes: [
+        /Não tenho/i,
+        /Rua /i,
+        /https?:\/\//i,
+        /toque em «Abrir agenda»/i,
+        /Para ver o caminho, toque/i,
+      ],
       turnDecided: [{ modelCalled: false }],
       assert: (s) => assertLocationMapOffer(s, 'INT-08b'),
     },

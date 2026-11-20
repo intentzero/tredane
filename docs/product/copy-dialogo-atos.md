@@ -92,7 +92,7 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 ### informar_local_link
 
 DEC-211: a localização é só o link da localização Google / Maps; o ato `informar_local` (com endereço) foi removido.
-**Confirmado (Paulo, 20/11/2026, opção B):** corpo **sem** URL; o link sai no toque «Abrir mapa» → `cta_url`.
+**Confirmado (Paulo, 20/11/2026, opção B; revisão um toque):** corpo **sem** URL; a 1.ª bolha leva só `cta_url` «Abrir mapa» (um toque; Meta não mistura com reply).
 
 1. `Estamos aqui — abra o mapa para ver o caminho.`
 2. `Para chegar, abra o mapa e veja o caminho.`

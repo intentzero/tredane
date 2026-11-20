@@ -1359,8 +1359,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const conversationId = input.conversationId
     if (!conversationId) return { handled: false as const }
-    // Opção B (localização): reply «Abrir mapa» → cta_url do link da localização Google.
-    // Um cta_url por mensagem (Meta); Agenda fica reply na 1.ª bolha e abre a página no toque.
+    // Localização legado: reply «Abrir mapa» (bolhas antigas) → cta_url do Maps.
+    // Caminho actual (DEC-211 revisão): 1.ª bolha já leva só cta_url — este toque é residual.
     if (parseOpenMapReplyButton(input.buttonId)) {
       cancelAutoDraft(this.#db, caller.tenantId, conversationId)
       const mapsUrl = clinicConfig

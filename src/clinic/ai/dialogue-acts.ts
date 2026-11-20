@@ -99,7 +99,7 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Nosso horário:\n{lista}',
     'Abrimos assim:\n{lista}',
   ],
-  // DEC-211 + opção B (Paulo 20/11/2026): corpo sem URL; o link vai no cta_url «Abrir mapa».
+  // DEC-211 (Paulo 20/11/2026; revisão um toque): corpo sem URL; cta_url «Abrir mapa» na 1.ª bolha.
   informar_local_link: [
     'Estamos aqui — abra o mapa para ver o caminho.',
     'Para chegar, abra o mapa e veja o caminho.',

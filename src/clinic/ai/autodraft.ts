@@ -82,7 +82,7 @@ import {
 } from './human-handoff'
 import {
   isLocationMapOfferReply,
-  locationMapOfferButtons,
+  locationMapOfferInteractive,
   rewriteRawMapsUrlOutbound,
 } from './location-map-offer'
 import {
@@ -1637,21 +1637,30 @@ export async function runDueAutoDrafts(
         /\bNo total, ficam\b/i.test(catalogText) ||
         /\bSomando tudo, ficam\b/i.test(catalogText)
       // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
-      // Localização (opção B): Abrir mapa · Abrir agenda · Equipe — mapa abre cta_url no toque.
+      // Localização (DEC-211): com URL Maps → só cta_url «Abrir mapa» (um toque; Meta não mistura reply).
       // TRE-77 / DEC-202: FAQ de expediente — só «Abrir agenda» (sem Equipe); com URL → cta_url.
       // TRE-94 / DEC-142: FAQ de preço com R$ do catálogo — Abrir agenda, sem Equipe.
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const hoursFaq = isOpeningHoursFaqAsk(turnText)
+      const locationOffer = isLocationMapOfferReply(catalogText)
+      const mapsUrl = locationOffer
+        ? ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
+        : ''
+      const locationInteractive = locationOffer
+        ? locationMapOfferInteractive(mapsUrl, db, tenantId, clock, {
+            serviceId: catalogServiceId,
+          })
+        : null
       const priceFaq =
         !hoursFaq &&
         !isPriceTotal &&
-        !isLocationMapOfferReply(catalogText) &&
+        !locationOffer &&
         CATALOG_PRICE_ASK.test(turnText) &&
         /R\$\s*\d/.test(catalogText)
       const agendaOnlyFaq = hoursFaq || priceFaq
       const agendaCta =
-        agendaOnlyFaq && !isPriceTotal && !isLocationMapOfferReply(catalogText)
+        agendaOnlyFaq && !isPriceTotal && !locationOffer
           ? await preferAbrirAgendaCta({
               prepare: deps.prepareClientWebOffer,
               paused: deps.autoBookPaused === true,
@@ -1662,8 +1671,8 @@ export async function runDueAutoDrafts(
           : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
-        : isLocationMapOfferReply(catalogText)
-          ? locationMapOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
+        : locationOffer
+          ? null
           : agendaOnlyFaq
             ? agendaCta
               ? null
@@ -1678,11 +1687,15 @@ export async function runDueAutoDrafts(
             body: catalogText,
             interactive: agendaCta
               ? agendaCta
-              : catalogButtons && catalogButtons.length > 0
-                ? { buttons: catalogButtons }
-                : undefined,
+              : locationInteractive
+                ? locationInteractive
+                : catalogButtons && catalogButtons.length > 0
+                  ? { buttons: catalogButtons }
+                  : undefined,
             // TRE-77 / TRE-94: sem isto, augmentOutboundWithHumanTeam volta a injectar Equipe.
-            omitHumanTeamAugment: Boolean(agendaOnlyFaq || agendaCta),
+            omitHumanTeamAugment: Boolean(
+              agendaOnlyFaq || agendaCta || locationInteractive?.ctaUrl,
+            ),
             clientRequestId: agendaCta
               ? `ai-web-agendar:${job.messageId}`
               : `ai-catalog:${job.messageId}`,
@@ -1960,11 +1973,14 @@ export async function runDueAutoDrafts(
           })
           continue
         }
-        // Opção B: se o redator colou o URL da clínica, troca pelo CTA Abrir mapa.
+        // Opção B: se o redator colou o URL da clínica, troca pelo CTA Abrir mapa (um toque).
         // TRE-82: fecho («Tudo bem, então…») → cta_url Abrir agenda (não reply+Equipe).
         const mapsUrl = ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
         const rewritten = rewriteRawMapsUrlOutbound(draftText, job.conversationId, mapsUrl)
         const body = rewritten.body
+        const mapInteractive = rewritten.useMapButtons
+          ? locationMapOfferInteractive(mapsUrl, db, tenantId, clock)
+          : null
         const closingCta =
           !rewritten.useMapButtons && looksLikeClosingAssistOutbound(body)
             ? await preferAbrirAgendaCta({
@@ -1974,9 +1990,8 @@ export async function runDueAutoDrafts(
                 conversationId: job.conversationId,
               })
             : null
-        const buttons = rewritten.useMapButtons
-          ? locationMapOfferButtons(db, tenantId, clock)
-          : closingCta
+        const buttons =
+          mapInteractive || closingCta
             ? null
             : humanTeamOfferButtons(db, tenantId, clock)
         const sent = sendOutboundMessageOp(
@@ -1985,12 +2000,14 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body,
-            interactive: closingCta
-              ? closingCta
-              : buttons && buttons.length > 0
-                ? { buttons }
-                : null,
-            omitHumanTeamAugment: Boolean(closingCta),
+            interactive: mapInteractive
+              ? mapInteractive
+              : closingCta
+                ? closingCta
+                : buttons && buttons.length > 0
+                  ? { buttons }
+                  : null,
+            omitHumanTeamAugment: Boolean(closingCta || mapInteractive?.ctaUrl),
             clientRequestId: closingCta
               ? `ai-web-agendar:${job.messageId}`
               : `ai-reply:${suggestion.id}`,

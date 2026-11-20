@@ -1,10 +1,10 @@
 /**
- * Oferta de localização no WhatsApp (opção B, Paulo 20/11/2026).
+ * Oferta de localização no WhatsApp (DEC-211; revisão um toque, Paulo 20/11/2026).
  *
- * Corpo sem URL + reply «Abrir mapa» · «Abrir agenda» · «Falar com a equipe».
- * Toque em Abrir mapa → bolha com `cta_url` do link da localização Google cadastrado.
- * A Meta não mistura `cta_url` com reply buttons e só permite um `cta_url` por mensagem:
- * o mapa abre no segundo passo; «Abrir agenda» fica reply (DEC-216) e abre a página depois.
+ * Com URL https do Maps: corpo sem URL + só `cta_url` «Abrir mapa» (um toque abre o mapa).
+ * A Meta não mistura `cta_url` com reply — Abrir agenda / Equipe não vão nesta bolha
+ * (mesmo padrão do fecho #998; Paulo prioriza um toque para o mapa).
+ * Sem URL https: replies Abrir mapa · Abrir agenda · Equipe (legado / lab; toque Abrir mapa → cta).
  */
 import type { Clock } from '../../db/clock'
 import type { SendOutboundInteractiveInput } from '../inbox/types'
@@ -37,7 +37,7 @@ export const LOCATION_MAP_OFFER_BODIES = [
   'Para chegar, abra o mapa e veja o caminho.',
 ] as const
 
-/** Corpo da bolha com `cta_url` após o toque (espelha o padrão DEC-216 do Abrir agenda). */
+/** Corpo da bolha com `cta_url` após toque legado no reply (espelha DEC-216 do Abrir agenda). */
 export const LOCATION_MAP_CTA_BODY = 'Para ver o caminho, toque em «Abrir mapa».'
 
 export function openMapReplyButton(): { id: string; title: string } {
@@ -63,7 +63,7 @@ export function bodyContainsClinicMapsUrl(body: string, mapsUrl: string): boolea
 
 /**
  * Se o redator colou o URL da clínica, troca pelo corpo opção B (sem URL).
- * Devolve `useMapButtons` para anexar Abrir mapa · Agenda · Equipe.
+ * Devolve `useMapButtons` para anexar a oferta de mapa (`cta_url` ou replies).
  */
 export function rewriteRawMapsUrlOutbound(
   body: string,
@@ -85,7 +85,7 @@ export function rewriteRawMapsUrlOutbound(
 
 /**
  * Três reply buttons (máx. Meta): Abrir mapa · Abrir agenda · Falar com a equipe.
- * `serviceId` opcional pré-escolhe o serviço no link da agenda (DEC-202(4)).
+ * Só usado sem URL https (legado). Com URL, preferir `locationMapOfferInteractive`.
  */
 export function locationMapOfferButtons(
   db: ClinicDb,
@@ -105,4 +105,23 @@ export function locationMapOfferButtons(
 
 export function locationMapCtaInteractive(url: string): SendOutboundInteractiveInput {
   return { ctaUrl: { displayText: OPEN_MAP_CTA_TEXT, url } }
+}
+
+/**
+ * Interactivo da 1.ª bolha de localização.
+ * URL https → só `cta_url` «Abrir mapa» (um toque).
+ * Sem URL → replies Abrir mapa · Agenda · Equipe (toque Abrir mapa → cta).
+ */
+export function locationMapOfferInteractive(
+  mapsUrl: string,
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  opts?: { serviceId?: string | null },
+): SendOutboundInteractiveInput {
+  const url = mapsUrl.trim()
+  if (/^https:\/\//i.test(url)) {
+    return locationMapCtaInteractive(url)
+  }
+  return { buttons: locationMapOfferButtons(db, tenantId, clock, opts) }
 }

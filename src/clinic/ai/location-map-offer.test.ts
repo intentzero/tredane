@@ -7,6 +7,7 @@ import {
   LOCATION_MAP_OFFER_BODIES,
   locationMapCtaInteractive,
   locationMapOfferButtons,
+  locationMapOfferInteractive,
   OPEN_MAP_CTA_TEXT,
   OPEN_MAP_REPLY_BUTTON_ID,
   openMapReplyButton,
@@ -53,9 +54,18 @@ describe('oferta Abrir mapa (opção B)', () => {
     expect(rewriteRawMapsUrlOutbound('Sem link.', 'cnv_x', link).useMapButtons).toBe(false)
   })
 
-  it('reply Abrir mapa + Agenda + Equipe (máx. 3) e CTA ≤ 20 chars', () => {
-    expect(openMapReplyButton()).toEqual({ id: OPEN_MAP_REPLY_BUTTON_ID, title: OPEN_MAP_CTA_TEXT })
+  it('com URL https: 1.ª bolha só cta_url Abrir mapa (um toque)', () => {
+    const link = 'https://maps.app.goo.gl/demo'
     expect(OPEN_MAP_CTA_TEXT.length).toBeLessThanOrEqual(20)
+    const offer = locationMapOfferInteractive(link, db, 't', clock)
+    expect(offer).toEqual(locationMapCtaInteractive(link))
+    expect(offer.ctaUrl).toEqual({ displayText: OPEN_MAP_CTA_TEXT, url: link })
+    expect(offer.buttons).toBeUndefined()
+    expect(LOCATION_MAP_CTA_BODY).toMatch(/Abrir mapa/)
+  })
+
+  it('sem URL https: fallback reply Abrir mapa + Agenda + Equipe (máx. 3)', () => {
+    expect(openMapReplyButton()).toEqual({ id: OPEN_MAP_REPLY_BUTTON_ID, title: OPEN_MAP_CTA_TEXT })
     expect(parseOpenMapReplyButton(OPEN_MAP_REPLY_BUTTON_ID)).toBe(true)
     expect(parseOpenMapReplyButton('cw:abrir-agenda')).toBe(false)
     expect(locationMapOfferButtons(db, 't', clock)).toEqual([
@@ -67,8 +77,11 @@ describe('oferta Abrir mapa (opção B)', () => {
       id: 'cw:abrir-agenda:svc_x',
       title: 'Abrir agenda',
     })
-    const cta = locationMapCtaInteractive('https://maps.app.goo.gl/demo')
-    expect(cta.ctaUrl).toEqual({ displayText: OPEN_MAP_CTA_TEXT, url: 'https://maps.app.goo.gl/demo' })
-    expect(LOCATION_MAP_CTA_BODY).toMatch(/Abrir mapa/)
+    expect(locationMapOfferInteractive('', db, 't', clock)).toEqual({
+      buttons: locationMapOfferButtons(db, 't', clock),
+    })
+    expect(locationMapOfferInteractive('http://maps.example/x', db, 't', clock, { serviceId: 'svc_x' })).toEqual({
+      buttons: locationMapOfferButtons(db, 't', clock, { serviceId: 'svc_x' }),
+    })
   })
 })
