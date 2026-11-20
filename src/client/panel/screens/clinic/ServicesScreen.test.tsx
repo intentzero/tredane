@@ -250,7 +250,7 @@ describe('ServicesList — esqueleto comum e avisos', () => {
 
   it('mostra duração em linha, aviso só na exceção e esconde inativos até ligar a chave', () => {
     render(<ServicesList tenantId="t" snap={snap} />)
-    // DEC-163: duração, profissional e sala numa linha; o preço vai à direita do nome.
+    // DEC-163: duração, profissional e sala numa linha; preço (+ badge) à direita numa coluna.
     expect(screen.getByText('60 min + 15 de intervalo · Gi')).toBeTruthy()
     expect(screen.getAllByText('Sem profissional')).toHaveLength(1)
     expect(screen.getByText('2 serviços ativos')).toBeTruthy()
@@ -258,6 +258,14 @@ describe('ServicesList — esqueleto comum e avisos', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Mostrar inativos (1)' }))
     expect(screen.getByText('Antigo')).toBeTruthy()
     expect(screen.getByText('Inativo')).toBeTruthy()
+  })
+
+  it('empilha preço e badge na coluna .clinic-service-meta', () => {
+    render(<ServicesList tenantId="t" snap={snap} />)
+    const badge = screen.getByText('Sem profissional')
+    const meta = badge.closest('.clinic-service-meta')
+    expect(meta).toBeTruthy()
+    expect(meta?.querySelector('.clinic-service-price')).toBeTruthy()
   })
 })
 

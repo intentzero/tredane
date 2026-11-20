@@ -229,14 +229,14 @@ export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
                 }
               >
                 <span className="clinic-nav-copy">
-                  <span className="clinic-service-top">
-                    <strong>{svc.name}</strong>
-                    <b className="clinic-service-price">{row.price}</b>
-                  </span>
+                  <strong>{svc.name}</strong>
                   <span>{row.summary}</span>
                 </span>
-                {!svc.active ? <Badge tone="closed">Inativo</Badge> : null}
-                {svc.active && row.warning ? <Badge tone="wait">{row.warning}</Badge> : null}
+                <span className="clinic-service-meta">
+                  <b className="clinic-service-price">{row.price}</b>
+                  {!svc.active ? <Badge tone="closed">Inativo</Badge> : null}
+                  {svc.active && row.warning ? <Badge tone="wait">{row.warning}</Badge> : null}
+                </span>
                 <ChevronRight aria-hidden size={18} />
               </Button>
             </li>

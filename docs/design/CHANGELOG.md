@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 20/11/2026 — Serviços lista: preço e badge na mesma coluna (**Confirmado**, Paulo «fix layout»)
+
+- M-72: quando a linha tem preço e badge («Sem profissional» / «Inativo»), ambos empilham em `.clinic-service-meta` (`flex-direction: column; align-items: center`) à direita do nome. Sem mock `.dc.html` novo (referência no Project store).
+
 ## 20/11/2026 — Sai filtro «Parados há mais de 2 dias» (DEC-072 revista / DEC-208)
 
 - M-83 (`desktop/AcompanhamentoQuadro`): remove o chip de filtro «Parados há mais de 2 dias» e o chip «Parado» no cartão (idle 30 min torna o critério de 2 dias sempre vazio).

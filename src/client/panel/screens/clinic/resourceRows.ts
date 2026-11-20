@@ -87,7 +87,7 @@ export function roomRow(snap: ClinicConfigSnapshot, room: ClinicResource): RoomR
 export type ServiceRow = {
   occupies: string
   detail: string
-  /** DEC-163: preço à direita do nome («Sem preço» quando falta). */
+  /** DEC-163: preço à direita («Sem preço» quando falta); empilha com o badge na meta. */
   price: string
   /** DEC-163: «45 min + 15 de intervalo · Thaís · Sala Laser»; público só se não for «Qualquer». */
   summary: string
