@@ -230,9 +230,11 @@ describe('InboxThread — bolhas com estado de entrega', () => {
     const box = (await screen.findByRole('textbox', { name: 'Mensagem' })) as HTMLTextAreaElement
     expect(box.tagName).toBe('TEXTAREA')
     expect(box.getAttribute('type')).toBeNull()
-    expect(box.getAttribute('autocomplete')).toBe('organization-title')
-    expect(box.getAttribute('autocomplete')).not.toMatch(/password|username|cc-|address|street|postal|email|tel|webauthn|^off$/i)
-    expect(box.getAttribute('name')).toBe('mensagem')
+    expect(box.getAttribute('autocomplete')).toBe('one-time-code')
+    expect(box.getAttribute('autocomplete')).not.toMatch(
+      /^(off|on|name|username|password|email|tel|organization-title|organization|street-address|address-line[12]|postal-code|cc-|webauthn)$/i,
+    )
+    expect(box.getAttribute('name')).toBeNull()
     expect(box.getAttribute('inputmode')).toBe('text')
     expect(box.getAttribute('autocorrect')).toBe('on')
     expect(box.getAttribute('autocapitalize')).toBe('sentences')

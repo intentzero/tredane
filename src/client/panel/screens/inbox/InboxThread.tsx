@@ -2219,10 +2219,10 @@ export function InboxThread({
                     placeholder="Escreva uma mensagem"
                     rows={1}
                     // WebKit trata autocomplete="off" como tipo vazio e o iOS mostra a cápsula
-                    // de senhas, cartão e morada. organization-title é um tipo concreto fora
-                    // dessas três; o teclado e as sugestões de texto ficam os de uma textarea.
-                    autoComplete="organization-title"
-                    name="mensagem"
+                    // de senhas, cartão e morada. organization-title evitava isso mas o iOS
+                    // mostra «AutoFill Contact»; one-time-code é concreto, fora de contacto
+                    // e das três cápsulas. Sem name semântico (gestores de senha ignorados).
+                    autoComplete="one-time-code"
                     inputMode="text"
                     autoCorrect="on"
                     autoCapitalize="sentences"
@@ -2377,7 +2377,18 @@ export function InboxThread({
                       value={draft}
                       onChange={setDraft}
                     >
-                      <TextArea className="inbox-draft-full-input" />
+                      <TextArea
+                        className="inbox-draft-full-input"
+                        // Mesmo token do compositor: evita AutoFill Contact / senha / cartão / morada.
+                        autoComplete="one-time-code"
+                        inputMode="text"
+                        autoCorrect="on"
+                        autoCapitalize="sentences"
+                        spellCheck
+                        data-form-type="other"
+                        data-lpignore="true"
+                        data-1p-ignore
+                      />
                     </TextField>
                     <div className="inbox-draft-full-foot">
                       <Button className="panel-btn-secondary" onPress={close}>
