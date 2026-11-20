@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
 import { listResources, listServices, replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { upsertKnowledgeCategory, upsertKnowledgeEntry } from '../config/knowledge'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
@@ -392,6 +393,8 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(catalogReply(boot.db, boot.tenantId, 'amanhã à tarde', boot.clock, opts)).toBeNull()
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
       expect(scheduleFactsFromText('pode ser mais tarde')).toEqual({})
+      expect(scheduleFactsFromText('Boa tarde')).toEqual({})
+      expect(scheduleFactsFromText('Boa noite, quero marcar')).toEqual({})
       expect(scheduleFactsFromText('segunda ou terça à tarde')).toEqual({ period: 'tarde' })
       expect(scheduleFactsFromText('Quero depilação na segunda à tarde.')).toEqual({
         dayLabel: 'segunda',
@@ -1002,10 +1005,12 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero marcar depilação pra minha mãe', boot.clock, opts),
       ).toMatch(/outra pessoa/)
+      // Sem dia: declara inexistente. Com «amanhã» o gate de período cede ao autobook
+      // (o PERIOD antigo falhava em «amanhã» por `\b`+acento; o helper TRE-60 corrige).
       const miss = catalogReply(
         boot.db,
         boot.tenantId,
-        'Quero bronzeamento artificial amanhã',
+        'Quero bronzeamento artificial',
         boot.clock,
         opts,
       )
@@ -1013,6 +1018,15 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(miss).toMatch(/não entendi|não encontrei/i)
       expect(miss).toMatch(/Temos /)
       expect(miss).not.toMatch(/maps\.|goo\.gl|google/i)
+      expect(
+        catalogReply(
+          boot.db,
+          boot.tenantId,
+          'Quero bronzeamento artificial amanhã',
+          boot.clock,
+          opts,
+        ),
+      ).toBeNull()
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero igual à última vez', boot.clock, opts),
       ).toMatch(/visita anterior/i)
@@ -1036,6 +1050,38 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(reply).toMatch(/Depilação|Limpeza|Massagem/i)
       expect(reply).not.toMatch(/maps\.|goo\.gl|google/i)
       expect(reply).not.toMatch(/\bcatálogo\b/i)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('DEC-185 / TRE-60: cumprimento «boa tarde» não bloqueia FAQ publicada', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-faq-greeting'
+    try {
+      const cat = upsertKnowledgeCategory(boot.db, tenantId, { name: 'Pets' }, clock)
+      upsertKnowledgeEntry(
+        boot.db,
+        tenantId,
+        {
+          categoryId: cat.id,
+          question: 'Posso levar o meu pet?',
+          answer: 'Sim, os seus bichanos são muito bem vindos!',
+          status: 'published',
+        },
+        'owner',
+        clock,
+      )
+      expect(catalogReply(boot.db, tenantId, 'Posso levar o meu pet?', clock)).toBe(
+        'Sim, os seus bichanos são muito bem vindos!',
+      )
+      expect(
+        catalogReply(boot.db, tenantId, 'Boa tarde, posso levar o meu pet?', clock),
+      ).toBe('Sim, os seus bichanos são muito bem vindos!')
+      expect(
+        catalogReply(boot.db, tenantId, 'Boa noite, posso levar o meu pet?', clock),
+      ).toBe('Sim, os seus bichanos são muito bem vindos!')
     } finally {
       boot.close()
     }

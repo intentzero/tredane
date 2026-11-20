@@ -11,6 +11,7 @@
  */
 import { CANCEL_RE, RESCHEDULE_RE } from '../clinic/ai/nlu/sensitive'
 import { serviceNameHit } from '../clinic/ai/booking-object'
+import { withoutGreetingPeriodFalsePositives } from '../clinic/ai/nlu/temporal'
 
 export type ClientWebRoutePurpose = 'agendar' | 'remarcar' | 'cancelar'
 
@@ -200,7 +201,9 @@ export function routeToClientWeb(input: {
   const cited = servicesCitedInText(input.services, text)
   const serviceId = cited.length === 1 ? cited[0]!.id : null
   if (strong) return { purpose: 'agendar', serviceId, noUpcoming: false, ...(info ? { mixed: true } : {}) }
-  if (cited.length > 0 && (WHEN.test(text) || WANT.test(text))) {
+  // «Boa tarde, limpeza de pele» não é WHEN — cumprimento ≠ período (TRE-60).
+  const whenProbe = withoutGreetingPeriodFalsePositives(text)
+  if (cited.length > 0 && (WHEN.test(whenProbe) || WANT.test(text))) {
     return { purpose: 'agendar', serviceId, noUpcoming: false }
   }
   return null

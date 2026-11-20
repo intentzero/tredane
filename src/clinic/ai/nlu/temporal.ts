@@ -258,12 +258,38 @@ function periodFromHour(hour: number): Period {
   return 'noite'
 }
 
-/** Cumprimentos não filtram período («Boa tarde, quero marcar…»). */
+/** Cumprimentos não filtram período («Boa tarde, quero marcar…»). Espera texto já `norm`. */
 export function stripGreetingPeriodFalsePositives(folded: string): string {
   return folded
     .replace(/\b(?:bom dia|boa tarde|boa noite)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/**
+ * Dobra + tira cumprimentos que falsificam «tarde»/«noite»/«dia».
+ * Usar antes de qualquer gate léxico de período/dia de marcação (TRE-60).
+ */
+export function withoutGreetingPeriodFalsePositives(text: string): string {
+  return stripGreetingPeriodFalsePositives(norm(text))
+}
+
+/**
+ * Dia ou período de marcação (amanhã, tarde, …). Não conta cumprimento.
+ * Mesma família que os PERIOD locais de catalog-reply / opening-hours / handoff.
+ */
+export const BOOKING_DAY_OR_PERIOD_RE =
+  /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
+
+/** Só manhã / tarde / noite (após strip de cumprimento). */
+export const BOOKING_DAY_PART_RE = /\b(manh[aã]|tarde|noite)\b/i
+
+export function hasBookingDayOrPeriodCue(text: string): boolean {
+  return BOOKING_DAY_OR_PERIOD_RE.test(withoutGreetingPeriodFalsePositives(text))
+}
+
+export function hasBookingDayPartCue(text: string): boolean {
+  return BOOKING_DAY_PART_RE.test(withoutGreetingPeriodFalsePositives(text))
 }
 
 const DEPOIS_ALMOCO_RE = /\b(?:depois|apos|dps)\s+(?:do|de)\s+almoco\b/

@@ -70,6 +70,7 @@ import {
 import type { AttendantRequestSource } from '../../conversation-metrics/types'
 import { getBookingFrame } from './schedule-session'
 import { isCatalogInfoAsk, isShortBookingAffirm } from './booking-intent-text'
+import { hasBookingDayOrPeriodCue } from './nlu/temporal'
 
 const PERIOD_LABEL: Record<string, string> = {
   manha: 'manhã',
@@ -515,9 +516,6 @@ const BOOKING_PROGRESS_WHILE_PAUSED_RE =
 const SERVICE_AVAILABILITY_WHILE_PAUSED_RE =
   /\b(?:tem|fazem|faz|voc[eê]s\s+t[eê]m|vcs\s+t[eê]m)\b[^.?\n]{0,48}\b(?:massagem|drenagem|depila|botox|servi[cç]o)/i
 
-const DAY_TIME_WHILE_PAUSED_RE =
-  /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
-
 const CLOCK_WHILE_PAUSED_RE =
   /(?:^|[^a-z0-9])(?:[aà]s\s+\d{1,2}(?:h(?:rs|s)?(?:\d{2})?)?|\d{1,2}[:h]\d{2}|\d{3,4})\b/i
 
@@ -587,7 +585,7 @@ export function inboundWarrantsParallelHandoffAutomation(
     if (isShortBookingAffirm(body) || isCatalogInfoAsk(body)) return true
     if (
       BOOKING_PROGRESS_WHILE_PAUSED_RE.test(body) ||
-      DAY_TIME_WHILE_PAUSED_RE.test(body) ||
+      hasBookingDayOrPeriodCue(body) ||
       CLOCK_WHILE_PAUSED_RE.test(body)
     ) {
       return true

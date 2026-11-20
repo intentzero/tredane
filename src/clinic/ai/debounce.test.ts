@@ -30,6 +30,11 @@ describe('debounce DEC-111', () => {
     )
   })
 
+  it('TRE-60: cumprimento «boa tarde» não fecha pedido completo só com serviço', () => {
+    expect(looksLikeCompleteBookingRequest('Boa tarde, quero limpeza de pele')).toBe(false)
+    expect(looksLikeCompleteBookingRequest('Boa tarde, quero limpeza de pele amanhã')).toBe(true)
+  })
+
   it('texto aberto → 7 s', () => {
     expect(looksLikeCompleteBookingRequest('Oi, tudo bem?')).toBe(false)
     expect(autodraftDebounceMs({ text: 'Oi, tudo bem?' })).toBe(AI_AUTODRAFT_DEBOUNCE_MS)

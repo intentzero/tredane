@@ -6,11 +6,14 @@ import { describe, expect, it } from 'vitest'
 import {
   extractDates,
   extractTimes,
+  hasBookingDayOrPeriodCue,
+  hasBookingDayPartCue,
   nextWeekSearchDays,
   notAfterTimeFromText,
   notBeforeTimeFromText,
   parseTemporal,
   wantsNextWeekWithoutWeekday,
+  withoutGreetingPeriodFalsePositives,
 } from './temporal'
 
 const TODAY = '2026-11-05' // quinta
@@ -314,6 +317,16 @@ describe('parseTemporal (#408)', () => {
   it('cumprimento «boa tarde» não filtra período', () => {
     expect(parseTemporal('Boa tarde, quero botox', { civilDate: '2026-11-16' }).periods).toEqual([])
     expect(parseTemporal('quinta à tarde', { civilDate: '2026-11-16' }).periods).toEqual(['tarde'])
+  })
+
+  it('TRE-60: helper partilhado ignora cumprimento nos gates de período', () => {
+    expect(withoutGreetingPeriodFalsePositives('Boa tarde, posso levar o pet?')).not.toMatch(/\btarde\b/)
+    expect(hasBookingDayOrPeriodCue('Boa tarde, posso levar o pet?')).toBe(false)
+    expect(hasBookingDayOrPeriodCue('Boa noite')).toBe(false)
+    expect(hasBookingDayPartCue('Bom dia')).toBe(false)
+    expect(hasBookingDayOrPeriodCue('Boa tarde, quero amanhã à tarde')).toBe(true)
+    expect(hasBookingDayPartCue('quero à tarde')).toBe(true)
+    expect(hasBookingDayOrPeriodCue('tem horário amanhã?')).toBe(true)
   })
 
   it('S02: «semana que vem» / «próxima semana» — janela segunda–sábado', () => {
