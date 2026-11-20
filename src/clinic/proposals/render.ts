@@ -332,12 +332,18 @@ export function renderProposalResultBody(
       const service = zoneLabel(proposal.serviceName, opts.zones ?? [])
       const bookedWhen = formatBookedWhen(proposal)
       const omitDoubt = opts.omitDoubtFallback !== false
+      const replacedWhen =
+        opts.replacedStartsAt != null && Number.isFinite(opts.replacedStartsAt)
+          ? formatBookedWhenAt(proposal.timezone, opts.replacedStartsAt)
+          : null
+      // Mesmo instante civil → não alegar remarcação «de X para X» (recibo pós-move
+      // lia a linha já actualizada; guard de segurança se o snapshot falhar).
       const rescheduled =
         proposal.replacesAppointmentId != null &&
-        opts.replacedStartsAt != null &&
-        Number.isFinite(opts.replacedStartsAt)
+        replacedWhen != null &&
+        replacedWhen !== bookedWhen
       const head = rescheduled
-        ? `Remarcado: de ${formatBookedWhenAt(proposal.timezone, opts.replacedStartsAt!)} para ${bookedWhen}`
+        ? `Remarcado: de ${replacedWhen} para ${bookedWhen}`
         : `Agendado: ${service} · ${bookedWhen}`
       const priceLine = formatBookedPriceSuffix(proposal, opts.zones ?? [], opts.combo)
       // Sem «Local: <url>» — o mapa vai no botão CTA «Abrir mapa» (DEC-211 opção B).

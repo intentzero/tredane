@@ -116,7 +116,11 @@ describe('remarcar pela página (REQ-113, DEC-198)', () => {
       const audit = db.all("SELECT actor FROM operational_audit WHERE action LIKE 'appointment.%'") as Array<{ actor: string }>
       expect(audit.some((a) => a.actor === 'contact:web')).toBe(true)
       const bodies = (db.all("SELECT body FROM messages WHERE direction = 'outbound'") as Array<{ body: string }>).map((m) => m.body)
-      expect(bodies.some((b) => b.startsWith('Remarcado:') && b.includes(WEB_RECEIPT_SENTENCE))).toBe(true)
+      // TRE-93: «de <hora antiga> para <hora nova>» — não «de X para X» após move in-place.
+      const remarca = bodies.find((b) => b.startsWith('Remarcado:') && b.includes(WEB_RECEIPT_SENTENCE))
+      expect(remarca).toBeTruthy()
+      expect(remarca).toMatch(/Remarcado: de segunda 08\/01 às 10:00 para segunda 08\/01 às 14:00/)
+      expect(remarca).not.toMatch(/de (.+) para \1/)
     } finally {
       close()
     }

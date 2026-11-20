@@ -65,6 +65,61 @@ export type SendProposalResultOutcome =
       outbox: OutboxRow[]
     }
 
+function startsAtFromEventJson(raw: string | null | undefined): number | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as { startsAt?: unknown }
+    return typeof parsed.startsAt === 'number' && Number.isFinite(parsed.startsAt)
+      ? parsed.startsAt
+      : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Horário civil do compromisso *antes* da remarcação (DEC-091 / DEC-198).
+ *
+ * A remarcação web move a mesma linha (`replacesAppointmentId` = id actual).
+ * Quando o recibo corre depois do commit, `appointments.starts_at` já é o novo —
+ * ler a linha viva dava «Remarcado: de X para X». Preferimos o `previous_json`
+ * do evento `rescheduled` cuja chegada bate com a proposta; senão o evento mais
+ * recente; só caímos na linha viva se ainda diferir da proposta (pré-move).
+ */
+export function resolveReplacedStartsAt(
+  db: ClinicDb,
+  tenantId: string,
+  proposal: Pick<AppointmentProposalRow, 'replacesAppointmentId' | 'startsAt'>,
+): number | null {
+  const appointmentId = proposal.replacesAppointmentId?.trim() || null
+  if (!appointmentId) return null
+
+  const events = db.all<{ previous_json: string | null; new_json: string | null }>(
+    `SELECT previous_json, new_json FROM appointment_events
+     WHERE tenant_id = ? AND appointment_id = ? AND operation = 'rescheduled'
+     ORDER BY occurred_at DESC, id DESC`,
+    tenantId,
+    appointmentId,
+  )
+  let latestPrev: number | null = null
+  for (const row of events) {
+    const prev = startsAtFromEventJson(row.previous_json)
+    if (prev == null) continue
+    if (latestPrev == null) latestPrev = prev
+    const next = startsAtFromEventJson(row.new_json)
+    if (next == null || next === proposal.startsAt) return prev
+  }
+  if (latestPrev != null) return latestPrev
+
+  const live = db.get<{ starts_at: number }>(
+    `SELECT starts_at FROM appointments WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    appointmentId,
+  )?.starts_at
+  if (live != null && Number.isFinite(live) && live !== proposal.startsAt) return live
+  return null
+}
+
 /**
  * Envia o texto fixo de resultado. Nunca inventa sucesso antes do commit —
  * o chamador (S5) só invoca depois de book / slot_refused / pix path.
@@ -81,6 +136,11 @@ export function sendProposalResultMessageOp(
     postBookingAppointmentId?: string | null
     /** DEC-197: `web` acrescenta o recibo «Não foi você?» ao texto de marcado. */
     channel?: 'whatsapp' | 'web'
+    /**
+     * Instantâneo do horário substituído (opcional). Sem isto, resolve-se via
+     * `appointment_events` / linha viva — ver {@link resolveReplacedStartsAt}.
+     */
+    replacedStartsAt?: number | null
   },
   clock: Clock,
 ): SendProposalResultOutcome {
@@ -129,15 +189,12 @@ export function sendProposalResultMessageOp(
     input.resultKind === 'booked'
       ? readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
       : []
-  let replacedStartsAt: number | null = null
-  if (input.resultKind === 'booked' && proposal.replacesAppointmentId) {
-    const prev = db.get<{ starts_at: number }>(
-      `SELECT starts_at FROM appointments WHERE tenant_id = ? AND id = ?`,
-      meta.tenantId,
-      proposal.replacesAppointmentId,
-    )
-    replacedStartsAt = prev?.starts_at ?? null
-  }
+  const replacedStartsAt =
+    input.resultKind === 'booked' && proposal.replacesAppointmentId
+      ? input.replacedStartsAt != null && Number.isFinite(input.replacedStartsAt)
+        ? input.replacedStartsAt
+        : resolveReplacedStartsAt(db, meta.tenantId, proposal)
+      : null
   const combo =
     input.resultKind === 'booked' ? readComboSnapshot(db, meta.tenantId, 'proposal', proposal.id) : null
   const body = renderProposalResultBody(proposal, input.resultKind, {
