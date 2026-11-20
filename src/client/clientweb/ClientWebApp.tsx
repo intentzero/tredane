@@ -5,7 +5,17 @@ import { CancelFlow, RescheduleFlow } from './ManageFlow'
 import { BookFlow } from './BookFlow'
 import { DirectionsLink } from './DirectionsLink'
 import { clientWebTokenFromPath } from './routes'
+import { formatPrice } from './booking-model'
 import { clinicInitials, formatAppointmentWhen, formatDurationMinutes } from './format'
+
+/** Linha 3 do card: zonas ou combo · preço (omitida se não há nenhum). */
+export function appointmentCardDetail(a: Pick<ClientWebAppointment, 'zoneNames' | 'comboName' | 'priceCents'>): string | null {
+  const label = a.comboName?.trim() || (a.zoneNames.length > 0 ? a.zoneNames.join(', ') : '')
+  const price = a.priceCents != null ? formatPrice(a.priceCents) : ''
+  if (!label && !price) return null
+  if (label && price) return `${label} · ${price}`
+  return label || price
+}
 
 type View =
   | { kind: 'loading' }
@@ -167,6 +177,19 @@ export function ClientWebApp() {
   )
 }
 
+function AppointmentDetail({ a }: { a: ClientWebAppointment }) {
+  if (!appointmentCardDetail(a)) return null
+  const label = a.comboName?.trim() || (a.zoneNames.length > 0 ? a.zoneNames.join(', ') : '')
+  const price = a.priceCents != null ? formatPrice(a.priceCents) : ''
+  return (
+    <span className="cw-card-detail">
+      {label}
+      {label && price ? ' · ' : null}
+      {price ? <span className="cw-card-price">{price}</span> : null}
+    </span>
+  )
+}
+
 function Header({ name, safe = false }: { name: string; safe?: boolean }) {
   return (
     <header>
@@ -213,6 +236,7 @@ function Home({
                 <span className="cw-muted">
                   {formatAppointmentWhen(a.startsAt, state.timezone)} · {formatDurationMinutes(a.startsAt, a.endsAt)}
                 </span>
+                <AppointmentDetail a={a} />
                 <DirectionsLink url={state.locationUrl} />
                 <div className="cw-card-actions">
                   <button type="button" className="cw-btn cw-btn-secondary" aria-label={`Remarcar ${a.serviceName}`} onClick={() => onReschedule(a)}>

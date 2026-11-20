@@ -84,6 +84,16 @@
   background: var(--color-success-tint);
   color: var(--color-success-ink);
 }
+/* TRE-92: zonas/combo · preço sob o quando (layout Confirmado pelo Paulo). */
+.cw-card-detail {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+.cw-card-price {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
 .cw-note {
   margin: 0;
   padding: 12px;

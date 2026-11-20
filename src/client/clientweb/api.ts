@@ -14,6 +14,12 @@ export type ClientWebAppointment = {
   professionalName: string
   /** Sinal pago: a cliente não cancela sozinha, pede à equipe (DEC-198). */
   hasPaidSignal: boolean
+  /** Variantes da visita (snapshot); vazio sem zonas. */
+  zoneNames: string[]
+  /** Combo aplicado na visita, se houver. */
+  comboName: string | null
+  /** Preço cotado (combo / soma zonas / linha do serviço). */
+  priceCents: number | null
 }
 
 export type ClientWebState = {

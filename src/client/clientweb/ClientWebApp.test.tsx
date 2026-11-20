@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import axe from 'axe-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../ui/panel.css'
-import { ClientWebApp } from './ClientWebApp'
+import { appointmentCardDetail, ClientWebApp } from './ClientWebApp'
 import { resetExchangesForTest } from './api'
 import { clientWebTokenFromPath, isClientWebPath } from './routes'
 
@@ -21,6 +21,9 @@ const STATE = {
       professionalId: 'pro-gi',
       professionalName: 'Gi',
       hasPaidSignal: false,
+      zoneNames: [],
+      comboName: null,
+      priceCents: 12_000,
     },
   ],
   sessionExpiresAt: Date.UTC(2026, 10, 25, 18, 0),
@@ -81,10 +84,76 @@ describe('ClientWebApp (C-01, C-09)', () => {
     expect(await screen.findByRole('heading', { name: 'Olá, Marina' })).toBeTruthy()
     expect(screen.getByText('Limpeza de pele')).toBeTruthy()
     expect(screen.getByText(/qua 25\/11 · 14:15 · 45 min/)).toBeTruthy()
+    expect(screen.getByText(/R\$\s*120/).textContent?.replace(/\s/g, ' ')).toMatch(/R\$ 120/)
     expect(window.location.pathname).toBe('/c')
     expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual(['POST /api/c/exchange', 'GET /api/c/state'])
     expect(JSON.parse(calls[0]!.body!)).toEqual({ token: 'cw1_exemplo' })
     expect(calls.some((c) => /tenant|contact/i.test(c.url + (c.body ?? '')))).toBe(false)
+  })
+
+  it('mostra zonas/combo e preço no card (TRE-92)', async () => {
+    mockApi()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).endsWith('/api/c/exchange')) return new Response('{}', { status: 200 })
+        return new Response(
+          JSON.stringify({
+            ...STATE,
+            appointments: [
+              {
+                ...STATE.appointments[0],
+                id: 'apt-z',
+                serviceName: 'Depilação a laser',
+                zoneNames: ['Axilas', 'Meia perna', 'Buço'],
+                comboName: null,
+                priceCents: 28_000,
+              },
+              {
+                ...STATE.appointments[0],
+                id: 'apt-c',
+                serviceName: 'Depilação a laser',
+                startsAt: Date.UTC(2026, 11, 2, 13, 0),
+                endsAt: Date.UTC(2026, 11, 2, 13, 45),
+                zoneNames: ['Axilas', 'Virilha'],
+                comboName: 'Combo axilas + virilha',
+                priceCents: 18_000,
+              },
+            ],
+          }),
+          { status: 200 },
+        )
+      }),
+    )
+    render(<ClientWebApp />)
+    await screen.findByRole('heading', { name: 'Olá, Marina' })
+    expect(screen.getByText(/Axilas, Meia perna, Buço/).textContent?.replace(/\s/g, ' ')).toMatch(
+      /Axilas, Meia perna, Buço · R\$ 280/,
+    )
+    expect(screen.getByText(/Combo axilas \+ virilha/).textContent?.replace(/\s/g, ' ')).toMatch(
+      /Combo axilas \+ virilha · R\$ 180/,
+    )
+  })
+
+  it('appointmentCardDetail formata zonas, combo e omite preço nulo', () => {
+    expect(
+      appointmentCardDetail({ zoneNames: ['Axilas', 'Buço'], comboName: null, priceCents: 14_000 })?.replace(
+        /\s/g,
+        ' ',
+      ),
+    ).toBe('Axilas, Buço · R$ 140')
+    expect(
+      appointmentCardDetail({
+        zoneNames: ['Axilas', 'Virilha'],
+        comboName: 'Combo axilas + virilha',
+        priceCents: 18_000,
+      })?.replace(/\s/g, ' '),
+    ).toBe('Combo axilas + virilha · R$ 180')
+    expect(appointmentCardDetail({ zoneNames: [], comboName: null, priceCents: 12_000 })?.replace(/\s/g, ' ')).toBe(
+      'R$ 120',
+    )
+    expect(appointmentCardDetail({ zoneNames: ['Axilas'], comboName: null, priceCents: null })).toBe('Axilas')
+    expect(appointmentCardDetail({ zoneNames: [], comboName: null, priceCents: null })).toBeNull()
   })
 
   it('em StrictMode só faz uma troca (o token é de uso único)', async () => {
