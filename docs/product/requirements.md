@@ -308,7 +308,7 @@
 
 ### REQ-116 — Oferta do link e recibo no chat
 
-**Prioridade/estado:** MVP / direção Confirmada (DEC-196, DEC-197); frases **Propostas**. **Origem:** JRN-20, JRN-23; DEC-104. **Comportamento:** o backend oferece o link com uma frase determinística e o botão «Abrir agenda», dentro da janela de 24 h; fora dela, só com template aprovado (TMPL-05, **Em aberto**). Depois de cada marcação, remarcação ou cancelamento pela página, sai um recibo com «Não foi você? Falar com a equipe»; falha do recibo não desfaz a ação. A conversa continua como alternativa. **Aceite:** AC-95.
+**Prioridade/estado:** MVP / direção Confirmada (DEC-196, DEC-197; **DEC-216**, Paulo 19/11/2026); frases **Propostas**. **Origem:** JRN-20, JRN-23; DEC-104. **Comportamento:** o backend oferece o link com uma frase determinística e o botão «Abrir agenda», dentro da janela de 24 h; fora dela, só com template aprovado (TMPL-05, **Em aberto**). Depois de cada marcação, remarcação ou cancelamento pela página, sai um recibo com «Não foi você? Falar com a equipe»; falha do recibo não desfaz a ação. A conversa continua como alternativa. **DEC-216:** qualquer bolha que oferece «Falar com a equipe» oferece também «Abrir agenda» (reply; o toque envia o CTA URL); serviço único do léxico pré-escolhe no link. **Aceite:** AC-95; L1 GU-21.
 
 ### REQ-117 — Pesquisa e «Para quem é?» na página web
 

@@ -11,6 +11,7 @@ import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
+import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../clientweb/offer'
 import {
   HUMAN_HANDOFF_BUTTON_ID,
   augmentOutboundWithHumanTeam,
@@ -69,10 +70,17 @@ function seed(nowMs: number) {
 }
 
 describe('humanTeamAccess (item 6)', () => {
-  it('humanTeamOfferButtons devolve o botão fora do expediente', () => {
+  it('humanTeamOfferButtons devolve Abrir agenda + Equipe (DEC-216), também fora do expediente', () => {
     const s = seed(TZ_CLOSED)
     try {
       expect(humanTeamOfferButtons(s.db, s.tenantId, s.clock)).toEqual([
+        { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
+        { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
+      ])
+      expect(
+        humanTeamOfferButtons(s.db, s.tenantId, s.clock, { serviceId: 'svc_x' }),
+      ).toEqual([
+        { id: 'cw:abrir-agenda:svc_x', title: 'Abrir agenda' },
         { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
       ])
     } finally {
@@ -80,7 +88,26 @@ describe('humanTeamAccess (item 6)', () => {
     }
   })
 
-  it('augmentOutboundWithHumanTeam — 2 botões ganham o terceiro + explicação', () => {
+  it('augmentOutboundWithHumanTeam — 1 botão ganha Abrir agenda + Equipe (DEC-216)', () => {
+    const s = seed(TZ_OPEN)
+    try {
+      const aug = augmentOutboundWithHumanTeam(s.db, s.tenantId, s.clock, {
+        body: 'Opção:',
+        interactive: {
+          buttons: [{ id: 'a', title: 'Continuar' }],
+        },
+      })
+      expect(aug.interactive?.buttons).toEqual([
+        { id: 'a', title: 'Continuar' },
+        { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
+        { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
+      ])
+    } finally {
+      s.close()
+    }
+  })
+
+  it('augmentOutboundWithHumanTeam — 2 botões ganham só o terceiro (Equipe; sem vaga para o par)', () => {
     const s = seed(TZ_OPEN)
     try {
       const aug = augmentOutboundWithHumanTeam(s.db, s.tenantId, s.clock, {
@@ -100,7 +127,7 @@ describe('humanTeamAccess (item 6)', () => {
     }
   })
 
-  it('augmentOutboundWithHumanTeam — lista com vagas acrescenta linha Equipe', () => {
+  it('augmentOutboundWithHumanTeam — lista com vagas acrescenta Abrir agenda + Equipe', () => {
     const s = seed(TZ_CLOSED)
     try {
       const expl = humanTeamAccessExplanation(s.db, s.tenantId, s.clock)
@@ -120,7 +147,8 @@ describe('humanTeamAccess (item 6)', () => {
         },
       })
       const rows = aug.interactive?.list?.sections.flatMap((x) => x.rows) ?? []
-      expect(rows.some((r) => r.id === HUMAN_HANDOFF_BUTTON_ID)).toBe(true)
+      expect(rows.some((r) => r?.id === OPEN_AGENDA_REPLY_BUTTON_ID)).toBe(true)
+      expect(rows.some((r) => r?.id === HUMAN_HANDOFF_BUTTON_ID)).toBe(true)
       expect(aug.body).toBe('Horários:')
     } finally {
       s.close()
@@ -148,6 +176,7 @@ describe('humanTeamAccess (item 6)', () => {
         s.tenantId,
       )
       expect(ob?.interactive_json).toContain(HUMAN_HANDOFF_BUTTON_ID)
+      expect(ob?.interactive_json).toContain(OPEN_AGENDA_REPLY_BUTTON_ID)
     } finally {
       s.close()
     }
