@@ -41,6 +41,7 @@ export type DialogueActId =
   | 'informar_preco_variante'
   | 'informar_preco_soma'
   | 'informar_preco_tabela'
+  | 'informar_preco_faixa'
   | 'recusar_mistura'
   | 'servico_inexistente'
   | 'varios_servicos'
@@ -156,6 +157,12 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Para {serviço}:\n{lista}',
     'Valores de {serviço}:\n{lista}',
     'Para {serviço} temos:\n{lista}',
+  ],
+  // FAQ de preço com zonas/variantes sem escolha: faixa do catálogo (DEC-142 / TRE-94).
+  informar_preco_faixa: [
+    'Para {serviço}, os valores vão de {mínimo} a {máximo}, conforme a opção.',
+    '{serviço} fica entre {mínimo} e {máximo}, conforme a zona ou o tipo.',
+    'Os valores de {serviço} vão de {mínimo} a {máximo}.',
   ],
   recusar_mistura: [
     'Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?',

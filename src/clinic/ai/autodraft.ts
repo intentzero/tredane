@@ -55,6 +55,7 @@ import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { classifyTurn } from './classify-turn'
 import { catalogReply } from './catalog-reply'
+import { CATALOG_PRICE_ASK } from './booking-intent-text'
 import { buildOpeningHoursReply, isOpeningHoursFaqAsk } from './opening-hours-reply'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 import {
@@ -1609,10 +1610,11 @@ export async function runDueAutoDrafts(
       const answer = stripScheduleOffer(catalogText)
       const cited = servicesCitedInText(turn.catalog.services, turnText)
       const single = cited.length === 1 ? cited[0]! : null
+      // TRE-94: tabela/faixa de preço também junta Abrir agenda (vários R$).
       const isServiceFact =
         /R\$\s*\d|\b\d+\s*min\b/i.test(answer) &&
         !answer.includes('?') &&
-        (answer.match(/R\$/g) ?? []).length <= 1
+        ((answer.match(/R\$/g) ?? []).length <= 1 || CATALOG_PRICE_ASK.test(turnText))
       if (single && isServiceFact) {
         const today = clinicCivilDateFromUtc(turn.settings.timezone || 'America/Sao_Paulo', clock.nowMs())
         const linkFields = clientWebLinkFieldsFromText(turnText, single.id, turn.catalog.services, today)
@@ -1637,11 +1639,19 @@ export async function runDueAutoDrafts(
       // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
       // Localização (opção B): Abrir mapa · Abrir agenda · Equipe — mapa abre cta_url no toque.
       // TRE-77 / DEC-202: FAQ de expediente — só «Abrir agenda» (sem Equipe); com URL → cta_url.
+      // TRE-94 / DEC-142: FAQ de preço com R$ do catálogo — Abrir agenda, sem Equipe.
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const hoursFaq = isOpeningHoursFaqAsk(turnText)
-      const hoursCta =
-        hoursFaq && !isPriceTotal && !isLocationMapOfferReply(catalogText)
+      const priceFaq =
+        !hoursFaq &&
+        !isPriceTotal &&
+        !isLocationMapOfferReply(catalogText) &&
+        CATALOG_PRICE_ASK.test(turnText) &&
+        /R\$\s*\d/.test(catalogText)
+      const agendaOnlyFaq = hoursFaq || priceFaq
+      const agendaCta =
+        agendaOnlyFaq && !isPriceTotal && !isLocationMapOfferReply(catalogText)
           ? await preferAbrirAgendaCta({
               prepare: deps.prepareClientWebOffer,
               paused: deps.autoBookPaused === true,
@@ -1654,8 +1664,8 @@ export async function runDueAutoDrafts(
         ? priceFollowupInteractiveButtons()
         : isLocationMapOfferReply(catalogText)
           ? locationMapOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
-          : hoursFaq
-            ? hoursCta
+          : agendaOnlyFaq
+            ? agendaCta
               ? null
               : [openAgendaReplyButton(catalogServiceId)]
             : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
@@ -1666,14 +1676,14 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: catalogText,
-            interactive: hoursCta
-              ? hoursCta
+            interactive: agendaCta
+              ? agendaCta
               : catalogButtons && catalogButtons.length > 0
                 ? { buttons: catalogButtons }
                 : undefined,
-            // TRE-77 residual: sem isto, augmentOutboundWithHumanTeam volta a injectar Equipe.
-            omitHumanTeamAugment: Boolean(hoursFaq || hoursCta),
-            clientRequestId: hoursCta
+            // TRE-77 / TRE-94: sem isto, augmentOutboundWithHumanTeam volta a injectar Equipe.
+            omitHumanTeamAugment: Boolean(agendaOnlyFaq || agendaCta),
+            clientRequestId: agendaCta
               ? `ai-web-agendar:${job.messageId}`
               : `ai-catalog:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
