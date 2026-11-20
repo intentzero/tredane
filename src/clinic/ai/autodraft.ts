@@ -1430,9 +1430,12 @@ export async function runDueAutoDrafts(
       const isPriceTotal =
         /\bNo total, ficam\b/i.test(catalogText) ||
         /\bSomando tudo, ficam\b/i.test(catalogText)
+      // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
+      const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
+      const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
-        : humanTeamOfferButtons(db, tenantId, clock)
+        : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
       try {
         const sent = sendOutboundMessageOp(
           db,

@@ -156,6 +156,7 @@ import {
   clientWebRouteBody,
   clientWebUrl,
   isHttpsBase,
+  parseOpenAgendaReplyButton,
   type PrepareClientWebOffer,
 } from '../clientweb/offer'
 import { resolveClientWebLinkPreset } from '../clientweb/link-preset'
@@ -1335,6 +1336,24 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const conversationId = input.conversationId
     if (!conversationId) return { handled: false as const }
+    // DEC-216: reply «Abrir agenda» (junto a «Falar com a equipe») → envia o CTA URL.
+    const openAgendaTap = parseOpenAgendaReplyButton(input.buttonId)
+    if (openAgendaTap) {
+      const outbox = await this.#offerWebLinkInChat(
+        caller,
+        conversationId,
+        'agendar',
+        input.providerEventKey,
+        openAgendaTap.serviceId,
+      )
+      cancelAutoDraft(this.#db, caller.tenantId, conversationId)
+      if (outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, outbox, true)
+        await this.#drain(caller)
+      }
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+      return { handled: true, action: 'web_link' as const }
+    }
     // DEC-202: os botões do funil antigo que ainda estão no WhatsApp (listas M5, Alterar, Confirmar,
     // cancelar no chat, «Continuar» do FAQ) respondem com o link «Abrir agenda» e nunca marcam,
     // remarcam nem cancelam.
@@ -1443,6 +1462,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     conversationId: string,
     purpose: 'agendar' | 'remarcar' | 'cancelar',
     eventKey?: string | null,
+    serviceId?: string | null,
   ): Promise<OutboxRow[]> {
     const key = eventKey ?? `${purpose}:${this.#clock.nowMs()}`
     const prepare = this.#prepareClientWebOffer()
@@ -1463,6 +1483,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           conversationId,
           purpose,
           appointmentId: purpose !== 'agendar' && future.length === 1 ? (future[0]?.id ?? null) : null,
+          serviceId: purpose === 'agendar' ? (serviceId ?? null) : null,
         })
       } catch {
         offered = null
@@ -1470,12 +1491,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     if (offered) {
       try {
+        const serviceName =
+          purpose === 'agendar' && serviceId
+            ? (this.#db.get<{ name: string }>(
+                `SELECT name FROM services WHERE tenant_id = ? AND id = ? AND active = 1`,
+                caller.tenantId,
+                serviceId,
+              )?.name ?? null)
+            : null
         const sent = clinicInbox.sendOutboundMessageOp(
           this.#db,
           caller,
           {
             conversationId,
-            body: clientWebRouteBody({ purpose }),
+            body: clientWebRouteBody({ purpose, serviceName }),
             interactive: offered,
             clientRequestId: `ai-web-${purpose}:${key}`,
             authorClerkUserId: 'system:ai-autodraft',

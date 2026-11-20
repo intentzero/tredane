@@ -4,6 +4,7 @@
  *
  * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
  * fora do expediente: pedido registado, IA activa; botão «Falar com a equipe» nas interactivas (21/11/2026).
+ * DEC-216 (Paulo 19/11/2026): onde há «Falar com a equipe», há também «Abrir agenda» (reply → CTA URL no toque).
  */
 import type { SendOutboundInteractiveInput } from '../inbox/types'
 /** Limites da lista interativa da Meta (linhas e título da linha). */
@@ -29,6 +30,11 @@ import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
 import { dayTextPt } from './slot-offer'
 import type { ClinicDb } from '../store'
+import {
+  openAgendaReplyButton,
+  OPEN_AGENDA_REPLY_BUTTON_ID,
+  parseOpenAgendaReplyButton,
+} from '../../clientweb/offer'
 import {
   isCancelRequest,
   isGreetingOnly,
@@ -162,8 +168,20 @@ function interactiveHasHumanTeam(
   return rows.some((r) => r.id === HUMAN_HANDOFF_BUTTON_ID)
 }
 
+function interactiveHasOpenAgendaReply(
+  interactive: SendOutboundInteractiveInput | null | undefined,
+): boolean {
+  if (!interactive) return false
+  if (interactive.buttons?.some((b) => parseOpenAgendaReplyButton(b.id) != null)) return true
+  if (interactive.ctaUrl?.displayText === openAgendaReplyButton().title) return true
+  const rows = interactive.list?.sections.flatMap((s) => s.rows ?? []) ?? []
+  return rows.some((r) => parseOpenAgendaReplyButton(r.id) != null)
+}
+
 /**
  * Garante botão/linha «Falar com a equipe» nas interactivas (≤3 botões / ≤10 linhas lista).
+ * DEC-216 (Paulo 19/11/2026): quando há vagas, junta também «Abrir agenda» (reply → CTA URL no toque).
+ * Com só 1 vaga e sem «Abrir agenda», mantém só a equipe (excepção: Continuar|Terminar e similares).
  * Paulo 16/11/2026 — item 6 / rsamp_f72ce5908371eff3a9757281.
  */
 export function augmentOutboundWithHumanTeam(
@@ -180,32 +198,63 @@ export function augmentOutboundWithHumanTeam(
   if (!interactive?.buttons?.length && !interactive?.list?.sections?.length) {
     return { body, interactive: interactive ?? null }
   }
-  if (interactiveHasHumanTeam(interactive)) {
+  const hasTeam = interactiveHasHumanTeam(interactive)
+  const hasAgenda = interactiveHasOpenAgendaReply(interactive)
+  if (hasTeam && hasAgenda) {
     return { body, interactive }
   }
   const human = { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }
+  const agenda = openAgendaReplyButton()
   if (interactive.buttons?.length) {
-    if (interactive.buttons.length >= 3) {
+    const room = 3 - interactive.buttons.length
+    if (room <= 0) {
       return { body, interactive }
     }
-    return { body, interactive: { ...interactive, buttons: [...interactive.buttons, human] } }
+    const extra: Array<{ id: string; title: string }> = []
+    // DEC-216: preferir o par Abrir agenda + Equipe quando cabem os dois.
+    if (!hasAgenda && room >= (hasTeam ? 1 : 2)) {
+      extra.push(agenda)
+    } else if (!hasAgenda && !hasTeam && room === 1) {
+      // Só 1 vaga: não dá para o par; mantém a oferta de equipe (excepção documentada).
+    }
+    if (!hasTeam && extra.length + interactive.buttons.length < 3) {
+      extra.push(human)
+    } else if (!hasTeam && extra.length === 0 && room >= 1) {
+      extra.push(human)
+    }
+    if (extra.length === 0) {
+      return { body, interactive }
+    }
+    return { body, interactive: { ...interactive, buttons: [...interactive.buttons, ...extra] } }
   }
   if (interactive.list) {
     const rows = interactive.list.sections.flatMap((s) => s.rows ?? [])
-    if (rows.length >= META_LIST_MAX_ROWS) {
+    const room = META_LIST_MAX_ROWS - rows.length
+    if (room <= 0) {
       return { body, interactive }
     }
-    const humanRow = { id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) }
+    const extraRows: Array<{ id: string; title: string }> = []
+    if (!hasAgenda && room >= (hasTeam ? 1 : 2)) {
+      extraRows.push({ id: agenda.id, title: clipListTitle(agenda.title) })
+    }
+    if (!hasTeam && extraRows.length + rows.length < META_LIST_MAX_ROWS) {
+      extraRows.push({ id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) })
+    } else if (!hasTeam && extraRows.length === 0 && room >= 1) {
+      extraRows.push({ id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) })
+    }
+    if (extraRows.length === 0) {
+      return { body, interactive }
+    }
     const sections = [...interactive.list.sections]
     // Cloud API: com mais de uma secção, todas exigem `title` (senão 400/131009).
     // As listas de horários/serviços têm uma única secção sem título: a linha
     // humana entra nessa (última) secção em vez de abrir uma secção nova.
     const allTitled = sections.every((sec) => Boolean(sec.title?.trim()))
     if (allTitled) {
-      sections.push({ title: HUMAN_TEAM_LIST_SECTION_TITLE, rows: [humanRow] })
+      sections.push({ title: HUMAN_TEAM_LIST_SECTION_TITLE, rows: extraRows })
     } else {
       const last = sections[sections.length - 1]!
-      sections[sections.length - 1] = { ...last, rows: [...(last.rows ?? []), humanRow] }
+      sections[sections.length - 1] = { ...last, rows: [...(last.rows ?? []), ...extraRows] }
     }
     return {
       body,
@@ -278,33 +327,41 @@ export function isHumanTeamOfferAllowed(
   return isClinicOpenForHandoff(db, tenantId, clock)
 }
 
-/** Botão reply «Falar com a equipe» (sempre disponível nas interactivas; click fora do expediente = DEC-155). */
+/**
+ * Botões nas respostas de informação (DEC-216): «Abrir agenda» + «Falar com a equipe».
+ * O «Abrir agenda» é reply (toque → CTA URL); a Meta não mistura cta_url com reply buttons.
+ * `serviceId` opcional pré-escolhe o serviço no link (DEC-202(4)).
+ */
 export function humanTeamOfferButtons(
   db: ClinicDb,
   tenantId: string,
   clock: Clock,
+  opts?: { serviceId?: string | null },
 ): Array<{ id: string; title: string }> {
   void db
   void tenantId
   void clock
-  return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+  return [openAgendaReplyButton(opts?.serviceId), { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
 }
 
 /**
  * Pedido explícito de equipe fora do expediente (DEC-155): horário + IA activa.
  * Prefere a próxima abertura (como DEC-113); senão lista o expediente.
  */
-/** Botões no pedido de equipe (inclui fora do expediente — registo sem pausar a IA). */
+/** Botões no pedido de equipe (inclui fora do expediente — registo sem pausar a IA). DEC-216: também «Abrir agenda». */
 export function humanHelpRequestButtons(
   db: ClinicDb,
   tenantId: string,
   clock: Clock,
+  opts?: { serviceId?: string | null },
 ): Array<{ id: string; title: string }> {
   void db
   void tenantId
   void clock
-  return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+  return [openAgendaReplyButton(opts?.serviceId), { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
 }
+
+export { OPEN_AGENDA_REPLY_BUTTON_ID, openAgendaReplyButton, parseOpenAgendaReplyButton }
 
 export function registerHumanHelpRequest(
   db: ClinicDb,

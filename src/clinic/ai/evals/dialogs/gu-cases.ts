@@ -14,6 +14,8 @@ import {
   WEB_CANCEL_ACTOR,
   WEB_CANCEL_RECEIPT_SENTENCE,
 } from '../../../../clientweb/manage'
+import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
+import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
 
@@ -327,6 +329,48 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       appointments: 0,
       noCtaUrl: true,
       paused: true,
+    },
+  },
+  {
+    id: 'GU-21',
+    title:
+      'Quem atende: informação com «Abrir agenda» + «Falar com a equipe» (DEC-216); sem CTA URL até o toque',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quem faz a limpeza de pele?' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      noCtaUrl: true,
+      turns: [{ turn: 0, matches: [/Quem atende|atendimento é feito por|quem atende é/i] }],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['GU-21: resposta sem botões interactivos']
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: Array<{ id: string; title: string }>
+        }
+        const buttons = parsed.buttons ?? []
+        const hasAgenda = buttons.some(
+          (b) => b.title === 'Abrir agenda' && b.id.startsWith(OPEN_AGENDA_REPLY_BUTTON_ID),
+        )
+        const hasTeam = buttons.some(
+          (b) => b.id === HUMAN_HANDOFF_BUTTON_ID && b.title === HUMAN_HANDOFF_BUTTON_TITLE,
+        )
+        if (!hasAgenda || !hasTeam) {
+          return [`GU-21: esperava Abrir agenda + Equipe, veio ${JSON.stringify(buttons)}`]
+        }
+        if (buttons.length !== 2) {
+          return [`GU-21: esperava exactamente 2 botões, veio ${buttons.length}`]
+        }
+        return []
+      },
     },
   },
   {

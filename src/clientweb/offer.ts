@@ -9,6 +9,32 @@ import type { ClinicDb } from '../clinic/store'
 
 export const CLIENT_WEB_CTA_TEXT = 'Abrir agenda'
 
+/**
+ * Botão de resposta rápida «Abrir agenda» (DEC-216): acompanha «Falar com a equipe».
+ * O toque dispara o envio do CTA URL real (não se mistura com reply buttons na mesma mensagem).
+ * Opcional: `cw:abrir-agenda:<serviceId>` pré-escolhe o serviço (DEC-202(4)).
+ */
+export const OPEN_AGENDA_REPLY_BUTTON_ID = 'cw:abrir-agenda'
+const OPEN_AGENDA_REPLY_BUTTON_PREFIX = 'cw:abrir-agenda:'
+
+export function openAgendaReplyButton(serviceId?: string | null): { id: string; title: string } {
+  const sid = serviceId?.trim()
+  return {
+    id: sid ? `${OPEN_AGENDA_REPLY_BUTTON_PREFIX}${sid}` : OPEN_AGENDA_REPLY_BUTTON_ID,
+    title: CLIENT_WEB_CTA_TEXT,
+  }
+}
+
+export function parseOpenAgendaReplyButton(raw: string): { serviceId: string | null } | null {
+  const id = raw.trim()
+  if (id === OPEN_AGENDA_REPLY_BUTTON_ID) return { serviceId: null }
+  if (id.startsWith(OPEN_AGENDA_REPLY_BUTTON_PREFIX)) {
+    const sid = id.slice(OPEN_AGENDA_REPLY_BUTTON_PREFIX.length).trim()
+    return { serviceId: sid || null }
+  }
+  return null
+}
+
 /** Remate da abertura do hub: troca a pergunta aberta pela indicação do botão. */
 const HUB_ASK = /\s*O que você precisa\?\s*$/
 

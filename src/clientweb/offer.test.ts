@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import { hubOpeningBody } from './hub'
-import { clientWebOfferBody, clientWebOfferInteractive, clientWebUrl, CLIENT_WEB_OFFER_SENTENCE, isHttpsBase } from './offer'
+import {
+  clientWebOfferBody,
+  clientWebOfferInteractive,
+  clientWebUrl,
+  CLIENT_WEB_OFFER_SENTENCE,
+  isHttpsBase,
+  openAgendaReplyButton,
+  OPEN_AGENDA_REPLY_BUTTON_ID,
+  parseOpenAgendaReplyButton,
+} from './offer'
 
 describe('oferta do link no chat', () => {
+  it('reply «Abrir agenda» (DEC-216) e parse do serviço opcional', () => {
+    expect(openAgendaReplyButton()).toEqual({ id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' })
+    expect(openAgendaReplyButton('svc_dep')).toEqual({
+      id: 'cw:abrir-agenda:svc_dep',
+      title: 'Abrir agenda',
+    })
+    expect(parseOpenAgendaReplyButton(OPEN_AGENDA_REPLY_BUTTON_ID)).toEqual({ serviceId: null })
+    expect(parseOpenAgendaReplyButton('cw:abrir-agenda:svc_dep')).toEqual({ serviceId: 'svc_dep' })
+    expect(parseOpenAgendaReplyButton('handoff:human')).toBeNull()
+  })
+
   it('troca a pergunta aberta do hub pela indicação do botão e mantém o expediente', () => {
     const hub = hubOpeningBody('Clínica Aurora', { opensAt: '09:00', closesAt: '18:00' })
     const body = clientWebOfferBody(hub)
