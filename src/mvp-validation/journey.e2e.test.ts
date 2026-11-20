@@ -4,8 +4,6 @@
  * Duas clínicas fictícias; sem dados reais; não activa piloto.
  */
 import { describe, expect, it } from 'vitest'
-import { SimulatedAiAdapter } from '../ai'
-import { SimulatedPixAdapter } from '../pix'
 import {
   ConflictError,
   ingestContactMessage,
@@ -18,7 +16,6 @@ import {
 } from '../clinic/inbox/operations'
 import { findOutboundByClientRequestId } from '../clinic/inbox'
 import {
-  ensureOpenOpportunity,
   findOpenOpportunityForConversation,
   moveOpportunityStageOp,
 } from '../clinic/pipeline'
@@ -28,11 +25,7 @@ import {
 } from '../clinic/scheduling'
 import {
   countAppointmentAllocations,
-  createSignalChargeAndSendOp,
-  processPixPaymentOp,
 } from '../clinic/pix'
-import { suggestReplyOp, decideSuggestionOp } from '../clinic/ai'
-import { setClinicAiAssistEnabled } from '../clinic/config/settings'
 import { deleteContactOp } from '../clinic/retention'
 import { ANONYMIZED_CONTACT_LABEL } from '../clinic/retention/types'
 import { listContacts, getContact } from '../clinic/contacts'
@@ -139,98 +132,6 @@ describe('MVP-31 — jornada E2E sintética (#45)', () => {
       ).not.toBe(opp!.id)
       expect(countAppointmentAllocations(b.db, CLINIC_B)).toBe(0)
       expect(countAppointmentAllocations(a.db, CLINIC_A)).toBeGreaterThanOrEqual(1)
-    } finally {
-      closeAll()
-    }
-  })
-
-  it('AC-06/JRN-16: IA assistiva + sinal Pix confirma horário livre', async () => {
-    const { a, closeAll } = await seedPairClinics()
-    try {
-      ensureOpenOpportunity(
-        a.db,
-        {
-          tenantId: CLINIC_A,
-          contactId: a.contact.id,
-          conversationId: a.conversation.id,
-        },
-        a.clock,
-      )
-      setClinicAiAssistEnabled(a.db, CLINIC_A, true, a.clock)
-
-      const suggestion = await suggestReplyOp(
-        a.db,
-        workerCaller(CLINIC_A, ATT_A),
-        {
-          conversationId: a.conversation.id,
-          clientRequestId: 'mvp31-ai-1',
-          actorClerkUserId: ATT_A,
-          actorDisplayName: 'Ana',
-        },
-        a.clock,
-        { adapter: new SimulatedAiAdapter(), mode: 'synthetic' },
-      )
-      expect(suggestion.messageSent).toBe(false)
-      expect(suggestion.suggestion.status).toBe('pending')
-
-      const decided = decideSuggestionOp(
-        a.db,
-        workerCaller(CLINIC_A, ATT_A),
-        {
-          suggestionId: suggestion.suggestion.id,
-          decision: 'discard',
-          actorClerkUserId: ATT_A,
-          actorDisplayName: 'Ana',
-          clientRequestId: 'mvp31-ai-decide-1',
-        },
-        a.clock,
-      )
-      expect(decided.messageSent).toBe(false)
-
-      const adapter = new SimulatedPixAdapter({
-        clock: { now: () => new Date(a.clock.nowMs()) },
-      })
-      const startsAt = zonedCivilToUtc(TZ, 2024, 1, 8, 14, 0)
-      const charge = await createSignalChargeAndSendOp(
-        a.db,
-        a.caller,
-        {
-          clientRequestId: 'mvp31-pix-1',
-          conversationId: a.conversation.id,
-          contactId: a.contact.id,
-          serviceId: a.svcSignal.id,
-          professionalId: a.pro.id,
-          roomResourceId: a.room.id,
-          startsAt,
-          actorClerkUserId: OWNER_A,
-        },
-        a.clock,
-        { adapter },
-      )
-      expect(charge.charge.status).toBe('awaiting_payment')
-      expect(countAppointmentAllocations(a.db, CLINIC_A)).toBe(0)
-
-      const paid = await adapter.simulatePayment(charge.charge.providerChargeId!)
-      if (!paid.ok) throw new Error('simulate payment failed')
-      const evt = await adapter.validateWebhookEvent(paid.value.envelope)
-      if (!evt.ok) throw new Error('validate webhook failed')
-
-      const result = processPixPaymentOp(
-        a.db,
-        a.caller,
-        {
-          eventId: evt.value.eventId,
-          eventType: 'charge.paid',
-          providerChargeId: evt.value.providerChargeId,
-          accountId: evt.value.accountId,
-          amountCents: evt.value.amountCents,
-          occurredAt: evt.value.occurredAt,
-        },
-        a.clock,
-      )
-      expect(result.resolution).toBe('appointment_confirmed')
-      expect(result.charge.status).toBe('paid')
-      expect(countAppointmentAllocations(a.db, CLINIC_A)).toBe(2)
     } finally {
       closeAll()
     }

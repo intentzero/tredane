@@ -20,8 +20,6 @@ import type { ClinicSettingsRow, UpdateAbuseLimitsInput } from './types'
 const NUMBER_KEYS = [
   'windowHours',
   'autoDraftsPerContact',
-  'aiBookingsPerContact',
-  'aiBookingsPerClinic',
   'futureAppointmentsPerContact',
   'pendingPixPerContact',
   'pendingProposalsPerContact',
@@ -35,8 +33,6 @@ export function clinicAbuseRowFromSettings(settings: ClinicSettingsRow): ClinicA
     autoBookPaused: settings.autoBookPaused,
     windowHours: settings.abuseWindowHours,
     autoDraftsPerContact: settings.abuseAutoDraftsPerContact,
-    aiBookingsPerContact: settings.abuseAiBookingsPerContact,
-    aiBookingsPerClinic: settings.abuseAiBookingsPerClinic,
     futureAppointmentsPerContact: settings.abuseFutureAppointmentsPerContact,
     pendingPixPerContact: settings.abusePendingPixPerContact,
     pendingProposalsPerContact: settings.abusePendingProposalsPerContact,
@@ -86,8 +82,6 @@ export function buildAbuseLimitsView(
     limits: {
       windowHours: clinic.windowHours,
       autoDraftsPerContact: clinic.autoDraftsPerContact,
-      aiBookingsPerContact: clinic.aiBookingsPerContact,
-      aiBookingsPerClinic: clinic.aiBookingsPerClinic,
       futureAppointmentsPerContact: clinic.futureAppointmentsPerContact,
       pendingPixPerContact: clinic.pendingPixPerContact,
       pendingProposalsPerContact: clinic.pendingProposalsPerContact,
@@ -134,14 +128,6 @@ export function updateClinicAbuseLimits(
       autoDraftsPerContact: Math.min(
         DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
         ceilings.autoDraftsPerContact,
-      ),
-      aiBookingsPerContact: Math.min(
-        DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
-        ceilings.aiBookingsPerContact,
-      ),
-      aiBookingsPerClinic: Math.min(
-        DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
-        ceilings.aiBookingsPerClinic,
       ),
       futureAppointmentsPerContact: Math.min(
         DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
@@ -191,8 +177,6 @@ export function updateClinicAbuseLimits(
       auto_book_paused = ?,
       abuse_window_hours = ?,
       abuse_auto_drafts_per_contact = ?,
-      abuse_ai_bookings_per_contact = ?,
-      abuse_ai_bookings_per_clinic = ?,
       abuse_future_appointments_per_contact = ?,
       abuse_pending_pix_per_contact = ?,
       abuse_pending_proposals_per_contact = ?,
@@ -204,8 +188,6 @@ export function updateClinicAbuseLimits(
     next.autoBookPaused ? 1 : 0,
     next.windowHours,
     next.autoDraftsPerContact,
-    next.aiBookingsPerContact,
-    next.aiBookingsPerClinic,
     next.futureAppointmentsPerContact,
     next.pendingPixPerContact,
     next.pendingProposalsPerContact,

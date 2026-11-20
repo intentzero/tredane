@@ -116,9 +116,21 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
         mobileSub: true,
       }
     case 'assistente-persona':
-      return { title: 'Como se apresenta', shape: 'cards', header: false, mobileSub: true }
+      return {
+        title: 'Como se apresenta',
+        description: 'Nome e género com que a assistente se apresenta às clientes.',
+        shape: 'cards',
+        header: true,
+        mobileSub: true,
+      }
     case 'assistente-protecoes':
-      return { title: 'Proteções', shape: 'cards', header: false, mobileSub: true }
+      return {
+        title: 'Proteções',
+        description: 'Limites para quem tenta conversar ou marcar em excesso.',
+        shape: 'cards',
+        header: true,
+        mobileSub: true,
+      }
     case 'whatsapp':
     case 'whatsapp-trocar':
     case 'whatsapp-historico':
@@ -187,7 +199,21 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   // DEC-175: título e frase comuns; coluna centrada no desktop.
   const page = (node: ReactNode, header = meta.header) => (
     <div className={`clinic-page${meta.wideColumn ? ' clinic-page--wide' : ''}`}>
-      {header ? <ClinicPageHeader title={meta.title} description={meta.description} /> : null}
+      {header ? (
+        <ClinicPageHeader
+          title={meta.title}
+          description={meta.description}
+          back={
+            section === 'conhecimento' || section.startsWith('assistente-')
+              ? {
+                  label: 'Assistente',
+                  onPress: () =>
+                    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'assistente' }),
+                }
+              : undefined
+          }
+        />
+      ) : null}
       {node}
     </div>
   )

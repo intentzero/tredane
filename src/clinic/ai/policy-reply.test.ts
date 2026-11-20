@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
+import { catalogReply } from './catalog-reply'
 import { createControllableClock } from '../../db/clock'
 import { workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { setAiProfileOp } from '../config'
 import { updatePixSignalSettings } from '../pix/signal-settings'
-import { buildCancellationPolicyReply } from './policy-reply'
+import {
+  GENERAL_POLICY_MAX_CHARS,
+  POLICY_JOIN_PHRASE,
+  POLICY_OVERFLOW_PHRASE,
+  POLICY_REPLY_MAX_CHARS,
+  buildCancellationPolicyReply,
+} from './policy-reply'
 
 const TENANT = 'clinic-demo-a'
 
@@ -35,15 +42,34 @@ describe('resposta «Remarcar e cancelar» (DEC-210)', () => {
     }
   })
 
-  it('sinal ligado: texto do sinal primeiro e regras gerais a seguir, juntos', () => {
+  it('sinal ligado: texto do sinal, frase de ligação e regras gerais, juntos', () => {
     const { db, close, clock, caller } = boot()
     try {
       updatePixSignalSettings(db, TENANT, { enabled: true, amountKind: 'fixed', fixedCents: 5000 }, clock)
       setAiProfileOp(db, caller, { reschedulePolicy: 'Atrasos acima de 15 minutos podem perder o horário.' }, clock)
       const out = buildCancellationPolicyReply(db, TENANT, clock)
-      const [sinal, geral] = out.split(/\n\n(?=Atrasos)/)
+      const [sinal, resto] = out.split(`\n\n${POLICY_JOIN_PHRASE}\n`)
       expect(sinal).toMatch(/sinal|R\$ 50/i)
-      expect(geral).toBe('Atrasos acima de 15 minutos podem perder o horário.')
+      expect(resto).toBe('Atrasos acima de 15 minutos podem perder o horário.')
+      expect(out.length).toBeLessThanOrEqual(POLICY_REPLY_MAX_CHARS)
+    } finally {
+      close()
+    }
+  })
+
+  it('acima do limite: sai o texto do sinal e o resto vai para a equipe', () => {
+    const { db, close, clock, caller } = boot()
+    try {
+      updatePixSignalSettings(db, TENANT, { enabled: true, amountKind: 'fixed', fixedCents: 5000 }, clock)
+      const sinal = buildCancellationPolicyReply(db, TENANT, clock)
+      // 500 é o máximo das regras gerais (servidor); com o sinal gerado pode passar de 1000.
+      setAiProfileOp(db, caller, { reschedulePolicy: 'x'.repeat(GENERAL_POLICY_MAX_CHARS + 200) }, clock)
+      const out = buildCancellationPolicyReply(db, TENANT, clock)
+      if (`${sinal}\n\n${POLICY_JOIN_PHRASE}\n${'x'.repeat(GENERAL_POLICY_MAX_CHARS)}`.length > POLICY_REPLY_MAX_CHARS) {
+        expect(out).toBe(`${sinal}\n\n${POLICY_OVERFLOW_PHRASE}`)
+      } else {
+        expect(out.length).toBeLessThanOrEqual(POLICY_REPLY_MAX_CHARS)
+      }
     } finally {
       close()
     }
@@ -56,6 +82,21 @@ describe('resposta «Remarcar e cancelar» (DEC-210)', () => {
       const sinalOnly = buildCancellationPolicyReply(db, TENANT, clock)
       setAiProfileOp(db, caller, { reschedulePolicy: sinalOnly }, clock)
       expect(buildCancellationPolicyReply(db, TENANT, clock)).toBe(sinalOnly)
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('pergunta sobre o sinal recebe a resposta completa (DEC-210)', () => {
+  it('«tenho de pagar antes?» → texto do sinal + regras gerais', () => {
+    const { db, close, clock, caller } = boot()
+    try {
+      updatePixSignalSettings(db, TENANT, { enabled: true, amountKind: 'fixed', fixedCents: 5000 }, clock)
+      setAiProfileOp(db, caller, { reschedulePolicy: 'Atrasos acima de 15 minutos podem perder o horário.' }, clock)
+      const out = catalogReply(db, TENANT, 'tenho de pagar antes?', clock, {})
+      expect(out).toContain(POLICY_JOIN_PHRASE)
+      expect(out).toContain('Atrasos acima de 15 minutos')
     } finally {
       close()
     }

@@ -74,8 +74,6 @@ function mockApis(opts: {
         const limits = {
           windowHours: 24,
           autoDraftsPerContact: 20,
-          aiBookingsPerContact: 1,
-          aiBookingsPerClinic: 20,
           futureAppointmentsPerContact: 3,
           pendingPixPerContact: 2,
           pendingProposalsPerContact: 1,
@@ -91,8 +89,6 @@ function mockApis(opts: {
             caps: {
               windowHours: 168,
               autoDraftsPerContact: 200,
-              aiBookingsPerContact: 20,
-              aiBookingsPerClinic: 500,
               futureAppointmentsPerContact: 20,
               pendingPixPerContact: 20,
               pendingProposalsPerContact: 10,
@@ -102,8 +98,6 @@ function mockApis(opts: {
             platformCeilings: {
               windowHours: 168,
               autoDraftsPerContact: 200,
-              aiBookingsPerContact: 20,
-              aiBookingsPerClinic: 500,
               futureAppointmentsPerContact: 20,
               pendingPixPerContact: 20,
               pendingProposalsPerContact: 10,

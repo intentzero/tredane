@@ -134,9 +134,6 @@ import type { PixProviderAdapter } from '../pix'
 import { pixSealKeys } from '../security/sealed-secret'
 import type {
   AiAssistRpcDeps,
-  DecideSuggestionInput,
-  SuggestReplyInput,
-  SummarizeInput,
 } from '../clinic/ai'
 import {
   HUMAN_HANDOFF_BUTTON_ID,
@@ -4932,25 +4929,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return outcomes
   }
 
-  async getAiDraftState(caller: ClinicCaller, conversationId: string) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const state = clinicAi.getConversationDraftState(this.#db, caller.tenantId, conversationId, this.#clock)
-    const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
-    return { ...state, syntheticFallback: deps.syntheticFallback === true, mode: deps.mode }
-  }
-
-  async getAiStatus(caller: ClinicCaller) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
-    return {
-      mode: deps.mode,
-      syntheticFallback: deps.syntheticFallback === true,
-      usage: clinicAi.getAiDailyUsage(this.#db, caller.tenantId, this.#clock),
-    }
-  }
-
   async fetch(request: Request): Promise<Response> {
     this.#ensureReady()
     const upgrade = request.headers.get('Upgrade')
@@ -5103,63 +5081,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
 
     return new Response(null, { status: 101, webSocket: client })
-  }
-
-  /** IA assistiva (#41) — o resumo é sob demanda. A resposta automática envia no WhatsApp (DEC-083). */
-  async suggestAiReply(
-    caller: ClinicCaller,
-    input: SuggestReplyInput,
-    rpcDeps: AiAssistRpcDeps,
-  ) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId, rpcDeps))
-    return clinicAi.suggestReplyOp(this.#db, caller, input, this.#clock, deps)
-  }
-
-  async summarizeAiConversation(
-    caller: ClinicCaller,
-    input: SummarizeInput,
-    rpcDeps: AiAssistRpcDeps,
-  ) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const deps = clinicAi.toAiAssistDeps(rpcDeps)
-    return clinicAi.summarizeConversationOp(
-      this.#db,
-      caller,
-      input,
-      this.#clock,
-      deps,
-    )
-  }
-
-  async decideAiSuggestion(caller: ClinicCaller, input: DecideSuggestionInput) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    return clinicAi.decideSuggestionOp(this.#db, caller, input, this.#clock)
-  }
-
-  async listAiSuggestions(
-    caller: ClinicCaller,
-    conversationId: string,
-    opts: { kind?: 'reply' | 'summary'; limit?: number } = {},
-  ) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    return clinicAi.listConversationSuggestionsOp(
-      this.#db,
-      caller,
-      conversationId,
-      this.#clock,
-      opts,
-    )
-  }
-
-  async getAiSuggestion(caller: ClinicCaller, suggestionId: string) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    return clinicAi.getSuggestionOp(this.#db, caller, suggestionId, this.#clock)
   }
 
   #acceptHarnessEcho(): Response {

@@ -9,8 +9,6 @@ afterEach(cleanup);
 const limits = {
   windowHours: 24,
   aiDraftsPerContact: 5,
-  aiBookingsPerContact: 2,
-  aiBookingsPerClinic: 20,
   futureAppointmentsPerContact: 3,
   pendingPixPerContact: 1,
   pendingProposalsPerContact: 1,

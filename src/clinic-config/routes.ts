@@ -1077,8 +1077,6 @@ function parseAbuseLimitsBody(body: Record<string, unknown>): UpdateAbuseLimitsI
   }
   num('windowHours')
   num('autoDraftsPerContact')
-  num('aiBookingsPerContact')
-  num('aiBookingsPerClinic')
   num('futureAppointmentsPerContact')
   num('pendingPixPerContact')
   num('pendingProposalsPerContact')

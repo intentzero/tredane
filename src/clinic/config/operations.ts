@@ -540,8 +540,6 @@ function clinicAbuseSnapshot(settings: ReturnType<typeof ensureClinicSettings>) 
     autoBookPaused: settings.autoBookPaused,
     windowHours: settings.abuseWindowHours,
     autoDraftsPerContact: settings.abuseAutoDraftsPerContact,
-    aiBookingsPerContact: settings.abuseAiBookingsPerContact,
-    aiBookingsPerClinic: settings.abuseAiBookingsPerClinic,
     futureAppointmentsPerContact: settings.abuseFutureAppointmentsPerContact,
     pendingPixPerContact: settings.abusePendingPixPerContact,
     pendingProposalsPerContact: settings.abusePendingProposalsPerContact,

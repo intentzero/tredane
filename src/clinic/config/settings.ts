@@ -20,8 +20,6 @@ type SettingsSql = {
   auto_book_paused?: number
   abuse_window_hours?: number
   abuse_auto_drafts_per_contact?: number
-  abuse_ai_bookings_per_contact?: number
-  abuse_ai_bookings_per_clinic?: number
   abuse_future_appointments_per_contact?: number
   abuse_pending_pix_per_contact?: number
   abuse_pending_proposals_per_contact?: number
@@ -55,10 +53,6 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
     abuseWindowHours: row.abuse_window_hours ?? DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
     abuseAutoDraftsPerContact:
       row.abuse_auto_drafts_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
-    abuseAiBookingsPerContact:
-      row.abuse_ai_bookings_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
-    abuseAiBookingsPerClinic:
-      row.abuse_ai_bookings_per_clinic ?? DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
     abuseFutureAppointmentsPerContact:
       row.abuse_future_appointments_per_contact ??
       DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
@@ -87,7 +81,7 @@ export function ensureClinicSettings(
     `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
        google_business_url, reschedule_policy,
        abuse_limits_enabled, auto_book_paused, abuse_window_hours,
-       abuse_auto_drafts_per_contact, abuse_ai_bookings_per_contact, abuse_ai_bookings_per_clinic,
+       abuse_auto_drafts_per_contact,
        abuse_future_appointments_per_contact, abuse_pending_pix_per_contact,
        abuse_pending_proposals_per_contact, abuse_proposals_per_contact, abuse_proposals_per_clinic,
        virtual_attendant_name, virtual_attendant_gender, booking_lead_minutes,
@@ -126,8 +120,6 @@ export function ensureClinicSettings(
     autoBookPaused: false,
     abuseWindowHours: DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
     abuseAutoDraftsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
-    abuseAiBookingsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
-    abuseAiBookingsPerClinic: DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
     abuseFutureAppointmentsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
     abusePendingPixPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingPixPerContact,
     abusePendingProposalsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingProposalsPerContact,
@@ -212,7 +204,7 @@ export function setClinicAiProfile(
   const policy =
     input.reschedulePolicy == null
       ? cur.reschedulePolicy
-      : input.reschedulePolicy.trim().slice(0, 1000)
+      : input.reschedulePolicy.trim().slice(0, 500)
 
   let virtualName = cur.virtualAttendantName
   if (input.virtualAttendantName != null) {

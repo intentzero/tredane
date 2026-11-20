@@ -7,6 +7,14 @@ import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { effectiveSignalCancellationPolicy } from '../pix/signal-settings'
 import { ensureClinicSettings } from '../config/settings'
+import { joinPolicyParts } from './policy-join'
+
+export {
+  GENERAL_POLICY_MAX_CHARS,
+  POLICY_JOIN_PHRASE,
+  POLICY_OVERFLOW_PHRASE,
+  POLICY_REPLY_MAX_CHARS,
+} from './policy-join'
 
 export function buildCancellationPolicyReply(db: ClinicDb, tenantId: string, clock: Clock): string {
   const settings = ensureClinicSettings(db, tenantId, clock)
@@ -17,8 +25,5 @@ export function buildCancellationPolicyReply(db: ClinicDb, tenantId: string, clo
     )?.signal_enabled ?? 0) === 1
   const a = signalOn ? effectiveSignalCancellationPolicy(db, tenantId, clock).trim() : ''
   const b = settings.reschedulePolicy.trim()
-  if (a && b && !a.includes(b) && !b.includes(a)) return `${a}\n\n${b}`
-  // Um contém o outro (texto copiado): fica o mais completo, sem repetir.
-  if (a && b) return a.length >= b.length ? a : b
-  return a || b
+  return joinPolicyParts(a, b)
 }

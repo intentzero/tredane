@@ -14166,7 +14166,11 @@ button.panel-auth-inline-link {
 }
 
 .kn-first { display: flex; flex-direction: column; gap: var(--space-3); }
-.kn-first-title { margin: 0; font-size: var(--font-size-display); line-height: 1.25; }
+.kn-first-title { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); line-height: 1.3; }
+.kn-summary { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.kn-summary dt { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.kn-summary dd { margin: 0; font-size: var(--font-size-body); color: var(--color-text-primary); overflow-wrap: anywhere; }
+.clinic-bar-back { gap: var(--space-1); margin-right: var(--space-2); }
 .kn-sug-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .kn-sug { border: var(--size-border-width) solid var(--color-line-border); border-radius: var(--radius-lg); background: var(--color-surface-card); }
 .kn-sug:hover { border-color: var(--color-primary-base); background: var(--color-surface-sunken); }
@@ -14187,6 +14191,9 @@ button.panel-auth-inline-link {
 .kn-cue-x { width: var(--size-control-sm); height: var(--size-control-sm); border: 0; background: transparent; color: inherit; border-radius: var(--radius-pill); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .kn-new-cat { display: flex; gap: var(--space-2); align-items: flex-end; }
 .kn-new-cat .panel-input { min-height: var(--size-touch); }
+/* Campo «Nova palavra»: input solto (sem .clinic-field), tem de esticar ao lado do botão. */
+.kn-cue-input { flex: 1; min-width: 0; min-height: var(--size-control-default); padding: 0 var(--space-3); border: var(--size-border-width) solid var(--color-line-control); border-radius: var(--radius-sm); background: var(--color-surface-card); color: var(--color-text-primary); font-size: var(--font-size-body); }
+.kn-new-cat > .panel-btn-secondary { flex: none; }
 
 .kn-switch-row { padding: var(--space-3) var(--space-4); }
 .kn-switch { display: flex; align-items: center; gap: var(--space-3); width: 100%; cursor: pointer; }

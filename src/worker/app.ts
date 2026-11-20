@@ -69,10 +69,6 @@ import {
   type PixWebhookRouteOptions,
 } from '../pix/webhook-routes'
 import {
-  createAiAssistRoutes,
-  type AiAssistRouteOptions,
-} from '../ai-assist'
-import {
   createPushRoutes,
   type PushRouteOptions,
 } from '../push'
@@ -156,7 +152,6 @@ export type CreateAppOptions = {
   /** Webhooks Pix/Woovi (#39). */
   pixWebhook?: PixWebhookRouteOptions
   /** IA assistiva (#41). */
-  aiAssist?: AiAssistRouteOptions
   /** PWA / Web Push (#42). */
   push?: PushRouteOptions
   /** Retenção / exclusão (#43). */
@@ -322,7 +317,6 @@ export function createApp(opts: CreateAppOptions = {}) {
   }
   app.route('/', createPixAccountRoutes(pixOpts))
 
-  app.route('/', createAiAssistRoutes(opts.aiAssist ?? {}))
 
   const pushOpts: PushRouteOptions = {
     syncAdminDbFactory:

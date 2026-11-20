@@ -17,7 +17,6 @@ type LimitField = {
 }
 
 // DEC-212/214: só os limites com efeito: conversa e agenda online. Os de «marcação automática»
-// (`aiBookings*`) saíram da UI: nenhum caminho os verifica.
 const FIELDS: LimitField[] = [
   {
     key: 'windowHours',
