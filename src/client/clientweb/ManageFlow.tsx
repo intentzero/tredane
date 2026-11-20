@@ -50,7 +50,7 @@ function ResultScreen({ title, body, tone, onExit }: { title: string; body: stri
   )
 }
 
-/** Remarcar (C-07): mesmo serviço e zonas, outra hora; sem sinal novo. */
+/** Remarcar (C-07): mesmo serviço e zonas, outra hora; sem sinal novo. DEC-218: reabre com a profissional anterior. */
 export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, catalog }: Common & { catalog: Catalog }) {
   const [weekStart, setWeekStart] = useState(catalog.today)
   const [day, setDay] = useState<string | null>(null)
@@ -58,14 +58,33 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
   const [notice, setNotice] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [outcome, setOutcome] = useState<'booked' | 'paused' | 'error' | null>(null)
+  const [bookedProfessionalName, setBookedProfessionalName] = useState<string | null>(null)
+  const matchedService = catalog.services.find((s) => s.id === appointment.serviceId)
+  const professionals = matchedService?.professionals ?? []
+  // Preferência pré-escolhida = profissional da marcação (RR-4), se ainda estiver no catálogo.
+  const priorStillListed = professionals.some((p) => p.id === appointment.professionalId)
+  const [preferredProfessionalId, setPreferredProfessionalId] = useState<string | null>(
+    priorStillListed ? appointment.professionalId : null,
+  )
+  const preferredName =
+    preferredProfessionalId == null
+      ? null
+      : professionals.find((p) => p.id === preferredProfessionalId)?.name ?? appointment.professionalName
 
   async function confirm() {
     if (!slot || sending) return
     setSending(true)
-    const res = await rescheduleSlot({ appointmentId: appointment.id, slotId: slot.id })
+    const res = await rescheduleSlot({
+      appointmentId: appointment.id,
+      slotId: slot.id,
+      professionalId: preferredProfessionalId,
+    })
     if (res === 'unauthorized') return onSessionLost()
     if (res === 'error') return setOutcome('error')
-    if (res.status === 'booked') return setOutcome('booked')
+    if (res.status === 'booked') {
+      setBookedProfessionalName(res.appointment.professionalName ?? preferredName)
+      return setOutcome('booked')
+    }
     if (res.status === 'paused') return setOutcome('paused')
     if (res.status === 'slot_taken') {
       setNotice('Esse horário acabou de ser ocupado. Escolha outro.')
@@ -78,11 +97,12 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
 
   if (outcome === 'booked') {
     const l = slot ? civilDayLabel(slot.date) : null
+    const withWho = bookedProfessionalName ? ` com ${bookedProfessionalName}` : ''
     return (
       <ResultScreen
         tone="ok"
         title="Marcação remarcada"
-        body={`${l && slot ? `${l.weekday} ${l.dayMonth}, ${slot.time}. ` : ''}Enviamos um recibo no seu WhatsApp. Se não foi você quem remarcou, toque em «Falar com a equipe» na mensagem.`}
+        body={`${l && slot ? `${l.weekday} ${l.dayMonth}, ${slot.time}${withWho}. ` : ''}Enviamos um recibo no seu WhatsApp. Se não foi você quem remarcou, toque em «Falar com a equipe» na mensagem.`}
         onExit={onExit}
       />
     )
@@ -103,6 +123,7 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
         <main className="cw-main">
           <dl className="cw-dl">
             <div><dt>Serviço</dt><dd>{appointment.serviceName}</dd></div>
+            <div><dt>Com</dt><dd>{preferredName ?? 'Sem preferência'}</dd></div>
             <div><dt>Hoje</dt><dd>{now}</dd></div>
             <div><dt>Nova data</dt><dd>{l.weekday} {l.dayMonth}, {slot.time}</dd></div>
           </dl>
@@ -126,15 +147,37 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
       <TimeStep
         catalog={catalog}
         subtitle={`${appointment.serviceName} · hoje ${formatAppointmentWhen(appointment.startsAt, timezone)}`}
-        depsKey={`resched:${appointment.id}`}
-        load={(from, to) => fetchRescheduleSlots({ appointmentId: appointment.id, from, to })}
-        loadDays={(from, to) => fetchRescheduleSlots({ appointmentId: appointment.id, from, to, daysOnly: true })}
+        depsKey={`resched:${appointment.id}:${preferredProfessionalId ?? 'any'}`}
+        load={(from, to) =>
+          fetchRescheduleSlots({
+            appointmentId: appointment.id,
+            from,
+            to,
+            professionalId: preferredProfessionalId,
+          })
+        }
+        loadDays={(from, to) =>
+          fetchRescheduleSlots({
+            appointmentId: appointment.id,
+            from,
+            to,
+            daysOnly: true,
+            professionalId: preferredProfessionalId,
+          })
+        }
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         day={day}
         setDay={setDay}
         notice={notice}
         onSessionLost={onSessionLost}
+        professionals={professionals}
+        preferredProfessionalId={preferredProfessionalId}
+        onPreferredProfessionalChange={(id) => {
+          setPreferredProfessionalId(id)
+          setSlot(null)
+          setNotice(null)
+        }}
         onPick={(s) => {
           setNotice(null)
           setSlot(s)

@@ -3,7 +3,7 @@ import type { Catalog, CatalogService } from './api'
 import { filterZones, foldText, lightSingular, matchesQuery, searchCatalog } from './search-model'
 
 const svc = (o: Partial<CatalogService> & { id: string; name: string }): CatalogService => ({
-  synonyms: [], durationMinutes: 60, priceCents: 12_000, audience: 'qualquer', variantKind: null, variantKindPlural: null, variantSelection: 'varias', requiresSignal: false, zones: [], ...o,
+  synonyms: [], durationMinutes: 60, priceCents: 12_000, audience: 'qualquer', variantKind: null, variantKindPlural: null, variantSelection: 'varias', requiresSignal: false, zones: [], professionals: [], ...o,
 })
 const laser = svc({
   id: 'laser', name: 'Depilação a laser', synonyms: ['laser'], variantKind: 'Zona', variantKindPlural: 'Zonas',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Catalog, Slot, SlotsResult } from './api'
+import type { Catalog, CatalogProfessional, Slot, SlotsResult } from './api'
 import { CalendarSheet } from './CalendarSheet'
 import {
   addDays,
@@ -11,6 +11,13 @@ import {
   weekDays,
   type DayPart,
 } from './booking-model'
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0]!.slice(0, 2)
+  return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase()
+}
 
 export function TimeStep({
   catalog,
@@ -26,11 +33,14 @@ export function TimeStep({
   onPick,
   onSessionLost,
   preferredDayPart = null,
+  professionals = [],
+  preferredProfessionalId = null,
+  onPreferredProfessionalChange,
 }: {
   catalog: Catalog
   /** Linha por baixo do título: serviço e duração. */
   subtitle: string
-  /** Muda quando o pedido de horas muda (serviço, zonas, marcação). */
+  /** Muda quando o pedido de horas muda (serviço, zonas, marcação, preferência). */
   depsKey: string
   load: (from: string, to: string) => Promise<SlotsResult>
   /** Calendário do mês: primeira hora de cada dia do horizonte. */
@@ -44,6 +54,11 @@ export function TimeStep({
   onSessionLost: () => void
   /** Período pedido no chat: mostra-o primeiro. */
   preferredDayPart?: DayPart | null
+  /** DEC-218: profissionais do serviço; com 0–1 o bloco «Quem prefere?» esconde-se. */
+  professionals?: CatalogProfessional[]
+  /** null = Sem preferência. */
+  preferredProfessionalId?: string | null
+  onPreferredProfessionalChange?: (id: string | null) => void
 }) {
   const [slots, setSlots] = useState<Slot[] | 'loading' | 'error'>('loading')
   const days = useMemo(() => weekDays(weekStart, catalog.today, catalog.horizonDays), [weekStart, catalog])
@@ -86,9 +101,49 @@ export function TimeStep({
     new Date(`${weekStart}T00:00:00Z`),
   )
 
+  const showPref = professionals.length > 1 && onPreferredProfessionalChange
+
   return (
     <main className="cw-main cw-flush">
       <p className="cw-muted cw-margin">{subtitle}</p>
+      {showPref && (
+        <div className="cw-pref cw-margin">
+          <p className="cw-pref-label" id="cw-pref-label">
+            Quem prefere?
+          </p>
+          <div className="cw-pref-chips" role="radiogroup" aria-labelledby="cw-pref-label">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={preferredProfessionalId == null}
+              className={`cw-pref-chip${preferredProfessionalId == null ? ' is-on' : ''}`}
+              onClick={() => onPreferredProfessionalChange(null)}
+            >
+              Sem preferência
+            </button>
+            {professionals.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={preferredProfessionalId === p.id}
+                className={`cw-pref-chip${preferredProfessionalId === p.id ? ' is-on' : ''}`}
+                onClick={() => onPreferredProfessionalChange(p.id)}
+              >
+                <span className="cw-pref-av" aria-hidden="true">
+                  {initials(p.name)}
+                </span>
+                {p.name}
+              </button>
+            ))}
+          </div>
+          <p className="cw-pref-hint">
+            {preferredProfessionalId == null
+              ? 'Sem preferência: a clínica escolhe entre quem estiver livre (rodízio).'
+              : 'Horários só desta profissional neste serviço.'}
+          </p>
+        </div>
+      )}
       {notice && (
         <p role="alert" className="cw-alert cw-margin">
           {notice}

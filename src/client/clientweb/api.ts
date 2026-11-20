@@ -8,6 +8,10 @@ export type ClientWebAppointment = {
   serviceName: string
   startsAt: number
   endsAt: number
+  /** DEC-218: serviço e profissional da marcação (pré-escolha ao remarcar). */
+  serviceId: string
+  professionalId: string
+  professionalName: string
   /** Sinal pago: a cliente não cancela sozinha, pede à equipe (DEC-198). */
   hasPaidSignal: boolean
 }
@@ -32,6 +36,8 @@ export type CatalogZone = {
   priceCents: number | null
 }
 
+export type CatalogProfessional = { id: string; name: string }
+
 export type CatalogService = {
   id: string
   name: string
@@ -45,6 +51,8 @@ export type CatalogService = {
   variantSelection: 'uma' | 'varias'
   requiresSignal: boolean
   zones: CatalogZone[]
+  /** DEC-218: profissionais ativas do serviço (ordenadas por nome). */
+  professionals: CatalogProfessional[]
 }
 
 export type Catalog = {
@@ -58,10 +66,26 @@ export type Slot = { id: string; date: string; time: string }
 
 export type Line = 'feminino' | 'masculino'
 
-export type BookInput = { serviceId: string; variantIds: string[]; line: Line | null; slotId: string }
+export type BookInput = {
+  serviceId: string
+  variantIds: string[]
+  line: Line | null
+  slotId: string
+  /** null = Sem preferência (DEC-218). */
+  professionalId: string | null
+}
 
 export type BookResult =
-  | { status: 'booked'; appointment: { id: string; startsAt: number; endsAt: number; serviceName: string } }
+  | {
+      status: 'booked'
+      appointment: {
+        id: string
+        startsAt: number
+        endsAt: number
+        serviceName: string
+        professionalName: string | null
+      }
+    }
   | { status: 'pix_signal' }
   | { status: 'slot_taken' }
   | { status: 'paused' }
@@ -190,6 +214,8 @@ export async function fetchSlots(input: {
   to: string
   /** Calendário: só a primeira hora de cada dia. */
   daysOnly?: boolean
+  /** DEC-218: preferência; omitido/null = Sem preferência. */
+  professionalId?: string | null
 }): Promise<SlotsResult> {
   try {
     const res = await fetch('/api/c/availability', {
@@ -228,7 +254,13 @@ export async function bookSlot(input: BookInput): Promise<BookResult | 'unauthor
 export type CancelResult = { status: 'cancelled'; serviceName: string; startsAt: number } | { status: 'needs_team' } | { status: 'not_found' }
 
 /** Horas para remarcar: serviço e zonas vêm da própria marcação. */
-export async function fetchRescheduleSlots(input: { appointmentId: string; from: string; to: string; daysOnly?: boolean }): Promise<SlotsResult> {
+export async function fetchRescheduleSlots(input: {
+  appointmentId: string
+  from: string
+  to: string
+  daysOnly?: boolean
+  professionalId?: string | null
+}): Promise<SlotsResult> {
   try {
     const res = await fetch('/api/c/availability', {
       method: 'POST',
@@ -246,7 +278,11 @@ export async function fetchRescheduleSlots(input: { appointmentId: string; from:
   }
 }
 
-export async function rescheduleSlot(input: { appointmentId: string; slotId: string }): Promise<BookResult | 'unauthorized' | 'error'> {
+export async function rescheduleSlot(input: {
+  appointmentId: string
+  slotId: string
+  professionalId?: string | null
+}): Promise<BookResult | 'unauthorized' | 'error'> {
   try {
     const res = await fetch('/api/c/reschedule', {
       method: 'POST',

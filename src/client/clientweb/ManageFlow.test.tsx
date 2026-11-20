@@ -6,9 +6,41 @@ import '../ui/panel.css'
 import { ClientWebApp } from './ClientWebApp'
 import { resetExchangesForTest } from './api'
 
-const APT = { id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: Date.UTC(2026, 10, 25, 17, 15), endsAt: Date.UTC(2026, 10, 25, 18, 0), hasPaidSignal: false }
+const APT = {
+  id: 'apt-1',
+  serviceName: 'Limpeza de pele',
+  startsAt: Date.UTC(2026, 10, 25, 17, 15),
+  endsAt: Date.UTC(2026, 10, 25, 18, 0),
+  serviceId: 'svc-limpeza',
+  professionalId: 'pro-gi',
+  professionalName: 'Gi',
+  hasPaidSignal: false,
+}
 
-const CATALOG = { timezone: 'America/Sao_Paulo', horizonDays: 30, today: '2026-11-17', services: [] }
+const CATALOG = {
+  timezone: 'America/Sao_Paulo',
+  horizonDays: 30,
+  today: '2026-11-17',
+  services: [
+    {
+      id: 'svc-limpeza',
+      name: 'Limpeza de pele',
+      synonyms: [],
+      durationMinutes: 45,
+      priceCents: 12_000,
+      audience: 'qualquer',
+      variantKind: null,
+      variantKindPlural: null,
+      variantSelection: 'varias',
+      requiresSignal: false,
+      zones: [],
+      professionals: [
+        { id: 'pro-gi', name: 'Gi' },
+        { id: 'pro-paula', name: 'Paula' },
+      ],
+    },
+  ],
+}
 const SLOTS = [
   { id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' },
   { id: '2026-11-18T14:15', date: '2026-11-18', time: '14:15' },
@@ -31,7 +63,20 @@ function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknow
       }
       if (url.endsWith('/api/c/catalog')) return json(CATALOG)
       if (url.endsWith('/api/c/availability')) return json({ slots: SLOTS })
-      if (url.endsWith('/api/c/reschedule')) return json(opts.reschedule ?? { status: 'booked', appointment: { id: 'apt-1', startsAt: 1, endsAt: 2, serviceName: 'Limpeza de pele' } })
+      if (url.endsWith('/api/c/reschedule')) {
+        return json(
+          opts.reschedule ?? {
+            status: 'booked',
+            appointment: {
+              id: 'apt-1',
+              startsAt: 1,
+              endsAt: 2,
+              serviceName: 'Limpeza de pele',
+              professionalName: 'Gi',
+            },
+          },
+        )
+      }
       if (url.endsWith('/api/c/cancel')) return json(opts.cancel ?? { status: 'cancelled', serviceName: 'Limpeza de pele', startsAt: 1 })
       if (url.endsWith('/api/c/ask-team')) return json(opts.ask ?? { status: 'asked' })
       return json({}, 404)
@@ -62,6 +107,8 @@ describe('remarcar pela página (C-07)', () => {
     const user = await home()
     await user.click(screen.getByRole('button', { name: 'Remarcar Limpeza de pele' }))
     expect(await screen.findByRole('heading', { name: 'Nova data e hora' })).toBeTruthy()
+    expect(await screen.findByText('Quem prefere?')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'Gi' }).getAttribute('aria-checked')).toBe('true')
     await user.click(await screen.findByRole('button', { name: '14:15' }))
     expect(await screen.findByRole('heading', { name: 'Confirme a remarcação' })).toBeTruthy()
     expect(screen.getByText('Remarcar não gera novo sinal. O serviço e as zonas ficam iguais.')).toBeTruthy()
@@ -70,8 +117,17 @@ describe('remarcar pela página (C-07)', () => {
     expect(screen.getByText(/Se não foi você quem remarcou/)).toBeTruthy()
 
     const avail = calls.find((c) => c.url.endsWith('/api/c/availability'))!
-    expect(avail.body).toEqual({ appointmentId: 'apt-1', from: '2026-11-17', to: '2026-11-23' })
-    expect(calls.find((c) => c.url.endsWith('/api/c/reschedule'))!.body).toEqual({ appointmentId: 'apt-1', slotId: '2026-11-18T14:15' })
+    expect(avail.body).toEqual({
+      appointmentId: 'apt-1',
+      from: '2026-11-17',
+      to: '2026-11-23',
+      professionalId: 'pro-gi',
+    })
+    expect(calls.find((c) => c.url.endsWith('/api/c/reschedule'))!.body).toEqual({
+      appointmentId: 'apt-1',
+      slotId: '2026-11-18T14:15',
+      professionalId: 'pro-gi',
+    })
     expect(calls.some((c) => JSON.stringify(c.body ?? {}).match(/tenant|contact/i))).toBe(false)
   })
 

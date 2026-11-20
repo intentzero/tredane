@@ -41,8 +41,8 @@
 | --- | --- | --- |
 | `POST /api/c/exchange` | Troca o token por sessão | Linha do token no D1 |
 | `GET /api/c/state` | Nome da clínica, marcações futuras da cliente, catálogo ativo | Sessão |
-| `POST /api/c/availability` | Horas livres de um intervalo de datas; também devolve, por dia do mês, se há horário livre (para o calendário C-12) | Sessão |
-| `POST /api/c/book` | Cria a proposta e confirma | Sessão |
+| `POST /api/c/availability` | Horas livres de um intervalo de datas; também devolve, por dia do mês, se há horário livre (para o calendário C-12). Aceita `professionalId` opcional (DEC-218: filtra; omitido/null = Sem preferência = união) | Sessão |
+| `POST /api/c/book` | Cria a proposta e confirma. Aceita `professionalId` opcional (preferência fixa ou round-robin se omitido/null) | Sessão |
 | `POST /api/c/reschedule`, `POST /api/c/cancel` | Remarca, cancela | Sessão |
 
 O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da sessão no D1 e chama o DO da clínica por RPC (`env.CLINIC.get(idFromName(clinicDurableObjectName(tenantId)))`), como `defaultDataLookup` em `src/whatsapp/flow/routes.ts`.
@@ -67,6 +67,13 @@ O pedido **nunca** traz `tenant_id` nem `contact_id`. O Worker resolve o hash da
 
 - `GET /api/c/state` devolve o catálogo ativo e agendável (serviços, zonas, sinónimos, audiência e género de cada zona). A pesquisa corre no navegador: normaliza (minúsculas, sem acentos), tolera plural leve e compara com nome e sinónimos. Sem índice nem rota de pesquisa no servidor; o tamanho esperado são dezenas de itens. Se um catálogo crescer muito, a decisão volta a ser aberta.
 - O género da cliente **não é determinado nem guardado**: o contacto não tem sexo (DEC-075). `availability` e `book` recebem a linha escolhida (`feminino` | `masculino`) como parte do pedido, validada contra a audiência do serviço e o género das zonas (DEC-079). O valor inicial vem do quadro da conversa (DEC-142), quando existir.
+
+### 3.6 Preferência de profissional (DEC-218, **Confirmado**)
+
+- O catálogo (`GET /api/c/catalog` / estado) lista, por serviço, as profissionais ativas ligadas (`id` + nome de exibição; sem dados de login).
+- `availability` e `book` / `reschedule` aceitam `professionalId` opcional. Valor presente = só horas/atribuição dessa profissional (validada no DO contra o serviço e o tenant da sessão). Omitido ou `null` = «Sem preferência»: união das vagas; no Confirmar, round-robin entre quem está livre na hora (cursor SQLite `client_web_rr_cursor` por `tenant_id` + `service_id`, última atribuída em Sem preferência).
+- Remarcar pré-escolhe a profissional da marcação; a cliente pode mudar. Com ≤1 profissional no serviço a UI esconde o bloco. O nome atribuído volta no Feito e no recibo WhatsApp. O Agendar do painel (TEL-05) **não** partilha este rodízio neste recorte.
+- Revê, no canal web, a leitura herdada do Flow (ADR-0016 §6) «o id de horário não escolhe profissional / não é escolha da cliente».
 
 ## 4. Isolamento por componente
 

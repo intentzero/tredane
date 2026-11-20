@@ -1062,6 +1062,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     from: string
     to: string
     daysOnly?: boolean
+    professionalId?: string | null
   }): Promise<ClientWebSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
@@ -1072,6 +1073,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       from: input.from,
       to: input.to,
       daysOnly: input.daysOnly === true,
+      professionalId: input.professionalId ?? null,
     })
   }
 
@@ -1087,6 +1089,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     variantIds: string[]
     line: 'feminino' | 'masculino' | null
     slotId: string
+    professionalId?: string | null
   }): Promise<ClientWebBookResult | null> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
@@ -1109,7 +1112,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       caller.tenantId,
       this.#clock,
       { contactId: input.contactId, conversationId: input.conversationId },
-      { serviceId: input.serviceId, variantIds: input.variantIds, line: input.line, slotId: input.slotId },
+      {
+        serviceId: input.serviceId,
+        variantIds: input.variantIds,
+        line: input.line,
+        slotId: input.slotId,
+        professionalId: input.professionalId ?? null,
+      },
       { abuseLimits },
     )
     if (!planned.ok) {
@@ -1160,6 +1169,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           startsAt: execution.appointment.startsAt,
           endsAt: execution.appointment.endsAt,
           serviceName: planned.proposal.serviceName,
+          professionalName: planned.proposal.professionalName,
         },
       }
     }
@@ -1177,6 +1187,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     from: string
     to: string
     daysOnly?: boolean
+    professionalId?: string | null
   }): Promise<RescheduleSlotsResult | null> {
     this.#ensureReady()
     this.#assertInstanceTenant(workerCaller(input.tenantId))
@@ -1191,6 +1202,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     conversationId: string
     appointmentId: string
     slotId: string
+    professionalId?: string | null
   }): Promise<ClientWebBookResult | null> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
@@ -1213,7 +1225,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       caller.tenantId,
       this.#clock,
       { contactId: input.contactId, conversationId: input.conversationId },
-      { appointmentId: input.appointmentId, slotId: input.slotId },
+      {
+        appointmentId: input.appointmentId,
+        slotId: input.slotId,
+        professionalId: input.professionalId ?? null,
+      },
       { abuseLimits },
     )
     if (!planned.ok) {
@@ -1243,6 +1259,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           startsAt: execution.appointment.startsAt,
           endsAt: execution.appointment.endsAt,
           serviceName: planned.proposal.serviceName,
+          professionalName: planned.proposal.professionalName,
         },
       }
     }

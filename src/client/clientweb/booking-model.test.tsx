@@ -27,6 +27,7 @@ const svc = (over: Partial<CatalogService> & { id: string }): CatalogService => 
   variantSelection: 'varias',
   requiresSignal: false,
   zones: [],
+  professionals: [],
   ...over,
 })
 

@@ -226,11 +226,11 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Ator:** cliente final; sistema.
 - **Gatilho:** a cliente toca em Agendar na página (JRN-20).
 - **Pré-condições:** sessão válida; serviços ativos e horas livres.
-- **Fluxo:** (1) procura ou escolhe o serviço (DEC-200); (2) diz «Para quem é?» se o catálogo depender de género, o que a conversa já definiu vem escolhido, e escolhe as zonas, também com pesquisa (DEC-079, DEC-200); (3) escolhe uma hora livre; (4) vê a revisão com serviço, variantes, data, hora, duração, preço e sinal; (5) toca em **Confirmar**; (6) o backend revalida e marca uma vez, ou abre o Pix no chat quando há sinal; (7) a página mostra «Marcado» e o chat recebe o recibo.
-- **Alternativas/erros:** vaga perdida ou Tempo que deixou de servir → horas alternativas; reenvio ou dois toques não duplicam; sessão expirada → JRN-20 de novo.
+- **Fluxo:** (1) procura ou escolhe o serviço (DEC-200); (2) diz «Para quem é?» se o catálogo depender de género, o que a conversa já definiu vem escolhido, e escolhe as zonas, também com pesquisa (DEC-079, DEC-200); (3) em Quando?, escolhe **Quem prefere?** (profissional ou «Sem preferência»; escondido se só há uma) e uma hora livre sob essa escolha (DEC-218); (4) vê a revisão com serviço, variantes, **Com**, data, hora, duração, preço e sinal; (5) toca em **Confirmar**; (6) o backend revalida e marca uma vez (rodízio se Sem preferência), ou abre o Pix no chat quando há sinal; (7) a página mostra «Marcado» com o nome atribuído e o chat recebe o recibo.
+- **Alternativas/erros:** vaga perdida → horas alternativas; reenvio ou dois toques não duplicam; sessão expirada → JRN-20 de novo.
 - **Telas:** Serviço, Variantes, Horário, Revisão e Confirmar, Feito.
-- **Dados:** proposta (id, versão, validade), compromisso, auditoria `appointment.client_web_booked`. O toque não é consentimento LGPD nem prova de identidade.
-- **Requisitos:** REQ-112, REQ-116, REQ-117; aceite AC-89, AC-90, AC-95, AC-96, AC-97.
+- **Dados:** proposta (id, versão, validade), compromisso, cursor de rodízio por serviço, auditoria `appointment.client_web_booked`. O toque não é consentimento LGPD nem prova de identidade.
+- **Requisitos:** REQ-112, REQ-116, REQ-117; aceite AC-89, AC-90, AC-95, AC-96, AC-97, AC-98.
 
 ## JRN-22 — Remarcar ou cancelar pela página
 
@@ -238,7 +238,7 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Ator:** cliente final; sistema.
 - **Gatilho:** a cliente abre uma marcação em «Meus agendamentos».
 - **Pré-condições:** marcação futura do contacto da sessão.
-- **Fluxo:** (1a) **Remarcar:** escolhe nova hora para o mesmo serviço e variantes, confirma, o compromisso é movido; (1b) **Cancelar:** vê a política (com sinal pago) e confirma; (2) a página mostra o resultado e o chat recebe o recibo.
+- **Fluxo:** (1a) **Remarcar:** reabre Quem prefere? com a profissional da marcação pré-escolhida (DEC-218 RR-4), escolhe nova hora para o mesmo serviço e variantes, confirma, o compromisso é movido; (1b) **Cancelar:** vê a política (com sinal pago) e confirma; (2) a página mostra o resultado e o chat recebe o recibo.
 - **Alternativas/erros:** com sinal pago fora da janela, aceite explícito da política antes de cancelar; janela de crédito ainda não aplicada → «Pedir à equipe»; hora ocupada → alternativas.
 - **Telas:** Meus agendamentos, Remarcar, Cancelar.
 - **Dados:** compromisso, motivo `contato_remarcou` ou `contato_cancelou`, auditoria.

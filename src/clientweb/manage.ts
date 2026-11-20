@@ -32,6 +32,11 @@ import {
 import type { AppointmentProposalRow } from '../clinic/proposals/types'
 import type { ProposalConfirmHandoff } from '../clinic/proposals/buttons'
 import { clampDateRange, CLIENT_WEB_MAX_SLOTS, readClientWebCatalog, type ClientWebSlot } from './booking'
+import {
+  pickRoundRobinProfessional,
+  readRrLastProfessional,
+  writeRrLastProfessional,
+} from './round-robin'
 
 export const WEB_CANCEL_ACTOR = 'contact:web'
 export const WEB_CANCEL_RECEIPT_SENTENCE = 'Cancelado pela página. Não foi você? Fale com a equipe.'
@@ -43,6 +48,7 @@ export type WebAppointment = {
   startsAt: number
   endsAt: number
   professionalId: string
+  professionalName: string
   /** Sinal pago por Pix: a cliente não cancela sozinha (DEC-198, Proposto). */
   hasPaidSignal: boolean
 }
@@ -73,10 +79,13 @@ export function loadWebAppointment(
     starts_at: number
     ends_at: number
     name: string | null
+    professional_name: string | null
   }>(
-    `SELECT a.id, a.service_id, a.professional_id, a.starts_at, a.ends_at, s.name
+    `SELECT a.id, a.service_id, a.professional_id, a.starts_at, a.ends_at, s.name,
+            r.name AS professional_name
        FROM appointments a
        LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
+       LEFT JOIN resources r ON r.tenant_id = a.tenant_id AND r.id = a.professional_id
       WHERE a.tenant_id = ? AND a.id = ? AND a.contact_id = ? AND a.status = 'confirmed' AND a.starts_at > ?`,
     tenantId,
     appointmentId,
@@ -91,6 +100,7 @@ export function loadWebAppointment(
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     professionalId: row.professional_id,
+    professionalName: row.professional_name ?? 'Profissional',
     hasPaidSignal: hasPaidSignal(db, tenantId, row.id),
   }
 }
@@ -108,7 +118,10 @@ function appointmentMinutes(apt: WebAppointment): number {
 
 export type RescheduleSlotsResult =
   | { ok: true; slots: ClientWebSlot[]; from: string; to: string }
-  | { ok: false; error: 'appointment_not_found' | 'service_unavailable' | 'range_invalid' }
+  | {
+      ok: false
+      error: 'appointment_not_found' | 'service_unavailable' | 'range_invalid' | 'professional_invalid'
+    }
 
 /** Horas livres para remarcar: a própria marcação não ocupa a vaga (`excludeAppointmentId`). */
 export async function listRescheduleSlots(
@@ -116,13 +129,29 @@ export async function listRescheduleSlots(
   tenantId: string,
   clock: Clock,
   session: { contactId: string },
-  input: { appointmentId: string; from: string; to: string; daysOnly?: boolean },
+  input: {
+    appointmentId: string
+    from: string
+    to: string
+    daysOnly?: boolean
+    /** DEC-218: preferência; null/omitido = Sem preferência. */
+    professionalId?: string | null
+  },
 ): Promise<RescheduleSlotsResult> {
   const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
   if (!apt) return { ok: false, error: 'appointment_not_found' }
   const service = getService(db, tenantId, apt.serviceId)
   if (!service || !service.active) return { ok: false, error: 'service_unavailable' }
   const catalog = readClientWebCatalog(db, tenantId, clock)
+  const catalogSvc = catalog.services.find((s) => s.id === apt.serviceId)
+  const preferredId = input.professionalId?.trim() || null
+  if (preferredId && catalogSvc && !catalogSvc.professionals.some((p) => p.id === preferredId)) {
+    return { ok: false, error: 'professional_invalid' }
+  }
+  if (preferredId && !catalogSvc) {
+    // Serviço ainda existe na marcação mas saiu do catálogo marcável: só aceita a própria profissional.
+    if (preferredId !== apt.professionalId) return { ok: false, error: 'professional_invalid' }
+  }
   const range = clampDateRange(catalog.today, input.from, input.to)
   if (!range) return { ok: false, error: 'range_invalid' }
   const slots: ClientWebSlot[] = []
@@ -138,6 +167,7 @@ export async function listRescheduleSlots(
           date,
           excludeAppointmentId: apt.id,
           durationMinutesOverride: appointmentMinutes(apt),
+          ...(preferredId ? { professionalId: preferredId } : {}),
         },
         clock,
       )
@@ -162,6 +192,7 @@ export type WebRescheduleError =
   | 'service_unavailable'
   | 'slot_invalid'
   | 'slot_unavailable'
+  | 'professional_invalid'
   | 'limit_reached'
   | 'proposal_failed'
 
@@ -180,7 +211,7 @@ export async function planWebReschedule(
   tenantId: string,
   clock: Clock,
   session: { contactId: string; conversationId: string },
-  input: { appointmentId: string; slotId: string },
+  input: { appointmentId: string; slotId: string; professionalId?: string | null },
   deps: { abuseLimits?: AbuseLimits } = {},
 ): Promise<PlannedWebReschedule> {
   const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
@@ -194,21 +225,76 @@ export async function planWebReschedule(
   const catalog = readClientWebCatalog(db, tenantId, clock)
   if (!clampDateRange(catalog.today, date, date)) return { ok: false, error: 'slot_invalid' }
   const minutes = appointmentMinutes(apt)
+  const catalogSvc = catalog.services.find((s) => s.id === apt.serviceId)
+  const preferredId = input.professionalId?.trim() || null
+  if (preferredId) {
+    const allowed =
+      catalogSvc?.professionals.some((p) => p.id === preferredId) || preferredId === apt.professionalId
+    if (!allowed) return { ok: false, error: 'professional_invalid' }
+  }
 
   let slot: { startsAt: number; professionalId: string } | undefined
+  let usedRoundRobin = false
   try {
-    const avail = queryAvailability(
-      db,
-      tenantId,
-      { serviceId: apt.serviceId, date, excludeAppointmentId: apt.id, durationMinutesOverride: minutes },
-      clock,
-    )
-    slot = avail.slots.find(
-      (s) =>
-        s.startsAt > clock.nowMs() &&
-        s.startsAt !== apt.startsAt &&
-        localHHMM(catalog.timezone, s.startsAt) === time,
-    )
+    if (preferredId) {
+      const avail = queryAvailability(
+        db,
+        tenantId,
+        {
+          serviceId: apt.serviceId,
+          date,
+          excludeAppointmentId: apt.id,
+          durationMinutesOverride: minutes,
+          professionalId: preferredId,
+        },
+        clock,
+      )
+      slot = avail.slots.find(
+        (s) =>
+          s.startsAt > clock.nowMs() &&
+          s.startsAt !== apt.startsAt &&
+          localHHMM(catalog.timezone, s.startsAt) === time,
+      )
+    } else {
+      const orderedIds = (catalogSvc?.professionals.map((p) => p.id) ?? [apt.professionalId]).filter(
+        (id, i, arr) => arr.indexOf(id) === i,
+      )
+      const freeIds = new Set<string>()
+      let startsAt: number | undefined
+      for (const proId of orderedIds) {
+        const avail = queryAvailability(
+          db,
+          tenantId,
+          {
+            serviceId: apt.serviceId,
+            date,
+            excludeAppointmentId: apt.id,
+            durationMinutesOverride: minutes,
+            professionalId: proId,
+          },
+          clock,
+        )
+        const hit = avail.slots.find(
+          (s) =>
+            s.startsAt > clock.nowMs() &&
+            s.startsAt !== apt.startsAt &&
+            localHHMM(catalog.timezone, s.startsAt) === time,
+        )
+        if (hit) {
+          freeIds.add(proId)
+          startsAt = hit.startsAt
+        }
+      }
+      const picked = pickRoundRobinProfessional(
+        orderedIds,
+        freeIds,
+        readRrLastProfessional(db, tenantId, apt.serviceId),
+      )
+      if (picked && startsAt != null) {
+        slot = { startsAt, professionalId: picked }
+        usedRoundRobin = true
+      }
+    }
   } catch {
     return { ok: false, error: 'slot_unavailable' }
   }
@@ -239,6 +325,10 @@ export async function planWebReschedule(
     return { ok: false, error: 'proposal_failed' }
   }
 
+  if (usedRoundRobin) {
+    writeRrLastProfessional(db, tenantId, apt.serviceId, slot.professionalId, clock)
+  }
+
   const sent = markProposalSent(db, tenantId, proposal.id, clock)
   const authorization = evaluateProposalAuthorization(
     db,
@@ -263,7 +353,13 @@ export function rescheduleAlreadyAt(
   clock: Clock,
   session: { contactId: string },
   input: { appointmentId: string; slotId: string },
-): { id: string; startsAt: number; endsAt: number; serviceName: string } | null {
+): {
+  id: string
+  startsAt: number
+  endsAt: number
+  serviceName: string
+  professionalName: string | null
+} | null {
   const m = SLOT_ID.exec(input.slotId)
   if (!m) return null
   const tz = ensureClinicSettings(db, tenantId, clock).timezone || 'America/Sao_Paulo'
@@ -279,7 +375,13 @@ export function rescheduleAlreadyAt(
   )
   // Só vale como repetição se a alteração é recente (10 min); senão a hora pedida é a atual e não faz sentido.
   if (!row?.updated_at || row.updated_at < clock.nowMs() - 10 * 60 * 1000) return null
-  return { id: apt.id, startsAt: apt.startsAt, endsAt: apt.endsAt, serviceName: apt.serviceName }
+  return {
+    id: apt.id,
+    startsAt: apt.startsAt,
+    endsAt: apt.endsAt,
+    serviceName: apt.serviceName,
+    professionalName: apt.professionalName,
+  }
 }
 
 export type WebCancelResult =

@@ -25,6 +25,11 @@ import {
 } from '../clinic/proposals/proposals'
 import type { ProposalConfirmHandoff } from '../clinic/proposals/buttons'
 import type { AppointmentProposalRow } from '../clinic/proposals/types'
+import {
+  pickRoundRobinProfessional,
+  readRrLastProfessional,
+  writeRrLastProfessional,
+} from './round-robin'
 
 /**
  * Quantos dias à frente a página deixa marcar. **Provisório**: o horizonte é uma configuração
@@ -47,6 +52,11 @@ export type ClientWebCatalogZone = {
   priceCents: number | null
 }
 
+export type ClientWebCatalogProfessional = {
+  id: string
+  name: string
+}
+
 export type ClientWebCatalogService = {
   id: string
   name: string
@@ -62,6 +72,8 @@ export type ClientWebCatalogService = {
   zones: ClientWebCatalogZone[]
   /** Há sinal a pagar por Pix no chat (a página só avisa). */
   requiresSignal: boolean
+  /** Profissionais ativas ligadas ao serviço (DEC-218). Ordenadas por nome. */
+  professionals: ClientWebCatalogProfessional[]
 }
 
 export type ClientWebCatalog = {
@@ -86,35 +98,43 @@ function isBookable(service: ServiceRow, activeProfessionalIds: ReadonlySet<stri
 export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Clock): ClientWebCatalog {
   const settings = ensureClinicSettings(db, tenantId, clock)
   const timezone = settings.timezone || 'America/Sao_Paulo'
-  const activeProfessionalIds = new Set(
-    listResources(db, tenantId, clock)
-      .filter((r) => r.kind === 'professional' && r.active)
-      .map((r) => r.id),
-  )
+  const activePros = listResources(db, tenantId, clock)
+    .filter((r) => r.kind === 'professional' && r.active)
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || a.id.localeCompare(b.id))
+  const activeById = new Map(activePros.map((p) => [p.id, p]))
+  const activeProfessionalIds = new Set(activeById.keys())
   const services = listServices(db, tenantId)
     .filter((s) => isBookable(s, activeProfessionalIds))
-    .map<ClientWebCatalogService>((s) => ({
-      id: s.id,
-      name: s.name,
-      synonyms: [...s.synonyms],
-      durationMinutes: s.durationMinutes,
-      priceCents: s.priceCents,
-      audience: s.audiencia,
-      variantKind: s.variantKind,
-      variantKindPlural: s.variantKindPlural,
-      variantSelection: s.variantSelection,
-      requiresSignal: s.requiresSignal,
-      zones: s.zones
-        .filter((z) => z.active)
-        .map((z) => ({
-          id: z.id,
-          name: z.name,
-          synonyms: [...z.synonyms],
-          audience: z.audience,
-          durationMinutes: z.durationMinutes,
-          priceCents: z.priceCents,
-        })),
-    }))
+    .map<ClientWebCatalogService>((s) => {
+      const professionals = s.professionalIds
+        .map((id) => activeById.get(id))
+        .filter((p): p is NonNullable<typeof p> => Boolean(p))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || a.id.localeCompare(b.id))
+        .map((p) => ({ id: p.id, name: p.name }))
+      return {
+        id: s.id,
+        name: s.name,
+        synonyms: [...s.synonyms],
+        durationMinutes: s.durationMinutes,
+        priceCents: s.priceCents,
+        audience: s.audiencia,
+        variantKind: s.variantKind,
+        variantKindPlural: s.variantKindPlural,
+        variantSelection: s.variantSelection,
+        requiresSignal: s.requiresSignal,
+        professionals,
+        zones: s.zones
+          .filter((z) => z.active)
+          .map((z) => ({
+            id: z.id,
+            name: z.name,
+            synonyms: [...z.synonyms],
+            audience: z.audience,
+            durationMinutes: z.durationMinutes,
+            priceCents: z.priceCents,
+          })),
+      }
+    })
   return {
     timezone,
     horizonDays: CLIENT_WEB_HORIZON_DAYS,
@@ -143,11 +163,11 @@ export function clampDateRange(today: string, from: string, to: string): { from:
 
 export type ClientWebSlotsResult =
   | { ok: true; slots: ClientWebSlot[]; from: string; to: string }
-  | { ok: false; error: 'service_unavailable' | 'variants_invalid' | 'range_invalid' }
+  | { ok: false; error: 'service_unavailable' | 'variants_invalid' | 'range_invalid' | 'professional_invalid' }
 
 /**
  * Horas livres entre duas datas civis da clínica, no mesmo motor do chat (sala, profissional,
- * audiência, Tempo, antecedência). Sem previsão a tempo, não lista «às escuras» (DEC-077).
+ * audiência, antecedência). DEC-218: `professionalId` filtra; omitido/null = união («Sem preferência»).
  */
 export async function listClientWebSlots(
   db: ClinicDb,
@@ -158,14 +178,21 @@ export async function listClientWebSlots(
     variantIds: string[]
     from: string
     to: string
+    /** Preferência da cliente; null/omitido = Sem preferência (união das vagas). */
+    professionalId?: string | null
     /** Calendário: só a primeira hora de cada dia (sem o teto de horas). */
     daysOnly?: boolean
   },
 ): Promise<ClientWebSlotsResult> {
   const service = getService(db, tenantId, input.serviceId)
   const catalog = readClientWebCatalog(db, tenantId, clock)
-  if (!service || !catalog.services.some((s) => s.id === service.id)) {
+  const catalogSvc = catalog.services.find((s) => s.id === service?.id)
+  if (!service || !catalogSvc) {
     return { ok: false, error: 'service_unavailable' }
+  }
+  const preferredId = input.professionalId?.trim() || null
+  if (preferredId && !catalogSvc.professionals.some((p) => p.id === preferredId)) {
+    return { ok: false, error: 'professional_invalid' }
   }
   const range = clampDateRange(catalog.today, input.from, input.to)
   if (!range) return { ok: false, error: 'range_invalid' }
@@ -183,7 +210,12 @@ export async function listClientWebSlots(
       avail = queryAvailability(
         db,
         tenantId,
-        { serviceId: service.id, date, durationMinutesOverride: duration },
+        {
+          serviceId: service.id,
+          date,
+          durationMinutesOverride: duration,
+          ...(preferredId ? { professionalId: preferredId } : {}),
+        },
         clock,
       )
     } catch {
@@ -204,7 +236,17 @@ export async function listClientWebSlots(
 
 /** Resposta da página depois de Confirmar. Nunca leva ids internos de proposta. */
 export type ClientWebBookResult =
-  | { status: 'booked'; appointment: { id: string; startsAt: number; endsAt: number; serviceName: string } }
+  | {
+      status: 'booked'
+      appointment: {
+        id: string
+        startsAt: number
+        endsAt: number
+        serviceName: string
+        /** DEC-218: nome atribuído (preferência ou rodízio). */
+        professionalName: string | null
+      }
+    }
   | { status: 'pix_signal' }
   | { status: 'slot_taken' }
   | { status: 'paused' }
@@ -216,6 +258,8 @@ export type WebBookingInput = {
   line: ClientWebLine | null
   /** `YYYY-MM-DDTHH:MM` civil da clínica. */
   slotId: string
+  /** Preferência; null/omitido = Sem preferência → round-robin (DEC-218). */
+  professionalId?: string | null
 }
 
 export type WebBookingError =
@@ -225,6 +269,7 @@ export type WebBookingError =
   | 'line_mismatch'
   | 'slot_invalid'
   | 'slot_unavailable'
+  | 'professional_invalid'
   | 'limit_reached'
   | 'proposal_failed'
 
@@ -248,17 +293,30 @@ export function findRecentWebBooking(
   clock: Clock,
   session: { contactId: string },
   input: { serviceId: string; slotId: string },
-): { id: string; startsAt: number; endsAt: number; serviceName: string } | null {
+): {
+  id: string
+  startsAt: number
+  endsAt: number
+  serviceName: string
+  professionalName: string | null
+} | null {
   const m = SLOT_ID.exec(input.slotId)
   if (!m) return null
   const tz = ensureClinicSettings(db, tenantId, clock).timezone || 'America/Sao_Paulo'
   const [y, mo, d] = (m[1] as string).split('-').map(Number) as [number, number, number]
   const [h, mi] = (m[2] as string).split(':').map(Number) as [number, number]
   const startsAt = zonedCivilToUtc(tz, y, mo, d, h, mi)
-  const row = db.get<{ id: string; starts_at: number; ends_at: number; name: string | null }>(
-    `SELECT a.id, a.starts_at, a.ends_at, s.name
+  const row = db.get<{
+    id: string
+    starts_at: number
+    ends_at: number
+    name: string | null
+    professional_name: string | null
+  }>(
+    `SELECT a.id, a.starts_at, a.ends_at, s.name, r.name AS professional_name
        FROM appointments a
        LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
+       LEFT JOIN resources r ON r.tenant_id = a.tenant_id AND r.id = a.professional_id
       WHERE a.tenant_id = ? AND a.contact_id = ? AND a.service_id = ? AND a.starts_at = ?
         AND a.status = 'confirmed' AND a.created_at > ?
       ORDER BY a.created_at DESC LIMIT 1`,
@@ -268,7 +326,15 @@ export function findRecentWebBooking(
     startsAt,
     clock.nowMs() - 10 * 60 * 1000,
   )
-  return row ? { id: row.id, startsAt: row.starts_at, endsAt: row.ends_at, serviceName: row.name ?? 'Atendimento' } : null
+  return row
+    ? {
+        id: row.id,
+        startsAt: row.starts_at,
+        endsAt: row.ends_at,
+        serviceName: row.name ?? 'Atendimento',
+        professionalName: row.professional_name,
+      }
+    : null
 }
 
 /**
@@ -317,18 +383,65 @@ export async function planWebProposal(
   const [, date, time] = m as unknown as [string, string, string]
   if (!clampDateRange(catalog.today, date, date)) return { ok: false, error: 'slot_invalid' }
 
-  // A hora tem de estar livre agora: o motor devolve também a profissional.
+  const catalogSvc = catalog.services.find((s) => s.id === service.id)!
+  const preferredId = input.professionalId?.trim() || null
+  if (preferredId && !catalogSvc.professionals.some((p) => p.id === preferredId)) {
+    return { ok: false, error: 'professional_invalid' }
+  }
+
+  // DEC-218: preferência fixa, ou rodízio entre quem está livre nesta hora.
   let slot: { startsAt: number; professionalId: string } | undefined
+  let usedRoundRobin = false
   try {
-    const avail = queryAvailability(
-      db,
-      tenantId,
-      { serviceId: service.id, date, durationMinutesOverride: duration },
-      clock,
-    )
-    slot = avail.slots.find(
-      (s) => s.startsAt > clock.nowMs() && localHHMM(catalog.timezone, s.startsAt) === time,
-    )
+    if (preferredId) {
+      const avail = queryAvailability(
+        db,
+        tenantId,
+        {
+          serviceId: service.id,
+          date,
+          durationMinutesOverride: duration,
+          professionalId: preferredId,
+        },
+        clock,
+      )
+      slot = avail.slots.find(
+        (s) => s.startsAt > clock.nowMs() && localHHMM(catalog.timezone, s.startsAt) === time,
+      )
+    } else {
+      const orderedIds = catalogSvc.professionals.map((p) => p.id)
+      const freeIds = new Set<string>()
+      let startsAt: number | undefined
+      for (const proId of orderedIds) {
+        const avail = queryAvailability(
+          db,
+          tenantId,
+          {
+            serviceId: service.id,
+            date,
+            durationMinutesOverride: duration,
+            professionalId: proId,
+          },
+          clock,
+        )
+        const hit = avail.slots.find(
+          (s) => s.startsAt > clock.nowMs() && localHHMM(catalog.timezone, s.startsAt) === time,
+        )
+        if (hit) {
+          freeIds.add(proId)
+          startsAt = hit.startsAt
+        }
+      }
+      const picked = pickRoundRobinProfessional(
+        orderedIds,
+        freeIds,
+        readRrLastProfessional(db, tenantId, service.id),
+      )
+      if (picked && startsAt != null) {
+        slot = { startsAt, professionalId: picked }
+        usedRoundRobin = true
+      }
+    }
   } catch {
     return { ok: false, error: 'slot_unavailable' }
   }
@@ -356,6 +469,10 @@ export async function planWebProposal(
     }
     if (err instanceof ValidationError) return { ok: false, error: 'variants_invalid' }
     return { ok: false, error: 'proposal_failed' }
+  }
+
+  if (usedRoundRobin) {
+    writeRrLastProfessional(db, tenantId, service.id, slot.professionalId, clock)
   }
 
   // A página é o canal de envio desta proposta: vale 30 min a partir de agora.

@@ -6,6 +6,7 @@
  * CW-12: efeito no chat depois do cancelamento **na página** (recibo único + DEC-086).
  * CW-13: serviço sem profissional — a página e a proposta recusam marcar (Conferir / DEC-085).
  * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
+ * CW-15: preferência / Sem preferência — filtra horas e rodízio por serviço (DEC-218).
  * GU-23: «Posso ajudar…» com cta_url Abrir agenda (sem reply que reenvia a frase).
  */
 import { listServices, upsertServiceOp } from '../../../config'
@@ -21,7 +22,8 @@ import {
   WEB_CANCEL_RECEIPT_SENTENCE,
 } from '../../../../clientweb/manage'
 import { CLIENT_WEB_CTA_TEXT, OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
-import { readClientWebCatalog } from '../../../../clientweb/booking'
+import { listClientWebSlots, planWebProposal, readClientWebCatalog } from '../../../../clientweb/booking'
+import { readRrLastProfessional } from '../../../../clientweb/round-robin'
 import { OPEN_MAP_CTA_TEXT } from '../../location-map-offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
 import {
@@ -760,6 +762,141 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         }
         if (!parsed.ctaUrl?.url?.startsWith('https://maps.app.goo.gl/')) {
           errs.push(`cta_url sem link Maps, veio ${JSON.stringify(parsed.ctaUrl?.url)}`)
+        }
+        return errs
+      },
+    },
+  },
+  {
+    id: 'CW-15',
+    title:
+      'Preferência / Sem preferência: filtra horas, rodízio por serviço e nome no recibo (DEC-218)',
+    turnosIdeais: 0,
+    prepare: (s) => {
+      s.sayInbound('(cliente confirma na página)')
+    },
+    turns: [
+      {
+        role: 'owner',
+        note:
+          'página: preferência Ana filtra; Sem preferência roda Ana→Bia no mesmo serviço; Feito/recibo com nome',
+        act: async (s) => {
+          const catalog = readClientWebCatalog(s.db, s.tenantId, s.clock)
+          const svc = catalog.services.find((row) => row.id === s.ids.limpeza)
+          if (!svc || svc.professionals.length < 2) {
+            throw new Error('CW-15: Limpeza precisa de ≥2 profissionais no catálogo da página')
+          }
+          const names = svc.professionals.map((p) => p.name)
+          if (!names.includes('Ana') || !names.includes('Bia')) {
+            throw new Error(`CW-15: esperava Ana e Bia, veio ${names.join(', ')}`)
+          }
+
+          const day = '2026-11-06'
+          const onlyAna = await listClientWebSlots(s.db, s.tenantId, s.clock, {
+            serviceId: s.ids.limpeza,
+            variantIds: [],
+            from: day,
+            to: day,
+            professionalId: s.ids.ana,
+          })
+          if (!onlyAna.ok || onlyAna.slots.length === 0) {
+            throw new Error('CW-15: preferência Ana sem horas')
+          }
+          const bad = await listClientWebSlots(s.db, s.tenantId, s.clock, {
+            serviceId: s.ids.limpeza,
+            variantIds: [],
+            from: day,
+            to: day,
+            professionalId: 'pro-inventada',
+          })
+          if (bad.ok || bad.error !== 'professional_invalid') {
+            throw new Error('CW-15: profissional inventada deveria ser professional_invalid')
+          }
+
+          const session = { contactId: s.contactId, conversationId: s.conversationId }
+          const first = await planWebProposal(s.db, s.tenantId, s.clock, session, {
+            serviceId: s.ids.limpeza,
+            variantIds: [],
+            line: null,
+            slotId: `${day}T10:00`,
+          })
+          if (!first.ok) throw new Error(`CW-15: 1.ª proposta falhou (${first.error})`)
+          if (first.proposal.professionalId !== s.ids.ana) {
+            throw new Error(
+              `CW-15: 1.ª Sem preferência deveria ser Ana, veio ${first.proposal.professionalId}`,
+            )
+          }
+          if (readRrLastProfessional(s.db, s.tenantId, s.ids.limpeza) !== s.ids.ana) {
+            throw new Error('CW-15: cursor RR não gravou Ana após Sem preferência')
+          }
+
+          const second = await planWebProposal(s.db, s.tenantId, s.clock, session, {
+            serviceId: s.ids.limpeza,
+            variantIds: [],
+            line: null,
+            slotId: `${day}T11:00`,
+          })
+          if (!second.ok) throw new Error(`CW-15: 2.ª proposta falhou (${second.error})`)
+          if (second.proposal.professionalId !== s.ids.bia) {
+            throw new Error(
+              `CW-15: 2.ª Sem preferência deveria ser Bia (rodízio), veio ${second.proposal.professionalId}`,
+            )
+          }
+
+          const preferred = await planWebProposal(s.db, s.tenantId, s.clock, session, {
+            serviceId: s.ids.limpeza,
+            variantIds: [],
+            line: null,
+            slotId: `${day}T14:00`,
+            professionalId: s.ids.bia,
+          })
+          if (!preferred.ok) throw new Error(`CW-15: preferência Bia falhou (${preferred.error})`)
+          if (preferred.proposal.professionalId !== s.ids.bia) {
+            throw new Error('CW-15: preferência explícita não fixou Bia')
+          }
+          if (readRrLastProfessional(s.db, s.tenantId, s.ids.limpeza) !== s.ids.bia) {
+            throw new Error('CW-15: preferência explícita não deve apagar o cursor RR')
+          }
+
+          // Recibo no chat com o nome atribuído (RR-6), mesmo caminho de CW-14 (sem INV-01).
+          const proposal = createProposal(
+            s.db,
+            s.tenantId,
+            {
+              contactId: s.contactId,
+              conversationId: s.conversationId,
+              serviceId: s.ids.limpeza,
+              professionalId: s.ids.ana,
+              startsAt: zonedCivilToUtc(GU_TZ, 2026, 11, 7, 9, 0),
+            },
+            s.clock,
+          )
+          markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+          markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'apt_cw15')
+          const result = sendProposalResultMessageOp(
+            s.db,
+            s.caller,
+            { proposalId: proposal.id, resultKind: 'booked', channel: 'web' },
+            s.clock,
+          )
+          if (result.status !== 'queued') {
+            throw new Error(`CW-15: esperava queued no recibo, veio ${result.status}`)
+          }
+        },
+      },
+    ],
+    expect: {
+      appointments: 0,
+      outboundIncludes: ['Agendado:', WEB_RECEIPT_SENTENCE, 'com Ana'],
+      assert: (s) => {
+        const errs: string[] = []
+        const agendados = s.outboundBodies().filter((b) => b.startsWith('Agendado:'))
+        if (agendados.length !== 1) {
+          errs.push(`esperava 1 «Agendado:…», saíram ${agendados.length}`)
+        } else if (!agendados[0]!.includes('com Ana')) {
+          errs.push('recibo sem «com Ana» (DEC-218 RR-6)')
+        } else if (!agendados[0]!.includes(WEB_RECEIPT_SENTENCE)) {
+          errs.push('recibo sem frase da página')
         }
         return errs
       },

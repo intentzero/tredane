@@ -16,7 +16,16 @@ export type ClientWebClinicState = {
   timezone: string
   /** DEC-211: link do Google Business («Como chegar»); null sem link cadastrado. */
   locationUrl: string | null
-  appointments: Array<{ id: string; serviceName: string; startsAt: number; endsAt: number; hasPaidSignal: boolean }>
+  appointments: Array<{
+    id: string
+    serviceName: string
+    startsAt: number
+    endsAt: number
+    serviceId: string
+    professionalId: string
+    professionalName: string
+    hasPaidSignal: boolean
+  }>
 }
 
 /** O contacto tem de ser o da conversa da sessão, nesta clínica (ADR-0018 §4). */
@@ -57,12 +66,22 @@ export function readClientWebState(
     firstName: clientWebFirstName(contact.display_name),
     timezone: tz?.timezone ?? 'America/Sao_Paulo',
     locationUrl: gb?.google_business_url?.trim() || null,
-    appointments: upcoming.map((a) => ({
-      id: a.id,
-      serviceName: a.serviceName,
-      startsAt: a.startsAt,
-      endsAt: a.endsAt,
-      hasPaidSignal: hasPaidSignal(db, input.tenantId, a.id),
-    })),
+    appointments: upcoming.map((a) => {
+      const pro = db.get<{ name: string | null }>(
+        'SELECT name FROM resources WHERE tenant_id = ? AND id = ?',
+        input.tenantId,
+        a.professionalId,
+      )
+      return {
+        id: a.id,
+        serviceName: a.serviceName,
+        startsAt: a.startsAt,
+        endsAt: a.endsAt,
+        serviceId: a.serviceId,
+        professionalId: a.professionalId,
+        professionalName: pro?.name?.trim() || 'Profissional',
+        hasPaidSignal: hasPaidSignal(db, input.tenantId, a.id),
+      }
+    }),
   }
 }

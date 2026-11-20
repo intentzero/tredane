@@ -322,3 +322,164 @@ describe('planWebProposal + executor com canal web (DEC-197)', () => {
     }
   })
 })
+
+describe('preferência de profissional (DEC-218)', () => {
+  function seedTwoPros() {
+    const clock = createControllableClock(Date.UTC(2024, 0, 7, 15))
+    const { db, close } = bootClinicDb({ clock })
+    const caller = workerCaller(TENANT, 'user_synth_owner_a')
+    const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+    const gi = upsertResourceOp(db, caller, { kind: 'professional', name: 'Gi', homeRoomId: room.id }, clock)
+    const paula = upsertResourceOp(
+      db,
+      caller,
+      { kind: 'professional', name: 'Paula', homeRoomId: room.id },
+      clock,
+    )
+    for (const pro of [gi, paula]) {
+      setWeeklyWindowsOp(
+        db,
+        caller,
+        { resourceId: pro.id, windows: [{ dayOfWeek: 1, startMinute: 9 * 60, endMinute: 18 * 60 }] },
+        clock,
+      )
+    }
+    setWeeklyWindowsOp(
+      db,
+      caller,
+      { resourceId: room.id, windows: [{ dayOfWeek: 1, startMinute: 9 * 60, endMinute: 18 * 60 }] },
+      clock,
+    )
+    const service = upsertServiceOp(
+      db,
+      caller,
+      {
+        name: 'Limpeza de pele',
+        durationMinutes: 60,
+        bufferMinutes: 0,
+        priceCents: 12_000,
+        professionalIds: [gi.id, paula.id],
+        roomRequirement: { mode: 'none' },
+      },
+      clock,
+    )
+    syncWhatsappChannel(
+      db,
+      TENANT,
+      {
+        status: 'connected',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        displayPhone: '+1555',
+        action: 'channel_connected',
+      },
+      clock,
+    )
+    seedSyntheticWhatsappTemplates(db, TENANT, clock)
+    const ingested = ingestContactMessage(
+      db,
+      workerCaller(TENANT, 'system:ai-autodraft'),
+      { providerEventKey: 'wa:web:pref:1', waId: '5511900002222', body: 'quero agendar' },
+      clock,
+    )
+    const contact = upsertContact(
+      db,
+      { tenantId: TENANT, waId: '5511900002222', displayName: 'Marina Souza' },
+      clock,
+    )
+    const session = { contactId: contact.id, conversationId: ingested.conversation!.id }
+    return { db, close, clock, caller, service, gi, paula, session }
+  }
+
+  it('catálogo lista profissionais ativas do serviço', () => {
+    const { db, close, clock, service, gi, paula } = seedTwoPros()
+    try {
+      const svc = readClientWebCatalog(db, TENANT, clock).services.find((s) => s.id === service.id)!
+      expect(svc.professionals.map((p) => p.name).sort()).toEqual(['Gi', 'Paula'])
+      expect(svc.professionals.map((p) => p.id).sort()).toEqual([gi.id, paula.id].sort())
+    } finally {
+      close()
+    }
+  })
+
+  it('filtra horas pela profissional preferida', async () => {
+    const { db, close, clock, service, gi } = seedTwoPros()
+    try {
+      const all = await listClientWebSlots(db, TENANT, clock, {
+        serviceId: service.id,
+        variantIds: [],
+        from: '2024-01-08',
+        to: '2024-01-08',
+      })
+      const onlyGi = await listClientWebSlots(db, TENANT, clock, {
+        serviceId: service.id,
+        variantIds: [],
+        from: '2024-01-08',
+        to: '2024-01-08',
+        professionalId: gi.id,
+      })
+      expect(all.ok && onlyGi.ok).toBe(true)
+      if (!all.ok || !onlyGi.ok) return
+      expect(all.slots.length).toBeGreaterThan(0)
+      expect(onlyGi.slots.length).toBeGreaterThan(0)
+      expect(onlyGi.slots[0]!.id).toBe('2024-01-08T09:00')
+      expect(
+        await listClientWebSlots(db, TENANT, clock, {
+          serviceId: service.id,
+          variantIds: [],
+          from: '2024-01-08',
+          to: '2024-01-08',
+          professionalId: 'pro-inventada',
+        }),
+      ).toEqual({ ok: false, error: 'professional_invalid' })
+    } finally {
+      close()
+    }
+  })
+
+  it('Sem preferência atribui por round-robin e grava o cursor por serviço', async () => {
+    const { db, close, clock, caller, service, gi, paula, session } = seedTwoPros()
+    try {
+      const ordered = [gi, paula].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+      const first = await planWebProposal(db, TENANT, clock, session, {
+        serviceId: service.id,
+        variantIds: [],
+        line: null,
+        slotId: '2024-01-08T09:00',
+      })
+      expect(first.ok).toBe(true)
+      if (!first.ok) return
+      expect(first.proposal.professionalId).toBe(ordered[0]!.id)
+      await executeProposalConfirmOp(
+        db,
+        caller,
+        { handoff: first.handoff, capability: true, channel: 'web' },
+        clock,
+      )
+
+      const second = await planWebProposal(db, TENANT, clock, session, {
+        serviceId: service.id,
+        variantIds: [],
+        line: null,
+        slotId: '2024-01-08T10:00',
+      })
+      expect(second.ok).toBe(true)
+      if (!second.ok) return
+      expect(second.proposal.professionalId).toBe(ordered[1]!.id)
+
+      const preferred = await planWebProposal(db, TENANT, clock, session, {
+        serviceId: service.id,
+        variantIds: [],
+        line: null,
+        slotId: '2024-01-08T11:00',
+        professionalId: paula.id,
+      })
+      expect(preferred.ok).toBe(true)
+      if (!preferred.ok) return
+      expect(preferred.proposal.professionalId).toBe(paula.id)
+    } finally {
+      close()
+    }
+  })
+})
