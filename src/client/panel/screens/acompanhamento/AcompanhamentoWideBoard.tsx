@@ -1,4 +1,4 @@
-import { CalendarDays, CircleAlert, Search } from 'lucide-react'
+import { CalendarDays, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
@@ -29,18 +29,14 @@ const MAIN_STAGES: OpportunityStage[] = [
   'concluido',
 ]
 
-type Filter = 'all' | 'mine' | 'unassigned' | 'needs_person' | 'stalled'
+type Filter = 'all' | 'mine' | 'unassigned' | 'needs_person'
 
 const FILTER_LABEL: Record<Filter, string> = {
   all: 'Todos',
   mine: 'Minhas',
   unassigned: 'Sem responsável',
   needs_person: 'Precisa de alguém',
-  stalled: 'Parados há mais de 2 dias',
 }
-
-const DAY = 86_400_000
-const STALL_STAGES: OpportunityStage[] = ['novo_contato', 'em_atendimento', 'horario_proposto']
 
 type Props = {
   tenantId: string
@@ -181,7 +177,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     returnFocus.current?.focus?.({ preventScroll: true })
   }
 
-  const now = Date.now()
   const needle = q.trim().toLowerCase()
 
   function visible(card: PipelineOpportunity): boolean {
@@ -196,13 +191,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     if (filter === 'mine') return viewerId != null && card.assigneeClerkUserId === viewerId
     if (filter === 'unassigned') return card.assigneeClerkUserId == null
     if (filter === 'needs_person') return card.needsPerson === true
-    if (filter === 'stalled') {
-      return (
-        STALL_STAGES.includes(card.stage) &&
-        card.lastInteractionAt != null &&
-        now - card.lastInteractionAt > 2 * DAY
-      )
-    }
     return true
   }
 
@@ -237,12 +225,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     mine: viewerId ? all.filter((c) => c.assigneeClerkUserId === viewerId).length : 0,
     unassigned: all.filter((c) => c.assigneeClerkUserId == null).length,
     needs_person: all.filter((c) => c.needsPerson === true).length,
-    stalled: all.filter(
-      (c) =>
-        STALL_STAGES.includes(c.stage) &&
-        c.lastInteractionAt != null &&
-        now - c.lastInteractionAt > 2 * DAY,
-    ).length,
   }
 
   return (
@@ -269,10 +251,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
               {FILTER_LABEL[f]}
               <span
                 className={`panel-chip-count${
-                  (f === 'stalled' && counts.stalled > 0) ||
-                  (f === 'needs_person' && counts.needs_person > 0)
-                    ? ' panel-chip-count--warn'
-                    : ''
+                  f === 'needs_person' && counts.needs_person > 0 ? ' panel-chip-count--warn' : ''
                 }`}
               >
                 {counts[f]}
@@ -341,10 +320,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                   const name = contactLabel(card.contact.displayName, card.contact.waId)
                   const isAttendanceTwin = card.cardKind === 'open_attendance'
                   const aptCount = card.futureAppointmentCount ?? 0
-                  const stalled =
-                    STALL_STAGES.includes(card.stage) &&
-                    card.lastInteractionAt != null &&
-                    now - card.lastInteractionAt > 2 * DAY
                   const needsPerson = card.needsPerson === true
                   return (
                     <button
@@ -405,12 +380,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                         ) : (
                           <span className="acomp-card-unassigned">Sem responsável</span>
                         )}
-                        {stalled ? (
-                          <span className="acomp-card-late">
-                            <CircleAlert aria-hidden size={13} strokeWidth={2.4} />
-                            Parado
-                          </span>
-                        ) : null}
                       </span>
                     </button>
                   )

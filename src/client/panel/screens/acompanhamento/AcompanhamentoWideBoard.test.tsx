@@ -146,7 +146,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(within(empty).getByText('0')).toBeTruthy()
   })
 
-  it('cartão: data da marcação em chip, «IA» em chip e «Parado» com texto (DEC-184)', async () => {
+  it('cartão: data da marcação em chip e «IA» em chip (DEC-184)', async () => {
     const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
     DATA.agendado = [
       card('d', 'Carla Mendes', 'agendado', {
@@ -161,8 +161,10 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
       const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
       expect(carla.querySelector('.acomp-card-when')).not.toBeNull()
       expect(carla.querySelector('.acomp-chip-ai')?.textContent).toBe('IA')
+      // Chip «Parado» / filtro 2 dias saíram com DEC-208 (idle 30 min); cartão antigo só mostra o responsável.
       const fernanda = await screen.findByRole('button', { name: 'Abrir Fernanda Araújo' })
-      expect(within(fernanda).getByText('Parado')).toBeTruthy()
+      expect(within(fernanda).queryByText('Parado')).toBeNull()
+      expect(within(fernanda).getByText('Camila')).toBeTruthy()
     } finally {
       DATA.agendado = previous
     }
@@ -191,10 +193,12 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(await screen.findByText('Renata Lopes')).toBeTruthy()
   })
 
-  it('filtros: Minhas, Sem responsável e Parados há mais de 2 dias', async () => {
+  it('filtros: Minhas e Sem responsável (sem «Parados há mais de 2 dias» — DEC-208)', async () => {
     mount()
     const user = userEvent.setup()
     await screen.findByText('Maria Souza')
+
+    expect(screen.queryByRole('button', { name: /^Parados há mais de 2 dias/ })).toBeNull()
 
     await user.click(screen.getByRole('button', { name: /^Minhas/ }))
     expect(screen.getByText('Sérgio Teixeira')).toBeTruthy()
@@ -204,12 +208,6 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     await user.click(screen.getByRole('button', { name: /^Sem responsável/ }))
     expect(screen.getByText('Maria Souza')).toBeTruthy()
     expect(screen.queryByText('Sérgio Teixeira')).toBeNull()
-
-    await user.click(screen.getByRole('button', { name: /^Parados há mais de 2 dias/ }))
-    expect(screen.getByText('Fernanda Araújo')).toBeTruthy()
-    expect(screen.queryByText('Sérgio Teixeira')).toBeNull()
-    // Agendado não conta como parado.
-    expect(screen.queryByText('Carla Mendes')).toBeNull()
   })
 
   it('a busca filtra pelo nome', async () => {

@@ -1,5 +1,10 @@
 # Histórico do design
 
+## 20/11/2026 — Sai filtro «Parados há mais de 2 dias» (DEC-072 revista / DEC-208)
+
+- M-83 (`desktop/AcompanhamentoQuadro`): remove o chip de filtro «Parados há mais de 2 dias» e o chip «Parado» no cartão (idle 30 min torna o critério de 2 dias sempre vazio).
+- PNG: regenerar com `render_previews.py` quando Playwright estiver disponível; a fonte `.dc.html` prevalece.
+
 ## 20/11/2026 — Sai persona do atendente IA (DEC-089 revista)
 
 - **M-74** (`AssistenteDecisoes`): remove a linha «Como se apresenta». O índice fica com Respostas e Proteções.
