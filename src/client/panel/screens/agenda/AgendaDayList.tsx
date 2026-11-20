@@ -2,7 +2,6 @@ import { ChevronDown, Users } from 'lucide-react'
 import { useState } from 'react'
 import type { AgendaAppointmentItem, ScheduleHold } from '../../api'
 import { formatSlotTime } from './format'
-import type { FreeSlot } from './freeSlots'
 import { AttendanceBar } from './AttendanceBar'
 import { initialsOf, PROFESSIONAL_TONES, shortName, type DayEntry } from './dayList'
 
@@ -16,8 +15,6 @@ type Props = {
   now: number
   onOpen: (id: string) => void
   onSchedule?: () => void
-  /** Livre escolhido: abre o Agendar com dia, hora e profissional. */
-  onScheduleAt?: (slot: FreeSlot) => void
   onOpenHold: (hold: ScheduleHold) => void
   /** DEC-205: quem pode marcar chegada; se houver id, só nessa coluna. */
   attendanceForProfessionalId?: string | null
@@ -93,7 +90,6 @@ export function AgendaDayList({
   now,
   onOpen,
   onSchedule,
-  onScheduleAt,
   onOpenHold,
   attendanceForProfessionalId = null,
   canMarkAttendance = false,
@@ -141,7 +137,7 @@ export function AgendaDayList({
         </section>
       ) : null}
 
-      {/* Dia vazio sem livres: sem faixa tracejada nem «Agendar horário» — o «+ Agendar» do topo já cobre (Paulo). */}
+      {/* Dia vazio / buracos: sem cartão «Livre» nem faixa «Agendar horário» — o FAB cobre (Paulo). */}
       {entries.length === 0 ? null : (
         <ol className="agenda-rows" aria-label="Horários do dia">
           {resolved.length >= 2 ? (
@@ -166,36 +162,6 @@ export function AgendaDayList({
                 <li key={e.key} className="agenda-row agenda-row--now" aria-label="Agora">
                   <span className="agenda-now-line" aria-hidden="true" />
                   <span className="agenda-now-label">Agora {formatSlotTime(now, timezone)}</span>
-                </li>
-              )
-            }
-            if (e.kind === 'free') {
-              if (!onScheduleAt) return null
-              return (
-                <li key={e.key} className="agenda-row">
-                  <span className="agenda-row-time">{formatSlotTime(e.startsAt, timezone)}</span>
-                  <button
-                    type="button"
-                    className="agenda-free"
-                    aria-label={`Agendar ${formatSlotTime(e.slot.startsAt, timezone)}, ${e.slot.professionalName}`}
-                    onClick={() => onScheduleAt?.(e.slot)}
-                  >
-                    <span className="agenda-free-text">
-                      <strong>Livre</strong>
-                      <span>
-                        {formatSlotTime(e.slot.startsAt, timezone)}–{formatSlotTime(e.slot.endsAt, timezone)} ·{' '}
-                        <Mini
-                          pro={{
-                            id: e.slot.professionalId,
-                            name: e.slot.professionalName,
-                          }}
-                          professionals={professionals}
-                        />
-                        {shortName(e.slot.professionalName)}
-                      </span>
-                    </span>
-                    <span className="agenda-free-cta">Agendar</span>
-                  </button>
                 </li>
               )
             }

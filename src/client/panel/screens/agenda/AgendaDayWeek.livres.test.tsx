@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi } from '../../api'
 
@@ -78,20 +78,40 @@ describe('Agenda — livres e ocupação do expediente', () => {
     expect(screen.getAllByRole('img', { name: /do expediente ocupado/ })).toHaveLength(1)
   })
 
-  it('dia sem horários mostra os três primeiros livres e «Agendar» leva dia, hora e profissional', async () => {
+  it('dia celular: sem cartões «Livre»; o FAB cobre Agendar (Confirmado Paulo)', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
+    expect(await screen.findByRole('button', { name: 'Agendar qua 28' })).toBeTruthy()
+    expect(screen.queryByRole('list', { name: 'Horários do dia' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Agendar \d\d:\d\d, / })).toBeNull()
+    expect(screen.queryByText('Livre')).toBeNull()
+  })
+
+  it('dia com compromisso: lista só o horário marcado, sem livres intercalados', async () => {
+    const appointments = [
+      {
+        id: 'a1',
+        serviceId: 's1',
+        serviceName: 'Limpeza',
+        professionalId: 'p_paula',
+        professionalName: 'Dra. Paula',
+        roomResourceId: null,
+        roomResourceName: null,
+        startsAt: at(14),
+        endsAt: at(15),
+        occupiesUntil: at(15),
+        status: 'confirmed',
+        contactLabel: 'Marina Souza',
+        contactId: null,
+        conversationId: null,
+        opportunityId: null,
+        version: 1,
+        changeReason: null,
+      },
+    ]
+    render(<AgendaDayWeek tenantId="t" api={mockApi(appointments)} generation={1} view="day" />)
     const list = await screen.findByRole('list', { name: 'Horários do dia' })
-    expect(within(list).getAllByRole('button', { name: /^Agendar \d\d:\d\d, / })).toHaveLength(3)
-    fireEvent.click(within(list).getByRole('button', { name: 'Agendar 13:00, Dra. Paula' }))
-    await waitFor(() =>
-      expect(navigatePanel).toHaveBeenCalledWith(
-        expect.objectContaining({
-          section: 'agendar',
-          date: '2026-10-28',
-          time: '13:00',
-          professionalId: 'p_paula',
-        }),
-      ),
-    )
+    expect(within(list).getByText('Marina Souza')).toBeTruthy()
+    expect(within(list).queryByText('Livre')).toBeNull()
+    expect(within(list).queryByRole('button', { name: /^Agendar \d\d:\d\d, / })).toBeNull()
   })
 })

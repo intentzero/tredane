@@ -12,9 +12,6 @@ export type FreeSlot = {
   endsAt: number
 }
 
-/** Quantos livres o dia sem horários mostra (canvas «Dia sem horários»). */
-export const EMPTY_DAY_FREE_PREVIEW = 3
-
 /** Blocos livres do dia, em ordem de hora, só das profissionais escolhidas (vazio = todas). */
 export function freeSlotsOfDay(
   availability: AgendaProfessionalAvailability[] | undefined,
