@@ -3,6 +3,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ShellSlot } from '../../shell/ShellSlot'
 import { Button, Input, Label, Text, TextArea, TextField } from 'react-aria-components'
 import { PanelApiError, type PanelApi } from '../../api'
+import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
 import {
   checkGoogleBusinessUrl,
@@ -209,20 +210,15 @@ export function AiProfileCard({
       onSaved?.()
     } catch (err) {
       if (err instanceof PanelApiError && err.status === 400) {
-        if (
-          String(err.code) === 'reschedule_policy_conflicts_with_signal' ||
-          /Recebimento/.test(err.message)
-        ) {
-          setNote(err.message || conflictMessage)
+        if (String(err.code) === 'reschedule_policy_conflicts_with_signal') {
+          setNote(conflictMessage || friendlyError(err, 'Confira as regras gerais e tente de novo.'))
+        } else if (String(err.code) === 'invalid_google_business_url') {
+          setGbError(GB_INVALID_MESSAGE)
         } else {
-          setGbError(
-            err.message?.includes('Google') || err.message?.includes('link')
-              ? err.message
-              : GB_INVALID_MESSAGE,
-          )
+          setNote(friendlyError(err, 'Não foi possível salvar. Tente de novo.'))
         }
       } else {
-        setNote('Não foi possível salvar. Tente de novo.')
+        setNote(friendlyError(err, 'Não foi possível salvar. Tente de novo.'))
       }
     } finally {
       setBusy(false)

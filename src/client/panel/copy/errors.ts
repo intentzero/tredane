@@ -52,6 +52,11 @@ const BY_CODE: Record<string, string> = {
   synonym_list_too_long: 'No máximo 8 sinónimos.',
   invalid_synonyms: 'Os sinónimos devem ser uma lista de textos.',
 
+  // DEC-210 — regras gerais vs Recebimento (frase completa vem do painel via heurística local)
+  reschedule_policy_conflicts_with_signal:
+    'Este texto fala de prazos ou regras do sinal. Apague ou reescreva só atraso e falta.',
+  invalid_google_business_url: 'Link da localização inválido. Use um link https:// curto do Google Maps.',
+
   // agenda e sinal
   slot_occupied: 'Esse horário acabou de ser ocupado. Escolha outro.',
   appointment_conflict: 'Esse horário acabou de ser ocupado. Escolha outro.',

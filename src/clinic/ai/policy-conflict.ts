@@ -65,7 +65,7 @@ function detectMoneyDomain(text: string): PolicyConflictHit[] {
   if (REFUND_RE.test(text)) {
     pushUnique(hits, {
       kind: 'refund',
-      reason: 'devolução, estorno ou retenção',
+      reason: 'devolução ou retenção',
     })
   }
   return hits
