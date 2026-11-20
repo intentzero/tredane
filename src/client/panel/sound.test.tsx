@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  APPOINTMENT_CONFIRMED_SOUND_URL,
   isSoundEnabled,
+  maybePlayAppointmentConfirmedSound,
   maybePlayHandoffEscalateSound,
   maybePlayHandoffSound,
   maybePlayInboundSound,
@@ -10,6 +12,7 @@ import {
 } from './sound'
 
 const starts = vi.fn()
+const bufferStarts = vi.fn()
 
 class FakeAudioContext {
   state = 'running'
@@ -27,9 +30,20 @@ class FakeAudioContext {
   }
   createGain() {
     return {
-      gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), value: 1 },
       connect: (n: unknown) => n,
     }
+  }
+  createBufferSource() {
+    return {
+      buffer: null as AudioBuffer | null,
+      connect: (n: unknown) => n,
+      start: bufferStarts,
+      stop: vi.fn(),
+    }
+  }
+  decodeAudioData(raw: ArrayBuffer) {
+    return Promise.resolve({ duration: 1, length: raw.byteLength } as AudioBuffer)
   }
   resume = vi.fn(async () => {})
 }
@@ -39,13 +53,22 @@ const inbound = { eventType: 'message.created', payload: { direction: 'inbound' 
 describe('som de mensagem', () => {
   beforeEach(() => {
     starts.mockClear()
+    bufferStarts.mockClear()
     resetSoundForTests()
     window.localStorage.clear()
     Object.defineProperty(window, 'AudioContext', { value: FakeAudioContext, configurable: true })
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        arrayBuffer: async () => new ArrayBuffer(8),
+      })),
+    )
   })
   afterEach(() => {
     Reflect.deleteProperty(window, 'AudioContext')
+    vi.unstubAllGlobals()
   })
 
   it('vem ligado por omissão e respeita a preferência', () => {
@@ -123,6 +146,35 @@ describe('som de mensagem', () => {
         payload: { aiReplyPaused: true, source: 'handoff' },
       }),
     ).toBe(false)
+  })
+
+  it('toca campainha Mixkit só em appointment.confirmed', async () => {
+    expect(
+      maybePlayAppointmentConfirmedSound({ eventType: 'appointment.confirmed', payload: {} }),
+    ).toBe(true)
+    expect(fetch).toHaveBeenCalledWith(APPOINTMENT_CONFIRMED_SOUND_URL)
+    await vi.waitFor(() => expect(bufferStarts).toHaveBeenCalled())
+    bufferStarts.mockClear()
+    expect(
+      maybePlayAppointmentConfirmedSound({ eventType: 'appointment.rescheduled', payload: {} }),
+    ).toBe(false)
+    expect(
+      maybePlayAppointmentConfirmedSound({ eventType: 'opportunity.created', payload: {} }),
+    ).toBe(false)
+    expect(bufferStarts).not.toHaveBeenCalled()
+  })
+
+  it('não toca campainha com som desligado ou aba oculta', () => {
+    setSoundEnabled(false)
+    expect(
+      maybePlayAppointmentConfirmedSound({ eventType: 'appointment.confirmed', payload: {} }),
+    ).toBe(false)
+    setSoundEnabled(true)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    expect(
+      maybePlayAppointmentConfirmedSound({ eventType: 'appointment.confirmed', payload: {} }),
+    ).toBe(false)
+    expect(bufferStarts).not.toHaveBeenCalled()
   })
 })
 

@@ -1,0 +1,8 @@
+mixkit-doorbell-tone-2864.wav
+Source: Mixkit — https://mixkit.co/free-sound-effects/doorbell/
+License: Mixkit Sound Effects Free License
+  Free for commercial and non-commercial use.
+  Attribution is not required (appreciated but optional).
+  Do not redistribute the file as a standalone asset pack.
+Downloaded for Tredane panel foreground sound on appointment.confirmed
+(DEC-173 / avisos; not used as iOS/OS push notification tone).
