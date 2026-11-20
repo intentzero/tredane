@@ -388,3 +388,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-97 — «Para quem é?» sem deduzir género
 
 **Dado** um catálogo com zonas femininas, masculinas e «ambos»; **quando** a cliente abre Serviço sem linha definida na conversa, **então** vê a pergunta «Para quem é?» e só depois as zonas dessa linha mais as «ambos». **Dado** a conversa que já definiu a linha; **então** a página abre com ela escolhida e com a opção Trocar. A escolha não altera o contacto (nenhum campo de sexo) e não vale para a marcação seguinte. **Requisitos:** REQ-117.
+
+### AC-98 — Preferência de profissional e round-robin (DEC-218)
+
+**Dado** um serviço com duas ou mais profissionais ativas; **quando** a cliente abre Quando?, **então** vê «Quem prefere?» com «Sem preferência» e os nomes; **quando** escolhe uma profissional, **então** só aparecem horas dela; **quando** deixa «Sem preferência» e confirma N marcações de teste no mesmo serviço, **então** as profissionais atribuídas não ficam sempre na primeira por nome (rodízio por serviço). **Dado** um serviço com uma só profissional; **então** o bloco não aparece. **Dado** remarcação; **então** a profissional da marcação vem pré-escolhida. **Dado** Confirmar com Sem preferência; **então** o Feito e o recibo mostram o nome atribuído. O painel Agendar não muda neste recorte. **Requisitos:** REQ-112, REQ-113.

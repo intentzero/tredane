@@ -12,7 +12,16 @@ const STATE = {
   firstName: 'Marina',
   timezone: 'America/Sao_Paulo',
   appointments: [
-    { id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: Date.UTC(2026, 10, 25, 17, 15), endsAt: Date.UTC(2026, 10, 25, 18, 0), hasPaidSignal: false },
+    {
+      id: 'apt-1',
+      serviceName: 'Limpeza de pele',
+      startsAt: Date.UTC(2026, 10, 25, 17, 15),
+      endsAt: Date.UTC(2026, 10, 25, 18, 0),
+      serviceId: 'svc-limpeza',
+      professionalId: 'pro-gi',
+      professionalName: 'Gi',
+      hasPaidSignal: false,
+    },
   ],
   sessionExpiresAt: Date.UTC(2026, 10, 25, 18, 0),
 }

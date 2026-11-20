@@ -65,6 +65,9 @@ export function BookFlow({
   const [slot, setSlot] = useState<Slot | null>(null)
   const [slotNotice, setSlotNotice] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [bookedProfessionalName, setBookedProfessionalName] = useState<string | null>(null)
+  /** null = Sem preferência (DEC-218). */
+  const [preferredProfessionalId, setPreferredProfessionalId] = useState<string | null>(null)
   const [preferredDayPart, setPreferredDayPart] = useState<import('./booking-model').DayPart | null>(null)
 
   useEffect(() => {
@@ -167,6 +170,8 @@ export function BookFlow({
     setDay(null)
     setSlot(null)
     setSlotNotice(null)
+    setPreferredProfessionalId(null)
+    setBookedProfessionalName(null)
     setStep(s.zones.length > 0 ? 'zones' : 'time')
   }
 
@@ -178,7 +183,17 @@ export function BookFlow({
     if (step === 'review') return setStep('time')
   }
 
-  if (step === 'done' && outcome) return <Done outcome={outcome} slot={slot} locationUrl={locationUrl} onExit={onExit} />
+  if (step === 'done' && outcome) {
+    return (
+      <Done
+        outcome={outcome}
+        slot={slot}
+        professionalName={bookedProfessionalName}
+        locationUrl={locationUrl}
+        onExit={onExit}
+      />
+    )
+  }
 
   const titles: Record<Exclude<Step, 'done'>, string> = {
     line: 'Para quem é?',
@@ -257,9 +272,26 @@ export function BookFlow({
         <TimeStep
           catalog={catalog}
           subtitle={`${service.name} · ${visitTotals(service, zoneIds).minutes} min`}
-          depsKey={`${service.id}:${zoneIds.join(',')}`}
-          load={(from, to) => fetchSlots({ serviceId: service.id, variantIds: zoneIds, from, to })}
-          loadDays={(from, to) => fetchSlots({ serviceId: service.id, variantIds: zoneIds, from, to, daysOnly: true })}
+          depsKey={`${service.id}:${zoneIds.join(',')}:${preferredProfessionalId ?? 'any'}`}
+          load={(from, to) =>
+            fetchSlots({
+              serviceId: service.id,
+              variantIds: zoneIds,
+              from,
+              to,
+              professionalId: preferredProfessionalId,
+            })
+          }
+          loadDays={(from, to) =>
+            fetchSlots({
+              serviceId: service.id,
+              variantIds: zoneIds,
+              from,
+              to,
+              daysOnly: true,
+              professionalId: preferredProfessionalId,
+            })
+          }
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           day={day}
@@ -267,6 +299,13 @@ export function BookFlow({
           notice={slotNotice}
           onSessionLost={onSessionLost}
           preferredDayPart={preferredDayPart}
+          professionals={service.professionals ?? []}
+          preferredProfessionalId={preferredProfessionalId}
+          onPreferredProfessionalChange={(id) => {
+            setPreferredProfessionalId(id)
+            setSlot(null)
+            setSlotNotice(null)
+          }}
           onPick={(s) => {
             setSlot(s)
             setSlotNotice(null)
@@ -281,15 +320,17 @@ export function BookFlow({
           zoneIds={zoneIds}
           line={line}
           slot={slot}
+          preferredProfessionalId={preferredProfessionalId}
           onChange={() => setStep('service')}
           onSessionLost={onSessionLost}
-          onResult={(r) => {
+          onResult={(r, professionalName) => {
             if (r === 'slot_taken') {
               setSlotNotice('Esse horário acabou de ser ocupado. Escolha outro.')
               setSlot(null)
               setStep('time')
               return
             }
+            setBookedProfessionalName(professionalName)
             setOutcome(r)
             setStep('done')
           }}
@@ -509,6 +550,7 @@ function Review({
   zoneIds,
   line,
   slot,
+  preferredProfessionalId,
   onChange,
   onResult,
   onSessionLost,
@@ -517,29 +559,42 @@ function Review({
   zoneIds: string[]
   line: Line | null
   slot: Slot
+  preferredProfessionalId: string | null
   onChange: () => void
-  onResult: (r: Outcome | 'slot_taken') => void
+  onResult: (r: Outcome | 'slot_taken', professionalName: string | null) => void
   onSessionLost: () => void
 }) {
   const [sending, setSending] = useState(false)
   const totals = visitTotals(service, zoneIds)
   const zones = service.zones.filter((z) => zoneIds.includes(z.id))
   const label = civilDayLabel(slot.date)
+  const preferredName =
+    preferredProfessionalId == null
+      ? null
+      : (service.professionals ?? []).find((p) => p.id === preferredProfessionalId)?.name ?? null
 
   async function confirm() {
     if (sending) return
     setSending(true)
-    const res = await bookSlot({ serviceId: service.id, variantIds: zoneIds, line, slotId: slot.id })
+    const res = await bookSlot({
+      serviceId: service.id,
+      variantIds: zoneIds,
+      line,
+      slotId: slot.id,
+      professionalId: preferredProfessionalId,
+    })
     if (res === 'unauthorized') return onSessionLost()
     if (res === 'error') {
       setSending(false)
-      return onResult('error')
+      return onResult('error', null)
     }
-    if (res.status === 'booked') return onResult('booked')
-    if (res.status === 'pix_signal') return onResult('pix_signal')
-    if (res.status === 'slot_taken') return onResult('slot_taken')
-    if (res.status === 'paused') return onResult('paused')
-    return onResult('error')
+    if (res.status === 'booked') {
+      return onResult('booked', res.appointment.professionalName ?? preferredName)
+    }
+    if (res.status === 'pix_signal') return onResult('pix_signal', preferredName)
+    if (res.status === 'slot_taken') return onResult('slot_taken', null)
+    if (res.status === 'paused') return onResult('paused', null)
+    return onResult('error', null)
   }
 
   return (
@@ -551,10 +606,19 @@ function Review({
           {zones.length > 0 && (
             <div><dt>{service.variantKindPlural ?? 'Opções'}</dt><dd>{zones.map((z) => z.name).join(', ')}</dd></div>
           )}
+          <div>
+            <dt>Com</dt>
+            <dd>{preferredName ?? 'Sem preferência'}</dd>
+          </div>
           <div><dt>Quando</dt><dd>{label.weekday} {label.dayMonth}, {slot.time}</dd></div>
           <div><dt>Duração</dt><dd>{totals.minutes} min</dd></div>
           <div><dt>Preço</dt><dd>{formatPrice(totals.priceCents)}</dd></div>
         </dl>
+        {preferredProfessionalId == null && (service.professionals?.length ?? 0) > 1 && (
+          <p className="cw-note" role="note">
+            A clínica escolhe quem atende entre quem estiver livre neste horário (rodízio). O nome aparece no recibo do WhatsApp.
+          </p>
+        )}
         <p className="cw-notice" role="note">
           {service.requiresSignal
             ? 'Este serviço pede um sinal. O Pix chega no WhatsApp e o horário só fica reservado depois do pagamento.'
@@ -577,11 +641,13 @@ function Review({
 function Done({
   outcome,
   slot,
+  professionalName,
   locationUrl,
   onExit,
 }: {
   outcome: Outcome
   slot: Slot | null
+  professionalName: string | null
   locationUrl: string | null
   onExit: () => void
 }) {
@@ -618,6 +684,7 @@ function Done({
       {label && slot && outcome === 'booked' && (
         <p className="cw-row-title">
           {label.weekday} {label.dayMonth}, {slot.time}
+          {professionalName ? ` · com ${professionalName}` : ''}
         </p>
       )}
       <p className="cw-body">{c.body}</p>

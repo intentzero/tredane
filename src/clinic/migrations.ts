@@ -396,6 +396,11 @@ import {
   MIGRATION_NAME as M79_NAME,
   STATEMENTS as M79_STATEMENTS,
 } from './migrations/0079_drop_virtual_attendant'
+import {
+  MIGRATION_ID as M80_ID,
+  MIGRATION_NAME as M80_NAME,
+  STATEMENTS as M80_STATEMENTS,
+} from './migrations/0080_client_web_rr_cursor'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -485,6 +490,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M77_ID, name: M77_NAME, statements: M77_STATEMENTS },
   { id: M78_ID, name: M78_NAME, statements: M78_STATEMENTS },
   { id: M79_ID, name: M79_NAME, statements: M79_STATEMENTS },
+  { id: M80_ID, name: M80_NAME, statements: M80_STATEMENTS },
 ]
 
 export type MigrationResult = {

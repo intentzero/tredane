@@ -33,7 +33,18 @@ function setup() {
           clinicName: 'Clínica Aurora',
           firstName: 'Marina',
           timezone: 'America/Sao_Paulo',
-          appointments: [{ id: 'apt-1', serviceName: 'Limpeza de pele', startsAt: 1, endsAt: 2, hasPaidSignal: false }],
+          appointments: [
+            {
+              id: 'apt-1',
+              serviceName: 'Limpeza de pele',
+              startsAt: 1,
+              endsAt: 2,
+              serviceId: 'svc-1',
+              professionalId: 'pro-1',
+              professionalName: 'Gi',
+              hasPaidSignal: false,
+            },
+          ],
         }
       },
     }),
@@ -203,7 +214,16 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
         },
         bookLookup: async (_e, session, input) => {
           seen.push({ kind: 'book', session, input })
-          return { status: 'booked', appointment: { id: 'apt-9', startsAt: 1, endsAt: 2, serviceName: 'Limpeza' } }
+          return {
+            status: 'booked',
+            appointment: {
+              id: 'apt-9',
+              startsAt: 1,
+              endsAt: 2,
+              serviceName: 'Limpeza',
+              professionalName: 'Gi',
+            },
+          }
         },
       }),
     )
@@ -313,7 +333,16 @@ describe('remarcar, cancelar e pedir à equipe (Fases 3 e 4)', () => {
         },
         rescheduleLookup: async (_e, session, input) => {
           seen.push({ kind: 'reschedule', session, input })
-          return { status: 'booked', appointment: { id: input.appointmentId, startsAt: 1, endsAt: 2, serviceName: 'Limpeza' } }
+          return {
+            status: 'booked',
+            appointment: {
+              id: input.appointmentId,
+              startsAt: 1,
+              endsAt: 2,
+              serviceName: 'Limpeza',
+              professionalName: 'Gi',
+            },
+          }
         },
         cancelLookup: async (_e, session, input) => {
           seen.push({ kind: 'cancel', session, input })

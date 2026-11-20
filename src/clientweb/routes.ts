@@ -39,6 +39,10 @@ export type ClientWebAppointment = {
   serviceName: string
   startsAt: number
   endsAt: number
+  /** DEC-218: serviço e profissional (pré-escolha ao remarcar). */
+  serviceId: string
+  professionalId: string
+  professionalName: string
   /** Sinal pago: a cliente não cancela sozinha (DEC-198). */
   hasPaidSignal: boolean
 }
@@ -63,18 +67,31 @@ export type ClientWebRouteOptions = {
   slotsLookup?: (
     env: WorkerBindings,
     session: ClientWebSession,
-    input: { serviceId: string; variantIds: string[]; from: string; to: string; daysOnly?: boolean },
+    input: {
+      serviceId: string
+      variantIds: string[]
+      from: string
+      to: string
+      daysOnly?: boolean
+      professionalId?: string | null
+    },
   ) => Promise<ClientWebSlotsResult | null>
   bookLookup?: (env: WorkerBindings, session: ClientWebSession, input: WebBookingInput) => Promise<ClientWebBookResult | null>
   rescheduleSlotsLookup?: (
     env: WorkerBindings,
     session: ClientWebSession,
-    input: { appointmentId: string; from: string; to: string; daysOnly?: boolean },
+    input: {
+      appointmentId: string
+      from: string
+      to: string
+      daysOnly?: boolean
+      professionalId?: string | null
+    },
   ) => Promise<RescheduleSlotsResult | null>
   rescheduleLookup?: (
     env: WorkerBindings,
     session: ClientWebSession,
-    input: { appointmentId: string; slotId: string },
+    input: { appointmentId: string; slotId: string; professionalId?: string | null },
   ) => Promise<ClientWebBookResult | null>
   cancelLookup?: (env: WorkerBindings, session: ClientWebSession, input: { appointmentId: string }) => Promise<WebCancelResult | null>
   askTeamLookup?: (env: WorkerBindings, session: ClientWebSession) => Promise<{ status: 'asked' | 'after_hours' } | null>
@@ -281,9 +298,22 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const to = typeof body.to === 'string' && DATE_RE.test(body.to) ? body.to : null
     // Remarcar: pede as horas de uma marcação (serviço e zonas vêm dela).
     const appointmentId = body.appointmentId === undefined ? null : str(body.appointmentId)
+    const professionalId =
+      body.professionalId === undefined || body.professionalId === null
+        ? null
+        : str(body.professionalId)
+    if (body.professionalId !== undefined && body.professionalId !== null && !professionalId) {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
     if (body.appointmentId !== undefined) {
       if (!appointmentId || !from || !to) return c.json({ error: 'invalid_request' }, 400)
-      const rinput = { appointmentId, from, to, ...(body.daysOnly === true ? { daysOnly: true } : {}) }
+      const rinput = {
+        appointmentId,
+        from,
+        to,
+        ...(body.daysOnly === true ? { daysOnly: true } : {}),
+        ...(professionalId ? { professionalId } : {}),
+      }
       const rres = opts.rescheduleSlotsLookup
         ? await opts.rescheduleSlotsLookup(c.env, got.session, rinput)
         : await clinicStub(c.env, got.session).clientWebRescheduleSlots({
@@ -299,7 +329,14 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const serviceId = str(body.serviceId)
     const variantIds = strList(body.variantIds)
     if (!serviceId || !variantIds || !from || !to) return c.json({ error: 'invalid_request' }, 400)
-    const input = { serviceId, variantIds, from, to, ...(body.daysOnly === true ? { daysOnly: true } : {}) }
+    const input = {
+      serviceId,
+      variantIds,
+      from,
+      to,
+      ...(body.daysOnly === true ? { daysOnly: true } : {}),
+      ...(professionalId ? { professionalId } : {}),
+    }
     const result = opts.slotsLookup
       ? await opts.slotsLookup(c.env, got.session, input)
       : await clinicStub(c.env, got.session).clientWebSlots({
@@ -321,8 +358,21 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const variantIds = strList(body.variantIds)
     const slotId = typeof body.slotId === 'string' && SLOT_ID_RE.test(body.slotId) ? body.slotId : null
     const line = body.line === 'feminino' || body.line === 'masculino' ? body.line : body.line == null ? null : undefined
+    const professionalId =
+      body.professionalId === undefined || body.professionalId === null
+        ? null
+        : str(body.professionalId)
+    if (body.professionalId !== undefined && body.professionalId !== null && !professionalId) {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
     if (!serviceId || !variantIds || !slotId || line === undefined) return c.json({ error: 'invalid_request' }, 400)
-    const input: WebBookingInput = { serviceId, variantIds, line, slotId }
+    const input: WebBookingInput = {
+      serviceId,
+      variantIds,
+      line,
+      slotId,
+      professionalId,
+    }
     const result = opts.bookLookup
       ? await opts.bookLookup(c.env, got.session, input)
       : await clinicStub(c.env, got.session).clientWebBook({
@@ -343,8 +393,15 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
     const appointmentId = str(body.appointmentId)
     const slotId = typeof body.slotId === 'string' && SLOT_ID_RE.test(body.slotId) ? body.slotId : null
+    const professionalId =
+      body.professionalId === undefined || body.professionalId === null
+        ? null
+        : str(body.professionalId)
+    if (body.professionalId !== undefined && body.professionalId !== null && !professionalId) {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
     if (!appointmentId || !slotId) return c.json({ error: 'invalid_request' }, 400)
-    const input = { appointmentId, slotId }
+    const input = { appointmentId, slotId, professionalId }
     const result = opts.rescheduleLookup
       ? await opts.rescheduleLookup(c.env, got.session, input)
       : await clinicStub(c.env, got.session).clientWebReschedule({

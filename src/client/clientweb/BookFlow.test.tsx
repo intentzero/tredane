@@ -19,7 +19,23 @@ const CATALOG = {
   horizonDays: 30,
   today: '2026-11-17',
   services: [
-    { id: 'svc-limpeza', name: 'Limpeza de pele', synonyms: ['limpeza facial'], durationMinutes: 45, priceCents: 12_000, audience: 'qualquer', variantKind: null, variantKindPlural: null, variantSelection: 'varias', requiresSignal: false, zones: [] },
+    {
+      id: 'svc-limpeza',
+      name: 'Limpeza de pele',
+      synonyms: ['limpeza facial'],
+      durationMinutes: 45,
+      priceCents: 12_000,
+      audience: 'qualquer',
+      variantKind: null,
+      variantKindPlural: null,
+      variantSelection: 'varias',
+      requiresSignal: false,
+      zones: [],
+      professionals: [
+        { id: 'pro-gi', name: 'Gi' },
+        { id: 'pro-paula', name: 'Paula' },
+      ],
+    },
     {
       id: 'svc-laser', name: 'Depilação a laser', synonyms: [], durationMinutes: 60, priceCents: null, audience: 'qualquer', variantKind: 'Zona', variantKindPlural: 'Zonas', variantSelection: 'varias', requiresSignal: true,
       zones: [
@@ -27,6 +43,7 @@ const CATALOG = {
         { id: 'z-vi', name: 'Virilha', synonyms: [], audience: 'feminino', durationMinutes: 20, priceCents: 14_000 },
         { id: 'z-ba', name: 'Barba', synonyms: [], audience: 'masculino', durationMinutes: 30, priceCents: 8_000 },
       ],
+      professionals: [{ id: 'pro-gi', name: 'Gi' }],
     },
   ],
 }
@@ -57,7 +74,19 @@ function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[];
         return json({ slots: only ? all.filter((x, i) => all.findIndex((y) => y.date === x.date) === i) : all })
       }
       if (url.endsWith('/api/c/book')) {
-        return json(opts.book ?? { status: 'booked', appointment: { id: 'apt-1', startsAt: 1, endsAt: 2, serviceName: 'Limpeza de pele' } }, opts.bookStatus ?? 200)
+        return json(
+          opts.book ?? {
+            status: 'booked',
+            appointment: {
+              id: 'apt-1',
+              startsAt: 1,
+              endsAt: 2,
+              serviceName: 'Limpeza de pele',
+              professionalName: 'Gi',
+            },
+          },
+          opts.bookStatus ?? 200,
+        )
       }
       return json({}, 404)
     }),
@@ -142,8 +171,48 @@ describe('agendar pela página (C-02 a C-06)', () => {
     expect(screen.getByText(/Se não foi você quem marcou/)).toBeTruthy()
 
     const book = calls.find((c) => c.url.endsWith('/api/c/book'))!
-    expect(book.body).toEqual({ serviceId: 'svc-limpeza', variantIds: [], line: 'feminino', slotId: '2026-11-18T14:15' })
+    expect(book.body).toEqual({
+      serviceId: 'svc-limpeza',
+      variantIds: [],
+      line: 'feminino',
+      slotId: '2026-11-18T14:15',
+      professionalId: null,
+    })
     expect(calls.some((c) => JSON.stringify(c.body ?? {}).match(/tenant|contact/i))).toBe(false)
+  })
+
+  it('DEC-218: Quem prefere? filtra horas e envia professionalId; Feito mostra o nome', async () => {
+    const calls = mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    expect(await screen.findByText('Quem prefere?')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'Sem preferência' })).toBeTruthy()
+    await user.click(screen.getByRole('radio', { name: 'Paula' }))
+    await waitFor(() => {
+      const avail = calls.filter((c) => c.url.endsWith('/api/c/availability'))
+      expect(avail[avail.length - 1]!.body).toMatchObject({ professionalId: 'pro-paula' })
+    })
+    await user.click(await screen.findByRole('button', { name: '14:15' }))
+    expect(await screen.findByRole('heading', { name: 'Confirme o horário' })).toBeTruthy()
+    expect(screen.getByText('Paula')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+    expect(await screen.findByRole('heading', { name: 'Horário marcado' })).toBeTruthy()
+    expect(screen.getByText(/com Gi/)).toBeTruthy()
+    expect(calls.find((c) => c.url.endsWith('/api/c/book'))!.body).toMatchObject({
+      professionalId: 'pro-paula',
+    })
+  })
+
+  it('DEC-218 RR-5: serviço com uma só profissional esconde Quem prefere?', async () => {
+    mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Depilação a laser/ }))
+    await user.click(await screen.findByLabelText(/Axilas/))
+    await user.click(screen.getByRole('button', { name: 'Ver horários' }))
+    expect(await screen.findByRole('heading', { name: 'Quando?' })).toBeTruthy()
+    expect(screen.queryByText('Quem prefere?')).toBeNull()
   })
 
   it('serviço com zonas: só mostra as da linha, soma o total e avisa do sinal', async () => {
