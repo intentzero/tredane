@@ -32,6 +32,22 @@ describe('Respostas da clínica — editor da pergunta', () => {
     expect(css).toMatch(/\.kn-new-cat > \.panel-btn-secondary\s*\{[^}]*width:\s*auto/)
   })
 
+  it('CSS: teclado aberto no mobile esconde a tab bar (não flutua acima do teclado)', () => {
+    const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
+    // Pin do shell (#959) mantém-se em todo .panel-app.
+    expect(css).toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+    )
+    // Tab bar some com teclado no telemóvel — não volta a subir sobre o accessory bar.
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*767\.98px\)\s*\{[^}]*:root\[data-keyboard=['"]open['"]\]\s*\.panel-nav\s*\{[^}]*display:\s*none/s,
+    )
+    // Rodapé do editor Knowledge continua a sumir (M-64).
+    expect(css).toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-sticky\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-dock\s*,\s*:root\[data-keyboard=['"]open['"]\]\s*\.kn-footer\s*\{[^}]*display:\s*none/s,
+    )
+  })
+
   it('sugestões sem endereço; tocar numa dá exemplo no campo da resposta; o cartão de cima só aparece na lista', async () => {
     render(
       <KnowledgeScreen

@@ -43,12 +43,22 @@ describe("compositor mobile / iOS teclado", () => {
       resolve(process.cwd(), "src/client/ui/panel.css"),
       "utf8",
     );
-    // #959: tab bar / FAQ também precisam do pin; não regressar ao seletor só-thread.
+    // #959: pin em todo .panel-app; não regressar ao seletor só-thread.
     expect(css).toMatch(
       /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
     );
     expect(css).not.toMatch(
       /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app:has\(\.inbox-thread\)\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+    );
+  });
+
+  it("CSS: tab bar móvel some com teclado (não flutua acima do accessory bar)", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/client/ui/panel.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*767\.98px\)\s*\{[^}]*:root\[data-keyboard=['"]open['"]\]\s*\.panel-nav\s*\{[^}]*display:\s*none/s,
     );
   });
 });
