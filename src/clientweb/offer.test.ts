@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { hubOpeningBody } from './hub'
 import {
+  clientWebMyAppointmentsBody,
   clientWebOfferBody,
   clientWebOfferInteractive,
   clientWebUrl,
+  CLIENT_WEB_MY_APPOINTMENTS_BODY,
+  CLIENT_WEB_MY_APPOINTMENTS_NONE_BODY,
   CLIENT_WEB_OFFER_SENTENCE,
   isHttpsBase,
   isOpenAgendaButtonTitle,
@@ -52,5 +55,12 @@ describe('oferta do link no chat', () => {
     const i = clientWebOfferInteractive('https://x.test/c/t')
     expect(i.ctaUrl?.displayText).toBe('Abrir agenda')
     expect(i.ctaUrl!.displayText.length).toBeLessThanOrEqual(20)
+  })
+  it('«meus agendamentos» aponta para a página, sem listar horários (TRE-74)', () => {
+    expect(clientWebMyAppointmentsBody(true)).toBe(CLIENT_WEB_MY_APPOINTMENTS_BODY)
+    expect(clientWebMyAppointmentsBody(false)).toBe(CLIENT_WEB_MY_APPOINTMENTS_NONE_BODY)
+    expect(CLIENT_WEB_MY_APPOINTMENTS_BODY).toMatch(/Abrir agenda/)
+    expect(CLIENT_WEB_MY_APPOINTMENTS_BODY).not.toMatch(/é só pedir aqui/)
+    expect(CLIENT_WEB_MY_APPOINTMENTS_NONE_BODY).not.toMatch(/é só pedir aqui/)
   })
 })

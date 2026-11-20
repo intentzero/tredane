@@ -30,6 +30,7 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
   CLIENT_WEB_TIME_PICK_BODY,
+  clientWebMyAppointmentsBody,
   clientWebOfferBody,
   clientWebRouteBody,
   stripScheduleOffer,
@@ -43,7 +44,6 @@ import {
 } from '../../clientweb/route-context'
 import {
   clinicTodayOpenState,
-  hubMeusBody,
   hubOpeningBody,
 } from '../../clientweb/hub'
 import { messagingWindowForConversation } from '../inbox/window'
@@ -1366,40 +1366,14 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    // «Meus agendamentos» em texto livre — mesmo corpo do hub Flow (FL-07), sem LLM
-    // e sem handoff. Depois de handoffReason para «falar com a equipe» continuar a ganhar.
-    // Evita a promessa falsa «a equipe vai verificar» do redator de exceção.
+    // TRE-74 / DEC-202: «meus agendamentos» → link da página (purpose home), sem lista em texto
+    // e sem handoff. Remarcar/cancelar na página; o chat só encaminha.
     if (turnClass.kind === 'my_appointments') {
-      await signalTyping()
-      const body = conv.contactId
-        ? hubMeusBody(db, tenantId, conv.contactId, clock)
-        : hubMeusBody(db, tenantId, '', clock)
-      let replyOutbox: OutboxRow[] = []
-      try {
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          {
-            conversationId: job.conversationId,
-            body,
-            clientRequestId: `ai-hub-meus:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
-          clock,
-        )
-        replyOutbox = sent.outbox
-      } catch (err) {
-        if (!(err instanceof ClinicError)) throw err
-      }
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: 'hub_meus',
-        replyOutbox,
-      })
+      await sendWebRoute(
+        { purpose: 'home', serviceId: null, noUpcoming: !hasUpcoming },
+        'hub_meus',
+        clientWebMyAppointmentsBody(hasUpcoming),
+      )
       continue
     }
     // DEC-142 / DEC-202: «quais serviços?» é informação: lista em texto, sem estado nem botões de escolha.
