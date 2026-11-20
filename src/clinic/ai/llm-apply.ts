@@ -21,7 +21,7 @@ import {
 import { ensureClinicSettings } from '../config/settings'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { humanTeamOfferButtons, notifyHumanHandoff } from './human-handoff'
-import { locationMapOfferButtons, rewriteRawMapsUrlOutbound } from './location-map-offer'
+import { locationMapOfferInteractive, rewriteRawMapsUrlOutbound } from './location-map-offer'
 import { intentLinkPurpose } from '../../ai/intent-classifier'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
@@ -267,11 +267,14 @@ export async function applyLlmResultOp(
     createdAt: clock.nowMs(),
   })
 
-  // Opção B: redator que cola o URL da clínica → corpo sem link + Abrir mapa.
+  // Opção B: redator que cola o URL da clínica → corpo sem link + cta_url Abrir mapa (um toque).
   // TRE-82: fecho («Tudo bem, então…») → cta_url Abrir agenda (não reply+Equipe).
   const mapsUrl = ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
   const rewritten = rewriteRawMapsUrlOutbound(suggestedText, job.conversationId, mapsUrl)
   const outboundBody = rewritten.body
+  const mapInteractive = rewritten.useMapButtons
+    ? locationMapOfferInteractive(mapsUrl, db, tenantId, clock)
+    : null
   let closingCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
   if (
     !rewritten.useMapButtons &&
@@ -294,23 +297,22 @@ export async function applyLlmResultOp(
       closingCta = null
     }
   }
-  const buttons = rewritten.useMapButtons
-    ? locationMapOfferButtons(db, tenantId, clock)
-    : closingCta
-      ? null
-      : humanTeamOfferButtons(db, tenantId, clock)
+  const buttons =
+    mapInteractive || closingCta ? null : humanTeamOfferButtons(db, tenantId, clock)
   const sent = sendOutboundMessageOp(
     db,
     caller,
     {
       conversationId: job.conversationId,
       body: outboundBody,
-      interactive: closingCta
-        ? closingCta
-        : buttons && buttons.length > 0
-          ? { buttons }
-          : null,
-      omitHumanTeamAugment: Boolean(closingCta),
+      interactive: mapInteractive
+        ? mapInteractive
+        : closingCta
+          ? closingCta
+          : buttons && buttons.length > 0
+            ? { buttons }
+            : null,
+      omitHumanTeamAugment: Boolean(closingCta || mapInteractive?.ctaUrl),
       clientRequestId: closingCta ? `ai-web-agendar:${job.messageId}` : `ai-reply:${suggestion.id}`,
       authorClerkUserId: AI_ACTOR_ID,
       authorDisplayName: AI_ACTOR_NAME,

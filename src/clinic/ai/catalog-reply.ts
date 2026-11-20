@@ -437,7 +437,7 @@ export function catalogReply(
     if (!link) {
       return sayAct('esclarecer', cnv, {}, 'Não tenho a localização cadastrada; a equipe confirma.')
     }
-    // Opção B: corpo sem URL; o link sai no toque «Abrir mapa» → cta_url.
+    // DEC-211: corpo sem URL; o envio anexa cta_url «Abrir mapa» (um toque).
     return sayAct(
       'informar_local_link',
       cnv,
