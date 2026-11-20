@@ -487,6 +487,128 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
+  it('após «qual tipo?» por preço, «Relaxante» responde R$ (não cede ao modelo)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    try {
+      const tenantId = 'clinic-demo-a'
+      const caller = workerCaller(tenantId)
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'Liberação miofascial',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Massagem relaxante',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Ventosaterapia',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Drenagem linfática',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+        ],
+        clock,
+      )
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511900000099', displayName: 'Cliente' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const opts = { conversationId: conversation.id }
+
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'inbound',
+          body: 'Qual o valor da massagem?',
+          deliveryState: 'received',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      const ask = catalogReply(boot.db, tenantId, 'Qual o valor da massagem?', clock, {
+        ...opts,
+        turn: catalogTurn(boot.db, tenantId, 'Qual o valor da massagem?', clock, conversation.id),
+      })
+      expect(ask).toMatch(/qual tipo/i)
+      expect(ask).toMatch(/relaxante/i)
+      expect(ask).not.toMatch(/R\$/)
+
+      clock.advance(1_000)
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'outbound',
+          body: ask!,
+          deliveryState: 'delivered',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      clock.advance(1_000)
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'inbound',
+          body: 'Relaxante',
+          deliveryState: 'received',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      const price = catalogReply(boot.db, tenantId, 'Relaxante', clock, {
+        ...opts,
+        turn: catalogTurn(boot.db, tenantId, 'Relaxante', clock, conversation.id),
+      })
+      expect(price).toMatch(/R\$\s*200,00/)
+      expect(price).toMatch(/60/)
+      expect(price).not.toMatch(/não tenho o valor/i)
+      // D4: pergunta de preço (ainda pendente) não trava a variante no quadro.
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds).toBeFalsy()
+    } finally {
+      boot.close()
+    }
+  })
+
   it('D4 bridge: «Quero» após preço de um tipo trava essa variante (Massagem uma)', () => {
     const clock = createControllableClock(NOW)
     const boot = bootClinicDb({ clock })
