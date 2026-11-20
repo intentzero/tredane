@@ -67,6 +67,7 @@ describe('#414 dialogue acts', () => {
       ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
       ['informar_preco_soma', { preço: 'R$ 160,00', duração: '45' }],
       ['informar_preco_tabela', { serviço: 'Depilação', lista: 'Axila — R$ 50,00 (15 min)\nPernas — R$ 140,00 (30 min)' }],
+      ['informar_preco_faixa', { serviço: 'Depilação', mínimo: 'R$ 25,00', máximo: 'R$ 140,00' }],
       ['recusar_mistura', {}],
       ['servico_inexistente', {}],
       ['varios_servicos', {}],

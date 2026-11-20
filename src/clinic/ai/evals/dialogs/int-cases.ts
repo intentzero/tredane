@@ -319,29 +319,26 @@ export const INT_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'INT-05',
-    title: 'Valores da depilação → linha masculina lista preços sem modelo',
-    turnosIdeais: 2,
-    turns: [
-      { role: 'client', text: 'Quais os valores da depilação?' },
-      { role: 'client', text: 'Masculina' },
-    ],
+    title: 'Valores da depilação → faixa com R$ no 1.º turno, sem modelo (TRE-94)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quais os valores da depilação?' }],
     expect: {
       turns: [
-        { turn: 0, excludes: [/R\$/] },
         {
-          turn: 1,
-          matches: [/R\$\s*50,00/, /R\$\s*140,00/],
-          excludes: [/google/i, /equipe confirma o valor da clínica/i],
+          turn: 0,
+          matches: [/R\$\s*25,00/, /R\$\s*140,00/],
+          excludes: [/Não tenho os valores/i, /feminina ou masculina/i],
         },
       ],
-      turnDecided: [{ modelCalled: false }, { modelCalled: false }],
+      turnDecided: [{ modelCalled: false }],
       outboundExcludes: [/maps\.google/i, /Não tenho os valores/i],
+      noAppointment: true,
     },
   },
   {
     id: 'INT-06',
-    title: 'Linha masculina conhecida → «Todas» lista tabela de preços',
-    turnosIdeais: 2,
+    title: 'Linha masculina conhecida → preço lista tabela da linha (TRE-94)',
+    turnosIdeais: 1,
     prepare: (s) => {
       saveScheduleSession(
         s.db,
@@ -351,27 +348,23 @@ export const INT_DIALOG_CASES: DialogCase[] = [
         s.clock,
       )
     },
-    turns: [
-      { role: 'client', text: 'Quanto custa a depilação?' },
-      { role: 'client', text: 'Todas' },
-    ],
+    turns: [{ role: 'client', text: 'Quanto custa a depilação?' }],
     expect: {
       turns: [
-        { turn: 0, matches: [/zonas/i], excludes: [/R\$/] },
         {
-          turn: 1,
-          matches: [/R\$\s*50,00/, /R\$\s*140,00/],
+          turn: 0,
+          matches: [/R\$\s*50,00/, /R\$\s*140,00/, /Axila|Pernas/i],
           excludes: [/Não tenho os valores/i],
         },
       ],
-      turnDecided: [{ modelCalled: false }, { modelCalled: false }],
+      turnDecided: [{ modelCalled: false }],
+      noAppointment: true,
     },
   },
   {
     id: 'INT-09',
-    title:
-      'Valor da massagem → tipo → «Relaxante» responde R$ do catálogo, sem modelo (staging 20/11/2026)',
-    turnosIdeais: 2,
+    title: 'Valor da massagem lista tipos com R$ do catálogo, sem modelo (TRE-94)',
+    turnosIdeais: 1,
     prepare: (s) => {
       const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
       if (!massagem) throw new Error('INT-09: serviço Massagem ausente no cenário')
@@ -425,25 +418,57 @@ export const INT_DIALOG_CASES: DialogCase[] = [
         s.clock,
       )
     },
-    turns: [
-      { role: 'client', text: 'Qual o valor da massagem?' },
-      { role: 'client', text: 'Relaxante' },
-    ],
+    turns: [{ role: 'client', text: 'Qual o valor da massagem?' }],
     expect: {
       turns: [
         {
           turn: 0,
-          matches: [/qual tipo/i, /relaxante/i],
-          excludes: [/R\$/],
-        },
-        {
-          turn: 1,
-          matches: [/R\$\s*200,00/, /60/],
-          excludes: [/não tenho o valor/i, /equipe confirma o valor/i],
+          matches: [/relaxante/i, /R\$\s*200,00/],
+          excludes: [/não tenho o valor/i, /equipe confirma o valor/i, /qual tipo\?/i],
         },
       ],
-      turnDecided: [{ modelCalled: false }, { modelCalled: false }],
+      turnDecided: [{ modelCalled: false }],
       outboundExcludes: [/não tenho o valor/i],
+      noAppointment: true,
+    },
+  },
+  {
+    id: 'INT-11',
+    title: '«quanto custa a depilacao» (sem acento) → faixa R$, Abrir agenda, sem Equipe (TRE-94)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'quanto custa a depilacao' }],
+    expect: {
+      turns: [
+        {
+          turn: 0,
+          matches: [/R\$\s*25,00/, /R\$\s*140,00/],
+          excludes: [/Não tenho os valores/i, /Falar com a equipe/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Depilação' }],
+      noAppointment: true,
+      outboundExcludes: [/Não tenho os valores/i],
+    },
+  },
+  {
+    id: 'INT-12',
+    title: '«quanto custa o bronzeamento» → R$ 150 + Abrir agenda, sem Equipe (TRE-94)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'quanto custa o bronzeamento' }],
+    expect: {
+      turns: [
+        {
+          turn: 0,
+          matches: [/R\$\s*150,00/],
+          excludes: [/Não tenho/i, /Falar com a equipe/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Bronzeamento' }],
+      noAppointment: true,
     },
   },
   {

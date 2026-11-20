@@ -10,7 +10,6 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
-import { textCitesSynonym } from '../config/synonyms'
 import { recordUnmatchedTerm } from '../config/unmatched-terms'
 import { resolveZoneMention, textNamesMixAudiences, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
@@ -20,6 +19,7 @@ import {
   catalogMissHint,
   catalogServiceList,
   resolveBookingObject,
+  serviceNameHit,
   serviceNameStemHit,
 } from './booking-object'
 import {
@@ -36,7 +36,6 @@ import {
 import { sayAct, serviceNameInProse } from './dialogue-acts'
 import {
   audienceLineFromClientTexts,
-  citesServiceName,
   claimsWholeCatalog,
   zonesChosenInClientTexts,
 } from './schedule-choice'
@@ -121,6 +120,59 @@ function replyVariantPriceTable(
   )
 }
 
+/**
+ * FAQ de preço sem zona/tipo escolhido: faixa do catálogo (DEC-142 / TRE-94).
+ * Evita «Não tenho os valores» + Equipe quando o cadastro já tem R$.
+ */
+function replyVariantPriceRange(
+  service: ServiceRow,
+  zones: readonly { name: string; durationMinutes: number; priceCents?: number | null }[],
+  conversationId: string,
+): string | null {
+  const priced = zones.filter((zone) => zone.name.trim().length > 0 && zone.priceCents != null)
+  if (priced.length === 0) {
+    if (zones.every((zone) => zone.priceCents == null)) {
+      return sayAct('informar_preco_sem_cadastro', conversationId, {}, 'A equipe confirma o valor.')
+    }
+    return null
+  }
+  const cents = priced.map((zone) => zone.priceCents as number)
+  const min = Math.min(...cents)
+  const max = Math.max(...cents)
+  const mínimo = formatBRL(min)
+  const máximo = formatBRL(max)
+  if (min === max) {
+    const fb = `Para ${serviceNameInProse(service.name)}, o valor é ${mínimo}.`
+    return sayAct(
+      'informar_preco_faixa',
+      conversationId,
+      { serviço: service.name, mínimo, máximo: mínimo },
+      fb,
+    )
+  }
+  const fb = `Para ${serviceNameInProse(service.name)}, os valores vão de ${mínimo} a ${máximo}, conforme a opção.`
+  return sayAct(
+    'informar_preco_faixa',
+    conversationId,
+    { serviço: service.name, mínimo, máximo },
+    fb,
+  )
+}
+
+/**
+ * FAQ a frio: `range` quando ainda falta a linha F/M; senão tabela com R$
+ * (`uma` = tipos; linha já conhecida = zonas dessa linha).
+ */
+function replyCatalogPriceOverview(
+  service: ServiceRow,
+  zones: readonly { name: string; durationMinutes: number; priceCents?: number | null }[],
+  conversationId: string,
+  mode: 'range' | 'table' = 'table',
+): string | null {
+  if (mode === 'range') return replyVariantPriceRange(service, zones, conversationId)
+  return replyVariantPriceTable(service, zones, conversationId)
+}
+
 function proNames(db: ClinicDb, tenantId: string, service: ServiceRow, clock: Clock): string[] {
   const resources = listResources(db, tenantId, clock)
   return service.professionalIds
@@ -157,18 +209,12 @@ function serviceFromNamedZones(services: ServiceRow[], source: string): ServiceR
 }
 
 function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
-  const folded = text.toLowerCase()
-  const exact = services.filter((service) => {
-    const name = service.name.trim().toLowerCase()
-    return name.length > 0 && folded.includes(name)
+  // Mesmo reconhecedor do link «Abrir agenda» (acentos, sinónimos, typo de 1 letra).
+  // Sem isto, «depilacao» não casa «Depilação» e o modelo inventa «Não tenho os valores».
+  return services.filter((service) => {
+    const hit = serviceNameHit(text, service.name, service.synonyms)
+    return hit === 'exact' || hit === 'fuzzy'
   })
-  if (exact.length > 0) return exact
-  // #509 / DEC-110: sinónimo da ficha («depilar» → Depilação).
-  const bySynonym = services.filter((service) =>
-    (service.synonyms ?? []).some((syn) => textCitesSynonym(text, syn)),
-  )
-  if (bySynonym.length > 0) return bySynonym
-  return services.filter((service) => citesServiceName(text, service.name))
 }
 
 /** «vocês tem massagem?» / «a drenagem ajuda?» — token do nome do serviço no cadastro. */
@@ -719,7 +765,14 @@ export function catalogReply(
     }
   }
 
-  if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name, cnv)
+  // FAQ de preço: faixa do catálogo — não pedir linha só para informar valor (TRE-94).
+  if (active.length > 0 && mixed && !line) {
+    if (asksPrice || pendingPriceEarly) {
+      const overview = replyCatalogPriceOverview(svc, active, cnv, 'range')
+      if (overview) return overview
+    }
+    return audienceLineQuestion(svc.name, cnv)
+  }
 
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
   const serviceIgnore = {
@@ -796,9 +849,11 @@ export function catalogReply(
     return null
   }
 
-  // E-02 / DEC-090: «Quanto custa depilação?» sem zona — pede as zonas, sem R$.
+  // FAQ de preço sem zona/tipo: lista com R$ (`uma`) ou faixa (zonas). Sem handoff.
   if (active.length > 0 && named.length === 0 && asksPrice && opts.conversationId) {
     const pool = scoped.length > 0 ? scoped : active
+    const overview = replyCatalogPriceOverview(svc, pool, cnv)
+    if (overview) return overview
     return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {
       selectionMode: svc.variantSelection,
     })

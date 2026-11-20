@@ -490,7 +490,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('após «qual tipo?» por preço, «Relaxante» responde R$ (não cede ao modelo)', () => {
+  it('TRE-94: «Qual o valor da massagem?» lista tipos com R$ (não cede ao modelo)', () => {
     const clock = createControllableClock(NOW)
     const boot = bootClinicDb({ clock })
     try {
@@ -568,44 +568,11 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         ...opts,
         turn: catalogTurn(boot.db, tenantId, 'Qual o valor da massagem?', clock, conversation.id),
       })
-      expect(ask).toMatch(/qual tipo/i)
       expect(ask).toMatch(/relaxante/i)
-      expect(ask).not.toMatch(/R\$/)
-
-      clock.advance(1_000)
-      insertMessage(
-        boot.db,
-        {
-          tenantId,
-          conversationId: conversation.id,
-          direction: 'outbound',
-          body: ask!,
-          deliveryState: 'delivered',
-          createdAt: clock.nowMs(),
-        },
-        clock,
-      )
-      clock.advance(1_000)
-      insertMessage(
-        boot.db,
-        {
-          tenantId,
-          conversationId: conversation.id,
-          direction: 'inbound',
-          body: 'Relaxante',
-          deliveryState: 'received',
-          createdAt: clock.nowMs(),
-        },
-        clock,
-      )
-      const price = catalogReply(boot.db, tenantId, 'Relaxante', clock, {
-        ...opts,
-        turn: catalogTurn(boot.db, tenantId, 'Relaxante', clock, conversation.id),
-      })
-      expect(price).toMatch(/R\$\s*200,00/)
-      expect(price).toMatch(/60/)
-      expect(price).not.toMatch(/não tenho o valor/i)
-      // D4: pergunta de preço (ainda pendente) não trava a variante no quadro.
+      expect(ask).toMatch(/R\$\s*200,00/)
+      expect(ask).not.toMatch(/qual tipo\?/i)
+      expect(ask).not.toMatch(/não tenho o valor/i)
+      // D4: FAQ de preço não trava variante no quadro.
       expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds).toBeFalsy()
     } finally {
       boot.close()
@@ -722,64 +689,90 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('E-02 a frio: «Quanto custa depilação?» pede zonas e não cita R$', () => {
+  it('TRE-94 a frio: «Quanto custa depilação?» (e sem acento) dá faixa com R$', () => {
     const boot = seedMixed()
     try {
-      const reply = catalogReply(boot.db, boot.tenantId, 'Quanto custa depilação?', boot.clock, {
-        conversationId: boot.conversation.id,
-      })
-      expect(reply).toMatch(/feminina ou masculina|quais zonas/i)
-      expect(reply).not.toMatch(/R\$/)
+      for (const ask of ['Quanto custa depilação?', 'quanto custa a depilacao']) {
+        const reply = catalogReply(boot.db, boot.tenantId, ask, boot.clock, {
+          conversationId: boot.conversation.id,
+        })
+        expect(reply, ask).toMatch(/R\$\s*50,00/)
+        expect(reply, ask).toMatch(/R\$\s*180,00/)
+        expect(reply, ask).not.toMatch(/feminina ou masculina|quais zonas/i)
+        expect(reply, ask).not.toMatch(/Não tenho os valores/i)
+      }
     } finally {
       boot.close()
     }
   })
 
-  it('INT-05: após pergunta de preço, linha masculina lista valores cadastrados', () => {
+  it('TRE-94: «Quanto custa a massagem?» lista tipos com R$', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    try {
+      const tenantId = 'clinic-demo-a'
+      const caller = workerCaller(tenantId)
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 60, priceCents: 18_000 },
+        ],
+        clock,
+      )
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511900000098', displayName: 'Cliente' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const reply = catalogReply(boot.db, tenantId, 'quanto custa a massagem', clock, {
+        conversationId: conversation.id,
+      })
+      expect(reply).toMatch(/R\$\s*200,00/)
+      expect(reply).toMatch(/R\$\s*180,00/)
+      expect(reply).toMatch(/relaxante/i)
+      expect(reply).not.toMatch(/qual tipo/i)
+      expect(reply).not.toMatch(/Não tenho/i)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('INT-05: «Quais os valores da depilação?» responde faixa com R$ no 1.º turno', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
       const ask = catalogReply(boot.db, boot.tenantId, 'Quais os valores da depilação?', boot.clock, opts)
-      expect(ask).toMatch(/feminina ou masculina/i)
-      insertMessage(
-        boot.db,
-        {
-          tenantId: boot.tenantId,
-          conversationId: boot.conversation.id,
-          direction: 'outbound',
-          body: ask!,
-          deliveryState: 'delivered',
-          createdAt: boot.clock.nowMs(),
-        },
-        boot.clock,
-      )
-      boot.clock.advance(1_000)
-      insertMessage(
-        boot.db,
-        {
-          tenantId: boot.tenantId,
-          conversationId: boot.conversation.id,
-          direction: 'inbound',
-          body: 'Quais os valores da depilação?',
-          deliveryState: 'received',
-          createdAt: boot.clock.nowMs(),
-        },
-        boot.clock,
-      )
-      boot.clock.advance(1_000)
-      const table = catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, {
-        ...opts,
-        turn: catalogTurn(boot.db, boot.tenantId, 'Masculina', boot.clock, boot.conversation.id),
-      })
-      expect(table).toMatch(/R\$\s*80,00/)
-      expect(table).toMatch(/R\$\s*180,00/)
-      expect(table).not.toMatch(/google/i)
+      expect(ask).toMatch(/R\$\s*50,00/)
+      expect(ask).toMatch(/R\$\s*180,00/)
+      expect(ask).not.toMatch(/feminina ou masculina/i)
+      expect(ask).not.toMatch(/Não tenho os valores/i)
     } finally {
       boot.close()
     }
   })
 
-  it('INT-06: linha masculina conhecida e «Todas» lista tabela após pergunta de preço', () => {
+  it('INT-06: linha masculina conhecida → preço lista tabela da linha', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
@@ -788,39 +781,9 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         audienceLine: 'masculino',
       }, boot.clock)
       const ask = catalogReply(boot.db, boot.tenantId, 'Quanto custa a depilação?', boot.clock, opts)
-      expect(ask).toMatch(/zonas/i)
-      insertMessage(
-        boot.db,
-        {
-          tenantId: boot.tenantId,
-          conversationId: boot.conversation.id,
-          direction: 'outbound',
-          body: ask!,
-          deliveryState: 'delivered',
-          createdAt: boot.clock.nowMs(),
-        },
-        boot.clock,
-      )
-      boot.clock.advance(1_000)
-      insertMessage(
-        boot.db,
-        {
-          tenantId: boot.tenantId,
-          conversationId: boot.conversation.id,
-          direction: 'inbound',
-          body: 'Quanto custa a depilação?',
-          deliveryState: 'received',
-          createdAt: boot.clock.nowMs(),
-        },
-        boot.clock,
-      )
-      boot.clock.advance(1_000)
-      const table = catalogReply(boot.db, boot.tenantId, 'Todas', boot.clock, {
-        ...opts,
-        turn: catalogTurn(boot.db, boot.tenantId, 'Todas', boot.clock, boot.conversation.id),
-      })
-      expect(table).toMatch(/R\$\s*80,00/)
-      expect(table).toMatch(/R\$\s*180,00/)
+      expect(ask).toMatch(/R\$\s*80,00/)
+      expect(ask).toMatch(/R\$\s*180,00/)
+      expect(ask).not.toMatch(/Não tenho os valores/i)
     } finally {
       boot.close()
     }
