@@ -14106,6 +14106,9 @@ button.panel-auth-inline-link {
 .kn-cue-x { width: var(--size-control-sm); height: var(--size-control-sm); border: 0; background: transparent; color: inherit; border-radius: var(--radius-pill); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .kn-new-cat { display: flex; gap: var(--space-2); align-items: flex-end; }
 .kn-new-cat .panel-input { min-height: var(--size-touch); }
+/* Campo «Nova palavra»: input solto (sem .clinic-field), tem de esticar ao lado do botão. */
+.kn-cue-input { flex: 1; min-width: 0; min-height: var(--size-control-default); padding: 0 var(--space-3); border: var(--size-border-width) solid var(--color-line-control); border-radius: var(--radius-sm); background: var(--color-surface-card); color: var(--color-text-primary); font-size: var(--font-size-body); }
+.kn-new-cat > .panel-btn-secondary { flex: none; }
 
 .kn-switch-row { padding: var(--space-3) var(--space-4); }
 .kn-switch { display: flex; align-items: center; gap: var(--space-3); width: 100%; cursor: pointer; }

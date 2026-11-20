@@ -266,7 +266,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
               <li key={c.id} className="kn-cat-row">
                 {editCategoryId === c.id ? (
                   <div className="kn-cat-edit">
-                    <TextField>
+                    <TextField className="clinic-field">
                       <Label>Renomear categoria</Label>
                       <Input
                         className="panel-input"
@@ -325,7 +325,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
           Só dá para apagar uma categoria vazia. Mova ou apague as perguntas dela antes.
         </p>
         <div className="kn-new-cat">
-          <TextField className="kn-grow">
+          <TextField className="clinic-field kn-grow">
             <Label>Nova categoria</Label>
             <Input
               className="panel-input"
@@ -371,7 +371,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
         </Button>
         {errorBanner}
 
-        <TextField>
+        <TextField className="clinic-field">
           <Label>Pergunta</Label>
           <Input
             className="panel-input"
@@ -410,7 +410,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
             </div>
           </fieldset>
         ) : (
-          <TextField>
+          <TextField className="clinic-field">
             <Label>Categoria</Label>
             <Input
               className="panel-input"
@@ -423,7 +423,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
           </TextField>
         )}
 
-        <TextField>
+        <TextField className="clinic-field">
           <div className="kn-label-row">
             <Label>Resposta à cliente</Label>
             <span
@@ -475,7 +475,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
           <div className="kn-new-cat">
             <Input
               aria-label="Nova palavra"
-              className="panel-input kn-grow"
+              className="kn-cue-input"
               placeholder="Ex.: garagem"
               value={draftCue}
               onChange={(e) => setDraftCue(e.target.value)}
