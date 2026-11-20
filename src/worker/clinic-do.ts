@@ -149,6 +149,7 @@ import { loadUpcomingAppointments } from '../clinic/ai/upcoming'
 import type { SendOutboundInteractiveInput } from '../clinic/inbox/types'
 import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
 import {
+  CLIENT_WEB_CTA_MINIMAL_BODY,
   clientWebOfferInteractive,
   clientWebRouteBody,
   clientWebUrl,
@@ -198,6 +199,7 @@ import { nextOpenAppointmentEndAt, sweepEndedAppointments } from '../clinic/pipe
 import {
   handlePostBookingButtonClick,
   handlePriceFollowupButtonClick,
+  parsePostBookingButtonId,
 } from '../clinic/followup/post-booking'
 import { systemClock, type Clock } from '../db/clock'
 import {
@@ -886,38 +888,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
       )
-      // DEC-202 / Meta: «Posso ajudar…» com cta_url Abrir agenda (evita reply →
-      // «Para agendar, toque em Abrir agenda…»). Só emite o link se o Agendado for
-      // o resultado que vai disparar o follow-up.
-      let agendaUrl: string | null = null
-      if (input.outcome === 'succeeded') {
-        const bookedForFollowup = clinicProposals.findProposalByResultOutboundId(
-          this.#db,
-          caller.tenantId,
-          result.value.outbound.id,
-        )
-        const needsPostBooking =
-          bookedForFollowup?.resultKind === 'booked' &&
-          Boolean(bookedForFollowup.appointmentId?.trim()) &&
-          Boolean(bookedForFollowup.conversationId)
-        if (needsPostBooking) {
-          const prepare = this.#prepareClientWebOffer()
-          if (prepare) {
-            try {
-              const offered = await prepare({
-                tenantId: caller.tenantId,
-                conversationId: bookedForFollowup!.conversationId,
-                purpose: 'agendar',
-                appointmentId: null,
-                serviceId: null,
-              })
-              agendaUrl = offered?.ctaUrl?.url?.trim() || null
-            } catch {
-              agendaUrl = null
-            }
-          }
-        }
-      }
+      // DEC-086 Opção A: «Posso ajudar…» = reply Abrir agenda|Terminar; o cta_url
+      // sai só no toque de Abrir agenda (corpo mínimo — TRE-81 / TRE-73).
       const reconciled = clinicProposals.reconcileProposalResultOutboundSend(
         this.#db,
         caller.tenantId,
@@ -925,7 +897,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
         caller,
-        agendaUrl,
       )
       if (reconciled.outbox.length > 0) {
         await this.#fanoutOutboxes(caller, reconciled.outbox, true)
@@ -1285,22 +1256,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
       const cancelled = done.result
-      let agendaUrl: string | null = null
-      const prepare = this.#prepareClientWebOffer()
-      if (prepare) {
-        try {
-          const offered = await prepare({
-            tenantId: input.tenantId,
-            conversationId: input.conversationId,
-            purpose: 'agendar',
-            appointmentId: null,
-            serviceId: null,
-          })
-          agendaUrl = offered?.ctaUrl?.url?.trim() || null
-        } catch {
-          agendaUrl = null
-        }
-      }
       const outboxes = appendWebCancelChatEffects(
         this.#db,
         caller,
@@ -1309,7 +1264,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           appointmentId: input.appointmentId,
           serviceName: cancelled.serviceName,
           startsAt: cancelled.startsAt,
-          agendaUrl,
         },
         this.#clock,
         done.outbox,
@@ -1543,11 +1497,24 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         this.#clock,
       ),
     ]
+    const postBookingTap = parsePostBookingButtonId(input.buttonId)
     for (const done of followups) {
       if (!done.handled) continue
       const outbox = [...done.outbox]
       if (done.action === 'continue' || done.action === 'another') {
-        outbox.push(...(await this.#offerWebLinkInChat(caller, conversationId, 'agendar', input.providerEventKey)))
+        // Pós «Posso ajudar…»: corpo mínimo no cta_url (sem CLIENT_WEB_BOOK_BODY).
+        const bodyOverride =
+          postBookingTap?.action === 'another' ? CLIENT_WEB_CTA_MINIMAL_BODY : undefined
+        outbox.push(
+          ...(await this.#offerWebLinkInChat(
+            caller,
+            conversationId,
+            'agendar',
+            input.providerEventKey,
+            null,
+            bodyOverride ? { body: bodyOverride } : undefined,
+          )),
+        )
       }
       if (outbox.length > 0) {
         await this.#fanoutOutboxes(caller, outbox, true)
@@ -1570,6 +1537,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     purpose: 'agendar' | 'remarcar' | 'cancelar',
     eventKey?: string | null,
     serviceId?: string | null,
+    opts?: { body?: string },
   ): Promise<OutboxRow[]> {
     const key = eventKey ?? `${purpose}:${this.#clock.nowMs()}`
     const prepare = this.#prepareClientWebOffer()
@@ -1606,12 +1574,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
                 serviceId,
               )?.name ?? null)
             : null
+        const body =
+          opts?.body ?? clientWebRouteBody({ purpose, serviceName })
         const sent = clinicInbox.sendOutboundMessageOp(
           this.#db,
           caller,
           {
             conversationId,
-            body: clientWebRouteBody({ purpose, serviceName }),
+            body,
             interactive: offered,
             clientRequestId: `ai-web-${purpose}:${key}`,
             authorClerkUserId: 'system:ai-autodraft',

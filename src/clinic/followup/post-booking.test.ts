@@ -277,7 +277,7 @@ describe('DEC-086 post-booking follow-up', () => {
     }
   })
 
-  it('com agendaUrl: Posso ajudar usa cta_url Abrir agenda (sem reply Terminar)', () => {
+  it('Posso ajudar usa reply Abrir agenda|Terminar (Opção A / TRE-81)', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -294,11 +294,10 @@ describe('DEC-086 post-booking follow-up', () => {
         clock,
       )
       const conversationId = ingested.conversation!.id
-      const url = 'https://app.example.test/c/cw1_abcdefghijklmnopqrst'
       const sent = sendPostBookingFollowupOp(
         db,
         caller,
-        { conversationId, appointmentId: 'apt_fu_cta', agendaUrl: url },
+        { conversationId, appointmentId: 'apt_fu_cta' },
         clock,
       )
       expect(sent.status).toBe('queued')
@@ -308,13 +307,14 @@ describe('DEC-086 post-booking follow-up', () => {
         sent.outboundId,
       )
       const parsed = JSON.parse(ob?.interactive_json ?? '{}') as {
-        ctaUrl?: { displayText?: string; url?: string }
-        buttons?: unknown
+        ctaUrl?: unknown
+        buttons?: Array<{ id: string; title: string }>
       }
-      expect(parsed.ctaUrl).toEqual({ displayText: 'Abrir agenda', url })
-      expect(parsed.buttons).toBeUndefined()
-      expect(ob?.interactive_json).not.toContain('Terminar')
-      expect(ob?.interactive_json).not.toContain('fu:post:')
+      expect(parsed.ctaUrl).toBeUndefined()
+      expect(parsed.buttons).toEqual([
+        { id: postBookingButtonId('apt_fu_cta', 'another'), title: 'Abrir agenda' },
+        { id: postBookingButtonId('apt_fu_cta', 'end'), title: 'Terminar' },
+      ])
     } finally {
       close()
     }
