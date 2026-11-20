@@ -23,6 +23,7 @@ import { zonedCivilToUtc } from '../scheduling/timezone'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, enqueueLatestUnansweredInbound, runDueAutoDrafts } from './index'
+import { OPEN_AGENDA_REPLY_BUTTON_ID, CLIENT_WEB_NO_UPCOMING_BODY } from '../../clientweb/offer'
 import { HUMAN_HANDOFF_TEXT, notifyHumanHandoff, readAiReplyPause, resumeAiReply } from './human-handoff'
 import { saveScheduleSession } from './schedule-session'
 import {
@@ -517,21 +518,30 @@ describe('DEC-083', () => {
     }
   })
 
-  it('«Remarca meu horário de segunda para terça, 3 de novembro, às 10:00.» pausa antes do modelo', async () => {
+  // DEC-202 / GU-11 / TRE-83: remarca sem marcação futura → Abrir agenda (agendar),
+  // sem handoff nem modelo (revê o handoff DEC-083 neste caso).
+  it('«Remarca meu horário…» sem marcação futura manda Abrir agenda, sem handoff', async () => {
     const s = seed()
     try {
       const out = await runInbound(
         s,
         'Remarca meu horário de segunda para terça, 3 de novembro, às 10:00.',
       )
-      expect(out.reason).toBe('human_handoff')
+      expect(out.reason).toBe('web_agendar_link')
       expect(s.calls()).toBe(0)
-      const sent = s.db.get<{ body: string }>(
-        `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const row = s.db.get<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json AS interactive_json
+         FROM messages m
+         LEFT JOIN outbound_messages o ON o.tenant_id = m.tenant_id AND o.message_id = m.id
+         WHERE m.tenant_id = ? AND m.direction = 'outbound'
+         ORDER BY m.created_at DESC LIMIT 1`,
         s.tenantId,
       )
-      expect(sent?.body).toBe(HUMAN_HANDOFF_TEXT)
-      expect(sent?.body).not.toMatch(/para qual dia/i)
+      expect(row?.body).toBe(CLIENT_WEB_NO_UPCOMING_BODY)
+      expect(row?.body).not.toContain(HUMAN_HANDOFF_TEXT)
+      expect(row?.body).not.toMatch(/para qual dia/i)
+      expect(row?.interactive_json ?? '').toContain(OPEN_AGENDA_REPLY_BUTTON_ID)
     } finally {
       s.close()
     }
