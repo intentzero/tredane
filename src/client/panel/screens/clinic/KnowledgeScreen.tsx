@@ -3,7 +3,7 @@
  * Categorias CRUD + entradas Q&A (pergunta, resposta ≤500, published/draft).
  */
 import { ChevronRight, Lock, Plus, Search, Tag, Trash2, X, Pencil } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button, Input, Label, Switch, TextArea, TextField } from 'react-aria-components'
 import type { PanelApi } from '../../api'
 import { friendlyError } from '../../copy/errors'
@@ -32,6 +32,8 @@ type Props = {
   tenantId: string
   api: PanelApi
   generation: number
+  /** Só na lista: o cartão «Sobre a clínica». Some no editor, com o seu botão Salvar. */
+  listHeader?: ReactNode
 }
 
 const ANSWER_MAX = 500
@@ -42,17 +44,40 @@ const SIGNAL_KEY = 'signal_policy'
 const POLICY_TOPIC = /\b(sinal|multa|cancel\w*|remarc\w*|reagend\w*)/i
 
 /** Primeira vez: o dono toca e abre o editor com a pergunta e a categoria prontas. */
-const SUGGESTIONS: Array<{ question: string; category: string }> = [
-  { question: 'Tem estacionamento?', category: 'Acesso' },
-  { question: 'Qual o endereço e como chegar?', category: 'Acesso' },
-  { question: 'Quais formas de pagamento aceitam?', category: 'Pagamento' },
-  { question: 'Posso levar acompanhante?', category: 'Visita' },
-  { question: 'Com quanto tempo de antecedência devo chegar?', category: 'Visita' },
+// A localização não é sugestão: vem do link do Google Business no cartão «Sobre a clínica».
+const SUGGESTIONS: Array<{ question: string; category: string; example: string }> = [
+  {
+    question: 'Tem estacionamento?',
+    category: 'Acesso',
+    example: 'Ex.: Sim, há estacionamento conveniado ao lado. Mostre o ticket na recepção.',
+  },
+  {
+    question: 'Quais formas de pagamento aceitam?',
+    category: 'Pagamento',
+    example: 'Ex.: Aceitamos Pix, débito e crédito em até 3 vezes.',
+  },
+  {
+    question: 'Posso levar acompanhante?',
+    category: 'Visita',
+    example: 'Ex.: Pode, mas a sala de procedimento é só para a cliente.',
+  },
+  {
+    question: 'Com quanto tempo de antecedência devo chegar?',
+    category: 'Visita',
+    example: 'Ex.: Chegue 10 minutos antes para o cadastro.',
+  },
+  {
+    question: 'Como é a primeira consulta?',
+    category: 'Visita',
+    example: 'Ex.: Começa com uma avaliação de 20 minutos, sem custo.',
+  },
 ]
+const ANSWER_PLACEHOLDER = 'Escreva a resposta como a clínica a diria no WhatsApp.'
 
 type View = 'list' | 'edit' | 'categories'
 
-export function KnowledgeScreen({ tenantId, api, generation }: Props) {
+export function KnowledgeScreen({ tenantId, api, generation, listHeader }: Props) {
+  const [answerExample, setAnswerExample] = useState(ANSWER_PLACEHOLDER)
   const [categories, setCategories] = useState<KnowledgeCategoryDto[]>([])
   const [entries, setEntries] = useState<KnowledgeEntryDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -125,7 +150,8 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
   const draftCount = entries.length - publishedCount
   const quotaFull = publishedCount >= PUBLISHED_MAX
 
-  const openNew = (suggestion?: { question: string; category: string }) => {
+  const openNew = (suggestion?: { question: string; category: string; example?: string }) => {
+    setAnswerExample(suggestion?.example ?? ANSWER_PLACEHOLDER)
     const match = suggestion
       ? categories.find((c) => c.name.toLowerCase() === suggestion.category.toLowerCase())
       : undefined
@@ -439,6 +465,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
             onChange={(e) => setAnswer(e.target.value)}
             maxLength={ANSWER_MAX}
             rows={4}
+            placeholder={answerExample}
             readOnly={locked}
           />
           <span className="clinic-muted">Enviada exatamente assim. A IA não reescreve.</span>
@@ -582,6 +609,7 @@ export function KnowledgeScreen({ tenantId, api, generation }: Props) {
 
   return (
     <div className="kn-stack">
+      {listHeader}
       {errorBanner}
 
       {firstRun ? (

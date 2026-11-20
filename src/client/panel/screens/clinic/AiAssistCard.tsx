@@ -7,6 +7,7 @@ import {
   checkGoogleBusinessUrl,
   GOOGLE_BUSINESS_URL_MAX_LENGTH,
 } from '../../../../clinic/config/google-business-link'
+import { GENERAL_POLICY_MAX_CHARS, joinPolicyParts } from '../../../../clinic/ai/policy-join'
 
 type VirtualGender = 'masculino' | 'feminino' | ''
 
@@ -151,6 +152,24 @@ export function AiProfileCard({
   const wide = useMediaQuery('(min-width: 1280px)')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  // Texto do sinal (Recebimento), só leitura: entra primeiro na resposta «Remarcar e cancelar».
+  const [signalText, setSignalText] = useState<string | null>(null)
+  useEffect(() => {
+    if (part !== 'facts') return
+    let cancelled = false
+    void Promise.resolve(api.getPix?.(tenantId, { generation, expectGeneration: () => generation }))
+      .then((pix) => {
+        if (cancelled || !pix) return
+        const s = pix.signalSettings
+        setSignalText(s.enabled ? s.cancellationPolicy.trim() : '')
+      })
+      .catch(() => {
+        /* pré-visualização é best-effort */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, generation, part])
 
   const dirty =
     part === 'facts'
@@ -197,6 +216,9 @@ export function AiProfileCard({
     }
   }
 
+  const saveLabel = part === 'facts' ? 'Salvar localização e regras' : 'Salvar'
+  const policyPreview = joinPolicyParts(signalText ?? '', policy)
+
   const actions = wide ? (
     // DEC-183: no desktop, «Salvar» e «Descartar» ficam no cabeçalho, sempre à vista.
     <ShellSlot>
@@ -215,14 +237,14 @@ export function AiProfileCard({
             onPress={() => void save()}
             isDisabled={busy || !dirty}
           >
-            {busy ? 'Salvando…' : 'Salvar'}
+            {busy ? 'Salvando…' : saveLabel}
           </Button>
         </span>
       </div>
     </ShellSlot>
   ) : (
     <Button className="panel-btn panel-btn-secondary" onPress={() => void save()} isDisabled={busy}>
-      {busy ? 'Salvando…' : 'Salvar'}
+      {busy ? 'Salvando…' : saveLabel}
     </Button>
   )
 
@@ -265,13 +287,28 @@ export function AiProfileCard({
               value={policy}
               onChange={(e) => setPolicy(e.target.value)}
               rows={3}
-              maxLength={500}
+              maxLength={GENERAL_POLICY_MAX_CHARS}
+              placeholder="Ex.: Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário."
             />
             <Text slot="description" className="panel-muted-sm">
-              Aviso prévio, atrasos, faltas. Quando a clínica pede sinal, a regra do sinal
-              (Recebimento) sai primeiro e este texto vem a seguir.
+              Aviso prévio, atrasos, faltas. {policy.length}/{GENERAL_POLICY_MAX_CHARS}
             </Text>
           </TextField>
+          <section className="kn-preview" aria-labelledby="policy-prev-t">
+            <h3 id="policy-prev-t" className="kn-sub">
+              Como a cliente recebe «Remarcar e cancelar»
+            </h3>
+            <div className="kn-preview-pane">
+              <p className="kn-bubble kn-bubble--out">
+                {policyPreview || 'Sem regras cadastradas: a pergunta passa para a equipe.'}
+              </p>
+              <span className="kn-preview-note">
+                {signalText
+                  ? 'A parte do sinal vem do Recebimento e se edita lá.'
+                  : 'Sem sinal ligado, só saem as regras gerais.'}
+              </span>
+            </div>
+          </section>
         </>
       ) : (
         <>

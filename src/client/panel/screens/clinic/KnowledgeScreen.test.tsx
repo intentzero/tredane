@@ -29,4 +29,22 @@ describe('Respostas da clínica — editor da pergunta', () => {
     const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
     expect(css).toMatch(/\.kn-cue-input\s*\{[^}]*flex:\s*1/)
   })
+
+  it('sugestões sem endereço; tocar numa dá exemplo no campo da resposta; o cartão de cima só aparece na lista', async () => {
+    render(
+      <KnowledgeScreen
+        tenantId="clinic-demo-a"
+        api={api()}
+        generation={1}
+        listHeader={<section aria-label="Sobre a clínica">cartão</section>}
+      />,
+    )
+    expect(await screen.findByRole('region', { name: 'Sobre a clínica' })).toBeTruthy()
+    expect(screen.queryByText('Qual o endereço e como chegar?')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Tem estacionamento\?/ }))
+    const resposta = (await screen.findByRole('textbox', { name: 'Resposta à cliente' })) as HTMLTextAreaElement
+    expect(resposta.value).toBe('')
+    expect(resposta.placeholder).toMatch(/estacionamento conveniado/)
+    expect(screen.queryByRole('region', { name: 'Sobre a clínica' })).toBeNull()
+  })
 })
