@@ -58,6 +58,7 @@ import {
 } from './debounce'
 import {
   AI_TRANSPARENCY_TEXT,
+  OFF_TOPIC_SMALL_TALK_TEXT,
   handoffReason,
   humanTeamOfferButtons,
   inboundWarrantsHandoffResume,
@@ -96,6 +97,8 @@ import {
   classifySensitive,
   FAREWELL_RE,
   hasAiTransparencyQuestion,
+  isOffTopicSmallTalk,
+  wantsHumanPause,
   hasPolicyQuestion,
   hasSoftDeclineRequest,
   hasStopRequest,
@@ -1208,6 +1211,37 @@ export async function runDueAutoDrafts(
         status: 'skipped',
         suggestion: null,
         reason: 'how_to_end',
+        replyOutbox,
+      })
+      continue
+    }
+    // P24: piada e conversa fiada redirecionam; não pausam. Injeção forte continua handoff.
+    if (isOffTopicSmallTalk(turnText) && !wantsHumanPause(sensitiveHits)) {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: OFF_TOPIC_SMALL_TALK_TEXT,
+            clientRequestId: `ai-off-topic:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'off_topic_redirect',
         replyOutbox,
       })
       continue

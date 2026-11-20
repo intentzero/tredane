@@ -15,7 +15,6 @@ import type { Clock } from '../../db/clock'
 import { HANDOFF_TIMEOUT_MS } from '../constants'
 import { workerCaller } from '../envelopes'
 import { ClinicError } from '../errors'
-import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listBlocks } from '../config/blocks'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
@@ -28,6 +27,11 @@ import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { flagConversationForTeamHandoff } from '../inbox/review-flag'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../scheduling/timezone'
+import {
+  clinicClosureCoversInstant,
+  clinicWideClosureOnCivilDay,
+  listProfessionalOpeningWindows,
+} from './opening-source'
 import { dayTextPt } from './slot-offer'
 import type { ClinicDb } from '../store'
 import {
@@ -43,6 +47,7 @@ import {
 import {
   HEALTH_RE,
   OFF_TOPIC_RE,
+  isOffTopicSmallTalk,
   PIX_OFF_PURPOSE_RE,
   classifySensitive,
   hasAiTransparencyQuestion,
@@ -115,6 +120,9 @@ function withUnderstoodFrame(
 const AI_ASSIGNEE = AI_ACTOR_ID
 
 export const HUMAN_HANDOFF_TEXT = 'Vou pedir para a equipe continuar daqui.'
+/** Conversa fiada (piada): redireciona sem pausar a IA. */
+export const OFF_TOPIC_SMALL_TALK_TEXT =
+  'Posso ajudar com os serviços e os horários da clínica. O que você gostaria de saber?'
 /** Prefixo comum DEC-083 / DEC-113 — «já dito» aceita as duas variantes. */
 export const HUMAN_HANDOFF_PREFIX = 'Vou pedir para a equipe continuar daqui.'
 export const HUMAN_HANDOFF_BUTTON_ID = 'handoff:human'
@@ -310,8 +318,9 @@ export function isClinicOpenForHandoff(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const now = clock.nowMs()
-  const windows = listEffectiveWeeklyWindows(db, tenantId)
+  const windows = listProfessionalOpeningWindows(db, tenantId, clock)
   if (windows.length === 0) return false
+  if (clinicClosureCoversInstant(db, tenantId, now)) return false
   const today = clinicCivilDateFromUtc(tz, now)
   const dow = weekdayOf(today)
   const minute = clinicMinuteOfDay(tz, now)
@@ -437,17 +446,7 @@ export function afterHoursHumanRequestBody(
   if (opening) {
     return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá.`
   }
-  const resources = listResources(db, tenantId, clock)
-  const pros = new Set(resources.filter((r) => r.kind === 'professional').map((r) => r.id))
-  const lines = formatOpeningHours(
-    listEffectiveWeeklyWindows(db, tenantId)
-      .filter((w) => pros.has(w.resourceId))
-      .map((w) => ({
-        dayOfWeek: w.dayOfWeek,
-        startMinute: w.startMinute,
-        endMinute: w.endMinute,
-      })),
-  )
+  const lines = formatOpeningHours(listProfessionalOpeningWindows(db, tenantId, clock))
   if (lines.length === 0) return AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK
   const lista = lines.join('\n')
   const withHours = sayAct(
@@ -848,12 +847,13 @@ export function nextClinicOpening(
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const now = clock.nowMs()
-  const windows = listEffectiveWeeklyWindows(db, tenantId)
+  const windows = listProfessionalOpeningWindows(db, tenantId, clock)
   if (windows.length === 0) return null
   const clinicBlocks = listBlocks(db, tenantId, CLINIC_SCOPE_ID)
   const today = clinicCivilDateFromUtc(tz, now)
   for (let offset = 0; offset < 14; offset++) {
     const date = addDays(today, offset)
+    if (clinicWideClosureOnCivilDay(db, tenantId, date, tz, windows).closed) continue
     const dow = weekdayOf(date)
     const dayWindows = windows
       .filter((w) => w.dayOfWeek === dow)
@@ -1073,13 +1073,15 @@ export function handoffReason(
   if (isGreetingOnly(body)) return null
   if (isCancelRequest(body) || isRescheduleRequest(body)) return null
   const hits = classifySensitive(body)
+  // Piada redireciona sem pausar. «esquece a clínica» e injeção forte continuam handoff.
+  const offTopicHandoff = OFF_TOPIC_RE.test(body) && !isOffTopicSmallTalk(body)
   // CF-04: pergunta condicional sobre política não pausa (responde a política no autodraft).
   if (hasPolicyQuestion(hits)) return null
   // DEC-115: transparência — autodraft responde sem pausar.
   if (hasAiTransparencyQuestion(hits)) return null
   // DEC-114: stop — autodraft pausa em silêncio (sem frase).
   if (hasStopRequest(hits)) return 'customer_requested'
-  if (!wantsHumanPause(hits) && !OFF_TOPIC_RE.test(body) && !PIX_OFF_PURPOSE_RE.test(body)) {
+  if (!wantsHumanPause(hits) && !offTopicHandoff && !PIX_OFF_PURPOSE_RE.test(body)) {
     if (professionalOutsideService(db, tenantId, body, clock, turn)) return 'human_only'
     // DEC-202: remarcar e cancelar não passam à equipe; o autodraft envia o link «Abrir agenda».
     return null
@@ -1088,7 +1090,7 @@ export function handoffReason(
   if (
     hits.some((h) => h.label === 'injecao' && h.injectionStrength === 'forte') ||
     hits.some((h) => h.label === 'saude' || h.label === 'ofensa') ||
-    OFF_TOPIC_RE.test(body) ||
+    offTopicHandoff ||
     PIX_OFF_PURPOSE_RE.test(body)
   ) {
     return 'off_purpose'

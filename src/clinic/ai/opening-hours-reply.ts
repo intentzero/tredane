@@ -2,15 +2,17 @@
  * FAQ de expediente sem LLM: detecção ampla e resposta a partir de janelas / bloqueios.
  */
 import type { Clock } from '../../db/clock'
-import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listBlocks } from '../config/blocks'
-import { listResources } from '../config/resources'
 import { ensureClinicSettings } from '../config/settings'
 import { CLINIC_SCOPE_ID } from '../config/types'
-import { clinicCivilDateFromUtc, clinicDayBounds, zonedCivilToUtc } from '../scheduling/timezone'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
 import { sayAct } from './dialogue-acts'
 import { isOpeningDayAsk } from './opening-day-ask'
+import {
+  clinicWideClosureOnCivilDay,
+  listProfessionalOpeningWindows,
+} from './opening-source'
 import { addCivilDays, weekdayOfCivil } from './slot-offer'
 import { formatOpeningHours } from './schedule-context'
 
@@ -88,11 +90,7 @@ function clinicProfessionalWindows(
   tenantId: string,
   clock: Clock,
 ): Array<{ dayOfWeek: number; startMinute: number; endMinute: number }> {
-  const resources = listResources(db, tenantId, clock)
-  const pros = new Set(resources.filter((r) => r.kind === 'professional').map((r) => r.id))
-  return listEffectiveWeeklyWindows(db, tenantId)
-    .filter((w) => pros.has(w.resourceId))
-    .map((w) => ({ dayOfWeek: w.dayOfWeek, startMinute: w.startMinute, endMinute: w.endMinute }))
+  return listProfessionalOpeningWindows(db, tenantId, clock)
 }
 
 function formatUpcomingClinicClosures(
@@ -148,41 +146,7 @@ export function resolveOpeningHoursAskDate(text: string, today: string): string 
   return null
 }
 
-/**
- * Fechamento da clínica inteira no dia civil: feriado/all-day, ou todas as
- * faixas do expediente cobertas por bloqueio `__clinic__` (como DEC-155/handoff).
- */
-export function clinicWideClosureOnCivilDay(
-  db: ClinicDb,
-  tenantId: string,
-  date: string,
-  tz: string,
-  windows: readonly { dayOfWeek: number; startMinute: number; endMinute: number }[],
-): { closed: boolean; note: string | null } {
-  const { dayStartsAt, dayEndsAt } = clinicDayBounds(tz, date)
-  const blocks = listBlocks(db, tenantId, CLINIC_SCOPE_ID).filter(
-    (b) => b.startsAt < dayEndsAt && b.endsAt > dayStartsAt,
-  )
-  if (blocks.length === 0) return { closed: false, note: null }
-
-  const fullDay = blocks.find((b) => b.startsAt <= dayStartsAt && b.endsAt >= dayEndsAt)
-  if (fullDay) return { closed: true, note: fullDay.note?.trim() || null }
-
-  const dow = weekdayOfCivil(date)
-  const dayWindows = windows.filter((w) => w.dayOfWeek === dow)
-  if (dayWindows.length === 0) return { closed: false, note: null }
-
-  const [y, mo, d] = date.split('-').map(Number) as [number, number, number]
-  const allBlocked = dayWindows.every((w) => {
-    const hh = Math.floor(w.startMinute / 60)
-    const mm = w.startMinute % 60
-    const startsAt = zonedCivilToUtc(tz, y, mo, d, hh, mm)
-    return blocks.some((b) => b.startsAt <= startsAt && startsAt < b.endsAt)
-  })
-  if (!allBlocked) return { closed: false, note: null }
-  const note = blocks.find((b) => b.note?.trim())?.note?.trim() ?? null
-  return { closed: true, note }
-}
+export { clinicWideClosureOnCivilDay } from './opening-source'
 
 /**
  * Resposta de expediente a partir do cadastro. Null se misto com marcação
