@@ -15,6 +15,7 @@ import {
   subscribePush,
   unsubscribePush,
   clearDeferredInstallPrompt,
+  notifyPushSubscriptionChanged,
 } from '../pwa'
 import { navigatePanel } from '../routes'
 import { isSoundEnabled, playMessageSound, setSoundEnabled } from '../sound'
@@ -133,6 +134,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
         notifyNewConversation: notifyNew,
       })
       setActive(true)
+      notifyPushSubscriptionChanged()
       setStatus({
         phase: 'ok',
         message: `Avisos ativos. Recebe agendamento confirmado, «Precisa de alguém» e mensagens só em conversas que você (ou a equipe) está a atender — com o nome do contato e da clínica, sem o texto da mensagem.`,
@@ -159,6 +161,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
       }
       await unsubscribePush()
       setActive(false)
+      notifyPushSubscriptionChanged()
       setStatus({ phase: 'ok', message: 'Avisos desativados neste aparelho.' })
     } catch {
       setStatus({

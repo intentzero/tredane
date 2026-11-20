@@ -362,7 +362,7 @@ Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens
 
 | Componente | Uso | Regras |
 | --- | --- | --- |
-| Cabeçalho global | Todas as telas | Nome da clínica ativa, navegação, indicador de conexão, menu do usuário. No desktop (≥ 1280 px) o sino e a conta ficam no rail. Menu: **Dados pessoais** abre o UserProfile hospedado do Clerk (`openUserProfile`; firstName alimenta o prefixo DEC-088); **Aparência** (Confirmado, DEC-098: Sistema, Claro ou Escuro); **Sair**. Em AUTH_MODE sintético não há «Dados pessoais». |
+| Cabeçalho global | Todas as telas | Nome da clínica ativa, navegação, indicador de conexão, menu do usuário. No desktop (≥ 1280 px) o sino e a conta ficam no rail. **Sino de avisos (Confirmado, Paulo 20/11/2026):** com push activo neste aparelho = Lucide `Bell` em `--color-success-ink`; sem subscrição = `BellOff` em `--color-danger-ink`; a carregar = `Bell` em tinta do texto. O clique abre Avisos (não é toggle). Menu: **Dados pessoais** abre o UserProfile hospedado do Clerk (`openUserProfile`; firstName alimenta o prefixo DEC-088); **Aparência** (Confirmado, DEC-098: Sistema, Claro ou Escuro); **Sair**. Em AUTH_MODE sintético não há «Dados pessoais». |
 | Item de conversa | TEL-01 | Estado da conversa por rótulo; não lido em peso de fonte + marcador com texto acessível. |
 | Balão de mensagem | TEL-01 | Direção, horário, estado de envio (6.1), autor da equipe em mensagens enviadas. |
 | Evento de sistema | TEL-01, TEL-06 | Texto curto centralizado com autor e hora. |

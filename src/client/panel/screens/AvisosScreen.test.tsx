@@ -37,6 +37,8 @@ vi.mock('../pwa', () => ({
   getExistingPushSubscription: (...a: unknown[]) => pwa.getExistingPushSubscription(...a),
   subscribePush: (...a: unknown[]) => pwa.subscribePush(...a),
   unsubscribePush: (...a: unknown[]) => pwa.unsubscribePush(...a),
+  notifyPushSubscriptionChanged: vi.fn(),
+  PUSH_SUBSCRIPTION_CHANGED_EVENT: 'tredane:push-subscription-changed',
 }))
 
 describe('AvisosScreen — estado ativo', () => {
