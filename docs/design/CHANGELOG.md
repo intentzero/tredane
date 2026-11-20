@@ -194,6 +194,10 @@ Pedido do responsável pelo produto (12/11/2026): os botões ficavam pequenos no
 
 - Mock `mobile/ServicoTeclado` (M-64) e painel: **Confirmado (Paulo, 09/11/2026, Opção A)** — com teclado aberto, `.clinic-footer-sticky` some via `:root[data-keyboard='open']` (`useKeyboardViewport`); ao fechar, o rodapé volta. Sem token novo. Opção B descartada.
 
+## 20/11/2026 — Agenda dia sem cartões «Livre» + folga do FAB (**Confirmado**)
+
+- **Confirmado (Paulo):** na visão Dia no celular, a lista deixa de mostrar cartões tracejados «Livre · … · Agendar» e linhas de hora vazias; só compromissos (e blocos de sala) + FAB **+ Agendar**. Semana mantém «N livres» e a barra de ocupação. FAB com folga = altura externa da tab bar (`--size-bottom-nav` + `2 × --space-2`) + `--space-4` (+ safe-area). Spec em `ux-ui.md` (TEL-04); índice M-59 em `screens.md` atualizado.
+
 ## 04/11/2026 — Faixa Horários livres sai da conversa (**Confirmado**)
 
 - **Confirmado (Paulo, 04/11/2026, «Não quero isto»):** remove a faixa **Horários livres** e o ícone do compositor (carga cognitiva; redundante com **Agendar** no cabeçalho). Agendar / TEL-05 é o único caminho de marcação da atendente na thread. Mocks `ConversaCompositor` e `ConversaWhatsappWeb` sem o ícone; `FreeSlotsStrip.tsx` removido. Spec em `ux-ui.md`.

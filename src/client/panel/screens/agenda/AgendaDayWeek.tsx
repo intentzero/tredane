@@ -26,7 +26,7 @@ import { CompromissoScreen } from './CompromissoScreen'
 import { SelfBlockSheet } from './SelfBlockSheet'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
 import { agendaMonthMarks } from './monthMarks'
-import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy, type FreeSlot } from './freeSlots'
+import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy } from './freeSlots'
 import {
   HOUR_HEIGHT,
   layoutDay,
@@ -365,25 +365,6 @@ export function AgendaDayWeek({
     roomCapacity,
     date === today ? now : null,
   )
-  const freeToday = freeSlotsOfDay(data?.availability, date, selected)
-  const listEntries = buildDayEntries(
-    (byDay.get(date) ?? []).filter(passesFilters),
-    roomCapacity,
-    date === today ? now : null,
-    freeToday,
-  )
-  const goScheduleAt = (slot: FreeSlot) => {
-    if (readOnly) return
-    navigatePanel({
-      kind: 'area',
-      area: 'agenda',
-      tenantId,
-      section: 'agendar',
-      date,
-      time: formatSlotTime(slot.startsAt, timezone),
-      professionalId: slot.professionalId,
-    })
-  }
   const holds: ScheduleHold[] = (data?.holds ?? []).filter(
     (h) => h.status === 'active' && civilDayOf(h.windowStartsAt, timezone) === date,
   )
@@ -582,14 +563,13 @@ export function AgendaDayWeek({
       <div className="panel-scroll agenda-body">
         {view === 'day' && (narrow || readOnly) ? (
           <AgendaDayList
-            entries={listEntries}
+            entries={entries}
             holds={holds}
             professionals={professionals}
             timezone={timezone}
             now={now}
             onOpen={(id) => openAppointment(id)}
             onSchedule={readOnly ? undefined : goSchedule}
-            onScheduleAt={readOnly ? undefined : goScheduleAt}
             onOpenHold={(h) => {
               if (readOnly || !h.conversationId) return
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
