@@ -49,16 +49,9 @@ function windowsOverlap(
   return a.startMinute < b.endMinute && b.startMinute < a.endMinute
 }
 
-function proWindowsForService(
-  service: ServiceRow,
-  pros: { id: string; active: boolean }[],
-  windows: WeeklyWindowRow[],
-): WeeklyWindowRow[] {
-  const linked = new Set(
-    service.professionalIds.length > 0
-      ? service.professionalIds
-      : pros.filter((p) => p.active).map((p) => p.id),
-  )
+function proWindowsForService(service: ServiceRow, windows: WeeklyWindowRow[]): WeeklyWindowRow[] {
+  // Lista vazia = ninguém (mesma regra do Conferir / motor de agenda).
+  const linked = new Set(service.professionalIds)
   return windows.filter((w) => linked.has(w.resourceId))
 }
 
@@ -112,7 +105,7 @@ export function lintConversationPaths(
 
     const serviceWindows = service.weeklyWindows
     if (serviceWindows.length > 0 && whoActive.length > 0) {
-      const proWins = proWindowsForService(service, pros, windows)
+      const proWins = proWindowsForService(service, windows)
       const crosses = serviceWindows.some((sw) =>
         proWins.some((pw) => windowsOverlap(sw, pw)),
       )

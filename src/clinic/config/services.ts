@@ -739,10 +739,8 @@ export function assertResourcesUsableForBooking(
       { professionalId: opts.professionalId },
     )
   }
-  if (
-    service.professionalIds.length > 0
-    && !service.professionalIds.includes(opts.professionalId)
-  ) {
+  // Lista vazia = ninguém (Conferir / DEC-085); não aceitar «qualquer» profissional.
+  if (!service.professionalIds.includes(opts.professionalId)) {
     throw new ValidationError(
       'professional_not_linked',
       'profissional não habilitado para este serviço',

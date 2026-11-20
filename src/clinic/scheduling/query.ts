@@ -40,13 +40,12 @@ function resolveProfessionals(
   filterId: string | null | undefined,
   clock: Clock,
 ): ResourceRow[] {
+  // Lista vazia = ninguém faz o serviço (Conferir / DEC-085). Antes tratava-se
+  // como «qualquer profissional activa», o que deixava marcar pela página e pelo painel.
   const all = listResources(db, tenantId, clock).filter(
     (r) => r.kind === 'professional' && r.active,
   )
-  const linked =
-    serviceProfessionalIds.length === 0
-      ? all
-      : all.filter((r) => serviceProfessionalIds.includes(r.id))
+  const linked = all.filter((r) => serviceProfessionalIds.includes(r.id))
 
   if (filterId && filterId !== 'any') {
     const one = linked.find((r) => r.id === filterId)

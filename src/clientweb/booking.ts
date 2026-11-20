@@ -8,6 +8,7 @@
  */
 import type { Clock } from '../db/clock'
 import { ConflictError, ValidationError } from '../clinic/errors'
+import { listResources } from '../clinic/config/resources'
 import { listServices, getService } from '../clinic/config/services'
 import { quoteVisit } from '../clinic/config/zones'
 import { ensureClinicSettings } from '../clinic/config/settings'
@@ -70,18 +71,28 @@ export type ClientWebCatalog = {
   services: ClientWebCatalogService[]
 }
 
-/** Serviço ativo e marcável: com zonas, tem de haver pelo menos uma ativa (#540). */
-function isBookable(service: ServiceRow): boolean {
+/**
+ * Serviço ativo e marcável (alinhado ao Conferir / DEC-085):
+ * - com zonas, pelo menos uma activa (#540);
+ * - pelo menos uma profissional activa ligada («Ninguém» → não entra no catálogo).
+ */
+function isBookable(service: ServiceRow, activeProfessionalIds: ReadonlySet<string>): boolean {
   if (!service.active) return false
   if (service.zones.length > 0 && !service.zones.some((z) => z.active)) return false
+  if (!service.professionalIds.some((id) => activeProfessionalIds.has(id))) return false
   return true
 }
 
 export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Clock): ClientWebCatalog {
   const settings = ensureClinicSettings(db, tenantId, clock)
   const timezone = settings.timezone || 'America/Sao_Paulo'
+  const activeProfessionalIds = new Set(
+    listResources(db, tenantId, clock)
+      .filter((r) => r.kind === 'professional' && r.active)
+      .map((r) => r.id),
+  )
   const services = listServices(db, tenantId)
-    .filter(isBookable)
+    .filter((s) => isBookable(s, activeProfessionalIds))
     .map<ClientWebCatalogService>((s) => ({
       id: s.id,
       name: s.name,
@@ -152,8 +163,10 @@ export async function listClientWebSlots(
   },
 ): Promise<ClientWebSlotsResult> {
   const service = getService(db, tenantId, input.serviceId)
-  if (!service || !isBookable(service)) return { ok: false, error: 'service_unavailable' }
   const catalog = readClientWebCatalog(db, tenantId, clock)
+  if (!service || !catalog.services.some((s) => s.id === service.id)) {
+    return { ok: false, error: 'service_unavailable' }
+  }
   const range = clampDateRange(catalog.today, input.from, input.to)
   if (!range) return { ok: false, error: 'range_invalid' }
   let duration: number
@@ -271,7 +284,10 @@ export async function planWebProposal(
   deps: { abuseLimits?: AbuseLimits } = {},
 ): Promise<PlannedWebProposal> {
   const service = getService(db, tenantId, input.serviceId)
-  if (!service || !isBookable(service)) return { ok: false, error: 'service_unavailable' }
+  const catalog = readClientWebCatalog(db, tenantId, clock)
+  if (!service || !catalog.services.some((s) => s.id === service.id)) {
+    return { ok: false, error: 'service_unavailable' }
+  }
 
   // Zonas escolhidas têm de existir, estar ativas e respeitar a linha (DEC-079).
   const activeZones = service.zones.filter((z) => z.active)
@@ -299,7 +315,6 @@ export async function planWebProposal(
   const m = SLOT_ID.exec(input.slotId)
   if (!m) return { ok: false, error: 'slot_invalid' }
   const [, date, time] = m as unknown as [string, string, string]
-  const catalog = readClientWebCatalog(db, tenantId, clock)
   if (!clampDateRange(catalog.today, date, date)) return { ok: false, error: 'slot_invalid' }
 
   // A hora tem de estar livre agora: o motor devolve também a profissional.

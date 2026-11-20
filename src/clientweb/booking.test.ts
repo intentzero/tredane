@@ -117,6 +117,44 @@ describe('catálogo da página (REQ-112)', () => {
       close()
     }
   })
+
+  it('serviço sem profissional activa não entra no catálogo nem marca (Conferir)', async () => {
+    const { db, close, clock, caller, session } = seed()
+    try {
+      const orphan = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Bronzeamento',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: 15_000,
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(readClientWebCatalog(db, TENANT, clock).services.map((s) => s.name)).not.toContain('Bronzeamento')
+      expect(
+        await listClientWebSlots(db, TENANT, clock, {
+          serviceId: orphan.id,
+          variantIds: [],
+          from: '2024-01-08',
+          to: '2024-01-08',
+        }),
+      ).toEqual({ ok: false, error: 'service_unavailable' })
+      expect(
+        await planWebProposal(db, TENANT, clock, session, {
+          serviceId: orphan.id,
+          variantIds: [],
+          line: null,
+          slotId: '2024-01-08T09:00',
+        }),
+      ).toEqual({ ok: false, error: 'service_unavailable' })
+    } finally {
+      close()
+    }
+  })
 })
 
 describe('horas por intervalo (DEC-201 provisório)', () => {

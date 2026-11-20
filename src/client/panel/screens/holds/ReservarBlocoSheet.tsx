@@ -141,8 +141,8 @@ export function ReservarBlocoSheet(props: Props) {
     (r) =>
       r.kind === 'professional' &&
       r.active &&
-      // Lista vazia no serviço = qualquer profissional (mesma regra do servidor).
-      (!service || service.professionalIds.length === 0 || service.professionalIds.includes(r.id)),
+      // Sem serviço: todas. Com serviço: só as ligadas (lista vazia = ninguém / Conferir).
+      (!service || service.professionalIds.includes(r.id)),
   )
   const professional = professionals.find((p) => p.id === professionalId)
 

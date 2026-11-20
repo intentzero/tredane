@@ -477,12 +477,13 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     && !contactSignalWaived
     && globalSignalOn
     && Boolean(service?.requiresSignal && amountCents != null)
+  // Sem serviço ainda: todas as activas. Com serviço: só as ligadas (lista vazia = ninguém).
   const professionals =
     config?.resources.filter(
       (r) =>
         r.kind === 'professional'
         && r.active
-        && (!service || service.professionalIds.length === 0 || service.professionalIds.includes(r.id)),
+        && (!service || service.professionalIds.includes(r.id)),
     ) ?? []
 
   function back() {

@@ -36,7 +36,8 @@ const service = (over: Record<string, unknown> = {}) => ({
   occupiedMinutes: 45,
   priceCents: 18000,
   active: true,
-  professionalIds: [],
+  // Ligadas às profissionais do snapshot; lista vazia = ninguém (não «qualquer»).
+  professionalIds: ['pro_ana', 'pro_bia'],
   requiresSignal: false,
   signalKind: null,
   signalFixedCents: null,

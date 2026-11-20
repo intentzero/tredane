@@ -468,7 +468,7 @@ function resolveFacts(
         { professionalId },
       )
     }
-    if (service.professionalIds.length > 0 && !service.professionalIds.includes(professionalId)) {
+    if (!service.professionalIds.includes(professionalId)) {
       throw new ValidationError(
         'professional_not_on_service',
         'Profissional não está ligado a este serviço',

@@ -157,6 +157,47 @@ describe('queryAvailability (#35 / REQ-030)', () => {
     }
   })
 
+  it('serviço sem profissional ligada não devolve horas nem passa no check (Conferir)', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { caller, pro, room } = seedClinic(db, clock)
+      const orphan = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Bronzeamento',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [],
+          roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
+        },
+        clock,
+      )
+      const result = queryAvailabilityOp(
+        db,
+        caller,
+        { serviceId: orphan.id, date: MONDAY },
+        clock,
+      )
+      expect(result.slots).toEqual([])
+      const check = checkSlotAvailabilityOp(
+        db,
+        caller,
+        {
+          serviceId: orphan.id,
+          professionalId: pro.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0),
+        },
+        clock,
+      )
+      expect(check.available).toBe(false)
+      expect(check.reasons).toContain('professional_not_linked')
+    } finally {
+      close()
+    }
+  })
+
   it('horários adjacentes: fim de um (com buffer) bloqueia o seguinte no mesmo recurso', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })

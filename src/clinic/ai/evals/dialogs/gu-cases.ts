@@ -4,11 +4,15 @@
  * com o propósito certo; a IA só informa. Com a pausa da owner, passa à equipe.
  *
  * CW-12: efeito no chat depois do cancelamento **na página** (recibo único + DEC-086).
+ * CW-13: serviço sem profissional — a página e a proposta recusam marcar (Conferir / DEC-085).
  * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
  */
+import { listServices, upsertServiceOp } from '../../../config'
+import { ValidationError } from '../../../errors'
 import { workerCaller } from '../../../envelopes'
 import { POST_BOOKING_BODY } from '../../../followup/post-booking'
-import { zonedCivilToUtc } from '../../../scheduling'
+import { createOrSupersedeProposal } from '../../../proposals/proposals'
+import { queryAvailability, zonedCivilToUtc } from '../../../scheduling'
 import {
   appendWebCancelChatEffects,
   cancelFromWeb,
@@ -16,6 +20,7 @@ import {
   WEB_CANCEL_RECEIPT_SENTENCE,
 } from '../../../../clientweb/manage'
 import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
+import { readClientWebCatalog } from '../../../../clientweb/booking'
 import { OPEN_MAP_CTA_TEXT } from '../../location-map-offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
 import {
@@ -438,6 +443,85 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         }
         const help = s.outboundBodies().filter((b) => b === POST_BOOKING_BODY)
         if (help.length !== 1) errs.push(`esperava 1 «${POST_BOOKING_BODY}», saíram ${help.length}`)
+        return errs
+      },
+    },
+  },
+  {
+    id: 'CW-13',
+    title:
+      'Serviço sem profissional: catálogo da página e proposta recusam marcar (Conferir / DEC-085)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const bronze = listServices(s.db, s.tenantId).find((row) => row.name === 'Bronzeamento')
+      if (!bronze) throw new Error('CW-13: Bronzeamento ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: bronze.id,
+          name: bronze.name,
+          durationMinutes: bronze.durationMinutes,
+          bufferMinutes: bronze.bufferMinutes,
+          priceCents: bronze.priceCents,
+          professionalIds: [],
+          roomRequirement: bronze.roomRequirement,
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quero marcar bronzeamento amanhã às 10h' },
+      {
+        role: 'owner',
+        note: 'cliente tenta Confirmar na página com Bronzeamento sem profissional (mesmo caminho do Clinic DO)',
+        act: (s) => {
+          const catalog = readClientWebCatalog(s.db, s.tenantId, s.clock)
+          if (catalog.services.some((svc) => svc.id === s.ids.bronzeamento || svc.name === 'Bronzeamento')) {
+            throw new Error('CW-13: Bronzeamento ainda no catálogo da página')
+          }
+          const avail = queryAvailability(
+            s.db,
+            s.tenantId,
+            { serviceId: s.ids.bronzeamento, date: '2026-11-06' },
+            s.clock,
+          )
+          if (avail.slots.length > 0) {
+            throw new Error(`CW-13: motor ainda devolveu ${avail.slots.length} hora(s) sem profissional`)
+          }
+          // Forçar o caminho de proposta com Gi (como no WA «com Gi» da evidência).
+          try {
+            createOrSupersedeProposal(
+              s.db,
+              s.tenantId,
+              {
+                contactId: s.contactId,
+                conversationId: s.conversationId,
+                serviceId: s.ids.bronzeamento,
+                professionalId: s.ids.gi,
+                startsAt: zonedCivilToUtc(GU_TZ, 2026, 11, 6, 10, 0),
+                zoneIds: null,
+              },
+              s.clock,
+            )
+            throw new Error('CW-13: proposta criada apesar de lista vazia de profissionais')
+          } catch (err) {
+            if (err instanceof ValidationError && err.code === 'professional_not_on_service') return
+            throw err
+          }
+        },
+      },
+    ],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Bronzeamento' }],
+      outboundExcludes: [/Agendado:/],
+      assert: (s) => {
+        const errs: string[] = []
+        if (s.appointmentCount() !== 0) errs.push('marcação inesperada com serviço sem profissional')
+        if (s.proposalCount() !== 0) errs.push('proposta inesperada com serviço sem profissional')
         return errs
       },
     },
