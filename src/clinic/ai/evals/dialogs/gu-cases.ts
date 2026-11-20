@@ -4,7 +4,7 @@
  * com o propósito certo; a IA só informa. Com a pausa da owner, passa à equipe.
  *
  * CW-12: efeito no chat depois do cancelamento **na página** (recibo único + DEC-086).
- * CW-13: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
+ * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
  */
 import { workerCaller } from '../../../envelopes'
 import { POST_BOOKING_BODY } from '../../../followup/post-booking'
@@ -443,7 +443,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'CW-13',
+    id: 'CW-14',
     title:
       'Agendado pela página: CTA «Abrir mapa», sem URL Local no corpo (DEC-211 opção B)',
     turnosIdeais: 0,
@@ -469,10 +469,10 @@ export const GU_DIALOG_CASES: DialogCase[] = [
             s.clock,
           )
           if (!proposal.clinicLocationText.startsWith('https://')) {
-            throw new Error('CW-13: cenário sem link de localização Google')
+            throw new Error('CW-14: cenário sem link de localização Google')
           }
           markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
-          markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'apt_cw13')
+          markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'apt_cw14')
           const result = sendProposalResultMessageOp(
             s.db,
             s.caller,
@@ -480,7 +480,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
             s.clock,
           )
           if (result.status !== 'queued') {
-            throw new Error(`CW-13: esperava queued, veio ${result.status}`)
+            throw new Error(`CW-14: esperava queued, veio ${result.status}`)
           }
         },
       },
