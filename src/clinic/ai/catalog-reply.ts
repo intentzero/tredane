@@ -386,7 +386,13 @@ export function catalogReply(
     if (!link) {
       return sayAct('esclarecer', cnv, {}, 'Não tenho a localização cadastrada; a equipe confirma.')
     }
-    return sayAct('informar_local_link', cnv, { link }, `Estamos aqui: ${link}`)
+    // Opção B: corpo sem URL; o link sai no toque «Abrir mapa» → cta_url.
+    return sayAct(
+      'informar_local_link',
+      cnv,
+      { link },
+      'Estamos aqui — abra o mapa para ver o caminho.',
+    )
   }
 
   const bookingIntentCold = hasSchedulingAvailabilityIntent(body) && !isCatalogInfoAsk(body)

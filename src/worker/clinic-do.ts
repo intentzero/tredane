@@ -156,6 +156,11 @@ import {
   parseOpenAgendaReplyButton,
   type PrepareClientWebOffer,
 } from '../clientweb/offer'
+import {
+  LOCATION_MAP_CTA_BODY,
+  locationMapCtaInteractive,
+  parseOpenMapReplyButton,
+} from '../clinic/ai/location-map-offer'
 import { resolveClientWebLinkPreset } from '../clientweb/link-preset'
 import { issueClientWebLink } from '../clientweb/links'
 import {
@@ -1333,6 +1338,40 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const conversationId = input.conversationId
     if (!conversationId) return { handled: false as const }
+    // Opção B (localização): reply «Abrir mapa» → cta_url do link da localização Google.
+    // Um cta_url por mensagem (Meta); Agenda fica reply na 1.ª bolha e abre a página no toque.
+    if (parseOpenMapReplyButton(input.buttonId)) {
+      cancelAutoDraft(this.#db, caller.tenantId, conversationId)
+      const mapsUrl = clinicConfig
+        .ensureClinicSettings(this.#db, caller.tenantId, this.#clock)
+        .googleBusinessUrl.trim()
+      if (mapsUrl) {
+        try {
+          const key = input.providerEventKey ?? `mapa:${this.#clock.nowMs()}`
+          const sent = clinicInbox.sendOutboundMessageOp(
+            this.#db,
+            caller,
+            {
+              conversationId,
+              body: LOCATION_MAP_CTA_BODY,
+              interactive: locationMapCtaInteractive(mapsUrl),
+              clientRequestId: `ai-map:${key}`,
+              authorClerkUserId: 'system:ai-autodraft',
+              authorDisplayName: 'Assistente',
+            },
+            this.#clock,
+          )
+          if (sent.outbox.length > 0) {
+            await this.#fanoutOutboxes(caller, sent.outbox, true)
+            await this.#drain(caller)
+          }
+        } catch {
+          /* fail-soft: sem link válido / outbox */
+        }
+      }
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+      return { handled: true, action: 'map_link' as const }
+    }
     // DEC-216: reply «Abrir agenda» (junto a «Falar com a equipe») → envia o CTA URL.
     const openAgendaTap = parseOpenAgendaReplyButton(input.buttonId)
     if (openAgendaTap) {

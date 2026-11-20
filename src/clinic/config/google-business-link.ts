@@ -1,7 +1,8 @@
 /**
- * Link do Google Business da clínica (contexto da IA). Partilhado entre o
- * backend (validação autoritativa) e o painel (validação imediata). Sem imports
- * para poder ser usado no cliente.
+ * Link da localização Google / Maps da clínica (DEC-211; painel: «localização Google»).
+ * Partilhado entre o backend (validação autoritativa) e o painel (validação imediata).
+ * Sem imports para poder ser usado no cliente. Identificador interno `googleBusiness*`
+ * mantém-se (rename de coluna = follow-up).
  */
 export const GOOGLE_BUSINESS_URL_MAX_LENGTH = 500
 
@@ -14,7 +15,7 @@ export function checkGoogleBusinessUrl(raw: string): GoogleBusinessUrlCheck {
   if (value.length > GOOGLE_BUSINESS_URL_MAX_LENGTH) {
     return {
       ok: false,
-      message: `O link do Google Business pode ter no máximo ${GOOGLE_BUSINESS_URL_MAX_LENGTH} caracteres.`,
+      message: `O link da localização pode ter no máximo ${GOOGLE_BUSINESS_URL_MAX_LENGTH} caracteres.`,
     }
   }
   const invalid = {

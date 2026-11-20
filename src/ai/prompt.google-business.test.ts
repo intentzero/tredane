@@ -36,13 +36,14 @@ function fullPrompt(i: AiGenerateInput): string {
   return `${buildSystemPrompt(i)}\n${buildUserContent(i)}`
 }
 
-describe('prompt — link do Google Business', () => {
-  it('inclui o link da clínica e a instrução de enviá-lo para localização', () => {
+describe('prompt — link da localização Google', () => {
+  it('inclui o link da clínica e a instrução Abrir mapa (sem colar URL no texto)', () => {
     const p = fullPrompt(
       input({ googleBusinessUrl: 'https://maps.app.goo.gl/ficticio123' }, 'Onde fica?'),
     )
     expect(p).toContain('https://maps.app.goo.gl/ficticio123')
-    expect(p).toMatch(/localização ou como chegar/)
+    expect(p).toMatch(/Abrir mapa/)
+    expect(p).toMatch(/não cole o URL longo/)
   })
   it('sem link cadastrado: não inventa link', () => {
     const p = fullPrompt(input({ googleBusinessUrl: null }, 'Onde fica?'))
@@ -52,6 +53,6 @@ describe('prompt — link do Google Business', () => {
     const p = fullPrompt(
       input({ googleBusinessUrl: null }, 'é aqui? https://golpe.example.com/mapa'),
     )
-    expect(p).not.toMatch(/Link de localização \(Google Business[^\n]*golpe/)
+    expect(p).not.toMatch(/Link da localização Google[^\n]*golpe/)
   })
 })
