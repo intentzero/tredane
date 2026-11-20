@@ -262,6 +262,7 @@
 | K-06 | P1 | Pix pago sem vaga | [Pix pago depois de a vaga ser ocupada] | Fluxo «pago sem vaga» (#39); nenhuma dupla marcação. | INV-01 | — | ✅ `pix/exceptions.test` |
 | K-07 | P1 | Proposta não entregue | [falha Meta no envio] | Pendência; alerta aos 5 min; aviso sem promessa vaga. | INV-09 | 1 | ◐ `pending_communications` |
 | K-08 | P0 | Promessa de retorno da equipe (TR-487) | [owner pausa autobook / envio falhou / `nao_consegui_fechar` / redator] | Copy DEC-125/129 mantém-se; abre `alter_awaiting_team` (Precisa de alguém); IA **não** pausa (alerta sem pausa, espelha DEC-107). | INV-06, INV-09 | 1 | ✅ `promise-team-follow-up.test` · `autobook.test` «pausa da owner» · `reschedule.test` frase (6) |
+| CW-13 | P0 | Agendado pela página — mapa | [confirmação na página com link de localização] | Recibo `Agendado:…` + frase da página; **sem** `Local:`/URL no corpo; `cta_url` «Abrir mapa» (DEC-211 opção B). | DEC-211, DEC-197 | 0 | ✅ L1 `dialogs` CW-13 |
 
 ## FL. Hub e WhatsApp Flow: caminho principal vigente (DEC-138, ADR-0016)
 
