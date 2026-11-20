@@ -616,8 +616,6 @@ export function createPanelApi(getToken: TokenGetter) {
       body: {
         googleBusinessUrl?: string
         reschedulePolicy?: string
-        virtualAttendantName?: string
-        virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
       },
       opts?: FetchOpts,
     ): Promise<ClinicConfigSnapshot['settings']> {
@@ -2979,10 +2977,6 @@ export type ClinicConfigSnapshot = {
     aiAssistEnabled?: boolean
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
-    /** DEC-089 — atendente virtual (persona da IA). */
-    virtualAttendantName?: string | null
-    virtualAttendantGender?: 'masculino' | 'feminino' | null
-    /** DEC-077 — local da previsão. Independente do endereço da IA. */
     updatedAt: number
   }
   services: ClinicService[]

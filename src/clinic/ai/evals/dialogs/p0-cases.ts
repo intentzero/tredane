@@ -144,6 +144,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: {
       notPaused: true,
       outboundIncludes: ['Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'],
+      // DEC-089 revista: frase fixa, sem nome de persona.
+      outboundExcludes: [/\b(Lia|Luna|Gioconda)\b/i, /Aqui é a (Lia|Luna|Gioconda)/i],
     },
   },
   {
@@ -155,6 +157,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: {
       notPaused: true,
       outboundIncludes: ['Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'],
+      outboundExcludes: [/\b(Lia|Luna|Gioconda)\b/i],
     },
   },
   {
@@ -915,6 +918,31 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: 'e sexta de manhã?' },
     ],
     expect: { turns: [{ turn: 0, excludes: [/^\s*(oi|olá|ola)\b/i] }] },
+  },
+  {
+    // DEC-089 revista (Paulo 20/11/2026): sem nome/género configuráveis; copy fixa.
+    // Antes: persona «Lia»/«Gioconda» na apresentação. Hub «Aqui é a {clínica}» mantém-se.
+    id: 'J-02',
+    title: 'Sem persona configurável (DEC-089 revista)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Oi' }],
+    expect: {
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Olá! Aqui é a /],
+          excludes: [
+            /\b(Lia|Luna|Gioconda)\b/i,
+            /Aqui é a (Lia|Luna|Gioconda)/i,
+            /Sou a (Lia|Luna|Gioconda)/i,
+            /me chamo/i,
+            /atendente virtual (feminina|masculino)/i,
+            /concordância no (feminino|masculino)/i,
+          ],
+        },
+      ],
+    },
   },
   {
     id: 'J-04',

@@ -94,13 +94,11 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 ---
 
-## S2 — Atendente virtual (nome + género)
+## S2 — Atendente virtual (nome + género) — **revogado**
 
-**Comportamento.** No hub da Clínica (owner), campos opcionais «Nome do atendente virtual» e «Género» (Masculino / Feminino). A API recusa escrita de attendant. O contexto da IA (DEC-011) passa a receber estes campos quando preenchidos, só para copy — sem inventar dados de cliente.
+**Estado:** DEC-089 **revista** (Paulo, 20/11/2026). A clínica **não** configura nome nem género da assistente. Saíram UI, API, prompts e colunas (`0079_drop_virtual_attendant`). A migração 45 permanece só no histórico.
 
-**Dados.** Migração seguinte à 44: `clinic_settings.virtual_attendant_name TEXT NOT NULL DEFAULT ''`, `clinic_settings.virtual_attendant_gender TEXT` com `NULL` ou `masculino`/`feminino`.
-
-**Aceite:** AC-74; REQ-100.
+**Aceite histórico:** AC-74 / REQ-100 → **Fora**.
 
 ---
 

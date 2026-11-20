@@ -240,7 +240,7 @@
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | J-01 | P0 | Sem novo cumprimento | [a clínica já falou] ⟶ C: «e sexta?» | A resposta não começa por «Oi/Olá». | INV-11, Q4 | 1 | ✅ `continuity.integration.test` |
-| J-02 | P1 | Persona com nome | [persona «Lia», feminino] ⟶ C: «Oi» | Apresenta-se como Lia, com concordância no feminino, uma vez. | Q3, Q4 | 1 | ❔ L2 |
+| J-02 | P0 | Sem persona configurável (DEC-089 revista) | C: «Oi» | Abertura com o nome da **clínica** («Olá! Aqui é a …»); **não** se apresenta com nome de atendente virtual (Lia/Luna/Gioconda) nem pedaços de persona. | INV-11 | 1 | ✅ L1 `dialogs` J-02 |
 | J-03 | P0 | Não perguntar de novo a zona | C: «depilação masculina de axila segunda à tarde» ⟶ A: [oferta] ⟶ C: «14:00» | Proposta direta; não pergunta «as zonas». | INV-08, EE-02 | 2 | ✅ `autobook.test` «as 13 com a zona já dita»; confirmar em L4 (divergente na sonda de 31/10) |
 | J-04 | P0 | Corte de cumprimento | [o modelo devolve «Oi Carla, tenho 15:00 amanhã» a meio da conversa] | «Tenho 15:00 amanhã…», sem vírgula solta. | INV-11 | 1 | ✅ `client-copy.test` / `stripLeadingGreeting` (#405, CF-12) |
 | J-05 | P0 | O nome não escolhe a linha | [contato «Paulo»] ⟶ C: «Quero depilação» | Pergunta a linha. | INV-08 | 1 | ✅ `catalog-reply.test` |

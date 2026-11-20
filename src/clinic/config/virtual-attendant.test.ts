@@ -1,5 +1,5 @@
 /**
- * DEC-089 / S2 — nome e género do atendente virtual.
+ * DEC-089 revista — colunas do atendente virtual removidas (migração 79).
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
@@ -8,14 +8,13 @@ import { bootClinicDb } from '../test-db'
 import { ensureClinicSettings, setClinicAiProfile } from './settings'
 import { buildSystemPrompt } from '../../ai/prompt'
 import type { AiGenerateInput } from '../../ai/types'
-import { ValidationError } from '../errors'
 
-describe('DEC-089 virtual attendant', () => {
-  it('migração 45 sobe CLINIC_SCHEMA_VERSION e grava colunas vazias', () => {
+describe('DEC-089 revista — sem atendente virtual', () => {
+  it('migração 79 sobe CLINIC_SCHEMA_VERSION e remove as colunas', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(78)
+      expect(CLINIC_SCHEMA_VERSION).toBe(79)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
@@ -23,17 +22,17 @@ describe('DEC-089 virtual attendant', () => {
       const cols = db
         .all<{ name: string }>(`PRAGMA table_info(clinic_settings)`)
         .map((c) => c.name)
-      expect(cols).toContain('virtual_attendant_name')
-      expect(cols).toContain('virtual_attendant_gender')
+      expect(cols).not.toContain('virtual_attendant_name')
+      expect(cols).not.toContain('virtual_attendant_gender')
       const s = ensureClinicSettings(db, 'clinic-demo-a', clock)
-      expect(s.virtualAttendantName).toBe('')
-      expect(s.virtualAttendantGender).toBeNull()
+      expect(s).not.toHaveProperty('virtualAttendantName')
+      expect(s).not.toHaveProperty('virtualAttendantGender')
     } finally {
       close()
     }
   })
 
-  it('grava nome e género feminino', () => {
+  it('setClinicAiProfile grava só localização e regras', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -41,59 +40,19 @@ describe('DEC-089 virtual attendant', () => {
         db,
         'clinic-demo-a',
         {
-          virtualAttendantName: '  Luna  ',
-          virtualAttendantGender: 'feminino',
+          googleBusinessUrl: 'https://maps.app.goo.gl/demo',
+          reschedulePolicy: '  Avise com 24 h.  ',
         },
         clock,
       )
-      expect(next.virtualAttendantName).toBe('Luna')
-      expect(next.virtualAttendantGender).toBe('feminino')
+      expect(next.googleBusinessUrl).toBe('https://maps.app.goo.gl/demo')
+      expect(next.reschedulePolicy).toBe('Avise com 24 h.')
     } finally {
       close()
     }
   })
 
-  it('limpa género com string vazia', () => {
-    const clock = createControllableClock(Date.UTC(2026, 9, 31))
-    const { db, close } = bootClinicDb({ clock })
-    try {
-      setClinicAiProfile(
-        db,
-        'clinic-demo-a',
-        { virtualAttendantName: 'Leo', virtualAttendantGender: 'masculino' },
-        clock,
-      )
-      const cleared = setClinicAiProfile(
-        db,
-        'clinic-demo-a',
-        { virtualAttendantGender: '' },
-        clock,
-      )
-      expect(cleared.virtualAttendantName).toBe('Leo')
-      expect(cleared.virtualAttendantGender).toBeNull()
-    } finally {
-      close()
-    }
-  })
-
-  it('recusa género inválido', () => {
-    const clock = createControllableClock(Date.UTC(2026, 9, 31))
-    const { db, close } = bootClinicDb({ clock })
-    try {
-      expect(() =>
-        setClinicAiProfile(
-          db,
-          'clinic-demo-a',
-          { virtualAttendantGender: 'ambos' as 'masculino' },
-          clock,
-        ),
-      ).toThrow(ValidationError)
-    } finally {
-      close()
-    }
-  })
-
-  it('persona feminina entra no system prompt', () => {
+  it('system prompt não menciona persona configurável', () => {
     const input = {
       kind: 'reply' as const,
       context: {
@@ -111,8 +70,6 @@ describe('DEC-089 virtual attendant', () => {
           openingHours: [],
           reschedulePolicy: null,
           cancellationPolicy: null,
-          virtualAttendantName: 'Luna',
-          virtualAttendantGender: 'feminino' as const,
         },
       },
       warnings: [],
@@ -123,8 +80,7 @@ describe('DEC-089 virtual attendant', () => {
       timeoutMs: 1000,
     } satisfies AiGenerateInput
     const prompt = buildSystemPrompt(input)
-    expect(prompt).toContain('Luna')
-    expect(prompt).toContain('feminina')
-    expect(prompt).toContain('concordância no feminino')
+    expect(prompt).toContain('assistente de atendimento')
+    expect(prompt).not.toMatch(/Persona da clínica|atendente virtual feminina|Luna|Gioconda/)
   })
 })

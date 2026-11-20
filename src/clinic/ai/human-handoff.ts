@@ -287,7 +287,7 @@ export const HEALTH_SAFETY_LINE =
 export const HANDOFF_PAUSED_ACK_TEXT =
   'Recebi sua mensagem. A equipe já foi avisada. Posso continuar te ajudando por aqui com o agendamento enquanto você espera.'
 
-/** DEC-115 — transparência (neutra; persona com nome → ok Paulo). */
+/** DEC-115 — transparência (frase fixa; sem persona configurável — DEC-089 revista). */
 export const AI_TRANSPARENCY_TEXT =
   'Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'
 

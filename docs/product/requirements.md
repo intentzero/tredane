@@ -272,7 +272,7 @@
 
 ### REQ-100 — Nome e género do atendente virtual
 
-**Prioridade/estado:** MVP / Confirmado (DEC-089). **Origem:** ACT-03; DEC-042, DEC-011. **Comportamento:** a responsável pode gravar, opcionalmente, nome e género (`masculino` \| `feminino`) do atendente virtual da clínica. A IA usa esses valores na copy (concordância e apresentação). Attendant não grava. Vazio = copy neutra. Não se grava nem se infere sexo da cliente. **Aceite:** AC-74. **Dados/tenant:** `clinic_settings` no SQLite da clínica; UI React Aria / tokens DEC-041.
+**Prioridade/estado:** **Fora do MVP** / DEC-089 **revista** (Paulo, 20/11/2026). **Origem:** ACT-03; DEC-042, DEC-011. **Comportamento (histórico):** a responsável podia gravar nome e género do atendente virtual. **Atual:** a clínica **não** configura persona; campos, UI e prompts de persona saíram. A copy da IA é fixa/neutra. Continua a não gravar nem inferir sexo da cliente. **Aceite:** AC-74 (revisto).
 
 ### REQ-101 — Reagendamento conversacional sem reiniciar o funil
 
@@ -369,7 +369,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-097 | MVP | Pós-agendamento pergunta se ajuda em mais algo; Terminar mantém Agendado (quando aplicável), cancela idle/handoff e a IA assume (DEC-086). |
 | REQ-098 | MVP | Idle 30 min sem actividade encerra (IA ou humano); Agendado ou Perdido; frase fixa (DEC-087 / DEC-208). |
 | REQ-099 | MVP | Outbound humano no WhatsApp leva prefixo `[Nome]` (DEC-088). |
-| REQ-100 | MVP | Owner configura nome/género opcionais do atendente virtual (DEC-089). |
+| REQ-100 | Fora | Persona configurável removida (DEC-089 revista). |
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
 | REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |

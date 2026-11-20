@@ -94,8 +94,6 @@ describe('llm_jobs claim/apply/fail (DEC-188)', () => {
                 localNowIso: '2026-11-15T12:00:00-03:00',
                 hoursSummary: 'Seg–Sáb 9–18',
                 tempoPhrase: null,
-                virtualAttendantName: 'Lia',
-                virtualAttendantGender: 'feminino',
               },
             },
           },

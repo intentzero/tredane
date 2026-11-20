@@ -41,7 +41,6 @@ export type ClinicaSection =
   | 'recebimento'
   | 'conhecimento'
   | 'assistente'
-  | 'assistente-persona'
   | 'assistente-protecoes'
   | 'equipe'
 
@@ -177,7 +176,7 @@ function parseClinicaRest(rest: string | undefined): {
   if (head === 'recebimento') return { section: 'recebimento' }
   if (head === 'conhecimento') return { section: 'conhecimento' }
   if (head === 'assistente') {
-    if (parts[1] === 'persona') return { section: 'assistente-persona' }
+    // `/assistente/persona` legado (DEC-089 revista) → índice do assistente
     if (parts[1] === 'protecoes') return { section: 'assistente-protecoes' }
     return { section: 'assistente' }
   }
@@ -417,8 +416,6 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/conhecimento`
         case 'assistente':
           return `${base}/assistente`
-        case 'assistente-persona':
-          return `${base}/assistente/persona`
         case 'assistente-protecoes':
           return `${base}/assistente/protecoes`
         case 'equipe':

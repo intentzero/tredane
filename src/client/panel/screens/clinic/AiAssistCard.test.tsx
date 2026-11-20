@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -13,53 +13,11 @@ function api(): PanelApi {
   return {
     setClinicAiAssist: vi.fn(async () => ({ aiAssistEnabled: true })),
     setClinicAiProfile: vi.fn(async () => ({ ok: true })),
+    getPix: vi.fn(async () => ({ signalSettings: { enabled: false, cancellationPolicy: '' } })),
   } as unknown as PanelApi
 }
 
-function renderCard(over: { gender?: 'masculino' | 'feminino' | null; name?: string } = {}) {
-  return render(
-    <div className="clinic-work" style={{ height: 480, overflowY: 'auto' }}>
-      <div style={{ height: 320 }} aria-hidden="true" />
-      <AiProfileCard
-        tenantId="clinic-demo-a"
-        api={api()}
-        generation={1}
-        part="persona"
-        initialVirtualAttendantName={over.name ?? 'Gioconda'}
-        initialVirtualAttendantGender={over.gender ?? 'feminino'}
-      />
-    </div>,
-  )
-}
-
-function radioMinHeightOk(minH: string): boolean {
-  if (minH === '' || minH === '0px' || minH === 'auto') return true
-  const px = Number.parseFloat(minH)
-  return Number.isFinite(px) && px <= 1
-}
-
-describe('AiProfileCard — género do atendente (layout desktop)', () => {
-  it('mantém nome, os três géneros e «Salvar dados para a IA» visíveis ao trocar para Masculino', () => {
-    renderCard()
-    const card = screen.getByRole('region', { name: 'Como se apresenta' })
-    const group = within(card).getByRole('radiogroup', { name: 'Género do atendente virtual' })
-
-    fireEvent.click(within(group).getByRole('radio', { name: 'Masculino' }))
-
-    expect(within(card).getByDisplayValue('Gioconda')).toBeTruthy()
-    expect(within(group).getByRole('radio', { name: 'Neutro' })).toBeTruthy()
-    expect(within(group).getByRole('radio', { name: 'Feminino' })).toBeTruthy()
-    const masculino = within(group).getByRole('radio', { name: 'Masculino' })
-    expect(masculino).toBeTruthy()
-    expect((masculino as HTMLInputElement).checked).toBe(true)
-    expect(within(card).getByRole('button', { name: 'Salvar' })).toBeTruthy()
-
-    // Inputs escondidos do React Aria não herdam o min-height 48px dos campos de texto.
-    for (const radio of within(group).getAllByRole('radio')) {
-      expect(radioMinHeightOk(getComputedStyle(radio).minHeight)).toBe(true)
-    }
-  })
-
+describe('AiProfileCard — layout desktop (clinic-field / clinic-work)', () => {
   it('CSS do clinic-field exclui radio/checkbox e o clinic-work desktop contém o foco absoluto', () => {
     const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
     expect(css).toMatch(
@@ -69,5 +27,22 @@ describe('AiProfileCard — género do atendente (layout desktop)', () => {
     expect(css).toMatch(
       /@media \(min-width: 1280px\)\s*\{[\s\S]*?\.clinic-work\s*\{[^}]*position:\s*relative/s,
     )
+  })
+
+  it('mostra localização e regras gerais', () => {
+    render(
+      <div className="clinic-work" style={{ height: 480, overflowY: 'auto' }}>
+        <AiProfileCard
+          tenantId="clinic-demo-a"
+          api={api()}
+          generation={1}
+          initialGoogleBusinessUrl=""
+          initialReschedulePolicy=""
+        />
+      </div>,
+    )
+    expect(screen.getByRole('region', { name: 'Sobre a clínica' })).toBeTruthy()
+    expect(screen.getByLabelText(/Localização/)).toBeTruthy()
+    expect(screen.getByLabelText(/Regras gerais/)).toBeTruthy()
   })
 })

@@ -52,7 +52,7 @@ function connectWa(
 
 describe('DEC-208 idle timeout 30 min', () => {
   it('migração 46 e parse de botões legados', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(78)
+    expect(CLINIC_SCHEMA_VERSION).toBe(79)
     expect(parseIdleButtonId(idleButtonId('cnv_1', 'continue'))).toEqual({
       conversationId: 'cnv_1',
       action: 'continue',
