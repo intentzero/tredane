@@ -153,12 +153,16 @@ describe('termos não reconhecidos → sugestão de sinónimo (DEC-141)', () => 
       expect(shouldSurfaceUnmatchedTerm('pf', services)).toBe(false)
       expect(shouldSurfaceUnmatchedTerm('agendamento parte', services)).toBe(false)
       expect(shouldSurfaceUnmatchedTerm('saber disponibilidade', services)).toBe(false)
+      // Advérbio temporal ≥5: regra B sozinha aceitaria; stopword fecha (Paulo 20/11/2026).
+      expect(shouldSurfaceUnmatchedTerm('agora', services)).toBe(false)
+      expect(shouldSurfaceUnmatchedTerm('hoje', services)).toBe(false)
       expect(shouldSurfaceUnmatchedTerm('depilar', services)).toBe(true)
       expect(shouldSurfaceUnmatchedTerm('sobrancelha', services)).toBe(true)
 
       recordUnmatchedTerm(s.db, s.tenantId, 'favor', s.clock)
       recordUnmatchedTerm(s.db, s.tenantId, 'saber disponibilidade', s.clock)
       recordUnmatchedTerm(s.db, s.tenantId, 'agendamento parte', s.clock)
+      recordUnmatchedTerm(s.db, s.tenantId, 'agora', s.clock)
       recordUnmatchedTerm(s.db, s.tenantId, 'depilar', s.clock)
       const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
       expect(items.map((i) => i.term)).toEqual(['depilar'])
@@ -189,6 +193,13 @@ describe('termos não reconhecidos → sugestão de sinónimo (DEC-141)', () => 
       )
       s.db.run(
         `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
+         VALUES (?, 'umt_agora', 'agora', 'agora', 1, 'aberto', ?, ?)`,
+        s.tenantId,
+        now,
+        now,
+      )
+      s.db.run(
+        `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
          VALUES (?, 'umt_dep', 'depilar', 'depilar', 1, 'aberto', ?, ?)`,
         s.tenantId,
         now,
@@ -204,6 +215,7 @@ describe('termos não reconhecidos → sugestão de sinónimo (DEC-141)', () => 
         expect.arrayContaining([
           { id: 'umt_favor', status: 'descartado', resolved_by: UNMATCHED_AB_SYSTEM_ACTOR },
           { id: 'umt_saber', status: 'descartado', resolved_by: UNMATCHED_AB_SYSTEM_ACTOR },
+          { id: 'umt_agora', status: 'descartado', resolved_by: UNMATCHED_AB_SYSTEM_ACTOR },
           { id: 'umt_dep', status: 'aberto', resolved_by: null },
         ]),
       )
