@@ -29,13 +29,14 @@ import { isHumanStaffAuthor } from '../inbox/human-prefix'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
+  CLIENT_WEB_TIME_PICK_BODY,
   clientWebOfferBody,
   clientWebRouteBody,
   stripScheduleOffer,
   countRecentWebLinks,
   isOpenAgendaButtonTitle,
 } from '../../clientweb/offer'
-import { isGreetingOnly, servicesCitedInText } from '../../clientweb/route-intent'
+import { isGreetingOnly, isSlotTimePickByText, servicesCitedInText } from '../../clientweb/route-intent'
 import {
   clientWebLinkFieldsFromText,
   clientWebSchedulePrefsFromText,
@@ -1448,7 +1449,10 @@ export async function runDueAutoDrafts(
                   dayPart: null,
                 }
         let bodyOverride: string | undefined
-        if ('mixed' in route && route.mixed && deps.autoBookPaused !== true) {
+        // DEC-202: «Pode ser as 10:15» — corpo próprio (não repetir a frase de remarcar; INV-08).
+        if (isSlotTimePickByText(turnText)) {
+          bodyOverride = CLIENT_WEB_TIME_PICK_BODY
+        } else if ('mixed' in route && route.mixed && deps.autoBookPaused !== true) {
           const serviceName = route.serviceId
             ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
             : null

@@ -93,6 +93,28 @@ export function sendProposalResultMessageOp(
   if (proposal.resultOutboundId && proposal.resultKind === input.resultKind) {
     return { status: 'already_queued', proposal, outbox: [] }
   }
+  // DEC-202 / ADR-0018 §8 eng. #4: canal web — a página já mostra o erro; não espalhar
+  // «Horário já não está livre… Tenho … Qual fica melhor?» no WhatsApp.
+  if (
+    input.channel === 'web' &&
+    (input.resultKind === 'slot_refused' || input.resultKind === 'expired')
+  ) {
+    if (proposal.resultKind === input.resultKind) {
+      return { status: 'already_queued', proposal, outbox: [] }
+    }
+    linkProposalResult(
+      db,
+      meta.tenantId,
+      proposal.id,
+      { resultKind: input.resultKind },
+      clock,
+    )
+    return {
+      status: 'already_queued',
+      proposal: getProposal(db, meta.tenantId, proposal.id)!,
+      outbox: [],
+    }
+  }
 
   requireConversation(db, meta.tenantId, proposal.conversationId)
   const window = messagingWindowForConversation(

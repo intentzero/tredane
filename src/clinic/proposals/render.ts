@@ -327,7 +327,6 @@ export function renderProposalResultBody(
   opts: ProposalResultBodyOpts = {},
 ): string {
   const when = formatSlotRange(proposal)
-  const lista = opts.alternativesListing?.trim() || ''
   switch (kind) {
     case 'booked': {
       const service = zoneLabel(proposal.serviceName, opts.zones ?? [])
@@ -352,16 +351,12 @@ export function renderProposalResultBody(
       )
     }
     case 'slot_refused':
-      // #511: sem «equipe envia»; com alternativas do mesmo pedido quando houver.
-      if (lista) {
-        return (
-          `Horário já não está livre para ${proposal.serviceName} em ${when}. ` +
-          `Tenho ${lista}. Qual fica melhor?`
-        )
-      }
+      // DEC-202: o chat não oferece alternativas nem pergunta «Qual fica melhor?».
+      // Canal web: o executor suprime esta mensagem (a página já mostra o erro).
+      // `alternativesListing` ignorado (legado #511).
       return (
-        `Horário já não está livre para ${proposal.serviceName} em ${when}. ` +
-        `Quer que eu veja outro horário?`
+        `Esse horário já não está livre para ${proposal.serviceName} em ${when}. ` +
+        `Para escolher outro, toque em «Abrir agenda».`
       )
     case 'pix_signal':
       return (
@@ -369,16 +364,10 @@ export function renderProposalResultBody(
         `Nada fica reservado antes do pagamento. A equipe envia o pedido de sinal.`
       )
     case 'expired':
-      // #511 / CF-33 / A-18: explica validade e oferece horários novos (DEC-061: não marca).
-      if (lista) {
-        return (
-          `Essa proposta já não está válida. ` +
-          `Para ${proposal.serviceName}, tenho ${lista}. Qual fica melhor?`
-        )
-      }
+      // DEC-202: sem lista de horas no chat; a cliente escolhe na página.
       return (
         `Essa proposta de ${proposal.serviceName} em ${when} já não está válida. ` +
-        `Quer que eu veja outros horários?`
+        `Para escolher outro horário, toque em «Abrir agenda».`
       )
   }
 }

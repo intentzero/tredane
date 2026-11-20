@@ -42,7 +42,6 @@ import {
   markProposalForwarded,
   markProposalSlotRefused,
 } from './proposals'
-import { offerAlternativesForProposal } from './alternatives'
 import { sendProposalResultMessageOp, type SendProposalResultOutcome } from './results'
 import type { AppointmentProposalRow } from './types'
 
@@ -364,26 +363,10 @@ function settleBookingFrameAfterConfirm(
   clearBookingFrame(db, tenantId, cnv, clock, { emitOutbox: false })
 }
 
-/** #511 — alternativas do mesmo pedido para expirada / vaga perdida. */
-async function alternativesListingFor(
-  db: ClinicDb,
-  tenantId: string,
-  proposal: AppointmentProposalRow,
-  clock: Clock,
-): Promise<string> {
-  const { listing } = await offerAlternativesForProposal({
-    db,
-    tenantId,
-    proposal,
-    clock,
-    limit: 3,
-  })
-  return listing
-}
-
 /**
  * Consome autorização válida e executa book ou Pix (DEC-047: sem hold).
  * Idempotente por proposta+versão. Texto livre nunca chega aqui.
+ * DEC-202: falha de vaga / expirada não oferece horários no chat (só página ou frase Abrir agenda).
  */
 export async function executeProposalConfirmOp(
   db: ClinicDb,
@@ -493,7 +476,9 @@ export async function executeProposalConfirmOp(
   }
 
   if (proposal?.state === 'recusada_vaga') {
-    const result = await ensureResult(db, caller, proposal.id, 'slot_refused', clock)
+    const result = await ensureResult(db, caller, proposal.id, 'slot_refused', clock, {
+      channel: input.channel,
+    })
     return {
       status: 'slot_refused',
       proposal,
@@ -568,12 +553,9 @@ export async function executeProposalConfirmOp(
       )
     }
     if (proposal && (denialReason === 'expired' || denialReason === 'not_enviada')) {
-      const listing =
-        denialReason === 'expired'
-          ? await alternativesListingFor(db, meta.tenantId, proposal, clock)
-          : ''
+      // DEC-202: sem lista de horários no chat.
       result = await ensureResult(db, caller, proposal.id, 'expired', clock, {
-        alternativesListing: listing || null,
+        channel: input.channel,
       })
       if ('outbox' in result) outbox.push(...result.outbox)
     }
@@ -602,9 +584,11 @@ export async function executeProposalConfirmOp(
   }
 
   if (materialDrift(proposal, db, meta.tenantId, clock)) {
-    // Mudança material → encaminha; sem reoferta (não é Confirmar expirado / vaga, #511).
+    // Mudança material → encaminha; sem reoferta de horários (DEC-202).
     const forwarded = markProposalForwarded(db, meta.tenantId, proposal.id, clock)
-    const result = await ensureResult(db, caller, proposal.id, 'expired', clock)
+    const result = await ensureResult(db, caller, proposal.id, 'expired', clock, {
+      channel: input.channel,
+    })
     return {
       status: 'denied',
       reason: 'material_changed',
@@ -643,14 +627,8 @@ export async function executeProposalConfirmOp(
       },
       clock,
     )
-    const listing = await alternativesListingFor(
-      db,
-      meta.tenantId,
-      refused,
-      clock,
-    )
     const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock, {
-      alternativesListing: listing || null,
+      channel: input.channel,
     })
     return {
       status: 'slot_refused',
@@ -819,14 +797,8 @@ export async function executeProposalConfirmOp(
         },
         clock,
       )
-      const listing = await alternativesListingFor(
-        db,
-        meta.tenantId,
-        refused,
-        clock,
-      )
       const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock, {
-        alternativesListing: listing || null,
+        channel: input.channel,
       })
       return {
         status: 'slot_refused',

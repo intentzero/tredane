@@ -322,6 +322,41 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'GU-22',
+    title:
+      'Depois do link de remarcar, «Pode ser as 10:15» não aceita hora — reenvia Abrir agenda (DEC-202)',
+    turnosIdeais: 2,
+    prepare: withOneAppointment,
+    turns: [
+      { role: 'client', text: 'Quero reagendar meu horário' },
+      { role: 'client', text: 'Pode ser as 10:15' },
+    ],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 1,
+      clientWebOffers: 2,
+      clientWebPurposes: [
+        { purpose: 'remarcar', appointmentId: 'apt_gu_1' },
+        { purpose: 'remarcar', appointmentId: 'apt_gu_1' },
+      ],
+      outboundIncludes: [
+        'Para remarcar',
+        'Para escolher data e hora',
+        'Abrir agenda',
+      ],
+      outboundExcludes: [
+        /Qual fica melhor/i,
+        /Horário já não está livre/i,
+        /equipe vai confirmar/i,
+        /Tenho .+\d{2}:\d{2}/,
+      ],
+      turns: [
+        { turn: 0, matches: [/Para remarcar/] },
+        { turn: 1, matches: [/Para escolher data e hora/, /não marca nem remarca por texto/] },
+      ],
+    },
+  },
+  {
     id: 'GU-19',
     title: 'Pergunta de política de cancelamento é informação, não pedido de cancelar',
     turnosIdeais: 1,

@@ -17,7 +17,7 @@
 1. **Expurgo** por tenant e por contacto no D1 central (DEC-099, REQ-071); mesma lacuna no Flow.
 2. Copy para **erro de rede** e **clínica suspensa** (hoje «link já usado»).
 3. Pré-escolher **«Para quem é?»** a partir da conversa (DEC-142).
-4. Suprimir no canal web a frase do chat «Horário já não está livre…».
+4. ~~Suprimir no canal web a frase do chat «Horário já não está livre…».~~ **Feito** (DEC-202): canal web não emite essa mensagem; WhatsApp legado aponta «Abrir agenda» sem lista de horas.
 5. **TMPL-05** — envio do link fora das 24 h.
 
 ## Externos
