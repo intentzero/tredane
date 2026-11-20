@@ -21,7 +21,6 @@
 import type { Clock } from '../../db/clock'
 import { AI_DAILY_DRAFT_CAP } from '../../ai'
 import { writeOperationalAudit } from '../audit'
-import { AI_AUTOBOOK_ACTOR } from '../constants'
 import type { ClinicDb } from '../store'
 
 export type AbuseLimits = {
@@ -32,10 +31,6 @@ export type AbuseLimits = {
   autoDraftsPerContact: number
   /** Rascunhos por clínica por dia — já aprovado e aplicado (AI_DAILY_DRAFT_CAP); só referência. */
   autoDraftsPerClinic: number
-  /** Marcações feitas pela IA por contato na janela. */
-  aiBookingsPerContact: number
-  /** Marcações feitas pela IA por clínica na janela. */
-  aiBookingsPerClinic: number
   /** Compromissos futuros confirmados por contato (qualquer origem) antes de nova marcação automática. */
   futureAppointmentsPerContact: number
   /** Cobranças Pix aguardando pagamento por contato antes de nova cobrança automática. */
@@ -57,8 +52,6 @@ export const DEFAULT_ABUSE_LIMITS: Readonly<AbuseLimits> = Object.freeze({
   windowMs: 24 * 60 * 60 * 1000,
   autoDraftsPerContact: 20,
   autoDraftsPerClinic: AI_DAILY_DRAFT_CAP,
-  aiBookingsPerContact: 1,
-  aiBookingsPerClinic: 20,
   futureAppointmentsPerContact: 3,
   pendingPixPerContact: 2,
   pendingProposalsPerContact: 1,
@@ -76,8 +69,6 @@ export type AbuseLimitNumericKey = Exclude<keyof AbuseLimits, 'enabled' | 'autoD
 export type AbuseLimitNumbers = {
   windowHours: number
   autoDraftsPerContact: number
-  aiBookingsPerContact: number
-  aiBookingsPerClinic: number
   futureAppointmentsPerContact: number
   pendingPixPerContact: number
   pendingProposalsPerContact: number
@@ -89,8 +80,6 @@ export type AbuseLimitNumbers = {
 export const ABUSE_LIMIT_HARD_CAPS: Readonly<AbuseLimitNumbers> = Object.freeze({
   windowHours: 168,
   autoDraftsPerContact: 200,
-  aiBookingsPerContact: 20,
-  aiBookingsPerClinic: 500,
   futureAppointmentsPerContact: 20,
   pendingPixPerContact: 20,
   pendingProposalsPerContact: 10,
@@ -101,8 +90,6 @@ export const ABUSE_LIMIT_HARD_CAPS: Readonly<AbuseLimitNumbers> = Object.freeze(
 export const DEFAULT_ABUSE_LIMIT_NUMBERS: Readonly<AbuseLimitNumbers> = Object.freeze({
   windowHours: Math.round(DEFAULT_ABUSE_LIMITS.windowMs / (60 * 60 * 1000)),
   autoDraftsPerContact: DEFAULT_ABUSE_LIMITS.autoDraftsPerContact,
-  aiBookingsPerContact: DEFAULT_ABUSE_LIMITS.aiBookingsPerContact,
-  aiBookingsPerClinic: DEFAULT_ABUSE_LIMITS.aiBookingsPerClinic,
   futureAppointmentsPerContact: DEFAULT_ABUSE_LIMITS.futureAppointmentsPerContact,
   pendingPixPerContact: DEFAULT_ABUSE_LIMITS.pendingPixPerContact,
   pendingProposalsPerContact: DEFAULT_ABUSE_LIMITS.pendingProposalsPerContact,
@@ -123,8 +110,6 @@ const ENV_KEYS: Record<NumericKey, string> = {
   windowMs: 'ABUSE_LIMIT_WINDOW_HOURS',
   autoDraftsPerContact: 'ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT',
   autoDraftsPerClinic: '',
-  aiBookingsPerContact: 'ABUSE_LIMIT_AI_BOOKINGS_PER_CONTACT',
-  aiBookingsPerClinic: 'ABUSE_LIMIT_AI_BOOKINGS_PER_CLINIC',
   futureAppointmentsPerContact: 'ABUSE_LIMIT_FUTURE_APPOINTMENTS_PER_CONTACT',
   pendingPixPerContact: 'ABUSE_LIMIT_PENDING_PIX_PER_CONTACT',
   pendingProposalsPerContact: 'ABUSE_LIMIT_PENDING_PROPOSALS_PER_CONTACT',
@@ -158,8 +143,6 @@ export function abuseLimitNumbersFromLimits(limits: AbuseLimits): AbuseLimitNumb
   return {
     windowHours: Math.max(1, Math.round(limits.windowMs / (60 * 60 * 1000))),
     autoDraftsPerContact: limits.autoDraftsPerContact,
-    aiBookingsPerContact: limits.aiBookingsPerContact,
-    aiBookingsPerClinic: limits.aiBookingsPerClinic,
     futureAppointmentsPerContact: limits.futureAppointmentsPerContact,
     pendingPixPerContact: limits.pendingPixPerContact,
     pendingProposalsPerContact: limits.pendingProposalsPerContact,
@@ -193,16 +176,6 @@ export function platformAbuseCeilings(
       'autoDraftsPerContact',
       'ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT',
       'autoDraftsPerContact',
-    ),
-    aiBookingsPerContact: pick(
-      'aiBookingsPerContact',
-      'ABUSE_LIMIT_AI_BOOKINGS_PER_CONTACT',
-      'aiBookingsPerContact',
-    ),
-    aiBookingsPerClinic: pick(
-      'aiBookingsPerClinic',
-      'ABUSE_LIMIT_AI_BOOKINGS_PER_CLINIC',
-      'aiBookingsPerClinic',
     ),
     futureAppointmentsPerContact: pick(
       'futureAppointmentsPerContact',
@@ -252,8 +225,6 @@ export function resolveAbuseLimits(
     windowMs: clampInt(clinic.windowHours, 1, ceilings.windowHours) * 60 * 60 * 1000,
     autoDraftsPerContact: clampInt(clinic.autoDraftsPerContact, 1, ceilings.autoDraftsPerContact),
     autoDraftsPerClinic: platform.autoDraftsPerClinic,
-    aiBookingsPerContact: clampInt(clinic.aiBookingsPerContact, 1, ceilings.aiBookingsPerContact),
-    aiBookingsPerClinic: clampInt(clinic.aiBookingsPerClinic, 1, ceilings.aiBookingsPerClinic),
     futureAppointmentsPerContact: clampInt(
       clinic.futureAppointmentsPerContact,
       1,
@@ -270,7 +241,8 @@ export function resolveAbuseLimits(
   }
 }
 
-export type AutomatedEffect = 'auto_draft' | 'ai_booking' | 'pix_charge' | 'proposal'
+/** DEC-217: só estes dois efeitos têm tetos; «marcação pela IA» e «cobrança Pix pela IA» já não existem. */
+export type AutomatedEffect = 'auto_draft' | 'proposal'
 
 export type QuotaDecision =
   | { allowed: true }
@@ -305,16 +277,6 @@ export function countAutoDraftsForContact(db: ClinicDb, tenantId: string, contac
       tenantId,
       contactId,
       since,
-    ),
-  )
-}
-
-export function countAiBookings(db: ClinicDb, tenantId: string, since: number, contactId?: string): number {
-  return n(
-    db.get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM appointments
-       WHERE tenant_id = ? AND confirmed_by = ? AND created_at >= ?${contactId ? ' AND contact_id = ?' : ''}`,
-      ...[tenantId, AI_AUTOBOOK_ACTOR, since, ...(contactId ? [contactId] : [])],
     ),
   )
 }
@@ -376,8 +338,6 @@ export function countPendingProposalsForContact(
 
 const MESSAGES: Record<string, string> = {
   autoDraftsPerContact: 'Limite de rascunhos automáticos para este contato atingido. Responda manualmente.',
-  aiBookingsPerContact: 'Limite de marcações automáticas para este contato atingido. A equipe pode marcar pelo painel, se fizer sentido.',
-  aiBookingsPerClinic: 'Limite diário de marcações automáticas da clínica atingido. A equipe pode marcar pelo painel.',
   futureAppointmentsPerContact: 'Esta cliente já tem várias marcações à frente. A equipe confirma antes de marcar outra.',
   pendingPixPerContact: 'Esta cliente já tem sinais Pix por pagar. Pague ou deixe expirar antes de marcar outro horário.',
   pendingProposalsPerContact:
@@ -411,12 +371,6 @@ export function checkAutomationQuota(
   const checks: Array<[NumericKey, 'contact' | 'clinic', () => number]> = []
   if (input.effect === 'auto_draft') {
     checks.push(['autoDraftsPerContact', 'contact', () => countAutoDraftsForContact(db, tenantId, contactId, since)])
-  } else if (input.effect === 'ai_booking') {
-    checks.push(
-      ['aiBookingsPerContact', 'contact', () => countAiBookings(db, tenantId, since, contactId)],
-      ['aiBookingsPerClinic', 'clinic', () => countAiBookings(db, tenantId, since)],
-      ['futureAppointmentsPerContact', 'contact', () => countFutureAppointments(db, tenantId, contactId, now)],
-    )
   } else if (input.effect === 'proposal') {
     checks.push(
       [
@@ -442,8 +396,6 @@ export function checkAutomationQuota(
         checks.push(['pendingPixPerContact', 'contact', () => countPendingPix(db, tenantId, contactId)])
       }
     }
-  } else {
-    checks.push(['pendingPixPerContact', 'contact', () => countPendingPix(db, tenantId, contactId)])
   }
   for (const [limit, scope, count] of checks) {
     const max = limits[limit]

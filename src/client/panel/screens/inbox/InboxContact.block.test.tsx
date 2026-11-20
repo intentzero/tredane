@@ -83,9 +83,4 @@ describe('InboxContact — Bloquear (única entrada, Opção A)', () => {
     expect(screen.queryByText(PIX)).toBeNull()
   })
 
-  it('mostra Resumo da IA na ficha (casa única)', async () => {
-    renderContact()
-    expect(await screen.findByRole('heading', { name: 'Resumo da IA' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Gerar resumo' })).toBeTruthy()
-  })
 })

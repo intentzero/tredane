@@ -531,7 +531,18 @@ export function syncSignalPolicyKnowledgeEntry(
 
   const status: KnowledgeEntryStatus =
     input.enabled && answer.length > 0 ? 'published' : 'draft'
-  const cues = ['sinal', 'pix', 'cancelar', 'remarcar', 'adiantar', 'política do sinal']
+  const cues = [
+    'sinal',
+    'pix',
+    'cancelar',
+    'remarcar',
+    'adiantar',
+    'política do sinal',
+    'pagar antes',
+    'pagamento antecipado',
+    'tenho de pagar',
+    'preciso pagar',
+  ]
 
   if (existing) {
     if (!answer) {

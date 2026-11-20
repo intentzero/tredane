@@ -7,6 +7,7 @@ import {
   checkGoogleBusinessUrl,
   GOOGLE_BUSINESS_URL_MAX_LENGTH,
 } from '../../../../clinic/config/google-business-link'
+import { GENERAL_POLICY_MAX_CHARS, joinPolicyParts } from '../../../../clinic/ai/policy-join'
 
 type VirtualGender = 'masculino' | 'feminino' | ''
 
@@ -151,6 +152,26 @@ export function AiProfileCard({
   const wide = useMediaQuery('(min-width: 1280px)')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  // Com os dois campos preenchidos, o cartão abre como resumo (uma linha por campo).
+  const [editing, setEditing] = useState(false)
+  // Texto do sinal (Recebimento), só leitura: entra primeiro na resposta «Remarcar e cancelar».
+  const [signalText, setSignalText] = useState<string | null>(null)
+  useEffect(() => {
+    if (part !== 'facts') return
+    let cancelled = false
+    void Promise.resolve(api.getPix?.(tenantId, { generation, expectGeneration: () => generation }))
+      .then((pix) => {
+        if (cancelled || !pix) return
+        const s = pix.signalSettings
+        setSignalText(s.enabled ? s.cancellationPolicy.trim() : '')
+      })
+      .catch(() => {
+        /* pré-visualização é best-effort */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, generation, part])
 
   const dirty =
     part === 'facts'
@@ -184,6 +205,7 @@ export function AiProfileCard({
     try {
       await api.setClinicAiProfile(tenantId, body, { generation, expectGeneration: () => generation })
       setBaseline({ gbUrl, policy, virtualName, virtualGender })
+      setEditing(false)
       setNote('Salvo.')
       onSaved?.()
     } catch (err) {
@@ -196,6 +218,9 @@ export function AiProfileCard({
       setBusy(false)
     }
   }
+
+  const saveLabel = part === 'facts' ? 'Salvar localização e regras' : 'Salvar'
+  const policyPreview = joinPolicyParts(signalText ?? '', policy)
 
   const actions = wide ? (
     // DEC-183: no desktop, «Salvar» e «Descartar» ficam no cabeçalho, sempre à vista.
@@ -215,16 +240,42 @@ export function AiProfileCard({
             onPress={() => void save()}
             isDisabled={busy || !dirty}
           >
-            {busy ? 'Salvando…' : 'Salvar'}
+            {busy ? 'Salvando…' : saveLabel}
           </Button>
         </span>
       </div>
     </ShellSlot>
   ) : (
     <Button className="panel-btn panel-btn-secondary" onPress={() => void save()} isDisabled={busy}>
-      {busy ? 'Salvando…' : 'Salvar'}
+      {busy ? 'Salvando…' : saveLabel}
     </Button>
   )
+
+  if (part === 'facts' && !editing && !dirty && baseline.gbUrl.trim() && baseline.policy.trim()) {
+    const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s)
+    return (
+      <section className="panel-card" aria-labelledby="ai-profile-facts-t">
+        <div className="panel-switch-row">
+          <h2 id="ai-profile-facts-t" className="panel-title-md">
+            Sobre a clínica
+          </h2>
+          <Button className="panel-btn panel-btn-secondary" onPress={() => setEditing(true)}>
+            Editar
+          </Button>
+        </div>
+        <dl className="kn-summary">
+          <div>
+            <dt>Localização</dt>
+            <dd>{short(baseline.gbUrl.replace(/^https?:\/\//, ''), 48)}</dd>
+          </div>
+          <div>
+            <dt>Remarcar e cancelar</dt>
+            <dd>{short(baseline.policy, 80)}</dd>
+          </div>
+        </dl>
+      </section>
+    )
+  }
 
   return (
     <section className="panel-card" aria-labelledby={`ai-profile-${part}-t`}>
@@ -261,12 +312,32 @@ export function AiProfileCard({
           </TextField>
           <TextField className="clinic-field">
             <Label>Regras gerais de remarcação e cancelamento</Label>
-            <TextArea value={policy} onChange={(e) => setPolicy(e.target.value)} rows={3} />
+            <TextArea
+              value={policy}
+              onChange={(e) => setPolicy(e.target.value)}
+              rows={3}
+              maxLength={GENERAL_POLICY_MAX_CHARS}
+              placeholder="Ex.: Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário."
+            />
             <Text slot="description" className="panel-muted-sm">
-              Aviso prévio, atrasos, faltas. Quando a clínica pede sinal, a regra do sinal
-              (Recebimento) sai primeiro e este texto vem a seguir.
+              Aviso prévio, atrasos, faltas. {policy.length}/{GENERAL_POLICY_MAX_CHARS}
             </Text>
           </TextField>
+          <section className="kn-preview" aria-labelledby="policy-prev-t">
+            <h3 id="policy-prev-t" className="kn-sub">
+              Como a cliente recebe «Remarcar e cancelar»
+            </h3>
+            <div className="kn-preview-pane">
+              <p className="kn-bubble kn-bubble--out">
+                {policyPreview || 'Sem regras cadastradas: a pergunta passa para a equipe.'}
+              </p>
+              <span className="kn-preview-note">
+                {signalText
+                  ? 'A parte do sinal vem do Recebimento e se edita lá.'
+                  : 'Sem sinal ligado, só saem as regras gerais.'}
+              </span>
+            </div>
+          </section>
         </>
       ) : (
         <>

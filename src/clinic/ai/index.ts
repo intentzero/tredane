@@ -1,25 +1,14 @@
 export {
   buildAiContextPayload,
   assertContextMinimized,
-  assertAiCommandResultMinimized,
   firstNameFromDisplayName,
 } from './context'
 export {
   getSuggestion,
-  listSuggestionsForConversation,
   insertSuggestion,
   updateSuggestionDecision,
 } from './suggestions'
-export {
-  suggestReplyOp,
-  summarizeConversationOp,
-  decideSuggestionOp,
-  listConversationSuggestionsOp,
-  getSuggestionOp,
-  attachSuggestionToOutboundOp,
-  type SuggestResult,
-  type DecideResult,
-} from './operations'
+export { attachSuggestionToOutboundOp } from './operations'
 export {
   toAiAssistDeps,
   rpcDepsFromEnv,
@@ -53,7 +42,6 @@ export {
   enqueueLatestUnansweredInbound,
   runDueAutoDrafts,
   nextAutoDraftDueAt,
-  getConversationDraftState,
   getAutoDraftJob,
   cancelAutoDraft,
   AUTODRAFT_ACTOR_ID,

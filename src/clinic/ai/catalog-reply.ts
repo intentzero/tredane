@@ -59,6 +59,8 @@ import {
 } from './variant-line'
 import { extractDates, parseTemporal } from './nlu/temporal'
 import { answerClinicKnowledge } from './clinic-knowledge-reply'
+import { KNOWLEDGE_SIGNAL_SOURCE_KEY } from '../config/knowledge'
+import { buildCancellationPolicyReply } from './policy-reply'
 import { buildOpeningHoursReply } from './opening-hours-reply'
 
 const LOCAL =
@@ -397,7 +399,14 @@ export function catalogReply(
     !(PERIOD.test(body) && !CLOCK.test(body))
   ) {
     const knowledge = answerClinicKnowledge(db, tenantId, body)
-    if (knowledge) return knowledge.replyText
+    if (knowledge) {
+      // DEC-210: a entrada do sinal responde com o texto completo (sinal + regras gerais).
+      if (knowledge.entry.sourceKey === KNOWLEDGE_SIGNAL_SOURCE_KEY) {
+        const full = buildCancellationPolicyReply(db, tenantId, clock)
+        if (full) return full
+      }
+      return knowledge.replyText
+    }
   }
 
   const source = clientSource(db, tenantId, body, opts.conversationId, opts.turn)

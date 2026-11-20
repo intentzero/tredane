@@ -386,6 +386,11 @@ import {
   MIGRATION_NAME as M77_NAME,
   STATEMENTS as M77_STATEMENTS,
 } from './migrations/0077_drop_tempo'
+import {
+  MIGRATION_ID as M78_ID,
+  MIGRATION_NAME as M78_NAME,
+  STATEMENTS as M78_STATEMENTS,
+} from './migrations/0078_faq_policy_and_ai_booking_limits'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -473,6 +478,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M75_ID, name: M75_NAME, statements: M75_STATEMENTS },
   { id: M76_ID, name: M76_NAME, statements: M76_STATEMENTS },
   { id: M77_ID, name: M77_NAME, statements: M77_STATEMENTS },
+  { id: M78_ID, name: M78_NAME, statements: M78_STATEMENTS },
 ]
 
 export type MigrationResult = {

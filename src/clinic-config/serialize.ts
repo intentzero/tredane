@@ -38,8 +38,6 @@ export function serializeAbuseLimits(view: AbuseLimitsView) {
       enabled: view.effective.enabled,
       windowHours: Math.round(view.effective.windowMs / (60 * 60 * 1000)),
       autoDraftsPerContact: view.effective.autoDraftsPerContact,
-      aiBookingsPerContact: view.effective.aiBookingsPerContact,
-      aiBookingsPerClinic: view.effective.aiBookingsPerClinic,
       futureAppointmentsPerContact: view.effective.futureAppointmentsPerContact,
       pendingPixPerContact: view.effective.pendingPixPerContact,
       pendingProposalsPerContact: view.effective.pendingProposalsPerContact,

@@ -279,8 +279,6 @@ export type ClinicSettingsRow = {
   autoBookPaused: boolean
   abuseWindowHours: number
   abuseAutoDraftsPerContact: number
-  abuseAiBookingsPerContact: number
-  abuseAiBookingsPerClinic: number
   abuseFutureAppointmentsPerContact: number
   abusePendingPixPerContact: number
   abusePendingProposalsPerContact: number
@@ -301,8 +299,6 @@ export type UpdateAbuseLimitsInput = {
   autoBookPaused?: boolean
   windowHours?: number
   autoDraftsPerContact?: number
-  aiBookingsPerContact?: number
-  aiBookingsPerClinic?: number
   futureAppointmentsPerContact?: number
   pendingPixPerContact?: number
   pendingProposalsPerContact?: number

@@ -105,29 +105,6 @@ export function getSuggestion(
   return row ? mapSuggestion(row) : null
 }
 
-export function listSuggestionsForConversation(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  opts: { kind?: AiSuggestionKind; limit?: number } = {},
-): AiSuggestionRow[] {
-  assertClinicSchemaReady(db)
-  const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50)
-  const kindSql = opts.kind ? `AND kind = ?` : ''
-  const params: Array<string | number> = [tenantId, conversationId]
-  if (opts.kind) params.push(opts.kind)
-  params.push(limit)
-  const rows = db.all<SugSql>(
-    `SELECT * FROM ai_suggestions
-     WHERE tenant_id = ? AND conversation_id = ?
-       ${kindSql}
-     ORDER BY created_at DESC
-     LIMIT ?`,
-    ...params,
-  )
-  return rows.map(mapSuggestion)
-}
-
 export function insertSuggestion(
   db: ClinicDb,
   input: {
@@ -238,66 +215,5 @@ export function markSuggestionSuperseded(
     updatedAt,
     tenantId,
     suggestionId,
-  )
-}
-
-/** Um só rascunho pendente por conversa: novos substituem os anteriores. */
-export function supersedePendingAutoDrafts(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  updatedAt: number,
-): void {
-  assertClinicSchemaReady(db)
-  db.run(
-    `UPDATE ai_suggestions SET status = 'superseded', updated_at = ?
-     WHERE tenant_id = ? AND conversation_id = ? AND kind = 'reply'
-       AND status = 'pending' AND origin = 'auto'`,
-    updatedAt,
-    tenantId,
-    conversationId,
-  )
-}
-
-export function findAiCommand(
-  db: ClinicDb,
-  tenantId: string,
-  clientRequestId: string,
-): { resultJson: string } | null {
-  assertClinicSchemaReady(db)
-  const row = db.get<{ result_json: string }>(
-    `SELECT result_json FROM ai_commands
-     WHERE tenant_id = ? AND client_request_id = ?`,
-    tenantId,
-    clientRequestId,
-  )
-  return row ? { resultJson: row.result_json } : null
-}
-
-export function insertAiCommand(
-  db: ClinicDb,
-  input: {
-    tenantId: string
-    clientRequestId: string
-    command: 'suggest_reply' | 'summarize' | 'decide'
-    conversationId?: string | null
-    suggestionId?: string | null
-    result: unknown
-    createdAt: number
-  },
-): void {
-  assertClinicSchemaReady(db)
-  db.run(
-    `INSERT INTO ai_commands (
-      tenant_id, client_request_id, command, conversation_id, suggestion_id,
-      result_json, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    input.tenantId,
-    input.clientRequestId,
-    input.command,
-    input.conversationId ?? null,
-    input.suggestionId ?? null,
-    JSON.stringify(input.result),
-    input.createdAt,
   )
 }

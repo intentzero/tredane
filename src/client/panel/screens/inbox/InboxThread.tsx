@@ -10,13 +10,8 @@ import {
   Clock,
   EllipsisVertical,
   Info,
-  Maximize2,
   MousePointerClick,
-  RefreshCw,
-  Send,
   SendHorizontal,
-  Sparkles,
-  X,
 } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import {
@@ -26,20 +21,15 @@ import {
 } from "../../realtime/InboxRealtime";
 import {
   Button,
-  Dialog,
-  Heading,
   Menu,
   MenuItem,
   MenuTrigger,
-  Modal,
-  ModalOverlay,
   Popover,
   Separator,
   TextArea,
   TextField,
 } from "react-aria-components";
 import type {
-  AiSuggestion,
   InboxConversationDetail,
   InboxMessage,
   PanelApi,
@@ -48,7 +38,6 @@ import type {
 } from "../../api";
 import { PanelApiError } from "../../api";
 import { useClinicTimezone } from "../../clinicTimezone";
-import { awaitingClinicReply } from "./lastRelevant";
 import { BlockContactDialog } from "./BlockContactDialog";
 import { DeleteContactDialog } from "./DeleteContactDialog";
 import {
@@ -59,7 +48,6 @@ import {
 import { TransferSheet } from "./TransferSheet";
 import { PixPendingBar, PixPendingSheet } from "./PixPendingSheet";
 import { useMediaQuery } from "../../ui/useMediaQuery";
-import { AiWorking } from "../../ui/AiWorking";
 import { navigatePanel } from "../../routes";
 import { ErrorState } from "../../states/StatusScreens";
 import { pruneOutboxAgainstMessages } from "./outboxReconcile";
@@ -321,7 +309,6 @@ type LocalOutbound = {
   localId: string;
   clientRequestId: string;
   body: string;
-  aiSuggestionId: string | null;
   createdAt: number;
   status: "sending" | "failed";
 };
@@ -412,99 +399,6 @@ export function InboxThread({
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([]);
   const [pixSheetId, setPixSheetId] = useState<string | null>(null);
   const [pixAlerts, setPixAlerts] = useState<PixPaymentAlert[]>([]);
-  const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiUnavailable, setAiUnavailable] = useState(false);
-  const [aiNotEnabled, setAiNotEnabled] = useState(false);
-  const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
-    null,
-  );
-  // Rascunho automático da IA (nunca envia; nunca sobrescreve o que a atendente escreve).
-  const [autoDraftState, setAutoDraftState] = useState<"idle" | "generating">(
-    "idle",
-  );
-  const [pendingAutoDraft, setPendingAutoDraft] = useState<AiSuggestion | null>(
-    null,
-  );
-  const [aiNotes, setAiNotes] = useState<string | null>(null);
-  const [aiDraftTagged, setAiDraftTagged] = useState(false);
-  const [aiNotesOpen, setAiNotesOpen] = useState(false);
-  const [draftFullOpen, setDraftFullOpen] = useState(false);
-  const [aiFallback, setAiFallback] = useState(false);
-  const [aiCapReached, setAiCapReached] = useState(false);
-  const [revealing, setRevealing] = useState(false);
-  const draftRef = useRef("");
-  draftRef.current = draft;
-  const seenSuggestionIdsRef = useRef<Set<string>>(new Set());
-  const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  function stopReveal() {
-    if (revealTimerRef.current) clearInterval(revealTimerRef.current);
-    revealTimerRef.current = null;
-    setRevealing(false);
-  }
-
-  /** Insere o rascunho no compositor revelando-o aos poucos (sem streaming real de tokens). */
-  function insertDraft(s: AiSuggestion) {
-    stopReveal();
-    seenSuggestionIdsRef.current.add(s.id);
-    setPendingAutoDraft(null);
-    setActiveSuggestionId(s.id);
-    setAiNotes(s.internalNotes?.trim() || null);
-    setAiDraftTagged(true);
-    const full = s.suggestedText;
-    const reduced =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced || full.length < 8) {
-      setDraft(full);
-      return;
-    }
-    let i = 0;
-    setRevealing(true);
-    setDraft("");
-    revealTimerRef.current = setInterval(() => {
-      i = Math.min(full.length, i + Math.max(2, Math.ceil(full.length / 40)));
-      setDraft(full.slice(0, i));
-      if (i >= full.length) stopReveal();
-    }, 25);
-  }
-
-  useEffect(() => () => stopReveal(), []);
-
-  async function refreshAiDraft(messages: InboxMessage[]) {
-    try {
-      const st = await api.getAiDraft(tenantId, conversationId, {
-        generation,
-        expectGeneration: () => generation,
-      });
-      setAiFallback(st.syntheticFallback === true);
-      setAiCapReached(st.usage?.capReached === true);
-      setAutoDraftState(st.job ? "generating" : "idle");
-      const s = st.suggestion;
-      if (
-        !s ||
-        s.origin !== "auto" ||
-        s.status !== "pending" ||
-        !s.suggestedText
-      )
-        return;
-      if (seenSuggestionIdsRef.current.has(s.id)) return;
-      // Só o rascunho da última mensagem da cliente ainda sem resposta.
-      if (!awaitingClinicReply(messages)) return;
-      const last = [...messages]
-        .reverse()
-        .find((m) => m.direction === "inbound");
-      if (!last) return;
-      if (s.replyToMessageId && s.replyToMessageId !== last.id) return;
-      if (draftRef.current.trim() === "") insertDraft(s);
-      else setPendingAutoDraft(s);
-    } catch {
-      /* rascunho automático é best-effort */
-    }
-  }
-
   const composerId = useId();
   const timelineRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -552,8 +446,6 @@ export function InboxThread({
       }
       setDetail(res);
       setOutbox((prev) => pruneOutboxAgainstMessages(prev, res.messages));
-      if (res.messagingWindow?.open && res.status !== "closed")
-        void refreshAiDraft(res.messages);
       if (humanUnreadInbound.length > 0) {
         // Promise.resolve: mocks/síncrono sem .then não devem derrubar o load.
         void Promise.resolve(
@@ -600,11 +492,6 @@ export function InboxThread({
 
   useEffect(() => {
     setOutbox([]);
-    stopReveal();
-    setPendingAutoDraft(null);
-    setAiNotes(null);
-    setAiDraftTagged(false);
-    seenSuggestionIdsRef.current = new Set();
     void load();
   }, [tenantId, conversationId, generation]);
 
@@ -1011,108 +898,6 @@ export function InboxThread({
     }
   }
 
-  async function requestAiSuggestion(parentSuggestionId?: string | null) {
-    setAiBusy(true);
-    setAiUnavailable(false);
-    setNotice(null);
-    try {
-      const res = await api.suggestAiReply(
-        tenantId,
-        conversationId,
-        {
-          clientRequestId: crypto.randomUUID(),
-          parentSuggestionId: parentSuggestionId ?? null,
-          actorDisplayName: "Atendente",
-        },
-        { generation, expectGeneration: () => generation },
-      );
-      if (res.suggestion.status === "failed" || !res.suggestion.suggestedText) {
-        setAiSuggestion(null);
-        setAiUnavailable(true);
-      } else if (parentSuggestionId && aiDraftTagged && !aiSuggestion) {
-        // «Gerar outra» a partir do rascunho no compositor: substitui-o.
-        insertDraft(res.suggestion);
-      } else {
-        setAiSuggestion(res.suggestion);
-        setAiUnavailable(false);
-      }
-    } catch (err) {
-      setAiSuggestion(null);
-      if (
-        err instanceof PanelApiError &&
-        (err.code as string) === "ai_not_enabled"
-      ) {
-        setAiNotEnabled(true);
-      } else if (
-        err instanceof PanelApiError &&
-        (err.code as string) === "ai_daily_cap_reached"
-      ) {
-        setAiCapReached(true);
-      } else {
-        setAiUnavailable(true);
-      }
-    } finally {
-      setAiBusy(false);
-    }
-  }
-
-  /** Descarta o rascunho que já está no compositor (sem tocar no que a atendente escreveu depois). */
-  function discardDraftInComposer() {
-    stopReveal();
-    setDraft("");
-    setAiDraftTagged(false);
-    setAiNotes(null);
-    setAiNotesOpen(false);
-    setDraftFullOpen(false);
-    setActiveSuggestionId(null);
-  }
-
-  async function discardAiSuggestion() {
-    if (!aiSuggestion) {
-      setAiSuggestion(null);
-      return;
-    }
-    setAiBusy(true);
-    try {
-      await api.decideAiSuggestion(
-        tenantId,
-        aiSuggestion.id,
-        {
-          clientRequestId: crypto.randomUUID(),
-          decision: "discard",
-          actorDisplayName: "Atendente",
-        },
-        { generation, expectGeneration: () => generation },
-      );
-    } catch {
-      /* descarte local mesmo se a API falhar */
-    } finally {
-      setAiSuggestion(null);
-      setActiveSuggestionId(null);
-      setAiBusy(false);
-    }
-  }
-
-  function useAndEditAiSuggestion() {
-    if (!aiSuggestion) return;
-    seenSuggestionIdsRef.current.add(aiSuggestion.id);
-    setDraft(aiSuggestion.suggestedText);
-    setActiveSuggestionId(aiSuggestion.id);
-    setAiNotes(aiSuggestion.internalNotes?.trim() || null);
-    setAiDraftTagged(true);
-    setAiSuggestion(null);
-  }
-
-  // DEC-063: a atendente leu o texto completo e envia em 1 toque; a origem da sugestão fica registrada.
-  async function sendAiSuggestion() {
-    if (!aiSuggestion) return;
-    seenSuggestionIdsRef.current.add(aiSuggestion.id);
-    await sendPayload({
-      body: aiSuggestion.suggestedText,
-      aiSuggestionId: aiSuggestion.id,
-    });
-  }
-
   async function sendPayload(
     payload: {
       body?: string;
@@ -1121,7 +906,6 @@ export function InboxThread({
         language: string;
         params: Record<string, string>;
       };
-      aiSuggestionId?: string | null;
     },
     opts?: { retryLocalId?: string },
   ) {
@@ -1131,7 +915,6 @@ export function InboxThread({
       ? outbox.find((o) => o.localId === opts.retryLocalId)?.clientRequestId ??
         `client:${crypto.randomUUID()}`
       : `client:${crypto.randomUUID()}`;
-    const aiSuggestionId = payload.aiSuggestionId ?? activeSuggestionId;
     const localId = textOnly
       ? (opts?.retryLocalId ?? `local:${crypto.randomUUID()}`)
       : null;
@@ -1150,7 +933,6 @@ export function InboxThread({
                 localId,
                 clientRequestId,
                 body,
-                aiSuggestionId,
                 createdAt: Date.now(),
                 status: "sending",
               },
@@ -1158,10 +940,6 @@ export function InboxThread({
       );
       // O texto já está na bolha: o campo fica livre para a próxima mensagem.
       setDraft("");
-      setActiveSuggestionId(null);
-      setAiNotes(null);
-      setAiDraftTagged(false);
-      setAiSuggestion(null);
       stickToBottomRef.current = true;
       requestAnimationFrame(() => {
         const el = timelineRef.current;
@@ -1178,7 +956,6 @@ export function InboxThread({
         {
           ...payload,
           clientRequestId,
-          aiSuggestionId,
           authorDisplayName: authorDisplayName ?? undefined,
         },
         { generation, expectGeneration: () => generation },
@@ -1187,10 +964,6 @@ export function InboxThread({
         setOutbox((prev) => prev.filter((o) => o.localId !== localId));
       } else {
         setDraft("");
-        setActiveSuggestionId(null);
-        setAiNotes(null);
-        setAiDraftTagged(false);
-        setAiSuggestion(null);
       }
       setDetail((prev) =>
         prev
@@ -1228,7 +1001,7 @@ export function InboxThread({
       return;
     }
     await sendPayload(
-      { body: o.body, aiSuggestionId: o.aiSuggestionId },
+      { body: o.body },
       { retryLocalId: o.localId },
     );
   }
@@ -1384,7 +1157,6 @@ export function InboxThread({
     pixCharges.find((c) => c.status === "awaiting_payment") ?? null;
   const windowOpen = detail.messagingWindow?.open !== false && !blocked;
   // Última mensagem relevante nossa (ignora sistema/notas): sem «Sugerir resposta» nem sugestão automática.
-  const canSuggest = awaitingClinicReply(detail.messages);
   // DEC-161: estado de atendimento + alerta de handoff num só cartão, junto ao compositor.
   // «Precisa de alguém» usa o mesmo critério do servidor que a lista, os
   // contadores e o Acompanhar (NEEDS_PERSON_SQL → `detail.needsPerson`).
@@ -1501,8 +1273,6 @@ export function InboxThread({
         ) : null}
       </div>
     ) : null;
-  const cardMode =
-    windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft;
 
   return (
     <div className="inbox-thread">
@@ -2024,100 +1794,6 @@ export function InboxThread({
         <div className="inbox-composer-wrap">
           <div className="inbox-dock">
             {handoffStrip}
-            {aiNotEnabled ? (
-              <div className="ai-block ai-block-unavailable" role="status">
-                <p>
-                  As sugestões com IA estão desligadas nesta clínica. O
-                  responsável pode ativar em Clínica › Sugestões com IA.
-                </p>
-              </div>
-            ) : null}
-            {aiUnavailable ? (
-              <div className="ai-block ai-block-unavailable" role="status">
-                <p>
-                  A sugestão não está disponível agora. Você pode responder
-                  normalmente.
-                </p>
-              </div>
-            ) : null}
-            {aiSuggestion ? (
-              <div
-                className="ai-block"
-                role="region"
-                aria-label="Sugestão da IA"
-              >
-                <p className="ai-block-label">
-                  Sugestão da IA — revise antes de enviar
-                </p>
-                {aiSuggestion.warningLabels.map((w) => (
-                  <p key={w} className="ai-block-warn" role="status">
-                    {w}
-                  </p>
-                ))}
-                {aiSuggestion.sourceRefs.map((s) => (
-                  <p key={s.serviceName} className="ai-block-source">
-                    {s.label}
-                  </p>
-                ))}
-                <p className="ai-block-text">
-                  <PlainText text={aiSuggestion.suggestedText} />
-                </p>
-                {aiSuggestion.internalNotes ? (
-                  <p className="ai-notes" role="note">
-                    <span className="ai-notes-label">
-                      Notas da IA para você (não são enviadas)
-                    </span>
-                    <PlainText text={aiSuggestion.internalNotes} />
-                  </p>
-                ) : null}
-                <div className="ai-block-actions">
-                  {windowOpen ? (
-                    <Button
-                      className="panel-btn-primary ai-btn ai-btn--send"
-                      onPress={() => void sendAiSuggestion()}
-                      isDisabled={aiBusy || busy}
-                    >
-                      Enviar
-                    </Button>
-                  ) : null}
-                  <Button
-                    className="panel-btn-secondary ai-btn"
-                    onPress={() => useAndEditAiSuggestion()}
-                    isDisabled={aiBusy || busy}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    className="panel-btn-secondary ai-btn ai-btn--icon"
-                    aria-label="Gerar outra"
-                    onPress={() => void requestAiSuggestion(aiSuggestion.id)}
-                    isDisabled={aiBusy || busy}
-                  >
-                    <RefreshCw aria-hidden size={20} strokeWidth={2} />
-                  </Button>
-                  <Button
-                    className="panel-btn-secondary ai-btn ai-btn--icon"
-                    aria-label="Descartar"
-                    onPress={() => void discardAiSuggestion()}
-                    isDisabled={aiBusy || busy}
-                  >
-                    <X aria-hidden size={20} strokeWidth={2} />
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {aiFallback ? (
-              <p className="ai-banner" role="status">
-                IA em modo de teste: a chave do provedor não está configurada,
-                por isso as sugestões são fictícias. Avise o responsável.
-              </p>
-            ) : null}
-            {aiCapReached ? (
-              <p className="ai-banner" role="status">
-                Limite diário de rascunhos da IA atingido nesta clínica. As
-                sugestões voltam amanhã; você pode responder normalmente.
-              </p>
-            ) : null}
             <div className="inbox-dock-pills">
               {!windowOpen ? (
                 <p
@@ -2128,94 +1804,24 @@ export function InboxThread({
                   Passaram 24 horas: espere a cliente escrever de novo
                 </p>
               ) : null}
-              {windowOpen &&
-              canSuggest &&
-              (autoDraftState === "generating" || pendingAutoDraft) ? (
-                <div className="inbox-ai-status">
-                  {autoDraftState === "generating" &&
-                  !pendingAutoDraft &&
-                  !aiDraftTagged ? (
-                    <AiWorking label="IA escrevendo um rascunho…" />
-                  ) : null}
-                  {pendingAutoDraft ? (
-                    <Button
-                      className="inbox-ai-chip"
-                      aria-label="Sugestão pronta, inserir no lugar do texto atual"
-                      onPress={() => insertDraft(pendingAutoDraft)}
-                    >
-                      <Sparkles aria-hidden size={14} strokeWidth={2} />
-                      Sugestão pronta · inserir
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
             </div>
             {windowOpen ? (
               <form
-                className={`inbox-composer${cardMode ? " inbox-ai-card" : ""}`}
+                className="inbox-composer"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void send();
                 }}
               >
-                {cardMode ? (
-                  <div className="inbox-ai-card-head">
-                    {revealing || aiBusy ? (
-                      <AiWorking
-                        label={aiBusy ? "Gerando outra…" : "IA escrevendo…"}
-                      />
-                    ) : (
-                      <span className="inbox-ai-draft-tag">
-                        <Sparkles aria-hidden size={14} strokeWidth={2} />
-                        Rascunho da IA
-                        <span className="inbox-ai-draft-sub">
-                          {" "}
-                          · revise antes de enviar
-                        </span>
-                      </span>
-                    )}
-                    <Button
-                      className="inbox-ai-icon"
-                      aria-label="Ver rascunho em tela cheia"
-                      onPress={() => setDraftFullOpen(true)}
-                    >
-                      <Maximize2 aria-hidden size={18} strokeWidth={2} />
-                    </Button>
-                    <Button
-                      className="inbox-ai-icon"
-                      aria-label="Descartar rascunho"
-                      onPress={discardDraftInComposer}
-                    >
-                      <X aria-hidden size={18} strokeWidth={2} />
-                    </Button>
-                  </div>
-                ) : null}
-                {cardMode && aiNotes && aiNotesOpen ? (
-                  <p className="ai-notes ai-notes--card" role="note">
-                    <span className="ai-notes-label">
-                      Nota para você · não é enviada
-                    </span>
-                    {aiNotes}
-                  </p>
-                ) : null}
                 <TextField
                   className="inbox-composer-field"
                   aria-label="Mensagem"
                   value={draft}
-                  onChange={(v) => {
-                    if (revealing) stopReveal();
-                    setDraft(v);
-                    if (!v.trim() && aiDraftTagged) {
-                      setAiDraftTagged(false);
-                      setAiNotes(null);
-                      setAiNotesOpen(false);
-                      setActiveSuggestionId(null);
-                    }
-                  }}
+                  onChange={setDraft}
                 >
                   <TextArea
                     id={composerId}
-                    className={`inbox-composer-input${cardMode ? " inbox-composer-input--card" : ""}`}
+                    className="inbox-composer-input"
                     placeholder="Escreva uma mensagem"
                     rows={1}
                     // WebKit trata autocomplete="off" como tipo vazio e o iOS mostra a cápsula
@@ -2241,77 +1847,15 @@ export function InboxThread({
                     }}
                   />
                 </TextField>
-                {cardMode ? (
-                  <div className="inbox-ai-card-foot">
-                    <Button
-                      className="inbox-ai-foot-btn"
-                      aria-label="Gerar outra"
-                      onPress={() =>
-                        void requestAiSuggestion(activeSuggestionId)
-                      }
-                      isDisabled={aiBusy || busy || revealing}
-                    >
-                      <RefreshCw aria-hidden size={16} strokeWidth={2} />
-                      Outra
-                    </Button>
-                    {aiNotes ? (
-                      <Button
-                        className="inbox-ai-foot-btn"
-                        aria-expanded={aiNotesOpen}
-                        aria-label="Nota da IA para você"
-                        onPress={() => setAiNotesOpen((o) => !o)}
-                      >
-                        <Info aria-hidden size={16} strokeWidth={2} />
-                        Nota
-                      </Button>
-                    ) : null}
-                    <span className="inbox-ai-foot-spacer" />
-                    <Button
-                      className="inbox-send inbox-send--label"
-                      type="submit"
-                      aria-label="Enviar"
-                      isDisabled={busy || !draft.trim()}
-                    >
-                      Enviar
-                      <Send aria-hidden size={16} strokeWidth={2} />
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {/* DEC-208: faixa «Janela 24 h · até …» retirada do compositor. */}
-                    {canSuggest &&
-                    !aiSuggestion &&
-                    autoDraftState !== "generating" ? (
-                      aiBusy ? (
-                        <AiWorking
-                          compact
-                          label="Gerando sugestão…"
-                        />
-                      ) : (
-                        <Button
-                          className="inbox-composer-icon inbox-composer-icon--ai"
-                          aria-label="Sugerir resposta com IA"
-                          onPress={() => void requestAiSuggestion(null)}
-                          isDisabled={busy}
-                        >
-                          <Sparkles aria-hidden size={22} strokeWidth={1.8} />
-                        </Button>
-                      )
-                    ) : null}
-                    {/* Enquanto a IA gera, o estado ocupa o sítio do ícone+enviar
-                        (evita overlap faíscas/texto/avião/pontos na barra). */}
-                    {!aiBusy ? (
-                      <Button
-                        className="inbox-send"
-                        type="submit"
-                        aria-label="Enviar"
-                        isDisabled={busy || !draft.trim()}
-                      >
-                        <SendHorizontal aria-hidden size={20} strokeWidth={2} />
-                      </Button>
-                    ) : null}
-                  </>
-                )}
+                {/* DEC-217: sem IA no compositor; quando a equipe escreve, a conversa é só humana. */}
+                <Button
+                  className="inbox-send"
+                  type="submit"
+                  aria-label="Enviar"
+                  isDisabled={busy || !draft.trim()}
+                >
+                  <SendHorizontal aria-hidden size={20} strokeWidth={2} />
+                </Button>
               </form>
             ) : (
               <div className="inbox-composer inbox-composer-template" role="status">
@@ -2322,94 +1866,6 @@ export function InboxThread({
               </div>
             )}
           </div>
-
-          <ModalOverlay
-            isOpen={draftFullOpen && cardMode}
-            onOpenChange={setDraftFullOpen}
-            className="panel-overlay"
-            style={{ position: "fixed", inset: 0, zIndex: 30 }}
-            isDismissable
-          >
-            <Modal className="inbox-draft-full-modal">
-              <Dialog
-                className="inbox-draft-full"
-                aria-labelledby="draft-full-title"
-              >
-                {({ close }) => (
-                  <>
-                    <header className="inbox-draft-full-head">
-                      <Button
-                        className="panel-icon-btn"
-                        aria-label="Voltar para a conversa"
-                        onPress={close}
-                      >
-                        <ChevronLeft aria-hidden size={22} strokeWidth={2} />
-                      </Button>
-                      <div className="inbox-draft-full-title">
-                        <Heading slot="title" id="draft-full-title">
-                          Resposta para {label}
-                        </Heading>
-                        <span>Rascunho da IA · revise antes de enviar</span>
-                      </div>
-                      <Button
-                        className="inbox-ai-foot-btn"
-                        aria-label="Gerar outra"
-                        onPress={() =>
-                          void requestAiSuggestion(activeSuggestionId)
-                        }
-                        isDisabled={aiBusy || busy || revealing}
-                      >
-                        <RefreshCw aria-hidden size={16} strokeWidth={2} />
-                        Outra
-                      </Button>
-                    </header>
-                    {aiNotes ? (
-                      <p className="ai-notes ai-notes--card" role="note">
-                        <span className="ai-notes-label">
-                          Nota para você · não é enviada
-                        </span>
-                        {aiNotes}
-                      </p>
-                    ) : null}
-                    <TextField
-                      className="inbox-draft-full-field"
-                      aria-label="Resposta"
-                      value={draft}
-                      onChange={setDraft}
-                    >
-                      <TextArea
-                        className="inbox-draft-full-input"
-                        // Mesmo token do compositor: evita AutoFill Contact / senha / cartão / morada.
-                        autoComplete="one-time-code"
-                        inputMode="text"
-                        autoCorrect="on"
-                        autoCapitalize="sentences"
-                        spellCheck
-                        data-form-type="other"
-                        data-lpignore="true"
-                        data-1p-ignore
-                      />
-                    </TextField>
-                    <div className="inbox-draft-full-foot">
-                      <Button className="panel-btn-secondary" onPress={close}>
-                        Voltar
-                      </Button>
-                      <Button
-                        className="panel-btn-primary"
-                        isDisabled={busy || !draft.trim()}
-                        onPress={() => {
-                          close();
-                          void send();
-                        }}
-                      >
-                        Enviar para {label}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </Dialog>
-            </Modal>
-          </ModalOverlay>
 
         </div>
       ) : (

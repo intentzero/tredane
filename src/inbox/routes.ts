@@ -676,7 +676,6 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         const body = (await c.req.json()) as {
           body?: string
           clientRequestId?: string
-          aiSuggestionId?: string | null
           /** Nome de apresentação (Clerk / membership) — nunca o papel. */
           authorDisplayName?: string | null
           template?: {
@@ -719,7 +718,6 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
             clientRequestId: body.clientRequestId,
             authorClerkUserId: principal.clerkUserId,
             authorDisplayName,
-            aiSuggestionId: body.aiSuggestionId ?? null,
           },
         )
         if (result.inlineDispatch) {
