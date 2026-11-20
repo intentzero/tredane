@@ -32,8 +32,10 @@ export type {
 export {
   renderProposalInteractive,
   renderProposalResultBody,
+  proposalBookedMapUrl,
   formatBookedWhen,
   BOOKED_DOUBT_FALLBACK,
+  WEB_RECEIPT_SENTENCE,
   parseProposalButtonId,
   proposalButtonId,
   proposalSendClientRequestId,

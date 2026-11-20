@@ -367,17 +367,18 @@ export async function runDialogCase(
       })
     }
     if (e?.clientWebOffers != null) {
+      // Só conta «Abrir agenda»: «Abrir mapa» (DEC-211) também usa cta_url e não é link da página.
       const sent = s.db
         .all<{ interactive_json: string | null }>(
           `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? AND interactive_json LIKE '%ctaUrl%'`,
           s.tenantId,
         )
         .map((r) => JSON.parse(r.interactive_json ?? '{}') as { ctaUrl?: { displayText?: string; url?: string } })
+        .filter((m) => m.ctaUrl?.displayText === 'Abrir agenda')
       if (sent.length !== e.clientWebOffers) {
         errors.push(`esperava ${e.clientWebOffers} botão(ões) «Abrir agenda», saíram ${sent.length}`)
       }
       for (const m of sent) {
-        if (m.ctaUrl?.displayText !== 'Abrir agenda') errors.push(`botão de URL com texto ${JSON.stringify(m.ctaUrl?.displayText)}`)
         if (!/^https:\/\/[^/]+\/c\/cw1_[A-Za-z0-9_-]{20,}$/.test(m.ctaUrl?.url ?? '')) {
           errors.push('o botão de URL não tem a forma https://…/c/<token>')
         }

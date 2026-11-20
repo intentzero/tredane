@@ -1,8 +1,9 @@
 /**
  * Corpo e botões determinísticos da proposta (S4 / #175 / DEC-061 / H8).
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
- * DEC-090: sem sala nem intervalo/buffer ao cliente; localização só se a clínica tiver morada.
+ * DEC-090: sem sala nem intervalo/buffer ao cliente.
  * DEC-174: Agendado curto — serviço · variante, weekday DD/MM, só hora de início.
+ * DEC-211 opção B: localização no Agendado via `cta_url` «Abrir mapa» (sem URL cru no corpo).
  */
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
@@ -167,7 +168,6 @@ export function renderProposalInteractive(
   void opts
   const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
   const combo = db ? readComboSnapshot(db, proposal.tenantId, 'proposal', proposal.id) : null
-  const location = proposal.clinicLocationText.trim()
   const includeHuman = true
   const serviceLabel = zoneLabel(proposal.serviceName, zones)
   const when = formatBookedWhen(proposal)
@@ -189,8 +189,9 @@ export function renderProposalInteractive(
     }
   }
   const summary = parts.join(' · ')
+  // Sem «Local: <url>» no corpo: Meta não mistura cta_url com reply buttons;
+  // o mapa sai no Agendado (cta_url «Abrir mapa», DEC-211 opção B).
   const lines: string[] = [`Fica assim: ${summary}.`, '', 'Posso confirmar?']
-  if (location) lines.push('', `Local: ${location}`)
   const signal = formatSignal(proposal)
   if (signal) lines.push(signal)
   lines.push(
@@ -303,6 +304,23 @@ function formatBookedPriceSuffix(
 /** DEC-197: recibo da marcação feita na página; deixa a cliente avisar a equipe se não foi ela. */
 export const WEB_RECEIPT_SENTENCE = 'Marcado pela página. Não foi você? Fale com a equipe.'
 
+/**
+ * Link https da localização gravado na proposta (DEC-211).
+ * Usado como `cta_url` «Abrir mapa» no Agendado — nunca colado no corpo.
+ * Propostas antigas com morada em texto devolvem null (sem CTA).
+ */
+export function proposalBookedMapUrl(proposal: AppointmentProposalRow): string | null {
+  const location = proposal.clinicLocationText.trim()
+  if (!location || !/^https:\/\//i.test(location)) return null
+  try {
+    const url = new URL(location)
+    if (url.protocol !== 'https:' || location.length > 2000) return null
+  } catch {
+    return null
+  }
+  return location
+}
+
 export function renderProposalResultBody(
   proposal: AppointmentProposalRow,
   kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired',
@@ -312,7 +330,6 @@ export function renderProposalResultBody(
   const lista = opts.alternativesListing?.trim() || ''
   switch (kind) {
     case 'booked': {
-      const location = proposal.clinicLocationText.trim()
       const service = zoneLabel(proposal.serviceName, opts.zones ?? [])
       const bookedWhen = formatBookedWhen(proposal)
       const omitDoubt = opts.omitDoubtFallback !== false
@@ -324,12 +341,12 @@ export function renderProposalResultBody(
         ? `Remarcado: de ${formatBookedWhenAt(proposal.timezone, opts.replacedStartsAt!)} para ${bookedWhen}`
         : `Agendado: ${service} · ${bookedWhen}`
       const priceLine = formatBookedPriceSuffix(proposal, opts.zones ?? [], opts.combo)
+      // Sem «Local: <url>» — o mapa vai no botão CTA «Abrir mapa» (DEC-211 opção B).
       return (
         head +
         (!rescheduled && proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
         `.` +
         priceLine +
-        (location ? ` Local: ${location}` : '') +
         (opts.webReceipt ? ` ${WEB_RECEIPT_SENTENCE}` : '') +
         (omitDoubt ? '' : ` ${BOOKED_DOUBT_FALLBACK}`)
       )
