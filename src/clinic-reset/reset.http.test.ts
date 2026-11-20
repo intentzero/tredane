@@ -376,6 +376,18 @@ describe('limpar agenda (staging-only)', () => {
       expect(count(a.db, 'resources')).toBe(resourcesBefore)
       expect(count(b.db, 'appointments')).toBe(bAppointmentsBefore)
 
+      // DEC-092: Agendado com vínculo (Carla) → Em atendimento; DEC-040 (Beatriz) fica.
+      const carla = a.db.get<{ stage: string; linked: string | null }>(
+        `SELECT stage, linked_appointment_id AS linked FROM opportunities WHERE id = ?`,
+        'opp_seed_carla',
+      )
+      expect(carla).toMatchObject({ stage: 'em_atendimento', linked: null })
+      const beatriz = a.db.get<{ stage: string; linked: string | null }>(
+        `SELECT stage, linked_appointment_id AS linked FROM opportunities WHERE id = ?`,
+        'opp_seed_beatriz',
+      )
+      expect(beatriz).toMatchObject({ stage: 'agendado', linked: null })
+
       const audit = a.db.get<{ actor: string; action: string }>(
         `SELECT actor, action FROM operational_audit
          WHERE action = 'clinic.appointments_cleared'`,
