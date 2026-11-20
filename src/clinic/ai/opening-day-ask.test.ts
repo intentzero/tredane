@@ -14,6 +14,14 @@ describe('opening-day-ask', () => {
     expect(isOpeningDayAsk('vocês atendem hoje?')).toBe(true)
     expect(isOpeningDayAsk('funciona depois de amanhã?')).toBe(true)
   })
+  it('reconhece gerúndio e «aberto» («está atendendo hoje?»)', () => {
+    expect(isOpeningDayAsk('está atendendo hoje?')).toBe(true)
+    expect(
+      isOpeningDayAsk('Bom dia. Gostaria de saber se está atendendo hoje?'),
+    ).toBe(true)
+    expect(isOpeningDayAsk('estão abertos amanhã?')).toBe(true)
+    expect(isOpeningDayAsk('está funcionando hoje?')).toBe(true)
+  })
   it('não confunde marcação com horário', () => {
     expect(isOpeningDayAsk('quero agendar depilação segunda às 15h')).toBe(false)
   })

@@ -69,6 +69,18 @@ describe('regras do horário (#223)', () => {
     expect(openNow(a, Date.UTC(2026, 10, 2, 23, 0), 'America/Sao_Paulo')).toEqual({ open: false })
   })
 
+  it('feriado / bloqueio da clínica inteira vence o expediente («Aberta agora» vs Fechada)', () => {
+    const week = { 5: [{ startMinute: 540, endMinute: 720 }, { startMinute: 780, endMinute: 1080 }] }
+    // Sexta 20/11/2026 09:25 America/Sao_Paulo (12:25 UTC) — dentro da manhã.
+    const ms = Date.UTC(2026, 10, 20, 12, 25)
+    expect(openNow(week, ms, TZ)).toEqual({ open: true, closesAt: 720 })
+    const holiday = blockRange('2026-11-20', '2026-11-20', true, 0, 0, TZ)!
+    expect(openNow(week, ms, TZ, [holiday])).toEqual({ open: false })
+    // Bloqueio só da tarde: de manhã continua aberta.
+    const afternoon = blockRange('2026-11-20', '2026-11-20', false, 780, 1080, TZ)!
+    expect(openNow(week, ms, TZ, [afternoon])).toEqual({ open: true, closesAt: 720 })
+  })
+
   it('da 4.ª pessoa em diante usa cinza com iniciais (#223)', () => {
     expect([0, 1, 2].map(personColor)).toEqual(['#2563A8', '#C2410C', '#2F7D4F'])
     expect(personColor(3)).toBe(personColor(7))
