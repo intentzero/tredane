@@ -916,7 +916,7 @@ export async function runDueAutoDrafts(
         (route.purpose === 'home'
           ? undefined
           : clientWebRouteBody({
-              purpose: route.purpose === 'home' ? 'agendar' : route.purpose,
+              purpose: route.purpose,
               serviceName,
               noUpcoming: route.noUpcoming,
             }))
