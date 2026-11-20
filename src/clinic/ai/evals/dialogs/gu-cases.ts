@@ -7,12 +7,14 @@
  * CW-13: serviço sem profissional — a página e a proposta recusam marcar (Conferir / DEC-085).
  * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
  * CW-15: preferência / Sem preferência — filtra horas e rodízio por serviço (DEC-218).
+ * CW-16: combos de zonas no catálogo da página e preço DEC-080 na proposta (TRE-88).
  * GU-23: «Posso ajudar…» reply Abrir agenda|Terminar; toque → cta_url corpo mínimo (TRE-81).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
  * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
  * GU-29: remarcar fora do expediente → Abrir agenda, sem handoff DEC-113 (TRE-83).
  */
-import { listServices, upsertServiceOp } from '../../../config'
+import { listServices, replaceServiceCombosOp, upsertServiceOp } from '../../../config'
+import { readComboSnapshot } from '../../../config/combos'
 import { ValidationError } from '../../../errors'
 import { workerCaller } from '../../../envelopes'
 import {
@@ -1142,6 +1144,114 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         } else if (!agendados[0]!.includes(WEB_RECEIPT_SENTENCE)) {
           errs.push('recibo sem frase da página')
         }
+        return errs
+      },
+    },
+  },
+  {
+    id: 'CW-16',
+    title:
+      'Combos de zonas: catálogo da página lista o combo e a proposta aplica o preço DEC-080',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const axila = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ? AND audience = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+        'Axila',
+        'feminino',
+      )
+      const buco = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ? AND audience = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+        'Buço',
+        'ambos',
+      )
+      if (!axila || !buco) throw new Error('CW-16: Axila feminina ou Buço ausentes no cenário')
+      // Soma 40+25 = R$ 65; combo a R$ 50 → economia R$ 15 (DEC-080).
+      replaceServiceCombosOp(
+        s.db,
+        s.caller,
+        s.ids.depilacao,
+        [
+          {
+            name: 'Buço + axila',
+            priceCents: 5_000,
+            zoneIds: [axila.id, buco.id],
+            active: true,
+          },
+        ],
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quero marcar depilação' },
+      {
+        role: 'owner',
+        note:
+          'cliente escolhe o combo Buço + axila na página (catálogo + proposta com priceVisit)',
+        act: async (s) => {
+          const catalog = readClientWebCatalog(s.db, s.tenantId, s.clock)
+          const svc = catalog.services.find((row) => row.id === s.ids.depilacao)
+          if (!svc) throw new Error('CW-16: Depilação ausente no catálogo da página')
+          if (svc.combos.length !== 1 || svc.combos[0]!.name !== 'Buço + axila') {
+            throw new Error(
+              `CW-16: esperava 1 combo «Buço + axila» no catálogo, veio ${JSON.stringify(svc.combos)}`,
+            )
+          }
+          const combo = svc.combos[0]!
+          if (combo.priceCents !== 5_000 || combo.zoneIds.length !== 2) {
+            throw new Error(`CW-16: combo mal formado no catálogo: ${JSON.stringify(combo)}`)
+          }
+          const day = '2026-11-06'
+          const slots = await listClientWebSlots(s.db, s.tenantId, s.clock, {
+            serviceId: s.ids.depilacao,
+            variantIds: combo.zoneIds,
+            from: day,
+            to: day,
+          })
+          if (!slots.ok || slots.slots.length === 0) {
+            throw new Error('CW-16: horas livres com as zonas do combo falharam')
+          }
+          const planned = await planWebProposal(
+            s.db,
+            s.tenantId,
+            s.clock,
+            { contactId: s.contactId, conversationId: s.conversationId },
+            {
+              serviceId: s.ids.depilacao,
+              variantIds: combo.zoneIds,
+              line: 'feminino',
+              slotId: slots.slots[0]!.id,
+            },
+          )
+          if (!planned.ok) {
+            throw new Error(`CW-16: proposta web falhou (${planned.error})`)
+          }
+          if (planned.proposal.priceCents !== 5_000) {
+            throw new Error(
+              `CW-16: preço da proposta deveria ser R$ 50 (combo), veio ${planned.proposal.priceCents}`,
+            )
+          }
+          const snap = readComboSnapshot(s.db, s.tenantId, 'proposal', planned.proposal.id)
+          if (!snap || snap.name !== 'Buço + axila' || snap.priceCents !== 5_000) {
+            throw new Error(`CW-16: snapshot do combo ausente ou errado: ${JSON.stringify(snap)}`)
+          }
+          if (snap.listPriceCents !== 6_500) {
+            throw new Error(`CW-16: listPriceCents deveria ser 6500, veio ${snap.listPriceCents}`)
+          }
+        },
+      },
+    ],
+    expect: {
+      appointments: 0,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Depilação' }],
+      assert: (s) => {
+        const errs: string[] = []
+        if (s.appointmentCount() !== 0) errs.push('marcação inesperada (só proposta web)')
+        if (s.proposalCount() < 1) errs.push('esperava proposta com combo aplicado')
         return errs
       },
     },
