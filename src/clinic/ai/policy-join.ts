@@ -1,6 +1,10 @@
 /**
  * DEC-210: junção pura da resposta «Remarcar e cancelar» (sem acesso a dados).
  * Usada pelo servidor (`policy-reply.ts`) e pela pré-visualização do painel.
+ *
+ * Revisão DEC-210 (Q3): esta função **não** omite B conflituoso — o painel
+ * bloqueia novas gravações (U1); texto legado continua a sair até a owner editar.
+ * Ver `policy-conflict.ts`.
  */
 
 /** Frase que liga a regra do sinal (Recebimento) às regras gerais da clínica. */

@@ -47,6 +47,45 @@ describe('Sobre a clínica — regras gerais', () => {
     expect(screen.getByText(/15\/500/)).toBeTruthy()
   })
 
+  it('com sinal ligado e B vazio: campo colapsado («só se precisar»); expandir mostra o campo', async () => {
+    render(
+      <AiProfileCard
+        tenantId="clinic-demo-a"
+        api={api({ enabled: true, cancellationPolicy: 'Sinal de R$ 50,00.' })}
+        generation={1}
+        initialReschedulePolicy=""
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Adicionar regras de atraso e falta/ })).toBeTruthy(),
+    )
+    expect(screen.queryByRole('textbox', { name: /Regras gerais/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Adicionar regras de atraso e falta/ }))
+    expect(screen.getByRole('textbox', { name: /Regras gerais/ })).toBeTruthy()
+  })
+
+  it('com sinal ligado, prazo em B bloqueia Salvar e mostra motivo', async () => {
+    render(
+      <AiProfileCard
+        tenantId="clinic-demo-a"
+        api={api({ enabled: true, cancellationPolicy: 'Sinal de R$ 50,00.' })}
+        generation={1}
+        initialReschedulePolicy=""
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Adicionar regras de atraso e falta/ })).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Adicionar regras de atraso e falta/ }))
+    const box = screen.getByRole('textbox', { name: /Regras gerais/ })
+    fireEvent.change(box, { target: { value: 'Avise com 24 h de antecedência.' } })
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/Recebimento/))
+    expect(screen.getByRole('button', { name: 'Salvar localização e regras' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+  })
+
   it('com localização e regras preenchidas abre como resumo; «Editar» mostra os campos', async () => {
     render(
       <AiProfileCard

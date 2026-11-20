@@ -6,6 +6,7 @@ import { createControllableClock } from '../../db/clock'
 import { CLINIC_SCHEMA_VERSION } from '../constants'
 import { bootClinicDb } from '../test-db'
 import { ensureClinicSettings, setClinicAiProfile } from './settings'
+import { updatePixSignalSettings } from '../pix/signal-settings'
 import { buildSystemPrompt } from '../../ai/prompt'
 import type { AiGenerateInput } from '../../ai/types'
 
@@ -47,6 +48,37 @@ describe('DEC-089 revista — sem atendente virtual', () => {
       )
       expect(next.googleBusinessUrl).toBe('https://maps.app.goo.gl/demo')
       expect(next.reschedulePolicy).toBe('Avise com 24 h.')
+    } finally {
+      close()
+    }
+  })
+
+  it('com sinal ligado, rejeita regras gerais com prazo de cancelar/remarcar (DEC-210)', () => {
+    const clock = createControllableClock(Date.UTC(2026, 9, 31))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      ensureClinicSettings(db, 'clinic-demo-a', clock)
+      updatePixSignalSettings(
+        db,
+        'clinic-demo-a',
+        { enabled: true, amountKind: 'fixed', fixedCents: 5000 },
+        clock,
+      )
+      expect(() =>
+        setClinicAiProfile(
+          db,
+          'clinic-demo-a',
+          { reschedulePolicy: 'Avise com 24 h de antecedência.' },
+          clock,
+        ),
+      ).toThrow(/Recebimento do sinal/)
+      const ok = setClinicAiProfile(
+        db,
+        'clinic-demo-a',
+        { reschedulePolicy: 'Atrasos acima de 15 minutos podem perder o horário.' },
+        clock,
+      )
+      expect(ok.reschedulePolicy).toMatch(/Atrasos/)
     } finally {
       close()
     }

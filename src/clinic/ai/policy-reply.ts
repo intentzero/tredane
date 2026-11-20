@@ -1,7 +1,9 @@
 /**
  * DEC-210: resposta única «Remarcar e cancelar».
  * Parte A = texto do sinal (Recebimento, só com o sinal ligado) + parte B = regras gerais
- * da clínica (Assistente). A cliente recebe as duas juntas, A primeiro; uma nunca esconde a outra.
+ * da clínica (Assistente). A cliente recebe as duas juntas, A primeiro.
+ * Revisão (Q3): B legado conflituoso continua a sair até a owner editar; novas gravações
+ * conflituosas são barradas em `setClinicAiProfile` / painel (U1).
  */
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'

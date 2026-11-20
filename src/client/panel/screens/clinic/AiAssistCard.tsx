@@ -3,11 +3,16 @@ import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ShellSlot } from '../../shell/ShellSlot'
 import { Button, Input, Label, Text, TextArea, TextField } from 'react-aria-components'
 import { PanelApiError, type PanelApi } from '../../api'
+import { navigatePanel } from '../../routes'
 import {
   checkGoogleBusinessUrl,
   GOOGLE_BUSINESS_URL_MAX_LENGTH,
 } from '../../../../clinic/config/google-business-link'
 import { GENERAL_POLICY_MAX_CHARS, joinPolicyParts } from '../../../../clinic/ai/policy-join'
+import {
+  analyzeGeneralPolicyConflict,
+  formatPolicyConflictMessage,
+} from '../../../../clinic/ai/policy-conflict'
 
 /**
  * Opt-in de IA por clínica (política de privacidade §6). Default desligado.
@@ -115,6 +120,8 @@ const GB_INVALID_MESSAGE = `Link da localização inválido: use um link https:/
 
 /**
  * Factos da clínica que a owner edita (DEC-210/211): localização e regras gerais.
+ * Revisão DEC-210: B só se precisar (Q4); conflito com o Recebimento bloqueia gravar (U1);
+ * legado conflituoso só avisa no painel (Q3).
  */
 export function AiProfileCard({
   tenantId,
@@ -136,18 +143,24 @@ export function AiProfileCard({
   const [note, setNote] = useState<string | null>(null)
   // Com os dois campos preenchidos, o cartão abre como resumo (uma linha por campo).
   const [editing, setEditing] = useState(false)
+  // Q4: com sinal ligado e B vazio, o campo começa colapsado («só se precisar»).
+  const [policyOpen, setPolicyOpen] = useState(() => Boolean((initialReschedulePolicy ?? '').trim()))
   // Texto do sinal (Recebimento), só leitura: entra primeiro na resposta «Remarcar e cancelar».
   const [signalText, setSignalText] = useState<string | null>(null)
+  const [signalOn, setSignalOn] = useState(false)
+  const [signalLoaded, setSignalLoaded] = useState(false)
   useEffect(() => {
     let cancelled = false
     void Promise.resolve(api.getPix?.(tenantId, { generation, expectGeneration: () => generation }))
       .then((pix) => {
         if (cancelled || !pix) return
         const s = pix.signalSettings
+        setSignalOn(s.enabled === true)
         setSignalText(s.enabled ? s.cancellationPolicy.trim() : '')
+        setSignalLoaded(true)
       })
       .catch(() => {
-        /* pré-visualização é best-effort */
+        if (!cancelled) setSignalLoaded(true)
       })
     return () => {
       cancelled = true
@@ -155,10 +168,17 @@ export function AiProfileCard({
   }, [api, tenantId, generation])
 
   const dirty = gbUrl !== baseline.gbUrl || policy !== baseline.policy
+  const conflict = analyzeGeneralPolicyConflict(policy, { signalOn })
+  const conflictMessage = formatPolicyConflictMessage(conflict)
+  const saveBlocked = conflict.blocksSave
+  // Com sinal desligado, B é a fonte — campo visível. Com sinal ligado e B vazio: colapsado (Q4).
+  const showPolicyField =
+    !signalLoaded || !signalOn || policyOpen || Boolean(policy.trim())
 
   function discard() {
     setGbUrl(baseline.gbUrl)
     setPolicy(baseline.policy)
+    setPolicyOpen(Boolean(baseline.policy.trim()) || !signalOn)
     setGbError(null)
     setNote(null)
   }
@@ -166,6 +186,10 @@ export function AiProfileCard({
   async function save() {
     setNote(null)
     setGbError(null)
+    if (saveBlocked) {
+      setNote(conflictMessage)
+      return
+    }
     const gb = checkGoogleBusinessUrl(gbUrl)
     if (!gb.ok) {
       setGbError(gb.message)
@@ -179,12 +203,24 @@ export function AiProfileCard({
         { generation, expectGeneration: () => generation },
       )
       setBaseline({ gbUrl, policy })
+      setPolicyOpen(Boolean(policy.trim()) || !signalOn)
       setEditing(false)
       setNote('Salvo.')
       onSaved?.()
     } catch (err) {
       if (err instanceof PanelApiError && err.status === 400) {
-        setGbError(GB_INVALID_MESSAGE)
+        if (
+          String(err.code) === 'reschedule_policy_conflicts_with_signal' ||
+          /Recebimento/.test(err.message)
+        ) {
+          setNote(err.message || conflictMessage)
+        } else {
+          setGbError(
+            err.message?.includes('Google') || err.message?.includes('link')
+              ? err.message
+              : GB_INVALID_MESSAGE,
+          )
+        }
       } else {
         setNote('Não foi possível salvar. Tente de novo.')
       }
@@ -195,6 +231,7 @@ export function AiProfileCard({
 
   const saveLabel = 'Salvar localização e regras'
   const policyPreview = joinPolicyParts(signalText ?? '', policy)
+  const saveDisabled = busy || !dirty || saveBlocked
 
   const actions = wide ? (
     // DEC-183: no desktop, «Salvar» e «Descartar» ficam no cabeçalho, sempre à vista.
@@ -212,7 +249,7 @@ export function AiProfileCard({
           <Button
             className="panel-btn panel-btn-primary"
             onPress={() => void save()}
-            isDisabled={busy || !dirty}
+            isDisabled={saveDisabled}
           >
             {busy ? 'Salvando…' : saveLabel}
           </Button>
@@ -220,13 +257,18 @@ export function AiProfileCard({
       </div>
     </ShellSlot>
   ) : (
-    <Button className="panel-btn panel-btn-secondary" onPress={() => void save()} isDisabled={busy}>
+    <Button
+      className="panel-btn panel-btn-secondary"
+      onPress={() => void save()}
+      isDisabled={saveDisabled}
+    >
       {busy ? 'Salvando…' : saveLabel}
     </Button>
   )
 
   if (!editing && !dirty && baseline.gbUrl.trim() && baseline.policy.trim()) {
     const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s)
+    const baselineConflict = analyzeGeneralPolicyConflict(baseline.policy, { signalOn })
     return (
       <section className="panel-card" aria-labelledby="ai-profile-facts-t">
         <div className="panel-switch-row">
@@ -237,6 +279,19 @@ export function AiProfileCard({
             Editar
           </Button>
         </div>
+        {baselineConflict.blocksSave ? (
+          <p className="clinic-footnote clinic-footnote-warn" role="status">
+            {formatPolicyConflictMessage(baselineConflict)}{' '}
+            <Button
+              className="panel-btn panel-btn-ghost"
+              onPress={() =>
+                navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recebimento' })
+              }
+            >
+              Abrir Recebimento
+            </Button>
+          </p>
+        ) : null}
         <dl className="kn-summary">
           <div>
             <dt>Localização</dt>
@@ -283,19 +338,50 @@ export function AiProfileCard({
           </p>
         ) : null}
       </TextField>
-      <TextField className="clinic-field">
-        <Label>Regras gerais de remarcação e cancelamento</Label>
-        <TextArea
-          value={policy}
-          onChange={(e) => setPolicy(e.target.value)}
-          rows={3}
-          maxLength={GENERAL_POLICY_MAX_CHARS}
-          placeholder="Ex.: Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário."
-        />
-        <Text slot="description" className="panel-muted-sm">
-          Aviso prévio, atrasos, faltas. {policy.length}/{GENERAL_POLICY_MAX_CHARS}
-        </Text>
-      </TextField>
+      {showPolicyField ? (
+        <TextField className="clinic-field">
+          <Label>Regras gerais de remarcação e cancelamento</Label>
+          <TextArea
+            value={policy}
+            onChange={(e) => setPolicy(e.target.value)}
+            rows={3}
+            maxLength={GENERAL_POLICY_MAX_CHARS}
+            placeholder={
+              signalOn
+                ? 'Ex.: Atrasos acima de 15 minutos podem perder o horário.'
+                : 'Ex.: Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário.'
+            }
+          />
+          <Text slot="description" className="panel-muted-sm">
+            {signalOn
+              ? 'Atrasos e faltas. Prazos de cancelar/remarcar, valor, crédito e «não devolve» ficam só em Recebimento do sinal.'
+              : 'Aviso prévio, atrasos, faltas.'}{' '}
+            {policy.length}/{GENERAL_POLICY_MAX_CHARS}
+          </Text>
+        </TextField>
+      ) : (
+        <div className="clinic-field">
+          <Button className="panel-btn panel-btn-secondary" onPress={() => setPolicyOpen(true)}>
+            Adicionar regras de atraso e falta
+          </Button>
+          <p className="panel-muted-sm">
+            Opcional. Prazos de cancelar/remarcar e regras de dinheiro ficam em Recebimento do sinal.
+          </p>
+        </div>
+      )}
+      {conflictMessage ? (
+        <p className="clinic-footnote clinic-footnote-warn" role="alert">
+          {conflictMessage}{' '}
+          <Button
+            className="panel-btn panel-btn-ghost"
+            onPress={() =>
+              navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recebimento' })
+            }
+          >
+            Abrir Recebimento
+          </Button>
+        </p>
+      ) : null}
       <section className="kn-preview" aria-labelledby="policy-prev-t">
         <h3 id="policy-prev-t" className="kn-sub">
           Como a cliente recebe «Remarcar e cancelar»
@@ -306,7 +392,7 @@ export function AiProfileCard({
           </p>
           <span className="kn-preview-note">
             {signalText
-              ? 'A parte do sinal vem do Recebimento e se edita lá.'
+              ? 'A parte do sinal vem do Recebimento e se edita lá. Regras gerais de atraso/falta vêm a seguir, sem repetir estes prazos.'
               : 'Sem sinal ligado, só saem as regras gerais.'}
           </span>
         </div>
