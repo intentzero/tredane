@@ -311,7 +311,7 @@ export function createHoldOp(
       throw new NotFoundError('service_not_found', 'Procedimento não encontrado ou inactivo nesta clínica')
     }
     const pro = requireProfessional(db, tenantId, input.professionalId, clock)
-    if (service.professionalIds.length > 0 && !service.professionalIds.includes(pro.id)) {
+    if (!service.professionalIds.includes(pro.id)) {
       throw new ValidationError('professional_not_linked', 'Essa profissional não faz este procedimento')
     }
 

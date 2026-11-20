@@ -83,10 +83,8 @@ export function checkSlotAvailability(
       `profissional ${input.professionalId} não encontrado nesta clínica`,
     )
   }
-  if (
-    service.professionalIds.length > 0
-    && !service.professionalIds.includes(pro.id)
-  ) {
+  // Lista vazia = ninguém (alinhado ao Conferir); não «qualquer profissional».
+  if (!service.professionalIds.includes(pro.id)) {
     reasons.push('professional_not_linked')
   }
 

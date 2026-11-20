@@ -20,7 +20,7 @@ function config(
     name: `Procedimento ${i + 1}`,
     active: true,
     durationMinutes,
-    professionalIds: [] as string[],
+    professionalIds: ['pro1'],
   }))
   if (extras.withVariantService) {
     list.push({
@@ -28,7 +28,7 @@ function config(
       name: 'Depilação',
       active: true,
       durationMinutes: 30,
-      professionalIds: [],
+      professionalIds: ['pro1'],
       zones: [{ id: 'z1', name: 'Axila', audience: 'ambos', sortOrder: 0, active: true, durationMinutes: 10, priceCents: 5000 }],
     } as (typeof list)[number] & { zones: unknown[] })
   }
