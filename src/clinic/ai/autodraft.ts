@@ -61,6 +61,7 @@ import {
   humanTeamOfferButtons,
   inboundWarrantsHandoffResume,
   inboundWarrantsParallelHandoffAutomation,
+  isFarewellWhileHandoffPaused,
   isHumanTeamOfferAllowed,
   notifyHumanHandoff,
   type AiReplyPauseReason,
@@ -216,7 +217,8 @@ export function enqueueAutoDraft(
     if (
       !parallelAutomation &&
       !inboundWarrantsHandoffResume(body, reason) &&
-      !shouldAcknowledgeWhileHandoffPaused(reason)
+      !shouldAcknowledgeWhileHandoffPaused(reason) &&
+      !isFarewellWhileHandoffPaused(body, reason)
     ) {
       return null
     }
@@ -741,6 +743,41 @@ export async function runDueAutoDrafts(
         if (resumeOutbox.length > 0) {
           // evento de retomada — não conta como resposta à cliente
         }
+      } else if (isFarewellWhileHandoffPaused(inboundBody, pauseReason)) {
+        // TRE-39: «Adeus»/«Tchau» com alerta aberto não repetem HANDOFF_PAUSED_ACK.
+        // Mesmo adeus do Terminar + limpa timeout/alerta (suppressFollowupsAfterClientEnd).
+        await signalTyping()
+        const settings = ensureClinicSettings(db, tenantId, clock)
+        const tz = settings.timezone || 'America/Sao_Paulo'
+        const farewell = pickTerminarFarewell({ timezone: tz, nowMs: clock.nowMs() })
+        const endOutbox = suppressFollowupsAfterClientEnd(db, tenantId, job.conversationId, clock)
+        let replyOutbox: OutboxRow[] = [...endOutbox]
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            {
+              conversationId: job.conversationId,
+              body: farewell,
+              clientRequestId: `ai-handoff-farewell:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            clock,
+          )
+          replyOutbox = [...replyOutbox, ...sent.outbox]
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'handoff_paused_farewell',
+          replyOutbox,
+        })
+        continue
       } else if (shouldAcknowledgeWhileHandoffPaused(pauseReason)) {
         const ack = replyWhileHandoffPaused(
           db,

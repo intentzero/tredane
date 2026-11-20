@@ -47,7 +47,9 @@ import {
   classifySensitive,
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
+  hasSoftDeclineRequest,
   hasStopRequest,
+  isExplicitAbandonText,
   wantsHumanPause,
   wantsHumanText,
 } from './nlu/sensitive'
@@ -622,6 +624,33 @@ export function parallelHandoffAllowsAutomation(
 export function shouldAcknowledgeWhileHandoffPaused(reason: AiReplyPauseReason): boolean {
   if (reason === 'staff_active') return false
   return reason === 'off_purpose' || reason === 'customer_requested'
+}
+
+/**
+ * Despedida clara com alerta/pausa DEC-083 aberto (TRE-39 / staging Paulo).
+ * «tchau» / «adeus» / «bye» / «flw» e abandono explícito (Terminar, deixa estar…);
+ * **não** inclui só «obrigada»/«valeu» (agradecimento após pedir a equipe — G-11).
+ * Com `staff_active` a pessoa já conduz: sem adeus automático.
+ */
+const FAREWELL_WHILE_HANDOFF_PAUSED_RE = new RegExp(
+  [
+    String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|bye)[.!?\s]*$`,
+    String.raw`\b(?:tchau|adeus)\b`,
+  ].join('|'),
+  'i',
+)
+
+export function isFarewellWhileHandoffPaused(
+  text: string,
+  reason: AiReplyPauseReason,
+): boolean {
+  if (reason === 'staff_active') return false
+  const body = text.trim()
+  if (!body) return false
+  if (FAREWELL_WHILE_HANDOFF_PAUSED_RE.test(body)) return true
+  // Classe A DEC-147 — «Terminar», «deixa estar», «não quero», …
+  const hits = classifySensitive(body)
+  return hasSoftDeclineRequest(hits) && isExplicitAbandonText(body)
 }
 
 export function replyMisunderstandingEscalation(
