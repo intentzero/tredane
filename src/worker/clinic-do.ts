@@ -2317,6 +2317,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const nextTimeout = nextHandoffTimeoutAt(this.#db, tenantId)
     if (nextTimeout != null) {
       await this.#scheduleAlarmNoLaterThan(nextTimeout + 500)
+      // DEC-208: timeout_resume (e outros outbound) podem ter rearmado idle_due_at
+      // no mesmo sweep. Com outro handoff pendente, o early-return antigo nunca
+      // lia o idle — o DO dormia até ao outro timeout e a conversa ficava aberta.
+      const nextIdle = nextIdleDueAt(this.#db, tenantId)
+      if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle + 500)
       return
     }
     await this.#rearmAlarmAfterHandoffCleared(tenantId)
@@ -4632,7 +4637,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       timer.addPhase('alarm_alerts', this.#clock.nowMs() - phase)
       phase = this.#clock.nowMs()
       try {
-      // DEC-087: idle 15 min + segundo prazo de mais 15 min.
+      // DEC-087 / DEC-208: idle 30 min → fecho directo.
       if (!skipIdleSweep) {
         const idleItems = sweepDueIdleConversations(
           this.#db,
@@ -4664,6 +4669,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         }
       }
       await this.#scheduleNextHandoffTimeout(meta.tenantId)
+      // timeout_resume rearma idle_due_at *depois* do bloco idle acima — garantir wake.
+      const nextIdleAfterHandoff = nextIdleDueAt(this.#db, meta.tenantId)
+      if (nextIdleAfterHandoff != null) {
+        await this.#scheduleAlarmNoLaterThan(nextIdleAfterHandoff + 500)
+      }
       } catch {
         /* best-effort handoff timeout */
       }

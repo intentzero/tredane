@@ -1180,14 +1180,9 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
-  // DEC-087: humano activo — cancela idle automático.
-  db.run(
-    `UPDATE conversations
-     SET idle_due_at = NULL, idle_phase = NULL, idle_prompt_sent_at = NULL
-     WHERE tenant_id = ? AND id = ?`,
-    tenantId,
-    input.conversationId,
-  )
+  // DEC-208: idle corre também com pausa / humano — não limpar idle_due_at aqui.
+  // (O clear legado DEC-087 «humano activo» impedia o fecho após timeout_resume
+  // quando o outbound falhava ou o alarme do DO não via o prazo rearmado.)
   const conv = db.get<{ contact_id: string }>(
     `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
     tenantId,

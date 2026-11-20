@@ -183,9 +183,10 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | F-01 | P0 | «Vou pensar» | A: [oferta] ⟶ C: «Vou pensar e te falo» | Resposta curta e acolhedora, sem nova pergunta de venda. Nenhum envio até ao idle da DEC-087. | EF-04, Q6 | 1 | ❔ L2 |
 | F-02 | P1 | Só queria o preço | C: «Só queria saber o preço da massagem mesmo» | Informa o preço e deixa a porta aberta, sem insistir. | EF-04, Q6 | 1 | ❔ L2 |
-| F-03 | P0 | Cliente some | [oferta enviada; 15 min sem resposta] | Pergunta «prosseguir/terminar» com botões; mais 15 min sem resposta → Perdido (DEC-087). | EF-04 | 0 | ✅ `followup/idle.test` |
+| F-03 | P0 | Cliente some | [oferta enviada; 30 min sem resposta] | Fecho directo com frase fixa de inactividade (DEC-208; unifica 15+15). | EF-04 | 0 | ✅ `followup/idle.test` |
 | F-09 | P0 | Fecho idle limpa frame | [Liberação+quarta no quadro; idle thanks] ⟶ C: «Quero agendar uma massagem» | Frame limpo no fecho; pergunta tipo sob `uma`, sem reusar Liberação+dia. | INV-08, DEC-087 | 1 | ✅ L1 (#620) |
 | F-10 | P0 | Texto Terminar no idle | [Liberação no quadro; prompt idle] ⟶ C: «Terminar» ⟶ C: «Quero agendar uma massagem» | Thanks DEC-087; frame limpo; pergunta tipo sob `uma`, sem Liberação+dia. | INV-08, DEC-087 | 2 | ✅ L1 |
+| F-11 | P0 | Idle após timeout de handoff | C: «Quero falar com uma pessoa» → +30 min (DEC-155 resume) → +30 min | Frase «A equipe não conseguiu…»; depois `IDLE_AUTO_CLOSE_BODY`; sem loop de ack. | EF-04, DEC-208, DEC-155, TRE-41 | 1 | ✅ L1 (#966) |
 | F-04 | P1 | Adiar | C: «Agora não posso, amanhã falo» | Acolhe e não volta a escrever antes do idle. | EF-04 | 1 | ❔ L2 |
 | F-05 | P0 | «Alterar detalhes» | [proposta] ⟶ clique «Alterar detalhes» | Sem frase de equipe / sem pausa IA; menu Horário\|Serviço[\|Detalhes do serviço]; nada marcado na proposta antiga. | INV-01, DEC-061 | 1 | ✅ `alter-details.test` · ✅ `dec-083.test` (invalida sem handoff) · ⚠ L4 05/11 ainda refletia handoff antigo — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | F-06 | P0 | Proposta expirada | [proposta enviada há 31 min] ⟶ clique Confirmar | Recusa; nenhum compromisso; aviso/nova proposta. | INV-01 | 1 | ✅ `proposals.test` «envio inicia 30 min…» |

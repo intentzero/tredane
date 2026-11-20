@@ -97,4 +97,14 @@ describe('ClinicDurableObject — cache do alarme', () => {
     expect(src).toMatch(/planAlarmAfterHandoffCleared/)
     expect(src).toMatch(/deleteAlarm/)
   })
+
+  it('fonte: após handoff timeout o alarme também lê nextIdle (DEC-208)', () => {
+    const src = readFileSync(resolve(import.meta.dirname, 'clinic-do.ts'), 'utf8')
+    const scheduleFn = src.slice(
+      src.indexOf('async #scheduleNextHandoffTimeout'),
+      src.indexOf('async #scheduleNextHandoffTimeout') + 700,
+    )
+    expect(scheduleFn).toMatch(/nextIdleDueAt/)
+    expect(src).toMatch(/nextIdleAfterHandoff/)
+  })
 })
