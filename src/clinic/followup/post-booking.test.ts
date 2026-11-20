@@ -60,7 +60,7 @@ describe('DEC-086 post-booking follow-up', () => {
     expect(parsePostBookingButtonId('prop:x:v1:confirm')).toBeNull()
   })
 
-  it('envia pergunta com botões e «Terminar» fecha a sessão (Class A)', () => {
+  it('envia pergunta com botões e «Terminar» com horário futuro mantém Agendado (DEC-086)', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -77,22 +77,38 @@ describe('DEC-086 post-booking follow-up', () => {
         clock,
       )
       const conversationId = ingested.conversation!.id
+      const contactId = ingested.contact!.id
       ensureOpenOpportunity(
         db,
         {
           tenantId: 'clinic-demo-a',
-          contactId: ingested.contact!.id,
+          contactId,
           conversationId,
         },
         clock,
       )
-      // Avança para agendado (simula pós-confirmação).
+      // Avança para agendado com compromisso futuro (DEC-086).
       const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)!
       db.run(
         `UPDATE opportunities SET stage = 'agendado', updated_at = ? WHERE tenant_id = ? AND id = ?`,
         clock.nowMs(),
         'clinic-demo-a',
         opp.id,
+      )
+      const startsAt = clock.nowMs() + 7 * 24 * 60 * 60_000
+      db.run(
+        `INSERT INTO appointments (
+           id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
+           created_at, contact_id, conversation_id, confirmed_by
+         ) VALUES (?, ?, 'svc_fake', 'pro_fake', ?, ?, 'confirmed', ?, ?, ?, ?)`,
+        'apt_fu_1',
+        'clinic-demo-a',
+        startsAt,
+        startsAt + 40 * 60_000,
+        clock.nowMs(),
+        contactId,
+        conversationId,
+        'user_synth_attendant_a',
       )
 
       const sent = sendPostBookingFollowupOp(
@@ -157,7 +173,7 @@ describe('DEC-086 post-booking follow-up', () => {
         conversationId,
       )
       expect(unread?.unread_count).toBe(0)
-      // Encerrar (status closed) fica fora deste recorte — só o badge some.
+      // Encerrar conversa (status closed) fica fora deste recorte — só o badge some.
       expect(unread?.status).not.toBe('closed')
 
       const closed = db.get<{ stage: string; status: string }>(
@@ -173,6 +189,88 @@ describe('DEC-086 post-booking follow-up', () => {
         conversationId,
       )
       // Class A — adeus Terminar (3 frases; Paulo 13/11/2026).
+      expect(isTerminarFarewellBody(thanksBody?.body ?? '', TZ, clock.nowMs())).toBe(true)
+    } finally {
+      close()
+    }
+  })
+
+  it('Terminar pós-cancelamento (Em atendimento, sem horário) vai a Perdido', () => {
+    // Staging: cancelou → DEC-092 Em atendimento «Sem horário marcado» →
+    // «Posso ajudar…?» → Terminar enviava adeus mas o cartão ficava aberto.
+    const clock = createControllableClock(Date.UTC(2026, 10, 20, 18, 51))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:postcancel:1',
+          waId: '5511987001889',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      // Pós-cancelamento do último horário (DEC-092): Em atendimento.
+      const opp = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)!
+      db.run(
+        `UPDATE opportunities SET stage = 'em_atendimento', updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        opp.id,
+      )
+
+      const sent = sendPostBookingFollowupOp(
+        db,
+        caller,
+        {
+          conversationId,
+          appointmentId: 'apt_fu_cancelled',
+          clientRequestId: 'followup.postcancel:apt_fu_cancelled',
+        },
+        clock,
+      )
+      expect(sent.status).toBe('queued')
+
+      const click = handlePostBookingButtonClick(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          conversationId,
+          buttonId: postBookingButtonId('apt_fu_cancelled', 'end'),
+          providerEventKey: 'wa:fu:postcancel:end',
+        },
+        clock,
+      )
+      expect(click.handled).toBe(true)
+      if (!click.handled || click.action !== 'end') return
+      expect(click.closedOpportunityId).toBe(opp.id)
+
+      const closed = db.get<{ stage: string; status: string }>(
+        `SELECT stage, status FROM opportunities WHERE id = ?`,
+        opp.id,
+      )
+      expect(closed).toEqual({ stage: 'perdido', status: 'closed' })
+      expect(findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)).toBeNull()
+
+      const thanksBody = db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        'clinic-demo-a',
+        conversationId,
+      )
       expect(isTerminarFarewellBody(thanksBody?.body ?? '', TZ, clock.nowMs())).toBe(true)
     } finally {
       close()
@@ -284,11 +382,12 @@ describe('DEC-086 post-booking follow-up', () => {
         clock,
       )
       const conversationId = ingested.conversation!.id
+      const contactId = ingested.contact!.id
       ensureOpenOpportunity(
         db,
         {
           tenantId: 'clinic-demo-a',
-          contactId: ingested.contact!.id,
+          contactId,
           conversationId,
         },
         clock,
@@ -299,6 +398,21 @@ describe('DEC-086 post-booking follow-up', () => {
         clock.nowMs(),
         'clinic-demo-a',
         opp.id,
+      )
+      const startsAt = clock.nowMs() + 7 * 24 * 60 * 60_000
+      db.run(
+        `INSERT INTO appointments (
+           id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
+           created_at, contact_id, conversation_id, confirmed_by
+         ) VALUES (?, ?, 'svc_fake', 'pro_fake', ?, ?, 'confirmed', ?, ?, ?, ?)`,
+        'apt_fu_terminar',
+        'clinic-demo-a',
+        startsAt,
+        startsAt + 40 * 60_000,
+        clock.nowMs(),
+        contactId,
+        conversationId,
+        'user_synth_attendant_a',
       )
 
       const handoff = notifyHumanHandoff(

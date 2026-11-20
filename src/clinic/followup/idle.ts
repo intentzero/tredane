@@ -13,12 +13,9 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
-import { conversationHasFutureConfirmed } from '../pipeline/appointment-stage'
-import {
-  findOpenOpportunityForConversation,
-  moveOpportunityStageOp,
-} from '../pipeline'
+import { findOpenOpportunityForConversation } from '../pipeline'
 import { retireActiveProposal } from '../proposals/proposals'
+import { closeOpenOpportunityIfNoFuture } from './terminar-close-opportunity'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/interactive-limits'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
@@ -333,27 +330,16 @@ function settleIdle(
   const frameOb = clearBookingFrame(db, tenantId, conversationId, clock)
   if (frameOb) outbox.push(frameOb)
 
-  const future = conversationHasFutureConfirmed(db, tenantId, conversationId, clock.nowMs())
-  let closedOpportunityId: string | null = null
-  if (!future) {
-    const opp = findOpenOpportunityForConversation(db, tenantId, conversationId)
-    if (opp && opp.stage !== 'perdido' && opp.stage !== 'concluido') {
-      const moved = moveOpportunityStageOp(
-        db,
-        caller,
-        {
-          opportunityId: opp.id,
-          toStage: 'perdido',
-          actorClerkUserId: FOLLOWUP_ACTOR,
-          actorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-          note: input.note,
-        },
-        clock,
-      )
-      outbox.push(...moved.outbox)
-      closedOpportunityId = opp.id
-    }
-  }
+  const closed = closeOpenOpportunityIfNoFuture(
+    db,
+    caller,
+    tenantId,
+    conversationId,
+    clock,
+    input.note,
+  )
+  outbox.push(...closed.outbox)
+  const closedOpportunityId = closed.closedOpportunityId
   // Suppress antes do adeus: outbound do farewell não rearma idle (Paulo 14/11).
   outbox.push(...suppressFollowupsAfterClientEnd(db, tenantId, conversationId, clock))
   if (input.thanks) {
