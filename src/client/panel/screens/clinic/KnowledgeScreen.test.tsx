@@ -28,6 +28,8 @@ describe('Respostas da clínica — editor da pergunta', () => {
     expect(palavra.className).toContain('kn-cue-input')
     const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
     expect(css).toMatch(/\.kn-cue-input\s*\{[^}]*flex:\s*1/)
+    // O botão «Adicionar» herda width:100% de .panel-btn-secondary: sem width:auto esmaga o campo.
+    expect(css).toMatch(/\.kn-new-cat > \.panel-btn-secondary\s*\{[^}]*width:\s*auto/)
   })
 
   it('sugestões sem endereço; tocar numa dá exemplo no campo da resposta; o cartão de cima só aparece na lista', async () => {
