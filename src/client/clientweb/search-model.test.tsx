@@ -43,9 +43,9 @@ describe('pesquisa (DEC-200)', () => {
 
   it('«axila» dá a mesma zona em dois serviços, agrupada por serviço', () => {
     const r = searchCatalog(catalog, catalog.services, 'feminino', 'axila')
-    expect(r.groups.map((g) => [g.service.name, g.zones.map((z) => z.id)])).toEqual([
-      ['Depilação a laser', ['ax']],
-      ['Depilação com cera', ['ax2']],
+    expect(r.groups.map((g) => [g.service.name, g.zones.map((z) => z.id), g.combos])).toEqual([
+      ['Depilação a laser', ['ax'], []],
+      ['Depilação com cera', ['ax2'], []],
     ])
   })
 
@@ -56,8 +56,29 @@ describe('pesquisa (DEC-200)', () => {
 
   it('serviço que casa pelo nome aparece mesmo sem zonas casadas', () => {
     const r = searchCatalog(catalog, catalog.services, 'feminino', 'limpeza')
-    expect(r.groups).toEqual([{ service: limpeza, zones: [], serviceMatched: true }])
+    expect(r.groups).toEqual([{ service: limpeza, zones: [], combos: [], serviceMatched: true }])
     expect(searchCatalog(catalog, catalog.services, 'feminino', 'botox')).toEqual({ groups: [], count: 0 })
+  })
+
+  it('casa combo pelo nome e pelas zonas que inclui (DEC-080)', () => {
+    const withCombo = svc({
+      id: 'laser2',
+      name: 'Depilação a laser',
+      variantKind: 'Zona',
+      variantKindPlural: 'Zonas',
+      zones: [
+        { id: 'ax', name: 'Axilas', synonyms: [], audience: 'feminino', durationMinutes: 10, priceCents: 9_000 },
+        { id: 'vi', name: 'Virilha', synonyms: [], audience: 'feminino', durationMinutes: 20, priceCents: 14_000 },
+        { id: 'bu', name: 'Buço', synonyms: [], audience: 'feminino', durationMinutes: 5, priceCents: 5_000 },
+      ],
+      combos: [{ id: 'verao', name: 'Pacote verão', priceCents: 22_000, zoneIds: ['ax', 'vi', 'bu'] }],
+    })
+    const cat: Catalog = { ...catalog, services: [withCombo] }
+    const byName = searchCatalog(cat, cat.services, 'feminino', 'verao')
+    expect(byName.groups.map((g) => g.combos.map((c) => c.id))).toEqual([['verao']])
+    const byZone = searchCatalog(cat, cat.services, 'feminino', 'axila')
+    expect(byZone.groups[0]?.combos.map((c) => c.id)).toEqual(['verao'])
+    expect(byZone.groups[0]?.zones.map((z) => z.id)).toEqual(['ax'])
   })
 
   it('filtra as zonas de um serviço', () => {

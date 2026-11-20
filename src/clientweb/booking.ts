@@ -52,6 +52,14 @@ export type ClientWebCatalogZone = {
   priceCents: number | null
 }
 
+/** Combo activo e aplicável (DEC-080) para a página mostrar e precificar. */
+export type ClientWebCatalogCombo = {
+  id: string
+  name: string
+  priceCents: number
+  zoneIds: string[]
+}
+
 export type ClientWebCatalogProfessional = {
   id: string
   name: string
@@ -70,6 +78,8 @@ export type ClientWebCatalogService = {
   variantKindPlural: string | null
   variantSelection: 'uma' | 'varias'
   zones: ClientWebCatalogZone[]
+  /** DEC-080 — vazio = sem combos. */
+  combos: ClientWebCatalogCombo[]
   /** Há sinal a pagar por Pix no chat (a página só avisa). */
   requiresSignal: boolean
   /** Profissionais ativas ligadas ao serviço (DEC-218). Ordenadas por nome. */
@@ -111,6 +121,38 @@ export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Cloc
         .filter((p): p is NonNullable<typeof p> => Boolean(p))
         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || a.id.localeCompare(b.id))
         .map((p) => ({ id: p.id, name: p.name }))
+      const zones = s.zones
+        .filter((z) => z.active)
+        .map((z) => ({
+          id: z.id,
+          name: z.name,
+          synonyms: [...z.synonyms],
+          audience: z.audience,
+          durationMinutes: z.durationMinutes,
+          priceCents: z.priceCents,
+        }))
+      const zoneById = new Map(zones.map((z) => [z.id, z]))
+      // DEC-080: só combos activos cuja soma das zonas activas ainda sai mais barata.
+      const combos =
+        s.variantSelection === 'varias'
+          ? s.combos
+              .filter((c) => c.active && c.zoneIds.length >= 2)
+              .filter((c) => {
+                let sum = 0
+                for (const id of c.zoneIds) {
+                  const z = zoneById.get(id)
+                  if (!z || z.priceCents == null) return false
+                  sum += z.priceCents
+                }
+                return sum > c.priceCents
+              })
+              .map((c) => ({
+                id: c.id,
+                name: c.name,
+                priceCents: c.priceCents,
+                zoneIds: [...c.zoneIds],
+              }))
+          : []
       return {
         id: s.id,
         name: s.name,
@@ -123,16 +165,8 @@ export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Cloc
         variantSelection: s.variantSelection,
         requiresSignal: s.requiresSignal,
         professionals,
-        zones: s.zones
-          .filter((z) => z.active)
-          .map((z) => ({
-            id: z.id,
-            name: z.name,
-            synonyms: [...z.synonyms],
-            audience: z.audience,
-            durationMinutes: z.durationMinutes,
-            priceCents: z.priceCents,
-          })),
+        zones,
+        combos,
       }
     })
   return {

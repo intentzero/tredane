@@ -43,6 +43,7 @@ const CATALOG = {
         { id: 'z-vi', name: 'Virilha', synonyms: [], audience: 'feminino', durationMinutes: 20, priceCents: 14_000 },
         { id: 'z-ba', name: 'Barba', synonyms: [], audience: 'masculino', durationMinutes: 30, priceCents: 8_000 },
       ],
+      combos: [{ id: 'c-ax-vi', name: 'Axilas + virilha', priceCents: 20_000, zoneIds: ['z-ax', 'z-vi'] }],
       professionals: [{ id: 'pro-gi', name: 'Gi' }],
     },
   ],
@@ -209,13 +210,13 @@ describe('agendar pela página (C-02 a C-06)', () => {
     const user = await openBooking()
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Depilação a laser/ }))
-    await user.click(await screen.findByLabelText(/Axilas/))
+    await user.click(await screen.findByLabelText('Axilas'))
     await user.click(screen.getByRole('button', { name: 'Ver horários' }))
     expect(await screen.findByRole('heading', { name: 'Quando?' })).toBeTruthy()
     expect(screen.queryByText('Quem prefere?')).toBeNull()
   })
 
-  it('serviço com zonas: só mostra as da linha, soma o total e avisa do sinal', async () => {
+  it('serviço com zonas: mostra combo, aplica preço DEC-080 e avisa do sinal', async () => {
     const calls = mockApi()
     const user = await openBooking()
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
@@ -223,13 +224,16 @@ describe('agendar pela página (C-02 a C-06)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Que zonas?' })).toBeTruthy()
     expect(screen.queryByText('Barba')).toBeNull()
+    expect(screen.getByLabelText('Combo Axilas + virilha')).toBeTruthy()
     const next = screen.getByRole('button', { name: 'Ver horários' }) as HTMLButtonElement
     expect(next.disabled).toBe(true)
-    await user.click(screen.getByLabelText(/Axilas/))
-    await user.click(screen.getByLabelText(/Virilha/))
+    await user.click(screen.getByLabelText('Axilas'))
+    await user.click(screen.getByLabelText('Virilha'))
     const total = screen.getByRole('status')
-    expect(within(total).getByText(/2 opções · 30 min/)).toBeTruthy()
-    expect(within(total).getByText(/R\$\s?230/)).toBeTruthy()
+    expect(within(total).getByText(/2 opções · 30 min · combo Axilas \+ virilha/)).toBeTruthy()
+    // Soma sem combo = R$ 230; DEC-080 aplica o combo a R$ 200.
+    expect(within(total).getByText(/^R\$\s?200$/)).toBeTruthy()
+    expect(within(total).getByText(/economia R\$\s?30/)).toBeTruthy()
     await user.click(next)
 
     await user.click(await screen.findByRole('button', { name: '09:00' }))
@@ -339,7 +343,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(screen.getByRole('button', { name: /Depilação a laser/ }))
     await screen.findByRole('heading', { name: 'Que zonas?' })
     await check(document.body)
-    await user.click(screen.getByLabelText(/Axilas/))
+    await user.click(screen.getByLabelText('Axilas'))
     await user.click(screen.getByRole('button', { name: 'Ver horários' }))
     await screen.findByRole('button', { name: '09:00' })
     await check(document.body)
@@ -356,12 +360,12 @@ describe('agendar pela página (C-02 a C-06)', () => {
     expect(await screen.findByText('1 resultado')).toBeTruthy()
     const results = screen.getByRole('navigation', { name: 'Resultados' })
     expect(within(results).getByText('Depilação a laser')).toBeTruthy()
-    expect(within(results).getByRole('button', { name: /Axilas/ })).toBeTruthy()
+    expect(within(results).getByRole('button', { name: /Axilas.*Zona/ })).toBeTruthy()
     // O sinónimo só serve para casar: nunca aparece escrito na página.
     expect(screen.queryByText(/sovaco/i)).toBeNull()
-    await user.click(within(results).getByRole('button', { name: /Axilas/ }))
+    await user.click(within(results).getByRole('button', { name: /Axilas.*Zona/ }))
     expect(await screen.findByRole('heading', { name: 'Que zonas?' })).toBeTruthy()
-    expect((screen.getByLabelText(/Axilas/) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByLabelText('Axilas') as HTMLInputElement).checked).toBe(true)
     expect(screen.getByRole('button', { name: 'Ver horários' })).toHaveProperty('disabled', false)
     expect(calls.length).toBeGreaterThan(0)
   })
@@ -372,7 +376,9 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     const box = await screen.findByRole('searchbox', { name: 'Procurar serviço ou zona' })
     await user.type(box, 'AXILA')
-    expect(within(screen.getByRole('navigation', { name: 'Resultados' })).getByRole('button', { name: /Axilas/ })).toBeTruthy()
+    const axilaResults = screen.getByRole('navigation', { name: 'Resultados' })
+    expect(within(axilaResults).getByRole('button', { name: /Axilas.*Zona/ })).toBeTruthy()
+    expect(within(axilaResults).getByRole('button', { name: /Axilas \+ virilha/ })).toBeTruthy()
     await user.clear(box)
     await user.type(box, 'botox')
     expect(await screen.findByRole('heading', { name: 'Nada encontrado para «botox»' })).toBeTruthy()
@@ -386,12 +392,14 @@ describe('agendar pela página (C-02 a C-06)', () => {
     const user = await openBooking()
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Depilação a laser/ }))
-    await user.click(screen.getByLabelText(/Axilas/))
+    await user.click(screen.getByLabelText('Axilas'))
     await user.type(screen.getByRole('searchbox', { name: 'Procurar zona' }), 'virilh')
-    expect(screen.queryByLabelText(/Axilas/)).toBeNull()
-    expect(screen.getByLabelText(/Virilha/)).toBeTruthy()
+    expect(screen.queryByLabelText('Axilas')).toBeNull()
+    expect(screen.getByLabelText('Virilha')).toBeTruthy()
+    // O combo «Axilas + virilha» também casa por «virilh».
+    expect(screen.getByLabelText('Combo Axilas + virilha')).toBeTruthy()
     await user.clear(screen.getByRole('searchbox', { name: 'Procurar zona' }))
-    expect((screen.getByLabelText(/Axilas/) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByLabelText('Axilas') as HTMLInputElement).checked).toBe(true)
   })
 
   it('calendário do mês: abre, mostra dias livres, escolhe o dia e fecha com Escape', async () => {

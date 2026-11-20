@@ -1,8 +1,9 @@
 /**
  * Regras puras do fluxo de agendar da página da cliente (sem React).
- * A fonte de verdade é o servidor; isto só decide o que mostrar e soma o total.
+ * A fonte de verdade é o servidor; isto só decide o que mostrar e o total (DEC-080).
  */
-import type { Catalog, CatalogService, CatalogZone, Line } from './api'
+import { priceVisit } from '../../clinic/catalog/combo'
+import type { Catalog, CatalogCombo, CatalogService, CatalogZone, Line } from './api'
 
 /** A página pergunta «Para quem é?» só quando o catálogo depende de género (DEC-200). */
 export function catalogNeedsLine(catalog: Catalog): boolean {
@@ -26,6 +27,13 @@ export function servicesForLine(catalog: Catalog, line: Line | null): CatalogSer
 
 export function zonesForLine(service: CatalogService, line: Line | null): CatalogZone[] {
   return service.zones.filter((z) => !line || z.audience === 'ambos' || z.audience === line)
+}
+
+/** Combos cujas zonas estão todas visíveis na linha (DEC-080 / DEC-079). */
+export function combosForLine(service: CatalogService, line: Line | null): CatalogCombo[] {
+  if (service.variantSelection === 'uma') return []
+  const allowed = new Set(zonesForLine(service, line).map((z) => z.id))
+  return (service.combos ?? []).filter((c) => c.zoneIds.length >= 2 && c.zoneIds.every((id) => allowed.has(id)))
 }
 
 /** Serviço com variantes femininas e masculinas ao mesmo tempo, ou audiência fixa. */
@@ -68,13 +76,46 @@ export function resolveBookingPreset(
   return { service, line, variantIds }
 }
 
-/** Soma duração e preço das zonas escolhidas (sem zonas, o do serviço). */
-export function visitTotals(service: CatalogService, zoneIds: string[]): { minutes: number; priceCents: number | null } {
-  if (service.zones.length === 0) return { minutes: service.durationMinutes, priceCents: service.priceCents }
+export type VisitTotals = {
+  minutes: number
+  /** Total a cobrar, já com combo (DEC-080) quando aplica. */
+  priceCents: number | null
+  /** Soma sem combo; nulo se alguma zona não tem preço ou não há combo. */
+  listPriceCents: number | null
+  combo: { name: string; discountCents: number } | null
+}
+
+/** Duração e preço das zonas escolhidas; aplica o combo sozinho (DEC-080), como o painel. */
+export function visitTotals(service: CatalogService, zoneIds: string[]): VisitTotals {
+  if (service.zones.length === 0) {
+    return {
+      minutes: service.durationMinutes,
+      priceCents: service.priceCents,
+      listPriceCents: null,
+      combo: null,
+    }
+  }
   const chosen = service.zones.filter((z) => zoneIds.includes(z.id))
   const minutes = chosen.reduce((n, z) => n + z.durationMinutes, 0)
-  const prices = chosen.map((z) => z.priceCents)
-  return { minutes, priceCents: prices.every((p) => p != null) ? prices.reduce<number>((n, p) => n + (p ?? 0), 0) : null }
+  const priced = priceVisit(
+    chosen.map((z) => ({ id: z.id, priceCents: z.priceCents, active: true })),
+    (service.combos ?? []).map((c, i) => ({
+      id: c.id,
+      name: c.name,
+      priceCents: c.priceCents,
+      zoneIds: c.zoneIds,
+      active: true,
+      sortOrder: i,
+    })),
+  )
+  return {
+    minutes,
+    priceCents: priced.priceCents,
+    listPriceCents: priced.applied ? priced.listPriceCents : null,
+    combo: priced.applied
+      ? { name: priced.applied.combo.name, discountCents: priced.applied.discountCents }
+      : null,
+  }
 }
 
 export function formatPrice(cents: number | null): string {

@@ -1,10 +1,10 @@
 /**
- * Pesquisa de serviços e zonas na página da cliente (DEC-200, **Proposto**).
+ * Pesquisa de serviços, zonas e combos na página da cliente (DEC-200 / DEC-080).
  * Corre no navegador sobre o catálogo ativo: nome e sinónimos (DEC-110, nunca mostrados),
  * sem acentos, com plural leve. Sem rede e sem índice.
  */
-import type { Catalog, CatalogService, CatalogZone, Line } from './api'
-import { zonesForLine } from './booking-model'
+import type { Catalog, CatalogCombo, CatalogService, CatalogZone, Line } from './api'
+import { combosForLine, zonesForLine } from './booking-model'
 
 /** Minúsculas, sem acentos e sem pontuação. */
 export function foldText(text: string): string {
@@ -41,6 +41,8 @@ export type SearchGroup = {
   service: CatalogService
   /** Zonas que casaram (a pesquisa pode casar o serviço, as zonas, ou os dois). */
   zones: CatalogZone[]
+  /** Combos que casaram pelo nome ou pelas zonas que incluem (DEC-080; mock C-10). */
+  combos: CatalogCombo[]
   /** O próprio serviço casou (nome ou sinónimo). */
   serviceMatched: boolean
 }
@@ -53,16 +55,44 @@ export function searchCatalog(catalog: Catalog, services: CatalogService[], line
   const groups: SearchGroup[] = []
   for (const service of services) {
     const serviceMatched = matchesQuery(query, [service.name, ...service.synonyms])
-    const zones = zonesForLine(service, line).filter((z) => matchesQuery(query, [z.name, ...z.synonyms]))
-    if (serviceMatched || zones.length > 0) groups.push({ service, zones, serviceMatched })
+    const visibleZones = zonesForLine(service, line)
+    const zones = visibleZones.filter((z) => matchesQuery(query, [z.name, ...z.synonyms]))
+    const zoneById = new Map(visibleZones.map((z) => [z.id, z]))
+    const combos = combosForLine(service, line).filter((c) => {
+      const memberNames = c.zoneIds.map((id) => zoneById.get(id)?.name).filter(Boolean) as string[]
+      return matchesQuery(query, [c.name, ...memberNames])
+    })
+    if (serviceMatched || zones.length > 0 || combos.length > 0) {
+      groups.push({ service, zones, combos, serviceMatched })
+    }
   }
-  const count = groups.reduce((n, g) => n + (g.zones.length > 0 ? g.zones.length : 1) + (g.serviceMatched && g.zones.length > 0 ? 1 : 0), 0)
+  const count = groups.reduce((n, g) => {
+    const zoneHits = g.zones.length
+    const comboHits = g.combos.length
+    const serviceHit = g.serviceMatched ? 1 : 0
+    if (zoneHits + comboHits === 0) return n + serviceHit
+    return n + zoneHits + comboHits + (g.serviceMatched ? 1 : 0)
+  }, 0)
   return { groups, count }
 }
 
 /** Filtra as zonas de um serviço pela pesquisa (campo «Procurar zona»). */
 export function filterZones(zones: CatalogZone[], query: string): CatalogZone[] {
   return query.trim() ? zones.filter((z) => matchesQuery(query, [z.name, ...z.synonyms])) : zones
+}
+
+/** Filtra combos pelo nome ou pelos nomes das zonas que incluem. */
+export function filterCombos(
+  combos: CatalogCombo[],
+  zones: CatalogZone[],
+  query: string,
+): CatalogCombo[] {
+  if (!query.trim()) return combos
+  const zoneById = new Map(zones.map((z) => [z.id, z]))
+  return combos.filter((c) => {
+    const memberNames = c.zoneIds.map((id) => zoneById.get(id)?.name).filter(Boolean) as string[]
+    return matchesQuery(query, [c.name, ...memberNames])
+  })
 }
 
 /**

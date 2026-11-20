@@ -3,6 +3,7 @@ import { createControllableClock } from '../db/clock'
 import { ingestContactMessage, workerCaller } from '../clinic'
 import { bootClinicDb } from '../clinic/test-db'
 import {
+  replaceServiceCombosOp,
   replaceServiceZonesOp,
   setWeeklyWindowsOp,
   upsertResourceOp,
@@ -103,6 +104,36 @@ describe('catálogo da página (REQ-112)', () => {
       expect(catalog.today).toBe('2024-01-07')
       const l = catalog.services.find((s) => s.id === laser.id)!
       expect(l.zones.map((z) => z.name).sort()).toEqual(['Axilas', 'Barba', 'Sobrancelha'])
+      expect(l.combos).toEqual([])
+    } finally {
+      close()
+    }
+  })
+
+  it('inclui combos activos aplicáveis no catálogo (DEC-080)', () => {
+    const { db, close, clock, caller, laser, zoneId } = seed()
+    try {
+      replaceServiceCombosOp(
+        db,
+        caller,
+        laser.id,
+        [
+          {
+            name: 'Axilas + sobrancelha',
+            priceCents: 6_000,
+            zoneIds: [zoneId('Axilas'), zoneId('Sobrancelha')],
+            active: true,
+          },
+        ],
+        clock,
+      )
+      const l = readClientWebCatalog(db, TENANT, clock).services.find((s) => s.id === laser.id)!
+      expect(l.combos).toHaveLength(1)
+      expect(l.combos[0]).toMatchObject({
+        name: 'Axilas + sobrancelha',
+        priceCents: 6_000,
+        zoneIds: [zoneId('Axilas'), zoneId('Sobrancelha')],
+      })
     } finally {
       close()
     }
