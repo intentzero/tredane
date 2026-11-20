@@ -13,7 +13,7 @@
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
- * | INT-08 | Confirmado| Onde fica: só o link do Google Business, sem endereço (DEC-211) |
+ * | INT-08 | Confirmado| Onde fica: link Google Business + CTA URL «Abrir agenda» (DEC-211; sem reply DEC-216) |
  */
 import { createResourceBlock } from '../../../config/blocks'
 import { CLINIC_SCOPE_ID } from '../../../config/types'
@@ -137,14 +137,40 @@ export const INT_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'INT-08',
-    title: 'Onde fica — responde só com o link do Google Business, sem modelo (DEC-211)',
+    title:
+      'Onde fica — link do Google Business + CTA URL «Abrir agenda» (DEC-211; sem reply DEC-216)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Onde fica a clínica?' }],
     expect: {
       notPaused: true,
       outboundIncludes: ['https://maps.app.goo.gl/clinica-demo'],
-      outboundExcludes: [/Não tenho/i, /Rua /i],
-      turnDecided: [{ modelCalled: false }],
+      outboundExcludes: [/Não tenho/i, /Rua /i, /toque em «Abrir agenda»/i],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      turnDecided: [{ modelCalled: false, route: 'skip:web_agendar_link' }],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['INT-08: resposta sem interactivo']
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: unknown[]
+          ctaUrl?: { displayText?: string; url?: string }
+        }
+        if (parsed.buttons?.length) {
+          return [`INT-08: esperava só cta_url, veio buttons=${JSON.stringify(parsed.buttons)}`]
+        }
+        if (parsed.ctaUrl?.displayText !== 'Abrir agenda') {
+          return [`INT-08: ctaUrl em falta ou texto ${JSON.stringify(parsed.ctaUrl?.displayText)}`]
+        }
+        return []
+      },
     },
   },
   {

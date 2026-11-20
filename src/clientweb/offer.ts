@@ -10,6 +10,20 @@ import type { ClinicDb } from '../clinic/store'
 export const CLIENT_WEB_CTA_TEXT = 'Abrir agenda'
 
 /**
+ * Resposta de localização/direções (DEC-211 / `informar_local_link`): o corpo já leva um URL.
+ * Nestes casos «Abrir agenda» deve sair como `cta_url` (como P6), não como reply DEC-216 —
+ * a Meta não mistura os dois, e o reply só reenvia a frase «toque em Abrir agenda».
+ */
+export function isLocationLinkReply(body: string): boolean {
+  return /^(Estamos aqui:|Para chegar:)\s*https:\/\//i.test(body.trim())
+}
+
+/** Inbound que é só o título do botão «Abrir agenda» (toque mal encaminhado ou texto colado). */
+export function isOpenAgendaButtonTitle(text: string): boolean {
+  return text.trim().toLowerCase() === CLIENT_WEB_CTA_TEXT.toLowerCase()
+}
+
+/**
  * Botão de resposta rápida «Abrir agenda» (DEC-216): acompanha «Falar com a equipe».
  * O toque dispara o envio do CTA URL real (não se mistura com reply buttons na mesma mensagem).
  * Opcional: `cw:abrir-agenda:<serviceId>` pré-escolhe o serviço (DEC-202(4)).

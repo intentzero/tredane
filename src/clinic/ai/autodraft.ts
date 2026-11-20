@@ -33,6 +33,8 @@ import {
   clientWebRouteBody,
   stripScheduleOffer,
   countRecentWebLinks,
+  isLocationLinkReply,
+  isOpenAgendaButtonTitle,
 } from '../../clientweb/offer'
 import { isGreetingOnly, servicesCitedInText } from '../../clientweb/route-intent'
 import {
@@ -815,6 +817,15 @@ export async function runDueAutoDrafts(
     )
     const turnText = turn.turnText
     const hasUpcoming = Boolean(turn.upcoming)
+    // Título «Abrir agenda» sozinho após um CTA URL já enviado: não reenvia a frase «toque em…».
+    // (Toque autenticado `cw:abrir-agenda` continua no handler dedicado e manda o CTA se ainda não saiu.)
+    if (
+      isOpenAgendaButtonTitle(turnText) &&
+      countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) > 0
+    ) {
+      skip('open_agenda_title_already_offered')
+      continue
+    }
     /**
      * DEC-202: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda» com o
      * propósito certo e, se reconheceu um serviço único, com ele. Sem link possível (pausa da owner,
@@ -1432,13 +1443,56 @@ export async function runDueAutoDrafts(
       conversationId: job.conversationId,
       turn,
     })
-    // P6 (Paulo, 18/11/2026): preço ou duração de um serviço único → resposta e «Abrir agenda» com esse serviço.
+    // Localização/direções (DEC-211) e P6 preço/duração: CTA URL directo (excepção DEC-216 / como P6).
+    // A Meta não mistura cta_url com reply; o reply «Abrir agenda» nesta bolha só reenviava a frase.
     if (
       catalogText &&
       deps.autoBookPaused !== true &&
       deps.prepareClientWebOffer &&
       countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) < CLIENT_WEB_LINKS_PER_CONVERSATION
     ) {
+      if (isLocationLinkReply(catalogText)) {
+        let locationCtaSent = false
+        try {
+          const offered = await deps.prepareClientWebOffer({
+            tenantId,
+            conversationId: job.conversationId,
+            purpose: 'agendar',
+            appointmentId: null,
+            serviceId: null,
+          })
+          if (offered) {
+            await signalTyping()
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body: catalogText,
+                interactive: offered,
+                clientRequestId: `ai-web-agendar:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            cancelAutoDraft(db, tenantId, job.conversationId)
+            record({
+              ...job,
+              status: 'skipped',
+              suggestion: null,
+              reason: 'web_agendar_link',
+              replyOutbox: sent.outbox,
+            })
+            locationCtaSent = true
+          }
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        if (locationCtaSent) continue
+        // Sem link possível: cai no par reply Abrir agenda + Equipe (DEC-216).
+      }
+      // P6 (Paulo, 18/11/2026): preço ou duração de um serviço único → resposta e «Abrir agenda» com esse serviço.
       const answer = stripScheduleOffer(catalogText)
       const cited = servicesCitedInText(turn.catalog.services, turnText)
       const single = cited.length === 1 ? cited[0]! : null

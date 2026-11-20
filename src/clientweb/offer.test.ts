@@ -6,12 +6,24 @@ import {
   clientWebUrl,
   CLIENT_WEB_OFFER_SENTENCE,
   isHttpsBase,
+  isLocationLinkReply,
+  isOpenAgendaButtonTitle,
   openAgendaReplyButton,
   OPEN_AGENDA_REPLY_BUTTON_ID,
   parseOpenAgendaReplyButton,
 } from './offer'
 
 describe('oferta do link no chat', () => {
+  it('detecta resposta de localização/direções e o título do botão Abrir agenda', () => {
+    expect(isLocationLinkReply('Estamos aqui: https://maps.app.goo.gl/clinica-demo')).toBe(true)
+    expect(isLocationLinkReply('Para chegar: https://maps.example/c')).toBe(true)
+    expect(isLocationLinkReply('Funcionamos das 09:00 às 18:00.')).toBe(false)
+    expect(isLocationLinkReply('Estamos aqui: Rua Fictícia, 10')).toBe(false)
+    expect(isOpenAgendaButtonTitle('Abrir agenda')).toBe(true)
+    expect(isOpenAgendaButtonTitle('  abrir agenda  ')).toBe(true)
+    expect(isOpenAgendaButtonTitle('[Botão] Abrir agenda')).toBe(false)
+  })
+
   it('reply «Abrir agenda» (DEC-216) e parse do serviço opcional', () => {
     expect(openAgendaReplyButton()).toEqual({ id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' })
     expect(openAgendaReplyButton('svc_dep')).toEqual({
