@@ -361,6 +361,8 @@ export function appendWebCancelChatEffects(
     appointmentId: string
     serviceName: string
     startsAt: number
+    /** Preferido: cta_url «Abrir agenda» no «Posso ajudar…» (DEC-202 / Meta). */
+    agendaUrl?: string | null
   },
   clock: Clock,
   outbox: OutboxRow[],
@@ -390,7 +392,11 @@ export function appendWebCancelChatEffects(
   return appendPostCancelFollowup(
     db,
     caller,
-    { conversationId: input.conversationId, appointmentId: input.appointmentId },
+    {
+      conversationId: input.conversationId,
+      appointmentId: input.appointmentId,
+      agendaUrl: input.agendaUrl,
+    },
     clock,
     next,
   )

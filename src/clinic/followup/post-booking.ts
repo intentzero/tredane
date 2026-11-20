@@ -1,14 +1,18 @@
 /**
- * DEC-086 — follow-up pós-agendamento com botões.
- * T3 revisto (Paulo 18/11/2026, DEC-202): «Abrir agenda» | «Terminar».
- * «Abrir agenda» = clique devolve `another`; quem trata envia o CTA URL (não
- * marca no chat). Sem «Falar com a equipe» neste T3 (Paulo: preferir Abrir agenda).
- * «Terminar» = limpa frame + adeus aleatório (terminar-farewell.ts; Paulo 13/11/2026).
+ * DEC-086 — follow-up pós-agendamento.
+ * T3 (Paulo 18/11/2026, DEC-202) + Meta: com URL https, «Posso ajudar…» leva só
+ * `cta_url` «Abrir agenda» (abre a página no toque; a Meta não mistura cta_url com
+ * reply). Sem URL (lab / base http), fallback reply «Abrir agenda»|«Terminar».
+ * «Terminar» com CTA: a cliente escreve «terminar» (DEC-154). Reply legado
+ * `fu:post:…:another` ainda devolve `another` → quem trata envia o CTA.
+ * Sem «Falar com a equipe» neste T3.
+ * «Terminar» (reply ou texto): limpa frame + adeus (terminar-farewell.ts).
  * Com horário futuro: etapa fica Agendado (DEC-086). Sem horário futuro
  * (ex. pós-cancelamento DEC-092 → Em atendimento): fecha em Perdido (DEC-087).
  * Badge de não lidas zera no Terminar.
  */
 import type { Clock } from '../../db/clock'
+import { clientWebOfferInteractive } from '../../clientweb/offer'
 import { writeOperationalAudit } from '../audit'
 import { clearBookingFrame } from '../ai/schedule-session'
 import { ensureClinicSettings } from '../config/settings'
@@ -17,6 +21,7 @@ import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
 import { clearConversationUnread } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
+import type { SendOutboundInteractiveInput } from '../inbox/types'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
@@ -106,7 +111,9 @@ export type SendPostBookingFollowupResult =
   | { status: 'skipped_no_conversation' }
 
 /**
- * Envia a pergunta com botões depois da marcação confirmada (DEC-061).
+ * Envia «Posso ajudar…» depois da marcação confirmada (DEC-061 / DEC-202).
+ * Com `agendaUrl` https → só `cta_url` «Abrir agenda» (um toque abre a página).
+ * Sem URL → reply «Abrir agenda»|«Terminar» (legado / lab).
  * Idempotente por appointmentId via clientRequestId.
  */
 export function sendPostBookingFollowupOp(
@@ -120,6 +127,11 @@ export function sendPostBookingFollowupOp(
      * página usa `postCancelClientRequestId` para não colidir com o pós-Agendado.
      */
     clientRequestId?: string
+    /**
+     * URL da página (DEC-202). Preferido: `cta_url` na mesma bolha — evita o loop
+     * reply → «Para agendar, toque em Abrir agenda…».
+     */
+    agendaUrl?: string | null
   },
   clock: Clock,
 ): SendPostBookingFollowupResult {
@@ -136,16 +148,21 @@ export function sendPostBookingFollowupOp(
   )
   if (!window.open) return { status: 'skipped_closed_window' }
 
-  const buttons = [
-    {
-      id: postBookingButtonId(input.appointmentId, 'another'),
-      title: POST_BOOKING_BUTTONS.another.title,
-    },
-    {
-      id: postBookingButtonId(input.appointmentId, 'end'),
-      title: POST_BOOKING_BUTTONS.end.title,
-    },
-  ]
+  const agendaUrl = input.agendaUrl?.trim() || null
+  const interactive: SendOutboundInteractiveInput = agendaUrl
+    ? clientWebOfferInteractive(agendaUrl)
+    : {
+        buttons: [
+          {
+            id: postBookingButtonId(input.appointmentId, 'another'),
+            title: POST_BOOKING_BUTTONS.another.title,
+          },
+          {
+            id: postBookingButtonId(input.appointmentId, 'end'),
+            title: POST_BOOKING_BUTTONS.end.title,
+          },
+        ],
+      }
 
   const sendCaller = caller.actorId
     ? caller
@@ -161,7 +178,7 @@ export function sendPostBookingFollowupOp(
         input.clientRequestId?.trim() || postBookingClientRequestId(input.appointmentId),
       authorClerkUserId: FOLLOWUP_ACTOR,
       authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-      interactive: { buttons },
+      interactive,
     },
     clock,
   )
@@ -182,7 +199,11 @@ export function sendPostBookingFollowupOp(
 export function appendPostBookingFollowup(
   db: ClinicDb,
   caller: ClinicCaller,
-  input: { conversationId: string | null | undefined; appointmentId: string },
+  input: {
+    conversationId: string | null | undefined
+    appointmentId: string
+    agendaUrl?: string | null
+  },
   clock: Clock,
   outbox: OutboxRow[],
 ): OutboxRow[] {
@@ -192,7 +213,11 @@ export function appendPostBookingFollowup(
     const follow = sendPostBookingFollowupOp(
       db,
       caller,
-      { conversationId, appointmentId: input.appointmentId },
+      {
+        conversationId,
+        appointmentId: input.appointmentId,
+        agendaUrl: input.agendaUrl,
+      },
       clock,
     )
     if (follow.status === 'queued') return [...outbox, ...follow.outbox]
@@ -210,7 +235,11 @@ export function appendPostBookingFollowup(
 export function appendPostCancelFollowup(
   db: ClinicDb,
   caller: ClinicCaller,
-  input: { conversationId: string | null | undefined; appointmentId: string },
+  input: {
+    conversationId: string | null | undefined
+    appointmentId: string
+    agendaUrl?: string | null
+  },
   clock: Clock,
   outbox: OutboxRow[],
 ): OutboxRow[] {
@@ -224,6 +253,7 @@ export function appendPostCancelFollowup(
         conversationId,
         appointmentId: input.appointmentId,
         clientRequestId: postCancelClientRequestId(input.appointmentId),
+        agendaUrl: input.agendaUrl,
       },
       clock,
     )

@@ -36,7 +36,7 @@ export type DialogTurn =
    * Ação da owner no painel entre turnos (ex.: gravar sinónimo sugerido, DEC-141).
    * Corre as mesmas operações que as rotas; falha o caso se lançar.
    */
-  | { role: 'owner'; note: string; act: (s: DialogScenario) => void }
+  | { role: 'owner'; note: string; act: (s: DialogScenario) => void | Promise<void> }
 
 export type { DamageMetrics, DamageRequest }
 export { APPOINTMENT_PROPOSAL_VALIDITY_MS }
@@ -190,10 +190,12 @@ export async function runDialogCase(
   boot: DialogScenarioFactory = bootDialogScenario,
 ): Promise<DialogRunResult> {
   const s = boot({ adapter: c.adapter, nowMs: c.nowMs })
+  // DEC-202: a página está sempre ligada; o harness emite os links em memória.
+  // Ligado antes de `prepare` / `owner.act` para o follow-up «Posso ajudar…» usar o mesmo contador.
+  const clientWeb = createClientWebHarness()
+  s.prepareClientWebOffer = clientWeb.prepareOffer
   c.prepare?.(s)
   const baselineAppointments = s.appointmentCount()
-  // DEC-202: a página está sempre ligada; o harness emite os links em memória.
-  const clientWeb = createClientWebHarness()
   const webDeps = {
     prepareClientWebOffer: clientWeb.prepareOffer,
     clinicName: 'Clínica Teste Paulo',
@@ -233,7 +235,7 @@ export async function runDialogCase(
         await runJob(last)
       } else if (turn.role === 'clinic') s.sayOutbound(turn.text)
       else if (turn.role === 'clock') s.clock.set(turn.setMs)
-      else if (turn.role === 'owner') turn.act(s)
+      else if (turn.role === 'owner') await turn.act(s)
     }
 
     const clientTurns = clientTurnIdx
