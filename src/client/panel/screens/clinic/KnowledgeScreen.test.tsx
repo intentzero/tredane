@@ -49,4 +49,23 @@ describe('Respostas da clínica — editor da pergunta', () => {
     expect(resposta.placeholder).toMatch(/estacionamento conveniado/)
     expect(screen.queryByRole('region', { name: 'Sobre a clínica' })).toBeNull()
   })
+
+  it('avisa quando o editor abre ou fecha e fecha quando o cabeçalho pede «Voltar sem salvar»', async () => {
+    const onEditorChange = vi.fn()
+    const { rerender } = render(
+      <KnowledgeScreen tenantId="clinic-demo-a" api={api()} generation={1} onEditorChange={onEditorChange} closeEditorSignal={0} />,
+    )
+    expect(await screen.findByRole('button', { name: /Escrever outra pergunta/ })).toBeTruthy()
+    expect(onEditorChange).toHaveBeenLastCalledWith(null)
+    fireEvent.click(screen.getByRole('button', { name: /Escrever outra pergunta/ }))
+    expect(await screen.findByRole('textbox', { name: 'Pergunta' })).toBeTruthy()
+    expect(onEditorChange).toHaveBeenLastCalledWith('new')
+    // O cabeçalho tem o seu «Voltar sem salvar»: o do corpo some.
+    expect(screen.queryByRole('button', { name: /Voltar sem salvar/ })).toBeNull()
+    rerender(
+      <KnowledgeScreen tenantId="clinic-demo-a" api={api()} generation={1} onEditorChange={onEditorChange} closeEditorSignal={1} />,
+    )
+    expect(await screen.findByRole('button', { name: /Escrever outra pergunta/ })).toBeTruthy()
+    expect(onEditorChange).toHaveBeenLastCalledWith(null)
+  })
 })

@@ -194,7 +194,17 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     }
   }, [api, section, generation])
 
-  const meta = pageMeta(section, entityId)
+  // Respostas da clínica: com o editor aberto, o cabeçalho passa a «Nova/Editar pergunta».
+  const [knEditor, setKnEditor] = useState<'new' | 'edit' | null>(null)
+  const [knClose, setKnClose] = useState(0)
+  const editorTitle =
+    section === 'conhecimento' && knEditor
+      ? knEditor === 'new'
+        ? 'Nova pergunta'
+        : 'Editar pergunta'
+      : null
+  const baseMeta = pageMeta(section, entityId)
+  const meta = editorTitle ? { ...baseMeta, title: editorTitle, description: undefined } : baseMeta
 
   // DEC-175: título e frase comuns; coluna centrada no desktop.
   const page = (node: ReactNode, header = meta.header) => (
@@ -204,7 +214,9 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           title={meta.title}
           description={meta.description}
           back={
-            section === 'conhecimento' || section.startsWith('assistente-')
+            editorTitle
+              ? { label: 'Voltar sem salvar', onPress: () => setKnClose((n) => n + 1) }
+              : section === 'conhecimento' || section.startsWith('assistente-')
               ? {
                   label: 'Assistente',
                   onPress: () =>
@@ -239,7 +251,14 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         back={
           section === 'palavras'
             ? { section: 'servicos', label: 'Voltar a Serviços', eyebrow: 'Serviços' }
-            : section === 'conhecimento' || section.startsWith('assistente-')
+            : editorTitle
+              ? {
+                  section: 'assistente',
+                  label: 'Voltar sem salvar',
+                  eyebrow: 'Respostas da clínica',
+                  onPress: () => setKnClose((n) => n + 1),
+                }
+              : section === 'conhecimento' || section.startsWith('assistente-')
               ? { section: 'assistente', label: 'Voltar ao Assistente', eyebrow: 'Assistente' }
               : undefined
         }
@@ -424,6 +443,8 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             tenantId={tenantId}
             api={api}
             generation={generation}
+            onEditorChange={setKnEditor}
+            closeEditorSignal={knClose}
             lead={
               <AiProfileCard
                 tenantId={tenantId}

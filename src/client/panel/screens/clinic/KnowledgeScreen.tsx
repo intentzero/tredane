@@ -34,6 +34,10 @@ type Props = {
   generation: number
   /** Cartão acima da lista (link Google / política) — fica no scroll do dock. */
   lead?: ReactNode
+  /** O editor abriu (`new`/`edit`) ou fechou (`null`): quem manda no cabeçalho da tela ajusta o título. */
+  onEditorChange?: (mode: 'new' | 'edit' | null) => void
+  /** Muda de valor quando o cabeçalho pede «Voltar sem salvar». */
+  closeEditorSignal?: number
 }
 
 /** Scroll + rodapé docado (padrão clinic-form--dock; encosta à tab bar no mobile). */
@@ -86,7 +90,7 @@ const ANSWER_PLACEHOLDER = 'Escreva a resposta como a clínica a diria no WhatsA
 
 type View = 'list' | 'edit' | 'categories'
 
-export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
+export function KnowledgeScreen({ tenantId, api, generation, lead, onEditorChange, closeEditorSignal }: Props) {
   const [answerExample, setAnswerExample] = useState(ANSWER_PLACEHOLDER)
   const [categories, setCategories] = useState<KnowledgeCategoryDto[]>([])
   const [entries, setEntries] = useState<KnowledgeEntryDto[]>([])
@@ -195,6 +199,17 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
     setEditingId(null)
     setConfirmDelete(false)
   }
+
+  // O cabeçalho da tela mostra «Nova pergunta» / «Editar pergunta» e tem o seu «Voltar sem salvar».
+  useEffect(() => {
+    onEditorChange?.(view === 'edit' ? (editingId ? 'edit' : 'new') : null)
+  }, [view, editingId, onEditorChange])
+  const [lastClose, setLastClose] = useState(closeEditorSignal)
+  useEffect(() => {
+    if (closeEditorSignal === lastClose) return
+    setLastClose(closeEditorSignal)
+    closeEditor()
+  }, [closeEditorSignal])
 
   const addCue = () => {
     const v = draftCue.trim()
@@ -434,9 +449,11 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
           </>
         }
       >
-        <Button className="panel-btn-ghost kn-back" onPress={closeEditor}>
-          <ChevronRight size={16} aria-hidden className="kn-back-icon" /> Voltar sem salvar
-        </Button>
+        {onEditorChange ? null : (
+          <Button className="panel-btn-ghost kn-back" onPress={closeEditor}>
+            <ChevronRight size={16} aria-hidden className="kn-back-icon" /> Voltar sem salvar
+          </Button>
+        )}
         {errorBanner}
 
         <TextField className="clinic-field">
