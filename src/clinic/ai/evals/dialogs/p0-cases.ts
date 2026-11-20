@@ -88,10 +88,21 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'E-02',
-    title: 'Preço sem variante escolhida',
+    title: 'Preço sem variante escolhida — faixa do catálogo (TRE-94)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quanto custa depilação?' }],
-    expect: { outboundExcludes: [/r\$/i] },
+    expect: {
+      turns: [
+        {
+          turn: 0,
+          matches: [/R\$\s*25,00/, /R\$\s*140,00/],
+          excludes: [/Não tenho os valores/i, /feminina ou masculina/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false }],
+      noAppointment: true,
+      outboundExcludes: [/Não tenho os valores/i],
+    },
   },
   {
     id: 'E-03',
