@@ -54,6 +54,7 @@ export {
 export {
   sendProposalResultMessageOp,
   reconcileProposalResultOutboundSend,
+  resolveReplacedStartsAt,
   type SendProposalResultOutcome,
 } from './results'
 export {
