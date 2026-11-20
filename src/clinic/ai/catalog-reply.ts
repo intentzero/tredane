@@ -471,13 +471,42 @@ export function catalogReply(
   const afternoon = ambiguousAfternoonHour(body, cnv)
   if (afternoon) return afternoon
 
+  // Após «qual tipo?/quais zonas?» por pergunta de preço, o turno seguinte
+  // («Relaxante», «Axila») já não traz «valor» no texto — mas ainda é preço.
+  // Sem isto, rememberZonesWhenKnown cede ao autobook e o modelo inventa
+  // «não tenho o valor» (staging Massagem, 20/11/2026).
+  // Não misturar com `asksPrice`: «Masculina» após preço precisa de `lineOnly`
+  // (INT-05) para devolver a tabela, não para reperguntar zonas.
+  const historyMsgsForPrice =
+    opts.turn?.messages ??
+    (opts.conversationId
+      ? listMessages(db, tenantId, { conversationId: opts.conversationId, limit: 40 }).messages
+      : [])
+  const inboundForPendingPrice = [
+    source,
+    ...historyMsgsForPrice
+      .filter((message) => message.direction === 'inbound')
+      .map((message) => message.body)
+      .reverse()
+      .filter((body) => body !== source),
+  ]
+  const outboundForPendingPrice = historyMsgsForPrice
+    .filter((message) => message.direction === 'outbound')
+    .map((message) => message.body)
+    .reverse()
+  const pendingPriceEarly = pendingPriceClarification(
+    inboundForPendingPrice,
+    outboundForPendingPrice,
+  )
   const asksPrice = PRICE.test(source)
   const openPeriod = PERIOD.test(source) && !CLOCK.test(source)
   const lineOnly = explicit != null && !asksPrice && !PERIOD.test(source) && !CLOCK.test(source)
   // Zonas já ditas, sem dia nem preço: grava a escolha e cede ao autodraft /
   // tryAiAutoBook (oferta de slots + lista Horários, DEC-135). Sai antes da
   // recusa de géneros sem linha (nomes homónimos F/M no catálogo completo).
+  // Com clarificação de preço pendente, não roubar o turno para slots.
   if (
+    !pendingPriceEarly &&
     rememberZonesWhenKnown(
       db,
       tenantId,
@@ -610,7 +639,9 @@ export function catalogReply(
   }
 
   const picksWholeCatalog = claimsWholeCatalog(source)
-  if (!asksPrice && !openPeriod && !lineOnly && !picksWholeCatalog) return null
+  if (!asksPrice && !pendingPriceEarly && !openPeriod && !lineOnly && !picksWholeCatalog) {
+    return null
+  }
   if (!svc) return null
 
   const active = svc.zones.filter((zone) => zone.active)
@@ -698,7 +729,15 @@ export function catalogReply(
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)
   // D4 / PR-D: pergunta de preço ou duração NÃO grava variante no quadro de marcação.
   // O adaptador responde o catálogo; ask_info fica implícito (sem write).
-  if (opts.conversationId && inPlay && namedOk && !asksPrice && !asksDuration) {
+  // Inclui clarificação de preço pendente («Relaxante» após «qual tipo?»).
+  if (
+    opts.conversationId &&
+    inPlay &&
+    namedOk &&
+    !asksPrice &&
+    !pendingPriceEarly &&
+    !asksDuration
+  ) {
     saveSession(opts.conversationId, {
       serviceId: inPlay.id,
       variantIds: named.map((zone) => zone.id),
@@ -786,7 +825,9 @@ export function catalogReply(
     })
   }
 
-  if (asksPrice && named.length === 1) {
+  // `pendingPrice` / `pendingPriceEarly`: a cliente respondeu ao pedido de tipo
+  // sem repetir «valor» — ainda assim devolve o preço cadastrado (Massagem).
+  if ((asksPrice || pendingPrice || pendingPriceEarly) && named.length === 1) {
     const z = named[0]!
     const preço = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
     const duração = String(z.durationMinutes)
@@ -799,7 +840,7 @@ export function catalogReply(
     )
   }
 
-  if (asksPrice && named.length >= 2) {
+  if ((asksPrice || pendingPrice || pendingPriceEarly) && named.length >= 2) {
     if (textNamesMixAudiences(source, named)) {
       return mixedAudienceReply(cnv)
     }
