@@ -16,15 +16,50 @@
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
  * | INT-08 | Confirmado| Onde fica: corpo sem URL + Abrir mapa/agenda/equipe (DEC-211 opção B) |
+ * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo CTA Abrir mapa (sem URL no corpo) |
  */
 import { createResourceBlock } from '../../../config/blocks'
 import { CLINIC_SCOPE_ID } from '../../../config/types'
 import { clinicDayBounds } from '../../../scheduling/timezone'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
+import type { DialogScenario } from './scenario'
 
 /** Equivalente a `it.todo` / `it.skip` no harness L1 (DEC-108). */
 export const INT_PENDING_LLM_INTENT = 'depende da classificação de intenção por LLM (DEC-202, Proposto)'
+
+/** INT-08 / INT-08b: 1.ª bolha sem URL + replies Abrir mapa · Abrir agenda · Equipe. */
+function assertLocationMapOffer(s: DialogScenario, caseId: string): string[] {
+  const row = s.db.get<{ interactive_json: string | null; body: string }>(
+    `SELECT o.interactive_json AS interactive_json, m.body AS body
+     FROM outbound_messages o
+     JOIN messages m ON m.id = o.message_id
+     WHERE o.tenant_id = ? AND m.conversation_id = ?
+     ORDER BY o.created_at DESC LIMIT 1`,
+    s.tenantId,
+    s.conversationId,
+  )
+  if (!row?.interactive_json) return [`${caseId}: resposta sem interactivo`]
+  if (/https?:\/\//i.test(row.body ?? '')) {
+    return [`${caseId}: corpo ainda tem URL (opção B remove o link da bolha)`]
+  }
+  const parsed = JSON.parse(row.interactive_json) as {
+    buttons?: Array<{ id: string; title: string }>
+    ctaUrl?: unknown
+  }
+  if (parsed.ctaUrl) return [`${caseId}: cta_url na 1.ª bolha (mapa só após toque)`]
+  const buttons = parsed.buttons ?? []
+  const titles = buttons.map((b) => b.title)
+  if (
+    titles.length !== 3 ||
+    titles[0] !== 'Abrir mapa' ||
+    titles[1] !== 'Abrir agenda' ||
+    titles[2] !== 'Falar com a equipe'
+  ) {
+    return [`${caseId}: esperava Abrir mapa · Abrir agenda · Equipe, veio ${JSON.stringify(buttons)}`]
+  }
+  return []
+}
 
 export const INT_DIALOG_CASES: DialogCase[] = [
   {
@@ -186,37 +221,21 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       outboundIncludes: ['mapa'],
       outboundExcludes: [/Não tenho/i, /Rua /i, /https?:\/\//i, /toque em «Abrir agenda»/i],
       turnDecided: [{ modelCalled: false }],
-      assert: (s) => {
-        const row = s.db.get<{ interactive_json: string | null; body: string }>(
-          `SELECT o.interactive_json AS interactive_json, m.body AS body
-           FROM outbound_messages o
-           JOIN messages m ON m.id = o.message_id
-           WHERE o.tenant_id = ? AND m.conversation_id = ?
-           ORDER BY o.created_at DESC LIMIT 1`,
-          s.tenantId,
-          s.conversationId,
-        )
-        if (!row?.interactive_json) return ['INT-08: resposta sem interactivo']
-        if (/https?:\/\//i.test(row.body ?? '')) {
-          return ['INT-08: corpo ainda tem URL (opção B remove o link da bolha)']
-        }
-        const parsed = JSON.parse(row.interactive_json) as {
-          buttons?: Array<{ id: string; title: string }>
-          ctaUrl?: unknown
-        }
-        if (parsed.ctaUrl) return ['INT-08: cta_url na 1.ª bolha (mapa só após toque)']
-        const buttons = parsed.buttons ?? []
-        const titles = buttons.map((b) => b.title)
-        if (
-          titles.length !== 3 ||
-          titles[0] !== 'Abrir mapa' ||
-          titles[1] !== 'Abrir agenda' ||
-          titles[2] !== 'Falar com a equipe'
-        ) {
-          return [`INT-08: esperava Abrir mapa · Abrir agenda · Equipe, veio ${JSON.stringify(buttons)}`]
-        }
-        return []
-      },
+      assert: (s) => assertLocationMapOffer(s, 'INT-08'),
+    },
+  },
+  {
+    id: 'INT-08b',
+    title:
+      'Onde atendem — paráfrase com o mesmo Abrir mapa · Abrir agenda · Equipe (sem URL)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Onde atendem?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['mapa'],
+      outboundExcludes: [/Não tenho/i, /Rua /i, /https?:\/\//i, /toque em «Abrir agenda»/i],
+      turnDecided: [{ modelCalled: false }],
+      assert: (s) => assertLocationMapOffer(s, 'INT-08b'),
     },
   },
   {

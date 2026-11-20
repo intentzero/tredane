@@ -18,8 +18,10 @@ import {
   cancelAutoDraft,
   getAutoDraftJob,
 } from './autodraft'
+import { ensureClinicSettings } from '../config/settings'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { humanTeamOfferButtons, notifyHumanHandoff } from './human-handoff'
+import { locationMapOfferButtons, rewriteRawMapsUrlOutbound } from './location-map-offer'
 import { intentLinkPurpose } from '../../ai/intent-classifier'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
@@ -263,13 +265,19 @@ export function applyLlmResultOp(
     createdAt: clock.nowMs(),
   })
 
-  const buttons = humanTeamOfferButtons(db, tenantId, clock)
+  // Opção B: redator que cola o URL da clínica → corpo sem link + Abrir mapa.
+  const mapsUrl = ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
+  const rewritten = rewriteRawMapsUrlOutbound(suggestedText, job.conversationId, mapsUrl)
+  const outboundBody = rewritten.body
+  const buttons = rewritten.useMapButtons
+    ? locationMapOfferButtons(db, tenantId, clock)
+    : humanTeamOfferButtons(db, tenantId, clock)
   const sent = sendOutboundMessageOp(
     db,
     caller,
     {
       conversationId: job.conversationId,
-      body: suggestedText,
+      body: outboundBody,
       interactive: buttons.length > 0 ? { buttons } : null,
       clientRequestId: `ai-reply:${suggestion.id}`,
       authorClerkUserId: AI_ACTOR_ID,
@@ -278,7 +286,7 @@ export function applyLlmResultOp(
     },
     clock,
   )
-  if (textPromisesTeamFollowUp(suggestedText)) {
+  if (textPromisesTeamFollowUp(outboundBody)) {
     promiseTeamFollowUp(
       db,
       tenantId,

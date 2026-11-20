@@ -73,7 +73,11 @@ import {
   resumeAiReply,
   shouldAcknowledgeWhileHandoffPaused,
 } from './human-handoff'
-import { isLocationMapOfferReply, locationMapOfferButtons } from './location-map-offer'
+import {
+  isLocationMapOfferReply,
+  locationMapOfferButtons,
+  rewriteRawMapsUrlOutbound,
+} from './location-map-offer'
 import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
@@ -1805,8 +1809,13 @@ export async function runDueAutoDrafts(
           })
           continue
         }
-        const body = draftText
-        const buttons = humanTeamOfferButtons(db, tenantId, clock)
+        // Opção B: se o redator colou o URL da clínica, troca pelo CTA Abrir mapa.
+        const mapsUrl = ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
+        const rewritten = rewriteRawMapsUrlOutbound(draftText, job.conversationId, mapsUrl)
+        const body = rewritten.body
+        const buttons = rewritten.useMapButtons
+          ? locationMapOfferButtons(db, tenantId, clock)
+          : humanTeamOfferButtons(db, tenantId, clock)
         const sent = sendOutboundMessageOp(
           db,
           caller,

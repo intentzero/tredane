@@ -11,11 +11,25 @@ import type { SendOutboundInteractiveInput } from '../inbox/types'
 import type { ClinicDb } from '../store'
 import { openAgendaReplyButton } from '../../clientweb/offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from './human-handoff'
+import { sayAct } from './dialogue-acts'
 
 /** Texto do reply e do `cta_url` (≤ 20 caracteres da Meta). */
 export const OPEN_MAP_CTA_TEXT = 'Abrir mapa'
 
 export const OPEN_MAP_REPLY_BUTTON_ID = 'cw:abrir-mapa'
+
+/**
+ * Pedido de localização / mapa (DEC-211).
+ * Inclui paráfrases («Onde atendem?», «onde é?», «onde vocês ficam?»).
+ * Não casa FAQ de expediente («vocês atendem domingo?» / «até que horas atendem?»).
+ * `\b` do JS falha após «é»/acentos — fronteira ASCII à esquerda + lookahead à direita.
+ */
+export const LOCATION_ASK_RE =
+  /(?:^|[^a-z0-9à-ü])(?:onde\s+(?:fica|ficam|[eé]|eh|atendem)|onde\s+voc[eê]s\s+(?:ficam|atendem)|endere[cç]o|localiza[cç][aã]o|como\s+chegar|maps?|google)(?![a-z0-9])/i
+
+export function isLocationAsk(text: string): boolean {
+  return LOCATION_ASK_RE.test(text.trim())
+}
 
 /** Corpos Confirmados da 1.ª bolha (sem URL). Alinhados a `DIALOGUE_ACTS.informar_local_link`. */
 export const LOCATION_MAP_OFFER_BODIES = [
@@ -38,6 +52,35 @@ export function parseOpenMapReplyButton(raw: string): boolean {
 export function isLocationMapOfferReply(body: string): boolean {
   const t = body.trim().toLocaleLowerCase('pt-BR')
   return LOCATION_MAP_OFFER_BODIES.some((b) => b.toLocaleLowerCase('pt-BR') === t)
+}
+
+/** True quando o texto ainda cola o link cadastrado (caminho LLM / legado). */
+export function bodyContainsClinicMapsUrl(body: string, mapsUrl: string): boolean {
+  const link = mapsUrl.trim()
+  if (!link) return false
+  return body.includes(link)
+}
+
+/**
+ * Se o redator colou o URL da clínica, troca pelo corpo opção B (sem URL).
+ * Devolve `useMapButtons` para anexar Abrir mapa · Agenda · Equipe.
+ */
+export function rewriteRawMapsUrlOutbound(
+  body: string,
+  conversationId: string,
+  mapsUrl: string,
+): { body: string; useMapButtons: boolean } {
+  if (!bodyContainsClinicMapsUrl(body, mapsUrl)) {
+    return { body, useMapButtons: false }
+  }
+  const link = mapsUrl.trim()
+  const next = sayAct(
+    'informar_local_link',
+    conversationId,
+    { link },
+    LOCATION_MAP_OFFER_BODIES[0],
+  )
+  return { body: next, useMapButtons: true }
 }
 
 /**

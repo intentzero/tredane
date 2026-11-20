@@ -6,8 +6,10 @@ import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage, listMessages } from '../inbox/messages'
+import { setAiProfileOp } from '../config'
 import { bootClinicDb } from '../test-db'
 import { catalogReply } from './catalog-reply'
+import { LOCATION_MAP_OFFER_BODIES } from './location-map-offer'
 import { formatOpeningHours } from './schedule-context'
 import { handoffReason } from './human-handoff'
 import {
@@ -46,6 +48,28 @@ function catalogTurn(
 }
 
 describe('catalogReply', () => {
+  it('«Onde atendem?» e «onde fica?» usam corpo opção B sem URL (DEC-211)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-a'
+    const caller = workerCaller(tenantId)
+    setAiProfileOp(
+      boot.db,
+      caller,
+      { googleBusinessUrl: 'https://maps.app.goo.gl/clinica-demo' },
+      clock,
+    )
+    for (const ask of ['Onde fica a clínica?', 'Onde atendem?', 'onde vocês ficam?', 'onde é?']) {
+      const reply = catalogReply(boot.db, tenantId, ask, clock, { conversationId: 'cnv_loc' })
+      expect(reply, ask).toBeTruthy()
+      expect(LOCATION_MAP_OFFER_BODIES, ask).toContain(reply)
+      expect(reply, ask).not.toMatch(/https?:\/\//i)
+    }
+    // Expediente com dia continua FAQ de horário, não mapa.
+    expect(catalogReply(boot.db, tenantId, 'vocês atendem domingo?', clock)).not.toBeNull()
+    expect(catalogReply(boot.db, tenantId, 'vocês atendem domingo?', clock)).not.toMatch(/mapa/i)
+  })
+
   it('mantém o vão do almoço e responde preço e quem faz (sem sala nem buffer)', () => {
     const clock = createControllableClock(NOW)
     const boot = bootClinicDb({ clock })
