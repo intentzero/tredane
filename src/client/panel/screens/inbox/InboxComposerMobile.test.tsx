@@ -33,5 +33,22 @@ describe("compositor mobile / iOS teclado", () => {
     expect(css).toMatch(
       /:root\[data-keyboard=['"]open['"]\]\s*\.inbox-composer-wrap\s*\{[^}]*position:\s*sticky/s,
     );
+    expect(css).toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.inbox-composer-wrap\s*\{[^}]*bottom:\s*0/s,
+    );
+  });
+
+  it("CSS: pin do teclado aplica-se a todo .panel-app (não só :has(.inbox-thread))", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/client/ui/panel.css"),
+      "utf8",
+    );
+    // #959: tab bar / FAQ também precisam do pin; não regressar ao seletor só-thread.
+    expect(css).toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+    );
+    expect(css).not.toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.panel-app:has\(\.inbox-thread\)\s*\{[^}]*height:\s*var\(--panel-vvh\)/s,
+    );
   });
 });
