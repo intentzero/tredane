@@ -57,7 +57,7 @@ import {
   variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
-import { extractDates, parseTemporal } from './nlu/temporal'
+import { extractDates, parseTemporal, stripGreetingPeriodFalsePositives } from './nlu/temporal'
 import { answerClinicKnowledge } from './clinic-knowledge-reply'
 import { KNOWLEDGE_SIGNAL_SOURCE_KEY } from '../config/knowledge'
 import { buildCancellationPolicyReply } from './policy-reply'
@@ -404,11 +404,14 @@ export function catalogReply(
   const bookingIntentCold = hasSchedulingAvailabilityIntent(body) && !isCatalogInfoAsk(body)
   const frameCold = opts.conversationId ? getBookingFrame(db, tenantId, opts.conversationId) : null
   const midFunnelCatalog = Boolean(frameCold?.serviceId)
+  // Cumprimento «boa tarde»/«boa noite» não é período de marcação — senão o
+  // gate PERIOD saltava a FAQ DEC-185 (TRE-60 / Pets).
+  const periodForKnowledge = stripGreetingPeriodFalsePositives(body.toLowerCase())
   if (
     !midFunnelCatalog &&
     !bookingIntentCold &&
     !CLOCK.test(body) &&
-    !(PERIOD.test(body) && !CLOCK.test(body))
+    !(PERIOD.test(periodForKnowledge) && !CLOCK.test(body))
   ) {
     const knowledge = answerClinicKnowledge(db, tenantId, body)
     if (knowledge) {
