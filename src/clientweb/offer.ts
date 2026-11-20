@@ -78,6 +78,13 @@ export const CLIENT_WEB_CANCEL_BODY =
 export const CLIENT_WEB_BOOK_BODY =
   'Para agendar, toque em «Abrir agenda» e escolha o dia e a hora. Se tiver dúvidas, escreva aqui.'
 
+/**
+ * Corpo mínimo da bolha `cta_url` depois do toque «Abrir agenda» no «Posso ajudar…»
+ * (DEC-086 Opção A / TRE-81). A Meta exige body; ZWSP passa o trim local e evita a
+ * frase redundante `CLIENT_WEB_BOOK_BODY` (TRE-73).
+ */
+export const CLIENT_WEB_CTA_MINIMAL_BODY = '\u200b'
+
 export const CLIENT_WEB_NO_UPCOMING_BODY =
   'Não encontrei marcações futuras no seu nome. Para agendar, toque em «Abrir agenda». Se tiver dúvidas, escreva aqui.'
 

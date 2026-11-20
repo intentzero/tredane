@@ -315,11 +315,6 @@ export function reconcileProposalResultOutboundSend(
   outcome: 'succeeded' | 'failed' | 'uncertain',
   clock: Clock,
   caller: ClinicCaller = workerCaller(tenantId, PROPOSAL_SEND_ACTOR),
-  /**
-   * URL https da página para o follow-up «Posso ajudar…» (cta_url Abrir agenda).
-   * Sem URL → reply legado Abrir agenda|Terminar.
-   */
-  agendaUrl?: string | null,
 ): { proposal: AppointmentProposalRow | null; outbox: OutboxRow[] } {
   if (
     !outbound.clientRequestId.startsWith(PROPOSAL_RESULT_CLIENT_REQUEST_PREFIX) &&
@@ -383,7 +378,7 @@ export function reconcileProposalResultOutboundSend(
     const follow = sendPostBookingFollowupOp(
       db,
       caller,
-      { conversationId: fresh.conversationId, appointmentId, agendaUrl },
+      { conversationId: fresh.conversationId, appointmentId },
       followClock,
     )
     if (follow.status === 'queued') outbox = follow.outbox
