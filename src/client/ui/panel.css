@@ -873,14 +873,20 @@
 }
 
 /*
- * Conversas lista mobile (M-54 / TR-311): full-bleed — sem gutters do
- * .panel-shell-main; padding interno fica na busca / linha (16 px).
- * Coluna flex no shell: o flex do inbox-root só estica com pai flex,
- * para a superfície branca chegar à barra (sem faixa surface-app).
+ * Conversas lista mobile (M-54 / TR-311) e Clientes lista mobile
+ * (TEL-12; Confirmado Paulo 20/11/2026, «pequeno padding»): full-bleed —
+ * sem gutters do .panel-shell-main; padding interno fica na busca / linha
+ * (--space-4 = 16 px). Clientes usa filho directo `.clientes-mobile`
+ * (não `.inbox-root`); sem este selector o shell mantinha 16 px + inbox
+ * 16 px = 32 px. Acompanhar fora deste recorte.
+ * Coluna flex no shell: o flex do inbox-root / clientes-mobile só estica
+ * com pai flex, para a superfície branca chegar à barra (sem faixa surface-app).
  */
 @media (max-width: 767.98px) {
   .panel-app:has(> .panel-nav) .panel-shell-main:has(> .inbox-root),
-  .panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .inbox-root) {
+  .panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .inbox-root),
+  .panel-app:has(> .panel-nav) .panel-shell-main:has(> .clientes-mobile),
+  .panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .clientes-mobile) {
     display: flex;
     flex-direction: column;
     min-height: 0;

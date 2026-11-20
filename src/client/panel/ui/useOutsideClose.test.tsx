@@ -114,9 +114,25 @@ describe('painéis laterais (CSS)', () => {
     )
   })
 
+  it('Clientes mobile TEL-12: shell flush quando filho directo é .clientes-mobile (<768)', () => {
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*767\.98px\)\s*\{[^}]*\.panel-shell-main:has\(\s*>\s*\.clientes-mobile\s*\)/s,
+    )
+  })
+
   it('Conversas mobile: shell flex para .inbox-root preencher até à barra (<768)', () => {
     const block = css.match(
       /@media\s*\(max-width:\s*767\.98px\)\s*\{[\s\S]*?\.panel-shell-main:has\(\s*>\s*\.inbox-root\s*\)[\s\S]*?\{([^}]*)\}/,
+    )?.[1]
+    expect(block).toMatch(/display:\s*flex/)
+    expect(block).toMatch(/flex-direction:\s*column/)
+    expect(block).toMatch(/min-height:\s*0/)
+    expect(block).toMatch(/padding:\s*0/)
+  })
+
+  it('Clientes mobile: shell flex e padding 0 para .clientes-mobile (<768)', () => {
+    const block = css.match(
+      /@media\s*\(max-width:\s*767\.98px\)\s*\{[\s\S]*?\.panel-shell-main:has\(\s*>\s*\.clientes-mobile\s*\)[\s\S]*?\{([^}]*)\}/,
     )?.[1]
     expect(block).toMatch(/display:\s*flex/)
     expect(block).toMatch(/flex-direction:\s*column/)

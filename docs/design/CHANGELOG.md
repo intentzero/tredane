@@ -5,6 +5,11 @@
 - Tokens `stage*` (ink, tint, wash) para as seis etapas, claro e escuro; versão v0.11.0. Colunas do quadro e abas/lista do celular usam a cor da etapa. 138 pares de contraste passam.
 - Faixa de etapas do celular só rola na horizontal (`overflow-y: hidden`, `touch-action: pan-x`). Mocks `desktop/AcompanhamentoQuadro.dc.html` (M-83) e `mobile/Pipeline.dc.html` (M-05) atualizados; PNG de preview regenerados com `render_previews.py` (o mock `ServicosPalavras` não expande e ficou como estava).
 
+## 20/11/2026 — Clientes lista mobile: gutter 16 px (**Confirmado**, Paulo 20/11/2026)
+
+- Shell flush em mobile quando o filho directo é `.clientes-mobile` (mesmo padrão M-54 / Conversas); busca, filtros e linhas mantêm `--space-4`. Remove o gutter duplo (32 px). Só Clientes; Acompanhar fora deste recorte.
+- Implementado em `panel.css`; sem mock `.dc.html` novo (referência no Project store).
+
 ## 19/11/2026 — Clientes: navbar alinhada à Agenda (**Confirmado**, Paulo 19/11/2026)
 
 - Desktop (≥ 1280 px): título «Clientes», ClinicSwitcher e «Ao vivo» passam ao `.panel-shell-header` full-width (padrão Agenda / Acompanhar / Clínica). A coluna da lista fica só com busca, filtros e lista.
