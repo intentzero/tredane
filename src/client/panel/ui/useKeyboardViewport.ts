@@ -30,6 +30,12 @@ export function isEditableKeyboardTarget(el: EventTarget | null): boolean {
   return Boolean(el.closest('[contenteditable="true"]'))
 }
 
+/** Altura do layout viewport (iOS: clientHeight costuma ser mais estável que innerHeight). */
+export function layoutViewportHeight(): number {
+  const client = document.documentElement?.clientHeight ?? 0
+  return Math.max(window.innerHeight || 0, client)
+}
+
 /**
  * iOS Safari/PWA: com o teclado aberto o layout viewport não encolhe, então o
  * compositor (fundo da `.panel-app`, que tem 100dvh / inset:0) fica atrás do teclado.
@@ -45,6 +51,12 @@ export function isEditableKeyboardTarget(el: EventTarget | null): boolean {
  * tab bar / compositor ficarem no fundo do visualViewport (acima do teclado).
  * Fora do teclado o shell fica em `inset:0`.
  *
+ * Detecção: não basta `innerHeight - vv.height` — com `interactive-widget=resizes-content`,
+ * PWA ou pan do Safari, o innerHeight encolhe e/ou `offsetTop` sobe, e a diferença
+ * de alturas fica < 120 px enquanto o compositor continua atrás do teclado. Usa também
+ * o vão real (`layout - vv.height - offsetTop`), o `offsetTop`, e a queda face à
+ * altura idle (sem foco). Continua a exigir campo editável focado (#944 / #959).
+ *
  * Também repõe `scrollY` a 0: o iOS desloca o documento para mostrar o campo e,
  * sem isto, a barra inferior fica a meio do ecrã com um vão vazio por baixo.
  */
@@ -54,6 +66,8 @@ export function useKeyboardViewport(): void {
     if (!view) return
     const root = document.documentElement
     let frame = 0
+    /** Altura «cheia» enquanto não há campo focado — base para teclado com innerHeight encolhido. */
+    let idleLayoutH = layoutViewportHeight()
     const clearVars = () => {
       root.style.removeProperty('--panel-vvh')
       root.style.removeProperty('--panel-vv-top')
@@ -71,16 +85,25 @@ export function useKeyboardViewport(): void {
         const touch =
           typeof window.matchMedia !== 'function' || window.matchMedia('(pointer: coarse)').matches
         const editing = isEditableKeyboardTarget(document.activeElement)
+        const layoutH = layoutViewportHeight()
+        if (!editing) {
+          idleLayoutH = Math.max(layoutH, Math.round(view.height))
+        }
+        const offsetTop = Math.max(0, view.offsetTop)
+        const insetBottom = Math.max(0, Math.round(layoutH - view.height - offsetTop))
+        const heightGap = layoutH - view.height
+        const shrunkFromIdle = idleLayoutH - view.height
         const keyboardOpen =
-          touch && !zoomed && editing && window.innerHeight - view.height > KEYBOARD_MIN_PX
+          touch &&
+          !zoomed &&
+          editing &&
+          (heightGap > KEYBOARD_MIN_PX ||
+            insetBottom > KEYBOARD_MIN_PX ||
+            offsetTop > KEYBOARD_MIN_PX ||
+            shrunkFromIdle > KEYBOARD_MIN_PX)
         if (keyboardOpen) {
-          const offsetTop = Math.max(0, Math.round(view.offsetTop))
-          const insetBottom = Math.max(
-            0,
-            Math.round(window.innerHeight - view.height - view.offsetTop),
-          )
           root.style.setProperty('--panel-vvh', `${Math.round(view.height)}px`)
-          root.style.setProperty('--panel-vv-top', `${offsetTop}px`)
+          root.style.setProperty('--panel-vv-top', `${Math.round(offsetTop)}px`)
           root.style.setProperty('--keyboard-inset-bottom', `${insetBottom}px`)
           root.dataset.keyboard = 'open'
           resetDocumentScroll()

@@ -5548,10 +5548,12 @@ button.panel-auth-inline-link {
 
 /* Teclado aberto: prende o shell ao visualViewport (useKeyboardViewport
    publica --panel-vvh / --panel-vv-top só com campo editável focado +
-   viewport encolhido — o chrome do Safari sozinho não marca teclado).
+   viewport encolhido — o chrome do Safari sozinho não marca teclado;
+   a detecção cobre innerHeight encolhido, offsetTop e baseline idle).
    Sem este pin o iOS sobe o visualViewport (offsetTop > 0) e a tab bar /
-   compositor ficam a meio com vão por baixo (Clínica FAQ, thread, …).
-   Fora do teclado o shell fica em inset:0. */
+   compositor ficam a meio / sob o teclado (Clínica FAQ, thread inbox, …).
+   Fora do teclado o shell fica em inset:0. Preserva o pin de todo
+   .panel-app de #959 (não voltar a limitar a :has(.inbox-thread)). */
 :root {
   --panel-vvh: 100dvh;
   --panel-vv-top: 0px;

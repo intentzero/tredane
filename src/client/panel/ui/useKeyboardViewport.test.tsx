@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isEditableKeyboardTarget, useKeyboardViewport } from './useKeyboardViewport'
+import {
+  isEditableKeyboardTarget,
+  layoutViewportHeight,
+  useKeyboardViewport,
+} from './useKeyboardViewport'
 
 afterEach(cleanup)
 
@@ -33,6 +37,13 @@ function focusTextInput() {
   return input
 }
 
+function focusTextarea() {
+  const area = document.createElement('textarea')
+  document.body.appendChild(area)
+  area.focus()
+  return area
+}
+
 describe('isEditableKeyboardTarget', () => {
   it('aceita texto, textarea e contenteditable; recusa botão e checkbox', () => {
     const text = document.createElement('input')
@@ -50,6 +61,17 @@ describe('isEditableKeyboardTarget', () => {
     expect(isEditableKeyboardTarget(checkbox)).toBe(false)
     expect(isEditableKeyboardTarget(button)).toBe(false)
     expect(isEditableKeyboardTarget(null)).toBe(false)
+  })
+})
+
+describe('layoutViewportHeight', () => {
+  it('usa o máximo entre innerHeight e clientHeight', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 700, configurable: true })
+    Object.defineProperty(document.documentElement, 'clientHeight', {
+      value: 844,
+      configurable: true,
+    })
+    expect(layoutViewportHeight()).toBe(844)
   })
 })
 
@@ -97,6 +119,51 @@ describe('useKeyboardViewport', () => {
     expect(root.style.getPropertyValue('--panel-vv-top')).toBe('')
     expect(root.dataset.keyboard).toBeUndefined()
     input.remove()
+    unmount()
+  })
+
+  it('detecta teclado quando innerHeight encolhe com o VV (resizes-content / PWA) via baseline idle', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0)
+      return 1
+    })
+    Object.defineProperty(window, 'innerHeight', { value: 844, configurable: true })
+    const { view, fire } = fakeViewport(844)
+    const { unmount } = renderHook(() => useKeyboardViewport())
+    const root = document.documentElement
+    // Idle: grava baseline 844.
+    act(fire)
+    const area = focusTextarea()
+    // Layout acompanha o VV (diferença de alturas < 120) — falha da detecção antiga.
+    Object.defineProperty(window, 'innerHeight', { value: 520, configurable: true })
+    view.height = 500
+    view.offsetTop = 0
+    act(fire)
+    expect(root.dataset.keyboard).toBe('open')
+    expect(root.style.getPropertyValue('--panel-vvh')).toBe('500px')
+    expect(root.style.getPropertyValue('--panel-vv-top')).toBe('0px')
+    area.remove()
+    unmount()
+  })
+
+  it('detecta teclado quando o Safari só sobe offsetTop (pan do visualViewport)', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0)
+      return 1
+    })
+    Object.defineProperty(window, 'innerHeight', { value: 844, configurable: true })
+    const { view, fire } = fakeViewport(844)
+    const { unmount } = renderHook(() => useKeyboardViewport())
+    const root = document.documentElement
+    const area = focusTextarea()
+    // Altura quase igual (gap < 120) mas offsetTop alto — compositor sumia sob o teclado.
+    view.height = 760
+    view.offsetTop = 200
+    act(fire)
+    expect(root.dataset.keyboard).toBe('open')
+    expect(root.style.getPropertyValue('--panel-vvh')).toBe('760px')
+    expect(root.style.getPropertyValue('--panel-vv-top')).toBe('200px')
+    area.remove()
     unmount()
   })
 
