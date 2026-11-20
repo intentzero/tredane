@@ -36,7 +36,9 @@ import {
   stripScheduleOffer,
   countRecentWebLinks,
   isOpenAgendaButtonTitle,
+  looksLikeClosingAssistOutbound,
   openAgendaReplyButton,
+  type PrepareClientWebOffer,
 } from '../../clientweb/offer'
 import { isGreetingOnly, isSlotTimePickByText, servicesCitedInText } from '../../clientweb/route-intent'
 import {
@@ -423,6 +425,34 @@ function conversationAwaitingPostBookingFarewell(
   return sawPostBooking && sawAgendado
 }
 
+/**
+ * TRE-82 / #990: em fechos, preferir `cta_url` Abrir agenda (um toque abre a página).
+ * Sem URL (lab/http) ou pausa → sem botões (adeus clássico) ou reply de fallback.
+ */
+async function preferAbrirAgendaCta(input: {
+  prepare?: PrepareClientWebOffer
+  paused?: boolean
+  tenantId: string
+  conversationId: string
+  serviceId?: string | null
+}): Promise<import('../inbox/types').SendOutboundInteractiveInput | null> {
+  if (input.paused || !input.prepare) return null
+  try {
+    const offered = await input.prepare({
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      purpose: 'agendar',
+      appointmentId: null,
+      serviceId: input.serviceId ?? null,
+      audienceLine: null,
+      variantIds: [],
+    })
+    return offered?.ctaUrl ? offered : null
+  } catch {
+    return null
+  }
+}
+
 /** Processa os jobs vencidos. Chamado pelo alarme do DO. */
 export async function runDueAutoDrafts(
   db: ClinicDb,
@@ -758,12 +788,19 @@ export async function runDueAutoDrafts(
       } else if (isFarewellWhileHandoffPaused(inboundBody, pauseReason)) {
         // TRE-39: «Adeus»/«Tchau» com alerta aberto não repetem HANDOFF_PAUSED_ACK.
         // Mesmo adeus do Terminar + limpa timeout/alerta (suppressFollowupsAfterClientEnd).
+        // TRE-82: com URL, `cta_url` Abrir agenda (um toque; sem reply Equipe).
         await signalTyping()
         const settings = ensureClinicSettings(db, tenantId, clock)
         const tz = settings.timezone || 'America/Sao_Paulo'
         const farewell = pickTerminarFarewell({ timezone: tz, nowMs: clock.nowMs() })
         const endOutbox = suppressFollowupsAfterClientEnd(db, tenantId, job.conversationId, clock)
         let replyOutbox: OutboxRow[] = [...endOutbox]
+        const cta = await preferAbrirAgendaCta({
+          prepare: deps.prepareClientWebOffer,
+          paused: deps.autoBookPaused === true,
+          tenantId,
+          conversationId: job.conversationId,
+        })
         try {
           const sent = sendOutboundMessageOp(
             db,
@@ -771,7 +808,11 @@ export async function runDueAutoDrafts(
             {
               conversationId: job.conversationId,
               body: farewell,
-              clientRequestId: `ai-handoff-farewell:${job.messageId}`,
+              interactive: cta,
+              omitHumanTeamAugment: true,
+              clientRequestId: cta
+                ? `ai-web-agendar:${job.messageId}`
+                : `ai-handoff-farewell:${job.messageId}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,
             },
@@ -1341,6 +1382,13 @@ export async function runDueAutoDrafts(
       const farewell = pickTerminarFarewell({ timezone: tz, nowMs: clock.nowMs() })
       const endOutbox = suppressFollowupsAfterClientEnd(db, tenantId, job.conversationId, clock)
       let replyOutbox: OutboxRow[] = [...endOutbox]
+      // TRE-82 / #990: fecho com `cta_url` Abrir agenda quando há URL (sem reply Equipe).
+      const cta = await preferAbrirAgendaCta({
+        prepare: deps.prepareClientWebOffer,
+        paused: deps.autoBookPaused === true,
+        tenantId,
+        conversationId: job.conversationId,
+      })
       try {
         const sent = sendOutboundMessageOp(
           db,
@@ -1348,7 +1396,11 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: farewell,
-            clientRequestId: `ai-post-booking-farewell:${job.messageId}`,
+            interactive: cta,
+            omitHumanTeamAugment: true,
+            clientRequestId: cta
+              ? `ai-web-agendar:${job.messageId}`
+              : `ai-post-booking-farewell:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
           },
@@ -1510,15 +1562,28 @@ export async function runDueAutoDrafts(
         /\bSomando tudo, ficam\b/i.test(catalogText)
       // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
       // Localização (opção B): Abrir mapa · Abrir agenda · Equipe — mapa abre cta_url no toque.
-      // TRE-77 / DEC-202: FAQ de expediente — só «Abrir agenda» (sem Equipe nem pedido de serviço).
+      // TRE-77 / DEC-202: FAQ de expediente — só «Abrir agenda» (sem Equipe); com URL → cta_url.
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
+      const hoursFaq = isOpeningHoursFaqAsk(turnText)
+      const hoursCta =
+        hoursFaq && !isPriceTotal && !isLocationMapOfferReply(catalogText)
+          ? await preferAbrirAgendaCta({
+              prepare: deps.prepareClientWebOffer,
+              paused: deps.autoBookPaused === true,
+              tenantId,
+              conversationId: job.conversationId,
+              serviceId: catalogServiceId,
+            })
+          : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
         : isLocationMapOfferReply(catalogText)
           ? locationMapOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
-          : isOpeningHoursFaqAsk(turnText)
-            ? [openAgendaReplyButton(catalogServiceId)]
+          : hoursFaq
+            ? hoursCta
+              ? null
+              : [openAgendaReplyButton(catalogServiceId)]
             : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
       try {
         const sent = sendOutboundMessageOp(
@@ -1527,8 +1592,16 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: catalogText,
-            interactive: catalogButtons.length > 0 ? { buttons: catalogButtons } : undefined,
-            clientRequestId: `ai-catalog:${job.messageId}`,
+            interactive: hoursCta
+              ? hoursCta
+              : catalogButtons && catalogButtons.length > 0
+                ? { buttons: catalogButtons }
+                : undefined,
+            // TRE-77 residual: sem isto, augmentOutboundWithHumanTeam volta a injectar Equipe.
+            omitHumanTeamAugment: Boolean(hoursFaq || hoursCta),
+            clientRequestId: hoursCta
+              ? `ai-web-agendar:${job.messageId}`
+              : `ai-catalog:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
           },
@@ -1804,20 +1877,39 @@ export async function runDueAutoDrafts(
           continue
         }
         // Opção B: se o redator colou o URL da clínica, troca pelo CTA Abrir mapa.
+        // TRE-82: fecho («Tudo bem, então…») → cta_url Abrir agenda (não reply+Equipe).
         const mapsUrl = ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
         const rewritten = rewriteRawMapsUrlOutbound(draftText, job.conversationId, mapsUrl)
         const body = rewritten.body
+        const closingCta =
+          !rewritten.useMapButtons && looksLikeClosingAssistOutbound(body)
+            ? await preferAbrirAgendaCta({
+                prepare: deps.prepareClientWebOffer,
+                paused: deps.autoBookPaused === true,
+                tenantId,
+                conversationId: job.conversationId,
+              })
+            : null
         const buttons = rewritten.useMapButtons
           ? locationMapOfferButtons(db, tenantId, clock)
-          : humanTeamOfferButtons(db, tenantId, clock)
+          : closingCta
+            ? null
+            : humanTeamOfferButtons(db, tenantId, clock)
         const sent = sendOutboundMessageOp(
           db,
           caller,
           {
             conversationId: job.conversationId,
             body,
-            interactive: buttons.length > 0 ? { buttons } : null,
-            clientRequestId: `ai-reply:${suggestion.id}`,
+            interactive: closingCta
+              ? closingCta
+              : buttons && buttons.length > 0
+                ? { buttons }
+                : null,
+            omitHumanTeamAugment: Boolean(closingCta),
+            clientRequestId: closingCta
+              ? `ai-web-agendar:${job.messageId}`
+              : `ai-reply:${suggestion.id}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
             aiSuggestionId: suggestion.id,

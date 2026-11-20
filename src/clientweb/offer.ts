@@ -15,6 +15,29 @@ export function isOpenAgendaButtonTitle(text: string): boolean {
 }
 
 /**
+ * Adeus / fecho do redator («Tudo bem, então…», «Por nada! Fico à disposição…»).
+ * Nessas bolhas o par reply Abrir agenda|Equipe (DEC-216) não abre a página no toque;
+ * preferir `cta_url` Abrir agenda (padrão #990 / Meta: um cta_url, sem misturar reply).
+ */
+export function looksLikeClosingAssistOutbound(body: string): boolean {
+  const t = body.trim().toLocaleLowerCase('pt-BR')
+  if (!t) return false
+  return (
+    /\btudo bem,?\s*ent[aã]o\b/.test(t) ||
+    /\bqualquer d[uú]vida\b/.test(t) ||
+    /\bfico (?:à|a) disposi/.test(t) ||
+    /\bfico por aqui\b/.test(t) ||
+    /\bpor nada\b/.test(t) ||
+    /\btenha um [oó]timo\b/.test(t) ||
+    /\bé s[oó] escrever(?:\s+aqui)?\b/.test(t) ||
+    /\bquando (?:você|voce)\s+(?:precisar|quiser)\b/.test(t) ||
+    /\bquando quiser\b/.test(t) ||
+    /\bestamos por aqui\b/.test(t) ||
+    /\bat[eé] (?:l[aá]|breve|logo)\b/.test(t)
+  )
+}
+
+/**
  * Botão de resposta rápida «Abrir agenda» (DEC-216): acompanha «Falar com a equipe».
  * O toque dispara o envio do CTA URL real (não se mistura com reply buttons na mesma mensagem).
  * Opcional: `cw:abrir-agenda:<serviceId>` pré-escolhe o serviço (DEC-202(4)).

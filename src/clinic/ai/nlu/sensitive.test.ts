@@ -304,6 +304,19 @@ describe('classifySensitive (#409)', () => {
       labels: [],
       pause: false,
     },
+    {
+      // TRE-82: fecho «por agora é só» → despedida, não redator com reply Abrir agenda.
+      id: 'D-12',
+      text: 'Obrigada, por agora é só',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-13',
+      text: 'é só isso',
+      labels: ['desistir'],
+      pause: false,
+    },
   ]
 
   for (const row of rows) {

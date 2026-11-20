@@ -9,6 +9,7 @@
  * CW-15: preferência / Sem preferência — filtra horas e rodízio por serviço (DEC-218).
  * GU-23: «Posso ajudar…» reply Abrir agenda|Terminar; toque → cta_url corpo mínimo (TRE-81).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
+ * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
  */
 import { listServices, upsertServiceOp } from '../../../config'
 import { ValidationError } from '../../../errors'
@@ -689,6 +690,53 @@ export const GU_DIALOG_CASES: DialogCase[] = [
           (b) => b.id === HUMAN_HANDOFF_BUTTON_ID || b.title === HUMAN_HANDOFF_BUTTON_TITLE,
         )
         if (hasTeam) return ['GU-27: não devia ter «Falar com a equipe»']
+        return []
+      },
+    },
+  },
+  {
+    id: 'GU-28',
+    title:
+      'Fecho «por agora é só»: despedida + cta_url Abrir agenda (sem reply Equipe) (TRE-82)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Obrigada, por agora é só' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      outboundExcludes: [/Falar com a equipe/i],
+      turns: [
+        {
+          turn: 0,
+          matches: [
+            /Perfeito\. Qualquer coisa|Até lá|Combinado\. (Bom dia|Boa tarde|Boa noite)/,
+          ],
+          excludes: [/Falar com a equipe/i, /não entendi|nao entendi/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'skip:post_booking_farewell' }],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null; body: string }>(
+          `SELECT o.interactive_json AS interactive_json, m.body AS body
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) return ['GU-28: despedida sem interactivo']
+        const parsed = JSON.parse(row.interactive_json) as {
+          buttons?: Array<{ id: string; title: string }>
+          ctaUrl?: { displayText?: string; url?: string }
+        }
+        if (parsed.ctaUrl?.displayText !== CLIENT_WEB_CTA_TEXT) {
+          return [`GU-28: esperava cta_url Abrir agenda, veio ${row.interactive_json}`]
+        }
+        if (parsed.buttons?.length) {
+          return [`GU-28: não devia ter reply buttons, veio ${JSON.stringify(parsed.buttons)}`]
+        }
         return []
       },
     },

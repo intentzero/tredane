@@ -139,6 +139,10 @@ export const EXPLICIT_ABANDON_RE = new RegExp(
     String.raw`\bdeixa\s+(?:estar|pra\s+l[aá]|para\s+l[aá]|assim)(?!\w)`,
     String.raw`^(?:ok[,.\s!]*)?deixa[.!?\s]*$`,
     String.raw`\bpor\s+agora\s+n[aã]o\b`,
+    // Fecho «por agora é só» / «é só isso» (lab TRE-82: senão o redator
+    // responde com reply Abrir agenda|Equipe que não abre a página).
+    String.raw`\bpor\s+(?:agora|enquanto)\s+(?:[eé]\s+)?s[oó]\b`,
+    String.raw`^(?:(?:ok|beleza|obrigad[oa]|valeu)[,.\s!]*)*(?:[eé]\s+)?s[oó]\s+(?:isso|por\s+agora|por\s+enquanto)(?:\s+mesmo)?[.!?\s]*$`,
     // Bare «não quero» / mais|agora|agendar|marcar; ou «não quero, obrigada».
     // «não quero pernas, só axila» é correção de variante (D3), não abandono A.
     String.raw`\bn[aã]o\s+quero(?:\s+(?:mais|agora|agendar|marcar))?(?:[\s.!?…]*$|\s*[,!]+\s*(?:obrigad[oa]|valeu|tchau)[\s.!?…]*$)`,
@@ -160,7 +164,7 @@ export const EXPLICIT_ABANDON_RE = new RegExp(
  */
 export const FAREWELL_RE = new RegExp(
   [
-    String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|vlw|bye|obrigad[oa]|valeu)[.!?\s]*$`,
+    String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|vlw|bye|obrigad[oa]|valeu)(?:[,.\s]+(?:por\s+(?:agora|enquanto)\s+)?(?:[eé]\s+)?s[oó](?:\s+isso)?)?[.!?\s]*$`,
     String.raw`\b(?:tchau|adeus)\b`,
     String.raw`\bdeus\s+te\s+aben[cç][oõ]e\b`,
     String.raw`\b(?:am[eé]m|aben[cç]oada)\b`,

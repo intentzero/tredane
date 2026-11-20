@@ -112,7 +112,7 @@ describe('llm_jobs claim/apply/fail (DEC-188)', () => {
         mode: 'synthetic' as const,
         adapter: new SimulatedAiAdapter(),
       }
-      const applied = applyLlmResultOp(db, caller, clock, deps, {
+      const applied = await applyLlmResultOp(db, caller, clock, deps, {
         jobId: created.job.id,
         idempotencyKey: created.job.idempotencyKey,
         result: {
@@ -142,7 +142,7 @@ describe('llm_jobs claim/apply/fail (DEC-188)', () => {
     }
   })
 
-  it('apply stale (mensagem supersedida) não envia texto antigo', () => {
+  it('apply stale (mensagem supersedida) não envia texto antigo', async () => {
     const { db, clock, close, tenantId, caller, conv, msg } = seed()
     try {
       const created = createLlmJob(
@@ -191,7 +191,7 @@ describe('llm_jobs claim/apply/fail (DEC-188)', () => {
         { jobId: created.job.id, idempotencyKey: created.job.idempotencyKey },
         clock,
       )
-      const applied = applyLlmResultOp(
+      const applied = await applyLlmResultOp(
         db,
         caller,
         clock,
