@@ -12,7 +12,7 @@ Defeitos corrigidos (impediam a aprovação):
 | --- | --- | --- |
 | `sem_vaga_alternativas` n.º 2 | `As {hora} já estão ocupadas. Posso {lista}.` (sem crase, «Posso» errado) | `Às {hora} já está ocupado. Tenho {lista}. Qual fica melhor?` |
 | `informar_quem_faz` n.º 2 | `{pessoas} fazem esse atendimento.` («Ana fazem») | `Esse atendimento é feito por {pessoas}.` |
-| `abrir` n.º 1 | `Sou a assistente da clínica.` (género fixo; a persona pode ser masculina, DEC-089) | `Aqui é o atendimento virtual da clínica.` |
+| `abrir` n.º 1 | `Sou a assistente da clínica.` (frase fixa; DEC-089 revista — sem persona) | `Aqui é o atendimento virtual da clínica.` |
 | `informar_local` | nenhuma redação levava o link do Google Business (DEC-120) | novo ato `informar_local_link` (endereço + `Para chegar: {link}`), usado quando há link |
 
 Melhorias aplicadas:
@@ -292,7 +292,7 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 
 ## Fora deste pedido
 
-- Persona com nome próprio (DEC-089) — Paulo **não** pediu na It. 1.
+- Persona com nome próprio (DEC-089) — removida (revista Paulo 20/11/2026).
 - Listas/botões WhatsApp (#415 / M5).
 - Retirar o texto livre do LLM do funil: só depois destas frases aprovadas e do validador único ligado.
 

@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 20/11/2026 — Sai persona do atendente IA (DEC-089 revista)
+
+- **M-74** (`AssistenteDecisoes`): remove a linha «Como se apresenta». O índice fica com Respostas e Proteções.
+- Mocks antigos `ClinicaPronta` / `ClinicaVisaoGeral`: deixam de citar «Luna» como apresentação da IA.
+- PNG M-74: regenerar com `render_previews.py` quando Playwright estiver disponível neste ambiente.
+
 ## 19/11/2026 — Acompanhamento: cor por etapa (DEC-215, **Confirmado**)
 
 - Tokens `stage*` (ink, tint, wash) para as seis etapas, claro e escuro; versão v0.11.0. Colunas do quadro e abas/lista do celular usam a cor da etapa. 138 pares de contraste passam.

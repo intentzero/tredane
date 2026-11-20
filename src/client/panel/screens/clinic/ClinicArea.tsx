@@ -115,14 +115,6 @@ function pageMeta(section: ClinicaSection, entityId?: string): PageMeta {
         header: true,
         mobileSub: true,
       }
-    case 'assistente-persona':
-      return {
-        title: 'Como se apresenta',
-        description: 'Nome e género com que a assistente se apresenta às clientes.',
-        shape: 'cards',
-        header: true,
-        mobileSub: true,
-      }
     case 'assistente-protecoes':
       return {
         title: 'Proteções',
@@ -325,16 +317,13 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     return frame(page(<RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />))
   }
 
-  const assistantSub =
-    section === 'conhecimento' ||
-    section === 'assistente-persona' ||
-    section === 'assistente-protecoes'
+  const assistantSub = section === 'conhecimento' || section === 'assistente-protecoes'
   if (assistantSub && !isOwner) {
     return frame(
       page(
         <ErrorState
           title="Só a responsável configura o assistente"
-          description="Respostas, apresentação e proteções são configuração da owner."
+          description="Respostas e proteções são configuração da owner."
         />,
       ),
     )
@@ -450,24 +439,11 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
                 tenantId={tenantId}
                 api={api}
                 generation={generation}
-                part="facts"
                 initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
                 initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
                 onSaved={() => void reload()}
               />
             }
-          />
-        )
-      case 'assistente-persona':
-        return (
-          <AiProfileCard
-            tenantId={tenantId}
-            api={api}
-            generation={generation}
-            part="persona"
-            initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
-            initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
-            onSaved={() => void reload()}
           />
         )
       case 'assistente-protecoes':

@@ -25,17 +25,8 @@ type SettingsSql = {
   abuse_pending_proposals_per_contact?: number
   abuse_proposals_per_contact?: number
   abuse_proposals_per_clinic?: number
-  virtual_attendant_name?: string
-  virtual_attendant_gender?: string | null
   booking_lead_minutes?: number
   updated_at: number
-}
-
-function mapVirtualGender(
-  raw: string | null | undefined,
-): 'masculino' | 'feminino' | null {
-  if (raw === 'masculino' || raw === 'feminino') return raw
-  return null
 }
 
 function mapSettings(row: SettingsSql): ClinicSettingsRow {
@@ -65,8 +56,6 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
       row.abuse_proposals_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerContact,
     abuseProposalsPerClinic:
       row.abuse_proposals_per_clinic ?? DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerClinic,
-    virtualAttendantName: row.virtual_attendant_name ?? '',
-    virtualAttendantGender: mapVirtualGender(row.virtual_attendant_gender),
     bookingLeadMinutes: row.booking_lead_minutes ?? DEFAULT_BOOKING_LEAD_MINUTES,
     updatedAt: row.updated_at,
   }
@@ -84,7 +73,7 @@ export function ensureClinicSettings(
        abuse_auto_drafts_per_contact,
        abuse_future_appointments_per_contact, abuse_pending_pix_per_contact,
        abuse_pending_proposals_per_contact, abuse_proposals_per_contact, abuse_proposals_per_clinic,
-       virtual_attendant_name, virtual_attendant_gender, booking_lead_minutes,
+       booking_lead_minutes,
        updated_at
      FROM clinic_settings WHERE id = 1`,
   )
@@ -125,8 +114,6 @@ export function ensureClinicSettings(
     abusePendingProposalsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingProposalsPerContact,
     abuseProposalsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerContact,
     abuseProposalsPerClinic: DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerClinic,
-    virtualAttendantName: '',
-    virtualAttendantGender: null,
     bookingLeadMinutes: DEFAULT_BOOKING_LEAD_MINUTES,
     updatedAt: now,
   }
@@ -176,17 +163,13 @@ export function isClinicAiAssistEnabled(db: ClinicDb, tenantId: string): boolean
   return row?.ai_assist_enabled === 1
 }
 
-const VIRTUAL_ATTENDANT_NAME_MAX = 60
-
-/** Link do Google Business (DEC-211), regras e atendente virtual (DEC-089) — só o responsável. */
+/** Link do Google Business (DEC-211) e regras gerais — só o responsável. */
 export function setClinicAiProfile(
   db: ClinicDb,
   tenantId: string,
   input: {
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
-    virtualAttendantName?: string | null
-    virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
   },
   clock: Clock,
 ): ClinicSettingsRow {
@@ -206,36 +189,12 @@ export function setClinicAiProfile(
       ? cur.reschedulePolicy
       : input.reschedulePolicy.trim().slice(0, 500)
 
-  let virtualName = cur.virtualAttendantName
-  if (input.virtualAttendantName != null) {
-    virtualName = input.virtualAttendantName.trim().slice(0, VIRTUAL_ATTENDANT_NAME_MAX)
-  }
-
-  let virtualGender: string | null = cur.virtualAttendantGender
-  if (input.virtualAttendantGender !== undefined) {
-    const g = input.virtualAttendantGender
-    if (g === null || g === '') {
-      virtualGender = null
-    } else if (g === 'masculino' || g === 'feminino') {
-      virtualGender = g
-    } else {
-      throw new ValidationError(
-        'invalid_virtual_attendant_gender',
-        'Género do atendente virtual: masculino, feminino ou vazio.',
-        { field: 'virtualAttendantGender' },
-      )
-    }
-  }
-
   db.run(
     `UPDATE clinic_settings
-       SET google_business_url = ?, reschedule_policy = ?,
-           virtual_attendant_name = ?, virtual_attendant_gender = ?, updated_at = ?
+       SET google_business_url = ?, reschedule_policy = ?, updated_at = ?
      WHERE id = 1 AND tenant_id = ?`,
     googleBusinessUrl,
     policy,
-    virtualName,
-    virtualGender,
     clock.nowMs(),
     tenantId,
   )

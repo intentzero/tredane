@@ -183,7 +183,7 @@ As frases fixas atuais soam a sistema («Para fechar às 14:00, me diga as Zonas
 
 - **Eco (confirmação implícita):** começar por repetir o que foi entendido, o que também permite à cliente corrigir. Ex.: «Perfeito, axila e pernas na linha feminina.»
 - **Variação controlada:** 3–5 redações aprovadas por ato, escolhidas por hash da conversa (estáveis no replay e nos testes), nunca ao acaso em produção.
-- **Primeiro nome** só no primeiro contato ou depois de uma pausa longa; persona da DEC-089 na concordância.
+- **Primeiro nome** só no primeiro contato ou depois de uma pausa longa; sem persona configurável (DEC-089 revista).
 - **Uma pergunta por mensagem**, sem jargão (lista INV-05). Plural do tipo em minúsculas.
 
 Exemplo do mesmo funil (fictício):

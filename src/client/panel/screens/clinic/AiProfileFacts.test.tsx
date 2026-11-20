@@ -21,7 +21,6 @@ describe('Sobre a clínica — regras gerais', () => {
         tenantId="clinic-demo-a"
         api={api({ enabled: true, cancellationPolicy: 'Sinal de R$ 50,00 confirma o horário.' })}
         generation={1}
-        part="facts"
         initialReschedulePolicy="Atrasos acima de 15 minutos perdem o horário."
       />,
     )
@@ -38,7 +37,6 @@ describe('Sobre a clínica — regras gerais', () => {
         tenantId="clinic-demo-a"
         api={api({ enabled: false, cancellationPolicy: 'Texto antigo do sinal.' })}
         generation={1}
-        part="facts"
       />,
     )
     const box = screen.getByRole('textbox', { name: /Regras gerais/ })
@@ -55,7 +53,6 @@ describe('Sobre a clínica — regras gerais', () => {
         tenantId="clinic-demo-a"
         api={api({ enabled: false, cancellationPolicy: '' })}
         generation={1}
-        part="facts"
         initialGoogleBusinessUrl="https://maps.app.goo.gl/clinica"
         initialReschedulePolicy="Avise com 24 h."
       />,

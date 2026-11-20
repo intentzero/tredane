@@ -57,8 +57,6 @@ describe('exception-prompt (DEC-118/120)', () => {
         openingHours: ['seg–sex 09–18'],
         reschedulePolicy: '24h',
         cancellationPolicy: '24h',
-        virtualAttendantName: 'Lia',
-        virtualAttendantGender: 'feminino',
       },
     }
     const user = buildExceptionUserContent({ context: ctx, question: 'Fazem pacote para noivas?' })

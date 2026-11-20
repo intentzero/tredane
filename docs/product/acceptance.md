@@ -316,9 +316,9 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 **Dado** a Ana assumiu a conversa com a Mariana; **quando** envia «Pode ser às 16h?» pelo painel; **então** a mensagem no WhatsApp começa por `[Ana]`. Uma proposta com botões montada pelo backend e a frase fixa da pausa da IA **não** levam o prefixo. **Requisitos:** REQ-099; JRN-02.
 
-### AC-74 — Atendente virtual opcional (Confirmado, DEC-089)
+### AC-74 — Atendente virtual opcional (DEC-089 revista — Fora)
 
-**Dado** a responsável da Aurora; **quando** grava nome «Luna» e género feminino; **então** a copy da IA usa concordância feminina e pode apresentar-se com esse nome. Attendant que tenta gravar é recusado. Campos vazios mantêm a copy neutra. A ficha do contacto da Mariana **não** ganha sexo. **Requisitos:** REQ-100.
+**Dado** a clínica Aurora; **quando** a responsável abre o Assistente; **então** **não** há campos nem subtela «Como se apresenta» para nome/género da IA. A transparência (DEC-115) usa a frase fixa. A ficha do contacto da Mariana **não** ganha sexo. **Requisitos:** REQ-100 (fora).
 
 ### AC-81 — Só superadmin abre a Platform Admin
 

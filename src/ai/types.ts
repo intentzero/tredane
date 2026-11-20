@@ -124,10 +124,6 @@ export type AiClinicContext = {
   openingHours: string[]
   reschedulePolicy: string | null
   cancellationPolicy: string | null
-  /** DEC-089 — nome opcional do atendente virtual (persona). */
-  virtualAttendantName?: string | null
-  /** DEC-089 — género para concordância; ausente = copy neutra. */
-  virtualAttendantGender?: 'masculino' | 'feminino' | null
 }
 
 /**

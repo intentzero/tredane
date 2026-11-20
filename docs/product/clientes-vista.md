@@ -14,8 +14,8 @@ O contacto vive sobretudo no sidepane Contato da thread ([#365](https://github.c
 - Contatos no SQLite do DO por clínica ([DEC-038](decisions.md)).
 - Configuração de clínica só pela responsável ([DEC-042](decisions.md)) — não decide ainda quem edita a ficha do contacto.
 - Exclusão / expurgo: [REQ-071](requirements.md), [AC-52](acceptance.md), DEC-011.
-- Sem sexo/género na ficha do contacto; sem inferência (DEC-075, DEC-089).
-- Nome humano outbound ([DEC-088](decisions.md)) ≠ persona do atendente virtual ([DEC-089](decisions.md)).
+- Sem sexo/género na ficha do contacto; sem inferência (DEC-075; DEC-089 revista mantém esta proibição).
+- Nome humano outbound ([DEC-088](decisions.md)) é só da pessoa da equipe; a IA não tem persona configurável ([DEC-089](decisions.md) revista).
 
 ## Navegação
 

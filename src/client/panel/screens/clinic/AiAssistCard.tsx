@@ -1,17 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ShellSlot } from '../../shell/ShellSlot'
-import { Button, Input, Label, Radio, RadioGroup, Text, TextArea, TextField } from 'react-aria-components'
+import { Button, Input, Label, Text, TextArea, TextField } from 'react-aria-components'
 import { PanelApiError, type PanelApi } from '../../api'
 import {
   checkGoogleBusinessUrl,
   GOOGLE_BUSINESS_URL_MAX_LENGTH,
 } from '../../../../clinic/config/google-business-link'
 import { GENERAL_POLICY_MAX_CHARS, joinPolicyParts } from '../../../../clinic/ai/policy-join'
-
-type VirtualGender = 'masculino' | 'feminino' | ''
-
-type VirtualGenderValue = VirtualGender
 
 /**
  * Opt-in de IA por clínica (política de privacidade §6). Default desligado.
@@ -110,44 +106,30 @@ type ProfileProps = {
   tenantId: string
   api: PanelApi
   generation: number
-  /** `persona`: nome e género; `facts`: localização e regras gerais. */
-  part: 'persona' | 'facts'
   initialGoogleBusinessUrl?: string | null
   initialReschedulePolicy?: string | null
-  initialVirtualAttendantName?: string | null
-  initialVirtualAttendantGender?: 'masculino' | 'feminino' | null
   onSaved?: () => void
 }
 
 const GB_INVALID_MESSAGE = `Link da localização inválido: use um link https:// com até ${GOOGLE_BUSINESS_URL_MAX_LENGTH} caracteres.`
 
 /**
- * Dados da assistente que a owner edita: persona (DEC-089) ou factos da clínica (DEC-210/211).
- * Cada parte grava só os seus campos; os outros ficam como estão.
+ * Factos da clínica que a owner edita (DEC-210/211): localização e regras gerais.
  */
 export function AiProfileCard({
   tenantId,
   api,
   generation,
-  part,
   initialGoogleBusinessUrl = null,
   initialReschedulePolicy = null,
-  initialVirtualAttendantName = null,
-  initialVirtualAttendantGender = null,
   onSaved,
 }: ProfileProps) {
   const [gbUrl, setGbUrl] = useState(initialGoogleBusinessUrl ?? '')
   const [gbError, setGbError] = useState<string | null>(null)
   const [policy, setPolicy] = useState(initialReschedulePolicy ?? '')
-  const [virtualName, setVirtualName] = useState(initialVirtualAttendantName ?? '')
-  const [virtualGender, setVirtualGender] = useState<VirtualGenderValue>(
-    initialVirtualAttendantGender ?? '',
-  )
   const [baseline, setBaseline] = useState({
     gbUrl: initialGoogleBusinessUrl ?? '',
     policy: initialReschedulePolicy ?? '',
-    virtualName: initialVirtualAttendantName ?? '',
-    virtualGender: (initialVirtualAttendantGender ?? '') as VirtualGenderValue,
   })
   const wide = useMediaQuery('(min-width: 1280px)')
   const [busy, setBusy] = useState(false)
@@ -157,7 +139,6 @@ export function AiProfileCard({
   // Texto do sinal (Recebimento), só leitura: entra primeiro na resposta «Remarcar e cancelar».
   const [signalText, setSignalText] = useState<string | null>(null)
   useEffect(() => {
-    if (part !== 'facts') return
     let cancelled = false
     void Promise.resolve(api.getPix?.(tenantId, { generation, expectGeneration: () => generation }))
       .then((pix) => {
@@ -171,18 +152,13 @@ export function AiProfileCard({
     return () => {
       cancelled = true
     }
-  }, [api, tenantId, generation, part])
+  }, [api, tenantId, generation])
 
-  const dirty =
-    part === 'facts'
-      ? gbUrl !== baseline.gbUrl || policy !== baseline.policy
-      : virtualName !== baseline.virtualName || virtualGender !== baseline.virtualGender
+  const dirty = gbUrl !== baseline.gbUrl || policy !== baseline.policy
 
   function discard() {
     setGbUrl(baseline.gbUrl)
     setPolicy(baseline.policy)
-    setVirtualName(baseline.virtualName)
-    setVirtualGender(baseline.virtualGender)
     setGbError(null)
     setNote(null)
   }
@@ -190,21 +166,19 @@ export function AiProfileCard({
   async function save() {
     setNote(null)
     setGbError(null)
-    let body: Parameters<PanelApi['setClinicAiProfile']>[1]
-    if (part === 'facts') {
-      const gb = checkGoogleBusinessUrl(gbUrl)
-      if (!gb.ok) {
-        setGbError(gb.message)
-        return
-      }
-      body = { googleBusinessUrl: gb.value, reschedulePolicy: policy.trim() }
-    } else {
-      body = { virtualAttendantName: virtualName.trim(), virtualAttendantGender: virtualGender }
+    const gb = checkGoogleBusinessUrl(gbUrl)
+    if (!gb.ok) {
+      setGbError(gb.message)
+      return
     }
     setBusy(true)
     try {
-      await api.setClinicAiProfile(tenantId, body, { generation, expectGeneration: () => generation })
-      setBaseline({ gbUrl, policy, virtualName, virtualGender })
+      await api.setClinicAiProfile(
+        tenantId,
+        { googleBusinessUrl: gb.value, reschedulePolicy: policy.trim() },
+        { generation, expectGeneration: () => generation },
+      )
+      setBaseline({ gbUrl, policy })
       setEditing(false)
       setNote('Salvo.')
       onSaved?.()
@@ -219,7 +193,7 @@ export function AiProfileCard({
     }
   }
 
-  const saveLabel = part === 'facts' ? 'Salvar localização e regras' : 'Salvar'
+  const saveLabel = 'Salvar localização e regras'
   const policyPreview = joinPolicyParts(signalText ?? '', policy)
 
   const actions = wide ? (
@@ -251,7 +225,7 @@ export function AiProfileCard({
     </Button>
   )
 
-  if (part === 'facts' && !editing && !dirty && baseline.gbUrl.trim() && baseline.policy.trim()) {
+  if (!editing && !dirty && baseline.gbUrl.trim() && baseline.policy.trim()) {
     const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s)
     return (
       <section className="panel-card" aria-labelledby="ai-profile-facts-t">
@@ -278,103 +252,65 @@ export function AiProfileCard({
   }
 
   return (
-    <section className="panel-card" aria-labelledby={`ai-profile-${part}-t`}>
-      <h2 id={`ai-profile-${part}-t`} className="panel-title-md">
-        {part === 'persona' ? 'Como se apresenta' : 'Sobre a clínica'}
+    <section className="panel-card" aria-labelledby="ai-profile-facts-t">
+      <h2 id="ai-profile-facts-t" className="panel-title-md">
+        Sobre a clínica
       </h2>
-      {part === 'facts' ? (
-        <>
-          <TextField
-            className="clinic-field"
-            isInvalid={gbError != null}
-            value={gbUrl}
-            onChange={(v) => {
-              setGbUrl(v)
-              if (gbError) setGbError(null)
-            }}
-          >
-            <Label>Localização: link da localização Google</Label>
-            <Input
-              type="url"
-              inputMode="url"
-              placeholder="https://maps.app.goo.gl/…"
-              maxLength={GOOGLE_BUSINESS_URL_MAX_LENGTH}
-            />
-            <Text slot="description" className="panel-muted-sm">
-              Cole o link da localização no Google Maps (preferível o curto maps.app.goo.gl). Enviado
-              quando a cliente pede o local, na confirmação do chat e na página da cliente («Como
-              chegar»).
-            </Text>
-            {gbError ? (
-              <p className="clinic-footnote clinic-footnote-warn" role="alert">
-                {gbError}
-              </p>
-            ) : null}
-          </TextField>
-          <TextField className="clinic-field">
-            <Label>Regras gerais de remarcação e cancelamento</Label>
-            <TextArea
-              value={policy}
-              onChange={(e) => setPolicy(e.target.value)}
-              rows={3}
-              maxLength={GENERAL_POLICY_MAX_CHARS}
-              placeholder="Ex.: Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário."
-            />
-            <Text slot="description" className="panel-muted-sm">
-              Aviso prévio, atrasos, faltas. {policy.length}/{GENERAL_POLICY_MAX_CHARS}
-            </Text>
-          </TextField>
-          <section className="kn-preview" aria-labelledby="policy-prev-t">
-            <h3 id="policy-prev-t" className="kn-sub">
-              Como a cliente recebe «Remarcar e cancelar»
-            </h3>
-            <div className="kn-preview-pane">
-              <p className="kn-bubble kn-bubble--out">
-                {policyPreview || 'Sem regras cadastradas: a pergunta passa para a equipe.'}
-              </p>
-              <span className="kn-preview-note">
-                {signalText
-                  ? 'A parte do sinal vem do Recebimento e se edita lá.'
-                  : 'Sem sinal ligado, só saem as regras gerais.'}
-              </span>
-            </div>
-          </section>
-        </>
-      ) : (
-        <>
-          <TextField className="clinic-field">
-            <Label>Nome do atendente virtual (opcional)</Label>
-            <Input
-              value={virtualName}
-              onChange={(e) => setVirtualName(e.target.value)}
-              maxLength={60}
-              placeholder="Ex.: Luna"
-            />
-            <Text slot="description" className="panel-muted-sm">
-              Usado na apresentação e na concordância. Não grava dados da cliente.
-            </Text>
-          </TextField>
-          <RadioGroup
-            className="tempo-fieldset clinic-field"
-            value={virtualGender || 'nenhum'}
-            onChange={(v) => setVirtualGender(v === 'masculino' || v === 'feminino' ? v : '')}
-          >
-            <Label>Género do atendente virtual</Label>
-            <Radio value="nenhum" className="tempo-radio">
-              <span className="tempo-radio-dot" aria-hidden="true" />
-              Neutro
-            </Radio>
-            <Radio value="feminino" className="tempo-radio">
-              <span className="tempo-radio-dot" aria-hidden="true" />
-              Feminino
-            </Radio>
-            <Radio value="masculino" className="tempo-radio">
-              <span className="tempo-radio-dot" aria-hidden="true" />
-              Masculino
-            </Radio>
-          </RadioGroup>
-        </>
-      )}
+      <TextField
+        className="clinic-field"
+        isInvalid={gbError != null}
+        value={gbUrl}
+        onChange={(v) => {
+          setGbUrl(v)
+          if (gbError) setGbError(null)
+        }}
+      >
+        <Label>Localização: link da localização Google</Label>
+        <Input
+          type="url"
+          inputMode="url"
+          placeholder="https://maps.app.goo.gl/…"
+          maxLength={GOOGLE_BUSINESS_URL_MAX_LENGTH}
+        />
+        <Text slot="description" className="panel-muted-sm">
+          Cole o link da localização no Google Maps (preferível o curto maps.app.goo.gl). Enviado
+          quando a cliente pede o local, na confirmação do chat e na página da cliente («Como
+          chegar»).
+        </Text>
+        {gbError ? (
+          <p className="clinic-footnote clinic-footnote-warn" role="alert">
+            {gbError}
+          </p>
+        ) : null}
+      </TextField>
+      <TextField className="clinic-field">
+        <Label>Regras gerais de remarcação e cancelamento</Label>
+        <TextArea
+          value={policy}
+          onChange={(e) => setPolicy(e.target.value)}
+          rows={3}
+          maxLength={GENERAL_POLICY_MAX_CHARS}
+          placeholder="Ex.: Avise com 24 h de antecedência. Atrasos acima de 15 minutos podem perder o horário."
+        />
+        <Text slot="description" className="panel-muted-sm">
+          Aviso prévio, atrasos, faltas. {policy.length}/{GENERAL_POLICY_MAX_CHARS}
+        </Text>
+      </TextField>
+      <section className="kn-preview" aria-labelledby="policy-prev-t">
+        <h3 id="policy-prev-t" className="kn-sub">
+          Como a cliente recebe «Remarcar e cancelar»
+        </h3>
+        <div className="kn-preview-pane">
+          <p className="kn-bubble kn-bubble--out">
+            {policyPreview || 'Sem regras cadastradas: a pergunta passa para a equipe.'}
+          </p>
+          <span className="kn-preview-note">
+            {signalText
+              ? 'A parte do sinal vem do Recebimento e se edita lá.'
+              : 'Sem sinal ligado, só saem as regras gerais.'}
+          </span>
+        </div>
+      </section>
       {actions}
       {note ? (
         <p className="clinic-footnote" role="status">

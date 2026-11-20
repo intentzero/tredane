@@ -242,8 +242,6 @@ export async function buildClinicAiContext(
       reschedulePolicy: settings.reschedulePolicy || null,
       // DEC-180: mesmo texto efectivo que Recebimento/cobrança (não a coluna legada só).
       cancellationPolicy: effectiveSignalCancellationPolicy(db, tenantId, clock) || null,
-      virtualAttendantName: settings.virtualAttendantName || null,
-      virtualAttendantGender: settings.virtualAttendantGender,
     },
     agendaFacts: { freeSlots, upcomingAppointments },
   }

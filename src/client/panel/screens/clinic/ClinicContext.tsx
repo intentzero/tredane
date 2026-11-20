@@ -71,7 +71,7 @@ export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
           id: 'assistente',
           label: 'Assistente',
           go: 'assistente',
-          sections: ['assistente', 'conhecimento', 'assistente-persona', 'assistente-protecoes'],
+          sections: ['assistente', 'conhecimento', 'assistente-protecoes'],
         },
         { id: 'equipe', label: 'Equipe', go: 'equipe', sections: ['equipe'] },
       ],

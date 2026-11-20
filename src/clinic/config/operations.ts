@@ -466,8 +466,6 @@ export function setAiProfileOp(
   input: {
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
-    virtualAttendantName?: string | null
-    virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
   },
   clock: Clock,
 ) {
@@ -483,8 +481,8 @@ export function setAiProfileOp(
         objectType: 'clinic_settings',
         objectId: '1',
         detail: {
-          virtualAttendantName: settings.virtualAttendantName || null,
-          virtualAttendantGender: settings.virtualAttendantGender,
+          googleBusinessUrl: settings.googleBusinessUrl || null,
+          reschedulePolicy: settings.reschedulePolicy || null,
         },
       },
       clock,

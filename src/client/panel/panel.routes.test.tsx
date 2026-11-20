@@ -223,7 +223,6 @@ describe('panel routes (#22)', () => {
     ).toBe('/c/clinic-demo-a/clinica/whatsapp/desconectar')
     for (const [path, section] of [
       ['assistente', 'assistente'],
-      ['assistente/persona', 'assistente-persona'],
       ['assistente/protecoes', 'assistente-protecoes'],
       ['conhecimento', 'conhecimento'],
     ] as const) {
@@ -237,6 +236,13 @@ describe('panel routes (#22)', () => {
         `/c/clinic-demo-a/clinica/${path}`,
       )
     }
+    // Rota legada DEC-089: `/assistente/persona` cai no índice do assistente
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/assistente/persona')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'assistente',
+    })
     expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp/historico')).toEqual({
       kind: 'area',
       area: 'clinica',

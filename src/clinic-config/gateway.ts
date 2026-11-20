@@ -47,8 +47,6 @@ export type ClinicConfigGateway = {
     input: {
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
-      virtualAttendantName?: string | null
-      virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
     },
   ): Promise<ClinicSettingsRow>
   getAbuseLimits(caller: ClinicCaller, platform?: AbuseLimits): Promise<AbuseLimitsView>

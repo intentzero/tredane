@@ -3396,8 +3396,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     input: {
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
-      virtualAttendantName?: string | null
-      virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
     },
   ) {
     this.#ensureReady()

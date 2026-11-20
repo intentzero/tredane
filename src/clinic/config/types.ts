@@ -284,10 +284,6 @@ export type ClinicSettingsRow = {
   abusePendingProposalsPerContact: number
   abuseProposalsPerContact: number
   abuseProposalsPerClinic: number
-  /** DEC-089 — nome opcional do atendente virtual (persona da IA). */
-  virtualAttendantName: string
-  /** DEC-089 — género opcional para concordância; null = neutro. */
-  virtualAttendantGender: 'masculino' | 'feminino' | null
   /** Antecedência mínima para ofertas/consulta (minutos; grade 15). */
   bookingLeadMinutes: number
   updatedAt: number

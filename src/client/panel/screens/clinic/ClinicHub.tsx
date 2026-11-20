@@ -144,7 +144,7 @@ export function ClinicHub({
                 ? snap.settings?.aiAssistEnabled
                   ? 'Atendimento automático ligado'
                   : 'Atendimento automático desligado'
-                : 'Respostas, atendente virtual e proteções'
+                : 'Respostas e proteções'
             }
             state="neutral"
             onPress={go('assistente')}

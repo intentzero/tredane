@@ -20,8 +20,6 @@ export function serializeSettings(row: ClinicSettingsRow) {
     aiAssistEnabled: row.aiAssistEnabled,
     googleBusinessUrl: row.googleBusinessUrl,
     reschedulePolicy: row.reschedulePolicy,
-    virtualAttendantName: row.virtualAttendantName,
-    virtualAttendantGender: row.virtualAttendantGender,
     updatedAt: row.updatedAt,
   }
 }
