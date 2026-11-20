@@ -109,6 +109,9 @@ export const CATALOG_MISS_STOP: ReadonlySet<string> = new Set([
   'essa',
   'hoje',
   'amanha',
+  // Advérbio temporal comum («tem horário agora?»): não é nome popular de serviço
+  // (Paulo, 20/11/2026; já era leftover de zona em zones.ts).
+  'agora',
   'segunda',
   'terca',
   'quarta',
