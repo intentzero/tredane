@@ -8,6 +8,8 @@
  * | INT-02 | Proposto  | Horário de funcionamento sem modelo |
  * | INT-02b| Proposto  | «Abrem amanhã?» com feriado da clínica → fechada, sem modelo |
  * | INT-02c| Proposto  | «Está atendendo hoje?» com feriado no próprio dia → fechada |
+ * | INT-02d| Proposto  | Qui 21:42 sem bloqueio: amanhã (sexta) aberta às 09:00 (P26) |
+ * | INT-02e| Proposto  | Sex 08:55 sem bloqueio: hoje aberto às 09:00 (P26) |
  * | INT-03 | Proposto  | FAQ de cancelamento sem modelo |
  * | INT-04 | Confirmado| Dois pedidos no mesmo turno (preço + vaga): resposta e link |
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
@@ -121,6 +123,44 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       ],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
       outboundExcludes: [/09:00/, /Abrir agenda/i],
+    },
+  },
+  {
+    id: 'INT-02d',
+    title: 'Qui 21:42 sem bloqueio: «abrem amanhã?» é sexta às 09:00 (P26)',
+    turnosIdeais: 1,
+    /** Qui 19/11/2026 21:42 America/Sao_Paulo. */
+    nowMs: Date.UTC(2026, 10, 20, 0, 42),
+    turns: [{ role: 'client', text: 'Vocês abrem amanhã?' }],
+    expect: {
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/amanh[aã].*sexta/i, /09:00/],
+          excludes: [/fechad/i, /s[aá]bado/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
+    },
+  },
+  {
+    id: 'INT-02e',
+    title: 'Sex 08:55 sem bloqueio: «está atendendo hoje?» é sexta às 09:00 (P26)',
+    turnosIdeais: 1,
+    /** Sex 20/11/2026 08:55 America/Sao_Paulo. */
+    nowMs: Date.UTC(2026, 10, 20, 11, 55),
+    turns: [{ role: 'client', text: 'Gostaria de saber se está atendendo hoje?' }],
+    expect: {
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/hoje.*sexta/i, /09:00/],
+          excludes: [/fechad/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
     },
   },
   {
