@@ -34,6 +34,10 @@ type Props = {
   generation: number
   /** Cartão acima da lista (link Google / política) — fica no scroll do dock. */
   lead?: ReactNode
+  /** O editor abriu (`new`/`edit`) ou fechou (`null`): quem manda no cabeçalho da tela ajusta o título. */
+  onEditorChange?: (mode: 'new' | 'edit' | null) => void
+  /** Muda de valor quando o cabeçalho pede «Voltar sem salvar». */
+  closeEditorSignal?: number
 }
 
 /** Scroll + rodapé docado (padrão clinic-form--dock; encosta à tab bar no mobile). */
@@ -86,7 +90,7 @@ const ANSWER_PLACEHOLDER = 'Escreva a resposta como a clínica a diria no WhatsA
 
 type View = 'list' | 'edit' | 'categories'
 
-export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
+export function KnowledgeScreen({ tenantId, api, generation, lead, onEditorChange, closeEditorSignal }: Props) {
   const [answerExample, setAnswerExample] = useState(ANSWER_PLACEHOLDER)
   const [categories, setCategories] = useState<KnowledgeCategoryDto[]>([])
   const [entries, setEntries] = useState<KnowledgeEntryDto[]>([])
@@ -195,6 +199,17 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
     setEditingId(null)
     setConfirmDelete(false)
   }
+
+  // O cabeçalho da tela mostra «Nova pergunta» / «Editar pergunta» e tem o seu «Voltar sem salvar».
+  useEffect(() => {
+    onEditorChange?.(view === 'edit' ? (editingId ? 'edit' : 'new') : null)
+  }, [view, editingId, onEditorChange])
+  const [lastClose, setLastClose] = useState(closeEditorSignal)
+  useEffect(() => {
+    if (closeEditorSignal === lastClose) return
+    setLastClose(closeEditorSignal)
+    closeEditor()
+  }, [closeEditorSignal])
 
   const addCue = () => {
     const v = draftCue.trim()
@@ -409,7 +424,7 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
                 Cancelar
               </Button>
               <Button className="panel-btn-primary" onPress={() => void saveEntry()} isDisabled={!canSave || locked}>
-                {editingId ? 'Salvar' : 'Criar pergunta'}
+                {editingId ? 'Salvar' : status === 'published' ? 'Criar e publicar' : 'Criar pergunta'}
               </Button>
             </div>
             {editingId && !locked ? (
@@ -434,9 +449,11 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
           </>
         }
       >
-        <Button className="panel-btn-ghost kn-back" onPress={closeEditor}>
-          <ChevronRight size={16} aria-hidden className="kn-back-icon" /> Voltar sem salvar
-        </Button>
+        {onEditorChange ? null : (
+          <Button className="panel-btn-ghost kn-back" onPress={closeEditor}>
+            <ChevronRight size={16} aria-hidden className="kn-back-icon" /> Voltar sem salvar
+          </Button>
+        )}
         {errorBanner}
 
         <TextField className="clinic-field">
@@ -523,7 +540,7 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
         </section>
 
         <section className="kn-fieldset" aria-labelledby="kn-cue-t">
-          <h3 id="kn-cue-t" className="kn-sub">Palavras que ativam esta resposta</h3>
+          <h3 id="kn-cue-t" className="kn-sub">Frases da cliente que ativam esta resposta</h3>
           {cues.length > 0 ? (
             <ul className="kn-chips kn-chips--wrap kn-plain">
               {cues.map((c) => (
@@ -565,7 +582,7 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
             </Button>
           </div>
           <span className="clinic-muted">
-            Se a mensagem da cliente tiver uma destas palavras, esta resposta é usada. Até {CUES_MAX}.
+            Se a mensagem tiver uma destas, esta resposta é usada. Até {CUES_MAX}. Nomes de serviços ficam em Serviços › Palavras.
           </span>
         </section>
 
@@ -580,7 +597,7 @@ export function KnowledgeScreen({ tenantId, api, generation, lead }: Props) {
               <span className="kn-switch-knob" />
             </span>
             <span className="kn-grow">
-              <span className="kn-strong">Publicada</span>
+              <span className="kn-strong">{status === 'published' ? 'Publicada' : 'Publicar agora'}</span>
               <span className="clinic-muted">
                 {status === 'published'
                   ? 'A assistente já usa esta resposta'

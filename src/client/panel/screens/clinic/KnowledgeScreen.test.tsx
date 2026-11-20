@@ -28,6 +28,8 @@ describe('Respostas da clínica — editor da pergunta', () => {
     expect(palavra.className).toContain('kn-cue-input')
     const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
     expect(css).toMatch(/\.kn-cue-input\s*\{[^}]*flex:\s*1/)
+    // O botão «Adicionar» herda width:100% de .panel-btn-secondary: sem width:auto esmaga o campo.
+    expect(css).toMatch(/\.kn-new-cat > \.panel-btn-secondary\s*\{[^}]*width:\s*auto/)
   })
 
   it('sugestões sem endereço; tocar numa dá exemplo no campo da resposta; o cartão de cima só aparece na lista', async () => {
@@ -46,5 +48,24 @@ describe('Respostas da clínica — editor da pergunta', () => {
     expect(resposta.value).toBe('')
     expect(resposta.placeholder).toMatch(/estacionamento conveniado/)
     expect(screen.queryByRole('region', { name: 'Sobre a clínica' })).toBeNull()
+  })
+
+  it('avisa quando o editor abre ou fecha e fecha quando o cabeçalho pede «Voltar sem salvar»', async () => {
+    const onEditorChange = vi.fn()
+    const { rerender } = render(
+      <KnowledgeScreen tenantId="clinic-demo-a" api={api()} generation={1} onEditorChange={onEditorChange} closeEditorSignal={0} />,
+    )
+    expect(await screen.findByRole('button', { name: /Escrever outra pergunta/ })).toBeTruthy()
+    expect(onEditorChange).toHaveBeenLastCalledWith(null)
+    fireEvent.click(screen.getByRole('button', { name: /Escrever outra pergunta/ }))
+    expect(await screen.findByRole('textbox', { name: 'Pergunta' })).toBeTruthy()
+    expect(onEditorChange).toHaveBeenLastCalledWith('new')
+    // O cabeçalho tem o seu «Voltar sem salvar»: o do corpo some.
+    expect(screen.queryByRole('button', { name: /Voltar sem salvar/ })).toBeNull()
+    rerender(
+      <KnowledgeScreen tenantId="clinic-demo-a" api={api()} generation={1} onEditorChange={onEditorChange} closeEditorSignal={1} />,
+    )
+    expect(await screen.findByRole('button', { name: /Escrever outra pergunta/ })).toBeTruthy()
+    expect(onEditorChange).toHaveBeenLastCalledWith(null)
   })
 })

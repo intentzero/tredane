@@ -8,7 +8,7 @@ type Props = {
   title: string
   children: ReactNode
   /** Para onde volta e o que diz; por defeito, o início da Clínica. */
-  back?: { section: 'servicos' | 'assistente'; label: string; eyebrow: string }
+  back?: { section: 'servicos' | 'assistente'; label: string; eyebrow: string; onPress?: () => void }
 }
 
 /**
@@ -23,7 +23,9 @@ export function ClinicSubScreen({ tenantId, title, children, back }: Props) {
           className="panel-icon-btn"
           aria-label={back?.label ?? 'Voltar à Clínica'}
           onPress={() =>
-            navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: back?.section ?? 'hub' })
+            back?.onPress
+              ? back.onPress()
+              : navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: back?.section ?? 'hub' })
           }
         >
           <ChevronLeft aria-hidden size={22} strokeWidth={2} />
