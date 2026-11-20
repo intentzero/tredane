@@ -152,6 +152,7 @@ import {
   clientWebOfferInteractive,
   clientWebRouteBody,
   clientWebUrl,
+  countRecentWebLinks,
   isHttpsBase,
   parseOpenAgendaReplyButton,
   type PrepareClientWebOffer,
@@ -1373,19 +1374,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       return { handled: true, action: 'map_link' as const }
     }
     // DEC-216: reply «Abrir agenda» (junto a «Falar com a equipe») → envia o CTA URL.
+    // Se o CTA já saiu nesta hora (ex. toque após localização + eco do título), não reenvia a frase.
     const openAgendaTap = parseOpenAgendaReplyButton(input.buttonId)
     if (openAgendaTap) {
-      const outbox = await this.#offerWebLinkInChat(
-        caller,
-        conversationId,
-        'agendar',
-        input.providerEventKey,
-        openAgendaTap.serviceId,
-      )
       cancelAutoDraft(this.#db, caller.tenantId, conversationId)
-      if (outbox.length > 0) {
-        await this.#fanoutOutboxes(caller, outbox, true)
-        await this.#drain(caller)
+      if (countRecentWebLinks(this.#db, caller.tenantId, conversationId, this.#clock.nowMs()) === 0) {
+        const outbox = await this.#offerWebLinkInChat(
+          caller,
+          conversationId,
+          'agendar',
+          input.providerEventKey,
+          openAgendaTap.serviceId,
+        )
+        if (outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, outbox, true)
+          await this.#drain(caller)
+        }
       }
       await this.#scheduleNextHandoffTimeout(caller.tenantId)
       return { handled: true, action: 'web_link' as const }

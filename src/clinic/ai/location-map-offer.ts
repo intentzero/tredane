@@ -6,9 +6,9 @@
  * A Meta não mistura `cta_url` com reply buttons e só permite um `cta_url` por mensagem:
  * o mapa abre no segundo passo; «Abrir agenda» fica reply (DEC-216) e abre a página depois.
  */
+import type { Clock } from '../../db/clock'
 import type { SendOutboundInteractiveInput } from '../inbox/types'
 import type { ClinicDb } from '../store'
-import type { Clock } from '../types'
 import { openAgendaReplyButton } from '../../clientweb/offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from './human-handoff'
 

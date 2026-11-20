@@ -10,10 +10,10 @@ import {
   openMapReplyButton,
   parseOpenMapReplyButton,
 } from './location-map-offer'
+import type { Clock } from '../../db/clock'
 import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../clientweb/offer'
-import { HUMAN_HANDOFF_BUTTON_ID } from './human-handoff'
 import type { ClinicDb } from '../store'
-import type { Clock } from '../types'
+import { HUMAN_HANDOFF_BUTTON_ID } from './human-handoff'
 
 const db = {} as ClinicDb
 const clock = { nowMs: () => 0 } as Clock
