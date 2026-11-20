@@ -17,7 +17,9 @@
  * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
  * | INT-08 | Confirmado| Onde fica: corpo sem URL + Abrir mapa/agenda/equipe (DEC-211 opção B) |
  * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo CTA Abrir mapa (sem URL no corpo) |
+ * | INT-09 | Confirmado| Valor da massagem → tipo → «Relaxante» responde R$ (sem modelo) |
  */
+import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
 import { CLINIC_SCOPE_ID } from '../../../config/types'
 import { clinicDayBounds } from '../../../scheduling/timezone'
@@ -309,6 +311,85 @@ export const INT_DIALOG_CASES: DialogCase[] = [
         },
       ],
       turnDecided: [{ modelCalled: false }, { modelCalled: false }],
+    },
+  },
+  {
+    id: 'INT-09',
+    title:
+      'Valor da massagem → tipo → «Relaxante» responde R$ do catálogo, sem modelo (staging 20/11/2026)',
+    turnosIdeais: 2,
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('INT-09: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: 60,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: null,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          {
+            name: 'Liberação miofascial',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Ventosaterapia',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Drenagem linfática',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Massagem relaxante',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+        ],
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Qual o valor da massagem?' },
+      { role: 'client', text: 'Relaxante' },
+    ],
+    expect: {
+      turns: [
+        {
+          turn: 0,
+          matches: [/qual tipo/i, /relaxante/i],
+          excludes: [/R\$/],
+        },
+        {
+          turn: 1,
+          matches: [/R\$\s*200,00/, /60/],
+          excludes: [/não tenho o valor/i, /equipe confirma o valor/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false }, { modelCalled: false }],
+      outboundExcludes: [/não tenho o valor/i],
     },
   },
   {
