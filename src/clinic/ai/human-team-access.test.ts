@@ -15,6 +15,7 @@ import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../clientweb/offer'
 import {
   HUMAN_HANDOFF_BUTTON_ID,
   augmentOutboundWithHumanTeam,
+  humanHelpRequestButtons,
   humanTeamAccessExplanation,
   humanTeamOfferButtons,
 } from './human-handoff'
@@ -83,6 +84,20 @@ describe('humanTeamAccess (item 6)', () => {
         { id: 'cw:abrir-agenda:svc_x', title: 'Abrir agenda' },
         { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
       ])
+    } finally {
+      s.close()
+    }
+  })
+
+  it('humanHelpRequestButtons (ack) só Abrir agenda — sem Equipe (TRE-54)', () => {
+    const s = seed(TZ_CLOSED)
+    try {
+      expect(humanHelpRequestButtons(s.db, s.tenantId, s.clock)).toEqual([
+        { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
+      ])
+      expect(
+        humanHelpRequestButtons(s.db, s.tenantId, s.clock, { serviceId: 'svc_x' }),
+      ).toEqual([{ id: 'cw:abrir-agenda:svc_x', title: 'Abrir agenda' }])
     } finally {
       s.close()
     }

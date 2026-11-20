@@ -207,6 +207,7 @@
 | G-08 | P1 | Remarcar sem compromisso | C: «Quero remarcar» | Handoff. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-09 | P0 | Mensagem durante a pausa | [pausada] ⟶ C: «Axila» ⟶ equipe devolve à IA | Nenhuma frase repetida; depois de devolver, a mensagem pendente recebe resposta. | INV-06, INV-09 | 1 | ✅ `dec-083.test`; L4 divergente na sonda de 31/10 |
 | G-10 | P1 | Pedido de equipe fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «A equipe atende a partir de segunda às 09:00. Posso continuar te ajudando por aqui.» IA activa (DEC-155; revê DEC-113 neste caminho). | Q5, Q6 | 1 | ✅ L1 |
+| G-10d | P0 | Ack fora do expediente sem repetir Equipe | (sáb 17:00) C: «Falar com a equipe» | «Deixei seu pedido…» com **só** «Abrir agenda» (sem «Falar com a equipe»; TRE-54). | DEC-216, TRE-54 | 1 | ✅ L1 |
 | G-11 | P0 | Pedido humano no meio de várias bolhas | C: «quero falar com alguém» · «obrigada» | Handoff. | INV-06 | 1 | ⚠ CF-13 |
 | G-12 | P1 | Botão «Falar com a equipe» | [qualquer mensagem da IA] ⟶ clique no botão | Frase; a proposta pendente não é encaminhada. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-13 | P1 | Dica humana na 1.ª oferta de Horários | [1.ª lista Horários] ⟶ [2.ª oferta na sessão] | 1.ª inclui «escreva falar com a equipe…»; 2.ª não; sem pausa só por mostrar a dica (DEC-153). | INV-06, EF-03 | 1 | ✅ L1 A-42 · `human-help-hint.test` |
