@@ -323,7 +323,7 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 
 | Onde | Texto confirmado |
 | --- | --- |
-| Confirmação após Confirmar (follow-up DEC-086 a seguir) | `Agendado: {serviço}[ · {variante(s)}] · {weekday} {DD/MM} às {HH:MM} com {profissional}.` (+ ` Local: {morada}.` se `clinic_address`, DEC-090) |
+| Confirmação após Confirmar (follow-up DEC-086 a seguir) | `Agendado: {serviço}[ · {variante(s)}] · {weekday} {DD/MM} às {HH:MM} com {profissional}.` (+ CTA «Abrir mapa» se há link de localização, DEC-211 opção B; sem URL no corpo) |
 | Exemplo | `Agendado: Massagem · relaxante · terça 17/11 às 10:00 com Samua.` |
 | Sem follow-up «Posso ajudar…» | acrescenta ` Qualquer dúvida, responda.` |
 | Fora | ano; hora de fim; «em …-feira, … de … de …»; «Qualquer dúvida, responda esta mensagem.» quando o follow-up sai |

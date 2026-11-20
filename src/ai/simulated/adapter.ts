@@ -20,6 +20,7 @@ import {
   type AiGenerateResult,
   type AiGatewayRequestInspection,
 } from '../types'
+import { withoutGreetingPeriodFalsePositives } from '../../clinic/ai/nlu/temporal'
 
 export type SimulatedAiOptions = {
   /** Próxima chamada falha com timeout (atendimento manual continua). */
@@ -178,9 +179,11 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
     if (dateLit?.[1]) out.dateLiteral = dateLit[1]
     const timeLit = turn.match(/\b(\d{1,2}h\d{0,2}|\d{1,2}:\d{2})\b/i)
     if (timeLit?.[1]) out.timeLiteral = timeLit[1]
-    if (/\bmanh[aã]\b/i.test(turn)) out.period = 'manha'
-    else if (/\btarde\b/i.test(turn)) out.period = 'tarde'
-    else if (/\bnoite\b/i.test(turn)) out.period = 'noite'
+    // Cumprimento «boa tarde» não é período de marcação (TRE-60).
+    const periodProbe = withoutGreetingPeriodFalsePositives(turn)
+    if (/\bmanha\b/.test(periodProbe)) out.period = 'manha'
+    else if (/\btarde\b/.test(periodProbe)) out.period = 'tarde'
+    else if (/\bnoite\b/.test(periodProbe)) out.period = 'noite'
     out.acts = acts
     return JSON.stringify(out)
   }

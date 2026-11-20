@@ -16,7 +16,7 @@ import {
   type InterpretInput,
   type TurnInterpretation,
 } from './nlu/interpret'
-import { parseTemporal } from './nlu/temporal'
+import { hasBookingDayPartCue, parseTemporal, withoutGreetingPeriodFalsePositives } from './nlu/temporal'
 
 /**
  * 2,5 s — meio da faixa 2–3 s da DEC-111 e acima do debounce de agregação típico
@@ -76,13 +76,14 @@ export function looksLikeCompleteBookingRequest(text: string): boolean {
   if (isHubGreetingText(trimmed)) return false
   const temporal = parseTemporal(trimmed, { civilDate: '1970-01-01' })
   const hasTime = temporal.times.length > 0 || temporal.ambiguousAfternoonHour != null
-  const hasPeriod =
-    temporal.periods.length > 0 || /\b(manh[aã]|tarde|noite)\b/i.test(trimmed)
+  // Cumprimento «boa tarde» não conta como período (TRE-60); parseTemporal já faz strip.
+  const hasPeriod = temporal.periods.length > 0 || hasBookingDayPartCue(trimmed)
+  const dayProbe = withoutGreetingPeriodFalsePositives(trimmed)
   const hasDay =
     temporal.dates.length > 0 ||
     temporal.relative.length > 0 ||
-    /\b(hoje|amanh[aã]|esta\s+(?:manh[aã]|tarde|noite)|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|\d{1,2}\/\d{1,2})\b/i.test(
-      trimmed,
+    /\b(hoje|amanha|esta\s+(?:manha|tarde|noite)|segunda|terca|quarta|quinta|sexta|sabado|domingo|\d{1,2}\/\d{1,2})\b/i.test(
+      dayProbe,
     )
   const hasServiceCue =
     /\b(quero|gostaria|marcar|agendar|limpeza|massagem|depil|peeling|bronze|microagulh)\b/i.test(

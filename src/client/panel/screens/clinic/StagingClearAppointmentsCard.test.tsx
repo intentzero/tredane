@@ -53,6 +53,7 @@ describe('StagingClearAppointmentsCard — UI', () => {
     const openBtn = screen.getByRole('button', { name: /Apagar todos os compromissos/i })
     await user.click(openBtn)
     expect(screen.getByRole('alertdialog', { name: 'Limpar agenda?' })).toBeTruthy()
+    expect(screen.getByText(/Agendado que tinha marcação volta a Em atendimento/i)).toBeTruthy()
     expect(screen.queryByLabelText(/nome da clínica/i)).toBeNull()
     const confirmBtn = screen.getByRole('button', { name: /^Confirmar$/i })
     await user.click(confirmBtn)

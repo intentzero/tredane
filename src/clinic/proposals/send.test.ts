@@ -16,6 +16,7 @@ import {
   upsertResourceOp,
   upsertServiceOp,
 } from '../config'
+import { OPEN_MAP_CTA_TEXT } from '../ai/location-map-offer'
 import { BOOKED_DOUBT_FALLBACK } from './render'
 import { upsertContact } from '../contacts'
 import { queueCaller, workerCaller } from '../index'
@@ -33,6 +34,7 @@ import {
   markProposalSent,
   parseProposalButtonId,
   proposalButtonId,
+  proposalBookedMapUrl,
   renderProposalInteractive,
   renderProposalResultBody,
   sendProposalResultMessageOp,
@@ -199,7 +201,9 @@ describe('S4: render determinístico', () => {
       )
       const rendered = renderProposalInteractive(proposal)
       expect(rendered.body).toContain('Limpeza de pele')
-      expect(rendered.body).toContain('maps.app.goo.gl/clinica-teste')
+      // DEC-211 opção B: URL do mapa não entra no corpo (CTA no Agendado).
+      expect(rendered.body).not.toMatch(/Local:|maps\.|https:\/\//i)
+      expect(proposalBookedMapUrl(proposal)).toContain('maps.app.goo.gl/clinica-teste')
       expect(rendered.body).not.toMatch(/Beneficiár/)
       expect(rendered.body).not.toMatch(/LLM|sugestão livre/i)
       // Relógio local da clínica; IANA fica só no snapshot interno.
@@ -254,7 +258,9 @@ describe('S4: render determinístico', () => {
         s.clock,
       )
       const rendered = renderProposalInteractive(proposal, s.db)
-      expect(rendered.body).toContain('Local: https://maps.app.goo.gl/clinica-teste')
+      // DEC-211 opção B: sem URL cru no corpo da proposta (mapa no Agendado via CTA).
+      expect(rendered.body).not.toMatch(/Local:/)
+      expect(rendered.body).not.toContain('maps.app.goo.gl')
       expect(rendered.body).toMatch(/R\$ 50,00/)
       expect(rendered.body).not.toMatch(/Sala:/i)
       expect(rendered.body).not.toContain('Sala Depilação')
@@ -264,9 +270,12 @@ describe('S4: render determinístico', () => {
       const booked = renderProposalResultBody(proposal, 'booked')
       expect(booked).toMatch(/^Agendado:/)
       // DEC-174: curto — weekday DD/MM + só início; sem ano/fim/«feira»/dúvida (follow-up segue).
+      // DEC-211 opção B: sem «Local: <url>» no corpo (CTA «Abrir mapa» no envio).
       expect(booked).toBe(
-        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Total: R$ 50,00. Local: https://maps.app.goo.gl/clinica-teste',
+        'Agendado: Depilação · sexta 30/10 às 12:00 com Dra. Paula Reis. Total: R$ 50,00.',
       )
+      expect(booked).not.toMatch(/Local:|maps\.|https:\/\//i)
+      expect(proposalBookedMapUrl(proposal)).toBe('https://maps.app.goo.gl/clinica-teste')
       expect(booked).not.toMatch(/feira|novembro|2026|–\s*\d{2}:\d{2}|Qualquer dúvida/i)
       expect(booked).not.toContain('Sala Depilação')
       expect(booked).not.toMatch(/intervalo|buffer/i)
@@ -288,6 +297,7 @@ describe('S4: render determinístico', () => {
         s.clock,
       )
       expect(bare.clinicLocationText).toBe('')
+      expect(proposalBookedMapUrl(bare)).toBeNull()
       expect(renderProposalInteractive(bare, s.db).body).not.toMatch(/^Local:/m)
       expect(renderProposalResultBody(bare, 'booked')).not.toMatch(/Local:/)
       expect(renderProposalResultBody(bare, 'booked', { omitDoubtFallback: false })).toMatch(
@@ -346,8 +356,10 @@ describe('S4: render determinístico', () => {
       ]
       const booked = renderProposalResultBody(proposal, 'booked', { zones: snaps })
       expect(booked).toBe(
-        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Valores: relaxante R$ 200,00. Total: R$ 200,00. Local: https://maps.app.goo.gl/clinica-teste',
+        'Agendado: Massagem · relaxante · sexta 30/10 às 12:00 com Dra. Paula Reis. Valores: relaxante R$ 200,00. Total: R$ 200,00.',
       )
+      expect(booked).not.toMatch(/Local:|https:\/\//i)
+      expect(proposalBookedMapUrl(proposal)).toBe('https://maps.app.goo.gl/clinica-teste')
       expect(booked).not.toContain(BOOKED_DOUBT_FALLBACK)
     } finally {
       s.close()
@@ -597,6 +609,12 @@ describe('S4: botões e resultado', () => {
       if (result.status !== 'queued') return
       expect(result.body).toMatch(/^Agendado: Limpeza de pele · sexta 30\/10 às 12:00/)
       expect(result.body).not.toMatch(/Qualquer dúvida/)
+      expect(result.body).not.toMatch(/Local:|https:\/\//i)
+      // DEC-211 opção B: cta_url «Abrir mapa» com o link da proposta.
+      expect(result.outbound.interactiveCtaUrl).toEqual({
+        displayText: OPEN_MAP_CTA_TEXT,
+        url: 'https://maps.app.goo.gl/clinica-teste',
+      })
 
       // Força falha no Meta — aplicamos failed + reconcile (sem retry cego).
       clinicInbox.applyOutboundSendResultOp(

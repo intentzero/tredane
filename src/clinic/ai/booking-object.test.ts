@@ -148,6 +148,17 @@ describe('booking-object', () => {
     ).toBe('inexistente')
   })
 
+  it('advérbio «agora» não ecoa miss nem vira pedido inexistente', () => {
+    // Screenshot 20/11/2026: cartão DEC-141 oferecia Gravar «agora» como nome popular.
+    expect(catalogMissHint('Tem horário agora?', EVAL_BOOKING_CATALOG)).toBeNull()
+    expect(catalogMissHint('agora', EVAL_BOOKING_CATALOG)).toBeNull()
+    const booking = resolveBookingObject({
+      text: 'Tem horário agora?',
+      services: EVAL_BOOKING_CATALOG,
+    })
+    expect(booking.handoffReason).not.toBe('inexistente')
+  })
+
   it('Lab Bloco B: FAQ cancelamento/depois não é DEC-151 inexistente', () => {
     const cancel = resolveBookingObject({
       text: 'como funciona o cancelamento se eu marcar?',

@@ -5,6 +5,7 @@
  *
  * CW-12: efeito no chat depois do cancelamento **na página** (recibo único + DEC-086).
  * CW-13: serviço sem profissional — a página e a proposta recusam marcar (Conferir / DEC-085).
+ * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
  */
 import { listServices, upsertServiceOp } from '../../../config'
 import { ValidationError } from '../../../errors'
@@ -20,7 +21,15 @@ import {
 } from '../../../../clientweb/manage'
 import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
 import { readClientWebCatalog } from '../../../../clientweb/booking'
+import { OPEN_MAP_CTA_TEXT } from '../../location-map-offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
+import {
+  createProposal,
+  markProposalConfirmed,
+  markProposalSent,
+  sendProposalResultMessageOp,
+  WEB_RECEIPT_SENTENCE,
+} from '../../../proposals'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
 
@@ -513,6 +522,90 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         const errs: string[] = []
         if (s.appointmentCount() !== 0) errs.push('marcação inesperada com serviço sem profissional')
         if (s.proposalCount() !== 0) errs.push('proposta inesperada com serviço sem profissional')
+        return errs
+      },
+    },
+  },
+  {
+    id: 'CW-14',
+    title:
+      'Agendado pela página: CTA «Abrir mapa», sem URL Local no corpo (DEC-211 opção B)',
+    turnosIdeais: 0,
+    // Inbound só para abrir a janela 24 h; o autodraft não corre (sem turno client no harness).
+    prepare: (s) => {
+      s.sayInbound('(cliente confirma na página)')
+    },
+    turns: [
+      {
+        role: 'owner',
+        note: 'marcação confirmada na página → recibo Agendado com cta_url Abrir mapa',
+        act: (s) => {
+          const proposal = createProposal(
+            s.db,
+            s.tenantId,
+            {
+              contactId: s.contactId,
+              conversationId: s.conversationId,
+              serviceId: s.ids.limpeza,
+              professionalId: s.ids.ana,
+              startsAt: zonedCivilToUtc(GU_TZ, 2026, 11, 21, 9, 0),
+            },
+            s.clock,
+          )
+          if (!proposal.clinicLocationText.startsWith('https://')) {
+            throw new Error('CW-14: cenário sem link de localização Google')
+          }
+          markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+          markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, 'apt_cw14')
+          const result = sendProposalResultMessageOp(
+            s.db,
+            s.caller,
+            { proposalId: proposal.id, resultKind: 'booked', channel: 'web' },
+            s.clock,
+          )
+          if (result.status !== 'queued') {
+            throw new Error(`CW-14: esperava queued, veio ${result.status}`)
+          }
+        },
+      },
+    ],
+    expect: {
+      outboundIncludes: ['Agendado:', WEB_RECEIPT_SENTENCE],
+      outboundExcludes: [/Local:\s*https?:\/\//i, /https?:\/\/maps/i],
+      assert: (s) => {
+        const errs: string[] = []
+        const agendados = s.outboundBodies().filter((b) => b.startsWith('Agendado:'))
+        if (agendados.length !== 1) {
+          errs.push(`esperava 1 «Agendado:…», saíram ${agendados.length}`)
+        } else if (!agendados[0]!.includes(WEB_RECEIPT_SENTENCE)) {
+          errs.push('recibo sem frase da página')
+        } else if (/Local:|https?:\/\//i.test(agendados[0]!)) {
+          errs.push('Agendado ainda cola URL / Local no corpo')
+        }
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ? AND m.body LIKE 'Agendado:%'
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json) {
+          errs.push('Agendado sem interactivo')
+          return errs
+        }
+        const parsed = JSON.parse(row.interactive_json) as {
+          ctaUrl?: { displayText?: string; url?: string }
+        }
+        if (parsed.ctaUrl?.displayText !== OPEN_MAP_CTA_TEXT) {
+          errs.push(
+            `esperava cta_url «${OPEN_MAP_CTA_TEXT}», veio ${JSON.stringify(parsed.ctaUrl?.displayText)}`,
+          )
+        }
+        if (!parsed.ctaUrl?.url?.startsWith('https://maps.app.goo.gl/')) {
+          errs.push(`cta_url sem link Maps, veio ${JSON.stringify(parsed.ctaUrl?.url)}`)
+        }
         return errs
       },
     },

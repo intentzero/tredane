@@ -15,6 +15,7 @@ import {
 } from './opening-source'
 import { addCivilDays, weekdayOfCivil } from './slot-offer'
 import { formatOpeningHours } from './schedule-context'
+import { hasBookingDayOrPeriodCue } from './nlu/temporal'
 
 /** Mesma família que `catalog-reply` HOURS + variantes e typos comuns. */
 const HOURS_FAQ =
@@ -48,25 +49,26 @@ export function isOpeningHoursFaqAsk(text: string): boolean {
   )
 }
 
-const PERIOD =
-  /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
-
 /** Marcação no mesmo turno → cede ao funil (não só FAQ de expediente). */
 export function openingHoursMixedWithBooking(text: string): boolean {
   const body = text.trim()
   if (!body) return false
   const availabilityPeriodCue =
     /\b(?:pode(?:\s*[-–—])?(?:\s*me\s+)?atender|consegue(?:\s*me\s+)?encaixar|tem\s+hor[aá]rio|disponi|vaga)\b/i
-  if (availabilityPeriodCue.test(body) && PERIOD.test(body)) return true
+  // «Boa tarde, tem horário?» não é período de marcação (TRE-60).
+  if (availabilityPeriodCue.test(body) && hasBookingDayOrPeriodCue(body)) return true
   if (/\besta\s+(?:manha|tarde|noite)\b/i.test(body) && availabilityPeriodCue.test(body)) {
     return true
   }
   if (!isOpeningHoursFaqAsk(body)) return false
   if (/\b(quero|gostaria|preciso)\s+(um\s+)?hor[aá]rio\b/i.test(body)) return true
-  if (/\b(marcar|agendar)\b/i.test(body) && (/\b\d{1,2}\s*h/i.test(body) || PERIOD.test(body))) {
+  if (
+    /\b(marcar|agendar)\b/i.test(body) &&
+    (/\b\d{1,2}\s*h/i.test(body) || hasBookingDayOrPeriodCue(body))
+  ) {
     return true
   }
-  if (/\b(disponi|vaga)\b/i.test(body) && PERIOD.test(body)) return true
+  if (/\b(disponi|vaga)\b/i.test(body) && hasBookingDayOrPeriodCue(body)) return true
   return false
 }
 

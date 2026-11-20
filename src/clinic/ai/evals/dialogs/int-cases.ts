@@ -18,9 +18,11 @@
  * | INT-08 | Confirmado| Onde fica: corpo sem URL + Abrir mapa/agenda/equipe (DEC-211 opção B) |
  * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo CTA Abrir mapa (sem URL no corpo) |
  * | INT-09 | Confirmado| Valor da massagem → tipo → «Relaxante» responde R$ (sem modelo) |
+ * | INT-10 | Confirmado| FAQ DEC-185 com cumprimento «Boa tarde» → texto publicado (TRE-60) |
  */
 import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
+import { upsertKnowledgeCategory, upsertKnowledgeEntry } from '../../../config/knowledge'
 import { CLINIC_SCOPE_ID } from '../../../config/types'
 import { clinicDayBounds } from '../../../scheduling/timezone'
 import { saveScheduleSession } from '../../schedule-session'
@@ -390,6 +392,39 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       ],
       turnDecided: [{ modelCalled: false }, { modelCalled: false }],
       outboundExcludes: [/não tenho o valor/i],
+    },
+  },
+  {
+    id: 'INT-10',
+    title:
+      'FAQ Pets com «Boa tarde» — texto publicado DEC-185, sem saltar pelo PERIOD do cumprimento (TRE-60)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const cat = upsertKnowledgeCategory(s.db, s.tenantId, { name: 'Pets' }, s.clock)
+      upsertKnowledgeEntry(
+        s.db,
+        s.tenantId,
+        {
+          categoryId: cat.id,
+          question: 'Posso levar o meu pet?',
+          answer: 'Sim, os seus bichanos são muito bem vindos!',
+          status: 'published',
+        },
+        'owner',
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Boa tarde, posso levar o meu pet?' }],
+    expect: {
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/bichanos são muito bem vindos/i],
+          excludes: [/Não entendi/i, /Quer ver as op[cç][oõ]es/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
     },
   },
   {
