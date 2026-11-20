@@ -8,9 +8,12 @@ import { ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { seedSyntheticWhatsappTemplates } from './templates'
+import { AI_ACTOR_ID, AI_ACTOR_NAME } from '../ai-actor'
+import { readAiReplyPause } from '../ai/human-handoff'
 import {
   assignConversationOp,
   closeConversationOp,
+  STAFF_CLOSE_CLIENT_BODY,
 } from './operations'
 import {
   ensureOpenOpportunity,
@@ -115,6 +118,22 @@ describe('closeConversationOp — oportunidade / Em atendimento', () => {
       expect(
         listOpportunitiesOp(db, caller, { stage: 'em_atendimento' }, clock).items,
       ).toHaveLength(0)
+
+      // Paulo 20/11: aviso WhatsApp + devolve à IA (mesmo após Assumir).
+      const outboundBodies = db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
+          conversationId,
+        )
+        .map((r) => r.body)
+      expect(outboundBodies).toContain(STAFF_CLOSE_CLIENT_BODY)
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)).toBeNull()
+      expect(
+        db.get<{ a: string | null; d: string | null }>(
+          `SELECT assignee_clerk_user_id AS a, assignee_display_name AS d FROM conversations WHERE id = ?`,
+          conversationId,
+        ),
+      ).toMatchObject({ a: AI_ACTOR_ID, d: AI_ACTOR_NAME })
     } finally {
       close()
     }
@@ -263,6 +282,21 @@ describe('closeConversationOp — oportunidade / Em atendimento', () => {
           (i) => i.id === opp.id,
         ),
       ).toHaveLength(0)
+      expect(
+        db
+          .all<{ body: string }>(
+            `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
+            conversationId,
+          )
+          .map((r) => r.body),
+      ).toContain(STAFF_CLOSE_CLIENT_BODY)
+      expect(readAiReplyPause(db, tenantId, conversationId)).toBeNull()
+      expect(
+        db.get<{ a: string | null }>(
+          `SELECT assignee_clerk_user_id AS a FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.a,
+      ).toBe(AI_ACTOR_ID)
     } finally {
       close()
     }
