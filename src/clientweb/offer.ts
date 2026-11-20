@@ -85,6 +85,21 @@ export const CLIENT_WEB_NO_UPCOMING_BODY =
 export const CLIENT_WEB_TIME_PICK_BODY =
   'Para escolher data e hora, toque em «Abrir agenda». O chat não marca nem remarca por texto. Se tiver dúvidas, escreva aqui.'
 
+/**
+ * «Meus agendamentos» / «quero ver as marcações» (TRE-74): o chat não lista horários em texto;
+ * envia o link da página (purpose `home`). Texto **Proposto**.
+ */
+export const CLIENT_WEB_MY_APPOINTMENTS_BODY =
+  'Para ver as suas marcações, remarcar ou cancelar, toque em «Abrir agenda». Se tiver dúvidas, escreva aqui.'
+
+export const CLIENT_WEB_MY_APPOINTMENTS_NONE_BODY =
+  'Você não tem horário marcado. Para agendar, toque em «Abrir agenda». Se tiver dúvidas, escreva aqui.'
+
+/** Corpo do encaminhamento «meus agendamentos» (com ou sem marcação futura). */
+export function clientWebMyAppointmentsBody(hasUpcoming: boolean): string {
+  return hasUpcoming ? CLIENT_WEB_MY_APPOINTMENTS_BODY : CLIENT_WEB_MY_APPOINTMENTS_NONE_BODY
+}
+
 
 /**
  * Corpo fixo do encaminhamento (DEC-202). Com um serviço reconhecido, nomeia-o: a página abre

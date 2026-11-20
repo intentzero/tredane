@@ -10,8 +10,9 @@ describe('frases fixas do chat que não marcam (DEC-202)', () => {
     expect(hubOpeningBody('Aurora', { opensAt: '09:00', closesAt: null })).toContain('a partir das 09:00')
   })
 
-  it('«meus agendamentos» é consulta; remarcar, cancelar e «outro agendamento» não são', () => {
+  it('«meus agendamentos» / «quero ver» é consulta; remarcar, cancelar e «outro agendamento» não são', () => {
     expect(isMyAppointmentsQuery('quais são os meus agendamentos?')).toBe(true)
+    expect(isMyAppointmentsQuery('Quero ver os meus agendamentos')).toBe(true)
     expect(isMyAppointmentsQuery('já tenho alguma marcação?')).toBe(true)
     expect(isMyAppointmentsQuery('quero remarcar meu agendamento')).toBe(false)
     expect(isMyAppointmentsQuery('quero cancelar meus agendamentos')).toBe(false)

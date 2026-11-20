@@ -1,25 +1,15 @@
 /**
  * Frases fixas do chat que não marcam nada (DEC-202): abertura com o expediente de hoje e
- * «Meus agendamentos». Antes viviam no hub do WhatsApp Flow.
+ * detecção de «Meus agendamentos». Antes viviam no hub do WhatsApp Flow.
+ * «Meus agendamentos» no autodraft envia o link da página (TRE-74), sem lista em texto.
  * Relógio da clínica; sem rótulo IANA.
  */
 import type { Clock } from '../db/clock'
 import { listEffectiveWeeklyWindows } from '../clinic/config/availability'
 import { ensureClinicSettings } from '../clinic/config/settings'
-import { formatClinicTime } from '../clinic/ai/schedule-context'
 import { clinicCivilDateFromUtc } from '../clinic/scheduling/timezone'
 import type { ClinicDb } from '../clinic/store'
 import { isCancelRequest, isRescheduleRequest } from './route-intent'
-
-/** DEC-202: as frases acabam a apontar para o pedido, que recebe o link «Abrir agenda». */
-const HUB_MEUS_NONE = 'Você não tem horário marcado. Para agendar, é só pedir aqui.'
-
-function hubMeusList(n: number, lista: string): string {
-  return `Você tem ${n}: ${lista}. Para remarcar ou cancelar, é só pedir aqui.`
-}
-
-const WEEKDAYS = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
-
 
 function weekdayOf(civilDate: string): number {
   const [y, m, d] = civilDate.split('-').map(Number) as [number, number, number]
@@ -118,47 +108,9 @@ export function hubOpeningBody(
 }
 
 
-export type UpcomingHubApt = {
-  serviceName: string
-  startsAt: number
-}
-
-export function listUpcomingForHub(
-  db: ClinicDb,
-  tenantId: string,
-  contactId: string,
-  now: number,
-  limit = 5,
-): UpcomingHubApt[] {
-  return db.all<{ starts_at: number; service_name: string | null }>(
-    `SELECT a.starts_at AS starts_at, s.name AS service_name
-     FROM appointments a
-     LEFT JOIN services s ON s.tenant_id = a.tenant_id AND s.id = a.service_id
-     WHERE a.tenant_id = ? AND a.contact_id = ? AND a.status = 'confirmed' AND a.starts_at > ?
-     ORDER BY a.starts_at LIMIT ?`,
-    tenantId,
-    contactId,
-    now,
-    limit,
-  ).map((a) => ({
-    startsAt: a.starts_at,
-    serviceName: a.service_name?.trim() || 'Atendimento',
-  }))
-}
-
-function formatAptWhen(tz: string, startsAt: number): string {
-  const date = clinicCivilDateFromUtc(tz, startsAt)
-  const [, m, d] = date.split('-')
-  const dow = weekdayOf(date)
-  return `${WEEKDAYS[dow]} ${d}/${m} às ${formatClinicTime(tz, startsAt)}`
-}
-
-
 /**
- * Texto livre «meus agendamentos» / «quais os meus horários» (smoke staging).
- * Lista ou
- * «não tem horário marcado», sem handoff. Sem este atalho o redator de
- * exceção inventava «a equipe vai verificar» + botão sem `notifyHumanHandoff`.
+ * Texto livre «meus agendamentos» / «quais os meus horários» (TRE-74 → link da página).
+ * Sem este atalho o redator de exceção inventava «a equipe vai verificar».
  * Não casa remarcar/cancelar/«outro agendamento» (DEC-091 / DEC-142).
  * Não casa disponibilidade («tem agendamento amanhã?») nem preferência de
  * slot («quero meu horário das 10») — só 1.ª pessoa / possessivo de lista.
@@ -174,22 +126,3 @@ export function isMyAppointmentsQuery(text: string): boolean {
   const folded = body.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
   return MY_APPOINTMENTS_RE.test(folded)
 }
-
-/** Meus — Confirmado Paulo 04/11/2026. */
-export function hubMeusBody(
-  db: ClinicDb,
-  tenantId: string,
-  contactId: string,
-  clock: Clock,
-): string {
-  const settings = ensureClinicSettings(db, tenantId, clock)
-  const tz = settings.timezone || 'America/Sao_Paulo'
-  const appts = listUpcomingForHub(db, tenantId, contactId, clock.nowMs())
-  if (appts.length === 0) return HUB_MEUS_NONE
-  const lista = appts
-    .map((a) => `${a.serviceName} ${formatAptWhen(tz, a.startsAt)}`)
-    .join('; ')
-  return hubMeusList(appts.length, lista)
-}
-
-

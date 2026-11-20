@@ -8,6 +8,7 @@
  * CW-14: Agendado page-booked com CTA «Abrir mapa» (DEC-211 opção B; sem URL Local no corpo).
  * CW-15: preferência / Sem preferência — filtra horas e rodízio por serviço (DEC-218).
  * GU-23: «Posso ajudar…» com cta_url Abrir agenda (sem reply que reenvia a frase).
+ * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
  */
 import { listServices, upsertServiceOp } from '../../../config'
 import { ValidationError } from '../../../errors'
@@ -446,6 +447,65 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         }
         return errs
       },
+    },
+  },
+  {
+    id: 'GU-24',
+    title:
+      '«Quero ver os meus agendamentos»: link da página (home), sem lista em texto (TRE-74)',
+    turnosIdeais: 1,
+    prepare: withOneAppointment,
+    turns: [{ role: 'client', text: 'Quero ver os meus agendamentos' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 1,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home' }],
+      outboundIncludes: ['Abrir agenda', 'ver as suas marcações'],
+      outboundExcludes: [
+        /Você tem \d/i,
+        /é só pedir aqui/i,
+        /Vou pedir para a equipe/i,
+        /\b\d{2}:\d{2}\b/,
+      ],
+      notPaused: true,
+    },
+  },
+  {
+    id: 'GU-25',
+    title: '«Meus agendamentos» sem marcação futura: link home, sem handoff (TRE-74)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'quais são os meus agendamentos?' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home' }],
+      outboundIncludes: ['Abrir agenda', 'Você não tem horário marcado'],
+      outboundExcludes: [/é só pedir aqui/i, /Vou pedir para a equipe/i],
+      notPaused: true,
+    },
+  },
+  {
+    id: 'GU-26',
+    title:
+      'Fora do expediente, «quero cancelar» manda Abrir agenda — não handoff DEC-113 (TRE-74)',
+    turnosIdeais: 1,
+    /** Qui 19/11/2026 21:42 America/Sao_Paulo (mesmo relógio G-10b). */
+    nowMs: Date.UTC(2026, 10, 20, 0, 42),
+    prepare: withOneAppointment,
+    turns: [{ role: 'client', text: 'quero cancelar' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 1,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'cancelar', appointmentId: 'apt_gu_1' }],
+      outboundIncludes: ['Para cancelar', 'Abrir agenda'],
+      outboundExcludes: [
+        /Vou pedir para a equipe/i,
+        /A equipe responde a partir/i,
+      ],
+      notPaused: true,
     },
   },
   {

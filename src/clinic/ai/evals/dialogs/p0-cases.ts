@@ -1109,7 +1109,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'LAB-813a',
-    title: '«já tenho alguma marcação?» lista compromissos, sem handoff',
+    title: '«já tenho alguma marcação?» → Abrir agenda (home), sem lista em texto (TRE-74)',
     turnosIdeais: 1,
     prepare: (s) => {
       seedFutureAppointment(s, {
@@ -1124,24 +1124,34 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       notPaused: true,
       appointments: 1,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home' }],
       turns: [
         {
           turn: 0,
-          matches: [/você tem/i, /\d{2}:\d{2}/, /peeling/i],
-          excludes: [/equipe vai verificar/i],
+          matches: [/ver as suas marcações/i, /Abrir agenda/],
+          excludes: [/equipe vai verificar/i, /você tem \d/i, /é só pedir aqui/i, /peeling/i],
         },
       ],
     },
   },
   {
     id: 'LAB-813c',
-    title: 'Sem marcação: «tenho horário marcado?» responde sem inventar hora',
+    title: 'Sem marcação: «tenho horário marcado?» → Abrir agenda, sem inventar hora (TRE-74)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'tenho horário marcado?' }],
     expect: {
       proposal: false,
       noAppointment: true,
-      turns: [{ turn: 0, matches: [/não tem horário marcado/i] }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home' }],
+      turns: [
+        {
+          turn: 0,
+          matches: [/não tem horário marcado/i, /Abrir agenda/],
+          excludes: [/é só pedir aqui/i, /\d{2}:\d{2}/],
+        },
+      ],
     },
   },
 ]
