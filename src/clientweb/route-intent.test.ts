@@ -114,4 +114,13 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(isGreetingOnly('bom dia, tudo bem?')).toBe(true)
     expect(isGreetingOnly('oi, quero marcar')).toBe(false)
   })
+
+  it('TRE-60: «Boa tarde» + serviço nomeado não é WHEN (não encaminha a agendar)', () => {
+    expect(route('Boa tarde, limpeza de pele')).toBeNull()
+    expect(route('Boa noite, massagem')).toBeNull()
+    expect(route('Boa tarde, limpeza de pele amanhã')).toMatchObject({
+      purpose: 'agendar',
+      serviceId: 'lim',
+    })
+  })
 })

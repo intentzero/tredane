@@ -54,6 +54,9 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
     expect(openingHoursMixedWithBooking('Você pode me atender esta tarde?')).toBe(true)
     expect(openingHoursMixedWithBooking('tem horário hoje à tarde?')).toBe(true)
     expect(openingHoursMixedWithBooking('Vocês abrem amanhã?')).toBe(false)
+    // TRE-60: cumprimento ≠ período — «Boa tarde, tem horário?» não mistura com marcação.
+    expect(openingHoursMixedWithBooking('Boa tarde, tem horário?')).toBe(false)
+    expect(openingHoursMixedWithBooking('Boa noite, tem vaga?')).toBe(false)
   })
 
   it('responde dia específico e expediente completo', () => {

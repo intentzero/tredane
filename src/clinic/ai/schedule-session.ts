@@ -11,6 +11,7 @@ import {
   openBookingSessionIfNeeded,
   type BookingSessionOpenReason,
 } from './booking-session'
+import { stripGreetingPeriodFalsePositives } from './nlu/temporal'
 
 export type ScheduleAudienceLine = 'feminino' | 'masculino'
 
@@ -297,9 +298,9 @@ export function scheduleFactsFromText(text: string): {
   for (const [re, label] of dayRules) {
     if (re.test(scan)) days.push(label)
   }
-  const forPeriod = fold(text)
-    .replace(/\bmais tarde\b/g, ' ')
-    .replace(/\b(?:bom dia|boa tarde|boa noite)\b/g, ' ')
+  const forPeriod = stripGreetingPeriodFalsePositives(
+    fold(text).replace(/\bmais tarde\b/g, ' '),
+  )
   const periods: SchedulePeriod[] = []
   if (/\bmanha\b/.test(forPeriod)) periods.push('manha')
   if (/\btarde\b/.test(forPeriod)) periods.push('tarde')

@@ -57,7 +57,7 @@ import {
   variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
-import { extractDates, parseTemporal, stripGreetingPeriodFalsePositives } from './nlu/temporal'
+import { extractDates, hasBookingDayOrPeriodCue, parseTemporal } from './nlu/temporal'
 import { answerClinicKnowledge } from './clinic-knowledge-reply'
 import { KNOWLEDGE_SIGNAL_SOURCE_KEY } from '../config/knowledge'
 import { buildCancellationPolicyReply } from './policy-reply'
@@ -68,10 +68,13 @@ import { isOpeningDayAsk } from './opening-day-ask'
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 /** Alias estável — ver `CATALOG_PRICE_ASK` (singular «valor», tabela, sinónimos). */
 const PRICE = CATALOG_PRICE_ASK
-const PERIOD = /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
 /** `\b` antes de «às» falha no JS (à não é word-char); usar fronteira ASCII. */
 const CLOCK =
   /(?:^|[^a-z0-9])(?:[aà]s\s+\d{1,2}(?:h(?:rs|s)?(?:\d{2})?)?|\d{1,2}[:h]\d{2}|\d{3,4})\b/i
+/** Dia/período de marcação; cumprimentos «boa tarde» não contam (TRE-60). */
+function hasPeriod(text: string): boolean {
+  return hasBookingDayOrPeriodCue(text)
+}
 const SHORT_CONFIRM =
   /^(sim|pode ser|pode marcar|pode agendar|pode|confirmo|ok|okay|beleza|blz|👍|bora)([,\s]+(pode\s+marcar|confirmo|sim))?[\s!.?]*$/i
 
@@ -258,7 +261,7 @@ function rememberZonesWhenKnown(
   turn?: { messages: Array<{ direction: string; body: string }> },
   deferredFrame?: import('./deferred-booking-frame').DeferredBookingFrame,
 ): boolean {
-  if (PRICE.test(source) || PERIOD.test(source) || CLOCK.test(source)) return false
+  if (PRICE.test(source) || hasPeriod(source) || CLOCK.test(source)) return false
   const held = session ? services.find((service) => service.id === session.serviceId) : undefined
   const svc = held ?? serviceFromNamedZones(services, source)
   if (!svc) return false
@@ -404,14 +407,12 @@ export function catalogReply(
   const bookingIntentCold = hasSchedulingAvailabilityIntent(body) && !isCatalogInfoAsk(body)
   const frameCold = opts.conversationId ? getBookingFrame(db, tenantId, opts.conversationId) : null
   const midFunnelCatalog = Boolean(frameCold?.serviceId)
-  // Cumprimento «boa tarde»/«boa noite» não é período de marcação — senão o
-  // gate PERIOD saltava a FAQ DEC-185 (TRE-60 / Pets).
-  const periodForKnowledge = stripGreetingPeriodFalsePositives(body.toLowerCase())
+  // Cumprimento «boa tarde»/«boa noite» não é período — senão saltava a FAQ DEC-185.
   if (
     !midFunnelCatalog &&
     !bookingIntentCold &&
     !CLOCK.test(body) &&
-    !(PERIOD.test(periodForKnowledge) && !CLOCK.test(body))
+    !(hasPeriod(body) && !CLOCK.test(body))
   ) {
     const knowledge = answerClinicKnowledge(db, tenantId, body)
     if (knowledge) {
@@ -502,8 +503,8 @@ export function catalogReply(
     outboundForPendingPrice,
   )
   const asksPrice = PRICE.test(source)
-  const openPeriod = PERIOD.test(source) && !CLOCK.test(source)
-  const lineOnly = explicit != null && !asksPrice && !PERIOD.test(source) && !CLOCK.test(source)
+  const openPeriod = hasPeriod(source) && !CLOCK.test(source)
+  const lineOnly = explicit != null && !asksPrice && !hasPeriod(source) && !CLOCK.test(source)
   // Zonas já ditas, sem dia nem preço: grava a escolha e cede ao autodraft /
   // tryAiAutoBook (oferta de slots + lista Horários, DEC-135). Sai antes da
   // recusa de géneros sem linha (nomes homónimos F/M no catálogo completo).
@@ -556,7 +557,7 @@ export function catalogReply(
     if (
       bookingMatch.handoffReason === 'inexistente' &&
       !CLOCK.test(body) &&
-      !PERIOD.test(source) &&
+      !hasPeriod(source) &&
       !SHORT_CONFIRM.test(body.trim())
     ) {
       // Prática 10 / #512: dizer o que faltou + opções reais; sem link Google.

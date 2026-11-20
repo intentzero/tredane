@@ -393,6 +393,8 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(catalogReply(boot.db, boot.tenantId, 'amanhã à tarde', boot.clock, opts)).toBeNull()
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
       expect(scheduleFactsFromText('pode ser mais tarde')).toEqual({})
+      expect(scheduleFactsFromText('Boa tarde')).toEqual({})
+      expect(scheduleFactsFromText('Boa noite, quero marcar')).toEqual({})
       expect(scheduleFactsFromText('segunda ou terça à tarde')).toEqual({ period: 'tarde' })
       expect(scheduleFactsFromText('Quero depilação na segunda à tarde.')).toEqual({
         dayLabel: 'segunda',
@@ -1003,10 +1005,12 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero marcar depilação pra minha mãe', boot.clock, opts),
       ).toMatch(/outra pessoa/)
+      // Sem dia: declara inexistente. Com «amanhã» o gate de período cede ao autobook
+      // (o PERIOD antigo falhava em «amanhã» por `\b`+acento; o helper TRE-60 corrige).
       const miss = catalogReply(
         boot.db,
         boot.tenantId,
-        'Quero bronzeamento artificial amanhã',
+        'Quero bronzeamento artificial',
         boot.clock,
         opts,
       )
@@ -1014,6 +1018,15 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(miss).toMatch(/não entendi|não encontrei/i)
       expect(miss).toMatch(/Temos /)
       expect(miss).not.toMatch(/maps\.|goo\.gl|google/i)
+      expect(
+        catalogReply(
+          boot.db,
+          boot.tenantId,
+          'Quero bronzeamento artificial amanhã',
+          boot.clock,
+          opts,
+        ),
+      ).toBeNull()
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero igual à última vez', boot.clock, opts),
       ).toMatch(/visita anterior/i)
