@@ -58,10 +58,11 @@ const NEGATIVE = [
 ]
 
 describe('wantsHumanText — pedido explícito de pessoa (DEC-083)', () => {
-  it.each(POSITIVE)('«%s» → pedir_pessoa e pausa', (text) => {
+  it.each(POSITIVE)('«%s» → pedir_pessoa (oferta de botão; pausa só no toque)', (text) => {
     expect(wantsHumanText(text)).toBe(true)
     const hits = classifySensitive(text)
     expect(hits.map((h) => h.label)).toContain('pedir_pessoa')
+    // Classificação ainda marca pausável; o autodraft oferece o botão em vez de pausar.
     expect(wantsHumanPause(hits)).toBe(true)
   })
 

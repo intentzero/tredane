@@ -27,6 +27,7 @@ import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
   clientWebRouteBody,
   countRecentWebLinks,
+  isWebScheduleIntentExemptFromLinkLimit,
   looksLikeClosingAssistOutbound,
   openAgendaReplyButton,
 } from '../../clientweb/offer'
@@ -422,6 +423,11 @@ export async function applyIntentLinkOp(
   const linkPurpose = noUpcoming ? 'agendar' : purpose
   const overLimit =
     countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) >= CLIENT_WEB_LINKS_PER_CONVERSATION
+  const exemptFromLinkLimit = isWebScheduleIntentExemptFromLinkLimit({
+    purpose: linkPurpose,
+    noUpcoming,
+  })
+  // Teto bloqueia novo cta_url; remarcar/cancelar ainda recebem frase + reply (sem pausa).
   const paused = deps.autoBookPaused === true || overLimit
 
   let offered: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
@@ -477,8 +483,8 @@ export async function applyIntentLinkOp(
     )
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
   }
-  // DEC-202 / TRE-83: sem cta_url → frase + reply; só pausa da owner / teto escalam.
-  if (!paused) {
+  // DEC-202 / TRE-83: sem cta_url → frase + reply; remarca/cancela também com teto (sem pausa).
+  if (!deps.autoBookPaused && (!overLimit || exemptFromLinkLimit)) {
     try {
       const sent = sendOutboundMessageOp(
         db,
@@ -495,7 +501,7 @@ export async function applyIntentLinkOp(
       )
       return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
     } catch {
-      /* cai no handoff só se owner/teto; senão tenta texto */
+      /* cai no handoff só se owner/teto de marcar; senão tenta texto */
     }
     try {
       const sent = sendOutboundMessageOp(
@@ -531,6 +537,6 @@ export async function applyIntentLinkOp(
     job: getLlmJob(db, tenantId, job.id),
     outbox: handoff.outbox,
     resumeAutodraft: false,
-    reason: overLimit ? 'web_link_limit' : 'human_handoff',
+    reason: overLimit && !exemptFromLinkLimit ? 'web_link_limit' : 'human_handoff',
   }
 }

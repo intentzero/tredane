@@ -179,6 +179,18 @@ export const CLIENT_WEB_LINKS_PER_CONVERSATION = 5
 export const CLIENT_WEB_LINKS_WINDOW_MS = 60 * 60 * 1000
 
 /**
+ * Remarcar/cancelar (e o fallback «agendar» sem marcação futura desses pedidos) não passam à
+ * equipe pelo teto de links: a cliente ainda recebe a frase + «Abrir agenda» (DEC-202; preferência
+ * Paulo 20/11/2026). O teto continua a escalar só o spam de «quero marcar».
+ */
+export function isWebScheduleIntentExemptFromLinkLimit(route: {
+  purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar'
+  noUpcoming?: boolean
+}): boolean {
+  return route.purpose === 'remarcar' || route.purpose === 'cancelar' || route.noUpcoming === true
+}
+
+/**
  * Quantos links «Abrir agenda» o chat já enviou nesta conversa na janela
  * (`ai-web-*` ou `cta_url` no follow-up «Posso ajudar…» / outros).
  */

@@ -4,8 +4,9 @@
  *   300 ms abertura do hub (opção C, 04/11/2026), 7 s texto aberto.
  * - DEC-202: o chat não marca, não remarca e não cancela. Pedido de marcar, remarcar,
  *   cancelar ou de vaga recebe uma frase fixa e o botão «Abrir agenda» (página web da
- *   cliente, ADR-0018; cta_url se o link sair, senão reply «Abrir agenda»). Só a pausa
- *   da owner ou o teto de links passa à equipe — nunca só por pedido de marcação.
+ *   cliente, ADR-0018; cta_url se o link sair, senão reply «Abrir agenda»). Remarcar e
+ *   cancelar nunca passam à equipe pelo teto de links; a pausa da owner (agenda online)
+ *   continua a escalar. Pedido de equipe por texto sugere o botão (não pausa sozinho).
  * - A IA só informa: catálogo, horário, preço, FAQ e, para pergunta aberta, o redator de
  *   exceção com validador (DEC-104).
  * - O texto da IA sai sozinho, sem clique em Enviar, com o botão de falar com a equipe.
@@ -37,6 +38,7 @@ import {
   stripScheduleOffer,
   countRecentWebLinks,
   isOpenAgendaButtonTitle,
+  isWebScheduleIntentExemptFromLinkLimit,
   looksLikeClosingAssistOutbound,
   openAgendaReplyButton,
   type PrepareClientWebOffer,
@@ -75,7 +77,7 @@ import {
   notifyHumanHandoff,
   type AiReplyPauseReason,
   readAiReplyPause,
-  replyAfterHoursHumanRequest,
+  replyHumanTeamOffer,
   replyWhileHandoffPaused,
   resumeAiReply,
   shouldAcknowledgeWhileHandoffPaused,
@@ -884,7 +886,8 @@ export async function runDueAutoDrafts(
      * DEC-202: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda» com o
      * propósito certo e, se reconheceu um serviço único, com ele. Sem cta_url possível (sem
      * número ativo, base sem https, envio recusado) envia a frase + reply «Abrir agenda» e
-     * **não** pausa nem passa à equipe. Só a pausa da owner ou o teto de links escalam.
+     * **não** pausa nem passa à equipe. Remarcar/cancelar também não escalam pelo teto de
+     * links (frase + reply). Só a pausa da owner (e o teto em «quero marcar») escalam.
      */
     const sendWebRoute = async (
       route: {
@@ -899,15 +902,17 @@ export async function runDueAutoDrafts(
       reasonLabel: string,
       bodyOverride?: string,
     ): Promise<void> => {
-      // Trava de abuso: muitos links na mesma conversa numa hora → passa à equipe em vez de repetir.
+      // Trava de abuso: muitos links na mesma conversa numa hora → passa à equipe em «quero marcar».
       const overLimit =
         countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) >=
         CLIENT_WEB_LINKS_PER_CONVERSATION
+      const exemptFromLinkLimit = isWebScheduleIntentExemptFromLinkLimit(route)
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
       let sentOk = false
       let reasonOut = reasonLabel
       const ownerPaused = deps.autoBookPaused === true
+      // Teto bloqueia novo cta_url; remarcar/cancelar ainda caem no reply abaixo (sem pausa).
       const paused = ownerPaused || overLimit
       const serviceName = route.serviceId
         ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
@@ -1044,9 +1049,16 @@ export async function runDueAutoDrafts(
           }
         }
       }
-      // DEC-202 / TRE-83: agendar/remarcar/cancelar sem cta_url → frase + reply, sem pausa.
-      // (home já caiu acima; pausa da owner / teto de links continuam a escalar abaixo.)
-      if (!sentOk && route.purpose !== 'home' && !ownerPaused && !overLimit && routeBody) {
+      // DEC-202 / TRE-83: sem cta_url → frase + reply, sem pausa.
+      // Remarcar/cancelar: mesmo com teto de links (reply, sem novo cta_url).
+      // (home já caiu acima; pausa da owner / teto em «quero marcar» escalam abaixo.)
+      const allowReplyFallback =
+        !sentOk &&
+        route.purpose !== 'home' &&
+        !ownerPaused &&
+        routeBody &&
+        (!overLimit || exemptFromLinkLimit)
+      if (allowReplyFallback) {
         try {
           const sent = sendOutboundMessageOp(
             db,
@@ -1087,7 +1099,7 @@ export async function runDueAutoDrafts(
         }
       }
       if (!sentOk) {
-        // Pausa da owner ou teto de links: ainda passa à equipe (GU-12/13, web-link-limit).
+        // Pausa da owner, ou teto em «quero marcar»: passa à equipe (GU-12/13, web-link-limit).
         const handoff = notifyHumanHandoff(
           db,
           tenantId,
@@ -1100,7 +1112,7 @@ export async function runDueAutoDrafts(
           clock,
         )
         replyOutbox = handoff.outbox
-        reasonOut = overLimit ? 'web_link_limit' : 'human_handoff'
+        reasonOut = overLimit && !exemptFromLinkLimit ? 'web_link_limit' : 'human_handoff'
       }
       cancelAutoDraft(db, tenantId, job.conversationId)
       record({ ...job, status: 'skipped', suggestion: null, reason: reasonOut, replyOutbox })
@@ -1404,16 +1416,15 @@ export async function runDueAutoDrafts(
     if (turnClass.kind === 'handoff') {
       const reason = turnClass.reason
       await signalTyping()
-      // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).
-      // Stop (DEC-114) já saiu acima; aqui customer_requested = pedir_pessoa.
-      if (reason === 'customer_requested' && !isHumanTeamOfferAllowed(db, tenantId, clock)) {
-        const afterHours = replyAfterHoursHumanRequest(
+      // Pedido de equipe por texto: sugere o botão (não pausa). Stop (DEC-114) já saiu acima.
+      // O toque em «Falar com a equipe» é que pausa (DEC-083) ou regista fora do horário (DEC-155).
+      if (reason === 'customer_requested') {
+        const offer = replyHumanTeamOffer(
           db,
           tenantId,
           {
             conversationId: job.conversationId,
-            clientRequestId: `ai-handoff-after-hours:${job.messageId}`,
-            messageId: job.messageId,
+            clientRequestId: `ai-team-offer:${job.messageId}`,
           },
           clock,
         )
@@ -1422,8 +1433,8 @@ export async function runDueAutoDrafts(
           ...job,
           status: 'skipped',
           suggestion: null,
-          reason: 'after_hours_human_keep_ai',
-          replyOutbox: afterHours.outbox,
+          reason: 'human_team_offer',
+          replyOutbox: offer.outbox,
         })
         continue
       }

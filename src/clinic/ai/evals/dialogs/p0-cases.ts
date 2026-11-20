@@ -26,6 +26,8 @@ import {
   HANDOFF_TIMEOUT_RESUME_TEXT,
   HUMAN_HANDOFF_BUTTON_ID,
   HUMAN_HANDOFF_BUTTON_TITLE,
+  HUMAN_HANDOFF_TEXT,
+  notifyHumanHandoff,
   sweepDueHandoffTimeouts,
 } from '../../human-handoff'
 import {
@@ -133,12 +135,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'G-01',
-    title: 'Pede uma pessoa',
+    title: 'Pede uma pessoa → botão «Falar com a equipe», sem pausa automática',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quero falar com uma pessoa' }],
     expect: {
-      paused: true,
-      outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
+      notPaused: true,
+      outboundIncludes: ['Se preferir falar com a equipe', 'Falar com a equipe'],
+      outboundExcludes: [/Vou pedir para a equipe continuar daqui/i],
+      turnDecided: [{ modelCalled: false, route: 'skip:human_team_offer' }],
     },
   },
   {
@@ -195,62 +199,59 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'G-10',
-    title: 'Pedido de equipe fora do expediente (DEC-155)',
+    title: 'Pedido de equipe fora do expediente → botão, sem registo automático',
     turnosIdeais: 1,
     // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC.
     nowMs: Date.UTC(2026, 10, 7, 20, 0),
     turns: [{ role: 'client', text: 'Quero falar com alguém' }],
     expect: {
-      // DEC-155 (revê DEC-113 no pedido de equipe): horário + IA activa, sem pausa.
+      // Texto só oferece o botão; o toque é que regista (DEC-155) ou pausa (DEC-083).
       notPaused: true,
-      outboundIncludes: [
-        'Deixei seu pedido para a equipe',
-        'a equipe responde a partir de segunda',
-        '09:00',
-        'continuo por aqui até lá',
-      ],
+      outboundIncludes: ['Se preferir falar com a equipe', 'Falar com a equipe'],
+      outboundExcludes: [/Deixei seu pedido para a equipe/i, /Vou pedir para a equipe/i],
+      turnDecided: [{ modelCalled: false, route: 'skip:human_team_offer' }],
     },
   },
   {
     id: 'G-10b',
-    title: 'Qui 21:42: pedido de equipe aponta sexta 09:00, sem saltar para sábado (P26)',
+    title: 'Qui 21:42: pedido de equipe por texto → oferta de botão (sem pausa)',
     turnosIdeais: 1,
     /** Qui 19/11/2026 21:42 America/Sao_Paulo. */
     nowMs: Date.UTC(2026, 10, 20, 0, 42),
     turns: [{ role: 'client', text: 'Quero falar com alguém' }],
     expect: {
       notPaused: true,
-      outboundIncludes: ['a equipe responde a partir de amanhã', '09:00'],
-      outboundExcludes: [/s[aá]bado/i],
-      turnDecided: [{ modelCalled: false, route: 'skip:after_hours_human_keep_ai' }],
+      outboundIncludes: ['Se preferir falar com a equipe'],
+      outboundExcludes: [/Deixei seu pedido/i, /Vou pedir para a equipe/i],
+      turnDecided: [{ modelCalled: false, route: 'skip:human_team_offer' }],
     },
   },
   {
     id: 'G-10c',
-    title: 'Sex 08:55: pedido de equipe aponta hoje 09:00 (P26)',
+    title: 'Sex 08:55: pedido de equipe por texto → oferta de botão (sem pausa)',
     turnosIdeais: 1,
     /** Sex 20/11/2026 08:55 America/Sao_Paulo. */
     nowMs: Date.UTC(2026, 10, 20, 11, 55),
     turns: [{ role: 'client', text: 'Quero falar com alguém' }],
     expect: {
       notPaused: true,
-      outboundIncludes: ['a equipe responde a partir de hoje', '09:00'],
-      outboundExcludes: [/amanh[aã]/i, /s[aá]bado/i],
-      turnDecided: [{ modelCalled: false, route: 'skip:after_hours_human_keep_ai' }],
+      outboundIncludes: ['Se preferir falar com a equipe'],
+      outboundExcludes: [/Deixei seu pedido/i, /Vou pedir para a equipe/i],
+      turnDecided: [{ modelCalled: false, route: 'skip:human_team_offer' }],
     },
   },
   {
-    // TRE-54 / screenshot handoff-btn: ack «Deixei seu pedido…» repetia «Falar com a equipe».
+    // Texto «Falar com a equipe» também só oferece o botão (toque é que passa / regista).
     id: 'G-10d',
-    title:
-      'Ack fora do expediente: «Abrir agenda» sem «Falar com a equipe» (TRE-54)',
+    title: 'Texto «Falar com a equipe» → Abrir agenda + Equipe, sem pausa',
     turnosIdeais: 1,
     nowMs: Date.UTC(2026, 10, 7, 20, 0),
     turns: [{ role: 'client', text: 'Falar com a equipe' }],
     expect: {
       notPaused: true,
-      outboundIncludes: ['Deixei seu pedido para a equipe'],
-      turnDecided: [{ modelCalled: false, route: 'skip:after_hours_human_keep_ai' }],
+      outboundIncludes: ['Se preferir falar com a equipe'],
+      outboundExcludes: [/Deixei seu pedido para a equipe/i],
+      turnDecided: [{ modelCalled: false, route: 'skip:human_team_offer' }],
       assert: (s) => {
         const row = s.db.get<{ interactive_json: string | null }>(
           `SELECT o.interactive_json AS interactive_json
@@ -261,7 +262,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           s.tenantId,
           s.conversationId,
         )
-        if (!row?.interactive_json) return ['G-10d: ack sem botões interactivos']
+        if (!row?.interactive_json) return ['G-10d: oferta sem botões interactivos']
         const parsed = JSON.parse(row.interactive_json) as {
           buttons?: Array<{ id: string; title: string }>
         }
@@ -275,11 +276,11 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         if (!hasAgenda) {
           return [`G-10d: esperava Abrir agenda, veio ${JSON.stringify(buttons)}`]
         }
-        if (hasTeam) {
-          return [`G-10d: Equipe não deve repetir no ack, veio ${JSON.stringify(buttons)}`]
+        if (!hasTeam) {
+          return [`G-10d: esperava Falar com a equipe, veio ${JSON.stringify(buttons)}`]
         }
-        if (buttons.length !== 1) {
-          return [`G-10d: esperava só Abrir agenda, veio ${buttons.length} botões`]
+        if (buttons.length !== 2) {
+          return [`G-10d: esperava Abrir agenda + Equipe, veio ${buttons.length} botões`]
         }
         return []
       },
@@ -287,19 +288,20 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'G-11',
-    title: 'Pedido humano no meio de várias bolhas',
+    title: 'Pedido humano por texto → oferta; segundo turno sem pausa',
     turnosIdeais: 1,
     turns: [
       { role: 'client', text: 'quero falar com alguém' },
       { role: 'client', text: 'obrigada' },
     ],
-    expect: { paused: true },
+    expect: { notPaused: true },
   },
   {
     // TRE-39 / staging Paulo: com alerta aberto, «Adeus»/«Tchau» repetiam
     // HANDOFF_PAUSED_ACK («Recebi sua mensagem…») em loop.
+    // Pausa DEC-083 agora só pelo toque no botão; este caso cobre adeus sem pausa prévia.
     id: 'G-14',
-    title: '«Adeus» com pausa DEC-083 responde adeus e limpa o alerta',
+    title: '«Adeus» após pedido de equipe por texto (sem pausa) fecha com despedida',
     turnosIdeais: 2,
     turns: [
       { role: 'client', text: 'Quero falar com uma pessoa' },
@@ -395,6 +397,22 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: 'Quero falar com uma pessoa' },
       {
         role: 'owner',
+        note: 'Toque em «Falar com a equipe» (pausa DEC-083)',
+        act: (s) => {
+          notifyHumanHandoff(
+            s.db,
+            s.tenantId,
+            {
+              conversationId: s.conversationId,
+              reason: 'customer_requested',
+              clientRequestId: `f11-handoff:${s.conversationId}`,
+            },
+            s.clock,
+          )
+        },
+      },
+      {
+        role: 'owner',
         note: 'DEC-155: 30 min sem Assumir → timeout_resume',
         act: (s) => {
           s.clock.advance(HANDOFF_TIMEOUT_MS + 1)
@@ -413,7 +431,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: {
       notPaused: true,
       outboundIncludes: [
-        'Vou pedir para a equipe continuar daqui.',
+        'Se preferir falar com a equipe',
+        HUMAN_HANDOFF_TEXT,
         HANDOFF_TIMEOUT_RESUME_TEXT,
         IDLE_AUTO_CLOSE_BODY,
       ],

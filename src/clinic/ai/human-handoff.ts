@@ -138,13 +138,20 @@ export const HANDOFF_TIMEOUT_RESUME_TEXT =
 export const AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK =
   'Fora do horário da equipe agora. Posso continuar te ajudando por aqui.'
 
-/** Copy única: expediente aberto (Paulo 16/11/2026, item 6). */
+/** Copy única: expediente aberto (Paulo 16/11/2026, item 6; revista 20/11/2026 — só pelo botão). */
 export const HUMAN_TEAM_ACCESS_IN_HOURS_COPY =
-  'No horário da equipe, ao tocar em Falar com a equipe ou pedir por texto, a equipe assume daqui.'
+  'No horário da equipe, ao tocar em Falar com a equipe, a equipe assume daqui.'
 
 /** Copy única: fora do expediente — pedido registado, IA continua (Paulo 16/11/2026, item 6). */
 export const HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY =
-  'Fora do horário registo o pedido; a equipe responde na próxima abertura e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe ou escreva.'
+  'Fora do horário registo o pedido; a equipe responde na próxima abertura e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe.'
+
+/**
+ * Pedido de equipe por texto (preferência Paulo 20/11/2026): sugere o botão em vez de pausar.
+ * O toque em «Falar com a equipe» é que passa à equipe (DEC-083) ou regista fora do horário (DEC-155).
+ */
+export const HUMAN_TEAM_OFFER_TEXT =
+  'Se preferir falar com a equipe, toque em «Falar com a equipe». Posso continuar a ajudar por aqui.'
 
 /** Título da secção extra (≤24) quando a lista já tem secções tituladas. */
 export const HUMAN_TEAM_LIST_SECTION_TITLE = 'Atendimento'
@@ -166,7 +173,7 @@ export function humanTeamAccessExplanation(
   }
   const opening = nextClinicOpening(db, tenantId, clock)
   if (opening) {
-    return `Fora do horário registo o pedido; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe ou escreva.`
+    return `Fora do horário registo o pedido; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe.`
   }
   return HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY
 }
@@ -496,6 +503,41 @@ export function replyAfterHoursHumanRequest(
         body: afterHoursHumanRequestBody(db, tenantId, clock, input.conversationId),
         interactive: buttons.length > 0 ? { buttons } : undefined,
         // Já registámos o pedido: não re-injectar «Falar com a equipe» (TRE-54).
+        omitHumanTeamAugment: true,
+        clientRequestId: input.clientRequestId,
+        authorClerkUserId: AI_ASSIGNEE,
+        authorDisplayName: 'IA',
+      },
+      clock,
+    )
+    outbox.push(...result.outbox)
+  } catch (err) {
+    if (!(err instanceof ClinicError)) throw err
+  }
+  return { outbox }
+}
+
+/**
+ * Oferece «Falar com a equipe» (+ «Abrir agenda», DEC-216) sem pausar a IA.
+ * Pedido por texto já não passa automaticamente (preferência Paulo 20/11/2026).
+ */
+export function replyHumanTeamOffer(
+  db: ClinicDb,
+  tenantId: string,
+  input: { conversationId: string; clientRequestId: string },
+  clock: Clock,
+): { outbox: OutboxRow[] } {
+  const buttons = humanTeamOfferButtons(db, tenantId, clock)
+  const outbox: OutboxRow[] = []
+  try {
+    const result = sendOutboundMessageOp(
+      db,
+      workerCaller(tenantId, AI_ASSIGNEE),
+      {
+        conversationId: input.conversationId,
+        body: HUMAN_TEAM_OFFER_TEXT,
+        interactive: buttons.length > 0 ? { buttons } : undefined,
+        // Já incluímos Equipe (+ Agenda): não re-injectar.
         omitHumanTeamAugment: true,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
@@ -1217,7 +1259,7 @@ export function notifyHumanHandoff(
     : input.reason === 'customer_requested'
       ? 'A cliente pediu atendimento humano.'
       : input.reason === 'human_only'
-        ? 'Pedido que a IA não cumpre (cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
+        ? 'Pedido que a IA não cumpre (terceiro ou profissional fora do serviço). A equipe continua.'
         : input.reason === 'payment_proof'
           ? 'Possível comprovativo de pagamento (imagem ou documento). A equipe confirma.'
           : input.reason === 'media_after_ask'
