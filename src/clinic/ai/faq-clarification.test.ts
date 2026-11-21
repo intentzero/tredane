@@ -3,6 +3,8 @@ import type { ServiceRow, ServiceZoneRow } from '../config/types'
 import {
   answerFaqFromCatalog,
   FAQ_MISSING_DETAIL_BODY,
+  FAQ_WHICH_SERVICE_BODY,
+  handleFaqCatalog,
   isCatalogClarificationAsk,
   isCatalogOfferAsk,
   normalizeInclusionAskText,
@@ -425,6 +427,69 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       expect(r.replyText).toMatch(/^Sim, fazemos íntima\.$/i)
       expect(r.replyText).not.toMatch(/Prosa do serviço|Não tenho esse detalhe/i)
     }
+  })
+})
+
+describe('handleFaqCatalog (TRE-113)', () => {
+  const zoneText = 'Inclui virilha e genital no feminino.'
+  const svcWithZone = {
+    ...service,
+    clientExplanation: 'Prosa do serviço — não deve sair.',
+    zones: [{ ...intima, name: 'íntima', clientExplanation: zoneText }, axila],
+  } as ServiceRow
+
+  it('force sem cue («Sobre a íntima») → client_explanation', () => {
+    const r = handleFaqCatalog({
+      text: 'Sobre a íntima',
+      conversationId: 'cnv',
+      namedServices: [],
+      zoneService: svcWithZone,
+      allowSoleServiceFallback: false,
+      mode: 'clarification',
+      force: true,
+    })
+    expect(r.handled).toBe(true)
+    if (r.handled) {
+      expect(r.replyText).toMatch(/virilha e genital/i)
+      expect(r.replyText).not.toMatch(/Prosa do serviço|Não tenho esse detalhe/i)
+    }
+  })
+
+  it('vários serviços nomeados → De qual serviço?', () => {
+    const other = { ...service, id: 'svc_m', name: 'Massagem' } as ServiceRow
+    const r = handleFaqCatalog({
+      text: 'Como é a depilação e a massagem?',
+      conversationId: 'cnv',
+      namedServices: [svcWithZone, other],
+      allowSoleServiceFallback: false,
+      mode: 'clarification',
+      force: true,
+    })
+    expect(r).toEqual({ handled: true, replyText: FAQ_WHICH_SERVICE_BODY })
+  })
+
+  it('force sem serviço → missing (gate redator)', () => {
+    const r = handleFaqCatalog({
+      text: 'Me conta mais',
+      conversationId: 'cnv',
+      namedServices: [],
+      allowSoleServiceFallback: false,
+      mode: 'clarification',
+      force: true,
+    })
+    expect(r).toEqual({ handled: true, replyText: FAQ_MISSING_DETAIL_BODY })
+  })
+
+  it('oferta sem serviço → handled false (caminho inexistente)', () => {
+    const r = handleFaqCatalog({
+      text: 'Vocês fazem botox?',
+      conversationId: 'cnv',
+      namedServices: [],
+      allowSoleServiceFallback: false,
+      mode: 'offer',
+      force: false,
+    })
+    expect(r.handled).toBe(false)
   })
 })
 

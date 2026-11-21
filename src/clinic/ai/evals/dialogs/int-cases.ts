@@ -25,6 +25,7 @@
  * | INT-13 | Confirmado| «O que inclui a íntima?» → client_explanation + Abrir agenda home (TRE-100 / DEC-220) |
  * | INT-14 | Confirmado| Íntima sem explicação → missing + Abrir agenda home, sem LLM (TRE-100) |
  * | INT-15 | Confirmado| «Fazem depilação íntima?» → client_explanation + Abrir agenda home, sem LLM (TRE-112) |
+ * | INT-16 | Confirmado| faq_catalog ambíguo («depilação e massagem») → «De qual serviço?», sem LLM (TRE-113) |
  */
 import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
@@ -745,6 +746,32 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       clientWebOffers: 1,
       clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundExcludes: [/Falar com a equipe/i, /não tenho.*certeza/i],
+    },
+  },
+  {
+    id: 'INT-16',
+    title:
+      'faq_catalog ambíguo («Como é a depilação e a massagem?») → «De qual serviço?», sem modelo nem Abrir agenda (TRE-113)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Como é a depilação e a massagem?' }],
+    expect: {
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/^De qual serviço\?$/],
+          excludes: [
+            /Não tenho esse detalhe/i,
+            /Falar com a equipe/i,
+            /repasso para a equipe/i,
+            /Abrir agenda/i,
+          ],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
+      clientWebOffers: 0,
+      outboundExcludes: [/Falar com a equipe/i, /Abrir agenda/i],
     },
   },
   {

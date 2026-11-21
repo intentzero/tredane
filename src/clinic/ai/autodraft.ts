@@ -58,6 +58,7 @@ import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { classifyTurn } from './classify-turn'
 import { catalogReply } from './catalog-reply'
+import { isFaqWhichServiceBody } from './faq-clarification'
 import { CATALOG_PRICE_ASK } from './booking-intent-text'
 import { buildOpeningHoursReply } from './opening-hours-reply'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
@@ -1683,6 +1684,7 @@ export async function runDueAutoDrafts(
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const locationOffer = isLocationMapOfferReply(catalogText)
+      const whichService = isFaqWhichServiceBody(catalogText)
       const mapsUrl = locationOffer
         ? ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
         : ''
@@ -1691,8 +1693,9 @@ export async function runDueAutoDrafts(
             serviceId: catalogServiceId,
           })
         : null
+      // TRE-113: «De qual serviço?» sem Abrir agenda (só esclarecimento).
       const agendaCta =
-        !isPriceTotal && !locationOffer
+        !isPriceTotal && !locationOffer && !whichService
           ? await preferAbrirAgendaCta({
               prepare: deps.prepareClientWebOffer,
               paused: deps.autoBookPaused === true,
@@ -1702,7 +1705,7 @@ export async function runDueAutoDrafts(
           : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
-        : locationOffer
+        : locationOffer || whichService
           ? null
           : agendaCta
             ? null

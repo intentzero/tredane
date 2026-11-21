@@ -1220,4 +1220,65 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       boot.close()
     }
   })
+
+  it('TRE-113: forceFaqCatalog sem cue («Sobre a íntima») lê cadastro e não grava zona', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-faq-force-intima'
+    const caller = workerCaller(tenantId)
+    try {
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          clientExplanation: 'Remoção dos pelos pela raiz — prosa do serviço.',
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'íntima',
+            audience: 'feminino',
+            durationMinutes: 30,
+            priceCents: 12_000,
+            clientExplanation: 'Inclui virilha e genital no feminino.',
+          },
+        ],
+        clock,
+      )
+      expect(catalogReply(boot.db, tenantId, 'Sobre a íntima', clock)).toBeNull()
+      const forced = catalogReply(boot.db, tenantId, 'Sobre a íntima', clock, {
+        forceFaqCatalog: true,
+      })
+      expect(forced).toMatch(/virilha e genital/i)
+      expect(forced).not.toMatch(/prosa do serviço|Não tenho esse detalhe/i)
+
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511999000113', displayName: 'Cliente FAQ force' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const withSession = catalogReply(boot.db, tenantId, 'Sobre a íntima', clock, {
+        conversationId: conversation.id,
+        forceFaqCatalog: true,
+      })
+      expect(withSession).toMatch(/virilha e genital/i)
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds ?? []).toEqual([])
+    } finally {
+      boot.close()
+    }
+  })
 })

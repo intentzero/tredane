@@ -376,6 +376,71 @@ describe('classe de intenção por LLM (DEC-221)', () => {
     }
   })
 
+  it('TRE-113: faq_catalog sem cue («Sobre a íntima») → cadastro + gate redator', async () => {
+    const s = await setup({ classify: true })
+    try {
+      const pro = upsertResourceOp(s.db, s.caller, { kind: 'professional', name: 'Gi' }, s.clock)
+      const depilacao = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 15,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'zona',
+          variantKindPlural: 'zonas',
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+          clientExplanation: 'Remoção dos pelos pela raiz utilizando cera depilatória.',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        depilacao.id,
+        [
+          {
+            name: 'Intima',
+            audience: 'feminino' as const,
+            durationMinutes: 20,
+            priceCents: 15_000,
+            clientExplanation: 'Inclui virilha e genital no feminino.',
+          },
+        ],
+        s.clock,
+      )
+      patchSnapshotQuestion(s.db, s.tenantId, s.job.id, 'Sobre a íntima')
+      const out = await applyClosedHandlerOp(s.db, s.caller, s.clock, s.deps, {
+        jobId: s.job.id,
+        idempotencyKey: s.job.idempotencyKey,
+        result: {
+          ok: true,
+          text: '',
+          model: 'm',
+          inputTokens: 1,
+          outputTokens: 1,
+          latencyMs: null,
+          intent: intent('faq_catalog', 0.91),
+        },
+      })
+      expect(out.status).toBe('applied')
+      const sent = s.db.all<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json FROM outbound_messages o
+         JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
+         WHERE o.tenant_id = ? AND (o.client_request_id LIKE 'ai-web-home:%' OR o.client_request_id LIKE 'ai-closed-faq_catalog:%')`,
+        s.tenantId,
+      )
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.body).toMatch(/Inclui virilha e genital/i)
+      expect(sent[0]!.body).not.toMatch(/cera depilatória|Sobre a íntima/i)
+      expect(sent[0]!.interactive_json ?? '').toMatch(/ctaUrl|Abrir agenda/)
+    } finally {
+      s.close()
+    }
+  })
+
   it('etiqueta faq_clinic → texto DEC-185 publicado, sem Abrir agenda nem redator', async () => {
     const s = await setup({ classify: true })
     try {
