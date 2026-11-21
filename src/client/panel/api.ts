@@ -1287,7 +1287,7 @@ export function createPanelApi(getToken: TokenGetter) {
       tenantId: string,
       body: {
         conversationId: string
-        purpose?: 'agendar' | 'remarcar' | 'cancelar'
+        purpose?: 'home' | 'agendar' | 'remarcar' | 'cancelar'
         serviceId?: string | null
         appointmentId?: string | null
       },

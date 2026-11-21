@@ -38,9 +38,10 @@ export function looksLikeClosingAssistOutbound(body: string): boolean {
 }
 
 /**
- * Botão de resposta rápida «Abrir agenda» (DEC-216): acompanha «Falar com a equipe».
- * O toque dispara o envio do CTA URL real (não se mistura com reply buttons na mesma mensagem).
- * Opcional: `cw:abrir-agenda:<serviceId>` pré-escolhe o serviço (DEC-202(4)).
+ * Botão de resposta rápida «Abrir agenda» — legado / fallback quando não há `cta_url`
+ * (lab sem https, teto de links). **Não** juntar a «Falar com a equipe» na mesma bolha
+ * (preferência Paulo 21/11/2026; revê DEC-216). O toque envia o CTA URL `purpose=home`.
+ * Opcional: `cw:abrir-agenda:<serviceId>` (id ignorado no land em home).
  */
 export const OPEN_AGENDA_REPLY_BUTTON_ID = 'cw:abrir-agenda'
 const OPEN_AGENDA_REPLY_BUTTON_PREFIX = 'cw:abrir-agenda:'
@@ -132,8 +133,20 @@ export function clientWebMyAppointmentsBody(hasUpcoming: boolean): string {
 
 
 /**
- * Corpo fixo do encaminhamento (DEC-202). Com um serviço reconhecido, nomeia-o: a página abre
- * nele. Texto **Proposto**.
+ * Propósito do token no link «Abrir agenda» (preferência Paulo 21/11/2026).
+ * Remarcar/cancelar podem deep-link; qualquer outro Abrir agenda abre a home
+ * («Suas próximas marcações» + Agendar novo horário), não o funil de slots.
+ */
+export function clientWebAbrirAgendaLinkPurpose(
+  purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar',
+): 'home' | 'remarcar' | 'cancelar' {
+  if (purpose === 'remarcar' || purpose === 'cancelar') return purpose
+  return 'home'
+}
+
+/**
+ * Corpo fixo do encaminhamento (DEC-202). Com um serviço reconhecido, nomeia-o no texto;
+ * o link «Abrir agenda» abre a home (não pré-escolhe o serviço — DEC-220). Texto **Proposto**.
  */
 export function clientWebRouteBody(input: {
   purpose: 'agendar' | 'remarcar' | 'cancelar'

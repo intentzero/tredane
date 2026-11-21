@@ -19,11 +19,9 @@ import { insertMessage } from '../inbox/messages'
 import { ensureOpenOpportunity } from '../pipeline/operations'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../clientweb/offer'
 import {
   AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK,
   HANDOFF_TIMEOUT_RESUME_TEXT,
-  HUMAN_HANDOFF_BUTTON_ID,
   HUMAN_HANDOFF_TEXT,
   afterHoursHumanRequestBody,
   isHumanTeamOfferAllowed,
@@ -335,9 +333,8 @@ describe('DEC-155 fora do expediente', () => {
         `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 1`,
         s.tenantId,
       )
-      expect(ob?.interactive_json).toContain(OPEN_AGENDA_REPLY_BUTTON_ID)
-      expect(ob?.interactive_json).not.toContain(HUMAN_HANDOFF_BUTTON_ID)
-      expect(ob?.interactive_json).not.toContain('Falar com a equipe')
+      // DEC-220 / TRE-54: ack sem reply Abrir agenda nem Equipe (Abrir agenda só cta_url noutro caminho).
+      expect(ob?.interactive_json == null || ob.interactive_json === 'null').toBe(true)
     } finally {
       s.close()
     }

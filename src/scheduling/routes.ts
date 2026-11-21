@@ -348,8 +348,13 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       if (!body.conversationId?.trim()) {
         throw new ValidationError('missing_body', 'conversationId é obrigatório')
       }
-      const purpose = body.purpose ?? 'agendar'
-      if (purpose !== 'agendar' && purpose !== 'remarcar' && purpose !== 'cancelar') {
+      const purpose = body.purpose ?? 'home'
+      if (
+        purpose !== 'home' &&
+        purpose !== 'agendar' &&
+        purpose !== 'remarcar' &&
+        purpose !== 'cancelar'
+      ) {
         throw new ValidationError('missing_body', 'purpose inválido')
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)

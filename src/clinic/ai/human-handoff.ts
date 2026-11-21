@@ -4,8 +4,8 @@
  *
  * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
  * fora do expediente: pedido registado, IA activa; botão «Falar com a equipe» nas interactivas (21/11/2026).
- * DEC-216 (Paulo 19/11/2026): onde há «Falar com a equipe», há também «Abrir agenda» (reply → CTA URL no toque).
- * TRE-54: ack do pedido de equipe («Deixei seu pedido…» / pausa) só com «Abrir agenda» — sem repetir Equipe.
+ * Preferência Paulo 21/11/2026 (revê DEC-216): Abrir agenda só como `cta_url` (purpose=home);
+ * nunca reply Abrir agenda + Equipe na mesma bolha. TRE-54: ack sem repetir Equipe.
  */
 import type { SendOutboundInteractiveInput } from '../inbox/types'
 /** Limites da lista interativa da Meta (linhas e título da linha). */
@@ -199,8 +199,8 @@ function interactiveHasOpenAgendaReply(
 
 /**
  * Garante botão/linha «Falar com a equipe» nas interactivas (≤3 botões / ≤10 linhas lista).
- * DEC-216 (Paulo 19/11/2026): quando há vagas, junta também «Abrir agenda» (reply → CTA URL no toque).
- * Com só 1 vaga e sem «Abrir agenda», mantém só a equipe (excepção: Continuar|Terminar e similares).
+ * Preferência Paulo 21/11/2026 (revê DEC-216): **não** injecta reply «Abrir agenda» —
+ * Abrir agenda só como `cta_url` noutro caminho; nunca na mesma bolha que Equipe.
  * Paulo 16/11/2026 — item 6 / rsamp_f72ce5908371eff3a9757281.
  */
 export function augmentOutboundWithHumanTeam(
@@ -217,34 +217,21 @@ export function augmentOutboundWithHumanTeam(
   if (!interactive?.buttons?.length && !interactive?.list?.sections?.length) {
     return { body, interactive: interactive ?? null }
   }
-  const hasTeam = interactiveHasHumanTeam(interactive)
-  const hasAgenda = interactiveHasOpenAgendaReply(interactive)
-  if (hasTeam && hasAgenda) {
+  // Já tem Equipe, ou já tem reply Abrir agenda (legado): não misturar o par.
+  if (interactiveHasHumanTeam(interactive) || interactiveHasOpenAgendaReply(interactive)) {
+    return { body, interactive }
+  }
+  // cta_url Abrir agenda (ou Abrir mapa): Meta não mistura com reply — não injectar Equipe.
+  if (interactive.ctaUrl) {
     return { body, interactive }
   }
   const human = { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }
-  const agenda = openAgendaReplyButton()
   if (interactive.buttons?.length) {
     const room = 3 - interactive.buttons.length
     if (room <= 0) {
       return { body, interactive }
     }
-    const extra: Array<{ id: string; title: string }> = []
-    // DEC-216: preferir o par Abrir agenda + Equipe quando cabem os dois.
-    if (!hasAgenda && room >= (hasTeam ? 1 : 2)) {
-      extra.push(agenda)
-    } else if (!hasAgenda && !hasTeam && room === 1) {
-      // Só 1 vaga: não dá para o par; mantém a oferta de equipe (excepção documentada).
-    }
-    if (!hasTeam && extra.length + interactive.buttons.length < 3) {
-      extra.push(human)
-    } else if (!hasTeam && extra.length === 0 && room >= 1) {
-      extra.push(human)
-    }
-    if (extra.length === 0) {
-      return { body, interactive }
-    }
-    return { body, interactive: { ...interactive, buttons: [...interactive.buttons, ...extra] } }
+    return { body, interactive: { ...interactive, buttons: [...interactive.buttons, human] } }
   }
   if (interactive.list) {
     const rows = interactive.list.sections.flatMap((s) => s.rows ?? [])
@@ -252,28 +239,17 @@ export function augmentOutboundWithHumanTeam(
     if (room <= 0) {
       return { body, interactive }
     }
-    const extraRows: Array<{ id: string; title: string }> = []
-    if (!hasAgenda && room >= (hasTeam ? 1 : 2)) {
-      extraRows.push({ id: agenda.id, title: clipListTitle(agenda.title) })
-    }
-    if (!hasTeam && extraRows.length + rows.length < META_LIST_MAX_ROWS) {
-      extraRows.push({ id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) })
-    } else if (!hasTeam && extraRows.length === 0 && room >= 1) {
-      extraRows.push({ id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) })
-    }
-    if (extraRows.length === 0) {
-      return { body, interactive }
-    }
+    const extraRow = { id: HUMAN_HANDOFF_BUTTON_ID, title: clipListTitle(HUMAN_HANDOFF_BUTTON_TITLE) }
     const sections = [...interactive.list.sections]
     // Cloud API: com mais de uma secção, todas exigem `title` (senão 400/131009).
     // As listas de horários/serviços têm uma única secção sem título: a linha
     // humana entra nessa (última) secção em vez de abrir uma secção nova.
     const allTitled = sections.every((sec) => Boolean(sec.title?.trim()))
     if (allTitled) {
-      sections.push({ title: HUMAN_TEAM_LIST_SECTION_TITLE, rows: extraRows })
+      sections.push({ title: HUMAN_TEAM_LIST_SECTION_TITLE, rows: [extraRow] })
     } else {
       const last = sections[sections.length - 1]!
-      sections[sections.length - 1] = { ...last, rows: [...(last.rows ?? []), ...extraRows] }
+      sections[sections.length - 1] = { ...last, rows: [...(last.rows ?? []), extraRow] }
     }
     return {
       body,
@@ -348,9 +324,9 @@ export function isHumanTeamOfferAllowed(
 }
 
 /**
- * Botões nas respostas de informação (DEC-216): «Abrir agenda» + «Falar com a equipe».
- * O «Abrir agenda» é reply (toque → CTA URL); a Meta não mistura cta_url com reply buttons.
- * `serviceId` opcional pré-escolhe o serviço no link (DEC-202(4)).
+ * Botão de oferta de equipe (preferência Paulo 21/11/2026; revê DEC-216).
+ * Só «Falar com a equipe» — Abrir agenda vai como `cta_url` noutro caminho / bolha.
+ * `opts.serviceId` ignorado (API estável para callers antigos).
  */
 export function humanTeamOfferButtons(
   db: ClinicDb,
@@ -361,7 +337,8 @@ export function humanTeamOfferButtons(
   void db
   void tenantId
   void clock
-  return [openAgendaReplyButton(opts?.serviceId), { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+  void opts
+  return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
 }
 
 /**
@@ -370,8 +347,8 @@ export function humanTeamOfferButtons(
  */
 /**
  * Botões no ack de pedido de equipe já registado (fora do expediente, mal-entendido, pausa).
- * Só «Abrir agenda» — «Falar com a equipe» seria redundante (TRE-54).
- * DEC-216 continua a valer nas respostas de informação (`humanTeamOfferButtons`).
+ * Sem reply «Abrir agenda» nem Equipe (TRE-54 + preferência 21/11: Abrir agenda só cta_url).
+ * Callers que queiram Abrir agenda usam `prepareClientWebOffer` com purpose home.
  */
 export function humanHelpRequestButtons(
   db: ClinicDb,
@@ -382,7 +359,8 @@ export function humanHelpRequestButtons(
   void db
   void tenantId
   void clock
-  return [openAgendaReplyButton(opts?.serviceId)]
+  void opts
+  return []
 }
 
 export { OPEN_AGENDA_REPLY_BUTTON_ID, openAgendaReplyButton, parseOpenAgendaReplyButton }
@@ -518,8 +496,9 @@ export function replyAfterHoursHumanRequest(
 }
 
 /**
- * Oferece «Falar com a equipe» (+ «Abrir agenda», DEC-216) sem pausar a IA.
- * Pedido por texto já não passa automaticamente (preferência Paulo 20/11/2026).
+ * Oferece só «Falar com a equipe» sem pausar a IA (preferência Paulo 21/11/2026).
+ * Pedido por texto já não passa automaticamente (preferência Paulo 20/11/2026 / DEC-219).
+ * Abrir agenda não vai nesta bolha (cta_url noutro caminho se preciso).
  */
 export function replyHumanTeamOffer(
   db: ClinicDb,
@@ -537,7 +516,7 @@ export function replyHumanTeamOffer(
         conversationId: input.conversationId,
         body: HUMAN_TEAM_OFFER_TEXT,
         interactive: buttons.length > 0 ? { buttons } : undefined,
-        // Já incluímos Equipe (+ Agenda): não re-injectar.
+        // Já incluímos Equipe: não re-injectar.
         omitHumanTeamAugment: true,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,

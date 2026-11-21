@@ -34,6 +34,7 @@ import {
   CLIENT_WEB_TIME_PICK_BODY,
   clientWebMyAppointmentsBody,
   clientWebOfferBody,
+  clientWebAbrirAgendaLinkPurpose,
   clientWebRouteBody,
   stripScheduleOffer,
   countRecentWebLinks,
@@ -58,7 +59,7 @@ import type { ClinicDb } from '../store'
 import { classifyTurn } from './classify-turn'
 import { catalogReply } from './catalog-reply'
 import { CATALOG_PRICE_ASK } from './booking-intent-text'
-import { buildOpeningHoursReply, isOpeningHoursFaqAsk } from './opening-hours-reply'
+import { buildOpeningHoursReply } from './opening-hours-reply'
 import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 import {
   autodraftDebounceMs,
@@ -453,13 +454,15 @@ async function preferAbrirAgendaCta(input: {
   serviceId?: string | null
 }): Promise<import('../inbox/types').SendOutboundInteractiveInput | null> {
   if (input.paused || !input.prepare) return null
+  void input.serviceId
   try {
+    // DEC-220: Abrir agenda abre a home («Suas próximas marcações»), não o funil de slots.
     const offered = await input.prepare({
       tenantId: input.tenantId,
       conversationId: input.conversationId,
-      purpose: 'agendar',
+      purpose: 'home',
       appointmentId: null,
-      serviceId: input.serviceId ?? null,
+      serviceId: null,
       audienceLine: null,
       variantIds: [],
     })
@@ -1033,19 +1036,20 @@ export async function runDueAutoDrafts(
         let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
         try {
           const future = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 2)
+          // DEC-220: Abrir agenda (agendar/home) → purpose=home; remarcar/cancelar deep-link.
+          const linkPurpose = clientWebAbrirAgendaLinkPurpose(route.purpose)
+          const deepLink = linkPurpose === 'remarcar' || linkPurpose === 'cancelar'
           offered = await deps.prepareClientWebOffer({
             tenantId,
             conversationId: job.conversationId,
-            purpose: route.purpose,
+            purpose: linkPurpose,
             appointmentId:
-              (route.purpose === 'remarcar' || route.purpose === 'cancelar') && future.length === 1
-                ? (future[0]?.id ?? null)
-                : null,
-            serviceId: route.serviceId,
-            audienceLine: route.audienceLine ?? null,
-            variantIds: route.variantIds ?? [],
-            preferredDate: route.preferredDate ?? null,
-            dayPart: route.dayPart ?? null,
+              deepLink && future.length === 1 ? (future[0]?.id ?? null) : null,
+            serviceId: null,
+            audienceLine: null,
+            variantIds: [],
+            preferredDate: null,
+            dayPart: null,
           })
         } catch {
           offered = null
@@ -1546,15 +1550,24 @@ export async function runDueAutoDrafts(
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
       try {
-        const buttons = humanTeamOfferButtons(db, tenantId, clock)
+        // DEC-220: lista de serviços + cta_url Abrir agenda (home); sem reply Equipe nesta bolha.
+        const agendaCta = await preferAbrirAgendaCta({
+          prepare: deps.prepareClientWebOffer,
+          paused: deps.autoBookPaused === true,
+          tenantId,
+          conversationId: job.conversationId,
+        })
         const sent = sendOutboundMessageOp(
           db,
           caller,
           {
             conversationId: job.conversationId,
             body: catalogListText,
-            interactive: buttons.length > 0 ? { buttons } : undefined,
-            clientRequestId: `ai-catalog-list:${job.messageId}`,
+            interactive: agendaCta ?? undefined,
+            omitHumanTeamAugment: Boolean(agendaCta),
+            clientRequestId: agendaCta
+              ? `ai-web-agendar:${job.messageId}`
+              : `ai-catalog-list:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
           },
@@ -1670,13 +1683,11 @@ export async function runDueAutoDrafts(
       const isPriceTotal =
         /\bNo total, ficam\b/i.test(catalogText) ||
         /\bSomando tudo, ficam\b/i.test(catalogText)
-      // DEC-216: informação + «Falar com a equipe» leva também «Abrir agenda»; serviço único do léxico pré-escolhe.
+      // Preferência 21/11 (DEC-220): informação → cta_url Abrir agenda (home); sem reply Equipe nesta bolha.
       // Localização (DEC-211): com URL Maps → só cta_url «Abrir mapa» (um toque; Meta não mistura reply).
-      // TRE-77 / DEC-202: FAQ de expediente — só «Abrir agenda» (sem Equipe); com URL → cta_url.
-      // TRE-94 / DEC-142: FAQ de preço com R$ do catálogo — Abrir agenda, sem Equipe.
+      // TRE-77 / TRE-94: FAQ de expediente / preço — mesmo cta_url home.
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
-      const hoursFaq = isOpeningHoursFaqAsk(turnText)
       const locationOffer = isLocationMapOfferReply(catalogText)
       const mapsUrl = locationOffer
         ? ensureClinicSettings(db, tenantId, clock).googleBusinessUrl
@@ -1686,32 +1697,23 @@ export async function runDueAutoDrafts(
             serviceId: catalogServiceId,
           })
         : null
-      const priceFaq =
-        !hoursFaq &&
-        !isPriceTotal &&
-        !locationOffer &&
-        CATALOG_PRICE_ASK.test(turnText) &&
-        /R\$\s*\d/.test(catalogText)
-      const agendaOnlyFaq = hoursFaq || priceFaq
       const agendaCta =
-        agendaOnlyFaq && !isPriceTotal && !locationOffer
+        !isPriceTotal && !locationOffer
           ? await preferAbrirAgendaCta({
               prepare: deps.prepareClientWebOffer,
               paused: deps.autoBookPaused === true,
               tenantId,
               conversationId: job.conversationId,
-              serviceId: catalogServiceId,
             })
           : null
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
         : locationOffer
           ? null
-          : agendaOnlyFaq
-            ? agendaCta
-              ? null
-              : [openAgendaReplyButton(catalogServiceId)]
-            : humanTeamOfferButtons(db, tenantId, clock, { serviceId: catalogServiceId })
+          : agendaCta
+            ? null
+            : // Lab / sem https: reply Abrir agenda sozinho (nunca + Equipe).
+              [openAgendaReplyButton()]
       try {
         const sent = sendOutboundMessageOp(
           db,
@@ -1726,9 +1728,8 @@ export async function runDueAutoDrafts(
                 : catalogButtons && catalogButtons.length > 0
                   ? { buttons: catalogButtons }
                   : undefined,
-            // TRE-77 / TRE-94: sem isto, augmentOutboundWithHumanTeam volta a injectar Equipe.
             omitHumanTeamAugment: Boolean(
-              agendaOnlyFaq || agendaCta || locationInteractive?.ctaUrl,
+              agendaCta || locationInteractive?.ctaUrl || (!isPriceTotal && !locationOffer),
             ),
             clientRequestId: agendaCta
               ? `ai-web-agendar:${job.messageId}`
@@ -2024,8 +2025,17 @@ export async function runDueAutoDrafts(
                 conversationId: job.conversationId,
               })
             : null
+        const infoCta =
+          !rewritten.useMapButtons && !closingCta
+            ? await preferAbrirAgendaCta({
+                prepare: deps.prepareClientWebOffer,
+                paused: deps.autoBookPaused === true,
+                tenantId,
+                conversationId: job.conversationId,
+              })
+            : null
         const buttons =
-          mapInteractive || closingCta
+          mapInteractive || closingCta || infoCta
             ? null
             : humanTeamOfferButtons(db, tenantId, clock)
         const sent = sendOutboundMessageOp(
@@ -2038,11 +2048,13 @@ export async function runDueAutoDrafts(
               ? mapInteractive
               : closingCta
                 ? closingCta
-                : buttons && buttons.length > 0
-                  ? { buttons }
-                  : null,
-            omitHumanTeamAugment: Boolean(closingCta || mapInteractive?.ctaUrl),
-            clientRequestId: closingCta
+                : infoCta
+                  ? infoCta
+                  : buttons && buttons.length > 0
+                    ? { buttons }
+                    : null,
+            omitHumanTeamAugment: Boolean(closingCta || infoCta || mapInteractive?.ctaUrl),
+            clientRequestId: closingCta || infoCta
               ? `ai-web-agendar:${job.messageId}`
               : `ai-reply:${suggestion.id}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
