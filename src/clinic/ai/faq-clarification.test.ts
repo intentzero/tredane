@@ -152,7 +152,7 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       service: { ...service, clientExplanation: null } as ServiceRow,
       zones: [bare, axila],
     })
-    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r).toMatchObject({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
   })
 
   it('cobertura sem prova não usa Explicação geral do serviço (Bugbot / DEC-177)', () => {
@@ -166,7 +166,7 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       } as ServiceRow,
       zones: [bare, axila],
     })
-    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r).toMatchObject({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
     expect(r.replyText).not.toMatch(/Retirada de pelos/)
   })
 
@@ -262,7 +262,7 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       } as ServiceRow,
       zones: [intima, axila],
     })
-    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r).toMatchObject({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
     expect(r.replyText).not.toMatch(/Remoção dos pelos|Sobre isso/i)
   })
 
@@ -276,7 +276,7 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       } as ServiceRow,
       zones: [intima, axila],
     })
-    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r).toMatchObject({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
     expect(r.replyText).not.toMatch(/Retirada de pelos/)
   })
 
@@ -329,7 +329,7 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
       } as ServiceRow,
       zones: [intima, axila],
     })
-    expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+    expect(r).toMatchObject({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
     expect(r.replyText).not.toMatch(/Remoção dos pelos|faz parte/i)
   })
 
@@ -371,7 +371,7 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
         } as ServiceRow,
         zones: [{ ...intima, name: 'Íntima' }, axila],
       })
-      expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+      expect(r).toMatchObject({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
       expect(r.replyText).not.toMatch(/virilha|perianal/i)
     }
   })
@@ -465,7 +465,7 @@ describe('handleFaqCatalog (TRE-113)', () => {
       mode: 'clarification',
       force: true,
     })
-    expect(r).toEqual({ handled: true, replyText: FAQ_WHICH_SERVICE_BODY })
+    expect(r).toMatchObject({ handled: true, replyText: FAQ_WHICH_SERVICE_BODY, clearSubject: true })
   })
 
   it('force sem serviço → missing (gate redator)', () => {

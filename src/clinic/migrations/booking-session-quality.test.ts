@@ -6,7 +6,7 @@ describe('0072_booking_session_quality', () => {
   it('id/nome e CLINIC_SCHEMA_VERSION alinhados', () => {
     expect(MIGRATION_ID).toBe(72)
     expect(MIGRATION_NAME).toBe('0072_booking_session_quality')
-    expect(CLINIC_SCHEMA_VERSION).toBe(80)
+    expect(CLINIC_SCHEMA_VERSION).toBe(81)
     expect(STATEMENTS.length).toBeGreaterThan(0)
   })
 })

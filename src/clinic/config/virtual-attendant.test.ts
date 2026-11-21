@@ -15,7 +15,7 @@ describe('DEC-089 revista — sem atendente virtual', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(80)
+      expect(CLINIC_SCHEMA_VERSION).toBe(81)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )

@@ -40,6 +40,12 @@ import {
   zonesChosenInClientTexts,
 } from './schedule-choice'
 import {
+  clearActiveCatalogSubject,
+  getActiveCatalogSubject,
+  setActiveCatalogSubject,
+  type ActiveCatalogSubjectSource,
+} from './active-catalog-subject'
+import {
   funnelMessageFilter,
   getBookingFrame,
   getScheduleSession,
@@ -485,6 +491,39 @@ export function catalogReply(
   const source = clientSource(db, tenantId, body, opts.conversationId, opts.turn)
   // Sessão: relê sempre (gravações no mesmo turno invalidam o snapshot do TurnContext).
   const session = opts.conversationId ? getScheduleSession(db, tenantId, opts.conversationId) : null
+  const catalogIds = {
+    version: opts.turn?.catalog.version ?? catalogVersion ?? '',
+    serviceIds: new Set(services.map((s) => s.id)),
+    variantIds: new Set(services.flatMap((s) => s.zones.map((z) => z.id))),
+  }
+  // DEC-223: sujeito informativo (FAQ/preço) — separado do BookingFrame.
+  const activeSubject =
+    opts.conversationId
+      ? getActiveCatalogSubject(db, tenantId, opts.conversationId, {
+          nowMs: clock.nowMs(),
+          catalog: catalogIds,
+        })
+      : null
+  const rememberSubject = (
+    conversationId: string,
+    patch: {
+      serviceId: string
+      variantIds?: string[]
+      audienceLine?: ScheduleAudienceLine | null
+      source: ActiveCatalogSubjectSource
+    },
+  ) => {
+    setActiveCatalogSubject(
+      db,
+      tenantId,
+      conversationId,
+      {
+        ...patch,
+        catalogVersion: catalogIds.version,
+      },
+      clock,
+    )
+  }
   // CF-45 / DEC-142: audiência fixada pela consulta de catálogo, sem serviço em jogo.
   const heldLineNow = opts.conversationId
     ? heldAudienceLine(getBookingFrame(db, tenantId, opts.conversationId))
@@ -525,7 +564,11 @@ export function catalogReply(
   const namedPick =
     namedService.find((service) => service.zones.some((zone) => zone.active)) ?? namedService[0]
   const held = session ? services.find((service) => service.id === session.serviceId) : undefined
-  const inPlay = namedPick ?? held ?? serviceFromNamedZones(services, source)
+  const activeHeld = activeSubject
+    ? services.find((service) => service.id === activeSubject.serviceId)
+    : undefined
+  // Nome no turno vence; senão sujeito DEC-223; senão sessão de booking; senão zonas.
+  const inPlay = namedPick ?? activeHeld ?? held ?? serviceFromNamedZones(services, source)
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
 
@@ -540,11 +583,12 @@ export function catalogReply(
   if (clarificationAsk || offerAsk || forceFaq) {
     const faqMode: 'clarification' | 'offer' =
       offerAsk && !clarificationAsk ? 'offer' : 'clarification'
+    const heldForFaq = activeHeld ?? held ?? null
     const faq = handleFaqCatalog({
       text: source || body,
       conversationId: cnv,
       namedServices: namedService,
-      heldService: held ?? null,
+      heldService: heldForFaq,
       zoneService: serviceFromNamedZones(services, source) ?? null,
       soleService: targets.length === 1 ? targets[0]! : null,
       // Oferta / force sem hit não engolem o único serviço (#512 / A-19).
@@ -552,13 +596,29 @@ export function catalogReply(
       allowSoleServiceFallback: clarificationAsk,
       explicitAudienceLine: explicitAudienceLine(source),
       sessionAudienceLine:
-        held && session?.serviceId === held.id
-          ? session.audienceLine
-          : heldLineNow,
+        heldForFaq && activeSubject?.serviceId === heldForFaq.id
+          ? (activeSubject.audienceLine ?? session?.audienceLine ?? heldLineNow)
+          : held && session?.serviceId === held.id
+            ? session.audienceLine
+            : heldLineNow,
       mode: faqMode,
       force: forceFaq,
     })
-    if (faq.handled) return faq.replyText
+    if (faq.handled) {
+      if (opts.conversationId) {
+        if (faq.clearSubject) {
+          clearActiveCatalogSubject(db, tenantId, opts.conversationId)
+        } else if (faq.subject) {
+          rememberSubject(opts.conversationId, {
+            serviceId: faq.subject.serviceId,
+            variantIds: faq.subject.variantIds,
+            audienceLine: faq.subject.audienceLine,
+            source: faqMode === 'offer' ? 'faq_offer' : 'faq_clarification',
+          })
+        }
+      }
+      return faq.replyText
+    }
   }
 
   const afternoon = ambiguousAfternoonHour(body, cnv)
@@ -712,6 +772,14 @@ export function catalogReply(
   if ((asksPrice || asksDuration) && svc) {
     const activeZones = svc.zones.filter((zone) => zone.active)
     if (activeZones.length === 0) {
+      if (opts.conversationId) {
+        rememberSubject(opts.conversationId, {
+          serviceId: svc.id,
+          variantIds: [],
+          audienceLine: null,
+          source: asksPrice || asksDuration ? 'price' : 'named_turn',
+        })
+      }
       if (asksPrice) {
         if (svc.priceCents == null) {
           return sayAct(
@@ -732,6 +800,10 @@ export function catalogReply(
   }
 
   const picksWholeCatalog = claimsWholeCatalog(source)
+  if (picksWholeCatalog && opts.conversationId) {
+    // Lista genérica não elege um serviço (DEC-223 invalidate).
+    clearActiveCatalogSubject(db, tenantId, opts.conversationId)
+  }
   if (!asksPrice && !pendingPriceEarly && !openPeriod && !lineOnly && !picksWholeCatalog) {
     return null
   }
@@ -772,7 +844,12 @@ export function catalogReply(
   // Histórico só no funil activo (sessão do serviço). Após DEC-086 a sessão foi limpa.
   const historyLine = sameFunnel ? audienceLineFromClientTexts(inboundNewestFirst) : null
   const line = mixed ? (explicit ?? carried ?? historyLine) : null
-  if (opts.conversationId && inPlay) {
+  // DEC-223: preço/duração bare (só sujeito activo) não escreve BookingFrame.
+  // Com serviço/zona nomeados no texto (D4 bridge «Quero» após preço) ainda grava serviceId.
+  const namedInTurn = Boolean(namedPick || serviceFromNamedZones(services, source))
+  const bareInfoFromSubject =
+    (asksPrice || pendingPriceEarly || asksDuration) && !namedInTurn
+  if (opts.conversationId && inPlay && !bareInfoFromSubject) {
     const patch: ScheduleSessionPatch = { serviceId: inPlay.id }
     if (explicit || (mixed && line)) patch.audienceLine = line
     else if (mixed && !line) patch.audienceLine = null
@@ -824,8 +901,18 @@ export function catalogReply(
   }
   const namedRaw = scoped.length > 0 ? zonesNamedInText(source, scoped, serviceIgnore) : []
   // DEC-145: modo `uma` não fecha combinação de vários nomes.
-  const named =
+  const namedFromText =
     allowsMultipleVariants(svc.variantSelection) || namedRaw.length <= 1 ? namedRaw : []
+  // DEC-223: turno bare («Qual o valor?») reusa variantes do sujeito activo.
+  const subjectZones =
+    namedFromText.length === 0 &&
+    activeSubject &&
+    activeSubject.serviceId === svc.id &&
+    activeSubject.variantIds.length > 0 &&
+    scoped.length > 0
+      ? scoped.filter((zone) => activeSubject.variantIds.includes(zone.id))
+      : []
+  const named = namedFromText.length > 0 ? namedFromText : subjectZones
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)
   // D4 / PR-D: pergunta de preço ou duração NÃO grava variante no quadro de marcação.
   // O adaptador responde o catálogo; ask_info fica implícito (sem write).
@@ -931,6 +1018,14 @@ export function catalogReply(
   // sem repetir «valor» — ainda assim devolve o preço cadastrado (Massagem).
   if ((asksPrice || pendingPrice || pendingPriceEarly) && named.length === 1) {
     const z = named[0]!
+    if (opts.conversationId && inPlay) {
+      rememberSubject(opts.conversationId, {
+        serviceId: inPlay.id,
+        variantIds: [z.id],
+        audienceLine: line,
+        source: 'price',
+      })
+    }
     const preço = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
     const duração = String(z.durationMinutes)
     const fb = `${z.name} custa ${preço} e dura ${duração} min.`
@@ -945,6 +1040,14 @@ export function catalogReply(
   if ((asksPrice || pendingPrice || pendingPriceEarly) && named.length >= 2) {
     if (textNamesMixAudiences(source, named)) {
       return mixedAudienceReply(cnv)
+    }
+    if (opts.conversationId && inPlay) {
+      rememberSubject(opts.conversationId, {
+        serviceId: inPlay.id,
+        variantIds: named.map((zone) => zone.id),
+        audienceLine: line,
+        source: 'price',
+      })
     }
     const minutes = named.reduce((n, z) => n + z.durationMinutes, 0)
     const missing = named.some((z) => z.priceCents == null)

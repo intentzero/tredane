@@ -11,6 +11,7 @@ import {
   openBookingSessionIfNeeded,
   type BookingSessionOpenReason,
 } from './booking-session'
+import { clearActiveCatalogSubject } from './active-catalog-subject'
 import { stripGreetingPeriodFalsePositives } from './nlu/temporal'
 
 export type ScheduleAudienceLine = 'feminino' | 'masculino'
@@ -866,6 +867,8 @@ export function clearBookingFrame(
     tenantId,
     conversationId,
   )
+  // DEC-223: Terminar / soft-decline / limpar frame também limpa o sujeito informativo.
+  clearActiveCatalogSubject(db, tenantId, conversationId)
   // DEC-148 / T1: fecho analítico com abandon — best-effort; falha não reabre o quadro.
   if (existing && clock) {
     try {
