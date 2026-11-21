@@ -76,7 +76,7 @@ export function seedFutureAppointment(
   )
 }
 
-const withOneAppointment = (s: DialogScenario) =>
+export const withOneAppointment = (s: DialogScenario) =>
   seedFutureAppointment(s, {
     id: 'apt_gu_1',
     serviceId: s.ids.peeling,
@@ -609,14 +609,93 @@ export const GU_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'GU-20',
-    title: '«Falar com a equipe» ganha ao link',
+    title: '«Falar com a equipe» por texto → botão (sem pausa automática)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quero falar com uma pessoa para marcar' }],
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
       noCtaUrl: true,
-      paused: true,
+      notPaused: true,
+      outboundIncludes: ['Se preferir falar com a equipe', 'Falar com a equipe'],
+      outboundExcludes: [/Vou pedir para a equipe continuar daqui/i],
+    },
+  },
+  {
+    id: 'GU-30',
+    title:
+      'Com teto de links já atingido, «Quero remarcar…» manda frase + reply Abrir agenda — sem handoff',
+    turnosIdeais: 1,
+    /** Qui 19/11/2026 21:42 America/Sao_Paulo (fora do expediente; mesmo relógio GU-26). */
+    nowMs: Date.UTC(2026, 10, 20, 0, 42),
+    prepare: (s) => {
+      withOneAppointment(s)
+      // Simula 5 links recentes (teto) sem frases iguais no diálogo (INV-08).
+      const now = s.clock.nowMs()
+      for (let i = 0; i < 5; i++) {
+        const messageId = `msg_gu30_link_${i}`
+        const createdAt = now - 60_000 + i
+        s.db.run(
+          `INSERT INTO messages (
+            id, tenant_id, conversation_id, direction, body,
+            external_message_id, delivery_state,
+            author_clerk_user_id, author_display_name, created_at
+          ) VALUES (?, ?, ?, 'outbound', ?, NULL, 'accepted', 'system:ai-autodraft', 'IA', ?)`,
+          messageId,
+          s.tenantId,
+          s.conversationId,
+          `Link prévio ${i + 1}`,
+          createdAt,
+        )
+        s.db.run(
+          `INSERT INTO outbound_messages (
+            id, tenant_id, conversation_id, message_id, client_request_id,
+            provider_message_id, kind, template_name, template_language,
+            template_params_json, interactive_json, delivery_state, failure_reason, outbox_event_id,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, NULL, 'interactive', NULL, NULL, NULL, ?, 'accepted', NULL, NULL, ?, ?)`,
+          `ob_gu30_${i}`,
+          s.tenantId,
+          s.conversationId,
+          messageId,
+          `ai-web-agendar:seed_${i}`,
+          JSON.stringify({
+            ctaUrl: { displayText: 'Abrir agenda', url: `https://app.l1.test/c/seed${i}` },
+          }),
+          createdAt,
+          createdAt,
+        )
+      }
+    },
+    turns: [{ role: 'client', text: 'Quero remarcar o meu agendamento' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 1,
+      notPaused: true,
+      outboundIncludes: ['Para remarcar', 'Abrir agenda'],
+      outboundExcludes: [
+        /Vou pedir para a equipe/i,
+        /A equipe responde a partir/i,
+      ],
+      assert: (s) => {
+        const row = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+             AND o.client_request_id LIKE 'ai-web-remarcar:%'
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!row?.interactive_json?.includes('cw:abrir-agenda')) {
+          return [`GU-30: esperava reply Abrir agenda, veio ${row?.interactive_json ?? 'null'}`]
+        }
+        if (row.interactive_json.includes('ctaUrl')) {
+          return ['GU-30: com teto não deve emitir novo cta_url']
+        }
+        return []
+      },
     },
   },
   {

@@ -10,6 +10,7 @@ import {
   CLIENT_WEB_OFFER_SENTENCE,
   isHttpsBase,
   isOpenAgendaButtonTitle,
+  isWebScheduleIntentExemptFromLinkLimit,
   looksLikeClosingAssistOutbound,
   openAgendaReplyButton,
   OPEN_AGENDA_REPLY_BUTTON_ID,
@@ -17,6 +18,14 @@ import {
 } from './offer'
 
 describe('oferta do link no chat', () => {
+  it('remarcar/cancelar (e noUpcoming) ficam isentos do teto de links', () => {
+    expect(isWebScheduleIntentExemptFromLinkLimit({ purpose: 'remarcar' })).toBe(true)
+    expect(isWebScheduleIntentExemptFromLinkLimit({ purpose: 'cancelar' })).toBe(true)
+    expect(isWebScheduleIntentExemptFromLinkLimit({ purpose: 'agendar', noUpcoming: true })).toBe(true)
+    expect(isWebScheduleIntentExemptFromLinkLimit({ purpose: 'agendar' })).toBe(false)
+    expect(isWebScheduleIntentExemptFromLinkLimit({ purpose: 'home' })).toBe(false)
+  })
+
   it('detecta inbound que é só o título «Abrir agenda»', () => {
     expect(isOpenAgendaButtonTitle('Abrir agenda')).toBe(true)
     expect(isOpenAgendaButtonTitle('  abrir agenda  ')).toBe(true)

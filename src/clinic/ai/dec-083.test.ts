@@ -137,19 +137,25 @@ async function runInbound(s: ReturnType<typeof seed>, body: string) {
 }
 
 describe('DEC-083', () => {
-  it('«quero uma pessoa» pausa, manda uma frase e não marca', async () => {
+  it('«quero uma pessoa» oferece botão «Falar com a equipe», sem pausar nem marcar', async () => {
     const s = seed()
     try {
       const out = await runInbound(s, 'Quero uma pessoa')
-      expect(out.reason).toBe('human_handoff')
+      expect(out.reason).toBe('human_team_offer')
       expect(out.replyOutbox?.some((row) => row.type === 'whatsapp.send')).toBe(true)
       expect(s.calls()).toBe(0)
-      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)?.reason).toBe('customer_requested')
-      const sent = s.db.get<{ body: string }>(
-        `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const sent = s.db.get<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json AS interactive_json
+         FROM messages m
+         LEFT JOIN outbound_messages o ON o.tenant_id = m.tenant_id AND o.message_id = m.id
+         WHERE m.tenant_id = ? AND m.direction = 'outbound'
+         ORDER BY m.created_at DESC LIMIT 1`,
         s.tenantId,
       )
-      expect(sent?.body).toBe(HUMAN_HANDOFF_TEXT)
+      expect(sent?.body).toMatch(/Falar com a equipe/)
+      expect(sent?.body).not.toBe(HUMAN_HANDOFF_TEXT)
+      expect(sent?.interactive_json ?? '').toMatch(/handoff:human/)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n).toBe(0)
     } finally {
       s.close()
