@@ -894,8 +894,38 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
       )
-      // DEC-086 Opção A: «Posso ajudar…» = reply Abrir agenda|Terminar; o cta_url
-      // sai só no toque de Abrir agenda (corpo mínimo — TRE-81 / TRE-73).
+      // DEC-202 / DEC-220 / Meta: «Posso ajudar…» com cta_url Abrir agenda (evita reply →
+      // «Para agendar, toque em Abrir agenda…»). Só emite o link se o Agendado for
+      // o resultado que vai disparar o follow-up.
+      let agendaUrl: string | null = null
+      if (input.outcome === 'succeeded') {
+        const bookedForFollowup = clinicProposals.findProposalByResultOutboundId(
+          this.#db,
+          caller.tenantId,
+          result.value.outbound.id,
+        )
+        const needsPostBooking =
+          bookedForFollowup?.resultKind === 'booked' &&
+          Boolean(bookedForFollowup.appointmentId?.trim()) &&
+          Boolean(bookedForFollowup.conversationId)
+        if (needsPostBooking) {
+          const prepare = this.#prepareClientWebOffer()
+          if (prepare) {
+            try {
+              const offered = await prepare({
+                tenantId: caller.tenantId,
+                conversationId: bookedForFollowup!.conversationId,
+                purpose: 'home',
+                appointmentId: null,
+                serviceId: null,
+              })
+              agendaUrl = offered?.ctaUrl?.url?.trim() || null
+            } catch {
+              agendaUrl = null
+            }
+          }
+        }
+      }
       const reconciled = clinicProposals.reconcileProposalResultOutboundSend(
         this.#db,
         caller.tenantId,
@@ -903,6 +933,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         input.outcome,
         this.#clock,
         caller,
+        agendaUrl,
       )
       if (reconciled.outbox.length > 0) {
         await this.#fanoutOutboxes(caller, reconciled.outbox, true)
@@ -1266,6 +1297,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
     if (done.result.status === 'cancelled' && done.outbox.length > 0) {
       const cancelled = done.result
+      let agendaUrl: string | null = null
+      const prepare = this.#prepareClientWebOffer()
+      if (prepare) {
+        try {
+          const offered = await prepare({
+            tenantId: input.tenantId,
+            conversationId: input.conversationId,
+            purpose: 'home',
+            appointmentId: null,
+            serviceId: null,
+          })
+          agendaUrl = offered?.ctaUrl?.url?.trim() || null
+        } catch {
+          agendaUrl = null
+        }
+      }
       const outboxes = appendWebCancelChatEffects(
         this.#db,
         caller,
@@ -1274,6 +1321,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           appointmentId: input.appointmentId,
           serviceName: cancelled.serviceName,
           startsAt: cancelled.startsAt,
+          agendaUrl,
         },
         this.#clock,
         done.outbox,
@@ -1404,10 +1452,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#scheduleNextHandoffTimeout(caller.tenantId)
       return { handled: true, action: 'map_link' as const }
     }
-    // DEC-216: reply «Abrir agenda» (junto a «Falar com a equipe») → envia o CTA URL.
-    // Sempre oferece o link (TRE-82): silenciar quando já havia cta recente deixava o
-    // toque só com o eco «Abrir agenda» e sem página. O título ecoado sem button_id
-    // continua a poder ser ignorado no autodraft (`open_agenda_title_already_offered`).
+    // Reply legado «Abrir agenda» (`cw:abrir-agenda`) → envia o CTA URL home.
+    // Bolhas novas com URL já saem como cta_url (DEC-220); este caminho cobre lab e
+    // bolhas antigas ainda no WhatsApp. Texto inbound só «Abrir agenda» é ignorado no
+    // autodraft (`open_agenda_title_already_offered`) — não reenvia outro CTA.
     const openAgendaTap = parseOpenAgendaReplyButton(input.buttonId)
     if (openAgendaTap) {
       cancelAutoDraft(this.#db, caller.tenantId, conversationId)
