@@ -32,6 +32,7 @@ import {
 import type { AppointmentProposalRow } from '../clinic/proposals/types'
 import type { ProposalConfirmHandoff } from '../clinic/proposals/buttons'
 import { clampDateRange, CLIENT_WEB_MAX_SLOTS, readClientWebCatalog, type ClientWebSlot } from './booking'
+import { emptyDaysForRange, type ClientWebEmptyDay } from './empty-day-reason'
 import {
   pickRoundRobinProfessional,
   readRrLastProfessional,
@@ -117,7 +118,7 @@ function appointmentMinutes(apt: WebAppointment): number {
 }
 
 export type RescheduleSlotsResult =
-  | { ok: true; slots: ClientWebSlot[]; from: string; to: string }
+  | { ok: true; slots: ClientWebSlot[]; from: string; to: string; emptyDays: ClientWebEmptyDay[] }
   | {
       ok: false
       error: 'appointment_not_found' | 'service_unavailable' | 'range_invalid' | 'professional_invalid'
@@ -155,6 +156,7 @@ export async function listRescheduleSlots(
   const range = clampDateRange(catalog.today, input.from, input.to)
   if (!range) return { ok: false, error: 'range_invalid' }
   const slots: ClientWebSlot[] = []
+  const datesWithoutSlots: string[] = []
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
     if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
@@ -174,6 +176,7 @@ export async function listRescheduleSlots(
     } catch {
       break
     }
+    const before = slots.length
     const seen = new Set<string>()
     for (const s of avail.slots) {
       if (s.startsAt <= clock.nowMs() || s.startsAt === apt.startsAt) continue
@@ -183,8 +186,15 @@ export async function listRescheduleSlots(
       slots.push({ id: `${date}T${time}`, date, time })
       if (input.daysOnly) break
     }
+    if (slots.length === before) datesWithoutSlots.push(date)
   }
-  return { ok: true, slots, from: range.from, to: range.to }
+  return {
+    ok: true,
+    slots,
+    from: range.from,
+    to: range.to,
+    emptyDays: emptyDaysForRange(db, tenantId, clock, catalog.timezone, datesWithoutSlots),
+  }
 }
 
 export type WebRescheduleError =

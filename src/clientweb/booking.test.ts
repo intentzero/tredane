@@ -208,6 +208,8 @@ describe('horas por intervalo (DEC-201 provisório)', () => {
       expect(res.slots.every((s) => s.date === '2024-01-08')).toBe(true)
       expect(res.slots[0]).toEqual({ id: '2024-01-08T09:00', date: '2024-01-08', time: '09:00' })
       expect(res.slots.length).toBeGreaterThan(5)
+      // Domingo sem expediente → closed (TRE-33); sem nome de feriado.
+      expect(res.emptyDays).toEqual([{ date: '2024-01-07', reason: 'closed' }])
     } finally {
       close()
     }

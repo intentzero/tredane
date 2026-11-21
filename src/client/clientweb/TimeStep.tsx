@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Catalog, CatalogProfessional, Slot, SlotsResult } from './api'
+import type { Catalog, CatalogProfessional, EmptyDay, EmptyDayReason, Slot, SlotsResult } from './api'
 import { CalendarSheet } from './CalendarSheet'
 import {
   addDays,
@@ -17,6 +17,43 @@ function initials(name: string): string {
   if (parts.length === 0) return '?'
   if (parts.length === 1) return parts[0]!.slice(0, 2)
   return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase()
+}
+
+function emptyReasonCopy(reason: EmptyDayReason | null): { title: string; body: string; icon: 'calendar' | 'clock' } {
+  if (reason === 'closed') {
+    return {
+      title: 'Clínica fechada neste dia.',
+      body: 'Escolha outro dia na semana para ver os horários disponíveis.',
+      icon: 'calendar',
+    }
+  }
+  // `full` ou motivo ausente (API antiga / calendário): sem afirmar abertura.
+  return {
+    title: 'Sem horários disponíveis neste dia.',
+    body:
+      reason === 'full'
+        ? 'A clínica está aberta, mas não há vagas livres para este serviço. Tente outro dia.'
+        : 'Escolha outro dia na semana para ver os horários disponíveis.',
+    icon: 'clock',
+  }
+}
+
+function ReasonIcon({ kind }: { kind: 'calendar' | 'clock' }) {
+  if (kind === 'calendar') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+        <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+      </svg>
+    )
+  }
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
 }
 
 export function TimeStep({
@@ -61,6 +98,7 @@ export function TimeStep({
   onPreferredProfessionalChange?: (id: string | null) => void
 }) {
   const [slots, setSlots] = useState<Slot[] | 'loading' | 'error'>('loading')
+  const [emptyDays, setEmptyDays] = useState<EmptyDay[]>([])
   const days = useMemo(() => weekDays(weekStart, catalog.today, catalog.horizonDays), [weekStart, catalog])
   const [retry, setRetry] = useState(0)
   const loadRef = useRef(load)
@@ -78,8 +116,10 @@ export function TimeStep({
       if (res.kind === 'unauthorized') return onSessionLost()
       if (res.kind === 'error') return setSlots('error')
       setSlots(res.slots)
-      const first = res.slots[0]?.date ?? null
-      setDay(day && res.slots.some((s) => s.date === day) ? day : first)
+      setEmptyDays(res.emptyDays)
+      const inWeek = day != null && days.includes(day)
+      const firstFree = res.slots[0]?.date ?? null
+      setDay(inWeek ? day : firstFree ?? days[0] ?? null)
     })
     return () => {
       cancelled = true
@@ -97,11 +137,18 @@ export function TimeStep({
     .map((p) => ({ part: p, items: daySlots.filter((s) => dayPart(s.time) === p) }))
     .filter((g) => g.items.length > 0)
   const withSlots = new Set(Array.isArray(slots) ? slots.map((s) => s.date) : [])
+  const emptyReasonByDate = useMemo(() => {
+    const map = new Map<string, EmptyDayReason>()
+    for (const row of emptyDays) map.set(row.date, row.reason)
+    return map
+  }, [emptyDays])
   const month = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(`${weekStart}T00:00:00Z`),
   )
 
   const showPref = professionals.length > 1 && onPreferredProfessionalChange
+  const showDayEmpty = Array.isArray(slots) && day != null && !withSlots.has(day)
+  const dayEmptyCopy = showDayEmpty ? emptyReasonCopy(emptyReasonByDate.get(day) ?? null) : null
 
   return (
     <main className="cw-main cw-flush">
@@ -178,14 +225,17 @@ export function TimeStep({
         {days.map((d) => {
           const l = civilDayLabel(d)
           const free = withSlots.has(d)
+          const empty = !free && Array.isArray(slots)
+          const reason = emptyReasonByDate.get(d)
+          const emptyHint =
+            reason === 'closed' ? ', clínica fechada' : empty ? ', sem horários' : ''
           return (
             <button
               key={d}
               type="button"
-              className={`cw-day${d === day ? ' is-on' : ''}`}
+              className={`cw-day${d === day ? ' is-on' : ''}${empty ? ' is-empty' : ''}`}
               aria-pressed={d === day}
-              disabled={!free}
-              aria-label={`${l.weekday} ${l.dayMonth}${free ? '' : ', sem horários'}`}
+              aria-label={`${l.weekday} ${l.dayMonth}${emptyHint}`}
               onClick={() => setDay(d)}
             >
               <span className="cw-caption">{l.weekday}</span>
@@ -209,10 +259,14 @@ export function TimeStep({
           </button>
         </div>
       )}
-      {Array.isArray(slots) && slots.length === 0 && (
-        <p role="status" className="cw-note cw-margin">
-          Sem horários livres nesta semana. Veja a semana seguinte ou fale com a equipe pelo WhatsApp.
-        </p>
+      {dayEmptyCopy && (
+        <div className="cw-reason cw-margin" role="status">
+          <span className="cw-reason-icon" aria-hidden="true">
+            <ReasonIcon kind={dayEmptyCopy.icon} />
+          </span>
+          <p className="cw-reason-title">{dayEmptyCopy.title}</p>
+          <p className="cw-reason-body">{dayEmptyCopy.body}</p>
+        </div>
       )}
       {parts.map((g) => (
         <section
@@ -230,7 +284,7 @@ export function TimeStep({
           </div>
         </section>
       ))}
-      {Array.isArray(slots) && slots.length > 0 && <p className="cw-muted cw-margin">Nada fica marcado antes de Confirmar.</p>}
+      {Array.isArray(slots) && <p className="cw-muted cw-margin">Nada fica marcado antes de Confirmar.</p>}
       {calendarOpen && (
         <CalendarSheet
           catalog={catalog}

@@ -213,7 +213,7 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
         },
         slotsLookup: async (_e, session, input) => {
           seen.push({ kind: 'slots', session, input })
-          return { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to }
+          return { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to, emptyDays: [] }
         },
         bookLookup: async (_e, session, input) => {
           seen.push({ kind: 'book', session, input })
@@ -332,7 +332,7 @@ describe('remarcar, cancelar e pedir à equipe (Fases 3 e 4)', () => {
           seen.push({ kind: 'rslots', session, input })
           return input.appointmentId === 'apt-outra'
             ? { ok: false, error: 'appointment_not_found' }
-            : { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to }
+            : { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to, emptyDays: [] }
         },
         rescheduleLookup: async (_e, session, input) => {
           seen.push({ kind: 'reschedule', session, input })

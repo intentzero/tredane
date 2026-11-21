@@ -330,7 +330,7 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
           })
       if (!rres) return c.json({ error: 'session_required' }, 401)
       if (!rres.ok) return c.json({ error: rres.error }, rres.error === 'appointment_not_found' ? 404 : 422)
-      return c.json({ slots: rres.slots, from: rres.from, to: rres.to })
+      return c.json({ slots: rres.slots, from: rres.from, to: rres.to, emptyDays: rres.emptyDays })
     }
     const serviceId = str(body.serviceId)
     const variantIds = strList(body.variantIds)
@@ -353,7 +353,7 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
         })
     if (!result) return c.json({ error: 'session_required' }, 401)
     if (!result.ok) return c.json({ error: result.error }, 422)
-    return c.json({ slots: result.slots, from: result.from, to: result.to })
+    return c.json({ slots: result.slots, from: result.from, to: result.to, emptyDays: result.emptyDays })
   })
 
   app.post('/api/c/book', async (c) => {

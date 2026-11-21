@@ -154,8 +154,27 @@
 .cw-month { flex: 1; font-weight: var(--font-weight-semibold); text-transform: capitalize; }
 .cw-days { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; }
 .cw-day { flex: none; width: 52px; min-height: 56px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--color-surface-card); border: 1px solid var(--color-line-border); border-radius: 12px; font: inherit; color: var(--color-text-primary); cursor: pointer; }
-.cw-day.is-on { background: var(--color-primary-tint); border: 2px solid var(--color-primary-base); }
+/* Dia sem vagas: tracejado até seleccionar (TRE-33). */
+.cw-day.is-empty:not(.is-on) { background: var(--color-surface-sunken); border-style: dashed; color: var(--color-text-muted); }
+.cw-day.is-empty:not(.is-on) .cw-caption,
+.cw-day.is-empty:not(.is-on) strong { color: var(--color-text-muted); font-weight: var(--font-weight-regular); }
+.cw-day.is-on { background: var(--color-primary-tint); border: 2px solid var(--color-primary-base); border-style: solid; color: var(--color-primary-base); }
+.cw-day.is-on .cw-caption,
+.cw-day.is-on strong { color: var(--color-primary-base); font-weight: var(--font-weight-semibold); }
 .cw-day:disabled { background: var(--color-surface-sunken); border-style: dashed; color: var(--color-text-muted); cursor: default; }
+/* Motivo no lugar da grade Manhã/Tarde quando o dia seleccionado não tem slots. */
+.cw-reason {
+  min-height: 220px; margin: 0; padding: 28px 20px; border-radius: 12px;
+  background: var(--color-surface-sunken); border: 1px solid var(--color-line-divider);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+}
+.cw-reason-icon {
+  width: 40px; height: 40px; border-radius: 999px;
+  background: var(--color-primary-tint); color: var(--color-primary-base);
+  display: flex; align-items: center; justify-content: center;
+}
+.cw-reason-title { margin: 0; font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.cw-reason-body { margin: 0; max-width: 28ch; font-size: var(--font-size-small); color: var(--color-text-secondary); line-height: 1.45; }
 .cw-part { margin-bottom: 8px; }
 .cw-times { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .cw-time { min-height: 44px; background: var(--color-surface-card); border: 1px solid var(--color-line-control); border-radius: 8px; font: inherit; font-weight: var(--font-weight-semibold); color: var(--color-text-primary); cursor: pointer; }
