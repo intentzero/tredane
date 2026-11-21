@@ -22,6 +22,7 @@ describe('classificador de intenção por LLM (DEC-221)', () => {
     expect(parseClassification('{"classe":"price","confianca":0.85}')).toMatchObject({ label: 'price', confidence: 0.85 })
     expect(parseClassification('{"classe":"team","confianca":0.8}')?.label).toBe('team')
     expect(parseClassification('{"classe":"faq_catalog","confianca":0.9}')?.label).toBe('faq_catalog')
+    expect(parseClassification('{"classe":"faq_clinic","confianca":0.88}')?.label).toBe('faq_clinic')
     expect(parseClassification('{"classe":"marcar_agora","confianca":0.9}')).toBeNull()
     expect(parseClassification('{"classe":"agendar","confianca":2}')).toBeNull()
     expect(parseClassification('não é json')).toBeNull()

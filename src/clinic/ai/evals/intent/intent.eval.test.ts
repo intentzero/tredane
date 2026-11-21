@@ -16,6 +16,7 @@ const LABELS: IntentLabel[] = [
   'price',
   'team',
   'faq_catalog',
+  'faq_clinic',
   'nenhum',
 ]
 
