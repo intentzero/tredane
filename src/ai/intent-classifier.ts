@@ -1,8 +1,9 @@
 /**
- * Classificador de intenção por LLM (DEC-202, P4 — **Proposto**; só staging, atrás de
- * `INTENT_LLM_ENABLED`). Devolve uma classe de um conjunto fechado e uma confiança; nunca escolhe
- * serviço, hora nem marcação, e nunca desliga um ramo de segurança. Só pode desviar um turno que o
- * léxico deixou como informação para o link «Abrir agenda» (o link não marca nada).
+ * Classificador de intenção por LLM (DEC-202 / DEC-221 — só staging, atrás de
+ * `INTENT_LLM_ENABLED`). Devolve uma **etiqueta** de um conjunto fechado e uma confiança;
+ * nunca redige a resposta, nunca escolhe serviço/hora/marcação, e nunca desliga um ramo de
+ * segurança. O backend monta frase + CTA a partir da etiqueta (handlers determinísticos).
+ * Perguntas abertas (`informacao` / `outro` → `nenhum`) seguem o redator + validador.
  */
 import {
   AI_MAX_OUTPUT_TOKENS_REPLY,
@@ -11,24 +12,63 @@ import {
   type AiProviderAdapter,
 } from './index'
 
-export type IntentLabel = 'agendar' | 'remarcar' | 'cancelar' | 'misto' | 'nenhum'
+/** Etiquetas estáveis que o backend trata (fechadas) ou `nenhum` (aberta → redator). */
+export type IntentLabel =
+  | 'agendar'
+  | 'remarcar'
+  | 'cancelar'
+  | 'misto'
+  | 'price'
+  | 'team'
+  | 'faq_catalog'
+  | 'nenhum'
 
 export const CLASSIFY_TOOL_NAME = 'classificar_intencao'
-export const INTENT_CLASSES = ['agendar', 'remarcar', 'cancelar', 'misto', 'informacao', 'outro'] as const
+
+/** Classes pedidas ao modelo (inclui abertas; o parse mapeia abertas → `nenhum`). */
+export const INTENT_CLASSES = [
+  'agendar',
+  'remarcar',
+  'cancelar',
+  'misto',
+  'price',
+  'team',
+  'faq_catalog',
+  'informacao',
+  'outro',
+] as const
 export type LlmIntentClass = (typeof INTENT_CLASSES)[number]
+
+/** Intents fechados: léxico ou classificador → handler; o redator não toca. */
+export const CLOSED_INTENT_LABELS = [
+  'agendar',
+  'remarcar',
+  'cancelar',
+  'misto',
+  'price',
+  'team',
+  'faq_catalog',
+] as const satisfies ReadonlyArray<Exclude<IntentLabel, 'nenhum'>>
+
+export type ClosedIntentLabel = (typeof CLOSED_INTENT_LABELS)[number]
 
 export const CLASSIFIER_SYSTEM = [
   'Você classifica a mensagem de uma cliente de uma clínica de estética que escreve por WhatsApp.',
   'Responda SÓ chamando a ferramenta, com a classe e a confiança (0 a 1). Não escreva texto.',
   'Classes:',
-  '- agendar: quer marcar, pergunta por vaga ou horário livre para ela.',
+  '- agendar: quer marcar, pergunta por vaga, horário livre, ou ver a agenda para ela.',
   '- remarcar: quer mudar o dia ou a hora de uma marcação que já tem.',
   '- cancelar: quer desmarcar ou desistir de uma marcação que já tem.',
   '- misto: pergunta informação (preço, duração, o que é) E quer marcar, na mesma mensagem.',
-  '- informacao: pergunta sobre a clínica, os procedimentos, preços, horário de funcionamento, política, pagamento.',
+  '- price: pergunta só preço ou valor de um serviço/procedimento (sem pedir marcar).',
+  '- team: quer falar com uma pessoa, atendente ou a equipe (não é dúvida de catálogo).',
+  '- faq_catalog: pede clarificação do cadastro — o que inclui / como é / o que cobre uma zona ou serviço; também expediente, lista de serviços, política ou localização da clínica.',
+  '- informacao: pergunta aberta fora do cadálogo fechado (opinião, saúde, comparação subjectiva, ou nada que o cadastro responda).',
   '- outro: agradecimento, conversa, ou nada disto.',
-  'Perguntar sobre a política de cancelar ou remarcar («tem multa?», «cobram?») é informacao, não cancelar nem remarcar.',
-  'Na dúvida entre agendar e informacao, prefira agendar.',
+  'Perguntar sobre a política de cancelar ou remarcar («tem multa?», «cobram?») é faq_catalog, não cancelar nem remarcar.',
+  '«O que inclui a íntima?», «como é a depilação?», «inclui ânus?» são faq_catalog, não informacao.',
+  'Na dúvida entre agendar e price/faq_catalog, prefira agendar se houver pedido de vaga ou marcar.',
+  'Na dúvida entre team e outra classe, só use team se o pedido de pessoa for o acto principal.',
 ].join('\n')
 
 export const CLASSIFY_TOOL = {
@@ -47,6 +87,11 @@ export const CLASSIFY_TOOL = {
 
 export type LlmClassification = { label: IntentLabel; confidence: number; raw: LlmIntentClass }
 
+function labelFromRaw(raw: LlmIntentClass): IntentLabel {
+  if (raw === 'informacao' || raw === 'outro') return 'nenhum'
+  return raw
+}
+
 /** Valida a saída do modelo contra o conjunto fechado; `null` se inválida. */
 export function parseClassification(text: string): LlmClassification | null {
   let v: unknown
@@ -61,9 +106,8 @@ export function parseClassification(text: string): LlmClassification | null {
   const conf = o.confianca
   if (typeof raw !== 'string' || !(INTENT_CLASSES as readonly string[]).includes(raw)) return null
   if (typeof conf !== 'number' || !Number.isFinite(conf) || conf < 0 || conf > 1) return null
-  const label: IntentLabel =
-    raw === 'informacao' || raw === 'outro' ? 'nenhum' : (raw as 'agendar' | 'remarcar' | 'cancelar' | 'misto')
-  return { label, confidence: conf, raw: raw as LlmIntentClass }
+  const typed = raw as LlmIntentClass
+  return { label: labelFromRaw(typed), confidence: conf, raw: typed }
 }
 
 export async function classifyIntentWithLlm(
@@ -103,16 +147,37 @@ export async function classifyIntentWithLlm(
   }
 }
 
-/** Confiança mínima para desviar um turno do redator para o link. Abaixo, segue o redator. */
+/** Confiança mínima para desviar um turno do redator para o handler. Abaixo, segue o redator. */
 export const INTENT_MIN_CONFIDENCE = 0.7
 
-/** Classes que levam ao link «Abrir agenda»; as outras seguem o caminho de informação. */
+function hasMinConfidence(c: { confidence: number } | null | undefined): boolean {
+  return Boolean(c && c.confidence >= INTENT_MIN_CONFIDENCE)
+}
+
+/** Etiqueta fechada com confiança suficiente → o redator fica de fora neste turno. */
+export function isClosedIntent(
+  c: { label: IntentLabel; confidence: number } | null | undefined,
+): c is { label: ClosedIntentLabel; confidence: number } {
+  if (!hasMinConfidence(c) || !c) return false
+  return (CLOSED_INTENT_LABELS as readonly string[]).includes(c.label)
+}
+
+/** Classes que levam ao link «Abrir agenda»; price/team/faq_catalog usam outros handlers. */
 export function intentLinkPurpose(
   c: { label: IntentLabel; confidence: number } | null | undefined,
 ): 'agendar' | 'remarcar' | 'cancelar' | null {
-  if (!c || c.confidence < INTENT_MIN_CONFIDENCE) return null
+  if (!isClosedIntent(c)) return null
   if (c.label === 'agendar' || c.label === 'misto') return 'agendar'
   if (c.label === 'remarcar' || c.label === 'cancelar') return c.label
+  return null
+}
+
+/** Handler fechado que não é link de agenda (price / team / faq_catalog). */
+export function closedCatalogOrTeamLabel(
+  c: { label: IntentLabel; confidence: number } | null | undefined,
+): 'price' | 'team' | 'faq_catalog' | null {
+  if (!isClosedIntent(c)) return null
+  if (c.label === 'price' || c.label === 'team' || c.label === 'faq_catalog') return c.label
   return null
 }
 

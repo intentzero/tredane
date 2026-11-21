@@ -19,13 +19,21 @@ export type RedactSnapshot = {
   /** Contexto DEC-120 já montado no DO (Worker não lê SQLite). */
   context: unknown
   computedFacts?: string
-  /** P4 (Proposto, só staging): o Worker classifica a intenção antes de redigir. */
+  /** DEC-221 / staging: o Worker classifica a intenção (etiqueta) antes de redigir. */
   classify?: boolean
 }
 
-/** Classe de intenção devolvida pelo classificador LLM (P4); nunca escolhe serviço nem hora. */
+/** Etiqueta de intenção do classificador LLM; nunca escolhe serviço nem hora, nunca redige. */
 export type IntentModelResult = {
-  label: 'agendar' | 'remarcar' | 'cancelar' | 'misto' | 'nenhum'
+  label:
+    | 'agendar'
+    | 'remarcar'
+    | 'cancelar'
+    | 'misto'
+    | 'price'
+    | 'team'
+    | 'faq_catalog'
+    | 'nenhum'
   raw: string
   confidence: number
   model: string | null

@@ -24,7 +24,7 @@ import {
   type LlmQueueMessage,
 } from '../clinic/ai/llm-queue-types'
 import type { RedactModelResult, RedactSnapshot } from '../clinic/ai/llm-snapshot'
-import { classifyIntentWithLlm, intentLinkPurpose } from './intent-classifier'
+import { classifyIntentWithLlm, isClosedIntent } from './intent-classifier'
 
 export type LlmProcessOutcome = 'ack' | { retryDelaySeconds: number }
 
@@ -87,8 +87,8 @@ async function callRedact(
       ...(env.AI_GATEWAY_BYOK_ALIAS ? { byokAlias: env.AI_GATEWAY_BYOK_ALIAS } : {}),
     },
   })
-  // P4 (Proposto, só staging): classifica a intenção antes de redigir. Um pedido de agenda que o
-  // léxico não apanhou segue para o link e dispensa o redator. Falha do classificador = segue o redator.
+  // DEC-221 / staging: classifica a etiqueta antes de redigir. Intent fechado com confiança
+  // suficiente → handler no DO; o redator não gera copy. Falha do classificador = segue o redator.
   let intent: RedactModelResult['intent'] = null
   if (snapshot.classify) {
     try {
@@ -102,7 +102,7 @@ async function callRedact(
           inputTokens: c.inputTokens,
           outputTokens: c.outputTokens,
         }
-        if (intentLinkPurpose(c.result)) {
+        if (isClosedIntent(c.result)) {
           return { ok: true, text: '', model: c.model, inputTokens: c.inputTokens, outputTokens: c.outputTokens, latencyMs: null, intent }
         }
       }

@@ -1,16 +1,30 @@
 /**
- * Corpus rotulado de intenção (DEC-202, medição de 18/11/2026). Frases **fictícias** de clientes,
- * sem dados reais. Serve para medir o encaminhamento léxico (`routeToClientWeb`) e, no L2, o
- * redator com classe. Não é gate: mede.
+ * Corpus rotulado de intenção (DEC-202 / DEC-221, medição de 18/11/2026 + extensão 21/11).
+ * Frases **fictícias** de clientes, sem dados reais. Serve para medir o encaminhamento léxico
+ * (`routeToClientWeb`) e o classificador de etiqueta. Não é gate: mede.
  *
  * Rótulos (o que o chat deve fazer):
- * - `agendar`   → link para agendar (com `service` quando um só serviço é reconhecível)
- * - `remarcar`  → link de remarcar (cliente com marcação futura)
- * - `cancelar`  → link de cancelar (cliente com marcação futura)
- * - `misto`     → responde à informação e junta o link
- * - `nenhum`    → informação ou conversa: sem link (o caminho de informação responde)
+ * - `agendar`      → link para agendar (com `service` quando um só serviço é reconhecível)
+ * - `remarcar`     → link de remarcar (cliente com marcação futura)
+ * - `cancelar`     → link de cancelar (cliente com marcação futura)
+ * - `misto`        → responde à informação e junta o link
+ * - `price`        → preço/valor do cadastro (+ Abrir agenda quando couber)
+ * - `team`         → oferta «Falar com a equipe» (sem pausar)
+ * - `faq_catalog`  → clarificação / expediente / política / local do cadastro (sem redator)
+ * - `nenhum`       → pergunta aberta ou conversa → redator + validador
  */
-export type IntentLabel = 'agendar' | 'remarcar' | 'cancelar' | 'misto' | 'nenhum'
+export type IntentLabel =
+  | 'agendar'
+  | 'remarcar'
+  | 'cancelar'
+  | 'misto'
+  | 'price'
+  | 'team'
+  | 'faq_catalog'
+  | 'nenhum'
+
+/** Rótulos de agenda (link); o resto fechado ou aberto não conta no recall «há intenção de agenda». */
+export const AGENDA_INTENT_LABELS: IntentLabel[] = ['agendar', 'remarcar', 'cancelar', 'misto']
 
 export type IntentSample = {
   text: string
@@ -206,4 +220,23 @@ export const INTENT_CORPUS: IntentSample[] = [
   S('ruido', 'nenhum', '👍'),
   S('ruido', 'nenhum', 'Imagina, por nada'),
   S('ruido', 'nenhum', 'Você é uma pessoa?'),
+  // — DEC-221: price / team / faq_catalog (paráfrases que o léxico costuma perder)
+  S('parafrase', 'price', 'Me fala o valorzinho da limpeza de pele'),
+  S('parafrase', 'price', 'A massagem relaxante sai por quanto?'),
+  S('escrita', 'price', 'qto custa o peeling quimico'),
+  S('gíria', 'price', 'massa, e a depilação de axila quanto fica?'),
+  S('indireto', 'price', 'Queria saber se a limpeza profunda é cara'),
+  S('parafrase', 'team', 'Consegue me passar pra alguém da recepção?'),
+  S('parafrase', 'team', 'Prefiro conversar com uma pessoa real'),
+  S('escrita', 'team', 'quero fala com alguem ai'),
+  S('gíria', 'team', 'tem como me transferir pra atendente?'),
+  S('indireto', 'team', 'Não quero robô, preciso de humano'),
+  S('parafrase', 'faq_catalog', 'O que exatamente entra na íntima?'),
+  S('parafrase', 'faq_catalog', 'Me explica como é a limpeza de pele profunda'),
+  S('parafrase', 'faq_catalog', 'A íntima cobre ânus também?'),
+  S('direto', 'faq_catalog', 'Vocês abrem que horas no sábado?'),
+  S('direto', 'faq_catalog', 'Onde fica o salão de vocês?'),
+  S('parafrase', 'faq_catalog', 'Como funciona se eu precisar remarcar em cima da hora?'),
+  S('escrita', 'faq_catalog', 'o q inclui a depilaçao de pernas'),
+  S('gíria', 'faq_catalog', 'como é essa massagem relaxante aí?'),
 ]

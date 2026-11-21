@@ -14,11 +14,14 @@ class StubAdapter extends SimulatedAiAdapter {
   }
 }
 
-describe('classificador de intenção por LLM (protótipo de avaliação)', () => {
+describe('classificador de intenção por LLM (DEC-221)', () => {
   it('aceita só classes do conjunto fechado e confiança entre 0 e 1', () => {
     expect(parseClassification('{"classe":"agendar","confianca":0.9}')).toMatchObject({ label: 'agendar', confidence: 0.9 })
     expect(parseClassification('{"classe":"informacao","confianca":0.7}')).toMatchObject({ label: 'nenhum' })
     expect(parseClassification('{"classe":"misto","confianca":1}')?.label).toBe('misto')
+    expect(parseClassification('{"classe":"price","confianca":0.85}')).toMatchObject({ label: 'price', confidence: 0.85 })
+    expect(parseClassification('{"classe":"team","confianca":0.8}')?.label).toBe('team')
+    expect(parseClassification('{"classe":"faq_catalog","confianca":0.9}')?.label).toBe('faq_catalog')
     expect(parseClassification('{"classe":"marcar_agora","confianca":0.9}')).toBeNull()
     expect(parseClassification('{"classe":"agendar","confianca":2}')).toBeNull()
     expect(parseClassification('não é json')).toBeNull()

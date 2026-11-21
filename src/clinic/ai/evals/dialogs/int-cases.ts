@@ -1,6 +1,7 @@
 /**
  * Família INT- (DEC-202 §2 revisão 18/11/2026): preço, horário e FAQ determinísticos;
- * a classificação de intenção por LLM para o resto fica **Proposto** (cartão t2635s11490).
+ * Classificador de etiqueta (DEC-221): staging `INTENT_LLM_ENABLED`; testes de apply em
+ * `intent-llm-apply.test.ts` (price/team/faq_catalog). L1 abaixo cobre o caminho léxico.
  *
  * | ID     | Estado    | Descrição resumida |
  * |--------|-----------|--------------------|
@@ -16,7 +17,7 @@
  * | INT-04 | Confirmado| Dois pedidos no mesmo turno (preço + vaga): resposta e link |
  * | INT-05 | Confirmado| Preço após pergunta de linha (rsamp_62934e63) |
  * | INT-06 | Confirmado| «Todas» após pergunta de zonas com linha conhecida |
- * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) |
+ * | INT-07 | Proposto  | Pergunta aberta fora do catálogo (recomendação) — ainda redator |
  * | INT-08 | Confirmado| Onde fica: corpo sem URL + cta_url Abrir mapa (um toque; DEC-211) |
  * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo cta_url Abrir mapa (sem URL no corpo) |
  * | INT-09 | Confirmado| Valor da massagem → tipo → «Relaxante» responde R$ (sem modelo) |
@@ -37,7 +38,8 @@ import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
 
 /** Equivalente a `it.todo` / `it.skip` no harness L1 (DEC-108). */
-export const INT_PENDING_LLM_INTENT = 'depende da classificação de intenção por LLM (DEC-202, Proposto)'
+export const INT_PENDING_LLM_INTENT =
+  'pergunta aberta: redator + validador (DEC-104/107); classificador DEC-221 não fecha este caso'
 
 /** INT-08 / INT-08b: 1.ª bolha sem URL + só cta_url «Abrir mapa» (um toque; Meta). */
 function assertLocationMapOffer(s: DialogScenario, caseId: string): string[] {
