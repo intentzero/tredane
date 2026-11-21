@@ -37,7 +37,7 @@ import {
 } from '../../ai/intent-classifier'
 import { logIntentLlm, type IntentLlmOutcome } from '../../ai/intent-llm-log'
 import { catalogReply } from './catalog-reply'
-import { FAQ_MISSING_DETAIL_BODY } from './faq-clarification'
+import { FAQ_MISSING_DETAIL_BODY, isFaqWhichServiceBody } from './faq-clarification'
 import { ClinicError } from '../errors'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
@@ -685,11 +685,13 @@ export async function applyClosedHandlerOp(
 
   // Sem conversationId: a pergunta do snapshot é a fonte (não misturar com o inbound
   // original que só abriu o job de redact — senão price/FAQ leem a frase errada).
-  // Com #1020/#1021: cues de oferta + forceFaqCatalog no catalogReply; aqui o caminho
-  // fechado já chama catalogReply e, em faq_catalog, missing fixo se o cadastro não tiver facto.
+  // TRE-113: `faq_catalog` força o handler de cadastro (sem depender de cues).
+  // Telemetria TRE-115: `usedMissing` distingue cadastro vazio de hit de catálogo.
   const question = snapshot.question
-  const catalogHit = catalogReply(db, tenantId, question, clock) ?? null
-  let body = catalogHit
+  let body =
+    catalogReply(db, tenantId, question, clock, {
+      forceFaqCatalog: kind === 'faq_catalog',
+    }) ?? null
   const usedMissing = !body && kind === 'faq_catalog'
   if (usedMissing) body = FAQ_MISSING_DETAIL_BODY
   if (!body) {
@@ -708,9 +710,11 @@ export async function applyClosedHandlerOp(
   const locationInteractive = locationOffer
     ? locationMapOfferInteractive(mapsUrl, db, tenantId, clock)
     : null
+  const whichService = isFaqWhichServiceBody(body)
 
   // DEC-185 / faq_clinic: texto publicado sem Abrir agenda por defeito.
-  const allowAgendaCta = kind !== 'faq_clinic'
+  // TRE-113: «De qual serviço?» também sem CTA de agenda.
+  const allowAgendaCta = kind !== 'faq_clinic' && !whichService
   let agendaCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
   if (allowAgendaCta && !locationOffer && deps.autoBookPaused !== true && deps.prepareClientWebOffer) {
     try {

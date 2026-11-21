@@ -19,16 +19,26 @@ import {
   humanTeamOfferButtons,
 } from './human-handoff'
 import { getBookingFrame } from './schedule-session'
+import type { ScheduleAudienceLine } from './schedule-session'
 import {
+  needsAudienceLine,
   variantKindForAsk,
   variantListQuestion,
+  zonesForAudienceLine,
 } from './variant-line'
 
 export const FAQ_MISSING_DETAIL_BODY =
   'Não tenho esse detalhe no cadastro; a equipe confirma.'
 
+/** Etiqueta `faq_catalog` com vários serviços nomeados — frase fixa (TRE-113). */
+export const FAQ_WHICH_SERVICE_BODY = 'De qual serviço?'
+
 export const FAQ_CONTINUE_BUTTON_ID = 'fu:faq:continue'
 export const FAQ_CONTINUE_BUTTON_TITLE = 'Continuar'
+
+export function isFaqWhichServiceBody(text: string): boolean {
+  return text.trim() === FAQ_WHICH_SERVICE_BODY
+}
 
 /**
  * Cues de pergunta/clarificação (camada 1) — não são escolha de zona.
@@ -362,6 +372,70 @@ export type FaqCatalogAnswer =
     }
 
 /**
+ * Handler sistemático do intent fechado `faq_catalog` (TRE-113 / DEC-221 §4.1).
+ *
+ * Entrada: etiqueta fechada (léxico ou classificador) + texto + candidatos do
+ * catálogo. **Não** exige cues («inclui», «fazem») — esses são só ajudas do
+ * léxico para etiquetar. Resolve serviço/zona; ambíguo → «De qual serviço?»;
+ * lê `client_explanation` (± override) via `answerFaqFromCatalog`; sem facto →
+ * missing. Zero redator.
+ *
+ * `force=true` (etiqueta do classificador): sempre devolve resposta (missing se
+ * não resolver). `force=false` + `mode=offer` sem serviço: `handled:false` para
+ * o caller seguir o caminho de inexistente (#512).
+ */
+export function handleFaqCatalog(input: {
+  text: string
+  conversationId: string
+  /** Serviços activos cujo nome/sinónimo o léxico reconheceu no texto. */
+  namedServices: readonly ServiceRow[]
+  heldService?: ServiceRow | null
+  /** Único serviço cujas zonas/sinónimos aparecem no texto. */
+  zoneService?: ServiceRow | null
+  /** Único serviço do catálogo — só com `allowSoleServiceFallback`. */
+  soleService?: ServiceRow | null
+  allowSoleServiceFallback: boolean
+  /** Linha dita neste turno (feminina/masculina). */
+  explicitAudienceLine?: ScheduleAudienceLine | null
+  /** Linha guardada na sessão (só se o serviço resolvido for o held). */
+  sessionAudienceLine?: ScheduleAudienceLine | null
+  mode: 'clarification' | 'offer'
+  /** Etiqueta fechada já decidida (classificador / force path). */
+  force?: boolean
+}): { handled: true; replyText: string } | { handled: false } {
+  const force = input.force === true
+  const distinctNamed = [...new Map(input.namedServices.map((s) => [s.id, s])).values()]
+  if (distinctNamed.length > 1) {
+    return { handled: true, replyText: FAQ_WHICH_SERVICE_BODY }
+  }
+  const svc =
+    distinctNamed[0] ??
+    input.heldService ??
+    input.zoneService ??
+    (input.allowSoleServiceFallback ? input.soleService : null) ??
+    null
+  if (!svc) {
+    if (force) return { handled: true, replyText: FAQ_MISSING_DETAIL_BODY }
+    if (input.mode === 'offer') return { handled: false }
+    return { handled: true, replyText: FAQ_MISSING_DETAIL_BODY }
+  }
+  const active = svc.zones.filter((zone) => zone.active)
+  const mixed = needsAudienceLine(active)
+  const carried =
+    input.heldService?.id === svc.id ? (input.sessionAudienceLine ?? null) : null
+  const line = mixed ? (input.explicitAudienceLine ?? carried) : null
+  const pool = mixed && line ? zonesForAudienceLine(active, line) : active
+  const faq = answerFaqFromCatalog({
+    text: input.text,
+    conversationId: input.conversationId,
+    service: svc,
+    zones: pool.length > 0 ? pool : active,
+    mode: input.mode,
+  })
+  return { handled: true, replyText: faq.replyText }
+}
+
+/**
  * Resposta só com factos do cadastro (explicação do serviço ou sinónimos DEC-110).
  * Sem LLM.
  */
@@ -379,7 +453,13 @@ export function answerFaqFromCatalog(input: {
   const mode = input.mode ?? 'clarification'
   const folded = foldFaqText(normalizeInclusionAskText(input.text))
   const subject = findZoneByName(folded, input.zones)
-  let objectTerm = coverageObjectTerm(folded, subject)
+  // TRE-113: sem verbo de cobertura («inclui» / «cobre»), não tratar sobras
+  // («sobre», «fala») como objecto — senão «Sobre a íntima» caía em missing.
+  const hasInclusionCue =
+    /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|abrange|abrangem|contempla)\b/i.test(
+      folded,
+    )
+  let objectTerm = hasInclusionCue ? coverageObjectTerm(folded, subject) : null
   if (isServiceLevelInclusionAsk(folded) && mentionsServiceName(folded, input.service)) {
     objectTerm = null
   } else if (objectTerm && serviceNameFolds(input.service).includes(objectTerm)) {

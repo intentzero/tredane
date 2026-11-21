@@ -64,8 +64,7 @@ import { buildOpeningHoursReply } from './opening-hours-reply'
 import { isLocationAsk } from './location-map-offer'
 import { isOpeningDayAsk } from './opening-day-ask'
 import {
-  answerFaqFromCatalog,
-  FAQ_MISSING_DETAIL_BODY,
+  handleFaqCatalog,
   isCatalogClarificationAsk,
   isCatalogOfferAsk,
 } from './faq-clarification'
@@ -413,6 +412,12 @@ export function catalogReply(
      * deixou service vazio e o modelo pode preencher id validado.
      */
     preferExtractService?: boolean
+    /**
+     * TRE-113 / DEC-221: etiqueta fechada `faq_catalog` (classificador) —
+     * corre o handler de catálogo **sem** exigir cues («inclui» / «fazem»).
+     * Cues do léxico continuam aopcionais para etiquetar no caminho vivo.
+     */
+    forceFaqCatalog?: boolean
   } = {},
 ): string | null {
   const body = text.trim()
@@ -524,43 +529,36 @@ export function catalogReply(
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
 
-  // DEC-177 / TRE-100 / TRE-112: clarificação («o que inclui») ou oferta
-  // («fazem X?») → `client_explanation` (± override DEC-189) antes do LLM /
-  // rememberZonesWhenKnown (senão a zona era gravada e o redator inventava
-  // «não tenho com certeza»).
+  // DEC-177 / TRE-100 / TRE-112 / TRE-113: intent fechado `faq_catalog`.
+  // Cues («inclui» / «fazem») são ajudas do léxico; com `forceFaqCatalog` a
+  // etiqueta do classificador entra sem cue. Handler resolve serviço/zona,
+  // lê o cadastro e **nunca** cede ao redator (nem a rememberZonesWhenKnown).
   const clarificationAsk =
     isCatalogClarificationAsk(body) || isCatalogClarificationAsk(source)
   const offerAsk = isCatalogOfferAsk(body) || isCatalogOfferAsk(source)
-  if (clarificationAsk || offerAsk) {
-    // Oferta («fazem X?»): só com serviço/zona nomeados — senão o único serviço
-    // do catálogo engolia «Vocês fazem botox?» (#512 / A-19).
-    const faqSvc =
-      namedPick ??
-      held ??
-      serviceFromNamedZones(services, source) ??
-      (clarificationAsk && targets.length === 1 ? targets[0] : undefined)
-    if (!faqSvc) {
-      // Oferta sem hit no cadastro («Vocês fazem botox?») → inexistente (#512).
-      if (clarificationAsk) return FAQ_MISSING_DETAIL_BODY
-    } else {
-      const activeFaq = faqSvc.zones.filter((zone) => zone.active)
-      const mixedFaq = needsAudienceLine(activeFaq)
-      const carriedFaq =
-        session?.serviceId === faqSvc.id ? session.audienceLine : heldLineNow
-      const lineFaq = mixedFaq
-        ? (explicitAudienceLine(source) ?? carriedFaq)
-        : null
-      const poolFaq =
-        mixedFaq && lineFaq ? zonesForAudienceLine(activeFaq, lineFaq) : activeFaq
-      const faq = answerFaqFromCatalog({
-        text: source || body,
-        conversationId: cnv,
-        service: faqSvc,
-        zones: poolFaq.length > 0 ? poolFaq : activeFaq,
-        mode: clarificationAsk ? 'clarification' : 'offer',
-      })
-      return faq.replyText
-    }
+  const forceFaq = opts.forceFaqCatalog === true
+  if (clarificationAsk || offerAsk || forceFaq) {
+    const faqMode: 'clarification' | 'offer' =
+      offerAsk && !clarificationAsk ? 'offer' : 'clarification'
+    const faq = handleFaqCatalog({
+      text: source || body,
+      conversationId: cnv,
+      namedServices: namedService,
+      heldService: held ?? null,
+      zoneService: serviceFromNamedZones(services, source) ?? null,
+      soleService: targets.length === 1 ? targets[0]! : null,
+      // Oferta / force sem hit não engolem o único serviço (#512 / A-19).
+      // Clarificação com um só serviço no catálogo ainda usa o fallback DEC-177.
+      allowSoleServiceFallback: clarificationAsk,
+      explicitAudienceLine: explicitAudienceLine(source),
+      sessionAudienceLine:
+        held && session?.serviceId === held.id
+          ? session.audienceLine
+          : heldLineNow,
+      mode: faqMode,
+      force: forceFaq,
+    })
+    if (faq.handled) return faq.replyText
   }
 
   const afternoon = ambiguousAfternoonHour(body, cnv)
