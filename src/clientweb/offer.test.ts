@@ -11,6 +11,7 @@ import {
   isHttpsBase,
   isOpenAgendaButtonTitle,
   isWebScheduleIntentExemptFromLinkLimit,
+  clientWebAbrirAgendaLinkPurpose,
   looksLikeClosingAssistOutbound,
   openAgendaReplyButton,
   OPEN_AGENDA_REPLY_BUTTON_ID,
@@ -48,7 +49,7 @@ describe('oferta do link no chat', () => {
     expect(looksLikeClosingAssistOutbound('Funcionamos assim:\nseg–sex 9–18')).toBe(false)
   })
 
-  it('reply «Abrir agenda» (DEC-216) e parse do serviço opcional', () => {
+  it('reply «Abrir agenda» legado e parse do serviço opcional', () => {
     expect(openAgendaReplyButton()).toEqual({ id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' })
     expect(openAgendaReplyButton('svc_dep')).toEqual({
       id: 'cw:abrir-agenda:svc_dep',
@@ -57,6 +58,13 @@ describe('oferta do link no chat', () => {
     expect(parseOpenAgendaReplyButton(OPEN_AGENDA_REPLY_BUTTON_ID)).toEqual({ serviceId: null })
     expect(parseOpenAgendaReplyButton('cw:abrir-agenda:svc_dep')).toEqual({ serviceId: 'svc_dep' })
     expect(parseOpenAgendaReplyButton('handoff:human')).toBeNull()
+  })
+
+  it('DEC-220: Abrir agenda → purpose home; remarcar/cancelar deep-link', () => {
+    expect(clientWebAbrirAgendaLinkPurpose('agendar')).toBe('home')
+    expect(clientWebAbrirAgendaLinkPurpose('home')).toBe('home')
+    expect(clientWebAbrirAgendaLinkPurpose('remarcar')).toBe('remarcar')
+    expect(clientWebAbrirAgendaLinkPurpose('cancelar')).toBe('cancelar')
   })
 
   it('troca a pergunta aberta do hub pela indicação do botão e mantém o expediente', () => {

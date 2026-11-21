@@ -40,7 +40,7 @@ export type RouteServiceHint = {
 
 /** Verbo ou expressão inequívoca de marcar ou de procurar vaga. */
 const BOOK_STRONG =
-  /\b(marcar|marca[cç][aã]o|marque|agendar|agendamento|agende|reservar|reserva|encaixe|encaixar|vagas?|disponibilidade|dispon[ií]ve(?:l|is)|hor[aá]rios?\s+(?:livres?|dispon)|tem\s+(?:hor[aá]rio|horario|vaga|agenda)|teria\s+(?:hor[aá]rio|vaga)|consigo\s+(?:hor[aá]rio|vaga)|abrir\s+(?:a\s+)?agenda)\b/i
+  /\b(marcar|marca[cç][aã]o|marque|agendar|agendamento|agende|reservar|reserva|encaixe|encaixar|vagas?|disponibilidade|dispon[ií]ve(?:l|is)|hor[aá]rios?\s+(?:livres?|dispon)|tem\s+(?:hor[aá]rio|horario|vaga|agenda)|teria\s+(?:hor[aá]rio|vaga)|consigo\s+(?:hor[aá]rio|vaga)|(?:mostra(?:r)?|ver|veja|abre|abrir)\s+(?:a\s+|os\s+)?agenda)\b/i
 
 /** Querer fazer algo («quero massagem», «gostaria de fazer depilação»). Só conta com um serviço nomeado. */
 const WANT = /\b(quero|queria|gostaria|preciso|desejo|pretendo|vou\s+querer|posso\s+fazer|d[aá]\s+pra\s+fazer|da\s+para\s+fazer)\b/i

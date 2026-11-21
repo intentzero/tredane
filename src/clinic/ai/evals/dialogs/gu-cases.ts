@@ -100,28 +100,47 @@ const NEVER_BOOKS = { proposal: false, noAppointment: false } as const
 export const GU_DIALOG_CASES: DialogCase[] = [
   {
     id: 'GU-01',
-    title: 'Pedido completo com serviço nomeado: o link abre nesse serviço',
+    title: 'Pedido completo com serviço nomeado: cta_url Abrir agenda (home)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quero marcar massagem relaxante amanhã às 10h' }],
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Massagem relaxante' }],
-      outboundIncludes: ['Abrir agenda'],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
+      outboundIncludes: ['Abrir agenda', 'Massagem relaxante'],
       outboundExcludes: [/\b\d{2}:\d{2}\b/],
     },
   },
   {
     id: 'GU-02',
-    title: '«Quero marcar» sem serviço: o link abre na escolha de serviço',
+    title: '«Quero marcar» sem serviço: cta_url Abrir agenda (home)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quero marcar' }],
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
+    },
+  },
+  {
+    id: 'GU-31',
+    title: '«Me mostra a agenda»: frase DEC-202 + cta_url home (sem LLM / sem Equipe)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Me mostra a agenda novamente' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
+      outboundIncludes: ['Abrir agenda'],
+      outboundExcludes: [
+        /horários livres/i,
+        /mensagem anterior/i,
+        /Falar com a equipe/i,
+        /😊/,
+      ],
     },
   },
   {
@@ -146,7 +165,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundExcludes: [/\b\d{2}:\d{2}\b/],
     },
   },
@@ -159,7 +178,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Depilação' }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
     },
   },
   {
@@ -171,7 +190,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
     },
   },
   {
@@ -224,7 +243,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundIncludes: ['Não encontrei marcações'],
     },
   },
@@ -237,7 +256,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundIncludes: ['Não encontrei marcações'],
     },
   },
@@ -293,7 +312,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Limpeza de pele' }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       turns: [{ turn: 0, matches: [/R\$/, /Abrir agenda/] }],
     },
   },
@@ -310,8 +329,8 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       appointments: 0,
       clientWebOffers: 2,
       clientWebPurposes: [
-        { purpose: 'agendar', serviceId: 'Limpeza de pele' },
-        { purpose: 'agendar', serviceId: 'Limpeza de pele' },
+        { purpose: 'home', serviceId: null },
+        { purpose: 'home', serviceId: null },
       ],
       turns: [{ turn: 0, matches: [/R\$/, /Abrir agenda/], excludes: [/Quer ver hor[aá]rios/i] }],
     },
@@ -325,7 +344,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Massagem' }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
     },
   },
   {
@@ -419,7 +438,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
           const offered = await s.prepareClientWebOffer?.({
             tenantId: s.tenantId,
             conversationId: s.conversationId,
-            purpose: 'agendar',
+            purpose: 'home',
             appointmentId: null,
             serviceId: null,
           })
@@ -445,7 +464,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       outboundIncludes: [POST_BOOKING_BODY],
       outboundExcludes: [/Para agendar, toque em/i],
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       assert: (s) => {
         const errs: string[] = []
         const help = s.outboundBodies().filter((b) => b === POST_BOOKING_BODY)
@@ -701,14 +720,16 @@ export const GU_DIALOG_CASES: DialogCase[] = [
   {
     id: 'GU-21',
     title:
-      'Quem atende: informação com «Abrir agenda» + «Falar com a equipe» (DEC-216); sem CTA URL até o toque',
+      'Quem atende: informação + cta_url «Abrir agenda» (home); sem reply Equipe na mesma bolha (DEC-220)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quem faz a limpeza de pele?' }],
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
-      noCtaUrl: true,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       turns: [{ turn: 0, matches: [/Quem atende|atendimento é feito por|quem atende é/i] }],
+      outboundExcludes: [/Falar com a equipe/i],
       assert: (s) => {
         const row = s.db.get<{ interactive_json: string | null }>(
           `SELECT o.interactive_json AS interactive_json
@@ -719,22 +740,17 @@ export const GU_DIALOG_CASES: DialogCase[] = [
           s.tenantId,
           s.conversationId,
         )
-        if (!row?.interactive_json) return ['GU-21: resposta sem botões interactivos']
+        if (!row?.interactive_json) return ['GU-21: resposta sem interactivo']
         const parsed = JSON.parse(row.interactive_json) as {
           buttons?: Array<{ id: string; title: string }>
+          ctaUrl?: { displayText?: string }
+        }
+        if (parsed.ctaUrl?.displayText !== 'Abrir agenda') {
+          return [`GU-21: esperava cta_url Abrir agenda, veio ${row.interactive_json}`]
         }
         const buttons = parsed.buttons ?? []
-        const hasAgenda = buttons.some(
-          (b) => b.title === 'Abrir agenda' && b.id.startsWith(OPEN_AGENDA_REPLY_BUTTON_ID),
-        )
-        const hasTeam = buttons.some(
-          (b) => b.id === HUMAN_HANDOFF_BUTTON_ID && b.title === HUMAN_HANDOFF_BUTTON_TITLE,
-        )
-        if (!hasAgenda || !hasTeam) {
-          return [`GU-21: esperava Abrir agenda + Equipe, veio ${JSON.stringify(buttons)}`]
-        }
-        if (buttons.length !== 2) {
-          return [`GU-21: esperava exactamente 2 botões, veio ${buttons.length}`]
+        if (buttons.some((b) => b.id === HUMAN_HANDOFF_BUTTON_ID || b.id.startsWith(OPEN_AGENDA_REPLY_BUTTON_ID))) {
+          return [`GU-21: não deve ter reply Abrir agenda/Equipe, veio ${JSON.stringify(buttons)}`]
         }
         return []
       },
@@ -752,7 +768,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundIncludes: ['Abrir agenda'],
       outboundExcludes: [
         /Qual serviço/i,
@@ -811,7 +827,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: null }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundExcludes: [/Falar com a equipe/i],
       turns: [
         {
@@ -1001,7 +1017,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
       ...NEVER_BOOKS,
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Bronzeamento' }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundExcludes: [/Agendado:/],
       assert: (s) => {
         const errs: string[] = []
@@ -1329,7 +1345,7 @@ export const GU_DIALOG_CASES: DialogCase[] = [
     expect: {
       appointments: 0,
       clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'agendar', serviceId: 'Depilação' }],
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       assert: (s) => {
         const errs: string[] = []
         if (s.appointmentCount() !== 0) errs.push('marcação inesperada (só proposta web)')

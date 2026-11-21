@@ -15,7 +15,6 @@ import {
   rewriteRawMapsUrlOutbound,
 } from './location-map-offer'
 import type { Clock } from '../../db/clock'
-import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../clientweb/offer'
 import type { ClinicDb } from '../store'
 import { HUMAN_HANDOFF_BUTTON_ID } from './human-handoff'
 
@@ -64,19 +63,18 @@ describe('oferta Abrir mapa (opção B)', () => {
     expect(LOCATION_MAP_CTA_BODY).toMatch(/Abrir mapa/)
   })
 
-  it('sem URL https: fallback reply Abrir mapa + Agenda + Equipe (máx. 3)', () => {
+  it('sem URL https: fallback reply Abrir mapa + Equipe (sem Abrir agenda reply)', () => {
     expect(openMapReplyButton()).toEqual({ id: OPEN_MAP_REPLY_BUTTON_ID, title: OPEN_MAP_CTA_TEXT })
     expect(parseOpenMapReplyButton(OPEN_MAP_REPLY_BUTTON_ID)).toBe(true)
     expect(parseOpenMapReplyButton('cw:abrir-agenda')).toBe(false)
     expect(locationMapOfferButtons(db, 't', clock)).toEqual([
       { id: OPEN_MAP_REPLY_BUTTON_ID, title: OPEN_MAP_CTA_TEXT },
-      { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
       { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
     ])
-    expect(locationMapOfferButtons(db, 't', clock, { serviceId: 'svc_x' })[1]).toEqual({
-      id: 'cw:abrir-agenda:svc_x',
-      title: 'Abrir agenda',
-    })
+    expect(locationMapOfferButtons(db, 't', clock, { serviceId: 'svc_x' })).toEqual([
+      { id: OPEN_MAP_REPLY_BUTTON_ID, title: OPEN_MAP_CTA_TEXT },
+      { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
+    ])
     expect(locationMapOfferInteractive('', db, 't', clock)).toEqual({
       buttons: locationMapOfferButtons(db, 't', clock),
     })

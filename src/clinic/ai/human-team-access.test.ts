@@ -71,39 +71,31 @@ function seed(nowMs: number) {
 }
 
 describe('humanTeamAccess (item 6)', () => {
-  it('humanTeamOfferButtons devolve Abrir agenda + Equipe (DEC-216), também fora do expediente', () => {
+  it('humanTeamOfferButtons devolve só Equipe (DEC-220; revê DEC-216)', () => {
     const s = seed(TZ_CLOSED)
     try {
       expect(humanTeamOfferButtons(s.db, s.tenantId, s.clock)).toEqual([
-        { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
         { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
       ])
       expect(
         humanTeamOfferButtons(s.db, s.tenantId, s.clock, { serviceId: 'svc_x' }),
-      ).toEqual([
-        { id: 'cw:abrir-agenda:svc_x', title: 'Abrir agenda' },
-        { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
-      ])
+      ).toEqual([{ id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' }])
     } finally {
       s.close()
     }
   })
 
-  it('humanHelpRequestButtons (ack) só Abrir agenda — sem Equipe (TRE-54)', () => {
+  it('humanHelpRequestButtons (ack) sem botões — Abrir agenda só cta_url (TRE-54 / DEC-220)', () => {
     const s = seed(TZ_CLOSED)
     try {
-      expect(humanHelpRequestButtons(s.db, s.tenantId, s.clock)).toEqual([
-        { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
-      ])
-      expect(
-        humanHelpRequestButtons(s.db, s.tenantId, s.clock, { serviceId: 'svc_x' }),
-      ).toEqual([{ id: 'cw:abrir-agenda:svc_x', title: 'Abrir agenda' }])
+      expect(humanHelpRequestButtons(s.db, s.tenantId, s.clock)).toEqual([])
+      expect(humanHelpRequestButtons(s.db, s.tenantId, s.clock, { serviceId: 'svc_x' })).toEqual([])
     } finally {
       s.close()
     }
   })
 
-  it('augmentOutboundWithHumanTeam — 1 botão ganha Abrir agenda + Equipe (DEC-216)', () => {
+  it('augmentOutboundWithHumanTeam — 1 botão ganha só Equipe (sem Abrir agenda reply)', () => {
     const s = seed(TZ_OPEN)
     try {
       const aug = augmentOutboundWithHumanTeam(s.db, s.tenantId, s.clock, {
@@ -114,7 +106,6 @@ describe('humanTeamAccess (item 6)', () => {
       })
       expect(aug.interactive?.buttons).toEqual([
         { id: 'a', title: 'Continuar' },
-        { id: OPEN_AGENDA_REPLY_BUTTON_ID, title: 'Abrir agenda' },
         { id: HUMAN_HANDOFF_BUTTON_ID, title: 'Falar com a equipe' },
       ])
     } finally {
@@ -122,7 +113,7 @@ describe('humanTeamAccess (item 6)', () => {
     }
   })
 
-  it('augmentOutboundWithHumanTeam — 2 botões ganham só o terceiro (Equipe; sem vaga para o par)', () => {
+  it('augmentOutboundWithHumanTeam — 2 botões ganham só o terceiro (Equipe)', () => {
     const s = seed(TZ_OPEN)
     try {
       const aug = augmentOutboundWithHumanTeam(s.db, s.tenantId, s.clock, {
@@ -142,7 +133,7 @@ describe('humanTeamAccess (item 6)', () => {
     }
   })
 
-  it('augmentOutboundWithHumanTeam — lista com vagas acrescenta Abrir agenda + Equipe', () => {
+  it('augmentOutboundWithHumanTeam — lista com vagas acrescenta só Equipe', () => {
     const s = seed(TZ_CLOSED)
     try {
       const expl = humanTeamAccessExplanation(s.db, s.tenantId, s.clock)
@@ -162,7 +153,7 @@ describe('humanTeamAccess (item 6)', () => {
         },
       })
       const rows = aug.interactive?.list?.sections.flatMap((x) => x.rows) ?? []
-      expect(rows.some((r) => r?.id === OPEN_AGENDA_REPLY_BUTTON_ID)).toBe(true)
+      expect(rows.some((r) => r?.id === OPEN_AGENDA_REPLY_BUTTON_ID)).toBe(false)
       expect(rows.some((r) => r?.id === HUMAN_HANDOFF_BUTTON_ID)).toBe(true)
       expect(aug.body).toBe('Horários:')
     } finally {
@@ -170,7 +161,7 @@ describe('humanTeamAccess (item 6)', () => {
     }
   })
 
-  it('sendOutboundMessageOp aplica augment nas interactivas', () => {
+  it('sendOutboundMessageOp aplica augment nas interactivas (só Equipe)', () => {
     const s = seed(TZ_OPEN)
     try {
       sendOutboundMessageOp(
@@ -191,7 +182,7 @@ describe('humanTeamAccess (item 6)', () => {
         s.tenantId,
       )
       expect(ob?.interactive_json).toContain(HUMAN_HANDOFF_BUTTON_ID)
-      expect(ob?.interactive_json).toContain(OPEN_AGENDA_REPLY_BUTTON_ID)
+      expect(ob?.interactive_json).not.toContain(OPEN_AGENDA_REPLY_BUTTON_ID)
     } finally {
       s.close()
     }
