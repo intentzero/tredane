@@ -11,6 +11,7 @@
  * - `price`        → preço/valor do cadastro (+ Abrir agenda quando couber)
  * - `team`         → oferta «Falar com a equipe» (sem pausar)
  * - `faq_catalog`  → clarificação / expediente / política / local do cadastro (sem redator)
+ * - `faq_clinic`   → FAQ institucional publicada DEC-185 (sem Abrir agenda por defeito)
  * - `nenhum`       → pergunta aberta ou conversa → redator + validador
  */
 export type IntentLabel =
@@ -21,6 +22,7 @@ export type IntentLabel =
   | 'price'
   | 'team'
   | 'faq_catalog'
+  | 'faq_clinic'
   | 'nenhum'
 
 /** Rótulos de agenda (link); o resto fechado ou aberto não conta no recall «há intenção de agenda». */
@@ -239,4 +241,11 @@ export const INTENT_CORPUS: IntentSample[] = [
   S('parafrase', 'faq_catalog', 'Como funciona se eu precisar remarcar em cima da hora?'),
   S('escrita', 'faq_catalog', 'o q inclui a depilaçao de pernas'),
   S('gíria', 'faq_catalog', 'como é essa massagem relaxante aí?'),
+  // — DEC-221 D3: faq_clinic (FAQ institucional DEC-185)
+  S('direto', 'faq_clinic', 'Vocês têm estacionamento?'),
+  S('parafrase', 'faq_clinic', 'Dá pra levar o pet junto?'),
+  S('parafrase', 'faq_clinic', 'O que eu preciso levar no dia?'),
+  S('direto', 'faq_clinic', 'Aceitam cartão no dia do atendimento?'),
+  S('escrita', 'faq_clinic', 'tem estacionamento ai perto'),
+  S('gíria', 'faq_clinic', 'posso ir de short ou tem dress code?'),
 ]

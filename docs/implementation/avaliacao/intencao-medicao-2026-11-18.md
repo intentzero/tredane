@@ -27,3 +27,4 @@
 - A assimetria favorece o LLM como **segunda tentativa**: o léxico quase não erra para o lado do falso link, e perde 27 % das paráfrases difíceis. Falta saber o que o LLM recupera e a que custo.
 - **Não medido ainda:** o LLM (sem segredos nesta sessão) e a amostra real de staging (precisa do acesso do Paulo ao Review MCP ou ao laboratório). Critério **Proposto** para levar um candidato a produção: recall de «há intenção de agenda» abaixo de 90 % no léxico, recall combinado ≥ 95 %, informação classificada como agenda ≤ 5 %, e zero casos de segurança alterados.
 - **Busca semântica:** não entra na deteção de intenção (recomendação, **Proposto**); o LLM já é chamado nesses turnos.
+- **Produção / D2–D5:** checklist do que falta para ligar `INTENT_LLM_ENABLED` em produção — [intent-llm-producao.md](../intent-llm-producao.md). Limiar continua 0,7 até medição (D2).

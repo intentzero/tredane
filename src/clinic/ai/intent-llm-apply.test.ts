@@ -9,7 +9,9 @@ import {
   intentLinkPurpose,
   isClosedIntent,
   isIntentLlmEnabled,
+  minConfidenceFor,
 } from '../../ai/intent-classifier'
+import { upsertKnowledgeCategory, upsertKnowledgeEntry } from '../config/knowledge'
 import { createControllableClock } from '../../db/clock'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
@@ -40,21 +42,26 @@ describe('classe de intenção por LLM (DEC-221)', () => {
   it('gate do redator: fechados com confiança ≥ limiar; abertos e baixa confiança não', () => {
     const hi = INTENT_MIN_CONFIDENCE + 0.1
     const lo = INTENT_MIN_CONFIDENCE - 0.01
+    expect(minConfidenceFor('faq_clinic')).toBe(INTENT_MIN_CONFIDENCE)
     expect(isClosedIntent({ label: 'agendar', confidence: hi })).toBe(true)
     expect(isClosedIntent({ label: 'price', confidence: hi })).toBe(true)
     expect(isClosedIntent({ label: 'team', confidence: hi })).toBe(true)
     expect(isClosedIntent({ label: 'faq_catalog', confidence: hi })).toBe(true)
+    expect(isClosedIntent({ label: 'faq_clinic', confidence: hi })).toBe(true)
     expect(isClosedIntent({ label: 'nenhum', confidence: 0.99 })).toBe(false)
     expect(isClosedIntent({ label: 'price', confidence: lo })).toBe(false)
+    expect(isClosedIntent({ label: 'faq_clinic', confidence: lo })).toBe(false)
     expect(intentLinkPurpose({ label: 'agendar', confidence: hi })).toBe('agendar')
     expect(intentLinkPurpose({ label: 'misto', confidence: hi })).toBe('agendar')
     expect(intentLinkPurpose({ label: 'cancelar', confidence: hi })).toBe('cancelar')
     expect(intentLinkPurpose({ label: 'remarcar', confidence: hi })).toBe('remarcar')
     expect(intentLinkPurpose({ label: 'price', confidence: hi })).toBeNull()
+    expect(intentLinkPurpose({ label: 'faq_clinic', confidence: hi })).toBeNull()
     expect(intentLinkPurpose({ label: 'nenhum', confidence: 0.99 })).toBeNull()
     expect(closedCatalogOrTeamLabel({ label: 'price', confidence: hi })).toBe('price')
     expect(closedCatalogOrTeamLabel({ label: 'team', confidence: hi })).toBe('team')
     expect(closedCatalogOrTeamLabel({ label: 'faq_catalog', confidence: hi })).toBe('faq_catalog')
+    expect(closedCatalogOrTeamLabel({ label: 'faq_clinic', confidence: hi })).toBe('faq_clinic')
     expect(closedCatalogOrTeamLabel({ label: 'agendar', confidence: hi })).toBeNull()
   })
 
@@ -355,6 +362,52 @@ describe('classe de intenção por LLM (DEC-221)', () => {
       expect(sent[0]!.body).toMatch(/Inclui virilha e genital/i)
       expect(sent[0]!.body).not.toMatch(/cera depilatória/i)
       expect(sent[0]!.interactive_json ?? '').toMatch(/ctaUrl|Abrir agenda/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('etiqueta faq_clinic → texto DEC-185 publicado, sem Abrir agenda nem redator', async () => {
+    const s = await setup({ classify: true })
+    try {
+      const cat = upsertKnowledgeCategory(s.db, s.tenantId, { name: 'Acesso' }, s.clock)
+      upsertKnowledgeEntry(
+        s.db,
+        s.tenantId,
+        {
+          categoryId: cat.id,
+          question: 'Tem estacionamento?',
+          answer: 'Sim, há vagas na rua em frente à clínica.',
+          matchCues: ['estacionamento'],
+          status: 'published',
+        },
+        'owner',
+        s.clock,
+      )
+      patchSnapshotQuestion(s.db, s.tenantId, s.job.id, 'Vocês têm estacionamento perto?')
+      const out = await applyClosedHandlerOp(s.db, s.caller, s.clock, s.deps, {
+        jobId: s.job.id,
+        idempotencyKey: s.job.idempotencyKey,
+        result: {
+          ok: true,
+          text: '',
+          model: 'm',
+          inputTokens: 1,
+          outputTokens: 1,
+          latencyMs: null,
+          intent: intent('faq_clinic', 0.9),
+        },
+      })
+      expect(out.status).toBe('applied')
+      const sent = s.db.all<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json FROM outbound_messages o
+         JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
+         WHERE o.tenant_id = ? AND o.client_request_id LIKE 'ai-closed-faq_clinic:%'`,
+        s.tenantId,
+      )
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.body).toMatch(/vagas na rua/i)
+      expect(sent[0]!.interactive_json).toBeNull()
     } finally {
       s.close()
     }

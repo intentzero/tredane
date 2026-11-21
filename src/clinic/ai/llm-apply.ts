@@ -583,8 +583,8 @@ export async function applyIntentLinkOp(
 }
 
 /**
- * DEC-221 / staging: etiqueta fechada `price` | `team` | `faq_catalog` → handlers
- * determinísticos já usados pelo léxico (`catalogReply`, oferta de equipe). Nunca redige.
+ * DEC-221 / staging: etiqueta fechada `price` | `team` | `faq_catalog` | `faq_clinic`
+ * → handlers determinísticos (`catalogReply`, oferta de equipe, FAQ DEC-185). Nunca redige.
  */
 export async function applyClosedHandlerOp(
   db: ClinicDb,
@@ -642,7 +642,7 @@ export async function applyClosedHandlerOp(
   let body = catalogReply(db, tenantId, question, clock) ?? null
   if (!body && kind === 'faq_catalog') body = FAQ_MISSING_DETAIL_BODY
   if (!body) {
-    // Preço sem facto no cadastro: mesma oferta de equipe (não inventar com LLM).
+    // Preço / FAQ institucional sem facto: oferta de equipe (não inventar com LLM).
     const offer = replyHumanTeamOffer(db, tenantId, {
       conversationId: job.conversationId,
       clientRequestId: `ai-closed-fallback:${job.messageId}`,
@@ -656,8 +656,10 @@ export async function applyClosedHandlerOp(
     ? locationMapOfferInteractive(mapsUrl, db, tenantId, clock)
     : null
 
+  // DEC-185 / faq_clinic: texto publicado sem Abrir agenda por defeito.
+  const allowAgendaCta = kind !== 'faq_clinic'
   let agendaCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
-  if (!locationOffer && deps.autoBookPaused !== true && deps.prepareClientWebOffer) {
+  if (allowAgendaCta && !locationOffer && deps.autoBookPaused !== true && deps.prepareClientWebOffer) {
     try {
       const offered = await deps.prepareClientWebOffer({
         tenantId,
@@ -674,6 +676,14 @@ export async function applyClosedHandlerOp(
     }
   }
 
+  const interactive = agendaCta
+    ? agendaCta
+    : locationInteractive
+      ? locationInteractive
+      : locationOffer || !allowAgendaCta
+        ? undefined
+        : { buttons: [openAgendaReplyButton()] }
+
   try {
     const sent = sendOutboundMessageOp(
       db,
@@ -681,13 +691,7 @@ export async function applyClosedHandlerOp(
       {
         conversationId: job.conversationId,
         body,
-        interactive: agendaCta
-          ? agendaCta
-          : locationInteractive
-            ? locationInteractive
-            : locationOffer
-              ? undefined
-              : { buttons: [openAgendaReplyButton()] },
+        interactive,
         omitHumanTeamAugment: true,
         clientRequestId: agendaCta
           ? `ai-web-home:${job.messageId}`

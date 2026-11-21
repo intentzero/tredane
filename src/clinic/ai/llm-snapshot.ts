@@ -33,6 +33,7 @@ export type IntentModelResult = {
     | 'price'
     | 'team'
     | 'faq_catalog'
+    | 'faq_clinic'
     | 'nenhum'
   raw: string
   confidence: number

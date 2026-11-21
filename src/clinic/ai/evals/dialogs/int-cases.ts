@@ -1,7 +1,7 @@
 /**
  * Família INT- (DEC-202 §2 revisão 18/11/2026): preço, horário e FAQ determinísticos;
  * Classificador de etiqueta (DEC-221): staging `INTENT_LLM_ENABLED`; testes de apply em
- * `intent-llm-apply.test.ts` (price/team/faq_catalog). L1 abaixo cobre o caminho léxico.
+ * `intent-llm-apply.test.ts` (price/team/faq_catalog/faq_clinic). L1 abaixo cobre o caminho léxico.
  *
  * | ID     | Estado    | Descrição resumida |
  * |--------|-----------|--------------------|

@@ -21,6 +21,7 @@ export type IntentLabel =
   | 'price'
   | 'team'
   | 'faq_catalog'
+  | 'faq_clinic'
   | 'nenhum'
 
 export const CLASSIFY_TOOL_NAME = 'classificar_intencao'
@@ -34,6 +35,7 @@ export const INTENT_CLASSES = [
   'price',
   'team',
   'faq_catalog',
+  'faq_clinic',
   'informacao',
   'outro',
 ] as const
@@ -48,6 +50,7 @@ export const CLOSED_INTENT_LABELS = [
   'price',
   'team',
   'faq_catalog',
+  'faq_clinic',
 ] as const satisfies ReadonlyArray<Exclude<IntentLabel, 'nenhum'>>
 
 export type ClosedIntentLabel = (typeof CLOSED_INTENT_LABELS)[number]
@@ -62,12 +65,14 @@ export const CLASSIFIER_SYSTEM = [
   '- misto: pergunta informação (preço, duração, o que é) E quer marcar, na mesma mensagem.',
   '- price: pergunta só preço ou valor de um serviço/procedimento (sem pedir marcar).',
   '- team: quer falar com uma pessoa, atendente ou a equipe (não é dúvida de catálogo).',
-  '- faq_catalog: pede clarificação do cadastro — o que inclui / como é / o que cobre uma zona ou serviço; também expediente, lista de serviços, política ou localização da clínica.',
+  '- faq_catalog: clarificação de serviço/variante (o que inclui / como é / o que cobre); também expediente, lista de serviços, política de remarcação/cancelamento ou localização da clínica.',
+  '- faq_clinic: FAQ institucional da clínica (estacionamento, pet, o que levar, pagamento no dia, visita) — não é preço, não é explicação de zona/serviço.',
   '- informacao: pergunta aberta fora do cadálogo fechado (opinião, saúde, comparação subjectiva, ou nada que o cadastro responda).',
   '- outro: agradecimento, conversa, ou nada disto.',
   'Perguntar sobre a política de cancelar ou remarcar («tem multa?», «cobram?») é faq_catalog, não cancelar nem remarcar.',
-  '«O que inclui a íntima?», «como é a depilação?», «inclui ânus?» são faq_catalog, não informacao.',
-  'Na dúvida entre agendar e price/faq_catalog, prefira agendar se houver pedido de vaga ou marcar.',
+  '«O que inclui a íntima?», «como é a depilação?», «inclui ânus?» são faq_catalog, não faq_clinic nem informacao.',
+  '«Tem estacionamento?», «posso levar o pet?», «o que eu levo?», «aceitam cartão no dia?» são faq_clinic.',
+  'Na dúvida entre agendar e price/faq_catalog/faq_clinic, prefira agendar se houver pedido de vaga ou marcar.',
   'Na dúvida entre team e outra classe, só use team se o pedido de pessoa for o acto principal.',
 ].join('\n')
 
@@ -147,11 +152,25 @@ export async function classifyIntentWithLlm(
   }
 }
 
-/** Confiança mínima para desviar um turno do redator para o handler. Abaixo, segue o redator. */
+/**
+ * Confiança mínima por defeito para desviar um turno do redator para o handler.
+ * D2 (**Proposto**): limiar único 0,7 até amostra real + confirmação do Paulo;
+ * `minConfidenceFor` permite afinar por etiqueta sem mudar o gate.
+ */
 export const INTENT_MIN_CONFIDENCE = 0.7
 
-function hasMinConfidence(c: { confidence: number } | null | undefined): boolean {
-  return Boolean(c && c.confidence >= INTENT_MIN_CONFIDENCE)
+/** Overrides por etiqueta (vazio até medição D2). */
+const INTENT_MIN_CONFIDENCE_BY_LABEL: Partial<Record<IntentLabel, number>> = {}
+
+/** Limiar por etiqueta (hoje = defeito para todas; overrides só após medição D2). */
+export function minConfidenceFor(label: IntentLabel): number {
+  return INTENT_MIN_CONFIDENCE_BY_LABEL[label] ?? INTENT_MIN_CONFIDENCE
+}
+
+function hasMinConfidence(
+  c: { label: IntentLabel; confidence: number } | null | undefined,
+): boolean {
+  return Boolean(c && c.confidence >= minConfidenceFor(c.label))
 }
 
 /** Etiqueta fechada com confiança suficiente → o redator fica de fora neste turno. */
@@ -162,7 +181,7 @@ export function isClosedIntent(
   return (CLOSED_INTENT_LABELS as readonly string[]).includes(c.label)
 }
 
-/** Classes que levam ao link «Abrir agenda»; price/team/faq_catalog usam outros handlers. */
+/** Classes que levam ao link «Abrir agenda»; price/team/faq_* usam outros handlers. */
 export function intentLinkPurpose(
   c: { label: IntentLabel; confidence: number } | null | undefined,
 ): 'agendar' | 'remarcar' | 'cancelar' | null {
@@ -172,12 +191,19 @@ export function intentLinkPurpose(
   return null
 }
 
-/** Handler fechado que não é link de agenda (price / team / faq_catalog). */
+/** Handler fechado que não é link de agenda (price / team / faq_catalog / faq_clinic). */
 export function closedCatalogOrTeamLabel(
   c: { label: IntentLabel; confidence: number } | null | undefined,
-): 'price' | 'team' | 'faq_catalog' | null {
+): 'price' | 'team' | 'faq_catalog' | 'faq_clinic' | null {
   if (!isClosedIntent(c)) return null
-  if (c.label === 'price' || c.label === 'team' || c.label === 'faq_catalog') return c.label
+  if (
+    c.label === 'price' ||
+    c.label === 'team' ||
+    c.label === 'faq_catalog' ||
+    c.label === 'faq_clinic'
+  ) {
+    return c.label
+  }
   return null
 }
 
