@@ -67,6 +67,7 @@ import {
   answerFaqFromCatalog,
   FAQ_MISSING_DETAIL_BODY,
   isCatalogClarificationAsk,
+  isCatalogOfferAsk,
 } from './faq-clarification'
 
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
@@ -523,33 +524,43 @@ export function catalogReply(
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
 
-  // DEC-177 / TRE-100: clarificação de serviço/variante → `client_explanation`
-  // (± override DEC-189) antes do LLM; sem facto → frase missing fixa.
-  // Tem de correr antes de rememberZonesWhenKnown (senão «o que inclui a íntima?»
-  // gravava zona e cedia ao redator).
-  if (isCatalogClarificationAsk(body) || isCatalogClarificationAsk(source)) {
+  // DEC-177 / TRE-100 / TRE-112: clarificação («o que inclui») ou oferta
+  // («fazem X?») → `client_explanation` (± override DEC-189) antes do LLM /
+  // rememberZonesWhenKnown (senão a zona era gravada e o redator inventava
+  // «não tenho com certeza»).
+  const clarificationAsk =
+    isCatalogClarificationAsk(body) || isCatalogClarificationAsk(source)
+  const offerAsk = isCatalogOfferAsk(body) || isCatalogOfferAsk(source)
+  if (clarificationAsk || offerAsk) {
+    // Oferta («fazem X?»): só com serviço/zona nomeados — senão o único serviço
+    // do catálogo engolia «Vocês fazem botox?» (#512 / A-19).
     const faqSvc =
       namedPick ??
       held ??
       serviceFromNamedZones(services, source) ??
-      (targets.length === 1 ? targets[0] : undefined)
-    if (!faqSvc) return FAQ_MISSING_DETAIL_BODY
-    const activeFaq = faqSvc.zones.filter((zone) => zone.active)
-    const mixedFaq = needsAudienceLine(activeFaq)
-    const carriedFaq =
-      session?.serviceId === faqSvc.id ? session.audienceLine : heldLineNow
-    const lineFaq = mixedFaq
-      ? (explicitAudienceLine(source) ?? carriedFaq)
-      : null
-    const poolFaq =
-      mixedFaq && lineFaq ? zonesForAudienceLine(activeFaq, lineFaq) : activeFaq
-    const faq = answerFaqFromCatalog({
-      text: source || body,
-      conversationId: cnv,
-      service: faqSvc,
-      zones: poolFaq.length > 0 ? poolFaq : activeFaq,
-    })
-    return faq.replyText
+      (clarificationAsk && targets.length === 1 ? targets[0] : undefined)
+    if (!faqSvc) {
+      // Oferta sem hit no cadastro («Vocês fazem botox?») → inexistente (#512).
+      if (clarificationAsk) return FAQ_MISSING_DETAIL_BODY
+    } else {
+      const activeFaq = faqSvc.zones.filter((zone) => zone.active)
+      const mixedFaq = needsAudienceLine(activeFaq)
+      const carriedFaq =
+        session?.serviceId === faqSvc.id ? session.audienceLine : heldLineNow
+      const lineFaq = mixedFaq
+        ? (explicitAudienceLine(source) ?? carriedFaq)
+        : null
+      const poolFaq =
+        mixedFaq && lineFaq ? zonesForAudienceLine(activeFaq, lineFaq) : activeFaq
+      const faq = answerFaqFromCatalog({
+        text: source || body,
+        conversationId: cnv,
+        service: faqSvc,
+        zones: poolFaq.length > 0 ? poolFaq : activeFaq,
+        mode: clarificationAsk ? 'clarification' : 'offer',
+      })
+      return faq.replyText
+    }
   }
 
   const afternoon = ambiguousAfternoonHour(body, cnv)

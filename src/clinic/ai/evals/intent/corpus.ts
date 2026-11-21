@@ -241,6 +241,8 @@ export const INTENT_CORPUS: IntentSample[] = [
   S('parafrase', 'faq_catalog', 'Como funciona se eu precisar remarcar em cima da hora?'),
   S('escrita', 'faq_catalog', 'o q inclui a depilaçao de pernas'),
   S('gíria', 'faq_catalog', 'como é essa massagem relaxante aí?'),
+  S('direto', 'faq_catalog', 'Fazem depilação íntima?'),
+  S('parafrase', 'faq_catalog', 'Vocês têm limpeza de pele?'),
   // — DEC-221 D3: faq_clinic (FAQ institucional DEC-185)
   S('direto', 'faq_clinic', 'Vocês têm estacionamento?'),
   S('parafrase', 'faq_clinic', 'Dá pra levar o pet junto?'),

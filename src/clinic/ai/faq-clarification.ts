@@ -38,6 +38,16 @@ export const FAQ_CONTINUE_BUTTON_TITLE = 'Continuar'
 const CLARIFICATION_CUE =
   /\b(?:inclui|incluem|cobre|cobrem|faz\s+parte|vem\s+com|conta\s+com|o\s+que\s+e|e\s+o\s+que|o\s+que\s+inclui|inclui\s+o\s+que|o\s+que\s+significa|como\s+funciona|como\s+e\b|como\s+e\s+feit[ao]s?|como\s+sao\s+feit[ao]s?|como\s+se\s+faz|como\s+fazem?|explica(?:r|cao)?|significa|abrang(?:e|em)|contempla|quero\s+saber\s+(?:como|o\s+que))\b/i
 
+/**
+ * Existência / oferta no catálogo («Fazem depilação íntima?», «Vocês têm massagem?»).
+ * Não confundir com clarificação (`inclui` / `como é`) nem com vaga/agenda/política.
+ */
+const OFFER_ASK_CUE =
+  /\b(?:(?:voc[eê]s|vcs)\s+)?(?:fazem|faz|oferecem|oferece|t[eê]m|tem)\b/i
+
+const OFFER_ASK_EXCLUDE =
+  /\b(?:tem|t[eê]m)\s+(?:hor[aá]rios?|horarios?|vagas?|agenda|multa|taxa|estacionamento)\b/i
+
 const COVERAGE_OBJECT_TERM_STOP: ReadonlySet<string> = new Set([
   'que',
   'o',
@@ -126,6 +136,21 @@ export function isCatalogClarificationAsk(text: string): boolean {
   if (!t) return false
   if (CLARIFICATION_CUE.test(foldFaqText(t))) return true
   return /\?\s*$/.test(t) && SCOPE_ASK.test(t.toLowerCase())
+}
+
+/**
+ * True se a cliente pergunta se a clínica oferece um procedimento/zona
+ * («Fazem X?», «Tem Y?», «Oferecem Z?») — TRE-112 / pós-#1016.
+ * Clarificação (`isCatalogClarificationAsk`) e pedidos de vaga/política ficam de fora.
+ */
+export function isCatalogOfferAsk(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (isCatalogClarificationAsk(t)) return false
+  const folded = foldFaqText(t)
+  if (/\bfaz\s+parte\b/i.test(folded)) return false
+  if (OFFER_ASK_EXCLUDE.test(t) || OFFER_ASK_EXCLUDE.test(folded)) return false
+  return OFFER_ASK_CUE.test(t) || OFFER_ASK_CUE.test(folded)
 }
 
 function foldName(name: string): string {
@@ -345,7 +370,13 @@ export function answerFaqFromCatalog(input: {
   conversationId: string
   service: ServiceRow
   zones: readonly ServiceZoneRow[]
+  /**
+   * `offer` = existência («fazem X?»): com zona/serviço no cadastro e sem
+   * explicação, afirma a oferta em vez da frase missing de clarificação.
+   */
+  mode?: 'clarification' | 'offer'
 }): FaqCatalogAnswer {
+  const mode = input.mode ?? 'clarification'
   const folded = foldFaqText(normalizeInclusionAskText(input.text))
   const subject = findZoneByName(folded, input.zones)
   let objectTerm = coverageObjectTerm(folded, subject)
@@ -430,6 +461,12 @@ export function answerFaqFromCatalog(input: {
         ),
       }
     }
+    if (mode === 'offer') {
+      return {
+        kind: 'explanation',
+        replyText: `Sim, fazemos ${subject.name}.`,
+      }
+    }
     return {
       kind: 'missing',
       replyText: FAQ_MISSING_DETAIL_BODY,
@@ -446,6 +483,13 @@ export function answerFaqFromCatalog(input: {
         { explicação: explanation },
         explanation,
       ),
+    }
+  }
+
+  if (mode === 'offer') {
+    return {
+      kind: 'explanation',
+      replyText: `Sim, fazemos ${input.service.name}.`,
     }
   }
 
