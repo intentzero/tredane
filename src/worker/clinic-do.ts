@@ -35,6 +35,7 @@ import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
 import { llmOutOfDoEnabled } from '../clinic/ai/llm-out-of-do'
 import {
   claimLlmJobForTenant,
+  applyClosedHandlerOp,
   applyIntentLinkOp,
   applyLlmResultOp,
   failLlmJobOp,
@@ -244,7 +245,11 @@ import {
 } from '../realtime/ticket'
 import { newId } from '../clinic/ids'
 import type { WorkerBindings } from './bindings'
-import { intentLinkPurpose, isIntentLlmEnabled } from '../ai/intent-classifier'
+import {
+  closedCatalogOrTeamLabel,
+  intentLinkPurpose,
+  isIntentLlmEnabled,
+} from '../ai/intent-classifier'
 
 type ClinicEnv = WorkerBindings
 
@@ -2317,7 +2322,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
     const outcome = intentLinkPurpose(input.result.intent)
       ? await applyIntentLinkOp(this.#db, caller, this.#clock, deps, input)
-      : await applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
+      : closedCatalogOrTeamLabel(input.result.intent)
+        ? await applyClosedHandlerOp(this.#db, caller, this.#clock, deps, input)
+        : await applyLlmResultOp(this.#db, caller, this.#clock, deps, input)
     if (outcome.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outcome.outbox, true)
       await this.#drain(caller)

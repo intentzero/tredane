@@ -1,15 +1,23 @@
 /**
- * Medição do encaminhamento léxico (DEC-202, 18/11/2026). Não é gate: imprime precisão e recall por
- * classe e a lista de falhas, para decidir se vale acrescentar um classificador (plano de 18/11/2026).
- * As asserções só protegem a integridade do corpus.
+ * Medição do encaminhamento léxico (DEC-202 / DEC-221). Não é gate: imprime precisão e recall por
+ * classe e a lista de falhas. As asserções só protegem a integridade do corpus.
  */
 import { describe, expect, it } from 'vitest'
 import { routeToClientWeb } from '../../../../clientweb/route-intent'
 import { listServices } from '../../../config/services'
 import { bootDialogScenario } from '../dialogs/scenario'
-import { INTENT_CORPUS, type IntentLabel, type IntentSample } from './corpus'
+import { AGENDA_INTENT_LABELS, INTENT_CORPUS, type IntentLabel, type IntentSample } from './corpus'
 
-const LABELS: IntentLabel[] = ['agendar', 'remarcar', 'cancelar', 'misto', 'nenhum']
+const LABELS: IntentLabel[] = [
+  'agendar',
+  'remarcar',
+  'cancelar',
+  'misto',
+  'price',
+  'team',
+  'faq_catalog',
+  'nenhum',
+]
 
 function predict(
   text: string,
@@ -21,6 +29,10 @@ function predict(
   if (r.purpose === 'remarcar') return { label: 'remarcar', serviceId: null }
   if (r.purpose === 'cancelar') return { label: 'cancelar', serviceId: null }
   return { label: r.mixed ? 'misto' : 'agendar', serviceId: r.serviceId }
+}
+
+function isAgendaLabel(label: IntentLabel): boolean {
+  return AGENDA_INTENT_LABELS.includes(label)
 }
 
 describe('corpus de intenção (medição léxica)', () => {
@@ -61,18 +73,18 @@ describe('corpus de intenção (medição léxica)', () => {
         const actual = LABELS.reduce((n, l) => n + (confusion.get(`${label}>${l}`) ?? 0), 0)
         const p = predicted ? ((100 * tp) / predicted).toFixed(0) : '—'
         const r = actual ? ((100 * tp) / actual).toFixed(0) : '—'
-        lines.push(`  ${label.padEnd(9)} precisão ${p}%  recall ${r}%  (n=${actual})`)
+        lines.push(`  ${label.padEnd(12)} precisão ${p}%  recall ${r}%  (n=${actual})`)
       }
-      const agenda = INTENT_CORPUS.filter((x) => x.label !== 'nenhum')
+      const agenda = INTENT_CORPUS.filter((x) => isAgendaLabel(x.label))
       const agendaHit = agenda.filter((x) => {
         const g = predict(x.text, services, x.upcoming ?? (x.label === 'remarcar' || x.label === 'cancelar'))
-        return g.label !== 'nenhum'
+        return isAgendaLabel(g.label)
       }).length
-      const info = INTENT_CORPUS.filter((x) => x.label === 'nenhum')
-      const infoFalse = info.filter((x) => predict(x.text, services, true).label !== 'nenhum').length
+      const info = INTENT_CORPUS.filter((x) => !isAgendaLabel(x.label))
+      const infoFalse = info.filter((x) => isAgendaLabel(predict(x.text, services, true).label)).length
       lines.push(
         `  recall de «há intenção de agenda»: ${((100 * agendaHit) / agenda.length).toFixed(0)}% (${agendaHit}/${agenda.length})`,
-        `  informação tratada como agenda:    ${((100 * infoFalse) / info.length).toFixed(0)}% (${infoFalse}/${info.length})`,
+        `  não-agenda tratada como agenda:    ${((100 * infoFalse) / info.length).toFixed(0)}% (${infoFalse}/${info.length})`,
         `  serviço pré-escolhido certo:       ${serviceChecked ? ((100 * serviceOk) / serviceChecked).toFixed(0) : '—'}% (${serviceOk}/${serviceChecked})`,
         '  Falhas:',
         ...failures.map((f) => `    [${f.sample.kind}] «${f.sample.text}» → ${f.got} (esperado ${f.sample.label})`),

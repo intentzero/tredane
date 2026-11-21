@@ -11,8 +11,23 @@ import { routeToClientWeb } from '../../../../clientweb/route-intent'
 import { listServices } from '../../../config/services'
 import { costUsd } from '../l2/cost'
 import { bootDialogScenario } from '../dialogs/scenario'
-import { INTENT_CORPUS, type IntentLabel } from './corpus'
+import { AGENDA_INTENT_LABELS, INTENT_CORPUS, type IntentLabel } from './corpus'
 import { classifyIntentWithLlm } from './llm-classifier'
+
+const LABELS: IntentLabel[] = [
+  'agendar',
+  'remarcar',
+  'cancelar',
+  'misto',
+  'price',
+  'team',
+  'faq_catalog',
+  'nenhum',
+]
+
+function isAgendaLabel(label: IntentLabel): boolean {
+  return AGENDA_INTENT_LABELS.includes(label)
+}
 
 const LIVE = (process.env.EVAL_INTENT_LLM ?? '').toLowerCase() === 'live'
 const CEILING_USD = 2
@@ -42,7 +57,6 @@ describe(`intenção por LLM (${LIVE ? 'live' : 'sem execução'})`, () => {
       const s = bootDialogScenario({})
       try {
         const services = listServices(s.db, s.tenantId).filter((x) => x.active)
-        const LABELS: IntentLabel[] = ['agendar', 'remarcar', 'cancelar', 'misto', 'nenhum']
         const confusion = new Map<string, number>()
         const wrong: string[] = []
         let spent = 0
@@ -58,7 +72,7 @@ describe(`intenção por LLM (${LIVE ? 'live' : 'sem execução'})`, () => {
         for (const sample of INTENT_CORPUS) {
           const hasUpcoming = sample.upcoming ?? (sample.label === 'remarcar' || sample.label === 'cancelar')
           const lex = routeToClientWeb({ text: sample.text, services, hasUpcoming })
-          const expectedAgenda = sample.label !== 'nenhum'
+          const expectedAgenda = isAgendaLabel(sample.label)
           if (expectedAgenda) agendaTotal += 1
           else infoTotal += 1
           let combined: IntentLabel
@@ -79,7 +93,7 @@ describe(`intenção por LLM (${LIVE ? 'live' : 'sem execução'})`, () => {
               combined = 'nenhum'
             } else {
               combined = out.result.label
-              const predictedAgenda = combined !== 'nenhum'
+              const predictedAgenda = isAgendaLabel(combined)
               if (expectedAgenda && predictedAgenda) rescuedAgenda += 1
               if (!expectedAgenda && predictedAgenda) {
                 falseAgenda += 1
@@ -122,7 +136,7 @@ describe(`intenção por LLM (${LIVE ? 'live' : 'sem execução'})`, () => {
         process.stdout.write(lines.join('\n') + '\n')
         // Relatório para o resumo do job do GitHub (workflow eval-intent).
         mkdirSync('.eval', { recursive: true })
-        writeFileSync('.eval/intent-llm.md', ['### Intenção por LLM (DEC-202)', '', '```', ...lines.slice(1), '```', ''].join('\n'))
+        writeFileSync('.eval/intent-llm.md', ['### Intenção por LLM (DEC-221)', '', '```', ...lines.slice(1), '```', ''].join('\n'))
         expect(spent).toBeLessThanOrEqual(CEILING_USD + 0.5)
       } finally {
         s.close()

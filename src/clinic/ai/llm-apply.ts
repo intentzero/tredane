@@ -20,9 +20,20 @@ import {
 } from './autodraft'
 import { ensureClinicSettings } from '../config/settings'
 import { sendOutboundMessageOp } from '../inbox/operations'
-import { humanTeamOfferButtons, notifyHumanHandoff } from './human-handoff'
-import { locationMapOfferInteractive, rewriteRawMapsUrlOutbound } from './location-map-offer'
-import { intentLinkPurpose } from '../../ai/intent-classifier'
+import {
+  humanTeamOfferButtons,
+  notifyHumanHandoff,
+  replyHumanTeamOffer,
+} from './human-handoff'
+import {
+  isLocationMapOfferReply,
+  locationMapOfferInteractive,
+  rewriteRawMapsUrlOutbound,
+} from './location-map-offer'
+import { closedCatalogOrTeamLabel, intentLinkPurpose } from '../../ai/intent-classifier'
+import { catalogReply } from './catalog-reply'
+import { FAQ_MISSING_DETAIL_BODY } from './faq-clarification'
+import { ClinicError } from '../errors'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
   clientWebAbrirAgendaLinkPurpose,
@@ -409,10 +420,8 @@ export function failLlmJobOp(
 }
 
 /**
- * P4 (Proposto, só staging): o classificador LLM reconheceu um pedido de agenda que o léxico
- * deixou passar. Envia o link «Abrir agenda» com a frase fixa em vez da resposta do redator; com a
- * pausa da owner, sem link possível ou acima do limite, passa à equipe. A classe e a confiança
- * ficam no resultado do job (origem = LLM).
+ * DEC-221 / staging: classificador etiquetou agenda/misto/remarcar/cancelar. Envia frase fixa +
+ * Abrir agenda (cta_url) em vez do redator. Pausa da owner / teto / sem marcação futura = regras do léxico.
  */
 export async function applyIntentLinkOp(
   db: ClinicDb,
@@ -570,5 +579,133 @@ export async function applyIntentLinkOp(
     outbox: handoff.outbox,
     resumeAutodraft: false,
     reason: overLimit && !exemptFromLinkLimit ? 'web_link_limit' : 'human_handoff',
+  }
+}
+
+/**
+ * DEC-221 / staging: etiqueta fechada `price` | `team` | `faq_catalog` → handlers
+ * determinísticos já usados pelo léxico (`catalogReply`, oferta de equipe). Nunca redige.
+ */
+export async function applyClosedHandlerOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+  deps: AiAssistDeps,
+  input: ApplyLlmResultInput,
+): Promise<ApplyLlmResultOutcome> {
+  const tenantId = caller.tenantId
+  const job = getLlmJob(db, tenantId, input.jobId)
+  if (!job || job.idempotencyKey !== input.idempotencyKey) {
+    return { status: 'missing', job: null, outbox: [], resumeAutodraft: false }
+  }
+  if (job.state === 'done') return { status: 'done', job, outbox: [], resumeAutodraft: false }
+  if (job.state === 'failed' || job.state === 'stale') {
+    return { status: 'failed', job, outbox: [], resumeAutodraft: false, reason: job.errorCode ?? 'failed' }
+  }
+  if (!isAutodraftStillCurrent(db, tenantId, job.conversationId, job.messageId)) {
+    markLlmJobFailed(db, tenantId, { jobId: job.id, errorCode: 'stale_message' }, clock)
+    return { status: 'stale', job: getLlmJob(db, tenantId, job.id), outbox: [], resumeAutodraft: false, reason: 'stale_message' }
+  }
+  const snapshot = parseSnapshot<RedactSnapshot>(job)
+  const kind = closedCatalogOrTeamLabel(input.result.intent)
+  if (!snapshot || snapshot.purpose !== 'redact' || !kind) {
+    markLlmJobFailed(db, tenantId, { jobId: job.id, errorCode: 'bad_snapshot' }, clock)
+    return { status: 'failed', job: getLlmJob(db, tenantId, job.id), outbox: [], resumeAutodraft: false, reason: 'bad_snapshot' }
+  }
+  recordModelCallTowardDailyCap(db, tenantId, clock)
+  markLlmJobDone(db, tenantId, { jobId: job.id, result: { ...input.result, intentOrigin: 'llm' } }, clock)
+  cancelAutoDraft(db, tenantId, job.conversationId)
+  console.info(
+    JSON.stringify({
+      level: 'info',
+      event: 'ai.intent_llm',
+      tenantId,
+      conversationId: job.conversationId,
+      origin: 'llm',
+      label: input.result.intent?.label,
+      confidence: input.result.intent?.confidence,
+      handler: kind,
+    }),
+  )
+
+  if (kind === 'team') {
+    const offer = replyHumanTeamOffer(db, tenantId, {
+      conversationId: job.conversationId,
+      clientRequestId: `ai-team-offer:${job.messageId}`,
+    }, clock)
+    return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: offer.outbox, resumeAutodraft: false }
+  }
+
+  // Sem conversationId: a pergunta do snapshot é a fonte (não misturar com o inbound
+  // original que só abriu o job de redact — senão price/FAQ leem a frase errada).
+  const question = snapshot.question
+  let body = catalogReply(db, tenantId, question, clock) ?? null
+  if (!body && kind === 'faq_catalog') body = FAQ_MISSING_DETAIL_BODY
+  if (!body) {
+    // Preço sem facto no cadastro: mesma oferta de equipe (não inventar com LLM).
+    const offer = replyHumanTeamOffer(db, tenantId, {
+      conversationId: job.conversationId,
+      clientRequestId: `ai-closed-fallback:${job.messageId}`,
+    }, clock)
+    return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: offer.outbox, resumeAutodraft: false }
+  }
+
+  const locationOffer = isLocationMapOfferReply(body)
+  const mapsUrl = locationOffer ? ensureClinicSettings(db, tenantId, clock).googleBusinessUrl : ''
+  const locationInteractive = locationOffer
+    ? locationMapOfferInteractive(mapsUrl, db, tenantId, clock)
+    : null
+
+  let agendaCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
+  if (!locationOffer && deps.autoBookPaused !== true && deps.prepareClientWebOffer) {
+    try {
+      const offered = await deps.prepareClientWebOffer({
+        tenantId,
+        conversationId: job.conversationId,
+        purpose: 'home',
+        appointmentId: null,
+        serviceId: null,
+        audienceLine: null,
+        variantIds: [],
+      })
+      agendaCta = offered?.ctaUrl ? offered : null
+    } catch {
+      agendaCta = null
+    }
+  }
+
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId: job.conversationId,
+        body,
+        interactive: agendaCta
+          ? agendaCta
+          : locationInteractive
+            ? locationInteractive
+            : locationOffer
+              ? undefined
+              : { buttons: [openAgendaReplyButton()] },
+        omitHumanTeamAugment: true,
+        clientRequestId: agendaCta
+          ? `ai-web-home:${job.messageId}`
+          : `ai-closed-${kind}:${job.messageId}`,
+        authorClerkUserId: AI_ACTOR_ID,
+        authorDisplayName: AI_ACTOR_NAME,
+      },
+      clock,
+    )
+    return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
+  } catch (err) {
+    if (!(err instanceof ClinicError)) throw err
+    return {
+      status: 'applied',
+      job: getLlmJob(db, tenantId, job.id),
+      outbox: [],
+      resumeAutodraft: false,
+      reason: 'send_refused',
+    }
   }
 }
