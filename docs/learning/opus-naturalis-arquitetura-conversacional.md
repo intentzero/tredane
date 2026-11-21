@@ -20,6 +20,7 @@ Os exemplos de fala da cliente são fictícios.
 | **Redator** | Modelo de linguagem que **só redige** a resposta a perguntas abertas (fora do catálogo e das rotinas fixas). Não etiqueta intenção nem marca horários. |
 | **Validador** | Verificação automática que rejeita texto inventado ou perigoso |
 | **Recall** | Entre os casos que *deveriam* ser apanhados, quantos o sistema apanhou de facto |
+| **Sujeito activo do catálogo** | Último serviço (e, se resolvido, variante) referido com evidência no cadastro — fica na conversa para os turnos seguintes, sem ser marcação |
 
 ---
 
@@ -29,7 +30,7 @@ O atendimento por WhatsApp numa clínica de estética não é uma conversa livre
 
 Sistemas maduros de atendimento resolvem isto em camadas: regras baratas primeiro; depois um classificador que só etiqueta; depois rotinas fixas de resposta; e só no fim um **redator** — o modelo de linguagem que só redige respostas a perguntas abertas fora do catálogo e das rotinas fixas; não etiqueta intenção nem marca horários — com melhoria medida offline, sem o modelo «aprender sozinho» em produção.
 
-É essa a arquitectura do Tredane. O chat informa e encaminha com o botão «Abrir agenda»; a página web da cliente é o único sítio onde se marca; cada clínica corre isolada na infraestrutura. Intenções fechadas (agenda, preço, equipe, FAQ de catálogo e FAQ institucional) nunca passam pelo redator: o servidor monta a frase a partir do cadastro ou do link. A telemetria de rótulos e o modo sombra fazem parte do desenho de melhoria contínua. A medição do léxico mostra a assimetria que justifica o classificador: quase nunca inventa um link de agenda, mas perde paráfrases — e é aí que a etiqueta recupera *sem* redigir.
+É essa a arquitectura do Tredane. O chat informa e encaminha com o botão «Abrir agenda»; a página web da cliente é o único sítio onde se marca; cada clínica corre isolada na infraestrutura. Intenções fechadas (agenda, preço, equipe, FAQ de catálogo e FAQ institucional) nunca passam pelo redator: o servidor monta a frase a partir do cadastro ou do link. Depois de uma FAQ, um preço ou um reconhecimento léxico, o **sujeito activo do catálogo** (serviço e, se resolvido, variante) fica no contexto da conversa para os turnos seguintes — informação, não marcação. A telemetria de rótulos e o modo sombra fazem parte do desenho de melhoria contínua. A medição do léxico mostra a assimetria que justifica o classificador: quase nunca inventa um link de agenda, mas perde paráfrases — e é aí que a etiqueta recupera *sem* redigir.
 
 ---
 
@@ -123,11 +124,39 @@ O léxico **pré-escolhe um serviço** quando o reconhece; o classificador **nã
 
 Princípio estrutural: **nunca inventar um rótulo novo sem a rotina de resposta já ligada.** Etiquetar «FAQ de catálogo» sem o código a ler o cadastro devolveria o turno ao redator com a etiqueta «correcta» — e a cliente veria texto inventado.
 
-### 3.3 Uma clínica, um isolamento
+### 3.3 Sujeito activo do catálogo (entre turnos)
 
-Cada clínica corre num *Durable Object* — uma unidade isolada na Cloudflare, com base SQLite própria para contactos, conversas, pipeline e agenda. Uma base central guarda contas, memberships, convites e suporte; anexos ficam em armazenamento privado. O modelo de perguntas abertas corre no Worker (função na borda) através de uma fila; o objecto da clínica guarda um instantâneo do contexto, reclama o resultado e aplica-o. «Um objecto por clínica» não basta sozinho: autorização na API, ligações em tempo real, filas e ficheiros têm de respeitar o mesmo limite entre clínicas.
+Um rótulo correcto não basta se o turno seguinte perder o serviço. Depois de «Fazem [serviço X]?», a cliente costuma perguntar «Qual o valor?» ou «E a duração?» — sem repetir o nome. Sem memória do sujeito, o sistema trata a pergunta como aberta e o redator (ou o fallback) inventa ou pede à equipe.
 
-### 3.4 Melhoria contínua sem auto-treino
+Por isso a arquitectura guarda um **sujeito activo do catálogo**: o último serviço (e, se resolvido, variante ou linha) que a conversa referiu com evidência no cadastro. É estado **informativo**, distinto de uma marcação: não autoriza agendar, não ocupa horário e não substitui o nome quando ele vem no texto actual.
+
+| Quem escreve | O que fica |
+| --- | --- |
+| FAQ de oferta ou clarificação com hit no cadastro | Serviço (+ variante se única / nomeada) |
+| Preço ou duração com nome no texto | O serviço/variante da resposta |
+| Léxico que reconhece **um** serviço no turno | Esse serviço (variantes se nomeadas) |
+| «Abrir agenda» com pré-escolha de um serviço | Alinha o sujeito ao serviço do link |
+
+| Quem lê | Como |
+| --- | --- |
+| Preço / FAQ de catálogo / CTA de agenda | Ordem: nome no turno actual → sujeito activo (se válido) → nenhum |
+| FAQ institucional, equipe, política, mapa | **Não** usam o sujeito (não são sobre o serviço) |
+
+| Quando limpa ou substitui | Efeito |
+| --- | --- |
+| Cliente nomeia **outro** serviço/variante com hit | Substitui |
+| Ambiguidade («de qual serviço?»), lista genérica («quais serviços?»), «terminar» | Limpa |
+| Catálogo muda e o id deixa de ser válido | Revalida ou limpa |
+| **24 h** sem mensagem da cliente | Expira |
+| Passagem à equipe / pausa da IA | **Mantém** (a retoma ainda pode precisar do sujeito) |
+
+Regra: **o nome no texto actual vence sempre** o sujeito guardado. O redator não «lembra» o serviço pelo histórico de mensagens — os handlers leem o cadastro pelo identificador persistido.
+
+### 3.4 Uma clínica, um isolamento
+
+Cada clínica corre num *Durable Object* — uma unidade isolada na Cloudflare, com base SQLite própria para contactos, conversas, pipeline e agenda. Uma base central guarda contas, memberships, convites e suporte; anexos ficam em armazenamento privado. O modelo de perguntas abertas corre no Worker (função na borda) através de uma fila; o objecto da clínica guarda um instantâneo do contexto, reclama o resultado e aplica-o. «Um objecto por clínica» não basta sozinho: autorização na API, ligações em tempo real, filas e ficheiros têm de respeitar o mesmo limite entre clínicas. O sujeito activo vive só no SQLite dessa clínica, por conversa — sem cruzar tenants.
+
+### 3.5 Melhoria contínua sem auto-treino
 
 O modelo não aprende sozinho em produção. O desenho de adaptação é:
 
@@ -179,6 +208,7 @@ Leitura: o léxico **não se engana** a mandar o link; **perde** paráfrases. Da
 | «Me mostra a agenda» | Redator inventava horários e botões | Léxico ou rótulo `agendar` → frase fixa + URL «Abrir agenda» |
 | FAQ «o que inclui?» | Prosa inventada sobre a variante | Rotina lê o texto do cadastro (ou a frase de «não tenho esse facto») |
 | «Fazem [serviço X]?» | Oferta tratada como pergunta aberta | Mesma família FAQ de catálogo — oferta e clarificação leem o cadastro |
+| «Fazem [serviço X]?» → «Qual o valor?» | Segundo turno sem nome → redator ou «equipe confirma» | Sujeito activo: preço do cadastro no serviço já referido |
 | Tema sensível / pedido de pessoa | Classificador a competir com a segurança | Guardas prevalecem; o classificador **não** toca nesses ramos |
 
 ---
@@ -198,4 +228,4 @@ Algumas escolhas de afinação — não de arquitectura — permanecem abertas:
 
 ## 6. Veredicto
 
-A arquitectura do Tredane alinha-se ao que a indústria usa em assistentes com catálogo: regras → classificador-rótulo → rotinas de resposta → redator só para abertas; isolamento por clínica; página web para mutações de agenda; telemetria e modo sombra no ciclo de melhoria; sem auto-treino em produção. O chat informa e encaminha; a página marca; o cadastro fala pelos factos. Não é um chat «inteligente» a improvisar — é um encaminhador disciplinado com prosa gerada só onde o catálogo não chega.
+A arquitectura do Tredane alinha-se ao que a indústria usa em assistentes com catálogo: regras → classificador-rótulo → rotinas de resposta → redator só para abertas; sujeito activo do catálogo entre turnos; isolamento por clínica; página web para mutações de agenda; telemetria e modo sombra no ciclo de melhoria; sem auto-treino em produção. O chat informa e encaminha; a página marca; o cadastro fala pelos factos. Não é um chat «inteligente» a improvisar — é um encaminhador disciplinado com prosa gerada só onde o catálogo não chega.
