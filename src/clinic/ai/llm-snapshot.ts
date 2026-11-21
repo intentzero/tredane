@@ -19,8 +19,13 @@ export type RedactSnapshot = {
   /** Contexto DEC-120 já montado no DO (Worker não lê SQLite). */
   context: unknown
   computedFacts?: string
-  /** DEC-221 / staging: o Worker classifica a intenção (etiqueta) antes de redigir. */
+  /** DEC-221: o Worker classifica a intenção (etiqueta) antes de redigir. */
   classify?: boolean
+  /**
+   * Só sombra: classificar e logar, sem desviar o redator para o handler fechado.
+   * `classify` continua true; o consumer ignora o early-return de intent fechado.
+   */
+  classifyShadow?: boolean
 }
 
 /** Etiqueta de intenção do classificador LLM; nunca escolhe serviço nem hora, nunca redige. */
@@ -75,6 +80,7 @@ export async function buildRedactSnapshot(
     turn?: TurnContext
     computedFacts?: string
     classify?: boolean
+    classifyShadow?: boolean
   },
 ): Promise<RedactSnapshot> {
   const contextInspection = await buildAiContextPayload(db, caller.tenantId, input.conversationId, {
@@ -94,5 +100,6 @@ export async function buildRedactSnapshot(
     context: contextInspection.payload,
     ...(input.computedFacts ? { computedFacts: input.computedFacts } : {}),
     ...(input.classify ? { classify: true } : {}),
+    ...(input.classifyShadow ? { classifyShadow: true } : {}),
   }
 }

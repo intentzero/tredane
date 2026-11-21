@@ -249,6 +249,7 @@ import {
   closedCatalogOrTeamLabel,
   intentLinkPurpose,
   isIntentLlmEnabled,
+  isIntentLlmShadowEnabled,
 } from '../ai/intent-classifier'
 
 type ClinicEnv = WorkerBindings
@@ -4951,9 +4952,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     base: ReturnType<typeof clinicAi.toAiAssistDeps>,
   ): ReturnType<typeof clinicAi.toAiAssistDeps> {
     const web = this.#prepareClientWebOffer()
-    const withIntent = isIntentLlmEnabled(this.env as WorkerBindings)
-      ? { ...base, intentLlmEnabled: true }
-      : base
+    const env = this.env as WorkerBindings
+    let withIntent = base
+    if (isIntentLlmEnabled(env)) withIntent = { ...withIntent, intentLlmEnabled: true }
+    if (isIntentLlmShadowEnabled(env) && !isIntentLlmEnabled(env)) {
+      withIntent = { ...withIntent, intentLlmShadow: true }
+    }
     return web ? { ...withIntent, prepareClientWebOffer: web } : withIntent
   }
 

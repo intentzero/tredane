@@ -9,7 +9,10 @@ import {
   intentLinkPurpose,
   isClosedIntent,
   isIntentLlmEnabled,
+  isIntentLlmShadowEnabled,
+  isIntentLlmShadowOnly,
   minConfidenceFor,
+  shouldClassifyIntent,
 } from '../../ai/intent-classifier'
 import { upsertKnowledgeCategory, upsertKnowledgeEntry } from '../config/knowledge'
 import { createControllableClock } from '../../db/clock'
@@ -37,6 +40,12 @@ describe('classe de intenção por LLM (DEC-221)', () => {
     expect(isIntentLlmEnabled({ INTENT_LLM_ENABLED: '0' })).toBe(false)
     expect(isIntentLlmEnabled({ INTENT_LLM_ENABLED: '1' })).toBe(true)
     expect(isIntentLlmEnabled({ INTENT_LLM_ENABLED: 'TRUE' })).toBe(true)
+    expect(isIntentLlmShadowEnabled({})).toBe(false)
+    expect(isIntentLlmShadowEnabled({ INTENT_LLM_SHADOW: 'on' })).toBe(true)
+    expect(shouldClassifyIntent({ INTENT_LLM_SHADOW: '1' })).toBe(true)
+    expect(shouldClassifyIntent({ INTENT_LLM_ENABLED: '1' })).toBe(true)
+    expect(isIntentLlmShadowOnly({ INTENT_LLM_SHADOW: '1' })).toBe(true)
+    expect(isIntentLlmShadowOnly({ INTENT_LLM_ENABLED: '1', INTENT_LLM_SHADOW: '1' })).toBe(false)
   })
 
   it('gate do redator: fechados com confiança ≥ limiar; abertos e baixa confiança não', () => {

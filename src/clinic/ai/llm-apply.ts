@@ -30,7 +30,12 @@ import {
   locationMapOfferInteractive,
   rewriteRawMapsUrlOutbound,
 } from './location-map-offer'
-import { closedCatalogOrTeamLabel, intentLinkPurpose } from '../../ai/intent-classifier'
+import {
+  closedCatalogOrTeamLabel,
+  intentLinkPurpose,
+  isClosedIntent,
+} from '../../ai/intent-classifier'
+import { logIntentLlm, type IntentLlmOutcome } from '../../ai/intent-llm-log'
 import { catalogReply } from './catalog-reply'
 import { FAQ_MISSING_DETAIL_BODY } from './faq-clarification'
 import { ClinicError } from '../errors'
@@ -206,6 +211,27 @@ export async function applyLlmResultOp(
   }
 
   cancelAutoDraft(db, tenantId, job.conversationId)
+
+  // Classificador correu mas não fechou (aberto / baixa confiança / sombra) → redator.
+  if (result.intent && snapshot.classify && !snapshot.classifyShadow) {
+    const closed = isClosedIntent(result.intent)
+    logIntentLlm({
+      tenantId,
+      conversationId: job.conversationId,
+      jobId: job.id,
+      messageId: job.messageId,
+      origin: 'llm',
+      mode: 'live',
+      label: result.intent.label,
+      raw: result.intent.raw,
+      confidence: result.intent.confidence,
+      closed,
+      outcome: rejection || !suggestedText.trim() ? 'fallback' : 'redactor',
+      model: result.intent.model,
+      inputTokens: result.intent.inputTokens,
+      outputTokens: result.intent.outputTokens,
+    })
+  }
 
   if (rejection || !suggestedText.trim()) {
     markLlmJobDone(db, tenantId, { jobId: job.id, result: { ...result, rejection } }, clock)
@@ -493,19 +519,27 @@ export async function applyIntentLinkOp(
 
   markLlmJobDone(db, tenantId, { jobId: job.id, result: { ...input.result, intentOrigin: 'llm' } }, clock)
   cancelAutoDraft(db, tenantId, job.conversationId)
-  console.info(
-    JSON.stringify({
-      level: 'info',
-      event: 'ai.intent_llm',
+
+  const logLink = (outcome: IntentLlmOutcome, sent: boolean) =>
+    logIntentLlm({
       tenantId,
       conversationId: job.conversationId,
+      jobId: job.id,
+      messageId: job.messageId,
       origin: 'llm',
+      mode: 'live',
       label: input.result.intent?.label,
+      raw: input.result.intent?.raw,
       confidence: input.result.intent?.confidence,
+      closed: true,
       linkPurpose: issuedPurpose,
-      sent: Boolean(offered),
-    }),
-  )
+      handler: 'link',
+      outcome,
+      sent,
+      model: input.result.intent?.model,
+      inputTokens: input.result.intent?.inputTokens,
+      outputTokens: input.result.intent?.outputTokens,
+    })
 
   const body = clientWebRouteBody({ purpose: bodyPurpose, serviceName: null, noUpcoming })
   if (offered) {
@@ -522,6 +556,7 @@ export async function applyIntentLinkOp(
       },
       clock,
     )
+    logLink('cta', true)
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
   }
   // DEC-202 / TRE-83: sem cta_url (lab/http) → frase + reply; remarca/cancela com URL usam cta acima.
@@ -540,6 +575,7 @@ export async function applyIntentLinkOp(
         },
         clock,
       )
+      logLink('cta_reply', true)
       return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
     } catch {
       /* cai no handoff só se owner/teto de marcar; senão tenta texto */
@@ -557,6 +593,7 @@ export async function applyIntentLinkOp(
         },
         clock,
       )
+      logLink('cta_reply', true)
       return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
     } catch {
       /* envio recusado */
@@ -573,6 +610,7 @@ export async function applyIntentLinkOp(
     },
     clock,
   )
+  logLink('handoff', handoff.outbox.length > 0)
   return {
     status: 'applied',
     job: getLlmJob(db, tenantId, job.id),
@@ -615,40 +653,55 @@ export async function applyClosedHandlerOp(
   recordModelCallTowardDailyCap(db, tenantId, clock)
   markLlmJobDone(db, tenantId, { jobId: job.id, result: { ...input.result, intentOrigin: 'llm' } }, clock)
   cancelAutoDraft(db, tenantId, job.conversationId)
-  console.info(
-    JSON.stringify({
-      level: 'info',
-      event: 'ai.intent_llm',
+
+  const logClosed = (outcome: IntentLlmOutcome, sent: boolean) =>
+    logIntentLlm({
       tenantId,
       conversationId: job.conversationId,
+      jobId: job.id,
+      messageId: job.messageId,
       origin: 'llm',
+      mode: 'live',
       label: input.result.intent?.label,
+      raw: input.result.intent?.raw,
       confidence: input.result.intent?.confidence,
+      closed: true,
       handler: kind,
-    }),
-  )
+      outcome,
+      sent,
+      model: input.result.intent?.model,
+      inputTokens: input.result.intent?.inputTokens,
+      outputTokens: input.result.intent?.outputTokens,
+    })
 
   if (kind === 'team') {
     const offer = replyHumanTeamOffer(db, tenantId, {
       conversationId: job.conversationId,
       clientRequestId: `ai-team-offer:${job.messageId}`,
     }, clock)
+    logClosed('team', offer.outbox.length > 0)
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: offer.outbox, resumeAutodraft: false }
   }
 
   // Sem conversationId: a pergunta do snapshot é a fonte (não misturar com o inbound
   // original que só abriu o job de redact — senão price/FAQ leem a frase errada).
+  // Com #1020/#1021: cues de oferta + forceFaqCatalog no catalogReply; aqui o caminho
+  // fechado já chama catalogReply e, em faq_catalog, missing fixo se o cadastro não tiver facto.
   const question = snapshot.question
-  let body = catalogReply(db, tenantId, question, clock) ?? null
-  if (!body && kind === 'faq_catalog') body = FAQ_MISSING_DETAIL_BODY
+  const catalogHit = catalogReply(db, tenantId, question, clock) ?? null
+  let body = catalogHit
+  const usedMissing = !body && kind === 'faq_catalog'
+  if (usedMissing) body = FAQ_MISSING_DETAIL_BODY
   if (!body) {
     // Preço / FAQ institucional sem facto: oferta de equipe (não inventar com LLM).
     const offer = replyHumanTeamOffer(db, tenantId, {
       conversationId: job.conversationId,
       clientRequestId: `ai-closed-fallback:${job.messageId}`,
     }, clock)
+    logClosed('team', offer.outbox.length > 0)
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: offer.outbox, resumeAutodraft: false }
   }
+  const catalogOutcome: IntentLlmOutcome = usedMissing ? 'catalog_missing' : 'catalog'
 
   const locationOffer = isLocationMapOfferReply(body)
   const mapsUrl = locationOffer ? ensureClinicSettings(db, tenantId, clock).googleBusinessUrl : ''
@@ -701,9 +754,17 @@ export async function applyClosedHandlerOp(
       },
       clock,
     )
+    // Missing fixo prevalece (mede redator indevido vs cadastro vazio); senão cta vs catalog.
+    const outcome: IntentLlmOutcome = usedMissing
+      ? 'catalog_missing'
+      : agendaCta
+        ? 'cta'
+        : catalogOutcome
+    logClosed(outcome, sent.outbox.length > 0)
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
   } catch (err) {
     if (!(err instanceof ClinicError)) throw err
+    logClosed('send_refused', false)
     return {
       status: 'applied',
       job: getLlmJob(db, tenantId, job.id),
