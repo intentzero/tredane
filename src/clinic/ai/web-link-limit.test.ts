@@ -78,8 +78,14 @@ describe('limite de links por conversa (DEC-202)', () => {
             s.tenantId,
             s.conversationId,
           )
-          if (!row?.interactive_json?.includes('cw:abrir-agenda')) {
-            return [`esperava reply Abrir agenda, veio ${row?.interactive_json ?? 'null'}`]
+          if (!row?.interactive_json?.includes('ctaUrl')) {
+            return [`esperava cta_url Abrir agenda, veio ${row?.interactive_json ?? 'null'}`]
+          }
+          if (row.interactive_json.includes('cw:abrir-agenda')) {
+            return ['remarca sob teto não deve usar reply Abrir agenda']
+          }
+          if (!/"url":"https:\/\/[^"]+\/c\/cw1_/.test(row.interactive_json)) {
+            return [`cta_url remarca sem token, veio ${row.interactive_json}`]
           }
           return []
         },

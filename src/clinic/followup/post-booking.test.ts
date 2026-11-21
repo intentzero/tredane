@@ -277,7 +277,7 @@ describe('DEC-086 post-booking follow-up', () => {
     }
   })
 
-  it('Posso ajudar usa reply Abrir agenda|Terminar (Opção A / TRE-81)', () => {
+  it('Posso ajudar com agendaUrl usa cta_url Abrir agenda (DEC-220 / um toque)', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -294,10 +294,51 @@ describe('DEC-086 post-booking follow-up', () => {
         clock,
       )
       const conversationId = ingested.conversation!.id
+      const url = 'https://app.example.test/c/cw1_AAAAAAAAAAAAAAAAAAAAAAAA'
       const sent = sendPostBookingFollowupOp(
         db,
         caller,
-        { conversationId, appointmentId: 'apt_fu_cta' },
+        { conversationId, appointmentId: 'apt_fu_cta', agendaUrl: url },
+        clock,
+      )
+      expect(sent.status).toBe('queued')
+      if (sent.status !== 'queued') return
+      const ob = db.get<{ interactive_json: string | null }>(
+        `SELECT interactive_json FROM outbound_messages WHERE id = ?`,
+        sent.outboundId,
+      )
+      const parsed = JSON.parse(ob?.interactive_json ?? '{}') as {
+        ctaUrl?: { displayText?: string; url?: string }
+        buttons?: unknown[]
+      }
+      expect(parsed.ctaUrl).toEqual({ displayText: 'Abrir agenda', url })
+      expect(parsed.buttons).toBeUndefined()
+    } finally {
+      close()
+    }
+  })
+
+  it('Posso ajudar sem URL usa reply Abrir agenda|Terminar (lab)', () => {
+    const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:fu:cta-lab',
+          waId: '5511987001889',
+          body: 'oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      const sent = sendPostBookingFollowupOp(
+        db,
+        caller,
+        { conversationId, appointmentId: 'apt_fu_cta_lab' },
         clock,
       )
       expect(sent.status).toBe('queued')
@@ -312,8 +353,8 @@ describe('DEC-086 post-booking follow-up', () => {
       }
       expect(parsed.ctaUrl).toBeUndefined()
       expect(parsed.buttons).toEqual([
-        { id: postBookingButtonId('apt_fu_cta', 'another'), title: 'Abrir agenda' },
-        { id: postBookingButtonId('apt_fu_cta', 'end'), title: 'Terminar' },
+        { id: postBookingButtonId('apt_fu_cta_lab', 'another'), title: 'Abrir agenda' },
+        { id: postBookingButtonId('apt_fu_cta_lab', 'end'), title: 'Terminar' },
       ])
     } finally {
       close()

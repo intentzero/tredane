@@ -898,22 +898,18 @@ export async function runDueAutoDrafts(
     )
     const turnText = turn.turnText
     const hasUpcoming = Boolean(turn.upcoming)
-    // Título «Abrir agenda» sozinho após um CTA URL já enviado: não reenvia a frase «toque em…».
-    // (Toque autenticado `cw:abrir-agenda` continua no handler dedicado e manda o CTA se ainda não saiu.)
-    // Recolhido de #974 (supersedido pela opção B): útil com Agenda como reply na bolha de localização.
-    if (
-      isOpenAgendaButtonTitle(turnText) &&
-      countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) > 0
-    ) {
+    // Título «Abrir agenda» sozinho (eco de reply ou colado): nunca reenvia outro CTA.
+    // Toque autenticado `cw:abrir-agenda` / `fu:post:…:another` continua no Clinic DO.
+    if (isOpenAgendaButtonTitle(turnText)) {
       skip('open_agenda_title_already_offered')
       continue
     }
     /**
-     * DEC-202: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda» com o
-     * propósito certo e, se reconheceu um serviço único, com ele. Sem cta_url possível (sem
-     * número ativo, base sem https, envio recusado) envia a frase + reply «Abrir agenda» e
-     * **não** pausa nem passa à equipe. Remarcar/cancelar também não escalam pelo teto de
-     * links (frase + reply). Só a pausa da owner (e o teto em «quero marcar») escalam.
+     * DEC-202 / DEC-220: o chat não marca, não remarca e não cancela. Envia o link «Abrir agenda»
+     * com o propósito certo. Preferir sempre `cta_url` quando há URL (um toque abre a página).
+     * Sem cta_url possível (sem número ativo, base sem https, envio recusado) → frase + reply
+     * «Abrir agenda» (lab) e **não** pausa. Remarcar/cancelar não escalam pelo teto de links
+     * e ainda recebem `cta_url` (não reply). Só a pausa da owner (e o teto em «quero marcar») escalam.
      */
     const sendWebRoute = async (
       route: {
@@ -938,8 +934,8 @@ export async function runDueAutoDrafts(
       let sentOk = false
       let reasonOut = reasonLabel
       const ownerPaused = deps.autoBookPaused === true
-      // Teto bloqueia novo cta_url; remarcar/cancelar ainda caem no reply abaixo (sem pausa).
-      const paused = ownerPaused || overLimit
+      // Teto bloqueia cta só em «quero marcar»; remarca/cancela (exempt) ainda recebem cta_url.
+      const allowCta = !ownerPaused && (!overLimit || exemptFromLinkLimit)
       const serviceName = route.serviceId
         ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
         : null
@@ -953,7 +949,7 @@ export async function runDueAutoDrafts(
               noUpcoming: route.noUpcoming,
             }))
       if (route.purpose === 'home' && bodyOverride) {
-        if (!paused && deps.prepareClientWebOffer) {
+        if (allowCta && deps.prepareClientWebOffer) {
           try {
             const offered = await deps.prepareClientWebOffer({
               tenantId,
@@ -987,11 +983,10 @@ export async function runDueAutoDrafts(
         }
         if (!sentOk) {
           // Cumprimento / home: sem cta_url (ou pausa da owner) → texto; reply só se a
-          // página puder sair. Nunca handoff no cumprimento (GU-14).
-          const homeInteractive =
-            !ownerPaused && !overLimit
-              ? { buttons: [openAgendaReplyButton(route.serviceId)] }
-              : undefined
+          // página puder sair (lab). Nunca handoff no cumprimento (GU-14).
+          const homeInteractive = allowCta
+            ? { buttons: [openAgendaReplyButton(route.serviceId)] }
+            : undefined
           try {
             const sent = sendOutboundMessageOp(
               db,
@@ -1032,7 +1027,7 @@ export async function runDueAutoDrafts(
             }
           }
         }
-      } else if (!paused && deps.prepareClientWebOffer) {
+      } else if (allowCta && deps.prepareClientWebOffer) {
         let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
         try {
           const future = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 2)
@@ -1076,15 +1071,14 @@ export async function runDueAutoDrafts(
           }
         }
       }
-      // DEC-202 / TRE-83: sem cta_url → frase + reply, sem pausa.
-      // Remarcar/cancelar: mesmo com teto de links (reply, sem novo cta_url).
+      // DEC-202 / TRE-83: sem cta_url (lab/http) → frase + reply, sem pausa.
+      // Remarca/cancela com URL usam cta acima mesmo sob teto; reply só se prepare falhar.
       // (home já caiu acima; pausa da owner / teto em «quero marcar» escalam abaixo.)
       const allowReplyFallback =
         !sentOk &&
         route.purpose !== 'home' &&
-        !ownerPaused &&
-        routeBody &&
-        (!overLimit || exemptFromLinkLimit)
+        allowCta &&
+        routeBody
       if (allowReplyFallback) {
         try {
           const sent = sendOutboundMessageOp(

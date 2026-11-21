@@ -38,10 +38,10 @@ export function looksLikeClosingAssistOutbound(body: string): boolean {
 }
 
 /**
- * Botão de resposta rápida «Abrir agenda» — legado / fallback quando não há `cta_url`
- * (lab sem https, teto de links). **Não** juntar a «Falar com a equipe» na mesma bolha
- * (preferência Paulo 21/11/2026; revê DEC-216). O toque envia o CTA URL `purpose=home`.
- * Opcional: `cw:abrir-agenda:<serviceId>` (id ignorado no land em home).
+ * Botão de resposta rápida «Abrir agenda» — só fallback lab/sem https.
+ * Com URL, Abrir agenda é sempre `cta_url` (DEC-220; um toque abre a página).
+ * **Não** juntar a «Falar com a equipe» na mesma bolha. O toque legado envia
+ * CTA URL `purpose=home`. Opcional: `cw:abrir-agenda:<serviceId>` (id ignorado em home).
  */
 export const OPEN_AGENDA_REPLY_BUTTON_ID = 'cw:abrir-agenda'
 const OPEN_AGENDA_REPLY_BUTTON_PREFIX = 'cw:abrir-agenda:'

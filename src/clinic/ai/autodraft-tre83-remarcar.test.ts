@@ -162,4 +162,42 @@ describe('TRE-83 remarca fora do expediente', () => {
       s.close()
     }
   })
+
+  it('texto inbound «Abrir agenda» não reenvia CTA (DEC-220)', async () => {
+    const s = seed()
+    try {
+      const web = createClientWebHarness()
+      const first = s.say('Quero remarcar o meu agendamento')
+      enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: first.id }, s.clock)
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        prepareClientWebOffer: web.prepareOffer,
+        clinicName: 'Clínica Fictícia',
+      })
+      const before = s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ? AND direction = 'outbound'`,
+        s.tenantId,
+      )?.n
+      const echo = s.say('Abrir agenda')
+      enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: echo.id }, s.clock)
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        prepareClientWebOffer: web.prepareOffer,
+        clinicName: 'Clínica Fictícia',
+      })
+      expect(out[0]?.reason).toBe('open_agenda_title_already_offered')
+      const after = s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ? AND direction = 'outbound'`,
+        s.tenantId,
+      )?.n
+      expect(after).toBe(before)
+      expect(web.issued()).toHaveLength(1)
+    } finally {
+      s.close()
+    }
+  })
 })

@@ -468,11 +468,11 @@ export async function applyIntentLinkOp(
     purpose: bodyPurpose,
     noUpcoming,
   })
-  // Teto bloqueia novo cta_url; remarcar/cancelar ainda recebem frase + reply (sem pausa).
-  const paused = deps.autoBookPaused === true || overLimit
+  // Teto bloqueia cta só em «quero marcar»; remarca/cancela ainda recebem cta_url (DEC-220).
+  const allowCta = deps.autoBookPaused !== true && (!overLimit || exemptFromLinkLimit)
 
   let offered: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
-  if (!paused && deps.prepareClientWebOffer) {
+  if (allowCta && deps.prepareClientWebOffer) {
     try {
       offered = await deps.prepareClientWebOffer({
         tenantId,
@@ -524,8 +524,8 @@ export async function applyIntentLinkOp(
     )
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: sent.outbox, resumeAutodraft: false }
   }
-  // DEC-202 / TRE-83: sem cta_url → frase + reply; remarca/cancela também com teto (sem pausa).
-  if (!deps.autoBookPaused && (!overLimit || exemptFromLinkLimit)) {
+  // DEC-202 / TRE-83: sem cta_url (lab/http) → frase + reply; remarca/cancela com URL usam cta acima.
+  if (allowCta) {
     try {
       const sent = sendOutboundMessageOp(
         db,
