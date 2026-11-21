@@ -16,6 +16,9 @@
  * **Confirmado** (Paulo, 17/11/2026): Terminar religa a IA quando ninguém da
  * equipe é responsável; com humano no cartão (Assumir / envio manual), mantém
  * a pausa `staff_active` e não chama `resumeAiReply`.
+ * **Nota (TRE-101 / DEC-208):** o fecho automático por inactividade **não**
+ * herda esta excepção — `closeIdleConversation` força `resumeAiReply` mesmo
+ * após Assumir (copy «retomamos»; paridade Encerrar Paulo 20/11).
  * **Confirmado** (Paulo, 14/11/2026, America/Sao_Paulo): após Terminar o idle
  * não volta com agradecimento / small talk.
  */

@@ -5,6 +5,7 @@
  * de botão/texto legados mantêm-se para mensagens já enviadas.
  */
 import type { Clock } from '../../db/clock'
+import { readAiReplyPause, resumeAiReply } from '../ai/human-handoff'
 import { clearBookingFrame } from '../ai/schedule-session'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
@@ -377,6 +378,17 @@ function closeIdleConversation(
     clientRequestId: `followup.idle.close:${conversationId}:${clock.nowMs()}`,
     farewellBody: IDLE_AUTO_CLOSE_BODY,
   })
+  // REQ-098 / DEC-208: fecho por inactividade → a IA assume, inclusive após Assumir.
+  // `suppressFollowupsAfterClientEnd` (Terminar) mantém `staff_active` com humano no
+  // cartão (Paulo 17/11); aqui o atendimento encerrou por silêncio — a copy promete
+  // «é só escrever aqui que retomamos» (paridade Encerrar, Paulo 20/11).
+  if (readAiReplyPause(db, meta.tenantId, conversationId)) {
+    settled.outbox.push(
+      ...resumeAiReply(db, meta.tenantId, conversationId, clock, {
+        source: 'manual_resume',
+      }),
+    )
+  }
   writeOperationalAudit(
     db,
     {
@@ -390,6 +402,23 @@ function closeIdleConversation(
     clock,
   )
   return settled
+}
+
+/** Última outbound útil foi o fecho DEC-208 (rede de segurança no autodraft). */
+export function lastOutboundIsIdleAutoClose(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  assertClinicSchemaReady(db)
+  const lastOut = db.get<{ body: string }>(
+    `SELECT body FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+     ORDER BY created_at DESC LIMIT 1`,
+    tenantId,
+    conversationId,
+  )
+  return lastOut?.body === IDLE_AUTO_CLOSE_BODY
 }
 
 export type IdleButtonResult =

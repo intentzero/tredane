@@ -15,11 +15,13 @@ import { HANDOFF_TIMEOUT_MS } from '../../../constants'
 import {
   IDLE_AUTO_CLOSE_BODY,
   IDLE_TIMEOUT_MS,
+  rescheduleConversationIdle,
   sweepDueIdleConversations,
 } from '../../../followup/idle'
 import {
   reviewFlagAckInteractiveButtons,
 } from '../../../inbox/review-flag'
+import { assignConversationOp } from '../../../inbox/operations'
 import { ensureOpenOpportunity } from '../../../pipeline/operations'
 import { OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../clientweb/offer'
 import {
@@ -40,6 +42,7 @@ import {
 import { zonedCivilToUtc } from '../../../scheduling'
 import { GU_DIALOG_CASES, GU_TZ as TZ, seedFutureAppointment } from './gu-cases'
 import { INT_DIALOG_CASES } from './int-cases'
+import { workerCaller } from '../../../envelopes'
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
     return {
@@ -437,6 +440,85 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         IDLE_AUTO_CLOSE_BODY,
       ],
       outboundExcludes: [/Recebi sua mensagem\. A equipe já foi avisada/i],
+    },
+  },
+  {
+    // TRE-101 / staging Paulo: Assumir → idle close → mensagem nova ficava
+    // «IA pausada / Equipe atendendo» sem resposta (copy promete retomamos).
+    id: 'F-12',
+    title: 'Após Assumir + fecho idle, cancelar retoma a IA (Abrir agenda)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contactId,
+          conversationId: s.conversationId,
+        },
+        s.clock,
+      )
+      seedFutureAppointment(s, {
+        id: 'apt_f12_idle',
+        serviceId: s.ids.peeling,
+        professionalId: s.ids.bia,
+        startsAt: zonedCivilToUtc(TZ, 2026, 11, 25, 10, 0),
+      })
+    },
+    turns: [
+      {
+        role: 'owner',
+        note: 'Estado legado: inbound (janela 24h) + handoff + Assumir antes do fecho idle',
+        act: (s) => {
+          // Inbound sem autodraft: abre janela Meta e dá progresso ao idle.
+          s.sayInbound('preciso de ajuda')
+          notifyHumanHandoff(
+            s.db,
+            s.tenantId,
+            {
+              conversationId: s.conversationId,
+              reason: 'off_purpose',
+              clientRequestId: `f12-handoff:${s.conversationId}`,
+              silent: true,
+            },
+            s.clock,
+          )
+          assignConversationOp(
+            s.db,
+            workerCaller(s.tenantId, 'user_synth_attendant_a'),
+            {
+              conversationId: s.conversationId,
+              assigneeClerkUserId: 'user_synth_attendant_a',
+              assigneeDisplayName: 'Ana',
+              actorClerkUserId: 'user_synth_attendant_a',
+              actorDisplayName: 'Ana',
+            },
+            s.clock,
+          )
+          rescheduleConversationIdle(s.db, s.tenantId, s.conversationId, s.clock, {
+            progressAt: s.clock.nowMs(),
+          })
+        },
+      },
+      {
+        role: 'owner',
+        note: 'DEC-208: +30 min → fecho idle (IA assume mesmo após Assumir)',
+        act: (s) => {
+          s.clock.advance(IDLE_TIMEOUT_MS + 1)
+          sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+        },
+      },
+      {
+        role: 'client',
+        text: 'Oi bom dia. Quero cancelar o meu agendamento',
+      },
+    ],
+    expect: {
+      notPaused: true,
+      outboundIncludes: [IDLE_AUTO_CLOSE_BODY, 'Para cancelar', 'Abrir agenda'],
+      outboundExcludes: [/Recebi sua mensagem\. A equipe já foi avisada/i],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'cancelar' }],
     },
   },
   {
