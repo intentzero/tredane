@@ -14,6 +14,7 @@ import {
   readAiReplyPause,
   resumeAiReply,
 } from '../ai/human-handoff'
+import { IDLE_AUTO_CLOSE_BODY } from '../followup/idle'
 import { suppressFollowupsAfterClientEnd } from '../followup/suppress-after-end'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { workerCaller } from '../index'
@@ -388,6 +389,80 @@ describe('staff takeover — IA não responde à cliente', () => {
       expect(afterTransfer?.preview).toBe('oi')
       expect(afterTransfer?.direction).toBe('inbound')
       expect(afterTransfer?.preview).not.toMatch(/transferiu/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('após fecho idle legado com Assumir, inbound retoma a IA (TRE-101)', async () => {
+    const s = seedConversation()
+    try {
+      assignConversationOp(
+        s.db,
+        s.caller,
+        {
+          conversationId: s.conversationId,
+          assigneeClerkUserId: 'user_synth_owner_a',
+          assigneeDisplayName: 'Paulo',
+          actorClerkUserId: 'user_synth_owner_a',
+          actorDisplayName: 'Paulo',
+        },
+        s.clock,
+      )
+      // Estado legado: fecho idle saiu mas suppress manteve staff_active + humano.
+      sendOutboundMessageOp(
+        s.db,
+        workerCaller(s.tenantId, 'system:followup'),
+        {
+          conversationId: s.conversationId,
+          body: IDLE_AUTO_CLOSE_BODY,
+          clientRequestId: `idle-close-legacy:${s.conversationId}`,
+          authorClerkUserId: 'system:followup',
+          authorDisplayName: 'Sistema',
+        },
+        s.clock,
+      )
+      pauseAiForStaffTakeover(s.db, s.tenantId, s.conversationId, s.clock)
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('staff_active')
+
+      const inbound = ingestContactMessage(
+        s.db,
+        workerCaller(s.tenantId, AI_ACTOR_ID),
+        {
+          providerEventKey: `wa:idle-resume:${s.clock.nowMs()}`,
+          waId: '5511987665544',
+          body: 'Oi bom dia. Quero cancelar o meu agendamento',
+        },
+        s.clock,
+      )
+      const job = enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: inbound.message!.id },
+        s.clock,
+      )
+      expect(job).not.toBeNull()
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
+      expect(
+        s.db.get<{ a: string | null }>(
+          `SELECT assignee_clerk_user_id AS a FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.a,
+      ).toBe(AI_ACTOR_ID)
+
+      s.clock.advance(8_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+      })
+      const lastOut = s.db.get<{ body: string; author: string | null }>(
+        `SELECT body, author_clerk_user_id AS author FROM messages
+         WHERE conversation_id = ? AND direction = 'outbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        s.conversationId,
+      )
+      expect(lastOut?.body).not.toBe(IDLE_AUTO_CLOSE_BODY)
+      expect(lastOut?.author).toBe(AI_ACTOR_ID)
     } finally {
       s.close()
     }

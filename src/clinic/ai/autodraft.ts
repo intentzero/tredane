@@ -21,7 +21,7 @@ import { ClinicError } from '../errors'
 import { ensureClinicSettings, isClinicAiAssistEnabled } from '../config/settings'
 import { listServices } from '../config/services'
 import { buildCancellationPolicyReply } from './policy-reply'
-import { handleIdleTextReply } from '../followup/idle'
+import { handleIdleTextReply, lastOutboundIsIdleAutoClose } from '../followup/idle'
 import { POST_BOOKING_BODY } from '../followup/post-booking'
 import { pickTerminarFarewell } from '../followup/terminar-farewell'
 import { suppressFollowupsAfterClientEnd } from '../followup/suppress-after-end'
@@ -219,6 +219,18 @@ export function enqueueAutoDraft(
     )?.body ?? ''
   // #475 S4 opção B: texto de verdade limpa «já pedi» mesmo com IA pausada (antes do return).
   clearMediaAskTextOnRealInbound(db, tenantId, input.conversationId, body, now)
+  // TRE-101 / DEC-208: após fecho por inactividade, a próxima mensagem religa a IA
+  // *antes* do gate de pausa — senão `staff_active` devolve null e o job nunca corre
+  // (threads já fechadas com Assumir antes do force-resume no fecho).
+  if (lastOutboundIsIdleAutoClose(db, tenantId, input.conversationId)) {
+    const conv = getConversation(db, tenantId, input.conversationId)
+    if (
+      readAiReplyPause(db, tenantId, input.conversationId) != null ||
+      isHumanStaffAuthor(conv?.assigneeClerkUserId)
+    ) {
+      resumeAiReply(db, tenantId, input.conversationId, clock, { source: 'manual_resume' })
+    }
+  }
   // DEC-157: «avaliar»/«feedback» é orthogonal à pausa DEC-083 — enfileira mesmo pausada.
   if (isConversationPaused(db, tenantId, input.conversationId) && !isReviewFlagRequest(body)) {
     const pause = readAiReplyPause(db, tenantId, input.conversationId)
@@ -656,18 +668,29 @@ export async function runDueAutoDrafts(
       cancelAutoDraft(db, tenantId, job.conversationId)
       record({ ...job, status: 'skipped', suggestion: null, reason })
     }
-    const conv = getConversation(db, tenantId, job.conversationId)
+    let conv = getConversation(db, tenantId, job.conversationId)
     if (!conv || conv.status === 'closed') { skip('conversation_closed'); continue }
-    if (conv.assigneeClerkUserId && isHumanStaffAuthor(conv.assigneeClerkUserId)) {
-      skip('human_assignee')
-      continue
-    }
     const inboundBody =
       db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND id = ?`,
         tenantId,
         job.messageId,
       )?.body ?? ''
+    // TRE-101 / DEC-208: após «Encerramos… retomamos», a próxima mensagem da cliente
+    // religa a IA mesmo com Assumir/`staff_active` (threads já fechadas antes do fix
+    // no fecho). Tem de correr *antes* do skip `human_assignee`.
+    if (
+      lastOutboundIsIdleAutoClose(db, tenantId, job.conversationId) &&
+      (readAiReplyPause(db, tenantId, job.conversationId) != null ||
+        isHumanStaffAuthor(conv.assigneeClerkUserId))
+    ) {
+      resumeAiReply(db, tenantId, job.conversationId, clock, { source: 'manual_resume' })
+      conv = getConversation(db, tenantId, job.conversationId) ?? conv
+    }
+    if (conv.assigneeClerkUserId && isHumanStaffAuthor(conv.assigneeClerkUserId)) {
+      skip('human_assignee')
+      continue
+    }
     // Staging Paulo 09/11/2026: `[Botão] Confirmar` + pending choose_slot →
     // `esclarecer` depois do Agendado (race ingest→S5). S5 cancela o job; isto
     // cobre job já em generating / reentrega sem cancel.

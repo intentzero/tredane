@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
 import { CLINIC_SCHEMA_VERSION } from '../constants'
 import { ingestContactMessage, workerCaller } from '../index'
-import { notifyHumanHandoff } from '../ai/human-handoff'
+import { AI_ACTOR_ID } from '../ai-actor'
+import { notifyHumanHandoff, readAiReplyPause } from '../ai/human-handoff'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { seedSyntheticWhatsappTemplates } from '../inbox/templates'
@@ -15,7 +16,7 @@ import { insertMessage } from '../inbox/messages'
 import { touchConversationMessage } from '../inbox/conversations'
 import { getBookingFrame, saveBookingFrame } from '../ai/schedule-session'
 import { CLIENT_WEB_CTA_TEXT } from '../../clientweb/offer'
-import { sendOutboundMessageOp } from '../inbox/operations'
+import { assignConversationOp, sendOutboundMessageOp } from '../inbox/operations'
 import {
   handleIdleButtonClick,
   handleIdleTextReply,
@@ -330,6 +331,86 @@ describe('DEC-208 idle timeout 30 min', () => {
         cnv2,
       )
       expect(thanksHuman?.body).toBe(IDLE_AUTO_CLOSE_BODY)
+      // Handoff sem Assumir: suppress já religa; fecho deixa a IA activa.
+      expect(readAiReplyPause(db, 'clinic-demo-a', cnv2)).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
+  it('após Assumir, fecho idle DEC-208 religa a IA (TRE-101 / REQ-098)', () => {
+    const clock = createControllableClock(Date.UTC(2026, 10, 20, 19, 0))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:assumir-close',
+          waId: '5511987001555',
+          body: 'Quero remarcar',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      notifyHumanHandoff(
+        db,
+        'clinic-demo-a',
+        {
+          conversationId,
+          reason: 'off_purpose',
+          clientRequestId: 'handoff-idle-assumir',
+        },
+        clock,
+      )
+      assignConversationOp(
+        db,
+        caller,
+        {
+          conversationId,
+          assigneeClerkUserId: 'user_synth_attendant_a',
+          assigneeDisplayName: 'Ana',
+          actorClerkUserId: 'user_synth_attendant_a',
+          actorDisplayName: 'Ana',
+        },
+        clock,
+      )
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)?.reason).toBe('staff_active')
+
+      rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
+        progressAt: clock.nowMs(),
+      })
+      clock.advance(IDLE_TIMEOUT_MS + 1)
+      const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(closed.some((s) => s.action === 'closed' && s.conversationId === conversationId)).toBe(
+        true,
+      )
+      expect(
+        db.get<{ body: string }>(
+          `SELECT body FROM messages
+           WHERE conversation_id = ? AND direction = 'outbound'
+           ORDER BY created_at DESC LIMIT 1`,
+          conversationId,
+        )?.body,
+      ).toBe(IDLE_AUTO_CLOSE_BODY)
+      expect(readAiReplyPause(db, 'clinic-demo-a', conversationId)).toBeNull()
+      expect(
+        db.get<{ a: string | null }>(
+          `SELECT assignee_clerk_user_id AS a FROM conversations WHERE id = ?`,
+          conversationId,
+        )?.a,
+      ).toBe(AI_ACTOR_ID)
     } finally {
       close()
     }
