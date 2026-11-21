@@ -1049,4 +1049,117 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       boot.close()
     }
   })
+
+  it('DEC-177 / TRE-100: «o que inclui a íntima?» lê client_explanation (não LLM)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-faq-intima'
+    const caller = workerCaller(tenantId)
+    try {
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          clientExplanation: 'Remoção dos pelos pela raiz — prosa do serviço.',
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'Intima',
+            audience: 'feminino',
+            durationMinutes: 20,
+            priceCents: 15_000,
+            clientExplanation: 'Inclui virilha e genital no feminino.',
+          },
+          {
+            name: 'Intima',
+            audience: 'masculino',
+            durationMinutes: 20,
+            priceCents: 20_000,
+            clientExplanation: 'Zona íntima com cera.',
+            clientExplanationAudience: 'Inclui virilha, genital e perianal no masculino.',
+          },
+          { name: 'Axila', audience: 'feminino', durationMinutes: 15, priceCents: 4_000 },
+        ],
+        clock,
+      )
+      const withFact = catalogReply(
+        boot.db,
+        tenantId,
+        'O que inclui a íntima?',
+        clock,
+      )
+      expect(withFact).toMatch(/Inclui virilha e genital no feminino/)
+      expect(withFact).not.toMatch(/Remoção dos pelos|prosa do serviço/i)
+
+      const masculine = catalogReply(
+        boot.db,
+        tenantId,
+        'O que inclui a depilação íntima masculina?',
+        clock,
+      )
+      expect(masculine).toMatch(/perianal no masculino/)
+      expect(masculine).not.toMatch(/no feminino|Remoção dos pelos|prosa do serviço/i)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('DEC-177 / TRE-100: íntima sem explicação → frase missing (não prosa do serviço)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-faq-intima-missing'
+    const caller = workerCaller(tenantId)
+    try {
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          clientExplanation: 'Remoção dos pelos pela raiz utilizando cera.',
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'Intima',
+            audience: 'feminino',
+            durationMinutes: 20,
+            priceCents: 15_000,
+            clientExplanation: null,
+          },
+        ],
+        clock,
+      )
+      const missing = catalogReply(boot.db, tenantId, 'O que inclui a íntima?', clock)
+      expect(missing).toBe('Não tenho esse detalhe no cadastro; a equipe confirma.')
+      expect(missing).not.toMatch(/Remoção dos pelos|cera/i)
+    } finally {
+      boot.close()
+    }
+  })
 })
