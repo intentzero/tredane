@@ -310,29 +310,30 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     expect(r.replyText).not.toMatch(/Remoção dos pelos|faz parte/i)
   })
 
-  it('rsamp_f72ce590 seq82: «O que inclui a depilação íntima?» → explicação do serviço', () => {
-    const explanation =
-      'A depilação íntima com cera remove os pelos pelas regiões íntimas, virilha e períneo.'
+  it('TRE-100: «O que inclui a depilação íntima?» com texto na variante → variante (não prosa do serviço)', () => {
+    const zoneText = 'Inclui virilha e genital no feminino.'
     const r = answerFaqFromCatalog({
       text: 'O que inclui a depilação íntima?',
       conversationId: 'cnv_b8df6c59165f4668',
       service: {
         ...service,
         name: 'Depilação',
-        clientExplanation: explanation,
+        clientExplanation:
+          'A depilação íntima com cera remove os pelos pelas regiões íntimas, virilha e períneo.',
       } as ServiceRow,
-      zones: [{ ...intima, name: 'Íntima' }, axila],
+      zones: [
+        { ...intima, name: 'Íntima', clientExplanation: zoneText },
+        axila,
+      ],
     })
     expect(r.kind).toBe('explanation')
     if (r.kind === 'explanation') {
-      expect(r.replyText).toMatch(/depilação íntima com cera/i)
-      expect(r.replyText).not.toMatch(/faz parte de/i)
-      expect(r.replyText).not.toMatch(/\bdepilacao\b/i)
+      expect(r.replyText).toMatch(/virilha e genital no feminino/i)
+      expect(r.replyText).not.toMatch(/períneo|cera remove/i)
     }
   })
 
-  it('«o que vem na depilação íntima?» e «o que faz parte da depilação íntima?» usam o cadastro do serviço', () => {
-    const explanation = 'Inclui virilha, genital e perianal conforme cadastro.'
+  it('TRE-100: «o que vem / faz parte da depilação íntima?» sem texto na variante → missing', () => {
     for (const text of [
       'o que vem na depilação íntima?',
       'o que faz parte da depilação íntima?',
@@ -343,14 +344,12 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
         service: {
           ...service,
           name: 'Depilação',
-          clientExplanation: explanation,
+          clientExplanation: 'Inclui virilha, genital e perianal conforme cadastro.',
         } as ServiceRow,
         zones: [{ ...intima, name: 'Íntima' }, axila],
       })
-      expect(r.kind).toBe('explanation')
-      if (r.kind === 'explanation') {
-        expect(r.replyText).toMatch(/virilha/)
-      }
+      expect(r).toEqual({ kind: 'missing', replyText: FAQ_MISSING_DETAIL_BODY })
+      expect(r.replyText).not.toMatch(/virilha|perianal/i)
     }
   })
 

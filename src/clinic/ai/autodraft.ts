@@ -1685,7 +1685,7 @@ export async function runDueAutoDrafts(
         /\bSomando tudo, ficam\b/i.test(catalogText)
       // Preferência 21/11 (DEC-220): informação → cta_url Abrir agenda (home); sem reply Equipe nesta bolha.
       // Localização (DEC-211): com URL Maps → só cta_url «Abrir mapa» (um toque; Meta não mistura reply).
-      // TRE-77 / TRE-94: FAQ de expediente / preço — mesmo cta_url home.
+      // TRE-77 / TRE-94 / TRE-100: FAQ de expediente / preço / clarificação DEC-177 — mesmo cta_url home.
       const catalogCited = servicesCitedInText(turn.catalog.services, turnText)
       const catalogServiceId = catalogCited.length === 1 ? catalogCited[0]!.id : null
       const locationOffer = isLocationMapOfferReply(catalogText)

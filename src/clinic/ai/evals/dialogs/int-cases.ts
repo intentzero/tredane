@@ -21,6 +21,8 @@
  * | INT-08b| Confirmado| Paráfrase «Onde atendem?» → mesmo cta_url Abrir mapa (sem URL no corpo) |
  * | INT-09 | Confirmado| Valor da massagem → tipo → «Relaxante» responde R$ (sem modelo) |
  * | INT-10 | Confirmado| FAQ DEC-185 com cumprimento «Boa tarde» → texto publicado (TRE-60) |
+ * | INT-13 | Confirmado| «O que inclui a íntima?» → client_explanation + Abrir agenda home (TRE-100 / DEC-220) |
+ * | INT-14 | Confirmado| Íntima sem explicação → missing + Abrir agenda home, sem LLM (TRE-100) |
  */
 import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
@@ -514,6 +516,157 @@ export const INT_DIALOG_CASES: DialogCase[] = [
         },
       ],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
+    },
+  },
+  {
+    id: 'INT-13',
+    title:
+      '«O que inclui a íntima?» → client_explanation + Abrir agenda home, sem modelo nem prosa do serviço (TRE-100 / DEC-220)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const depilacao = listServices(s.db, s.tenantId).find((row) => row.name === 'Depilação')
+      if (!depilacao) throw new Error('INT-13: serviço Depilação ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: depilacao.id,
+          name: depilacao.name,
+          durationMinutes: depilacao.durationMinutes,
+          bufferMinutes: depilacao.bufferMinutes,
+          priceCents: depilacao.priceCents,
+          professionalIds: depilacao.professionalIds,
+          roomRequirement: depilacao.roomRequirement,
+          variantKind: 'zona',
+          variantKindPlural: 'zonas',
+          clientExplanation: 'Remoção dos pelos pela raiz utilizando cera depilatória.',
+        },
+        s.clock,
+      )
+      // Reusa ids das zonas existentes (replaceZones inserir+apagar falha no UNIQUE).
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        depilacao.id,
+        [
+          ...depilacao.zones.map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            audience: zone.audience,
+            durationMinutes: zone.durationMinutes,
+            priceCents: zone.priceCents,
+            synonyms: zone.synonyms,
+            clientExplanation: zone.clientExplanation,
+            clientExplanationAudience: zone.clientExplanationAudience ?? null,
+          })),
+          {
+            name: 'Intima',
+            audience: 'feminino' as const,
+            durationMinutes: 20,
+            priceCents: 15_000,
+            clientExplanation: 'Inclui virilha e genital no feminino.',
+          },
+          {
+            name: 'Intima',
+            audience: 'masculino' as const,
+            durationMinutes: 20,
+            priceCents: 20_000,
+            clientExplanation: 'Zona íntima com cera.',
+            clientExplanationAudience: 'Inclui virilha, genital e perianal no masculino.',
+          },
+        ],
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'O que inclui a íntima?' }],
+    expect: {
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Inclui virilha e genital no feminino/i],
+          excludes: [
+            /Remoção dos pelos/i,
+            /cera depilatória/i,
+            /Não tenho esse detalhe/i,
+            /Falar com a equipe/i,
+            /repasso para a equipe/i,
+          ],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
+      outboundExcludes: [/Falar com a equipe/i, /Remoção dos pelos/i],
+    },
+  },
+  {
+    id: 'INT-14',
+    title:
+      'Íntima sem explicação → frase missing + Abrir agenda home, sem LLM nem prosa do serviço (TRE-100)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const depilacao = listServices(s.db, s.tenantId).find((row) => row.name === 'Depilação')
+      if (!depilacao) throw new Error('INT-14: serviço Depilação ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: depilacao.id,
+          name: depilacao.name,
+          durationMinutes: depilacao.durationMinutes,
+          bufferMinutes: depilacao.bufferMinutes,
+          priceCents: depilacao.priceCents,
+          professionalIds: depilacao.professionalIds,
+          roomRequirement: depilacao.roomRequirement,
+          variantKind: 'zona',
+          variantKindPlural: 'zonas',
+          clientExplanation: 'Remoção dos pelos pela raiz utilizando cera depilatória.',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        depilacao.id,
+        [
+          ...depilacao.zones.map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            audience: zone.audience,
+            durationMinutes: zone.durationMinutes,
+            priceCents: zone.priceCents,
+            synonyms: zone.synonyms,
+            clientExplanation: zone.clientExplanation,
+            clientExplanationAudience: zone.clientExplanationAudience ?? null,
+          })),
+          {
+            name: 'Intima',
+            audience: 'feminino' as const,
+            durationMinutes: 20,
+            priceCents: 15_000,
+            clientExplanation: null,
+          },
+        ],
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'O que inclui a íntima?' }],
+    expect: {
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Não tenho esse detalhe no cadastro; a equipe confirma/i],
+          excludes: [/Remoção dos pelos/i, /Falar com a equipe/i, /repasso para a equipe/i],
+        },
+      ],
+      turnDecided: [{ modelCalled: false }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
+      outboundExcludes: [/Remoção dos pelos/i, /Falar com a equipe/i],
     },
   },
   {

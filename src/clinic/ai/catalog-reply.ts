@@ -63,6 +63,11 @@ import { buildCancellationPolicyReply } from './policy-reply'
 import { buildOpeningHoursReply } from './opening-hours-reply'
 import { isLocationAsk } from './location-map-offer'
 import { isOpeningDayAsk } from './opening-day-ask'
+import {
+  answerFaqFromCatalog,
+  FAQ_MISSING_DETAIL_BODY,
+  isCatalogClarificationAsk,
+} from './faq-clarification'
 
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 /** Alias estável — ver `CATALOG_PRICE_ASK` (singular «valor», tabela, sinónimos). */
@@ -517,6 +522,35 @@ export function catalogReply(
   const inPlay = namedPick ?? held ?? serviceFromNamedZones(services, source)
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
+
+  // DEC-177 / TRE-100: clarificação de serviço/variante → `client_explanation`
+  // (± override DEC-189) antes do LLM; sem facto → frase missing fixa.
+  // Tem de correr antes de rememberZonesWhenKnown (senão «o que inclui a íntima?»
+  // gravava zona e cedia ao redator).
+  if (isCatalogClarificationAsk(body) || isCatalogClarificationAsk(source)) {
+    const faqSvc =
+      namedPick ??
+      held ??
+      serviceFromNamedZones(services, source) ??
+      (targets.length === 1 ? targets[0] : undefined)
+    if (!faqSvc) return FAQ_MISSING_DETAIL_BODY
+    const activeFaq = faqSvc.zones.filter((zone) => zone.active)
+    const mixedFaq = needsAudienceLine(activeFaq)
+    const carriedFaq =
+      session?.serviceId === faqSvc.id ? session.audienceLine : heldLineNow
+    const lineFaq = mixedFaq
+      ? (explicitAudienceLine(source) ?? carriedFaq)
+      : null
+    const poolFaq =
+      mixedFaq && lineFaq ? zonesForAudienceLine(activeFaq, lineFaq) : activeFaq
+    const faq = answerFaqFromCatalog({
+      text: source || body,
+      conversationId: cnv,
+      service: faqSvc,
+      zones: poolFaq.length > 0 ? poolFaq : activeFaq,
+    })
+    return faq.replyText
+  }
 
   const afternoon = ambiguousAfternoonHour(body, cnv)
   if (afternoon) return afternoon

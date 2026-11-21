@@ -355,25 +355,10 @@ export function answerFaqFromCatalog(input: {
     objectTerm = null
   }
 
-  if (
-    subject &&
-    objectTerm == null &&
-    isServiceLevelInclusionAsk(folded) &&
-    mentionsServiceName(folded, input.service)
-  ) {
-    const explanation = input.service.clientExplanation?.trim() ?? ''
-    if (explanation) {
-      return {
-        kind: 'explanation',
-        replyText: sayAct(
-          'informar_explicacao',
-          input.conversationId,
-          { explicação: explanation },
-          explanation,
-        ),
-      }
-    }
-  }
+  // DEC-177 / DEC-189 / TRE-100: variante nomeada prevalece. Não usar a prosa do
+  // serviço quando a pergunta nomeia a zona («o que inclui a depilação íntima?»).
+  // O ramo antigo de «serviço+variante → explicação do serviço» (rsamp_f72ce590)
+  // contradizia a regra Confirmada: zona sem texto próprio → missing.
 
   if (subject && objectTerm) {
     if (synonymCoversTerm(subject, objectTerm)) {
