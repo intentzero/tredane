@@ -996,7 +996,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         action: 'client_web.link_sent_by_staff',
         objectType: 'conversation',
         objectId: input.conversationId,
-        detail: { purpose, serviceId: input.serviceId ?? null },
+        detail: { purpose: linkPurpose, serviceId: input.serviceId ?? null },
       },
       this.#clock,
     )
