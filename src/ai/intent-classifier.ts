@@ -159,9 +159,12 @@ export async function classifyIntentWithLlm(
  */
 export const INTENT_MIN_CONFIDENCE = 0.7
 
+/** Overrides por etiqueta (vazio até medição D2). */
+const INTENT_MIN_CONFIDENCE_BY_LABEL: Partial<Record<IntentLabel, number>> = {}
+
 /** Limiar por etiqueta (hoje = defeito para todas; overrides só após medição D2). */
-export function minConfidenceFor(_label: IntentLabel): number {
-  return INTENT_MIN_CONFIDENCE
+export function minConfidenceFor(label: IntentLabel): number {
+  return INTENT_MIN_CONFIDENCE_BY_LABEL[label] ?? INTENT_MIN_CONFIDENCE
 }
 
 function hasMinConfidence(
