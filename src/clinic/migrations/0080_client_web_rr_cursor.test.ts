@@ -19,7 +19,7 @@ describe('migração 0080_client_web_rr_cursor', () => {
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 80, status: 'ready' })
+      expect(state).toEqual({ version: CLINIC_SCHEMA_VERSION, status: 'ready' })
       const row = db.get<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'client_web_rr_cursor'`,
       )
