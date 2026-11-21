@@ -182,7 +182,7 @@ describe('ClientWebApp (C-01, C-09)', () => {
     expect(calls.some((c) => c.url.endsWith('/api/c/exchange'))).toBe(false)
   })
 
-  it('sem marcações futuras diz isso e não mostra lista', async () => {
+  it('sem marcações futuras centra Agendar no main e não usa sticky', async () => {
     mockApi()
     vi.stubGlobal(
       'fetch',
@@ -192,10 +192,14 @@ describe('ClientWebApp (C-01, C-09)', () => {
           : new Response(JSON.stringify({ ...STATE, appointments: [], firstName: null }), { status: 200 }),
       ),
     )
-    render(<ClientWebApp />)
+    const { container } = render(<ClientWebApp />)
     expect(await screen.findByRole('heading', { name: 'Olá' })).toBeTruthy()
     expect(screen.getByText('Você não tem marcações futuras.')).toBeTruthy()
+    expect(screen.getByText('Agende o próximo horário')).toBeTruthy()
     expect(screen.queryByRole('list')).toBeNull()
+    expect(container.querySelector('.cw-bar')).toBeNull()
+    expect(container.querySelector('.cw-empty-hero')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Agendar novo horário' })).toBeTruthy()
   })
 
   it('mostra «Como chegar» em cada marcação só quando há link (DEC-211)', async () => {
@@ -219,11 +223,13 @@ describe('ClientWebApp (C-01, C-09)', () => {
     expect(link.getAttribute('rel')).toContain('noopener')
   })
 
-  it('mostra Agendar e, em cada marcação, Remarcar e Cancelar', async () => {
+  it('mostra Agendar sticky e, em cada marcação, Remarcar e Cancelar', async () => {
     mockApi()
-    render(<ClientWebApp />)
+    const { container } = render(<ClientWebApp />)
     await screen.findByRole('heading', { name: 'Olá, Marina' })
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Remarcar', 'Cancelar', 'Agendar novo horário'])
+    expect(container.querySelector('.cw-bar')).toBeTruthy()
+    expect(container.querySelector('.cw-empty-hero')).toBeNull()
     expect(screen.queryByRole('link')).toBeNull()
   })
 
