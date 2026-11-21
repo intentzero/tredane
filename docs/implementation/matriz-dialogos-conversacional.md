@@ -207,8 +207,10 @@
 | G-07 | P0 | Remarcar com compromisso | [compromisso futuro] ⟶ C: «Posso reagendar para quarta?» | Oferece horários de quarta para o mesmo serviço e zonas (DEC-129: «Na {dia} tenho {horas}. Algum serve para remarcar?»); a proposta substitui o compromisso; sem marcador CF-22. | EF-02, INV-08 | 2 | ✅ `reschedule.test` |
 | G-08 | P1 | Remarcar sem compromisso | C: «Quero remarcar» | Handoff. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-09 | P0 | Mensagem durante a pausa | [pausada] ⟶ C: «Axila» ⟶ equipe devolve à IA | Nenhuma frase repetida; depois de devolver, a mensagem pendente recebe resposta. | INV-06, INV-09 | 1 | ✅ `dec-083.test`; L4 divergente na sonda de 31/10 |
-| G-10 | P1 | Pedido de equipe fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «A equipe atende a partir de segunda às 09:00. Posso continuar te ajudando por aqui.» IA activa (DEC-155; revê DEC-113 neste caminho). | Q5, Q6 | 1 | ✅ L1 |
-| G-10d | P0 | Ack fora do expediente sem repetir Equipe | (sáb 17:00) C: «Falar com a equipe» | «Deixei seu pedido…» com **só** «Abrir agenda» (sem «Falar com a equipe»; TRE-54). | DEC-216, TRE-54 | 1 | ✅ L1 |
+| G-10 | P1 | Pedido de equipe fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | Oferta do botão (DEC-219); sem registo. Toque → G-10e. | DEC-155/224, Q5, Q6 | 1 | ✅ L1 |
+| G-10d | P0 | Texto «Falar com a equipe» → só Equipe | (sáb 17:00) C: «Falar com a equipe» | Oferta só «Falar com a equipe» (sem Abrir agenda na bolha; DEC-220); sem pausa. | DEC-219/220 | 1 | ✅ L1 |
+| G-10e | P0 | Toque Equipe fora do expediente | (sáb 17:00) toque «Falar com a equipe» | «A equipe atende a partir de… Posso continuar…»; **sem** alerta/`alter_awaiting_team`; IA activa (DEC-224). | DEC-224, DEC-155, DEC-113 | 1 | ✅ L1 |
+| CW-18 | P0 | Cancelar na página com handoff aberto | handoff DEC-083 → cancelar na página | Limpa alerta/pausa; responsável IA (DEC-225). | DEC-225, #1012 | 0 | ✅ L1 |
 | G-11 | P0 | Pedido humano no meio de várias bolhas | C: «quero falar com alguém» · «obrigada» | Handoff. | INV-06 | 1 | ⚠ CF-13 |
 | G-12 | P1 | Botão «Falar com a equipe» | [qualquer mensagem da IA] ⟶ clique no botão | Frase; a proposta pendente não é encaminhada. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-13 | P1 | Dica humana na 1.ª oferta de Horários | [1.ª lista Horários] ⟶ [2.ª oferta na sessão] | 1.ª inclui «escreva falar com a equipe…»; 2.ª não; sem pausa só por mostrar a dica (DEC-153). | INV-06, EF-03 | 1 | ✅ L1 A-42 · `human-help-hint.test` |

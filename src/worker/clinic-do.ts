@@ -142,6 +142,7 @@ import {
   nextHandoffTimeoutAt,
   notifyHumanHandoff,
   replyAfterHoursHumanRequest,
+  resumeAiAfterClientWebSuccess,
   resumeAiReply,
   sweepDueHandoffTimeouts,
 } from '../clinic/ai/human-handoff'
@@ -1109,7 +1110,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = findRecentWebBooking(this.#db, caller.tenantId, this.#clock, input, input)
-    if (already) return { status: 'booked', appointment: already }
+    if (already) {
+      await this.#resumeAiAfterClientWebIfNeeded(caller, input.conversationId)
+      return { status: 'booked', appointment: already }
+    }
     const autoBookPaused = clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
     if (autoBookPaused) return { status: 'paused' }
 
@@ -1166,8 +1170,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       this.#clock,
       pixAdapter ? { pixAdapter } : {},
     )
-    if (execution.outbox.length > 0) {
-      await this.#fanoutOutboxes(caller, execution.outbox, true)
+    const outboxes = [...execution.outbox]
+    if (execution.status === 'booked') {
+      // DEC-225: sucesso na página → limpa handoff/Assumir e retoma IA.
+      outboxes.push(
+        ...resumeAiAfterClientWebSuccess(
+          this.#db,
+          caller.tenantId,
+          input.conversationId,
+          this.#clock,
+        ),
+      )
+    }
+    if (outboxes.length > 0) {
+      await this.#fanoutOutboxes(caller, outboxes, true)
       await this.#drain(caller)
     }
     if (execution.status === 'pix_signal') {
@@ -1222,7 +1238,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     if (!sessionOwnsConversation(this.#db, input)) return null
     const already = rescheduleAlreadyAt(this.#db, caller.tenantId, this.#clock, input, input)
-    if (already) return { status: 'booked', appointment: already }
+    if (already) {
+      await this.#resumeAiAfterClientWebIfNeeded(caller, input.conversationId)
+      return { status: 'booked', appointment: already }
+    }
     const autoBookPaused = clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
     if (autoBookPaused) return { status: 'paused' }
 
@@ -1260,8 +1279,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       },
       this.#clock,
     )
-    if (execution.outbox.length > 0) {
-      await this.#fanoutOutboxes(caller, execution.outbox, true)
+    const outboxes = [...execution.outbox]
+    if (execution.status === 'booked') {
+      outboxes.push(
+        ...resumeAiAfterClientWebSuccess(
+          this.#db,
+          caller.tenantId,
+          input.conversationId,
+          this.#clock,
+        ),
+      )
+    }
+    if (outboxes.length > 0) {
+      await this.#fanoutOutboxes(caller, outboxes, true)
       await this.#drain(caller)
     }
     if (execution.status === 'booked') {
@@ -1296,7 +1326,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     if (!sessionOwnsConversation(this.#db, input)) return null
     const done = cancelFromWeb(this.#db, caller, this.#clock, input, input.appointmentId)
-    if (done.result.status === 'cancelled' && done.outbox.length > 0) {
+    if (done.result.status === 'cancelled') {
       const cancelled = done.result
       let agendaUrl: string | null = null
       const prepare = this.#prepareClientWebOffer()
@@ -1327,15 +1357,27 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         this.#clock,
         done.outbox,
       )
-      await this.#fanoutOutboxes(caller, outboxes, true)
-      await this.#drain(caller)
+      // DEC-225: cancelamento na página também limpa handoff/Assumir.
+      outboxes.push(
+        ...resumeAiAfterClientWebSuccess(
+          this.#db,
+          caller.tenantId,
+          input.conversationId,
+          this.#clock,
+        ),
+      )
+      if (outboxes.length > 0) {
+        await this.#fanoutOutboxes(caller, outboxes, true)
+        await this.#drain(caller)
+      }
     }
     return done.result
   }
 
   /**
    * Página web da cliente: «Pedir à equipe» (marcação com sinal pago, DEC-198). Mesmo efeito que
-   * «Falar com a equipe» no chat: pausa a IA e avisa a equipe (fora do expediente, só responde o horário).
+   * «Falar com a equipe» no chat: em expediente pausa a IA e avisa a equipe; fora do expediente
+   * só explica a próxima abertura (DEC-224 — sem alerta).
    */
   async clientWebAskTeam(input: {
     tenantId: string
@@ -1386,7 +1428,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     bindOrAssertTenant(this.#db, caller, this.#clock)
     if (input.buttonId.trim() === HUMAN_HANDOFF_BUTTON_ID && input.conversationId) {
       const clientRequestId = `handoff.button:${input.providerEventKey ?? input.conversationId}`
-      // DEC-155: fora do expediente → horário, IA activa (sem pausa).
+      // DEC-224: fora do expediente → horário, IA activa, sem alerta/registo.
       if (!isHumanTeamOfferAllowed(this.#db, caller.tenantId, this.#clock)) {
         const afterHours = replyAfterHoursHumanRequest(
           this.#db,
@@ -2451,6 +2493,23 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     } catch {
       return null
     }
+  }
+
+  /** DEC-225 — idempotente: limpa handoff/Assumir após sucesso na página (já booked). */
+  async #resumeAiAfterClientWebIfNeeded(
+    caller: ClinicCaller,
+    conversationId: string,
+  ): Promise<void> {
+    const outbox = resumeAiAfterClientWebSuccess(
+      this.#db,
+      caller.tenantId,
+      conversationId,
+      this.#clock,
+    )
+    if (outbox.length === 0) return
+    await this.#fanoutOutboxes(caller, outbox, true)
+    await this.#drain(caller)
+    await this.#scheduleNextHandoffTimeout(caller.tenantId)
   }
 
   /**

@@ -51,7 +51,7 @@ function seed() {
     clock,
   )
   setClinicAiAssistEnabled(boot.db, tenantId, true, clock)
-  // Item 6: «Falar com a equipe» também fora do expediente (registo DEC-155 sem pausar IA).
+  // Item 6 / DEC-224: «Falar com a equipe» também fora do expediente (explica horário, sem alerta).
   const pro = upsertResourceOp(
     boot.db,
     caller,

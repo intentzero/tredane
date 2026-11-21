@@ -9,6 +9,7 @@
  * CW-15: preferência / Sem preferência — filtra horas e rodízio por serviço (DEC-218).
  * CW-16: combos de zonas no catálogo da página e preço DEC-080 na proposta (TRE-88).
  * CW-17: Remarcado na página — «de <hora antiga> para <hora nova>» (TRE-93; não «de X para X»).
+ * CW-18: cancelar na página com handoff aberto → limpa alerta e retoma IA (DEC-225).
  * GU-23: «Posso ajudar…» com cta_url Abrir agenda (um toque; DEC-220).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
  * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
@@ -33,7 +34,16 @@ import { CLIENT_WEB_CTA_TEXT, OPEN_AGENDA_REPLY_BUTTON_ID } from '../../../../cl
 import { listClientWebSlots, planWebProposal, readClientWebCatalog } from '../../../../clientweb/booking'
 import { readRrLastProfessional } from '../../../../clientweb/round-robin'
 import { OPEN_MAP_CTA_TEXT } from '../../location-map-offer'
-import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from '../../human-handoff'
+import {
+  AI_ACTOR_ID,
+} from '../../../ai-actor'
+import {
+  HUMAN_HANDOFF_BUTTON_ID,
+  HUMAN_HANDOFF_BUTTON_TITLE,
+  notifyHumanHandoff,
+  readAiReplyPause,
+  resumeAiAfterClientWebSuccess,
+} from '../../human-handoff'
 import {
   createProposal,
   executeProposalConfirmOp,
@@ -1404,6 +1414,89 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         }
         if (/Remarcado: de (.+) para \1/.test(body)) {
           errs.push('Remarcado com horários idênticos (TRE-93)')
+        }
+        return errs
+      },
+    },
+  },
+  {
+    id: 'CW-18',
+    title:
+      'Cancelar na página com handoff aberto → limpa alerta e retoma IA (DEC-225)',
+    turnosIdeais: 0,
+    prepare: (s) => {
+      s.sayInbound('(cliente pede equipe e depois cancela na página)')
+      withOneAppointment(s)
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        {
+          conversationId: s.conversationId,
+          reason: 'customer_requested',
+          clientRequestId: 'l1-cw18-handoff',
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      {
+        role: 'owner',
+        note: 'cancela na página + resumeAiAfterClientWebSuccess (mesmo caminho do Clinic DO)',
+        act: async (s) => {
+          if (!readAiReplyPause(s.db, s.tenantId, s.conversationId)) {
+            throw new Error('CW-18: esperava pausa DEC-083 antes do cancelamento')
+          }
+          const webCaller = workerCaller(s.tenantId, WEB_CANCEL_ACTOR)
+          const done = cancelFromWeb(s.db, webCaller, s.clock, { contactId: s.contactId }, 'apt_gu_1')
+          if (done.result.status !== 'cancelled') {
+            throw new Error(`CW-18: esperava cancelled, veio ${done.result.status}`)
+          }
+          const cancelled = done.result
+          const offered = await s.prepareClientWebOffer?.({
+            tenantId: s.tenantId,
+            conversationId: s.conversationId,
+            purpose: 'home',
+          })
+          appendWebCancelChatEffects(
+            s.db,
+            webCaller,
+            {
+              conversationId: s.conversationId,
+              appointmentId: 'apt_gu_1',
+              serviceName: cancelled.serviceName,
+              startsAt: cancelled.startsAt,
+              agendaUrl: offered?.ctaUrl?.url ?? null,
+            },
+            s.clock,
+            done.outbox,
+          )
+          resumeAiAfterClientWebSuccess(s.db, s.tenantId, s.conversationId, s.clock)
+        },
+      },
+    ],
+    expect: {
+      notPaused: true,
+      appointments: 1,
+      outboundIncludes: ['Cancelado:', WEB_CANCEL_RECEIPT_SENTENCE],
+      assert: (s) => {
+        const errs: string[] = []
+        if (readAiReplyPause(s.db, s.tenantId, s.conversationId)) {
+          errs.push('CW-18: IA ainda pausada após cancelar na página')
+        }
+        const pending = s.db.get<{ id: string }>(
+          `SELECT id FROM pending_communications
+           WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (pending) errs.push('CW-18: alter_awaiting_team ainda aberto')
+        const assignee = s.db.get<{ assignee: string | null }>(
+          `SELECT assignee_clerk_user_id AS assignee FROM conversations WHERE tenant_id = ? AND id = ?`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (assignee?.assignee !== AI_ACTOR_ID) {
+          errs.push(`CW-18: responsável deveria ser IA, veio ${assignee?.assignee}`)
         }
         return errs
       },
