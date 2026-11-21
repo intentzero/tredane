@@ -80,6 +80,10 @@ export type Catalog = {
 
 export type Slot = { id: string; date: string; time: string }
 
+/** Dia sem vagas: fechada (sem expediente / bloqueio clínica) ou cheia. Sem nome de feriado. */
+export type EmptyDayReason = 'closed' | 'full'
+export type EmptyDay = { date: string; reason: EmptyDayReason }
+
 export type Line = 'feminino' | 'masculino'
 
 export type BookInput = {
@@ -221,7 +225,23 @@ export async function fetchCatalog(): Promise<Catalog | 'unauthorized' | 'error'
   }
 }
 
-export type SlotsResult = { kind: 'ok'; slots: Slot[] } | { kind: 'unauthorized' } | { kind: 'error' }
+export type SlotsResult =
+  | { kind: 'ok'; slots: Slot[]; emptyDays: EmptyDay[] }
+  | { kind: 'unauthorized' }
+  | { kind: 'error' }
+
+function parseEmptyDays(raw: unknown): EmptyDay[] {
+  if (!Array.isArray(raw)) return []
+  const out: EmptyDay[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue
+    const date = (row as { date?: unknown }).date
+    const reason = (row as { reason?: unknown }).reason
+    if (typeof date !== 'string' || (reason !== 'closed' && reason !== 'full')) continue
+    out.push({ date, reason })
+  }
+  return out
+}
 
 export async function fetchSlots(input: {
   serviceId: string
@@ -242,10 +262,10 @@ export async function fetchSlots(input: {
     })
     if (res.status === 401) return { kind: 'unauthorized' }
     // 422: pedido fora do horizonte ou serviço que deixou de estar marcável.
-    if (res.status === 422) return { kind: 'ok', slots: [] }
+    if (res.status === 422) return { kind: 'ok', slots: [], emptyDays: [] }
     if (!res.ok) return { kind: 'error' }
-    const body = await json<{ slots: Slot[] }>(res)
-    return body ? { kind: 'ok', slots: body.slots } : { kind: 'error' }
+    const body = await json<{ slots: Slot[]; emptyDays?: unknown }>(res)
+    return body ? { kind: 'ok', slots: body.slots, emptyDays: parseEmptyDays(body.emptyDays) } : { kind: 'error' }
   } catch {
     return { kind: 'error' }
   }
@@ -285,10 +305,10 @@ export async function fetchRescheduleSlots(input: {
       body: JSON.stringify(input),
     })
     if (res.status === 401) return { kind: 'unauthorized' }
-    if (res.status === 404 || res.status === 422) return { kind: 'ok', slots: [] }
+    if (res.status === 404 || res.status === 422) return { kind: 'ok', slots: [], emptyDays: [] }
     if (!res.ok) return { kind: 'error' }
-    const body = await json<{ slots: Slot[] }>(res)
-    return body ? { kind: 'ok', slots: body.slots } : { kind: 'error' }
+    const body = await json<{ slots: Slot[]; emptyDays?: unknown }>(res)
+    return body ? { kind: 'ok', slots: body.slots, emptyDays: parseEmptyDays(body.emptyDays) } : { kind: 'error' }
   } catch {
     return { kind: 'error' }
   }

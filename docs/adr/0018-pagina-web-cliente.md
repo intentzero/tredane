@@ -41,7 +41,7 @@
 | --- | --- | --- |
 | `POST /api/c/exchange` | Troca o token por sessão | Linha do token no D1 |
 | `GET /api/c/state` | Nome da clínica, marcações futuras da cliente, catálogo ativo | Sessão |
-| `POST /api/c/availability` | Horas livres de um intervalo de datas; também devolve, por dia do mês, se há horário livre (para o calendário C-12). Aceita `professionalId` opcional (DEC-218: filtra; omitido/null = Sem preferência = união) | Sessão |
+| `POST /api/c/availability` | Horas livres de um intervalo de datas; também devolve, por dia do mês, se há horário livre (para o calendário C-12). Aceita `professionalId` opcional (DEC-218: filtra; omitido/null = Sem preferência = união). **TRE-33 (2026-11-21):** também devolve `emptyDays: { date, reason: 'closed' \| 'full' }[]` para os dias do intervalo já consultados sem vaga (`closed` = sem expediente / fechamento `__clinic__`; `full` = aberta sem vagas). **Não** inclui nome de feriado (**Proposto**). Em «Quando?», dias sem vaga são seleccionáveis e o motivo substitui a grade Manhã/Tarde. | Sessão |
 | `POST /api/c/book` | Cria a proposta e confirma. Aceita `professionalId` opcional (preferência fixa ou round-robin se omitido/null) | Sessão |
 | `POST /api/c/reschedule`, `POST /api/c/cancel` | Remarca, cancela | Sessão |
 

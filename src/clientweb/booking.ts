@@ -30,6 +30,9 @@ import {
   readRrLastProfessional,
   writeRrLastProfessional,
 } from './round-robin'
+import { emptyDaysForRange, type ClientWebEmptyDay } from './empty-day-reason'
+
+export type { ClientWebEmptyDay, ClientWebEmptyDayReason } from './empty-day-reason'
 
 /**
  * Quantos dias à frente a página deixa marcar. **Provisório**: o horizonte é uma configuração
@@ -196,7 +199,7 @@ export function clampDateRange(today: string, from: string, to: string): { from:
 }
 
 export type ClientWebSlotsResult =
-  | { ok: true; slots: ClientWebSlot[]; from: string; to: string }
+  | { ok: true; slots: ClientWebSlot[]; from: string; to: string; emptyDays: ClientWebEmptyDay[] }
   | { ok: false; error: 'service_unavailable' | 'variants_invalid' | 'range_invalid' | 'professional_invalid' }
 
 /**
@@ -237,6 +240,7 @@ export async function listClientWebSlots(
     return { ok: false, error: 'variants_invalid' }
   }
   const slots: ClientWebSlot[] = []
+  const datesWithoutSlots: string[] = []
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
     if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
@@ -255,6 +259,7 @@ export async function listClientWebSlots(
     } catch {
       break
     }
+    const before = slots.length
     const seen = new Set<string>()
     for (const slot of avail.slots) {
       if (slot.startsAt <= clock.nowMs()) continue
@@ -264,8 +269,15 @@ export async function listClientWebSlots(
       slots.push({ id: `${date}T${time}`, date, time })
       if (input.daysOnly) break
     }
+    if (slots.length === before) datesWithoutSlots.push(date)
   }
-  return { ok: true, slots, from: range.from, to: range.to }
+  return {
+    ok: true,
+    slots,
+    from: range.from,
+    to: range.to,
+    emptyDays: emptyDaysForRange(db, tenantId, clock, catalog.timezone, datesWithoutSlots),
+  }
 }
 
 /** Resposta da página depois de Confirmar. Nunca leva ids internos de proposta. */

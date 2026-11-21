@@ -306,12 +306,77 @@ describe('agendar pela página (C-02 a C-06)', () => {
     }
   })
 
-  it('sem horários na semana diz isso e oferece a equipe', async () => {
+  it('dia sem slots selecciona-se e mostra o motivo no lugar da grade (TRE-33)', async () => {
+    mockApi({
+      slots: [
+        { id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' },
+        { id: '2026-11-18T14:15', date: '2026-11-18', time: '14:15' },
+      ],
+    })
+    // Substitui o mock de availability para incluir emptyDays (closed vs full).
+    const prev = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (!url.endsWith('/api/c/availability')) return prev(input, init)
+        const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+        const only = body?.daysOnly === true
+        const slots = only
+          ? [{ id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' }]
+          : [
+              { id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' },
+              { id: '2026-11-18T14:15', date: '2026-11-18', time: '14:15' },
+            ]
+        return new Response(
+          JSON.stringify({
+            slots,
+            emptyDays: [
+              { date: '2026-11-17', reason: 'closed' },
+              { date: '2026-11-19', reason: 'full' },
+              { date: '2026-11-20', reason: 'closed' },
+              { date: '2026-11-21', reason: 'closed' },
+              { date: '2026-11-22', reason: 'closed' },
+              { date: '2026-11-23', reason: 'closed' },
+            ],
+          }),
+          { status: 200 },
+        )
+      }),
+    )
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await screen.findByRole('button', { name: '14:15' })
+
+    const closedDay = screen.getByRole('button', { name: /ter 17\/11, clínica fechada/ })
+    expect((closedDay as HTMLButtonElement).disabled).toBe(false)
+    await user.click(closedDay)
+    expect(await screen.findByText('Clínica fechada neste dia.')).toBeTruthy()
+    expect(screen.getByText(/Escolha outro dia na semana/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '14:15' })).toBeNull()
+    expect(screen.getByText('Nada fica marcado antes de Confirmar.')).toBeTruthy()
+
+    const fullDay = screen.getByRole('button', { name: /qui 19\/11, sem horários/ })
+    await user.click(fullDay)
+    expect(await screen.findByText('Sem horários disponíveis neste dia.')).toBeTruthy()
+    expect(screen.getByText(/não há vagas livres para este serviço/)).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: /qua 18\/11/ }))
+    expect(await screen.findByRole('button', { name: '14:15' })).toBeTruthy()
+    expect(screen.queryByText('Clínica fechada neste dia.')).toBeNull()
+  })
+
+  it('semana sem horas: dia seleccionável com motivo genérico', async () => {
     mockApi({ slots: [] })
     const user = await openBooking()
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
-    expect(await screen.findByText(/Sem horários livres nesta semana/)).toBeTruthy()
+    expect(await screen.findByText('Sem horários disponíveis neste dia.')).toBeTruthy()
+    expect(screen.getByText('Nada fica marcado antes de Confirmar.')).toBeTruthy()
+    const emptyDay = screen.getByRole('button', { name: /ter 17\/11, sem horários/ })
+    expect((emptyDay as HTMLButtonElement).disabled).toBe(false)
+    expect(emptyDay.getAttribute('aria-pressed')).toBe('true')
   })
 
   it('o botão Voltar percorre os passos e sai para as marcações', async () => {
