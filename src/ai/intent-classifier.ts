@@ -71,7 +71,10 @@ export const CLASSIFIER_SYSTEM = [
   '- outro: agradecimento, conversa, ou nada disto.',
   'Perguntar sobre a política de cancelar ou remarcar («tem multa?», «cobram?») é faq_catalog, não cancelar nem remarcar.',
   '«O que inclui a íntima?», «como é a depilação?», «inclui ânus?», «Fazem depilação íntima?» são faq_catalog, não faq_clinic nem informacao.',
+  // Oferta nomeada: alinhado a TRE-112 / #1020 (cue léxico + mesma etiqueta no classificador).
+  '«Vocês têm limpeza de pele?» (serviço/zona nomeados, sem pedir vaga) é faq_catalog.',
   '«Tem estacionamento?», «posso levar o pet?», «o que eu levo?», «aceitam cartão no dia?» são faq_clinic.',
+  '«Me mostra a agenda», «quero ver a grade de horários» são agendar (ver agenda para marcar), não informacao.',
   'Na dúvida entre agendar e price/faq_catalog/faq_clinic, prefira agendar se houver pedido de vaga ou marcar.',
   'Na dúvida entre team e outra classe, só use team se o pedido de pessoa for o acto principal.',
 ].join('\n')
@@ -207,8 +210,41 @@ export function closedCatalogOrTeamLabel(
   return null
 }
 
-/** Interruptor por ambiente (`INTENT_LLM_ENABLED=1|true`). Ausente ou outro valor = desligado. */
-export function isIntentLlmEnabled(env: { INTENT_LLM_ENABLED?: string }): boolean {
-  const v = (env.INTENT_LLM_ENABLED ?? '').trim().toLowerCase()
+function envFlagOn(raw: string | undefined): boolean {
+  const v = (raw ?? '').trim().toLowerCase()
   return v === '1' || v === 'true' || v === 'on'
+}
+
+/** Interruptor por ambiente (`INTENT_LLM_ENABLED=1|true|on`). Ausente ou outro valor = desligado. */
+export function isIntentLlmEnabled(env: { INTENT_LLM_ENABLED?: string }): boolean {
+  return envFlagOn(env.INTENT_LLM_ENABLED)
+}
+
+/**
+ * Sombra do classificador (`INTENT_LLM_SHADOW=1|true|on`): corre a etiqueta e regista
+ * `ai.intent_llm` com `mode=shadow`, **sem** desviar o redator. Útil em produção antes de D5
+ * (checklist `docs/implementation/intent-llm-producao.md`). Se `INTENT_LLM_ENABLED` também
+ * estiver ligado, o caminho vivo prevalece (shadow não sobrescreve).
+ */
+export function isIntentLlmShadowEnabled(env: { INTENT_LLM_SHADOW?: string }): boolean {
+  return envFlagOn(env.INTENT_LLM_SHADOW)
+}
+
+/** Classificar neste turno: live e/ou sombra. */
+export function shouldClassifyIntent(env: {
+  INTENT_LLM_ENABLED?: string
+  INTENT_LLM_SHADOW?: string
+}): boolean {
+  return isIntentLlmEnabled(env) || isIntentLlmShadowEnabled(env)
+}
+
+/**
+ * Só sombra (medir sem desviar): shadow on e live off.
+ * Com live on, o handler fechado desvia como hoje.
+ */
+export function isIntentLlmShadowOnly(env: {
+  INTENT_LLM_ENABLED?: string
+  INTENT_LLM_SHADOW?: string
+}): boolean {
+  return isIntentLlmShadowEnabled(env) && !isIntentLlmEnabled(env)
 }

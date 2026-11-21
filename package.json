@@ -26,6 +26,8 @@
     "eval:scorecard": "EVAL_SCORECARD=1 vitest run src/clinic/ai/evals/dialogs/dialogs.test.ts",
     "eval:baseline": "EVAL_SCORECARD_RECORD=1 vitest run src/clinic/ai/evals/dialogs/dialogs.test.ts",
     "eval:intent": "EVAL_INTENT_LLM=live vitest run src/clinic/ai/evals/intent/intent.llm.eval.test.ts",
+    "eval:intent:lexicon": "vitest run src/clinic/ai/evals/intent/intent.eval.test.ts",
+    "report:intent-llm": "node scripts/intent-llm-report.mjs",
     "eval:l2": "vitest run src/clinic/ai/evals/l2/cli.test.ts",
     "eval:l3": "vitest run src/clinic/ai/evals/l3/cli.test.ts",
     "test:l2l3": "vitest run src/clinic/ai/evals/l2 src/clinic/ai/evals/l3",

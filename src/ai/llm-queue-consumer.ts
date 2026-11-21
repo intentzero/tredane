@@ -25,6 +25,7 @@ import {
 } from '../clinic/ai/llm-queue-types'
 import type { RedactModelResult, RedactSnapshot } from '../clinic/ai/llm-snapshot'
 import { classifyIntentWithLlm, isClosedIntent } from './intent-classifier'
+import { logIntentLlm } from './intent-llm-log'
 
 export type LlmProcessOutcome = 'ack' | { retryDelaySeconds: number }
 
@@ -75,6 +76,7 @@ function parseSnapshotJson<T>(json: string): T | null {
 async function callRedact(
   env: WorkerBindings,
   snapshot: RedactSnapshot,
+  meta: { tenantId: string; jobId: string },
 ): Promise<RedactModelResult> {
   const mode = resolveAiMode(env.AI_MODE)
   const adapter = buildAiAdapter({
@@ -87,9 +89,10 @@ async function callRedact(
       ...(env.AI_GATEWAY_BYOK_ALIAS ? { byokAlias: env.AI_GATEWAY_BYOK_ALIAS } : {}),
     },
   })
-  // DEC-221 / staging: classifica a etiqueta antes de redigir. Intent fechado com confiança
-  // suficiente → handler no DO; o redator não gera copy. Falha do classificador = segue o redator.
+  // DEC-221: classifica a etiqueta antes de redigir. Intent fechado com confiança
+  // suficiente → handler no DO (salvo sombra). Falha do classificador = segue o redator.
   let intent: RedactModelResult['intent'] = null
+  const shadowOnly = snapshot.classifyShadow === true
   if (snapshot.classify) {
     try {
       const c = await classifyIntentWithLlm(adapter, snapshot.question)
@@ -102,9 +105,52 @@ async function callRedact(
           inputTokens: c.inputTokens,
           outputTokens: c.outputTokens,
         }
-        if (isClosedIntent(c.result)) {
-          return { ok: true, text: '', model: c.model, inputTokens: c.inputTokens, outputTokens: c.outputTokens, latencyMs: null, intent }
+        const closed = isClosedIntent(c.result)
+        if (shadowOnly) {
+          // Sombra: mede sem desviar UX; o redator corre a seguir.
+          logIntentLlm({
+            tenantId: meta.tenantId,
+            conversationId: snapshot.conversationId,
+            messageId: snapshot.messageId,
+            jobId: meta.jobId,
+            origin: 'shadow',
+            mode: 'shadow',
+            label: c.result.label,
+            raw: c.result.raw,
+            confidence: c.result.confidence,
+            closed,
+            outcome: closed ? 'shadow_would_close' : 'shadow_open',
+            model: c.model,
+            inputTokens: c.inputTokens,
+            outputTokens: c.outputTokens,
+          })
+        } else if (closed) {
+          return {
+            ok: true,
+            text: '',
+            model: c.model,
+            inputTokens: c.inputTokens,
+            outputTokens: c.outputTokens,
+            latencyMs: null,
+            intent,
+          }
         }
+      } else if (shadowOnly) {
+        logIntentLlm({
+          tenantId: meta.tenantId,
+          conversationId: snapshot.conversationId,
+          messageId: snapshot.messageId,
+          jobId: meta.jobId,
+          origin: 'shadow',
+          mode: 'shadow',
+          label: null,
+          confidence: null,
+          closed: false,
+          outcome: 'shadow_open',
+          model: c.model,
+          inputTokens: c.inputTokens,
+          outputTokens: c.outputTokens,
+        })
       }
     } catch {
       intent = null
@@ -220,7 +266,10 @@ export async function processLlmJob(
       })
       return 'ack'
     }
-    const result = await callRedact(deps.env, snapshot)
+    const result = await callRedact(deps.env, snapshot, {
+      tenantId: msg.tenantId,
+      jobId: msg.jobId,
+    })
     const applied = await stub.applyLlmResult(caller, {
       jobId: msg.jobId,
       idempotencyKey: msg.idempotencyKey,

@@ -126,7 +126,9 @@
       ],
       "vars": {
         "ENVIRONMENT": "staging",
-        // P4 (Proposto): classe de intenção por LLM antes do redator. Só staging; produção sem a variável.
+        // DEC-221: classificador de intenção (etiqueta) antes do redator. Staging on; produção sem
+        // a variável até D5. Opcional pré-D5 em produção: INTENT_LLM_SHADOW=1 (só mede, não desvia).
+        // Ver docs/implementation/intent-llm-producao.md.
         "INTENT_LLM_ENABLED": "1",
         "AUTH_MODE": "clerk",
         // Publishable key é pública por desenho (instância Clerk de desenvolvimento/staging).

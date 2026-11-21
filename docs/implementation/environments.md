@@ -46,6 +46,8 @@ Código: `src/ops/secrets.ts` · `npm run ops:secrets` · API superadmin `/api/f
 | `PIX_TOKEN_SECRET` | secret | obrigatório para sandbox/live | GATE-08 |
 | `AI_GATEWAY_TOKEN` / `ANTHROPIC_API_KEY` | secret | se `AI_MODE=gateway` | GATE-06 |
 | `AI_INTERPRETER_SHADOW` | var | opcional; `on` liga a sombra do interpretador LLM (uma chamada extra por turno de texto livre, só mede; omisso = desligada) | [hipótese](../architecture/hipotese-compreensao-llm-primeiro.md) |
+| `INTENT_LLM_ENABLED` | var | opcional; `1`/`true`/`on` liga o classificador de intenção com desvio para handlers fechados (staging = `1`; produção omisso até D5) | [intent-llm-producao.md](./intent-llm-producao.md) |
+| `INTENT_LLM_SHADOW` | var | opcional; `1`/`true`/`on` classifica e loga sem desviar o redator (pré-D5 em produção); com `INTENT_LLM_ENABLED` o live prevalece | [intent-llm-producao.md](./intent-llm-producao.md) |
 | `AI_INTERPRETER_FALLBACK_SERVICE` | var | opcional; `on` liga o extrator como fallback só de `serviceId` quando o léxico deixou vazio (default on); line/período ficam no léxico | DL D-20261117-091300-CUR |
 | `VAPID_PRIVATE_KEY` | secret | se push live | — |
 | `ATTACHMENT_TOKEN_SECRET` | secret | obrigatório | — |

@@ -95,8 +95,13 @@ export type WorkerBindings = {
    * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
    */
   AI_MODE?: string
-  /** P4 (Proposto): classe de intenção por LLM antes do redator. Só staging; ausente = desligado. */
+  /** P4 / DEC-221: classe de intenção por LLM antes do redator. Staging = `1`; produção omisso até D5. */
   INTENT_LLM_ENABLED?: string
+  /**
+   * Sombra do classificador (Proposto, F4): classifica e loga `ai.intent_llm` sem desviar
+   * o redator. Útil em produção antes de `INTENT_LLM_ENABLED`. Ver intent-llm-producao.md.
+   */
+  INTENT_LLM_SHADOW?: string
   /**
    * DEC-188: Claude autodraft fora do Clinic DO.
    * `off` (omisso) | `demo` (só tenant demo) | `on` (todos os tenants do env).

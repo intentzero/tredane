@@ -1792,7 +1792,8 @@ export async function runDueAutoDrafts(
           messageId: job.messageId,
           question: liveTurn.turnText,
           turn: liveTurn,
-          classify: deps.intentLlmEnabled === true,
+          classify: deps.intentLlmEnabled === true || deps.intentLlmShadow === true,
+          classifyShadow: deps.intentLlmShadow === true && deps.intentLlmEnabled !== true,
         })
         const created = createLlmJob(
           db,

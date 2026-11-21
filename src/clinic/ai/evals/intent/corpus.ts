@@ -241,8 +241,16 @@ export const INTENT_CORPUS: IntentSample[] = [
   S('parafrase', 'faq_catalog', 'Como funciona se eu precisar remarcar em cima da hora?'),
   S('escrita', 'faq_catalog', 'o q inclui a depilaçao de pernas'),
   S('gíria', 'faq_catalog', 'como é essa massagem relaxante aí?'),
+  // — falhas conhecidas (análise etiquetagem 21/11; TRE-112 / DEC-220; #1020/#1021)
   S('direto', 'faq_catalog', 'Fazem depilação íntima?'),
   S('parafrase', 'faq_catalog', 'Vocês têm limpeza de pele?'),
+  S('parafrase', 'faq_catalog', 'Vocês fazem limpeza de pele profunda?'),
+  S('parafrase', 'faq_catalog', 'Tem depilação de axila aí?'),
+  S('indireto', 'faq_catalog', 'Sobre a íntima, o que entra?'),
+  S('parafrase', 'agendar', 'Me mostra a agenda', null),
+  S('parafrase', 'agendar', 'Quero ver a grade de horários', null),
+  S('gíria', 'agendar', 'manda a agenda aí', null),
+  S('escrita', 'agendar', 'me mostra a grade pf', null),
   // — DEC-221 D3: faq_clinic (FAQ institucional DEC-185)
   S('direto', 'faq_clinic', 'Vocês têm estacionamento?'),
   S('parafrase', 'faq_clinic', 'Dá pra levar o pet junto?'),

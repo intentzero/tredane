@@ -68,8 +68,13 @@ export type AiAssistDeps = {
    * agenda». Ausente (ambiente sem https) = o chat passa à equipe.
    */
   prepareClientWebOffer?: import('../../clientweb/offer').PrepareClientWebOffer
-  /** P4 (Proposto): o Worker classifica a intenção por LLM antes do redator. Só staging. */
+  /** DEC-221: classifica intenção por LLM e, se fechada ≥ limiar, desvia do redator. */
   intentLlmEnabled?: boolean
+  /**
+   * Sombra: classifica + loga sem desviar. Combinável com `intentLlmEnabled` desligado
+   * (produção pré-D5). Com live ligado, o desvio prevalece.
+   */
+  intentLlmShadow?: boolean
   /**
    * DEC-188: Claude autodraft fora do DO — enfileira em vez de `adapter.generate`
    * no extrator/redator. `suggestReply` do painel ignora isto.
