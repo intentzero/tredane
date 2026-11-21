@@ -46,6 +46,7 @@
 }
 .cw-main {
   flex: 1;
+  min-height: 0;
   width: 100%;
   max-width: 560px;
   margin: 0 auto;
@@ -54,6 +55,40 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+/* TRE-107: home vazia — CTA centrado no main (sem sticky). */
+.cw-empty-hero {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 0 24px;
+}
+.cw-empty-copy {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cw-empty-lead {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.cw-empty-hint {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+.cw-empty-hero .cw-btn-primary {
+  width: 100%;
+  min-height: 52px;
+  font-size: var(--font-size-title);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-fill) 22%, transparent);
 }
 .cw-center {
   align-items: center;

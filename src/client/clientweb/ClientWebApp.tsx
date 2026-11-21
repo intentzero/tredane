@@ -215,17 +215,16 @@ function Home({
   onReschedule: (a: ClientWebAppointment) => void
   onCancel: (a: ClientWebAppointment) => void
 }) {
+  const hasAppointments = state.appointments.length > 0
   return (
     <>
       <Header name={state.clinicName} safe />
       <main className="cw-main">
         <div className="cw-intro">
           <h1 className="cw-title">{state.firstName ? `Olá, ${state.firstName}` : 'Olá'}</h1>
-          <p className="cw-muted">
-            {state.appointments.length > 0 ? 'Suas próximas marcações' : 'Você não tem marcações futuras.'}
-          </p>
+          <p className="cw-muted">{hasAppointments ? 'Suas próximas marcações' : 'Você não tem marcações futuras.'}</p>
         </div>
-        {state.appointments.length > 0 && (
+        {hasAppointments ? (
           <ul className="cw-list" aria-label="Marcações futuras">
             {state.appointments.map((a) => (
               <li key={a.id} className="cw-card">
@@ -249,13 +248,25 @@ function Home({
               </li>
             ))}
           </ul>
+        ) : (
+          <div className="cw-empty-hero">
+            <div className="cw-empty-copy">
+              <p className="cw-empty-lead">Agende o próximo horário</p>
+              <p className="cw-empty-hint">Escolha o serviço e confirme na própria página.</p>
+            </div>
+            <button type="button" className="cw-btn cw-btn-primary" onClick={onBook}>
+              Agendar novo horário
+            </button>
+          </div>
         )}
       </main>
-      <footer className="cw-bar">
-        <button type="button" className="cw-btn cw-btn-primary" onClick={onBook}>
-          Agendar novo horário
-        </button>
-      </footer>
+      {hasAppointments && (
+        <footer className="cw-bar">
+          <button type="button" className="cw-btn cw-btn-primary" onClick={onBook}>
+            Agendar novo horário
+          </button>
+        </footer>
+      )}
     </>
   )
 }
