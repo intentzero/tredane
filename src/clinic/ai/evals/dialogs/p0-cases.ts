@@ -30,6 +30,7 @@ import {
   HUMAN_HANDOFF_BUTTON_TITLE,
   HUMAN_HANDOFF_TEXT,
   notifyHumanHandoff,
+  replyAfterHoursHumanRequest,
   sweepDueHandoffTimeouts,
 } from '../../human-handoff'
 import {
@@ -244,7 +245,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    // Texto «Falar com a equipe» também só oferece o botão (toque é que passa / regista).
+    // Texto «Falar com a equipe» também só oferece o botão (toque é que passa / explica fora de horas).
     id: 'G-10d',
     title: 'Texto «Falar com a equipe» → só Equipe (sem Abrir agenda na mesma bolha), sem pausa',
     turnosIdeais: 1,
@@ -285,6 +286,47 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         if (buttons.length !== 1) {
           return [`G-10d: esperava só Equipe, veio ${buttons.length} botões`]
         }
+        return []
+      },
+    },
+  },
+  {
+    id: 'G-10e',
+    title:
+      'Toque «Falar com a equipe» fora do expediente → próxima abertura, sem alerta (DEC-224)',
+    turnosIdeais: 0,
+    // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC.
+    nowMs: Date.UTC(2026, 10, 7, 20, 0),
+    prepare: (s) => {
+      // Abre a janela 24 h para o outbound do toque (sem correr autodraft).
+      s.sayInbound('(cliente toca Falar com a equipe)')
+    },
+    turns: [
+      {
+        role: 'owner',
+        note: 'simula toque no botão Falar com a equipe (mesmo caminho do Clinic DO)',
+        act: (s) => {
+          replyAfterHoursHumanRequest(
+            s.db,
+            s.tenantId,
+            { conversationId: s.conversationId, clientRequestId: 'l1-g10e-tap' },
+            s.clock,
+          )
+        },
+      },
+    ],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['A equipe atende a partir de', 'Posso continuar te ajudando por aqui'],
+      outboundExcludes: [/Deixei seu pedido para a equipe/i, /Vou pedir para a equipe/i],
+      assert: (s) => {
+        const pending = s.db.get<{ id: string }>(
+          `SELECT id FROM pending_communications
+           WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (pending) return ['G-10e: não deve abrir alter_awaiting_team fora do expediente']
         return []
       },
     },

@@ -30,9 +30,11 @@ import {
   readAiReplyPause,
   readHandoffTimeoutAt,
   replyAfterHoursHumanRequest,
+  resumeAiAfterClientWebSuccess,
   resumeAiReply,
   sweepDueHandoffTimeouts,
 } from './human-handoff'
+import { AI_ACTOR_ID } from '../ai-actor'
 
 const TZ_OPEN = Date.UTC(2026, 9, 28, 15, 0) // quarta 12:00 America/Sao_Paulo
 const TZ_CLOSED = Date.UTC(2026, 10, 7, 20, 0) // sáb 17:00 America/Sao_Paulo
@@ -309,15 +311,15 @@ describe('DEC-155 handoff timeout', () => {
   })
 })
 
-describe('DEC-155 fora do expediente', () => {
-    it('pedido de equipe fora do horário: copy de abertura + IA activa', () => {
+describe('DEC-224 fora do expediente', () => {
+  it('pedido de equipe fora do horário: copy de abertura + IA activa, sem alerta', () => {
     const s = seed(TZ_CLOSED)
     try {
       expect(isHumanTeamOfferAllowed(s.db, s.tenantId, s.clock)).toBe(false)
       const body = afterHoursHumanRequestBody(s.db, s.tenantId, s.clock, s.cnv.id)
-      expect(body).toContain('Deixei seu pedido para a equipe')
-      expect(body).toMatch(/a equipe responde a partir de segunda.*09:00/i)
-      expect(body).toMatch(/continuo por aqui/i)
+      expect(body).toMatch(/A equipe atende a partir de segunda.*09:00/i)
+      expect(body).toMatch(/Posso continuar te ajudando por aqui/i)
+      expect(body).not.toContain('Deixei seu pedido para a equipe')
       expect(body).not.toContain(HUMAN_HANDOFF_TEXT)
 
       const reply = replyAfterHoursHumanRequest(
@@ -329,6 +331,13 @@ describe('DEC-155 fora do expediente', () => {
       expect(reply.outbox.some((o) => o.type === 'whatsapp.send')).toBe(true)
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
       expect(readHandoffTimeoutAt(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const pending = s.db.get<{ id: string }>(
+        `SELECT id FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(pending).toBeUndefined()
       const ob = s.db.get<{ interactive_json: string | null }>(
         `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 1`,
         s.tenantId,
@@ -342,5 +351,64 @@ describe('DEC-155 fora do expediente', () => {
 
   it('fallback sem próxima abertura usa copy estável', () => {
     expect(AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK).toMatch(/Fora do horário/)
+  })
+})
+
+describe('DEC-225 retoma IA após sucesso na página', () => {
+  it('handoff aberto + Assumir → resumeAiAfterClientWebSuccess limpa e devolve à IA', () => {
+    const s = seed(TZ_OPEN)
+    try {
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        {
+          conversationId: s.cnv.id,
+          reason: 'customer_requested',
+          clientRequestId: 'web-resume-1',
+        },
+        s.clock,
+      )
+      assignConversationOp(
+        s.db,
+        s.caller,
+        {
+          conversationId: s.cnv.id,
+          assigneeClerkUserId: 'user_synth_owner_a',
+          assigneeDisplayName: 'Owner',
+          actorClerkUserId: 'user_synth_owner_a',
+          actorDisplayName: 'Owner',
+        },
+        s.clock,
+      )
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)?.reason).toBe('staff_active')
+
+      const outbox = resumeAiAfterClientWebSuccess(s.db, s.tenantId, s.cnv.id, s.clock)
+      expect(outbox.some((o) => o.type === 'conversation.ai_pause')).toBe(true)
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const pending = s.db.get<{ id: string }>(
+        `SELECT id FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(pending).toBeUndefined()
+      const assignee = s.db.get<{ assignee: string | null }>(
+        `SELECT assignee_clerk_user_id AS assignee FROM conversations WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(assignee?.assignee).toBe(AI_ACTOR_ID)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('sem handoff → resumeAiAfterClientWebSuccess é no-op', () => {
+    const s = seed(TZ_OPEN)
+    try {
+      expect(resumeAiAfterClientWebSuccess(s.db, s.tenantId, s.cnv.id, s.clock)).toEqual([])
+    } finally {
+      s.close()
+    }
   })
 })

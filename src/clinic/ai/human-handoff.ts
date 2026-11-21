@@ -2,8 +2,9 @@
  * Pausa da IA e frase fixa quando a cliente pede uma pessoa ou sai do agendamento (DEC-083).
  * Não chama o modelo. Não marca horário. Uma mensagem já pausada não gera outra frase.
  *
- * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
- * fora do expediente: pedido registado, IA activa; botão «Falar com a equipe» nas interactivas (21/11/2026).
+ * DEC-155 / DEC-224: timeout 30 min sem Assumir → devolver à IA + aviso curto;
+ * fora do expediente: **não** chama a equipe (sem alerta/registo); explica próxima abertura; IA activa.
+ * DEC-225: após sucesso na página web (agendar/remarcar/cancelar) → limpa handoff e retoma IA.
  * Preferência Paulo 21/11/2026 (revê DEC-216): Abrir agenda só como `cta_url` (purpose=home);
  * nunca reply Abrir agenda + Equipe na mesma bolha. TRE-54: ack sem repetir Equipe.
  */
@@ -142,13 +143,14 @@ export const AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK =
 export const HUMAN_TEAM_ACCESS_IN_HOURS_COPY =
   'No horário da equipe, ao tocar em Falar com a equipe, a equipe assume daqui.'
 
-/** Copy única: fora do expediente — pedido registado, IA continua (Paulo 16/11/2026, item 6). */
+/** Copy única: fora do expediente — sem chamar a equipe agora (DEC-224). */
 export const HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY =
-  'Fora do horário registo o pedido; a equipe responde na próxima abertura e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe.'
+  'Fora do horário a equipe não é chamada agora; atende na próxima abertura e continuo por aqui até lá. Para pedir no horário, toque em Falar com a equipe.'
 
 /**
  * Pedido de equipe por texto (preferência Paulo 20/11/2026): sugere o botão em vez de pausar.
- * O toque em «Falar com a equipe» é que passa à equipe (DEC-083) ou regista fora do horário (DEC-155).
+ * O toque em «Falar com a equipe» passa à equipe em expediente (DEC-083) ou explica
+ * a próxima abertura sem chamar a equipe fora do horário (DEC-224).
  */
 export const HUMAN_TEAM_OFFER_TEXT =
   'Se preferir falar com a equipe, toque em «Falar com a equipe». Posso continuar a ajudar por aqui.'
@@ -173,7 +175,7 @@ export function humanTeamAccessExplanation(
   }
   const opening = nextClinicOpening(db, tenantId, clock)
   if (opening) {
-    return `Fora do horário registo o pedido; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá. Para pedir de novo, toque em Falar com a equipe.`
+    return `Fora do horário a equipe não é chamada agora; atende a partir de ${opening.dayLabel} às ${opening.time}, e continuo por aqui até lá. Para pedir no horário, toque em Falar com a equipe.`
   }
   return HUMAN_TEAM_ACCESS_AFTER_HOURS_COPY
 }
@@ -262,8 +264,14 @@ export function augmentOutboundWithHumanTeam(
   return { body, interactive }
 }
 
-/** Registo + continuidade — baseline P3 (15/11/2026). */
+/**
+ * Prefixo legado do registo fora de horas (revogado pela DEC-224 no pedido de equipe).
+ * Mantém-se para mal-entendido / outros caminhos que ainda registam pedido.
+ */
 export const AFTER_HOURS_HUMAN_REGISTERED_PREFIX = 'Deixei seu pedido para a equipe'
+
+/** DEC-224 — pedido de equipe fora do expediente: próxima abertura, sem registo. */
+export const AFTER_HOURS_TEAM_UNAVAILABLE_PREFIX = 'A equipe atende a partir de'
 
 /** Linha curta de segurança — queixa de saúde antes do handoff (baseline P4 / 15/11/2026). */
 export const HEALTH_SAFETY_LINE =
@@ -342,13 +350,11 @@ export function humanTeamOfferButtons(
 }
 
 /**
- * Pedido explícito de equipe fora do expediente (DEC-155): horário + IA activa.
- * Prefere a próxima abertura (como DEC-113); senão lista o expediente.
- */
-/**
- * Botões no ack de pedido de equipe já registado (fora do expediente, mal-entendido, pausa).
+ * Botões no ack de pedido de equipe já registado (mal-entendido, pausa).
  * Sem reply «Abrir agenda» nem Equipe (TRE-54 + preferência 21/11: Abrir agenda só cta_url).
  * Callers que queiram Abrir agenda usam `prepareClientWebOffer` com purpose home.
+ * DEC-224: o ack fora de horas do pedido de equipe já não regista — estes botões
+ * ficam para os caminhos que ainda abrem alerta.
  */
 export function humanHelpRequestButtons(
   db: ClinicDb,
@@ -427,6 +433,10 @@ export function registerHumanHelpRequest(
   return flagged.outbox
 }
 
+/**
+ * Pedido de equipe fora do expediente (DEC-224): próxima abertura + IA activa, sem registo.
+ * Prefere a próxima abertura (como DEC-113); senão lista o expediente.
+ */
 export function afterHoursHumanRequestBody(
   db: ClinicDb,
   tenantId: string,
@@ -435,7 +445,7 @@ export function afterHoursHumanRequestBody(
 ): string {
   const opening = nextClinicOpening(db, tenantId, clock)
   if (opening) {
-    return `${AFTER_HOURS_HUMAN_REGISTERED_PREFIX}; a equipe responde a partir de ${opening.dayLabel} às ${opening.time}, aqui mesmo, e continuo por aqui até lá.`
+    return `${AFTER_HOURS_TEAM_UNAVAILABLE_PREFIX} ${opening.dayLabel} às ${opening.time}. Posso continuar te ajudando por aqui.`
   }
   const lines = formatOpeningHours(listProfessionalOpeningWindows(db, tenantId, clock))
   if (lines.length === 0) return AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK
@@ -450,8 +460,8 @@ export function afterHoursHumanRequestBody(
 }
 
 /**
- * Responde ao pedido de equipe fora do expediente sem pausar (DEC-155).
- * Usado por texto, botão genérico e botão da proposta.
+ * Responde ao pedido de equipe fora do expediente sem pausar e **sem** chamar a equipe (DEC-224).
+ * Usado pelo toque «Falar com a equipe» e pela página «Pedir à equipe» fora do horário.
  */
 export function replyAfterHoursHumanRequest(
   db: ClinicDb,
@@ -459,19 +469,8 @@ export function replyAfterHoursHumanRequest(
   input: { conversationId: string; clientRequestId: string; messageId?: string | null },
   clock: Clock,
 ): { outbox: OutboxRow[] } {
-  const outbox: OutboxRow[] = [
-    ...registerHumanHelpRequest(
-      db,
-      tenantId,
-      {
-        conversationId: input.conversationId,
-        detailText: 'A cliente pediu atendimento humano.',
-        messageId: input.messageId ?? null,
-      },
-      clock,
-    ),
-  ]
-  const buttons = humanHelpRequestButtons(db, tenantId, clock)
+  void input.messageId
+  const outbox: OutboxRow[] = []
   try {
     const result = sendOutboundMessageOp(
       db,
@@ -479,8 +478,7 @@ export function replyAfterHoursHumanRequest(
       {
         conversationId: input.conversationId,
         body: afterHoursHumanRequestBody(db, tenantId, clock, input.conversationId),
-        interactive: buttons.length > 0 ? { buttons } : undefined,
-        // Já registámos o pedido: não re-injectar «Falar com a equipe» (TRE-54).
+        // Sem alerta aberto: não injectar Equipe de novo nesta bolha (TRE-54 / DEC-224).
         omitHumanTeamAugment: true,
         clientRequestId: input.clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
@@ -903,7 +901,7 @@ export function nextClinicOpening(
 /**
  * Frase DEC-083 ou DEC-113 (fora do expediente) para pausas que ainda pausam a IA
  * (off_purpose, human_only, etc.). Pedido explícito de equipe fora do expediente
- * não passa por aqui — DEC-155 usa `afterHoursHumanRequestBody` sem pausa.
+ * não passa por aqui — DEC-224 usa `afterHoursHumanRequestBody` sem pausa nem registo.
  */
 export function humanHandoffBody(db: ClinicDb, tenantId: string, clock: Clock): string {
   const opening = nextClinicOpening(db, tenantId, clock)
@@ -1012,6 +1010,60 @@ export function resumeAiReply(
       handoffTimeoutAt: null,
     }),
   ]
+}
+
+function hasOpenTeamHandoffAlert(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const open = db.get<{ id: string }>(
+    `SELECT id FROM pending_communications
+     WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'
+     LIMIT 1`,
+    tenantId,
+    conversationId,
+  )
+  return open != null
+}
+
+function conversationHasHumanAssignee(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const row = db.get<{ assignee: string | null }>(
+    `SELECT assignee_clerk_user_id AS assignee FROM conversations WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    conversationId,
+  )
+  const assignee = row?.assignee?.trim() || null
+  return Boolean(assignee && assignee !== AI_ASSIGNEE)
+}
+
+/**
+ * DEC-225 — após agendar/remarcar/cancelar na página web: se havia pedido de equipe,
+ * pausa ou Assumir, limpa alerta e retoma a IA. Um único caminho para os três sucessos.
+ */
+export function conversationNeedsAiResumeAfterClientWeb(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  if (readAiReplyPause(db, tenantId, conversationId)) return true
+  if (hasOpenTeamHandoffAlert(db, tenantId, conversationId)) return true
+  if (conversationHasHumanAssignee(db, tenantId, conversationId)) return true
+  return false
+}
+
+export function resumeAiAfterClientWebSuccess(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+): OutboxRow[] {
+  if (!conversationNeedsAiResumeAfterClientWeb(db, tenantId, conversationId)) return []
+  return resumeAiReply(db, tenantId, conversationId, clock, { source: 'manual_resume' })
 }
 
 function pauseEvent(
