@@ -170,7 +170,7 @@ describe('classe de intenção por LLM (P4)', () => {
     }
   })
 
-  it('cancelar sem marcação futura abre em agendar (mesma regra do léxico)', async () => {
+  it('cancelar sem marcação futura: frase noUpcoming + cta_url home (DEC-220)', async () => {
     const s = await setup({ classify: true })
     try {
       await applyIntentLinkOp(s.db, s.caller, s.clock, s.deps, {
@@ -178,12 +178,14 @@ describe('classe de intenção por LLM (P4)', () => {
         idempotencyKey: s.job.idempotencyKey,
         result: { ok: true, text: '', model: 'm', inputTokens: 1, outputTokens: 1, latencyMs: null, intent: intent('cancelar', 0.95) },
       })
-      const row = s.db.get<{ body: string }>(
-        `SELECT m.body AS body FROM outbound_messages o JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
-         WHERE o.tenant_id = ? AND o.client_request_id LIKE 'ai-web-agendar:%'`,
+      const row = s.db.get<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json AS interactive_json
+         FROM outbound_messages o JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
+         WHERE o.tenant_id = ? AND o.client_request_id LIKE 'ai-web-home:%'`,
         s.tenantId,
       )
       expect(row?.body).toMatch(/Não encontrei marcações futuras/)
+      expect(row?.interactive_json ?? '').toMatch(/ctaUrl|Abrir agenda/)
     } finally {
       s.close()
     }
