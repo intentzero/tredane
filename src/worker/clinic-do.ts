@@ -149,7 +149,9 @@ import { loadUpcomingAppointments } from '../clinic/ai/upcoming'
 import type { SendOutboundInteractiveInput } from '../clinic/inbox/types'
 import { readClientWebState, sessionOwnsConversation, type ClientWebClinicState } from '../clientweb/state'
 import {
+  CLIENT_WEB_BOOK_BODY,
   CLIENT_WEB_CTA_MINIMAL_BODY,
+  clientWebAbrirAgendaLinkPurpose,
   clientWebOfferInteractive,
   clientWebRouteBody,
   clientWebUrl,
@@ -941,7 +943,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     caller: ClinicCaller,
     input: {
       conversationId: string
-      purpose?: 'agendar' | 'remarcar' | 'cancelar'
+      purpose?: 'home' | 'agendar' | 'remarcar' | 'cancelar'
       serviceId?: string | null
       appointmentId?: string | null
     },
@@ -955,26 +957,30 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       return { status: 'window_closed' }
     }
     const prepare = this.#prepareClientWebOffer()
-    const purpose = input.purpose ?? 'agendar'
+    const requested = input.purpose ?? 'home'
+    // DEC-220: Abrir agenda → home; remarcar/cancelar deep-link.
+    const linkPurpose = clientWebAbrirAgendaLinkPurpose(requested)
+    const deepLink = linkPurpose === 'remarcar' || linkPurpose === 'cancelar'
     const offered = prepare
       ? await prepare({
           tenantId,
           conversationId: input.conversationId,
-          purpose,
-          appointmentId: input.appointmentId ?? null,
-          serviceId: input.serviceId ?? null,
+          purpose: linkPurpose,
+          appointmentId: deepLink ? (input.appointmentId ?? null) : null,
+          serviceId: null,
         })
       : null
     if (!offered) return { status: 'unavailable' }
-    const serviceName = input.serviceId
-      ? (clinicConfig.getService(this.#db, tenantId, input.serviceId)?.name ?? null)
-      : null
+    const body =
+      linkPurpose === 'remarcar' || linkPurpose === 'cancelar'
+        ? clientWebRouteBody({ purpose: linkPurpose })
+        : CLIENT_WEB_BOOK_BODY
     const sent = clinicInbox.sendOutboundMessageOp(
       this.#db,
       caller,
       {
         conversationId: input.conversationId,
-        body: clientWebRouteBody({ purpose, serviceName }),
+        body,
         interactive: offered,
         clientRequestId: `staff-web-link:${input.conversationId}:${this.#clock.nowMs()}`,
         authorClerkUserId: PROPOSAL_SEND_ACTOR,
@@ -1400,12 +1406,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const openAgendaTap = parseOpenAgendaReplyButton(input.buttonId)
     if (openAgendaTap) {
       cancelAutoDraft(this.#db, caller.tenantId, conversationId)
+      // DEC-220: reply legado → cta_url purpose=home (não deep-link agendar/serviço).
       const outbox = await this.#offerWebLinkInChat(
         caller,
         conversationId,
-        'agendar',
+        'home',
         input.providerEventKey,
-        openAgendaTap.serviceId,
+        null,
       )
       if (outbox.length > 0) {
         await this.#fanoutOutboxes(caller, outbox, true)
@@ -1533,7 +1540,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async #offerWebLinkInChat(
     caller: ClinicCaller,
     conversationId: string,
-    purpose: 'agendar' | 'remarcar' | 'cancelar',
+    purpose: 'home' | 'agendar' | 'remarcar' | 'cancelar',
     eventKey?: string | null,
     serviceId?: string | null,
     opts?: { body?: string },
@@ -1541,6 +1548,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const key = eventKey ?? `${purpose}:${this.#clock.nowMs()}`
     const prepare = this.#prepareClientWebOffer()
     const paused = clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
+    // DEC-220: Abrir agenda → home; remarcar/cancelar deep-link.
+    const linkPurpose = clientWebAbrirAgendaLinkPurpose(purpose)
     let offered: SendOutboundInteractiveInput | null = null
     if (prepare && !paused) {
       try {
@@ -1552,12 +1561,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         const future = conv
           ? loadUpcomingAppointments(this.#db, caller.tenantId, conv.contact_id, this.#clock.nowMs(), 2)
           : []
+        const deepLink = linkPurpose === 'remarcar' || linkPurpose === 'cancelar'
         offered = await prepare({
           tenantId: caller.tenantId,
           conversationId,
-          purpose,
-          appointmentId: purpose !== 'agendar' && future.length === 1 ? (future[0]?.id ?? null) : null,
-          serviceId: purpose === 'agendar' ? (serviceId ?? null) : null,
+          purpose: linkPurpose,
+          appointmentId: deepLink && future.length === 1 ? (future[0]?.id ?? null) : null,
+          serviceId: null,
         })
       } catch {
         offered = null
@@ -1565,8 +1575,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     if (offered) {
       try {
+        const bodyPurpose = purpose === 'home' ? 'agendar' : purpose === 'agendar' ? 'agendar' : purpose
         const serviceName =
-          purpose === 'agendar' && serviceId
+          bodyPurpose === 'agendar' && serviceId
             ? (this.#db.get<{ name: string }>(
                 `SELECT name FROM services WHERE tenant_id = ? AND id = ? AND active = 1`,
                 caller.tenantId,
@@ -1574,7 +1585,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
               )?.name ?? null)
             : null
         const body =
-          opts?.body ?? clientWebRouteBody({ purpose, serviceName })
+          opts?.body ??
+          (purpose === 'home'
+            ? CLIENT_WEB_BOOK_BODY
+            : clientWebRouteBody({ purpose: bodyPurpose, serviceName }))
         const sent = clinicInbox.sendOutboundMessageOp(
           this.#db,
           caller,
@@ -1582,7 +1596,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             conversationId,
             body,
             interactive: offered,
-            clientRequestId: `ai-web-${purpose}:${key}`,
+            clientRequestId: `ai-web-${linkPurpose}:${key}`,
             authorClerkUserId: 'system:ai-autodraft',
             authorDisplayName: 'Assistente',
           },

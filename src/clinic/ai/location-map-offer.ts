@@ -9,7 +9,6 @@
 import type { Clock } from '../../db/clock'
 import type { SendOutboundInteractiveInput } from '../inbox/types'
 import type { ClinicDb } from '../store'
-import { openAgendaReplyButton } from '../../clientweb/offer'
 import { HUMAN_HANDOFF_BUTTON_ID, HUMAN_HANDOFF_BUTTON_TITLE } from './human-handoff'
 import { sayAct } from './dialogue-acts'
 
@@ -84,8 +83,9 @@ export function rewriteRawMapsUrlOutbound(
 }
 
 /**
- * Três reply buttons (máx. Meta): Abrir mapa · Abrir agenda · Falar com a equipe.
- * Só usado sem URL https (legado). Com URL, preferir `locationMapOfferInteractive`.
+ * Reply buttons sem URL https (legado / lab): Abrir mapa · Falar com a equipe.
+ * Sem «Abrir agenda» reply (preferência Paulo 21/11/2026). Com URL, preferir
+ * `locationMapOfferInteractive` (`cta_url` Abrir mapa).
  */
 export function locationMapOfferButtons(
   db: ClinicDb,
@@ -96,9 +96,9 @@ export function locationMapOfferButtons(
   void db
   void tenantId
   void clock
+  void opts
   return [
     openMapReplyButton(),
-    openAgendaReplyButton(opts?.serviceId),
     { id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE },
   ]
 }
@@ -110,7 +110,7 @@ export function locationMapCtaInteractive(url: string): SendOutboundInteractiveI
 /**
  * Interactivo da 1.ª bolha de localização.
  * URL https → só `cta_url` «Abrir mapa» (um toque).
- * Sem URL → replies Abrir mapa · Agenda · Equipe (toque Abrir mapa → cta).
+ * Sem URL → replies Abrir mapa · Equipe (toque Abrir mapa → cta).
  */
 export function locationMapOfferInteractive(
   mapsUrl: string,

@@ -28,7 +28,7 @@ import type {
 } from '../clinic/scheduling'
 export type StaffClientWebLinkInput = {
   conversationId: string
-  purpose?: 'agendar' | 'remarcar' | 'cancelar'
+  purpose?: 'home' | 'agendar' | 'remarcar' | 'cancelar'
   serviceId?: string | null
   appointmentId?: string | null
 }

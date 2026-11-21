@@ -25,6 +25,7 @@ import { locationMapOfferInteractive, rewriteRawMapsUrlOutbound } from './locati
 import { intentLinkPurpose } from '../../ai/intent-classifier'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
+  clientWebAbrirAgendaLinkPurpose,
   clientWebRouteBody,
   countRecentWebLinks,
   isWebScheduleIntentExemptFromLinkLimit,
@@ -298,8 +299,34 @@ export async function applyLlmResultOp(
       closingCta = null
     }
   }
+  // Preferência 21/11: redator → cta_url Abrir agenda (home) quando possível; senão só Equipe
+  // (nunca reply Abrir agenda + Equipe). Fecho / mapa já têm cta próprio.
+  let infoCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
+  if (
+    !mapInteractive &&
+    !closingCta &&
+    deps.autoBookPaused !== true &&
+    deps.prepareClientWebOffer
+  ) {
+    try {
+      infoCta = await deps.prepareClientWebOffer({
+        tenantId,
+        conversationId: job.conversationId,
+        purpose: 'home',
+        appointmentId: null,
+        serviceId: null,
+        audienceLine: null,
+        variantIds: [],
+      })
+      if (!infoCta?.ctaUrl) infoCta = null
+    } catch {
+      infoCta = null
+    }
+  }
   const buttons =
-    mapInteractive || closingCta ? null : humanTeamOfferButtons(db, tenantId, clock)
+    mapInteractive || closingCta || infoCta
+      ? null
+      : humanTeamOfferButtons(db, tenantId, clock)
   const sent = sendOutboundMessageOp(
     db,
     caller,
@@ -310,11 +337,14 @@ export async function applyLlmResultOp(
         ? mapInteractive
         : closingCta
           ? closingCta
-          : buttons && buttons.length > 0
-            ? { buttons }
-            : null,
-      omitHumanTeamAugment: Boolean(closingCta || mapInteractive?.ctaUrl),
-      clientRequestId: closingCta ? `ai-web-agendar:${job.messageId}` : `ai-reply:${suggestion.id}`,
+          : infoCta
+            ? infoCta
+            : buttons && buttons.length > 0
+              ? { buttons }
+              : null,
+      omitHumanTeamAugment: Boolean(closingCta || infoCta || mapInteractive?.ctaUrl),
+      clientRequestId:
+        closingCta || infoCta ? `ai-web-agendar:${job.messageId}` : `ai-reply:${suggestion.id}`,
       authorClerkUserId: AI_ACTOR_ID,
       authorDisplayName: AI_ACTOR_NAME,
       aiSuggestionId: suggestion.id,
@@ -418,13 +448,15 @@ export async function applyIntentLinkOp(
     job.conversationId,
   )
   const future = conv ? loadUpcomingAppointments(db, tenantId, conv.contact_id, clock.nowMs(), 2) : []
-  // Mesma regra do léxico (DEC-202): remarcar ou cancelar sem marcação futura abre em agendar.
+  // Mesma regra do léxico (DEC-202): remarcar ou cancelar sem marcação futura → frase de agendar.
   const noUpcoming = (purpose === 'remarcar' || purpose === 'cancelar') && future.length === 0
-  const linkPurpose = noUpcoming ? 'agendar' : purpose
+  const bodyPurpose = noUpcoming ? 'agendar' : purpose
+  // DEC-220: token do Abrir agenda → home (excepto remarcar/cancelar com marcação).
+  const issuedPurpose = clientWebAbrirAgendaLinkPurpose(bodyPurpose)
   const overLimit =
     countRecentWebLinks(db, tenantId, job.conversationId, clock.nowMs()) >= CLIENT_WEB_LINKS_PER_CONVERSATION
   const exemptFromLinkLimit = isWebScheduleIntentExemptFromLinkLimit({
-    purpose: linkPurpose,
+    purpose: bodyPurpose,
     noUpcoming,
   })
   // Teto bloqueia novo cta_url; remarcar/cancelar ainda recebem frase + reply (sem pausa).
@@ -436,9 +468,9 @@ export async function applyIntentLinkOp(
       offered = await deps.prepareClientWebOffer({
         tenantId,
         conversationId: job.conversationId,
-        purpose: linkPurpose,
+        purpose: issuedPurpose,
         appointmentId:
-          (linkPurpose === 'remarcar' || linkPurpose === 'cancelar') && future.length === 1
+          (issuedPurpose === 'remarcar' || issuedPurpose === 'cancelar') && future.length === 1
             ? (future[0]?.id ?? null)
             : null,
         serviceId: null,
@@ -461,12 +493,12 @@ export async function applyIntentLinkOp(
       origin: 'llm',
       label: input.result.intent?.label,
       confidence: input.result.intent?.confidence,
-      linkPurpose,
+      linkPurpose: issuedPurpose,
       sent: Boolean(offered),
     }),
   )
 
-  const body = clientWebRouteBody({ purpose: linkPurpose, serviceName: null, noUpcoming })
+  const body = clientWebRouteBody({ purpose: bodyPurpose, serviceName: null, noUpcoming })
   if (offered) {
     const sent = sendOutboundMessageOp(
       db,
@@ -475,7 +507,7 @@ export async function applyIntentLinkOp(
         conversationId: job.conversationId,
         body,
         interactive: offered,
-        clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
+        clientRequestId: `ai-web-${issuedPurpose}:${job.messageId}`,
         authorClerkUserId: AI_ACTOR_ID,
         authorDisplayName: AI_ACTOR_NAME,
       },
@@ -493,7 +525,7 @@ export async function applyIntentLinkOp(
           conversationId: job.conversationId,
           body,
           interactive: { buttons: [openAgendaReplyButton()] },
-          clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
+          clientRequestId: `ai-web-${issuedPurpose}:${job.messageId}`,
           authorClerkUserId: AI_ACTOR_ID,
           authorDisplayName: AI_ACTOR_NAME,
         },
@@ -510,7 +542,7 @@ export async function applyIntentLinkOp(
         {
           conversationId: job.conversationId,
           body,
-          clientRequestId: `ai-web-${linkPurpose}:${job.messageId}`,
+          clientRequestId: `ai-web-${issuedPurpose}:${job.messageId}`,
           authorClerkUserId: AI_ACTOR_ID,
           authorDisplayName: AI_ACTOR_NAME,
         },

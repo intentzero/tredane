@@ -475,6 +475,7 @@ export function faqMissingInteractiveButtons(
   tenantId: string,
   clock: Clock,
 ): Array<{ id: string; title: string }> {
+  // Preferência 21/11: Continuar + Equipe (sem reply Abrir agenda na mesma bolha).
   const buttons: Array<{ id: string; title: string }> = [
     { id: FAQ_CONTINUE_BUTTON_ID, title: FAQ_CONTINUE_BUTTON_TITLE },
   ]

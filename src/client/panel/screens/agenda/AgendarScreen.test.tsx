@@ -165,7 +165,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('heading', { name: 'Revisar' })).toBeTruthy()
     expect(within(dialog).getByText('Marina Souza')).toBeTruthy()
-    expect(within(dialog).getByText(/botão «Abrir agenda» já neste serviço/)).toBeTruthy()
+    expect(within(dialog).getByText(/botão «Abrir agenda» \(página inicial/)).toBeTruthy()
     expect(within(dialog).queryByRole('checkbox')).toBeNull()
     expect(within(dialog).queryByRole('textbox')).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar link de agenda' }))
@@ -174,8 +174,8 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
       't1',
       expect.objectContaining({
         conversationId: 'conv_1',
-        purpose: 'agendar',
-        serviceId: 'svc_limpeza',
+        purpose: 'home',
+        serviceId: null,
       }),
       expect.anything(),
     )

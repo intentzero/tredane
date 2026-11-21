@@ -246,7 +246,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   {
     // Texto «Falar com a equipe» também só oferece o botão (toque é que passa / regista).
     id: 'G-10d',
-    title: 'Texto «Falar com a equipe» → Abrir agenda + Equipe, sem pausa',
+    title: 'Texto «Falar com a equipe» → só Equipe (sem Abrir agenda na mesma bolha), sem pausa',
     turnosIdeais: 1,
     nowMs: Date.UTC(2026, 10, 7, 20, 0),
     turns: [{ role: 'client', text: 'Falar com a equipe' }],
@@ -276,14 +276,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         const hasTeam = buttons.some(
           (b) => b.id === HUMAN_HANDOFF_BUTTON_ID || b.title === HUMAN_HANDOFF_BUTTON_TITLE,
         )
-        if (!hasAgenda) {
-          return [`G-10d: esperava Abrir agenda, veio ${JSON.stringify(buttons)}`]
+        if (hasAgenda) {
+          return [`G-10d: não deve ter reply Abrir agenda, veio ${JSON.stringify(buttons)}`]
         }
         if (!hasTeam) {
           return [`G-10d: esperava Falar com a equipe, veio ${JSON.stringify(buttons)}`]
         }
-        if (buttons.length !== 2) {
-          return [`G-10d: esperava Abrir agenda + Equipe, veio ${buttons.length} botões`]
+        if (buttons.length !== 1) {
+          return [`G-10d: esperava só Equipe, veio ${buttons.length} botões`]
         }
         return []
       },

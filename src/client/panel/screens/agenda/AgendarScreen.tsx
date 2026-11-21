@@ -1195,12 +1195,12 @@ function ReviewSheet(p: ReviewProps) {
     }
   }
 
-  /** DEC-202: envia à cliente o link «Abrir agenda» já no serviço; ela escolhe e confirma na página. */
+  /** DEC-202 / DEC-220: envia «Abrir agenda» (home — Suas próximas marcações); a cliente escolhe na página. */
   async function sendClientWebLinkAction() {
     if (!ctx.conversationId || !ctx.contactId) return
     const result = await api.sendClientWebLink(
       tenantId,
-      { conversationId: ctx.conversationId, purpose: 'agendar', serviceId: service.id },
+      { conversationId: ctx.conversationId, purpose: 'home', serviceId: null },
       fo,
     )
     if (result.status === 'window_closed') {
@@ -1446,7 +1446,7 @@ function ReviewSheet(p: ReviewProps) {
                   </h3>
                   {canNotify ? (
                     <p className="agd-proposal-hint">
-                      A cliente recebe o botão «Abrir agenda» já neste serviço e escolhe o dia e a hora na página.
+                      A cliente recebe o botão «Abrir agenda» (página inicial com as marcações) e escolhe o dia e a hora.
                       O horário escolhido aqui não fica reservado: só fica marcado depois de a cliente confirmar na página.
                     </p>
                   ) : (
