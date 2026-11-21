@@ -1162,4 +1162,62 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       boot.close()
     }
   })
+
+  it('TRE-112: «Fazem depilação íntima?» lê client_explanation (não LLM / rememberZones)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-faq-offer-intima'
+    const caller = workerCaller(tenantId)
+    try {
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          clientExplanation: 'Remoção dos pelos pela raiz — prosa do serviço.',
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'íntima',
+            audience: 'feminino',
+            durationMinutes: 30,
+            priceCents: 12_000,
+            clientExplanation:
+              'A depilação íntima com cera é um procedimento de remoção dos pelos pela raiz.',
+          },
+        ],
+        clock,
+      )
+      const cold = catalogReply(boot.db, tenantId, 'Fazem depilação íntima?', clock)
+      expect(cold).toMatch(/depilação íntima com cera/i)
+      expect(cold).not.toMatch(/prosa do serviço|não tenho.*certeza|Não tenho esse detalhe/i)
+
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511999000112', displayName: 'Cliente FAQ oferta' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const withSession = catalogReply(boot.db, tenantId, 'Fazem depilação íntima?', clock, {
+        conversationId: conversation.id,
+      })
+      expect(withSession).toMatch(/depilação íntima com cera/i)
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds ?? []).toEqual([])
+    } finally {
+      boot.close()
+    }
+  })
 })

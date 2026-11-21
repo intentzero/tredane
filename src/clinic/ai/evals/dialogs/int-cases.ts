@@ -24,6 +24,7 @@
  * | INT-10 | Confirmado| FAQ DEC-185 com cumprimento «Boa tarde» → texto publicado (TRE-60) |
  * | INT-13 | Confirmado| «O que inclui a íntima?» → client_explanation + Abrir agenda home (TRE-100 / DEC-220) |
  * | INT-14 | Confirmado| Íntima sem explicação → missing + Abrir agenda home, sem LLM (TRE-100) |
+ * | INT-15 | Confirmado| «Fazem depilação íntima?» → client_explanation + Abrir agenda home, sem LLM (TRE-112) |
  */
 import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
@@ -669,6 +670,81 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       clientWebOffers: 1,
       clientWebPurposes: [{ purpose: 'home', serviceId: null }],
       outboundExcludes: [/Remoção dos pelos/i, /Falar com a equipe/i],
+    },
+  },
+  {
+    id: 'INT-15',
+    title:
+      '«Fazem depilação íntima?» → client_explanation + Abrir agenda home, sem modelo nem «não tenho com certeza» (TRE-112)',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const depilacao = listServices(s.db, s.tenantId).find((row) => row.name === 'Depilação')
+      if (!depilacao) throw new Error('INT-15: serviço Depilação ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: depilacao.id,
+          name: depilacao.name,
+          durationMinutes: depilacao.durationMinutes,
+          bufferMinutes: depilacao.bufferMinutes,
+          priceCents: depilacao.priceCents,
+          professionalIds: depilacao.professionalIds,
+          roomRequirement: depilacao.roomRequirement,
+          variantKind: 'zona',
+          variantKindPlural: 'zonas',
+          clientExplanation: 'Remoção dos pelos pela raiz utilizando cera depilatória.',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        depilacao.id,
+        [
+          ...depilacao.zones.map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            audience: zone.audience,
+            durationMinutes: zone.durationMinutes,
+            priceCents: zone.priceCents,
+            synonyms: zone.synonyms,
+            clientExplanation: zone.clientExplanation,
+            clientExplanationAudience: zone.clientExplanationAudience ?? null,
+          })),
+          {
+            name: 'íntima',
+            audience: 'feminino' as const,
+            durationMinutes: 30,
+            priceCents: 12_000,
+            clientExplanation:
+              'A depilação íntima com cera é um procedimento de remoção dos pelos pela raiz.',
+          },
+        ],
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Fazem depilação íntima?' }],
+    expect: {
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/depilação íntima com cera/i],
+          excludes: [
+            /Remoção dos pelos pela raiz utilizando cera depilatória/i,
+            /não tenho.*certeza/i,
+            /Não tenho esse detalhe/i,
+            /Falar com a equipe/i,
+            /repasso para a equipe/i,
+          ],
+        },
+      ],
+      turnDecided: [{ modelCalled: false, route: 'catalog' }],
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
+      outboundExcludes: [/Falar com a equipe/i, /não tenho.*certeza/i],
     },
   },
   {

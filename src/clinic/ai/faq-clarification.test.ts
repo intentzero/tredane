@@ -4,6 +4,7 @@ import {
   answerFaqFromCatalog,
   FAQ_MISSING_DETAIL_BODY,
   isCatalogClarificationAsk,
+  isCatalogOfferAsk,
   normalizeInclusionAskText,
 } from './faq-clarification'
 
@@ -43,6 +44,26 @@ const service = {
   synonyms: [],
   variantSelection: 'varias',
 } as unknown as ServiceRow
+
+describe('isCatalogOfferAsk (TRE-112)', () => {
+  it('reconhece existência/oferta', () => {
+    expect(isCatalogOfferAsk('Fazem depilação íntima?')).toBe(true)
+    expect(isCatalogOfferAsk('Vocês fazem depilação íntima?')).toBe(true)
+    expect(isCatalogOfferAsk('Tem depilação íntima?')).toBe(true)
+    expect(isCatalogOfferAsk('Vocês têm massagem?')).toBe(true)
+    expect(isCatalogOfferAsk('Oferecem peeling?')).toBe(true)
+  })
+
+  it('não rouba clarificação nem vaga/política', () => {
+    expect(isCatalogOfferAsk('O que inclui a íntima?')).toBe(false)
+    expect(isCatalogOfferAsk('Como é a depilação íntima?')).toBe(false)
+    expect(isCatalogOfferAsk('faz parte da íntima o ânus?')).toBe(false)
+    expect(isCatalogOfferAsk('Tem horário amanhã?')).toBe(false)
+    expect(isCatalogOfferAsk('Tem multa se cancelar?')).toBe(false)
+    expect(isCatalogOfferAsk('Vocês têm estacionamento?')).toBe(false)
+    expect(isCatalogOfferAsk('axila e pernas')).toBe(false)
+  })
+})
 
 describe('isCatalogClarificationAsk (DEC-177)', () => {
   it('detecta inclui / o que é / cobre', () => {
@@ -365,6 +386,44 @@ describe('answerFaqFromCatalog (DEC-177)', () => {
     if (r.kind === 'covered') {
       expect(r.replyText).toMatch(/ânus/)
       expect(r.replyText).not.toMatch(/\banus faz parte\b/i)
+    }
+  })
+
+  it('TRE-112: «Fazem depilação íntima?» com explicação → variante (não missing)', () => {
+    const zoneText =
+      'A depilação íntima com cera é um procedimento de remoção dos pelos pela raiz.'
+    const r = answerFaqFromCatalog({
+      text: 'Fazem depilação íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Prosa do serviço — não deve sair.',
+      } as ServiceRow,
+      zones: [{ ...intima, name: 'íntima', clientExplanation: zoneText }, axila],
+      mode: 'offer',
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/depilação íntima com cera/i)
+      expect(r.replyText).not.toMatch(/Prosa do serviço|não tenho/i)
+    }
+  })
+
+  it('TRE-112: oferta com zona no cadastro sem explicação → Sim, fazemos (não missing)', () => {
+    const r = answerFaqFromCatalog({
+      text: 'Fazem íntima?',
+      conversationId: 'cnv',
+      service: {
+        ...service,
+        clientExplanation: 'Prosa do serviço.',
+      } as ServiceRow,
+      zones: [{ ...intima, name: 'íntima', clientExplanation: null }, axila],
+      mode: 'offer',
+    })
+    expect(r.kind).toBe('explanation')
+    if (r.kind === 'explanation') {
+      expect(r.replyText).toMatch(/^Sim, fazemos íntima\.$/i)
+      expect(r.replyText).not.toMatch(/Prosa do serviço|Não tenho esse detalhe/i)
     }
   })
 })
