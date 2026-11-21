@@ -26,6 +26,7 @@
  * | INT-14 | Confirmado| Íntima sem explicação → missing + Abrir agenda home, sem LLM (TRE-100) |
  * | INT-15 | Confirmado| «Fazem depilação íntima?» → client_explanation + Abrir agenda home, sem LLM (TRE-112) |
  * | INT-16 | Confirmado| faq_catalog ambíguo («depilação e massagem») → «De qual serviço?», sem LLM (TRE-113) |
+ * | INT-17 | Confirmado| FAQ oferta → «Qual o valor?» usa ActiveCatalogSubject (DEC-223 / TRE-121) |
  */
 import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { createResourceBlock } from '../../../config/blocks'
@@ -772,6 +773,87 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
       clientWebOffers: 0,
       outboundExcludes: [/Falar com a equipe/i, /Abrir agenda/i],
+    },
+  },
+  {
+    id: 'INT-17',
+    title:
+      '«Fazem depilação íntima?» → «Qual o valor?» → R$ do cadastro sem modelo (DEC-223 / TRE-121)',
+    turnosIdeais: 2,
+    prepare: (s) => {
+      const depilacao = listServices(s.db, s.tenantId).find((row) => row.name === 'Depilação')
+      if (!depilacao) throw new Error('INT-17: serviço Depilação ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: depilacao.id,
+          name: depilacao.name,
+          durationMinutes: depilacao.durationMinutes,
+          bufferMinutes: depilacao.bufferMinutes,
+          priceCents: depilacao.priceCents,
+          professionalIds: depilacao.professionalIds,
+          roomRequirement: depilacao.roomRequirement,
+          variantKind: 'zona',
+          variantKindPlural: 'zonas',
+          clientExplanation: 'Remoção dos pelos pela raiz.',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        depilacao.id,
+        [
+          ...depilacao.zones.map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            audience: zone.audience,
+            durationMinutes: zone.durationMinutes,
+            priceCents: zone.priceCents,
+            synonyms: zone.synonyms,
+            clientExplanation: zone.clientExplanation,
+            clientExplanationAudience: zone.clientExplanationAudience ?? null,
+          })),
+          {
+            name: 'íntima',
+            audience: 'feminino' as const,
+            durationMinutes: 30,
+            priceCents: 12_000,
+            // Sem explicação → oferta «Sim, fazemos íntima.» (TRE-112)
+          },
+        ],
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Fazem depilação íntima?' },
+      { role: 'client', text: 'Qual o valor?' },
+    ],
+    expect: {
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Sim, fazemos íntima/i],
+          excludes: [/Falar com a equipe/i, /não tenho.*certeza/i],
+        },
+        {
+          turn: 1,
+          matches: [/12\.000|12,00|R\$/],
+          excludes: [
+            /equipe confirma/i,
+            /Não tenho esse detalhe/i,
+            /não tenho.*certeza/i,
+            /Falar com a equipe/i,
+          ],
+        },
+      ],
+      turnDecided: [
+        { modelCalled: false, route: 'catalog' },
+        { modelCalled: false, route: 'catalog' },
+      ],
     },
   },
   {

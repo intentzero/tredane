@@ -87,6 +87,14 @@ export {
 } from './usage'
 export { buildClinicAiContext } from './schedule-context'
 export {
+  getActiveCatalogSubject,
+  setActiveCatalogSubject,
+  clearActiveCatalogSubject,
+  ACTIVE_CATALOG_SUBJECT_TTL_MS,
+  type ActiveCatalogSubject,
+  type ActiveCatalogSubjectSource,
+} from './active-catalog-subject'
+export {
   loadTurnContext,
   getOrCompileCatalog,
   clearCompiledCatalogCache,

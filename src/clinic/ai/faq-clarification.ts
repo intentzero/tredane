@@ -365,10 +365,13 @@ export type FaqCatalogAnswer =
   | {
       kind: 'explanation'
       replyText: string
+      /** Zona nomeada quando a resposta é sobre uma variante (DEC-223). */
+      subjectZone?: ServiceZoneRow
     }
   | {
       kind: 'missing'
       replyText: string
+      subjectZone?: ServiceZoneRow
     }
 
 /**
@@ -384,6 +387,24 @@ export type FaqCatalogAnswer =
  * não resolver). `force=false` + `mode=offer` sem serviço: `handled:false` para
  * o caller seguir o caminho de inexistente (#512).
  */
+/** Sujeito resolvido pelo FAQ para DEC-223 (informativo; não é booking). */
+export type FaqCatalogResolvedSubject = {
+  serviceId: string
+  variantIds: string[]
+  audienceLine: ScheduleAudienceLine | null
+}
+
+export type HandleFaqCatalogResult =
+  | {
+      handled: true
+      replyText: string
+      /** Ambiguidade entre serviços — limpar sujeito activo. */
+      clearSubject?: true
+      /** Serviço/variante da resposta (gravar ActiveCatalogSubject). */
+      subject?: FaqCatalogResolvedSubject
+    }
+  | { handled: false }
+
 export function handleFaqCatalog(input: {
   text: string
   conversationId: string
@@ -402,11 +423,11 @@ export function handleFaqCatalog(input: {
   mode: 'clarification' | 'offer'
   /** Etiqueta fechada já decidida (classificador / force path). */
   force?: boolean
-}): { handled: true; replyText: string } | { handled: false } {
+}): HandleFaqCatalogResult {
   const force = input.force === true
   const distinctNamed = [...new Map(input.namedServices.map((s) => [s.id, s])).values()]
   if (distinctNamed.length > 1) {
-    return { handled: true, replyText: FAQ_WHICH_SERVICE_BODY }
+    return { handled: true, replyText: FAQ_WHICH_SERVICE_BODY, clearSubject: true }
   }
   const svc =
     distinctNamed[0] ??
@@ -432,7 +453,21 @@ export function handleFaqCatalog(input: {
     zones: pool.length > 0 ? pool : active,
     mode: input.mode,
   })
-  return { handled: true, replyText: faq.replyText }
+  const variantIds =
+    'subjectZone' in faq && faq.subjectZone
+      ? [faq.subjectZone.id]
+      : 'mappedZone' in faq && faq.mappedZone
+        ? [faq.mappedZone.id]
+        : []
+  return {
+    handled: true,
+    replyText: faq.replyText,
+    subject: {
+      serviceId: svc.id,
+      variantIds,
+      audienceLine: line,
+    },
+  }
 }
 
 /**
@@ -533,6 +568,7 @@ export function answerFaqFromCatalog(input: {
     if (zoneExplanation) {
       return {
         kind: 'explanation',
+        subjectZone: subject,
         replyText: sayAct(
           'informar_explicacao',
           input.conversationId,
@@ -544,11 +580,13 @@ export function answerFaqFromCatalog(input: {
     if (mode === 'offer') {
       return {
         kind: 'explanation',
+        subjectZone: subject,
         replyText: `Sim, fazemos ${subject.name}.`,
       }
     }
     return {
       kind: 'missing',
+      subjectZone: subject,
       replyText: FAQ_MISSING_DETAIL_BODY,
     }
   }

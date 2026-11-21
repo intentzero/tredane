@@ -12,6 +12,7 @@ import type { ClinicSettingsRow, ResourceRow, ServiceRow, ServiceZoneRow } from 
 import { listMessages } from '../inbox/messages'
 import type { MessageRow } from '../inbox/types'
 import type { ClinicDb } from '../store'
+import { getActiveCatalogSubject } from './active-catalog-subject'
 import { loadUpcomingAppointment } from './upcoming'
 import {
   getScheduleSession,
@@ -214,6 +215,11 @@ export function loadTurnContext(
     { version: catalog.version, serviceIds, variantIds, professionalIds },
     clock,
   )
+  // DEC-223: revalida / expira o sujeito informativo no início do turno.
+  getActiveCatalogSubject(db, tenantId, input.conversationId, {
+    nowMs: clock.nowMs(),
+    catalog: { version: catalog.version, serviceIds, variantIds },
+  })
   const session = getScheduleSession(db, tenantId, input.conversationId)
   const upcoming = input.contactId
     ? loadUpcomingAppointment(db, tenantId, input.contactId, clock.nowMs())

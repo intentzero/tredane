@@ -6,7 +6,7 @@ import { bootClinicDb } from '../test-db'
 
 describe('migração 0080_client_web_rr_cursor', () => {
   it('regista id 80 e sobe o alvo do schema', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(80)
+    expect(CLINIC_SCHEMA_VERSION).toBe(81)
     const m = CLINIC_MIGRATIONS.find((x) => x.id === 80)
     expect(m?.name).toBe('0080_client_web_rr_cursor')
     expect(m?.statements.some((s) => s.includes('client_web_rr_cursor'))).toBe(true)

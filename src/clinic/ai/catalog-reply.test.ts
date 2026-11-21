@@ -1215,6 +1215,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         conversationId: conversation.id,
       })
       expect(withSession).toMatch(/depilação íntima com cera/i)
+      // Booking frame não ganha variantes (DEC-202); DEC-223 grava sujeito informativo.
       expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds ?? []).toEqual([])
     } finally {
       boot.close()

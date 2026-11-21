@@ -36,8 +36,10 @@ import {
   isClosedIntent,
 } from '../../ai/intent-classifier'
 import { logIntentLlm, type IntentLlmOutcome } from '../../ai/intent-llm-log'
+import { getActiveCatalogSubject } from './active-catalog-subject'
 import { catalogReply } from './catalog-reply'
 import { FAQ_MISSING_DETAIL_BODY, isFaqWhichServiceBody } from './faq-clarification'
+import { getOrCompileCatalog } from './turn-context'
 import { ClinicError } from '../errors'
 import {
   CLIENT_WEB_LINKS_PER_CONVERSATION,
@@ -683,14 +685,23 @@ export async function applyClosedHandlerOp(
     return { status: 'applied', job: getLlmJob(db, tenantId, job.id), outbox: offer.outbox, resumeAutodraft: false }
   }
 
-  // Sem conversationId: a pergunta do snapshot é a fonte (não misturar com o inbound
-  // original que só abriu o job de redact — senão price/FAQ leem a frase errada).
+  // DEC-223: passa conversationId para ler/gravar ActiveCatalogSubject (FAQ→preço).
+  // `turn.turnText` = pergunta do snapshot — senão clientSource lia o inbound
+  // que só abriu o job de redact («Aceitam pacote…») e perdia o texto certo.
   // TRE-113: `faq_catalog` força o handler de cadastro (sem depender de cues).
   // Telemetria TRE-115: `usedMissing` distingue cadastro vazio de hit de catálogo.
   const question = snapshot.question
+  const catalog = getOrCompileCatalog(db, tenantId, clock)
   let body =
     catalogReply(db, tenantId, question, clock, {
       forceFaqCatalog: kind === 'faq_catalog',
+      conversationId: job.conversationId,
+      turn: {
+        turnText: question,
+        messages: [],
+        catalog,
+        session: null,
+      },
     }) ?? null
   const usedMissing = !body && kind === 'faq_catalog'
   if (usedMissing) body = FAQ_MISSING_DETAIL_BODY
@@ -714,7 +725,11 @@ export async function applyClosedHandlerOp(
 
   // DEC-185 / faq_clinic: texto publicado sem Abrir agenda por defeito.
   // TRE-113: «De qual serviço?» também sem CTA de agenda.
+  // DEC-223 / DEC-202(4): com um serviço activo, pré-escolhe no link (purpose=home, DEC-220).
   const allowAgendaCta = kind !== 'faq_clinic' && !whichService
+  const subjectForCta = getActiveCatalogSubject(db, tenantId, job.conversationId, {
+    nowMs: clock.nowMs(),
+  })
   let agendaCta: Awaited<ReturnType<NonNullable<AiAssistDeps['prepareClientWebOffer']>>> = null
   if (allowAgendaCta && !locationOffer && deps.autoBookPaused !== true && deps.prepareClientWebOffer) {
     try {
@@ -723,9 +738,9 @@ export async function applyClosedHandlerOp(
         conversationId: job.conversationId,
         purpose: 'home',
         appointmentId: null,
-        serviceId: null,
-        audienceLine: null,
-        variantIds: [],
+        serviceId: subjectForCta?.serviceId ?? null,
+        audienceLine: subjectForCta?.audienceLine ?? null,
+        variantIds: subjectForCta?.variantIds ?? [],
       })
       agendaCta = offered?.ctaUrl ? offered : null
     } catch {
