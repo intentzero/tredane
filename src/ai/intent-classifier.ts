@@ -74,7 +74,8 @@ export const CLASSIFIER_SYSTEM = [
   // Oferta nomeada: alinhado a TRE-112 / #1020 (cue léxico + mesma etiqueta no classificador).
   '«Vocês têm limpeza de pele?» (serviço/zona nomeados, sem pedir vaga) é faq_catalog.',
   '«Tem estacionamento?», «posso levar o pet?», «o que eu levo?», «aceitam cartão no dia?» são faq_clinic.',
-  '«Me mostra a agenda», «quero ver a grade de horários» são agendar (ver agenda para marcar), não informacao.',
+  '«Me mostra a agenda», «quero ver a grade de horários», «consultar a agenda» são agendar (ver agenda para marcar), não informacao.',
+  '«Tenho agendamentos?», «ver agendamentos», «quais meus horários» também são agendar (Abrir agenda / marcações), não informacao.',
   'Na dúvida entre agendar e price/faq_catalog/faq_clinic, prefira agendar se houver pedido de vaga ou marcar.',
   'Na dúvida entre team e outra classe, só use team se o pedido de pessoa for o acto principal.',
 ].join('\n')

@@ -18,4 +18,14 @@ describe('frases fixas do chat que não marcam (DEC-202)', () => {
     expect(isMyAppointmentsQuery('quero cancelar meus agendamentos')).toBe(false)
     expect(isMyAppointmentsQuery('quero outro agendamento')).toBe(false)
   })
+
+  it('TRE-128: «Tenho agendamentos?» / consultar agenda → Abrir agenda (não cai no redator)', () => {
+    expect(isMyAppointmentsQuery('Tenho agendamentos?')).toBe(true)
+    expect(isMyAppointmentsQuery('tenho marcações?')).toBe(true)
+    expect(isMyAppointmentsQuery('consultar a agenda')).toBe(true)
+    expect(isMyAppointmentsQuery('Quero consultar a agenda')).toBe(true)
+    expect(isMyAppointmentsQuery('ver agendamentos')).toBe(true)
+    // Disponibilidade genérica («ver horários») não é lista das marcações da cliente.
+    expect(isMyAppointmentsQuery('ver horários')).toBe(false)
+  })
 })
