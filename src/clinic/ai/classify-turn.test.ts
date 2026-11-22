@@ -62,6 +62,12 @@ describe('classifyTurn: a ordem de decisão é o contrato (DEC-202, P3)', () => 
     expect(kind('qual o horário de funcionamento?')).toBe('info')
   })
 
+  it('TRE-128: consultar / tenho agendamentos → my_appointments (Abrir agenda home)', () => {
+    expect(kind('Tenho agendamentos?')).toBe('my_appointments')
+    expect(kind('consultar a agenda')).toBe('my_appointments')
+    expect(kind('ver agendamentos')).toBe('my_appointments')
+  })
+
   it('turno misto é link_route com mixed', () => {
     const c = classifyTurn(base({ text: 'quanto custa a limpeza de pele e tem horário amanhã?' }))
     expect(c).toMatchObject({ kind: 'link_route', route: { purpose: 'agendar', mixed: true } })

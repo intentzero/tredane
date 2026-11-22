@@ -110,13 +110,15 @@ export function hubOpeningBody(
 
 /**
  * Texto livre «meus agendamentos» / «quais os meus horários» (TRE-74 → link da página).
- * Sem este atalho o redator de exceção inventava «a equipe vai verificar».
+ * Sem este atalho o redator de exceção inventava «a equipe vai verificar» /
+ * «Por aqui não consigo confirmar…» (TRE-128).
  * Não casa remarcar/cancelar/«outro agendamento» (DEC-091 / DEC-142).
  * Não casa disponibilidade («tem agendamento amanhã?») nem preferência de
- * slot («quero meu horário das 10») — só 1.ª pessoa / possessivo de lista.
+ * slot («quero meu horário das 10») — só 1.ª pessoa / possessivo de lista /
+ * consultar a agenda própria.
  */
 const MY_APPOINTMENTS_RE =
-  /\b(?:quais|quero\s+ver|ver|consultar|mostra|mostrar|listar)\s+(?:sao\s+)?(?:os\s+)?meus?\s+(?:agendamentos?|horarios?|marcacoes?|compromissos?)\b|\bmeus?\s+agendamentos?\b|\bmeus\s+horarios?\b|\bmeus?\s+(?:marcacoes?|compromissos?)\b|\b(?:ja\s+)?tenho\s+(?:algum[a]?\s+)?(?:agendamento|horario\s+marcado|marcacao)\b|\bo\s+que\s+(?:eu\s+)?tenho\s+marcado\b|\bquando\s+(?:e|é)\s+(?:minha|meu|o)\s+/i
+  /\b(?:quais|quero\s+ver|ver|consultar|mostra|mostrar|listar)\s+(?:sao\s+)?(?:os\s+)?meus?\s+(?:agendamentos?|horarios?|marcac(?:ao|oes)|compromissos?)\b|\b(?:quais|quero\s+ver|ver|consultar|mostra|mostrar|listar)\s+(?:sao\s+)?(?:os\s+)?(?:agendamentos?|marcac(?:ao|oes)|compromissos?)\b|\bmeus?\s+agendamentos?\b|\bmeus\s+horarios?\b|\bmeus?\s+(?:marcac(?:ao|oes)|compromissos?)\b|\b(?:ja\s+)?tenho\s+(?:algum[a]?\s+)?(?:agendamentos?|horarios?\s+marcados?|marcac(?:ao|oes))\b|\bo\s+que\s+(?:eu\s+)?tenho\s+marcado\b|\bquando\s+(?:e|é)\s+(?:minha|meu|o)\s+|\bconsultar\s+(?:a\s+|os\s+|minha\s+|meu\s+)?(?:agenda|agendamentos?|horarios?|marcac(?:ao|oes))\b/i
 
 export function isMyAppointmentsQuery(text: string): boolean {
   const body = text.trim()

@@ -53,7 +53,7 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     expect(route('Vocês abrem amanhã?')).toBeNull()
   })
 
-  it('DEC-220: «me mostra a agenda» / «ver a agenda» encaminha (não cai no LLM)', () => {
+  it('DEC-220: «me mostra a agenda» / «ver a agenda» / «consultar a agenda» encaminha (não cai no LLM)', () => {
     expect(route('Me mostra a agenda novamente')).toEqual({
       purpose: 'agendar',
       serviceId: null,
@@ -61,6 +61,7 @@ describe('encaminhamento do chat para a página (DEC-202)', () => {
     })
     expect(route('quero ver a agenda')).toMatchObject({ purpose: 'agendar', serviceId: null })
     expect(route('mostrar agenda')).toMatchObject({ purpose: 'agendar' })
+    expect(route('consultar a agenda')).toMatchObject({ purpose: 'agendar', serviceId: null })
   })
 
   it('serviço inativo não é reconhecido', () => {

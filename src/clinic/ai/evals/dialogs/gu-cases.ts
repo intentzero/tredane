@@ -12,6 +12,7 @@
  * CW-18: cancelar na página com handoff aberto → limpa alerta e retoma IA (DEC-225).
  * GU-23: «Posso ajudar…» com cta_url Abrir agenda (um toque; DEC-220).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
+ * GU-32: «Tenho agendamentos?» → Abrir agenda home, sem copy insegura do redator (TRE-128).
  * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
  * GU-29: remarcar fora do expediente → Abrir agenda, sem handoff DEC-113 (TRE-83).
  * GU-30: remarca sob teto → cta_url (não reply).
@@ -142,6 +143,32 @@ export const GU_DIALOG_CASES: DialogCase[] = [
         /Falar com a equipe/i,
         /😊/,
       ],
+    },
+  },
+  {
+    id: 'GU-32',
+    title:
+      '«Tenho agendamentos?» / consultar agenda: Abrir agenda home, sem copy insegura (TRE-128)',
+    turnosIdeais: 1,
+    prepare: withOneAppointment,
+    turns: [{ role: 'client', text: 'Tenho agendamentos?' }],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 1,
+      clientWebOffers: 1,
+      clientWebPurposes: [{ purpose: 'home' }],
+      outboundIncludes: ['Abrir agenda', 'ver as suas marcações'],
+      outboundExcludes: [
+        /Por aqui não consigo/i,
+        /confirmar seus agendamentos/i,
+        /com segurança/i,
+        /equipe (vai|pode) (verificar|confirmar)/i,
+        /Falar com a equipe/i,
+        /é só pedir aqui/i,
+        /Vou pedir para a equipe/i,
+        /\b\d{2}:\d{2}\b/,
+      ],
+      notPaused: true,
     },
   },
   {
