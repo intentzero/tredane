@@ -1,8 +1,11 @@
 /**
- * CF-26 / DEC-119 / DEC-130: áudio ou imagem sem texto pedem que a cliente escreva;
- * comprovativo de pagamento e segunda mídia após o pedido passam à equipe (DEC-083).
+ * CF-26 / DEC-130 / DEC-226: áudio, imagem ou documento sem texto útil → frase fixa
+ * a pedir que escreva; a IA continua activa e **não** passa à equipe.
  * Deteção pelo anexo (`attachments.content_type`), não pelo texto do marcador.
  * DEC-067 inalterada: mídia não vai à IA nem se transcreve.
+ *
+ * DEC-226 (Paulo, TRE-126, 21/11/2026) revê DEC-119/132: comprovativo por imagem e
+ * segunda mídia **deixam** de abrir handoff — a mesma frase sai de novo.
  */
 import type { Clock } from '../../db/clock'
 import { previewLabelForMedia, type WhatsappMediaType } from '../../attachments/policy'
@@ -14,7 +17,7 @@ import type { ClinicDb } from '../store'
 export const MEDIA_ASK_TEXT =
   'Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?'
 
-/** Texto de pagamento na mesma mensagem ou na anterior (DEC-119 §5). */
+/** Texto de pagamento na mesma mensagem ou na anterior (legado DEC-119 §5; já não escala). */
 export const PAYMENT_PROOF_TEXT_RE =
   /\b(comprovante|comprovativo|comprovante\s+de\s+pagamento|j[aá]\s+paguei|paguei(\s+o)?\s+(pix|sinal)|pagamento(\s+do)?\s+(pix|sinal)|pix\s+(pago|enviado)|transfer[iê]|enviei\s+o\s+pix|segue\s+o\s+comprovante)\b/i
 
@@ -23,10 +26,8 @@ const RECENT_PIX_MS = 48 * 60 * 60 * 1000
 
 export type MediaAttachmentKind = 'audio' | 'image' | 'document'
 
-export type MediaOnlyDecision =
-  | { action: 'none' }
-  | { action: 'ask_text' }
-  | { action: 'handoff'; reason: 'payment_proof' | 'media_after_ask' }
+/** DEC-226: mídia-only só pede texto — nunca handoff. */
+export type MediaOnlyDecision = { action: 'none' } | { action: 'ask_text' }
 
 function kindFromContentType(contentType: string): MediaAttachmentKind | null {
   const ct = contentType.toLowerCase().split(';')[0]!.trim()
@@ -83,9 +84,7 @@ export function isMediaOnlyMessage(
 
 /**
  * Facto «já pedi texto por mídia» — coluna `conversations.media_ask_text_at` (#475 S3).
- * Não lê o corpo outbound (CF-22 / ADR-0015).
- * Expiração Confirmada (#475 S4, Paulo, opção B): limpa quando a cliente envia texto de
- * verdade (corpo inbound que não é placeholder de mídia); a mídia seguinte volta a pedir.
+ * Mantido para telemetria / limpeza com texto de verdade; DEC-226 já não escala à equipe.
  */
 export function conversationAlreadyAskedMediaText(
   db: ClinicDb,
@@ -167,39 +166,14 @@ export function contactHasRecentPix(
   return (row?.n ?? 0) > 0
 }
 
-function previousInboundBody(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  messageId: string,
-): string | null {
-  const current = db.get<{ created_at: number }>(
-    `SELECT created_at FROM messages WHERE tenant_id = ? AND id = ?`,
-    tenantId,
-    messageId,
-  )
-  if (!current) return null
-  const prev = db.get<{ body: string }>(
-    `SELECT body FROM messages
-     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
-       AND created_at < ?
-     ORDER BY created_at DESC, rowid DESC
-     LIMIT 1`,
-    tenantId,
-    conversationId,
-    current.created_at,
-  )
-  return prev?.body ?? null
-}
-
 export function looksLikePaymentProofText(text: string | null | undefined): boolean {
   if (!text?.trim()) return false
   return PAYMENT_PROOF_TEXT_RE.test(text)
 }
 
 /**
- * Decide o caminho DEC-119 para a mensagem do job.
- * Só age quando a mensagem tem anexo de mídia sem legenda útil.
+ * Decide o caminho DEC-226 para a mensagem do job.
+ * Só age quando a mensagem tem anexo de mídia sem legenda útil — sempre pede texto.
  */
 export function decideMediaOnlyTurn(
   db: ClinicDb,
@@ -210,25 +184,11 @@ export function decideMediaOnlyTurn(
     messageId: string
     body: string
   },
-  clock: Clock,
+  _clock: Clock,
 ): MediaOnlyDecision {
   if (!isMediaOnlyMessage(db, tenantId, input.messageId, input.body)) {
     return { action: 'none' }
   }
-
-  const now = clock.nowMs()
-  const prev = previousInboundBody(db, tenantId, input.conversationId, input.messageId)
-  const payment =
-    contactHasRecentPix(db, tenantId, input.contactId, now) ||
-    looksLikePaymentProofText(input.body) ||
-    looksLikePaymentProofText(prev)
-
-  if (payment) return { action: 'handoff', reason: 'payment_proof' }
-
-  if (conversationAlreadyAskedMediaText(db, tenantId, input.conversationId)) {
-    return { action: 'handoff', reason: 'media_after_ask' }
-  }
-
   return { action: 'ask_text' }
 }
 

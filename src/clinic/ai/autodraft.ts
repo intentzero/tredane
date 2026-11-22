@@ -92,6 +92,7 @@ import {
 import {
   clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
+  isMediaOnlyMessage,
   markMediaAskTextAsked,
   MEDIA_ASK_TEXT,
 } from './media-ask-text'
@@ -234,7 +235,9 @@ export function enqueueAutoDraft(
     }
   }
   // DEC-157: «avaliar»/«feedback» é orthogonal à pausa DEC-083 — enfileira mesmo pausada.
+  // DEC-226: mídia-only ainda responde a frase fixa sem alterar a pausa.
   if (isConversationPaused(db, tenantId, input.conversationId) && !isReviewFlagRequest(body)) {
+    const mediaOnly = isMediaOnlyMessage(db, tenantId, input.messageId, body)
     const pause = readAiReplyPause(db, tenantId, input.conversationId)
     const reason = (pause?.reason ?? 'off_purpose') as AiReplyPauseReason
     const teamOpen = isHumanTeamOfferAllowed(db, tenantId, clock)
@@ -247,6 +250,7 @@ export function enqueueAutoDraft(
         fromInteractive: input.fromInteractive,
       })
     if (
+      !mediaOnly &&
       !parallelAutomation &&
       !inboundWarrantsHandoffResume(body, reason) &&
       !shouldAcknowledgeWhileHandoffPaused(reason) &&
@@ -798,6 +802,59 @@ export async function runDueAutoDrafts(
     }
     if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
     if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
+    // DEC-226 / CF-26: mídia sem texto → frase fixa; nunca handoff. Antes da pausa
+    // DEC-083 para a cliente ainda ouvir «não consigo ver/ouvir» com IA pausada.
+    {
+      const mediaDecision = decideMediaOnlyTurn(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          contactId: conv.contactId,
+          messageId: job.messageId,
+          body: inboundBody,
+        },
+        clock,
+      )
+      if (mediaDecision.action === 'ask_text') {
+        await signalTyping()
+        let replyOutbox: OutboxRow[] = []
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            {
+              conversationId: job.conversationId,
+              body: MEDIA_ASK_TEXT,
+              interactive: (() => {
+                const buttons = humanTeamOfferButtons(db, tenantId, clock)
+                return buttons.length > 0 ? { buttons } : undefined
+              })(),
+              clientRequestId: `ai-media-ask:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              afterPersist: (ctx) => {
+                markMediaAskTextAsked(ctx.db, ctx.tenantId, ctx.conversationId, ctx.now)
+                return []
+              },
+            },
+            clock,
+          )
+          replyOutbox = sent.outbox
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'media_ask_text',
+          replyOutbox,
+        })
+        continue
+      }
+    }
     const aiPause = readAiReplyPause(db, tenantId, job.conversationId)
     if (aiPause) {
       const pauseReason = aiPause.reason as AiReplyPauseReason
@@ -1167,79 +1224,6 @@ export async function runDueAutoDrafts(
         })
         continue
       }
-    }
-    // CF-26 / DEC-119 / DEC-130: áudio/imagem sem texto → pedir texto; comprovativo ou
-    // segunda mídia após o pedido → equipe (DEC-083). Antes do funil e do modelo.
-    const mediaDecision = decideMediaOnlyTurn(
-      db,
-      tenantId,
-      {
-        conversationId: job.conversationId,
-        contactId: conv.contactId,
-        messageId: job.messageId,
-        body: inboundBody,
-      },
-      clock,
-    )
-    if (mediaDecision.action === 'handoff') {
-      await signalTyping()
-      const handoff = notifyHumanHandoff(
-        db,
-        tenantId,
-        {
-          conversationId: job.conversationId,
-          reason: mediaDecision.reason,
-          clientRequestId: `ai-media-handoff:${job.messageId}`,
-        },
-        clock,
-      )
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: 'human_handoff',
-        replyOutbox: handoff.outbox,
-      })
-      continue
-    }
-    if (mediaDecision.action === 'ask_text') {
-      await signalTyping()
-      let replyOutbox: OutboxRow[] = []
-      try {
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          {
-            conversationId: job.conversationId,
-            body: MEDIA_ASK_TEXT,
-            interactive: (() => {
-              const buttons = humanTeamOfferButtons(db, tenantId, clock)
-              return buttons.length > 0 ? { buttons } : undefined
-            })(),
-            clientRequestId: `ai-media-ask:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            afterPersist: (ctx) => {
-              markMediaAskTextAsked(ctx.db, ctx.tenantId, ctx.conversationId, ctx.now)
-              return []
-            },
-          },
-          clock,
-        )
-        replyOutbox = sent.outbox
-      } catch (err) {
-        if (!(err instanceof ClinicError)) throw err
-      }
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: 'media_ask_text',
-        replyOutbox,
-      })
-      continue
     }
     // CF-04 / E-06: pergunta condicional → política cadastrada, sem pausa.
     // DEC-180: texto de sinal = mesmo efectivo que cobrança/Recebimento.

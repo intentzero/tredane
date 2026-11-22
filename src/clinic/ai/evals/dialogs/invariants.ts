@@ -6,6 +6,7 @@ import { clientTimes, timesInText } from '../../../../ai/reply-facts'
 import { detectInjectionSignals } from '../../../../ai/untrusted'
 import { forbiddenClientTermsIn } from '../../client-copy'
 import { readAiReplyPause } from '../../human-handoff'
+import { MEDIA_ASK_TEXT } from '../../media-ask-text'
 import { REVIEW_FLAG_CLIENT_ACK } from '../../../inbox/review-flag'
 import type { DialogScenario } from './scenario'
 
@@ -143,6 +144,8 @@ export function checkInvariants(
     if (/^(Fica assim:|Proposta de horário)/.test(m.body)) continue
     // Abertura do hub: reenviada por desenho a cada cumprimento novo (#554).
     if (HUB_OPENING_BODY.test(m.body)) continue
+    // DEC-226: frase DEC-130 pode repetir em cada mídia-only (sem handoff).
+    if (m.body === MEDIA_ASK_TEXT) continue
     if (seen.has(m.body)) repeatedDetail = 'mensagem repetida'
     seen.add(m.body)
     if (linesSaid.size === 1 && /feminina ou masculina/i.test(m.body)) repeatedDetail = 'repergunta a linha'

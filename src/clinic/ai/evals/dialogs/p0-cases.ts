@@ -727,7 +727,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'C-15',
-    title: 'Segundo áudio depois do pedido de texto',
+    title: 'Segundo áudio depois do pedido de texto (DEC-226: sem handoff)',
     turnosIdeais: 2,
     turns: [
       { role: 'client_media', kind: 'audio' },
@@ -735,17 +735,17 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     ],
     expect: {
       proposal: false,
-      paused: true,
+      notPaused: true,
       outboundIncludes: [
         'Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?',
-        'Vou pedir para a equipe continuar daqui.',
       ],
+      outboundExcludes: [/Vou pedir para a equipe continuar daqui/i],
       outboundCount: 2,
     },
   },
   {
     id: 'C-16',
-    title: 'Comprovativo de Pix em imagem',
+    title: 'Comprovativo de Pix em imagem (DEC-226: pede texto, sem handoff)',
     turnosIdeais: 1,
     prepare: (s) => {
       const now = s.clock.nowMs()
@@ -764,9 +764,9 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turns: [{ role: 'client_media', kind: 'image' }],
     expect: {
       proposal: false,
-      paused: true,
-      outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
-      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
+      notPaused: true,
+      outboundIncludes: ['Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?'],
+      outboundExcludes: [/Vou pedir para a equipe continuar daqui/i],
       outboundCount: 1,
     },
   },
