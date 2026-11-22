@@ -96,6 +96,37 @@
   border-color: var(--color-text-primary);
   color: var(--color-surface-card);
 }
+/* Opção C (Confirmado Paulo 22/11/2026): atalho de pacote sob Zonas. */
+.agd-sublabel {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.agd-combo-shortcuts { margin-bottom: var(--space-3); }
+.agd-pill-combo { border-style: dashed; }
+.agd-pill-combo[aria-pressed='true'] {
+  border-style: dashed;
+}
+.agd-combo-applied {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--size-border-width) solid color-mix(in srgb, var(--color-success-ink) 40%, var(--color-success-tint));
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+  font-size: var(--font-size-small);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.agd-combo-applied strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+.agd-combo-applied-muted { color: var(--color-text-secondary); }
 .agd-day-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
 .agd-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
 .agd-day {

@@ -136,6 +136,32 @@ function chosenZones(svc: Service | undefined, ids: string[]) {
   return active.filter((z) => ids.includes(z.id))
 }
 
+/** Zonas visíveis na linha actual (ou todas se «Para quem» não se aplica). */
+function visibleZonesOf(svc: Service | undefined, line: Line | null) {
+  return activeZonesOf(svc).filter(
+    (z) => !needsLine(svc) || line == null || z.audience === 'ambos' || z.audience === line,
+  )
+}
+
+/**
+ * Combos activos cujas zonas estão todas visíveis nesta linha (atalho opção C).
+ * O preço continua DEC-080: só aplica se a selecção cobrir o pacote e for mais barato.
+ */
+function activeCombosForLine(svc: Service | undefined, line: Line | null) {
+  const allowed = new Set(visibleZonesOf(svc, line).map((z) => z.id))
+  return (svc?.combos ?? [])
+    .filter((c) => c.active && c.zoneIds.length >= 2 && c.zoneIds.every((id) => allowed.has(id)))
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))
+}
+
+/** Marca ou desmarca o conjunto de zonas do combo (mesmo modelo que a página da cliente). */
+function toggleComboZoneIds(prev: string[], comboZoneIds: readonly string[]): string[] {
+  const allOn = comboZoneIds.every((id) => prev.includes(id))
+  if (allOn) return prev.filter((id) => !comboZoneIds.includes(id))
+  return [...new Set([...prev, ...comboZoneIds])]
+}
+
 function visitQuote(svc: Service | undefined, ids: string[]) {
   const active = activeZonesOf(svc)
   if (active.length === 0) {
@@ -462,6 +488,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
 
   const service = config?.services.find((s) => s.id === serviceId)
   const visit = visitQuote(service, zoneIds)
+  const packageCombos = activeCombosForLine(service, line)
   const amountCents = service ? signalAmountCents(service, visit.zoned ? visit.priceCents : service.priceCents) : null
   const percentBlocked = Boolean(
     visit.zoned &&
@@ -759,10 +786,40 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
         {visit.zoned && (!needsLine(service) || line) ? (
           <section aria-labelledby="agd-zones">
             <h2 id="agd-zones" className="agd-label">{variantTitle(service)}</h2>
+            {packageCombos.length > 0 ? (
+              <>
+                <p id="agd-combo-shortcuts" className="agd-sublabel">
+                  Atalho de pacote
+                </p>
+                <div
+                  className="agd-pills agd-combo-shortcuts"
+                  role="group"
+                  aria-labelledby="agd-combo-shortcuts"
+                >
+                  {packageCombos.map((c) => {
+                    const on = c.zoneIds.every((id) => zoneIds.includes(id))
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="agd-pill agd-pill-combo"
+                        aria-pressed={on}
+                        aria-label={`Pacote ${c.name}`}
+                        onClick={() => {
+                          setZoneIds((prev) => toggleComboZoneIds(prev, c.zoneIds))
+                          setSelected(null)
+                          setConflict(null)
+                        }}
+                      >
+                        {c.name} · {formatBrl(c.priceCents)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            ) : null}
             <div className="agd-pills" role="group" aria-labelledby="agd-zones">
-              {activeZonesOf(service)
-                .filter((z) => !needsLine(service) || z.audience === 'ambos' || z.audience === line)
-                .map((z) => {
+              {visibleZonesOf(service, line).map((z) => {
                 const on = zoneIds.includes(z.id)
                 const chosen = chosenZones(service, zoneIds)
                 const opposite = z.audience === 'feminino' ? 'masculino' : z.audience === 'masculino' ? 'feminino' : null
@@ -795,13 +852,21 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
             </div>
             {visit.zones.length === 0 ? (
               <p className="agd-note">Escolha ao menos uma para ver horários.</p>
+            ) : visit.combo ? (
+              <div className="agd-combo-applied" role="status">
+                <strong>Combo aplicado · {visit.combo.combo.name}</strong>
+                <span>
+                  {visit.minutes} min
+                  {visit.priceCents != null ? ` · ${formatBrl(visit.priceCents)}` : ''}{' '}
+                  <span className="agd-combo-applied-muted">
+                    (economia {formatBrl(visit.combo.discountCents)})
+                  </span>
+                </span>
+              </div>
             ) : (
               <p className="agd-note">
                 {visit.minutes} min
                 {visit.priceCents != null ? ` · ${formatBrl(visit.priceCents)}` : ' · sem preço somado'}
-                {visit.combo
-                  ? ` · combo ${visit.combo.combo.name}, economia de ${formatBrl(visit.combo.discountCents)}`
-                  : ''}
               </p>
             )}
           </section>
