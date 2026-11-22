@@ -433,6 +433,69 @@ describe('AgendarScreen — painel único', () => {
   })
 })
 
+describe('AgendarScreen — Combos atalho opção C (DEC-080)', () => {
+  const zones = [
+    { id: 'z-ax', name: 'Axilas', audience: 'ambos', sortOrder: 0, active: true, durationMinutes: 15, priceCents: 8000 },
+    { id: 'z-mp', name: 'Meia perna', audience: 'ambos', sortOrder: 1, active: true, durationMinutes: 30, priceCents: 14000 },
+    { id: 'z-bu', name: 'Buço', audience: 'ambos', sortOrder: 2, active: true, durationMinutes: 10, priceCents: 4000 },
+  ]
+  const combo = {
+    id: 'c-ax-mp',
+    name: 'Axilas + meia perna',
+    priceCents: 18000,
+    zoneIds: ['z-ax', 'z-mp'],
+    active: true,
+    sortOrder: 0,
+  }
+  const depilWithCombo = {
+    name: 'Depilação',
+    variantKind: 'Zona',
+    variantKindPlural: 'Zonas',
+    variantSelection: 'varias',
+    zones,
+    combos: [combo],
+  }
+
+  it('mostra pill-atalho sob Zonas e marca/desmarca o conjunto', async () => {
+    renderScreen(makeApi({ service: depilWithCombo }))
+    expect(await screen.findByText('Atalho de pacote')).toBeTruthy()
+    const shortcut = screen.getByRole('button', { name: 'Pacote Axilas + meia perna' })
+    expect(shortcut.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(shortcut)
+    expect(shortcut.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: /Axilas ·/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: /Meia perna ·/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: /Buço ·/ }).getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(shortcut)
+    expect(shortcut.getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByRole('button', { name: /Axilas ·/ }).getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByRole('button', { name: /Meia perna ·/ }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('callout verde quando o combo aplica (DEC-080)', async () => {
+    renderScreen(makeApi({ service: depilWithCombo }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pacote Axilas + meia perna' }))
+    expect(await screen.findByText(/Combo aplicado · Axilas \+ meia perna/)).toBeTruthy()
+    expect(screen.getByText(/45 min · R\$ 180,00/)).toBeTruthy()
+    expect(screen.getByText(/\(economia R\$ 40,00\)/)).toBeTruthy()
+    expect(screen.queryByText(/combo Axilas \+ meia perna, economia de/)).toBeNull()
+  })
+
+  it('sem combos activos não mostra o atalho', async () => {
+    renderScreen(
+      makeApi({
+        service: {
+          ...depilWithCombo,
+          combos: [{ ...combo, active: false }],
+        },
+      }),
+    )
+    await screen.findByRole('button', { name: /Axilas ·/ })
+    expect(screen.queryByText('Atalho de pacote')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Pacote/ })).toBeNull()
+  })
+})
+
 describe('Agendar pela Agenda sem cliente (DEC-203)', () => {
   const directory = [
     { id: 'c_marina', waId: '5511987654321', displayName: 'Marina Souza', createdAt: 0, blockedAt: null },
