@@ -1,5 +1,5 @@
 /**
- * CF-26 / DEC-119 / DEC-130 — áudio/imagem pedem texto; comprovativo à equipe.
+ * CF-26 / DEC-130 / DEC-226 — áudio/imagem pedem texto; mídia nunca abre handoff.
  * Dados fictícios.
  */
 import { describe, expect, it } from 'vitest'
@@ -20,7 +20,7 @@ import {
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './autodraft'
 import { buildAiContextPayload } from './context'
-import { HUMAN_HANDOFF_TEXT, readAiReplyPause } from './human-handoff'
+import { HUMAN_HANDOFF_TEXT, notifyHumanHandoff, readAiReplyPause } from './human-handoff'
 import {
   MEDIA_ASK_TEXT,
   decideMediaOnlyTurn,
@@ -114,7 +114,7 @@ function attach(
   )
 }
 
-describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
+describe('media-ask-text (CF-26 / DEC-130 / DEC-226)', () => {
   it('deteção por anexo, não pelo marcador sozinho', () => {
     const s = seed()
     try {
@@ -228,7 +228,7 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
     }
   })
 
-  it('segunda mídia após o pedido → handoff DEC-083, sem laço', async () => {
+  it('segunda mídia após o pedido → mesma frase, sem handoff (DEC-226)', async () => {
     const s = seed()
     try {
       const first = insertMessage(
@@ -285,12 +285,9 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
           s.conversationId,
         )
         .map((r) => r.body)
-      expect(bodies[0]).toBe(MEDIA_ASK_TEXT)
-      expect(bodies.some((b) => b.startsWith(HUMAN_HANDOFF_TEXT))).toBe(true)
-      expect(bodies.filter((b) => b === MEDIA_ASK_TEXT)).toHaveLength(1)
-      const pause = readAiReplyPause(s.db, s.tenantId, s.conversationId)
-      expect(pause).not.toBeNull()
-      expect(pause?.reason).toBe('media_after_ask')
+      expect(bodies.filter((b) => b === MEDIA_ASK_TEXT)).toHaveLength(2)
+      expect(bodies.some((b) => b.startsWith(HUMAN_HANDOFF_TEXT))).toBe(false)
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
     } finally {
       s.close()
     }
@@ -452,7 +449,7 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
     }
   })
 
-  it('#475 S3: troca a redação da frase e a 2.ª mídia ainda vai à equipe', async () => {
+  it('#475 S3: troca a redação da frase e a 2.ª mídia ainda pede texto (DEC-226)', async () => {
     const s = seed()
     try {
       const first = insertMessage(
@@ -518,15 +515,15 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
           s.conversationId,
         )
         .map((r) => r.body)
-      expect(bodies.some((b) => b === MEDIA_ASK_TEXT)).toBe(false)
-      expect(bodies.some((b) => b.startsWith(HUMAN_HANDOFF_TEXT))).toBe(true)
-      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('media_after_ask')
+      expect(bodies.filter((b) => b === MEDIA_ASK_TEXT)).toHaveLength(1)
+      expect(bodies.some((b) => b.startsWith(HUMAN_HANDOFF_TEXT))).toBe(false)
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
     } finally {
       s.close()
     }
   })
 
-  it('Pix pendente + imagem → handoff, sem pedir texto', () => {
+  it('Pix pendente + imagem → pede texto, sem handoff (DEC-226)', () => {
     const s = seed()
     try {
       const now = s.clock.nowMs()
@@ -552,24 +549,19 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
         s.clock,
       )
       attach(s, msg.id, 'image/jpeg')
-      const d = decideMediaOnlyTurn(
-        s.db,
-        s.tenantId,
-        {
-          conversationId: s.conversationId,
-          contactId: s.contactId,
-          messageId: msg.id,
-          body: '[Imagem]',
-        },
-        s.clock,
-      )
-      expect(d).toEqual({ action: 'handoff', reason: 'payment_proof' })
+      const d = decideMediaOnlyTurn(s.db, s.tenantId, {
+        conversationId: s.conversationId,
+        contactId: s.contactId,
+        messageId: msg.id,
+        body: '[Imagem]',
+      })
+      expect(d).toEqual({ action: 'ask_text' })
     } finally {
       s.close()
     }
   })
 
-  it('Pix pendente + imagem no autodraft → alerta payment_proof (não off_purpose)', async () => {
+  it('Pix pendente + imagem no autodraft → frase DEC-130, sem alerta (DEC-226)', async () => {
     const s = seed()
     try {
       const now = s.clock.nowMs()
@@ -602,25 +594,32 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
         s.clock,
       )
       s.clock.advance(7_000)
-      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
         mode: 'synthetic',
         adapter: new SimulatedAiAdapter(),
       })
-      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('payment_proof')
-      const pending = s.db.get<{ detail_text: string }>(
-        `SELECT detail_text FROM pending_communications
-         WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team'`,
+      expect(out[0]?.reason).toBe('media_ask_text')
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
+      const pending = s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,
         s.tenantId,
         s.conversationId,
       )
-      expect(pending?.detail_text).toMatch(/comprovativo de pagamento/i)
-      expect(pending?.detail_text).not.toMatch(/agendamento/i)
+      expect(pending?.n ?? 0).toBe(0)
+      const bodies = s.db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
+          s.conversationId,
+        )
+        .map((r) => r.body)
+      expect(bodies).toEqual([MEDIA_ASK_TEXT])
     } finally {
       s.close()
     }
   })
 
-  it('texto de pagamento na mensagem anterior → handoff', () => {
+  it('texto de pagamento na mensagem anterior → ainda pede texto (DEC-226)', () => {
     const s = seed()
     try {
       insertMessage(
@@ -648,19 +647,66 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
       )
       attach(s, img.id, 'image/png')
       expect(
-        decideMediaOnlyTurn(
-          s.db,
-          s.tenantId,
-          {
-            conversationId: s.conversationId,
-            contactId: s.contactId,
-            messageId: img.id,
-            body: '[Imagem]',
-          },
-          s.clock,
-        ),
-      ).toEqual({ action: 'handoff', reason: 'payment_proof' })
+        decideMediaOnlyTurn(s.db, s.tenantId, {
+          conversationId: s.conversationId,
+          contactId: s.contactId,
+          messageId: img.id,
+          body: '[Imagem]',
+        }),
+      ).toEqual({ action: 'ask_text' })
       expect(looksLikePaymentProofText('já paguei o sinal')).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('mídia com IA já pausada → frase DEC-130 sem alterar a pausa (DEC-226)', async () => {
+    const s = seed()
+    try {
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        {
+          conversationId: s.conversationId,
+          reason: 'human_only',
+          clientRequestId: 'seed-handoff',
+        },
+        s.clock,
+      )
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('human_only')
+      const msg = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Imagem]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, msg.id, 'image/jpeg')
+      const job = enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: msg.id },
+        s.clock,
+      )
+      expect(job).not.toBeNull()
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(out[0]?.reason).toBe('media_ask_text')
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('human_only')
+      const asks = s.db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,
+          s.conversationId,
+          MEDIA_ASK_TEXT,
+        ).length
+      expect(asks).toBe(1)
     } finally {
       s.close()
     }
