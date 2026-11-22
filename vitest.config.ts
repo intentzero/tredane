@@ -26,7 +26,9 @@ export default defineConfig({
         test: {
           name: 'jsdom',
           environment: 'jsdom',
-          include: ['src/client/**/*.test.tsx'],
+          // Include *.test.ts under src/client (panel helpers) — previously
+          // orphaned: node project excludes src/client/** and jsdom only had *.tsx.
+          include: ['src/client/**/*.test.tsx', 'src/client/**/*.test.ts'],
           setupFiles: ['./src/client/test/setup-jsdom.ts'],
         },
       },

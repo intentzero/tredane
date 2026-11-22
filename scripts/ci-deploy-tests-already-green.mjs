@@ -68,7 +68,7 @@ for (const run of candidates) {
     process.exit(0)
   }
   if (unit?.conclusion === 'skipped') {
-    console.log(`CI run ${run.id}: Unit and SQL tests skipped (lite verify) — keep looking`)
+    console.log(`CI run ${run.id}: Unit and SQL tests skipped (lite/panel verify) — keep looking`)
   }
 }
 
