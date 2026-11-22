@@ -7,7 +7,6 @@
  * DEC-226 (Paulo, TRE-126, 21/11/2026) revê DEC-119/132: comprovativo por imagem e
  * segunda mídia **deixam** de abrir handoff — a mesma frase sai de novo.
  */
-import type { Clock } from '../../db/clock'
 import { previewLabelForMedia, type WhatsappMediaType } from '../../attachments/policy'
 import { isMediaPlaceholderBody } from '../attachments/display'
 import { contactHasPendingPix } from '../inbox/pending-pix'
@@ -184,7 +183,6 @@ export function decideMediaOnlyTurn(
     messageId: string
     body: string
   },
-  _clock: Clock,
 ): MediaOnlyDecision {
   if (!isMediaOnlyMessage(db, tenantId, input.messageId, input.body)) {
     return { action: 'none' }

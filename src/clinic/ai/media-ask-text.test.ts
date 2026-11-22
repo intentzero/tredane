@@ -549,17 +549,12 @@ describe('media-ask-text (CF-26 / DEC-130 / DEC-226)', () => {
         s.clock,
       )
       attach(s, msg.id, 'image/jpeg')
-      const d = decideMediaOnlyTurn(
-        s.db,
-        s.tenantId,
-        {
-          conversationId: s.conversationId,
-          contactId: s.contactId,
-          messageId: msg.id,
-          body: '[Imagem]',
-        },
-        s.clock,
-      )
+      const d = decideMediaOnlyTurn(s.db, s.tenantId, {
+        conversationId: s.conversationId,
+        contactId: s.contactId,
+        messageId: msg.id,
+        body: '[Imagem]',
+      })
       expect(d).toEqual({ action: 'ask_text' })
     } finally {
       s.close()
@@ -652,17 +647,12 @@ describe('media-ask-text (CF-26 / DEC-130 / DEC-226)', () => {
       )
       attach(s, img.id, 'image/png')
       expect(
-        decideMediaOnlyTurn(
-          s.db,
-          s.tenantId,
-          {
-            conversationId: s.conversationId,
-            contactId: s.contactId,
-            messageId: img.id,
-            body: '[Imagem]',
-          },
-          s.clock,
-        ),
+        decideMediaOnlyTurn(s.db, s.tenantId, {
+          conversationId: s.conversationId,
+          contactId: s.contactId,
+          messageId: img.id,
+          body: '[Imagem]',
+        }),
       ).toEqual({ action: 'ask_text' })
       expect(looksLikePaymentProofText('já paguei o sinal')).toBe(true)
     } finally {

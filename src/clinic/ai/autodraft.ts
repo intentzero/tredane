@@ -805,17 +805,12 @@ export async function runDueAutoDrafts(
     // DEC-226 / CF-26: mídia sem texto → frase fixa; nunca handoff. Antes da pausa
     // DEC-083 para a cliente ainda ouvir «não consigo ver/ouvir» com IA pausada.
     {
-      const mediaDecision = decideMediaOnlyTurn(
-        db,
-        tenantId,
-        {
-          conversationId: job.conversationId,
-          contactId: conv.contactId,
-          messageId: job.messageId,
-          body: inboundBody,
-        },
-        clock,
-      )
+      const mediaDecision = decideMediaOnlyTurn(db, tenantId, {
+        conversationId: job.conversationId,
+        contactId: conv.contactId,
+        messageId: job.messageId,
+        body: inboundBody,
+      })
       if (mediaDecision.action === 'ask_text') {
         await signalTyping()
         let replyOutbox: OutboxRow[] = []
