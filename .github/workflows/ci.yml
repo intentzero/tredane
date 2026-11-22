@@ -45,6 +45,7 @@ jobs:
             echo "Unclear diff range — full verify"
             {
               echo "full=true"
+              echo "panel=false"
               echo "design=true"
               echo "site=true"
               echo "help=true"
@@ -54,8 +55,7 @@ jobs:
             exit 0
           fi
 
-          # Lite allowlist: docs (except eval fixtures), site/, and a few root docs.
-          # Anything else (src/, db/, scripts/, package.json, wrangler, CI, …) → full.
+          # Lite allowlist: docs (except eval fixtures), site/, help/, and a few root docs.
           is_lite() {
             case "$1" in
               docs/implementation/avaliacao/*) return 1 ;;
@@ -67,7 +67,17 @@ jobs:
             esac
           }
 
-          full=false
+          # Panel allowlist (PR-only mode): panel UI + shared client UI/test helpers.
+          # Anything else under src/ (clientweb, admin, clinic, …) → full.
+          is_panel_path() {
+            case "$1" in
+              src/client/panel/*|src/client/ui/*|src/client/test/*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          needs_heavy=false
+          has_panel=false
           design=false
           site=false
           help=false
@@ -82,10 +92,30 @@ jobs:
               db/*) d1=true ;;
               src/clinic/ai/*|src/clientweb/*|src/clinic/proposals/*|docs/implementation/avaliacao/*) scorecard=true ;;
             esac
-            if ! is_lite "$f"; then
-              full=true
+            if is_panel_path "$f"; then
+              has_panel=true
+            elif ! is_lite "$f"; then
+              needs_heavy=true
             fi
           done < <(git diff --name-only "$range")
+
+          # Modes (fail-closed):
+          # - lite: only docs/site/help/meta
+          # - panel: PR-only; every non-lite path is panel/ui/test allowlist
+          # - full: anything else; also any panel-shaped diff on push to main
+          full=false
+          panel=false
+          if [ "$needs_heavy" = true ]; then
+            full=true
+          elif [ "$has_panel" = true ]; then
+            if [ "$EVENT_NAME" = "pull_request" ]; then
+              panel=true
+            else
+              # main (and other pushes): panel-only merge still runs Unit/SQL + L1
+              # so deploy skip + scorecard-l1 tip cache stay honest.
+              full=true
+            fi
+          fi
 
           # Local D1 migrate/seed: always on main (when full); on PRs only if db/** changed.
           if [ "$EVENT_NAME" = "push" ] && [ "$EVENT_REF" = "refs/heads/main" ] && [ "$full" = true ]; then
@@ -94,6 +124,7 @@ jobs:
 
           {
             echo "full=$full"
+            echo "panel=$panel"
             echo "design=$design"
             echo "site=$site"
             echo "help=$help"
@@ -101,11 +132,11 @@ jobs:
             echo "scorecard=$scorecard"
           } >> "$GITHUB_OUTPUT"
 
-          echo "scope: full=$full design=$design site=$site help=$help d1=$d1 scorecard=$scorecard range=$range"
+          echo "scope: full=$full panel=$panel design=$design site=$site help=$help d1=$d1 scorecard=$scorecard range=$range"
           git diff --name-only "$range" | sed 's/^/  - /' || true
 
       - uses: actions/setup-node@v4
-        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.site == 'true' || steps.scope.outputs.help == 'true'
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.panel == 'true' || steps.scope.outputs.site == 'true' || steps.scope.outputs.help == 'true'
         with:
           node-version: '22'
           cache: npm
@@ -121,7 +152,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        if: steps.scope.outputs.full == 'true'
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.panel == 'true'
         run: npm ci --no-audit --no-fund
 
       # Warm tip-of-base L1 for DEC-146 comparison (same key as scorecard-l1.yml).
@@ -134,11 +165,11 @@ jobs:
           key: scorecard-l1-base-${{ github.event.pull_request.base.sha }}
 
       - name: Typecheck
-        if: steps.scope.outputs.full == 'true'
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.panel == 'true'
         run: npm run typecheck
 
       - name: Lint
-        if: steps.scope.outputs.full == 'true'
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.panel == 'true'
         run: npm run lint
 
       # EVAL_SCORECARD=1 writes .eval/l1-*.json during the same Vitest run (no second L1).
@@ -149,6 +180,11 @@ jobs:
           EVAL_SCORECARD: '1'
           EVAL_BASELINE_PATH: ${{ steps.base_cache.outputs.cache-hit == 'true' && 'base-latest.json' || '' }}
         run: npm test
+
+      # Panel-only PRs: jsdom client suite only (no node SQL/DO, no L1).
+      - name: Client (jsdom) tests
+        if: steps.scope.outputs.panel == 'true'
+        run: npm run test:client
 
       - name: Upload L1 scorecard artifact
         if: steps.scope.outputs.full == 'true' && (success() || failure())
@@ -188,7 +224,7 @@ jobs:
 
       # `npm run build` re-runs `tsc --noEmit`; typecheck already covered that above.
       - name: Build Worker + assets
-        if: steps.scope.outputs.full == 'true'
+        if: steps.scope.outputs.full == 'true' || steps.scope.outputs.panel == 'true'
         run: npx vite build
 
       - name: Apply D1 migrations locally
@@ -228,12 +264,21 @@ jobs:
         if: steps.scope.outputs.site == 'true'
         run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site
 
+      - name: Panel verify summary
+        if: steps.scope.outputs.panel == 'true'
+        run: |
+          set -euo pipefail
+          echo "Panel CI path — ran typecheck, lint, test:client (jsdom), vite build."
+          echo "Skipped: Unit and SQL tests (node + L1), SEG-IA, test:runtime, D1 migrate/seed, env guard, L1 artifact/cache."
+          echo "full=${{ steps.scope.outputs.full }} panel=${{ steps.scope.outputs.panel }} design=${{ steps.scope.outputs.design }} site=${{ steps.scope.outputs.site }} help=${{ steps.scope.outputs.help }}"
+          echo "Push to main with the same paths still runs full verify (Unit/SQL + L1)."
+
       - name: Lite verify smoke
-        if: steps.scope.outputs.full != 'true'
+        if: steps.scope.outputs.full != 'true' && steps.scope.outputs.panel != 'true'
         run: |
           set -euo pipefail
           echo "Lite CI path — skipped Unit/SQL tests, migrate/seed, runtime, SEG-IA, Worker build, env guard."
-          echo "full=${{ steps.scope.outputs.full }} design=${{ steps.scope.outputs.design }} site=${{ steps.scope.outputs.site }} help=${{ steps.scope.outputs.help }} d1=${{ steps.scope.outputs.d1 }}"
+          echo "full=${{ steps.scope.outputs.full }} panel=${{ steps.scope.outputs.panel }} design=${{ steps.scope.outputs.design }} site=${{ steps.scope.outputs.site }} help=${{ steps.scope.outputs.help }} d1=${{ steps.scope.outputs.d1 }}"
           if [ "${{ steps.scope.outputs.design }}" = "true" ]; then
             echo "Ran: design token/mock checks"
           fi
