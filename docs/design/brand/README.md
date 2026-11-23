@@ -1,6 +1,6 @@
 # Identidade visual do Tredane — direção A, Confluência
 
-**Estado:** direção **Confirmada** pelo responsável pelo produto em 27/10/2026 ([DEC-050](../../product/decisions.md)), escolhida entre três direções apresentadas no [canvas de exploração](https://claude.ai/artifact/TTdBW9suhBBLyB1ZpfjPPW) (privado). Aplicar a paleta aos tokens do painel continua **Em aberto** (ver [Pendências](#pendências)).
+**Estado:** direção **Confirmada** pelo responsável pelo produto em 27/10/2026 (cores revistas em 23/11/2026, ver [Paleta](#paleta)) ([DEC-050](../../product/decisions.md)), escolhida entre três direções apresentadas no [canvas de exploração](https://claude.ai/artifact/TTdBW9suhBBLyB1ZpfjPPW) (privado). Aplicar a paleta aos tokens do painel continua **Em aberto** (ver [Pendências](#pendências)).
 
 **Conceito:** duas conversas que correm para o mesmo lugar formam o T; de perto, é uma pessoa de braços abertos — o paciente acolhido.
 
@@ -14,7 +14,7 @@ Todos gerados por [`tools/build_brand.py`](../tools/build_brand.py); não edite 
 | `svg/tredane-nome-*.svg` | Nome «tredane» em contornos (Manrope 700, espaçamento −3,5 %) |
 | `svg/tredane-horizontal-*.svg` | Símbolo + nome lado a lado |
 | `svg/tredane-empilhado-*.svg` | Símbolo acima do nome |
-| `icon/tredane-icone.svg` | Ícone do app, 1024 × 1024, fundo opaco Petróleo |
+| `icon/tredane-icone.svg` | Ícone do app, 1024 × 1024, fundo opaco Tinta violeta |
 | `icon/tredane-icone-{1024,512,192,32}.png` | Ícone em PNG, RGB sem transparência |
 | `icon/tredane-icone-fundo-branco-1024.png` | Ícone 1024 × 1024, fundo branco (símbolo cor); para avatar / perfil em fundo claro (ex. WhatsApp Business). Não gerado por `build_brand.py` |
 | `icon/favicon.svg` · `icon/favicon.ico` | Favicon (placa arredondada; .ico com 16, 32 e 48 px) |
@@ -23,23 +23,36 @@ Sufixos de cor: `cor` (fundo claro), `escuro` (fundo escuro), `mono-preto` e `mo
 
 ## Paleta
 
+**Confirmado** (Paulo, 23/11/2026, «o logo no canto superior esquerdo e o favicon têm de ser atualizados»): a marca passa de Petróleo e Damasco para **Violeta e Lima**, a paleta da landing e do painel (tokens v0.12.0). **Revê** a paleta da DEC-050; o desenho do símbolo, as proporções, o nome e a grelha **não mudam**.
+
 | Papel | Nome | HEX |
 | --- | --- | --- |
-| Primária | Petróleo | `#0E5A5C` |
-| Secundária | Damasco | `#E8875A` |
-| Neutra escura | Tinta | `#142625` |
-| Neutra clara | Areia | `#F4F1EA` |
+| Primária | Violeta | `#5C32C9` |
+| Secundária (só sobre fundo escuro) | Lima | `#D5FF55` |
+| Neutra escura | Tinta violeta | `#211339` |
+| Neutra clara | Lavanda clara | `#F1ECFA` |
+| Traço do símbolo sobre fundo escuro | Lavanda | `#CBB8FF` |
+
+Como entram nas versões:
+
+- **`cor`** (fundo claro): traço Violeta, **ponto e nome em Tinta**. O ponto não usa o Lima: sobre claro mede 1,1:1 e a «cabeça» da pessoa desapareceria.
+- **`escuro`** (fundo escuro): traço Lavanda, **ponto Lima**, nome Lavanda clara.
+- **Ícone do app e favicon:** placa Tinta, símbolo Lavanda clara, ponto Lima.
+- **`mono-preto` e `mono-branco`:** sem mudança.
 
 Contraste (WCAG 2.x):
 
 | Par | Razão | Uso |
 | --- | --- | --- |
-| Petróleo sobre Areia | 7,06 : 1 | Texto (AA e AAA) |
-| Branco sobre Petróleo | 7,97 : 1 | Texto (AA e AAA) |
-| Tinta sobre Areia | 13,96 : 1 | Texto (AA e AAA) |
-| Damasco sobre Tinta | 6,03 : 1 | Texto (AA) |
-| Damasco sobre Petróleo | 3,05 : 1 | Só grafismo (o ponto do símbolo); não usar em texto normal |
-| Damasco sobre Areia | 2,31 : 1 | Não usar em texto |
+| Violeta sobre branco suave `#FBF9FF` | 7,30 : 1 | Símbolo no cabeçalho claro (AA e AAA) |
+| Violeta sobre Lavanda clara | 6,58 : 1 | Texto (AA) |
+| Branco sobre Violeta | 7,62 : 1 | Texto (AA e AAA) |
+| Tinta sobre Lavanda clara | 14,89 : 1 | Texto (AA e AAA) |
+| Ponto Tinta sobre branco suave | 16,51 : 1 | Ponto e nome na versão `cor` |
+| Lima sobre Tinta | 15,01 : 1 | Ponto nas versões `escuro`, ícone e favicon |
+| Lavanda sobre Tinta | 9,73 : 1 | Traço na versão `escuro` |
+| Lima sobre fundo claro | 1,10 : 1 | **Não usar** |
+| Violeta sobre Tinta | 2,26 : 1 | **Não usar** (por isso o traço escuro é Lavanda) |
 
 ## Regras de uso
 

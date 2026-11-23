@@ -1006,7 +1006,8 @@
   align-items: center;
 }
 
-.brand-swap > .brand-horizontal {
+.brand-swap > .brand-horizontal,
+.brand-swap > .brand-mark {
   grid-area: 1 / 1;
 }
 
@@ -4004,8 +4005,9 @@ button.panel-auth-inline-link {
 }
 
 .inbox-avatar--4 {
-  background: var(--color-ai-tint);
-  color: var(--color-ai-ink);
+  /* Pessoa, não IA: o tom 4 usava ai.tint (revisão de 23/11/2026, ver decisions.md). */
+  background: var(--color-person-avatar);
+  color: var(--color-person-ink);
 }
 
 .inbox-row-main {
@@ -7841,7 +7843,8 @@ button.panel-auth-inline-link {
     grid-row: 1;
   }
 
-  .panel-shell-lead .brand-mark {
+  /* O contêiner, não a imagem: no tema escuro `.brand-on-dark` (especificidade maior) a reexibiria. */
+  .panel-shell-lead .brand-swap {
     display: none;
   }
 

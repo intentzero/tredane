@@ -20,10 +20,12 @@ from PIL import Image
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'brand')
 
-PRIMARY = '#0E5A5C'    # Petróleo
-SECONDARY = '#E8875A'  # Damasco
-DARK = '#142625'       # Tinta
-LIGHT = '#F4F1EA'      # Areia
+# Paleta violeta e lima (23/11/2026, Paulo; revê Petróleo/Damasco da DEC-050; ver docs/product/decisions.md).
+PRIMARY = '#5C32C9'    # Violeta
+SECONDARY = '#D5FF55'  # Lima (só sobre fundo escuro: sobre claro mede 1,1:1)
+DARK = '#211339'       # Tinta violeta
+LIGHT = '#F1ECFA'      # Lavanda clara
+LAVENDER = '#CBB8FF'   # Traço do símbolo sobre fundo escuro
 
 # Símbolo numa grelha de 64: duas correntes que se juntam no T, com o ponto acima.
 MARK_PATH = 'M13 24H22A10 10 0 0 1 32 34V54M51 24H42A10 10 0 0 0 32 34'
@@ -33,8 +35,8 @@ MARK_BOX = (8, 4.5, 56, 59)  # limites da tinta (x0, y0, x1, y1)
 
 VARIANTS = {
     # nome: (traço do símbolo, ponto, nome)
-    'cor': (PRIMARY, SECONDARY, DARK),
-    'escuro': (LIGHT, SECONDARY, LIGHT),
+    'cor': (PRIMARY, DARK, DARK),            # o ponto em Tinta: o lima não se vê sobre claro
+    'escuro': (LAVENDER, SECONDARY, LIGHT),
     'mono-preto': ('#000000', '#000000', '#000000'),
     'mono-branco': ('#FFFFFF', '#FFFFFF', '#FFFFFF'),
 }
@@ -146,7 +148,7 @@ def main(font_path):
     # Ícone do app: fundo opaco a toda a área; símbolo a 62% e dentro do círculo de 80%.
     s = 0.62 * 1024 / 64
     cx, cy = (mx0 + mx1) / 2, (my0 + my1) / 2
-    icon = (f'<rect width="1024" height="1024" fill="{PRIMARY}"/>'
+    icon = (f'<rect width="1024" height="1024" fill="{DARK}"/>'
             + mark_svg(LIGHT, SECONDARY, 512 - cx * s, 512 - cy * s, s))
     icon_svg = f'{ROOT}/icon/tredane-icone.svg'
     write(icon_svg, svg_doc(1024, 1024, icon, 'Tredane'))
@@ -156,7 +158,7 @@ def main(font_path):
 
     # Favicon: placa arredondada, símbolo maior para ler a 16 px.
     fs = 0.72 * 64 / 64
-    fav = (f'<rect width="64" height="64" rx="14" fill="{PRIMARY}"/>'
+    fav = (f'<rect width="64" height="64" rx="14" fill="{DARK}"/>'
            + mark_svg(LIGHT, SECONDARY, 32 - cx * fs, 32 - cy * fs, fs))
     fav_svg = f'{ROOT}/icon/favicon.svg'
     write(fav_svg, svg_doc(64, 64, fav, 'Tredane'))
