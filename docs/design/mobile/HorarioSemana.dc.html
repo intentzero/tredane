@@ -13,13 +13,13 @@
 body{margin:0}
 </style>
 </helmet>
-<div style="width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: #FFFDF9; font-family: Inter, system-ui, sans-serif; color: #203632; font-size: 13px; line-height: 1.4; position: relative">
-  <header style="flex: none; background: #FFFFFF; border-bottom: 1px solid #D6E6DE; padding: 8px 12px 12px 4px">
+<div style="width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: #FBF9FF; font-family: Inter, system-ui, sans-serif; color: #211339; font-size: 13px; line-height: 1.4; position: relative">
+  <header style="flex: none; background: #FFFFFF; border-bottom: 1px solid #DFD5EF; padding: 8px 12px 12px 4px">
     <div style="display: flex; align-items: center; gap: 4px; min-height: 36px">
-      <a href="ClinicaSemana.dc.html" aria-label="Voltar para a Clínica" style="width: 44px; height: 44px; display: grid; place-items: center; color: #203632; text-decoration: none"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></a>
+      <a href="ClinicaSemana.dc.html" aria-label="Voltar para a Clínica" style="width: 44px; height: 44px; display: grid; place-items: center; color: #211339; text-decoration: none"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></a>
       <h1 style="margin: 0; flex: 1; font-size: 16px; font-weight: 600">Horário</h1>
     </div>
-    <div role="tablist" aria-label="Visão do horário" style="margin: 4px 0 0 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border-radius: 999px; background: #EAF7F2">
+    <div role="tablist" aria-label="Visão do horário" style="margin: 4px 0 0 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border-radius: 999px; background: #F0E9FF">
       <button type="button" role="tab" aria-selected="{{emSemana}}" onClick="{{verSemana}}" style="{{tabSemana}}">Semana</button>
       <button type="button" role="tab" aria-selected="{{emCal}}" onClick="{{verCal}}" style="{{tabCal}}">Calendário</button>
     </div>
@@ -35,14 +35,14 @@ body{margin:0}
       </div>
 
       <div style="border-radius: 16px; background: #FFFFFF; padding: 14px 16px 16px">
-        <div style="display: grid; grid-template-columns: 40px 1fr; gap: 0 8px; font-size: 11px; color: #52645F; margin-bottom: 4px">
+        <div style="display: grid; grid-template-columns: 40px 1fr; gap: 0 8px; font-size: 11px; color: #6A5A7A; margin-bottom: 4px">
           <span></span>
           <span style="display: flex; justify-content: space-between"><span>08h</span><span>10h</span><span>12h</span><span>14h</span><span>16h</span><span>18h</span><span>20h</span></span>
         </div>
         <sc-for list="{{linhas}}" as="d" hint-placeholder-count="7">
-          <div style="display: grid; grid-template-columns: 40px 1fr; gap: 0 8px; align-items: center; min-height: 44px; border-top: 1px solid #EAF7F2">
+          <div style="display: grid; grid-template-columns: 40px 1fr; gap: 0 8px; align-items: center; min-height: 44px; border-top: 1px solid #F0E9FF">
             <span style="font-weight: 600">{{d.nome}}</span>
-            <div style="position: relative; height: 28px; border-radius: 6px; background: #FFFDF9">
+            <div style="position: relative; height: 28px; border-radius: 6px; background: #FBF9FF">
               <span aria-hidden="true" style="{{d.clinica}}"></span>
               <sc-for list="{{d.pessoas}}" as="p" hint-placeholder-count="1">
                 <span aria-hidden="true" style="{{p.style}}"></span>
@@ -51,10 +51,10 @@ body{margin:0}
             </div>
           </div>
         </sc-for>
-        <p style="margin: 10px 0 0; font-size: 11px; color: #52645F">Toque em um dia para mudar as horas. As cores mostram quem trabalha dentro do horário da clínica.</p>
+        <p style="margin: 10px 0 0; font-size: 11px; color: #6A5A7A">Toque em um dia para mudar as horas. As cores mostram quem trabalha dentro do horário da clínica.</p>
       </div>
 
-      <button type="button" style="min-height: 36px; border: 1px solid #718A81; border-radius: 8px; background: #FFFFFF; font: inherit; font-weight: 600; color: #203632">Editar horário da clínica</button>
+      <button type="button" style="min-height: 36px; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; font: inherit; font-weight: 600; color: #211339">Editar horário da clínica</button>
     </div>
   </sc-if>
 
@@ -67,7 +67,7 @@ body{margin:0}
           <strong style="flex: 1; text-align: center; font-size: 14px; font-weight: 600">Novembro de 2026</strong>
           <button type="button" aria-label="Próximo mês" style="width: 44px; height: 44px; border: 0; background: none; font: inherit; font-size: 16px; cursor: pointer">›</button>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 11px; color: #52645F; padding-bottom: 4px"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span></div>
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 11px; color: #6A5A7A; padding-bottom: 4px"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span></div>
         <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px">
           <sc-for list="{{dias}}" as="c" hint-placeholder-count="35">
             <span style="{{c.cel}}"><span style="{{c.num}}">{{c.n}}</span><span style="display: flex; gap: 2px; height: 6px">
@@ -75,13 +75,13 @@ body{margin:0}
             </span></span>
           </sc-for>
         </div>
-        <p style="margin: 10px 4px 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #52645F"><span><i style="display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #B42318; margin-right: 4px"></i>Clínica fechada</span><span><i style="display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #EBCB94; margin-right: 4px"></i>Lívia</span><span><i style="display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #6B3FD4; margin-right: 4px"></i>Bruna</span></p>
+        <p style="margin: 10px 4px 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #6A5A7A"><span><i style="display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #B42318; margin-right: 4px"></i>Clínica fechada</span><span><i style="display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #EBCB94; margin-right: 4px"></i>Lívia</span><span><i style="display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #007F78; margin-right: 4px"></i>Bruna</span></p>
       </div>
 
       <section aria-labelledby="prox-h" style="border-radius: 12px; background: #FFFFFF; overflow: hidden">
         <h2 id="prox-h" style="margin: 0; padding: 14px 16px 6px; font-size: 14px; font-weight: 600">Próximos</h2>
         <sc-for list="{{proximos}}" as="r" hint-placeholder-count="3">
-          <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px 16px; border-top: 1px solid #EAF7F2">
+          <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px 16px; border-top: 1px solid #F0E9FF">
             <span style="{{r.avatar}}">{{r.ini}}</span>
             <span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><strong style="font-weight: 600">{{r.titulo}}</strong><span style="font-size: 11px; color: {{r.corSub}}">{{r.sub}}</span></span>
             <button type="button" aria-label="Remover {{r.titulo}}" style="width: 44px; height: 44px; border: 0; background: none; font: inherit; font-size: 16px; cursor: pointer">×</button>
@@ -89,7 +89,7 @@ body{margin:0}
         </sc-for>
       </section>
 
-      <button type="button" style="position: sticky; bottom: 0; min-height: 36px; border: 0; border-radius: 8px; background: #007F78; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600">+ Folga, férias ou fechamento</button>
+      <button type="button" style="position: sticky; bottom: 0; min-height: 36px; border: 0; border-radius: 8px; background: #5C32C9; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600">+ Folga, férias ou fechamento</button>
     </div>
   </sc-if>
 </div>
@@ -101,18 +101,18 @@ class Component extends DCLogic {
     const aba = s.aba || 'semana'
     const sel = s.sel || []
     const P = [
-      { id: 'paula', nome: 'Dra. Paula', cor: '#007F78' },
-      { id: 'bruna', nome: 'Bruna', cor: '#6B3FD4' },
+      { id: 'paula', nome: 'Dra. Paula', cor: '#5C32C9' },
+      { id: 'bruna', nome: 'Bruna', cor: '#007F78' },
       { id: 'livia', nome: 'Lívia', cor: '#EBCB94' },
     ]
-    const tab = (on) => 'min-height: 40px; border: 0; border-radius: 999px; font: inherit; font-size: 14px; cursor: pointer; ' + (on ? 'background: #FFFFFF; color: #203632; font-weight: 600; box-shadow: 0 1px 3px rgba(20,38,37,0.15);' : 'background: none; color: #435A53;')
+    const tab = (on) => 'min-height: 40px; border: 0; border-radius: 999px; font: inherit; font-size: 14px; cursor: pointer; ' + (on ? 'background: #FFFFFF; color: #211339; font-weight: 600; box-shadow: 0 1px 3px rgba(20,38,37,0.15);' : 'background: none; color: #544364;')
     const filtros = [{ id: 'todos', nome: 'Clínica' }, ...P].map((f) => {
       const on = f.id === 'todos' ? sel.length === 0 : sel.includes(f.id)
-      const cor = f.id === 'todos' ? '#203632' : f.cor
+      const cor = f.id === 'todos' ? '#211339' : f.cor
       return {
         nome: f.nome, on,
         pick: () => this.setState({ sel: f.id === 'todos' ? [] : (on ? sel.filter((x) => x !== f.id) : [...sel, f.id]) }),
-        style: 'flex: none; min-height: 40px; padding: 0 14px; border-radius: 999px; font: inherit; display: flex; align-items: center; gap: 8px; cursor: pointer; ' + (on ? 'border: 1px solid #203632; background: #FFFFFF; font-weight: 600; color: #203632;' : 'border: 1px solid #D6E6DE; background: #FFFFFF; color: #435A53;'),
+        style: 'flex: none; min-height: 40px; padding: 0 14px; border-radius: 999px; font: inherit; display: flex; align-items: center; gap: 8px; cursor: pointer; ' + (on ? 'border: 1px solid #211339; background: #FFFFFF; font-weight: 600; color: #211339;' : 'border: 1px solid #DFD5EF; background: #FFFFFF; color: #544364;'),
         dot: 'width: 10px; height: 10px; border-radius: 999px; background: ' + cor,
       }
     })
@@ -132,13 +132,13 @@ class Component extends DCLogic {
       }).filter(Boolean)
       return {
         nome, pessoas,
-        clinica: aberto ? 'position: absolute; top: 0; bottom: 0; left: ' + pos(a) + '%; width: ' + (pos(b) - pos(a)) + '%; border-radius: 8px; background: ' + (sel.length ? '#D6F4E8' : '#007F78') : 'display: none',
-        fechado: aberto ? 'display: none' : 'position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: #52645F',
+        clinica: aberto ? 'position: absolute; top: 0; bottom: 0; left: ' + pos(a) + '%; width: ' + (pos(b) - pos(a)) + '%; border-radius: 8px; background: ' + (sel.length ? '#EDE4FF' : '#5C32C9') : 'display: none',
+        fechado: aberto ? 'display: none' : 'position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: #6A5A7A',
       }
     })
     // calendário nov/2026 (1/11 = domingo): 35 células começando na segunda 26/10
     const marc = { 10: 'livia', 11: 'livia', 12: 'livia', 13: 'livia', 14: 'livia', 15: 'clinica', 16: 'livia', 17: 'livia', 18: 'livia', 19: 'livia', 20: 'livia', 24: 'bruna' }
-    const cor = { clinica: '#B42318', livia: '#EBCB94', bruna: '#6B3FD4' }
+    const cor = { clinica: '#B42318', livia: '#EBCB94', bruna: '#007F78' }
     const cells = []
     for (let k = 0; k < 35; k += 1) {
       const day = k - 5 // 26/10 → k=0 → day=-5
@@ -149,14 +149,14 @@ class Component extends DCLogic {
       cells.push({
         n: real,
         marcas: m ? [{ style: 'flex: 1; border-radius: 3px; background: ' + cor[m] }] : [],
-        cel: 'display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-radius: 8px; ' + (hoje ? 'background: #D6F4E8;' : ''),
-        num: 'font-size: 14px; ' + (fora ? 'color: #718A81;' : hoje ? 'font-weight: 600; color: #00665F;' : 'color: #203632;'),
+        cel: 'display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-radius: 8px; ' + (hoje ? 'background: #EDE4FF;' : ''),
+        num: 'font-size: 14px; ' + (fora ? 'color: #8E7FA8;' : hoje ? 'font-weight: 600; color: #4C259E;' : 'color: #211339;'),
       })
     }
     const proximos = [
       { ini: 'LI', titulo: 'Lívia · Férias', sub: '10/11 – 20/11 · 3 horários marcados', corSub: '#6E4200', avatar: 'width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: #FFF7EA; color: #6E4200' },
-      { ini: '·', titulo: 'Clínica fechada · Feriado', sub: '15/11 · nenhum horário marcado', corSub: '#52645F', avatar: 'width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: #FDF1F0; color: #B42318' },
-      { ini: 'BR', titulo: 'Bruna · Folga', sub: '24/11 · dia inteiro', corSub: '#52645F', avatar: 'width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: #E7E0F8; color: #4B2A9E' },
+      { ini: '·', titulo: 'Clínica fechada · Feriado', sub: '15/11 · nenhum horário marcado', corSub: '#6A5A7A', avatar: 'width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: #FDF1F0; color: #B42318' },
+      { ini: 'BR', titulo: 'Bruna · Folga', sub: '24/11 · dia inteiro', corSub: '#6A5A7A', avatar: 'width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: #D6F4E8; color: #00665F' },
     ]
     return {
       emSemana: aba === 'semana', emCal: aba === 'cal',

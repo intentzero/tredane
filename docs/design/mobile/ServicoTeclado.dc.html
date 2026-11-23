@@ -12,9 +12,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0}
-a{color:#007F78}a:hover{color:#00665F}
+a{color:#5C32C9}a:hover{color:#4C259E}
 button,select,input{font:inherit}
-button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #007F78;outline-offset:2px}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #5C32C9;outline-offset:2px}
 </style>
 </helmet>
 <!--
@@ -23,82 +23,82 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{ou
   Cancelar/Salvar some; o campo focado fica acima do teclado, sem sobreposição.
   Ao fechar o teclado, o rodapé volta (data-keyboard=open / useKeyboardViewport).
 -->
-<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFDF9; color: #203632; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.35; display: flex; flex-direction: column; overflow: hidden; position: relative">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF9FF; color: #211339; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.35; display: flex; flex-direction: column; overflow: hidden; position: relative">
 
-<header style="flex: none; background: #FFFFFF; border-bottom: 1px solid #D6E6DE; display: flex; align-items: center; gap: 4px; padding: 8px 4px; z-index: 2">
-<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #203632; border-radius: 999px; text-decoration: none">‹</a>
-<div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 16px; font-weight: 600">Novo serviço</h1><span style="font-size: 13px; color: #52645F">Serviços · 3 cadastrados</span></div>
+<header style="flex: none; background: #FFFFFF; border-bottom: 1px solid #DFD5EF; display: flex; align-items: center; gap: 4px; padding: 8px 4px; z-index: 2">
+<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #211339; border-radius: 999px; text-decoration: none">‹</a>
+<div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 16px; font-weight: 600">Novo serviço</h1><span style="font-size: 13px; color: #6A5A7A">Serviços · 3 cadastrados</span></div>
 </header>
 
 <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; padding-bottom: 24px">
 
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #435A53">Nome
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #544364">Nome
 <span style="position: relative; display: block">
-<input type="text" value="Depilação" aria-label="Nome" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 12px; border: 2px solid #007F78; border-radius: 6px; font-size: 16px; color: #203632; background: #FFFFFF; box-shadow: 0 0 0 3px #D6F4E8">
-<span aria-hidden="true" style="position: absolute; left: calc(12px + 8ch); top: 50%; transform: translateY(-50%); width: 2px; height: 18px; background: #007F78; border-radius: 6px"></span>
+<input type="text" value="Depilação" aria-label="Nome" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 12px; border: 2px solid #5C32C9; border-radius: 6px; font-size: 16px; color: #211339; background: #FFFFFF; box-shadow: 0 0 0 3px #EDE4FF">
+<span aria-hidden="true" style="position: absolute; left: calc(12px + 8ch); top: 50%; transform: translateY(-50%); width: 2px; height: 18px; background: #5C32C9; border-radius: 6px"></span>
 </span>
 </label>
 
-<button type="button" role="switch" aria-checked="true" tabindex="-1" style="min-height: 44px; padding: 0 16px; border: 1px solid #D6E6DE; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-between; font-weight: 500; opacity: 0.55">Serviço ativo <span aria-hidden="true" style="position: relative; width: 40px; height: 24px; border-radius: 999px; background: #007F78"><span style="position: absolute; top: 2px; left: 18px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF"></span></span></button>
+<button type="button" role="switch" aria-checked="true" tabindex="-1" style="min-height: 44px; padding: 0 16px; border: 1px solid #DFD5EF; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-between; font-weight: 500; opacity: 0.55">Serviço ativo <span aria-hidden="true" style="position: relative; width: 40px; height: 24px; border-radius: 999px; background: #5C32C9"><span style="position: absolute; top: 2px; left: 18px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF"></span></span></button>
 
-<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #435A53; opacity: 0.45">Sinônimos
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid #718A81; border-radius: 6px; background: #FFFFFF">
-<input type="text" placeholder="Adicionar…" aria-hidden="true" tabindex="-1" style="flex: 1; min-width: 6rem; height: 28px; border: 0; box-shadow: none; outline: none; background: transparent; font-size: 14px; color: #203632"></div>
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #544364; opacity: 0.45">Sinônimos
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid #8E7FA8; border-radius: 6px; background: #FFFFFF">
+<input type="text" placeholder="Adicionar…" aria-hidden="true" tabindex="-1" style="flex: 1; min-width: 6rem; height: 28px; border: 0; box-shadow: none; outline: none; background: transparent; font-size: 14px; color: #211339"></div>
 </div>
 
-<p style="margin: 0; font-size: 11px; color: #52645F; background: #D6F4E8; color: #00665F; padding: 10px 12px; border-radius: 8px"><strong>Com o teclado aberto.</strong> Cancelar e Salvar somem para não cobrir o campo. Fechar o teclado devolve o rodapé.</p>
+<p style="margin: 0; font-size: 11px; color: #6A5A7A; background: #EDE4FF; color: #4C259E; padding: 10px 12px; border-radius: 8px"><strong>Com o teclado aberto.</strong> Cancelar e Salvar somem para não cobrir o campo. Fechar o teclado devolve o rodapé.</p>
 
 <section aria-hidden="true" style="display: flex; flex-direction: column; gap: 8px; opacity: 0.35"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Como a cliente escolhe</h2>
-<button type="button" tabindex="-1" style="min-height: 44px; padding: 12px; border-radius: 12px; text-align: left; border: 1px solid #007F78; background: #D6F4E8"><strong style="font-weight: 600">Um só serviço</strong></button>
+<button type="button" tabindex="-1" style="min-height: 44px; padding: 12px; border-radius: 12px; text-align: left; border: 1px solid #5C32C9; background: #EDE4FF"><strong style="font-weight: 600">Um só serviço</strong></button>
 </section>
 </div>
 
 <!-- Rodapé sticky oculto enquanto o teclado está aberto (Opção A). -->
 
-<div aria-label="Teclado virtual" style="flex: none; height: 292px; background: #EAF7F2; border-top: 1px solid #C5D8CF; display: flex; flex-direction: column; font-family: Roboto, system-ui, sans-serif; user-select: none">
-<div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #D6E6DE; border-bottom: 1px solid #C5D8CF">
-<span style="font-size: 13px; color: #52645F">português</span>
-<span style="font-size: 14px; font-weight: 600; color: #007F78">concluir</span>
+<div aria-label="Teclado virtual" style="flex: none; height: 292px; background: #F0E9FF; border-top: 1px solid #CFC4E2; display: flex; flex-direction: column; font-family: Roboto, system-ui, sans-serif; user-select: none">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #DFD5EF; border-bottom: 1px solid #CFC4E2">
+<span style="font-size: 13px; color: #6A5A7A">português</span>
+<span style="font-size: 14px; font-weight: 600; color: #5C32C9">concluir</span>
 </div>
 <div style="flex: 1; padding: 8px 4px 10px; display: flex; flex-direction: column; gap: 8px; justify-content: space-between">
 <div style="display: flex; gap: 5px; justify-content: center">
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">Q</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">W</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">E</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">R</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">T</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">Y</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">U</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">I</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">O</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">P</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">Q</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">W</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">E</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">R</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">T</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">Y</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">U</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">I</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">O</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">P</span>
 </div>
 <div style="display: flex; gap: 5px; justify-content: center; padding: 0 16px">
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">A</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">S</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">D</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">F</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">G</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">H</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">J</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">K</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">L</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">A</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">S</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">D</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">F</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">G</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">H</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">J</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">K</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">L</span>
 </div>
 <div style="display: flex; gap: 5px; justify-content: center">
-<span style="width: 42px; height: 42px; border-radius: 6px; background: #718A81; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #203632; font-weight: 600">⇧</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">Z</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">X</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">C</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">V</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">B</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">N</span>
-<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #203632">M</span>
-<span style="width: 42px; height: 42px; border-radius: 6px; background: #718A81; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #203632; font-weight: 600">⌫</span>
+<span style="width: 42px; height: 42px; border-radius: 6px; background: #8E7FA8; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #211339; font-weight: 600">⇧</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">Z</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">X</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">C</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">V</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">B</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">N</span>
+<span style="width: 32px; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #211339">M</span>
+<span style="width: 42px; height: 42px; border-radius: 6px; background: #8E7FA8; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #211339; font-weight: 600">⌫</span>
 </div>
 <div style="display: flex; gap: 5px; justify-content: center; padding: 0 4px">
-<span style="width: 42px; height: 42px; border-radius: 6px; background: #718A81; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #203632; font-weight: 600">123</span>
-<span style="flex: 1; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #718A81; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #52645F">espaço</span>
-<span style="width: 72px; height: 42px; border-radius: 6px; background: #007F78; box-shadow: 0 1px 0 #00665F; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #FFFFFF; font-weight: 600">return</span>
+<span style="width: 42px; height: 42px; border-radius: 6px; background: #8E7FA8; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #211339; font-weight: 600">123</span>
+<span style="flex: 1; height: 42px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 0 #8E7FA8; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #6A5A7A">espaço</span>
+<span style="width: 72px; height: 42px; border-radius: 6px; background: #5C32C9; box-shadow: 0 1px 0 #4C259E; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #FFFFFF; font-weight: 600">return</span>
 </div>
 </div>
 </div>

@@ -1,5 +1,13 @@
 # Histórico do design
 
+## 23/11/2026 — Tokens v0.12.0: paleta violeta e lima (**Confirmado**, Paulo «Sim, implementa»)
+
+- Alinha o painel à landing (#1036). Superfícies `#FBF9FF`/`#F0E9FF`, texto `#211339`, primário violeta `#4C259E` (escuro `#7650E0` de preenchimento), navegação `#211339`/`#0E0818`.
+- **Agendar** passa de coral a lima `#D5FF55` com texto `#211339`; tokens novos `accent.pressed` e `accent.border` (contorno, porque o lima mede 1,15:1 contra o cartão claro).
+- **IA** passa a petróleo; tokens novos `person.avatar` e `person.ink` (areia) para pessoas, que usavam a cor da IA.
+- Etapas: atendimento segue o primário; agendado e concluído ganham tons novos (agendado separa-se do atendimento: ΔE 2,7 → 7,9).
+- 140 pares de contraste passam; os mocks `.dc.html` migrados com um mapa antigo → novo (`check_mocks.py` verde), botões Agendar redesenhados e PNG regenerados. `panel.css`: estados do Agendar (contorno, pressionado) e avatares de pessoas.
+
 ## 20/11/2026 — C-01: zonas/combo e preço no card (**Confirmado**, Paulo «layout confirmado»)
 
 - Card «Suas próximas marcações»: linha 3 com variantes (ou nome do combo) · preço; serviço sem zonas mostra só o R$. Quando/duração ficam na linha 2. Preview: regenerar `cliente/previews/C-01-Inicio.png` com `render_previews.py` quando Playwright estiver disponível.

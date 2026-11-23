@@ -1359,7 +1359,7 @@ button.panel-auth-inline-link {
 .panel-clerk-profile-backdrop,
 .cl-modalBackdrop.panel-clerk-profile-backdrop {
   z-index: 200 !important;
-  background: rgba(20, 38, 37, 0.45) !important;
+  background: rgba(33, 19, 57, 0.45) !important;
 }
 
 .panel-clerk-profile-modal,
@@ -1376,7 +1376,7 @@ button.panel-auth-inline-link {
 .cl-card.panel-clerk-profile-card {
   background: var(--color-surface-card) !important;
   border: var(--size-border-width) solid var(--color-line-border) !important;
-  box-shadow: 0 12px 40px rgba(20, 38, 37, 0.18) !important;
+  box-shadow: 0 12px 40px rgba(33, 19, 57, 0.18) !important;
   border-radius: var(--radius-lg) !important;
 }
 
@@ -3504,24 +3504,25 @@ button.panel-auth-inline-link {
   background: var(--color-primary-ink);
 }
 
-/* Entrada no Agendar: o mesmo destaque em Conversas, Agenda, Clientes e Acompanhar. */
+/* Entrada no Agendar: o mesmo destaque em Conversas, Agenda, Clientes e Acompanhar.
+ * Lima com contorno (accent.border): no tema claro o lima sozinho mede 1,15:1 contra o cartão. */
 .panel-btn-accent {
   background-color: var(--color-accent-fill);
-  border-color: var(--color-accent-fill);
+  border-color: var(--color-accent-border);
   color: var(--color-accent-on-fill);
 }
 
 @media (hover: hover) {
   .panel-btn-accent:hover {
     background-color: var(--color-accent-hover);
-    border-color: var(--color-accent-hover);
+    border-color: var(--color-accent-border);
   }
 }
 
 .panel-btn-accent:active,
 .panel-btn-accent[data-pressed] {
-  background-color: var(--color-accent-hover);
-  border-color: var(--color-accent-hover);
+  background-color: var(--color-accent-pressed);
+  border-color: var(--color-accent-border);
 }
 
 .panel-btn-secondary {
@@ -4895,7 +4896,7 @@ button.panel-auth-inline-link {
   background: var(--color-surface-card);
   border: var(--size-border-width) solid var(--color-line-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(20, 38, 37, 0.14);
+  box-shadow: 0 8px 24px rgba(33, 19, 57, 0.14);
   outline: none;
 }
 
@@ -6574,7 +6575,7 @@ button.panel-auth-inline-link {
 }
 
 .agenda-tone-0 { background: var(--color-primary-tint); color: var(--color-primary-ink); }
-.agenda-tone-1 { background: var(--color-ai-avatar); color: var(--color-ai-ink); }
+.agenda-tone-1 { background: var(--color-person-avatar); color: var(--color-person-ink); }
 .agenda-tone-2 { background: var(--color-warning-tint); color: var(--color-warning-ink); }
 .agenda-tone-3 { background: var(--color-success-tint); color: var(--color-success-ink); }
 
@@ -6835,14 +6836,14 @@ button.panel-auth-inline-link {
   align-items: center;
   gap: var(--space-2);
   padding: 0 var(--space-5);
-  border: 0;
+  border: 1.5px solid var(--color-accent-border);
   border-radius: var(--radius-pill);
   background: var(--color-accent-fill);
   color: var(--color-accent-on-fill);
   font: inherit;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
-  box-shadow: 0 6px 16px rgba(20, 38, 37, 0.25);
+  box-shadow: 0 6px 16px rgba(33, 19, 57, 0.25);
   cursor: pointer;
 }
 
@@ -6854,7 +6855,7 @@ button.panel-auth-inline-link {
 
 .agenda-fab:active,
 .agenda-fab[data-pressed] {
-  background: var(--color-accent-hover);
+  background: var(--color-accent-pressed);
 }
 
 .agenda-fab[data-focus-visible] {
@@ -7218,7 +7219,7 @@ button.panel-auth-inline-link {
   background: var(--color-surface-card);
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
-  box-shadow: 0 1px 3px rgba(20, 38, 37, 0.15);
+  box-shadow: 0 1px 3px rgba(33, 19, 57, 0.15);
 }
 
 .service-more {
@@ -8499,7 +8500,7 @@ button.panel-auth-inline-link {
   border: var(--size-border-width) solid var(--color-line-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface-card);
-  box-shadow: 0 -6px 16px rgba(20, 38, 37, 0.08);
+  box-shadow: 0 -6px 16px rgba(33, 19, 57, 0.08);
 }
 
 .hours-savebar p {
@@ -10680,8 +10681,8 @@ button.panel-auth-inline-link {
 }
 
 .equipe-avatar--owner {
-  background: var(--color-ai-avatar);
-  color: var(--color-ai-ink);
+  background: var(--color-person-avatar);
+  color: var(--color-person-ink);
 }
 
 /* Convite ainda não é membro: contorno tracejado, sem preenchimento. */
@@ -10953,8 +10954,8 @@ button.panel-auth-inline-link {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--color-ai-avatar);
-  color: var(--color-ai-ink);
+  background: var(--color-person-avatar);
+  color: var(--color-person-ink);
   font-size: var(--font-size-display);
   font-weight: var(--font-weight-semibold);
 }
@@ -11153,7 +11154,7 @@ button.panel-auth-inline-link {
 
 .inbox-thread-header .panel-header-action--primary,
 .conversas-3col .inbox-thread-header .panel-header-action--primary {
-  border-color: var(--color-accent-fill);
+  border-color: var(--color-accent-border);
   border-radius: var(--radius-lg);
   background: var(--color-accent-fill);
   color: var(--color-accent-on-fill);
@@ -11164,7 +11165,7 @@ button.panel-auth-inline-link {
 .inbox-thread-header .panel-header-action--primary[data-hovered],
 .conversas-3col .inbox-thread-header .panel-header-action--primary[data-hovered] {
   background: var(--color-accent-hover);
-  border-color: var(--color-accent-hover);
+  border-color: var(--color-accent-border);
 }
 
 .inbox-thread-header .panel-header-action--primary[aria-pressed='true'] {
@@ -11624,7 +11625,7 @@ button.panel-auth-inline-link {
   z-index: 40;
   display: flex;
   align-items: flex-end;
-  background: rgba(20, 38, 37, 0.45);
+  background: rgba(33, 19, 57, 0.45);
 }
 
 .conversas-agendar-sheet-modal {
