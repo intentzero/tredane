@@ -12,9 +12,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0}
-a{color:#007F78}a:hover{color:#00665F}
+a{color:#5C32C9}a:hover{color:#4C259E}
 button,input,textarea,select{font:inherit}
-button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #007F78;outline-offset:2px}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #5C32C9;outline-offset:2px}
 </style>
 </helmet>
 <!--
@@ -24,10 +24,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   + «Outro…» com número e unidade min|h (mín. 15 min, máx. 48 h).
   Fecha o Em aberto de DEC-175 («prazo do Pix em opções»). DEC-047 (padrão 2 h) mantém-se.
 -->
-<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFDF9; color: #203632; font-family: Roboto, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF9FF; color: #211339; font-family: Roboto, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
 
-<header style="background: #FFFFFF; border-bottom: 1px solid #D6E6DE; display: flex; align-items: center; gap: 4px; padding: 8px 4px">
-<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #203632; border-radius: 999px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
+<header style="background: #FFFFFF; border-bottom: 1px solid #DFD5EF; display: flex; align-items: center; gap: 4px; padding: 8px 4px">
+<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #211339; border-radius: 999px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
 <h1 style="margin: 0; font-size: 16px; font-weight: 600">Recebimento de sinais</h1>
 </header>
 
@@ -41,17 +41,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 </div>
 </div>
 
-<section aria-labelledby="c-t" style="background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<section aria-labelledby="c-t" style="background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
 <h2 id="c-t" style="margin: 0; font-size: 14px; font-weight: 600">Conta Woovi</h2>
-<p style="margin: 0; font-size: 13px; color: #435A53">Para trocar de conta, desconecte esta e conecte a nova. As cobranças já feitas ficam no histórico.</p>
+<p style="margin: 0; font-size: 13px; color: #544364">Para trocar de conta, desconecte esta e conecte a nova. As cobranças já feitas ficam no histórico.</p>
 <button type="button" style="align-self: stretch; min-height: 36px; padding: 0 16px; border: 0; border-radius: 8px; background: #B42318; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Desconectar conta</button>
 </section>
 
-<section aria-labelledby="p-t" style="background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+<section aria-labelledby="p-t" style="background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px">
 <h2 id="p-t" style="margin: 0; font-size: 14px; font-weight: 600">Prazo e política de cancelamento</h2>
 
 <div role="group" aria-labelledby="z-l" style="display: flex; flex-direction: column; gap: 8px">
-<span id="z-l" style="font-size: 13px; font-weight: 600; color: #435A53">Prazo para pagar</span>
+<span id="z-l" style="font-size: 13px; font-weight: 600; color: #544364">Prazo para pagar</span>
 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px">
 <button type="button" aria-pressed="{{p15}}" onClick="{{pick15}}" style="{{s15}}">15 min</button>
 <button type="button" aria-pressed="{{p30}}" onClick="{{pick30}}" style="{{s30}}">30 min</button>
@@ -62,39 +62,39 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 <button type="button" aria-pressed="{{p2880}}" onClick="{{pick2880}}" style="{{s2880}}">48 h</button>
 <button type="button" aria-pressed="{{pOther}}" onClick="{{pickOther}}" style="{{sOther}}">Outro…</button>
 </div>
-<span style="font-size: 13px; color: #52645F">Padrão: 2 h. Mínimo 15 min · máximo 48 h. O valor fica em minutos no servidor; cobranças já enviadas mantêm o prazo original.</span>
+<span style="font-size: 13px; color: #6A5A7A">Padrão: 2 h. Mínimo 15 min · máximo 48 h. O valor fica em minutos no servidor; cobranças já enviadas mantêm o prazo original.</span>
 </div>
 
 <sc-if value="{{isOther}}" hint-placeholder-val="{{ false }}">
-<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: #EAF7F2">
-<span style="font-size: 13px; font-weight: 600; color: #435A53">Prazo personalizado</span>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: #F0E9FF">
+<span style="font-size: 13px; font-weight: 600; color: #544364">Prazo personalizado</span>
 <div style="display: flex; gap: 8px; align-items: stretch">
-<label style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #435A53">Número
-<input type="number" inputmode="numeric" min="1" value="90" aria-describedby="z-help" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #718A81; border-radius: 8px; background: #FFFFFF; color: #203632; font-size: 14px; font-variant-numeric: tabular-nums"></label>
+<label style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #544364">Número
+<input type="number" inputmode="numeric" min="1" value="90" aria-describedby="z-help" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; color: #211339; font-size: 14px; font-variant-numeric: tabular-nums"></label>
 <div role="group" aria-label="Unidade" style="flex: none; display: flex; flex-direction: column; gap: 4px">
-<span style="font-size: 13px; color: #435A53">Unidade</span>
-<div style="display: flex; height: 36px; border: 1px solid #718A81; border-radius: 8px; overflow: hidden; background: #FFFFFF">
-<button type="button" aria-pressed="true" style="min-width: 52px; border: 0; background: #203632; color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">min</button>
-<button type="button" aria-pressed="false" style="min-width: 52px; border: 0; border-left: 1px solid #D6E6DE; background: #FFFFFF; color: #203632; font-size: 13px; cursor: pointer">h</button>
+<span style="font-size: 13px; color: #544364">Unidade</span>
+<div style="display: flex; height: 36px; border: 1px solid #8E7FA8; border-radius: 8px; overflow: hidden; background: #FFFFFF">
+<button type="button" aria-pressed="true" style="min-width: 52px; border: 0; background: #211339; color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">min</button>
+<button type="button" aria-pressed="false" style="min-width: 52px; border: 0; border-left: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-size: 13px; cursor: pointer">h</button>
 </div>
 </div>
 </div>
-<span id="z-help" style="font-size: 13px; color: #52645F">Exemplo: 90 min (= 1 h 30). Fora de 15 min–48 h o Salvar fica desabilitado.</span>
+<span id="z-help" style="font-size: 13px; color: #6A5A7A">Exemplo: 90 min (= 1 h 30). Fora de 15 min–48 h o Salvar fica desabilitado.</span>
 </div>
 </sc-if>
 
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #435A53">Política de cancelamento do sinal
-<textarea rows="4" style="padding: 12px; border: 1px solid #718A81; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: #203632; resize: vertical; background: #FFFFFF">Cancelamento com devolução do sinal até 24 h antes do horário. Depois disso, o sinal não é devolvido.</textarea></label>
-<span style="font-size: 13px; color: #52645F; margin-top: -8px">A cliente vê este texto antes de pagar. No cancelamento, a equipe escolhe devolver ou reter, e o motivo fica registrado.</span>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #544364">Política de cancelamento do sinal
+<textarea rows="4" style="padding: 12px; border: 1px solid #8E7FA8; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: #211339; resize: vertical; background: #FFFFFF">Cancelamento com devolução do sinal até 24 h antes do horário. Depois disso, o sinal não é devolvido.</textarea></label>
+<span style="font-size: 13px; color: #6A5A7A; margin-top: -8px">A cliente vê este texto antes de pagar. No cancelamento, a equipe escolhe devolver ou reter, e o motivo fica registrado.</span>
 
-<button type="button" style="width: 100%; height: 36px; border: 0; border-radius: 8px; background: #007F78; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Salvar prazo e política</button>
+<button type="button" style="width: 100%; height: 36px; border: 0; border-radius: 8px; background: #5C32C9; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Salvar prazo e política</button>
 </section>
 
 <section aria-labelledby="s-t" style="display: flex; flex-direction: column; gap: 8px">
-<h2 id="s-t" style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #52645F">Serviços com sinal</h2>
-<ul style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; overflow: hidden; flex: none">
-<li style="display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 8px 16px; border-bottom: 1px solid #EAF7F2"><span>Limpeza de pele</span><span style="font-size: 13px; color: #435A53">30% · R$ 54,00</span></li>
-<li style="display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 8px 16px"><span>Drenagem</span><span style="font-size: 13px; color: #435A53">R$ 30,00</span></li>
+<h2 id="s-t" style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6A5A7A">Serviços com sinal</h2>
+<ul style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; overflow: hidden; flex: none">
+<li style="display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 8px 16px; border-bottom: 1px solid #F0E9FF"><span>Limpeza de pele</span><span style="font-size: 13px; color: #544364">30% · R$ 54,00</span></li>
+<li style="display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 8px 16px"><span>Drenagem</span><span style="font-size: 13px; color: #544364">R$ 30,00</span></li>
 </ul>
 </section>
 </div>
@@ -108,8 +108,8 @@ class Component extends DCLogic {
   }
   chip(on) {
     return on
-      ? 'border: 2px solid #007F78; background: #D6F4E8; color: #203632; border-radius: 8px; min-height: 44px; cursor: pointer; font-size: 13px; font-weight: 600'
-      : 'border: 1px solid #718A81; background: #FFFFFF; color: #203632; border-radius: 8px; min-height: 44px; cursor: pointer; font-size: 13px';
+      ? 'border: 2px solid #5C32C9; background: #EDE4FF; color: #211339; border-radius: 8px; min-height: 44px; cursor: pointer; font-size: 13px; font-weight: 600'
+      : 'border: 1px solid #8E7FA8; background: #FFFFFF; color: #211339; border-radius: 8px; min-height: 44px; cursor: pointer; font-size: 13px';
   }
   renderVals() {
     const presets = [15, 30, 60, 120, 360, 1440, 2880];

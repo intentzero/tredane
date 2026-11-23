@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system **Confirmado**, com paleta do painel aprovada por Paulo em 16/11/2026 e ajuste de contraste do coral v0.10.1 **Proposto** após feedback de 17/11/2026 ([revisão visual](../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026)). A escala compacta da v0.4.0 ([DEC-081](../product/decisions.md)) e os tamanhos de toque da v0.8.0 ([DEC-168](../product/decisions.md)) continuam; ver [CHANGELOG.md](CHANGELOG.md). Origem: [DEC-041](../product/decisions.md), identidade [DEC-050](../product/decisions.md), Roboto [DEC-073](../product/decisions.md); biblioteca-base React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)). Os estados funcionais dos mocks seguem a respectiva decisão, indicada em [screens.md](screens.md). Esta pasta registra os mocks de UI/UX do painel; eles ilustram a [especificação de UI/UX](../product/ux-ui.md), sem a substituir.
+**Estado:** design system **Confirmado**, com a paleta **violeta e lima** (tokens v0.12.0) aprovada por Paulo em 23/11/2026, que substitui a Coral & Menta de 16/11/2026 ([revisão visual](../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026)). A escala compacta da v0.4.0 ([DEC-081](../product/decisions.md)) e os tamanhos de toque da v0.8.0 ([DEC-168](../product/decisions.md)) continuam; ver [CHANGELOG.md](CHANGELOG.md). Origem: [DEC-041](../product/decisions.md), identidade [DEC-050](../product/decisions.md), Roboto [DEC-073](../product/decisions.md); biblioteca-base React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)). Os estados funcionais dos mocks seguem a respectiva decisão, indicada em [screens.md](screens.md). Esta pasta registra os mocks de UI/UX do painel; eles ilustram a [especificação de UI/UX](../product/ux-ui.md), sem a substituir.
 
 ## Ordem de autoridade
 
@@ -19,7 +19,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | --- | --- |
 | [screens.md](screens.md) | Índice das telas: ID (M-01 a M-39), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
 | [components.md](components.md) | Componentes recorrentes (cabeçalho, barra inferior, chips, balão, estado de envio, bloco de IA, folha inferior, formulário etc.) e regras gerais de implementação |
-| [tokens.json](tokens.json) · `tokens.css` | Tokens v0.10.1 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
+| [tokens.json](tokens.json) · `tokens.css` | Tokens v0.12.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
 | [catalog/index.html](catalog/index.html) | Catálogo: tokens e componentes com todos os estados (abra no navegador) |
 | [icons.md](icons.md) | Inventário de ícones e proposta de biblioteca |
 | [CHANGELOG.md](CHANGELOG.md) | Histórico de tokens e mocks, com a regra de conversão da consolidação 0.1 → 0.2 |

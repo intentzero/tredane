@@ -1,5 +1,7 @@
 # Estudo de paleta para o app — 16/11/2026
 
+> **Histórico.** Substituído em 23/11/2026 pela paleta violeta e lima (tokens v0.12.0; ver [decisions.md](../../product/decisions.md#revisão-visual-do-painel--violeta-e-lima-23112026)). O mock abaixo mostra a paleta Coral & Menta anterior.
+
 **Confirmado** por Paulo em 16/11/2026 («gostei, implementa»), após rever a proposta para o app alinhada com a [landing Coral & Menta](../../product/landing.md#exploração-de-paleta-coral--menta--16112026). [Abrir mock interativo](PaletaApp.html); alternar **Atual / Proposta** e **Claro / Escuro**. [Preview claro desktop](light-desktop.png) · [claro celular](light-celular.png) · [escuro desktop](dark-desktop.png) · [escuro celular](dark-celular.png).
 
 O painel usa os [tokens v0.10.1](../tokens.json), revistos após DEC-041/050/098/164. A mudança preserva a função das cores: turquesa para seleção, navegação e ações gerais; coral na ação principal **iniciar Agendar** em Conversas, Agenda, ficha do cliente e Acompanhar; âmbar para atenção, verde para sucesso, lavanda para IA. A extensão do coral às outras áreas foi pedida por Paulo em 16/11/2026 após a primeira implementação. O tom mais profundo com texto branco é **Proposto** após feedback visual de 17/11/2026; [revisão da decisão](../../product/decisions.md#revisão-visual-do-painel--coral--menta-16112026). Superfícies ficam mais claras no tema claro e mais verdes no escuro. A marca Confluência é a existente. Os exemplos de Lívia, Júlia e Carla são fictícios.

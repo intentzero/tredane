@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0;font-family:Inter,system-ui,sans-serif}
-.d{--app:#FFFDF9;--card:#fff;--sunk:#EAF7F2;--tx:#203632;--tx2:#435A53;--mu:#52645F;--pr:#007F78;--prInk:#00665F;--prT:#D6F4E8;--prB:#A2D9CB;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--bd:#D6E6DE;--ctl:#718A81}
+.d{--app:#FBF9FF;--card:#fff;--sunk:#F0E9FF;--tx:#211339;--tx2:#544364;--mu:#6A5A7A;--pr:#5C32C9;--prInk:#4C259E;--prT:#EDE4FF;--prB:#B9A2F0;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--bd:#DFD5EF;--ctl:#8E7FA8}
 .d button,.d a,.d select,.d input{font-family:inherit}
 .d button,.d a{color:inherit;cursor:pointer}
 .rl a{width:68px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size: 11px;color:var(--mu);text-decoration:none}
@@ -228,7 +228,7 @@ body{margin:0;font-family:Inter,system-ui,sans-serif}
               <span style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:999px;background:{{c.tint}};font-size:14px;font-weight:600"><span aria-hidden="true" style="width:8px;height:8px;border-radius:999px;background:{{c.dot}}"></span>{{c.label}}</span>
             </sc-for>
           </span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#435A53" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#544364" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <sc-if value="{{whoOpen}}" hint-placeholder-val="{{ false }}">
           <div role="listbox" aria-multiselectable="true" aria-labelledby="pq-l" style="background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:0 12px 28px rgba(20,38,37,.16);overflow:hidden">
@@ -266,7 +266,7 @@ body{margin:0;font-family:Inter,system-ui,sans-serif}
         <label class="fl">De<input class="tm" type="date" value="2026-11-10" style="height:48px;font-size:16px;font-weight:400"></label>
         <label class="fl">Até<input class="tm" type="date" value="2026-11-20" style="height:48px;font-size:16px;font-weight:400"></label>
       </div>
-      <label style="display:flex;align-items:center;gap:10px;font-size:16px;min-height:36px"><input type="checkbox" checked="checked" style="width:18px;height:18px;accent-color:#007F78">Dia inteiro · 11 dias</label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:16px;min-height:36px"><input type="checkbox" checked="checked" style="width:18px;height:18px;accent-color:#5C32C9">Dia inteiro · 11 dias</label>
 
       <sc-if value="{{hasWarn}}" hint-placeholder-val="{{ true }}">
         <div role="status" style="display:flex;gap:10px;padding:12px;border-radius:12px;background:var(--waT);border:1px solid #EBCB94;color:var(--wa)">
@@ -333,8 +333,8 @@ class Component extends DCLogic {
         name, date: (2 + i) + '/11', closed: holiday, segs, lanes,
         pressed: on ? 'true' : 'false',
         aria: 'Editar ' + name,
-        rowBg: on ? '#D6F4E8' : 'transparent',
-        bar: on ? 'inset 4px 0 0 #007F78' : 'none',
+        rowBg: on ? '#EDE4FF' : 'transparent',
+        bar: on ? 'inset 4px 0 0 #5C32C9' : 'none',
         select: () => this.setState({ sel: i, panel: 'dia', whoOpen: false })
       };
     });
@@ -343,7 +343,7 @@ class Component extends DCLogic {
       const on = shown.includes(p.id);
       return {
         ...p, pressed: on ? 'true' : 'false',
-        border: on ? '2px solid ' + p.color : '1px solid #718A81',
+        border: on ? '2px solid ' + p.color : '1px solid #8E7FA8',
         bg: on ? p.tint : '#FFFFFF',
         toggle: () => this.setState({ shown: on ? shown.filter((x) => x !== p.id) : [...shown, p.id] })
       };
@@ -371,7 +371,7 @@ class Component extends DCLogic {
       note: sel === 0 ? 'Clínica fechada em 2/11 (Feriado). O horário abaixo é o da semana.' : '',
       wins, who: whoList,
       openAttr: isClosed ? 'false' : 'true',
-      track: isClosed ? '#718A81' : '#007F78',
+      track: isClosed ? '#8E7FA8' : '#5C32C9',
       knob: isClosed ? 3 : 23
     };
     const chips = shortNames.map((short, i) => {
@@ -379,8 +379,8 @@ class Component extends DCLogic {
       return {
         short, full: names[i] + (self ? ' (este dia)' : ''),
         on: self || on ? 'true' : 'false', disabled: self,
-        border: self || on ? '2px solid #007F78' : '1px solid #718A81',
-        bg: self || on ? '#D6F4E8' : '#FFFFFF', fg: self || on ? '#00665F' : '#203632',
+        border: self || on ? '2px solid #5C32C9' : '1px solid #8E7FA8',
+        bg: self || on ? '#EDE4FF' : '#FFFFFF', fg: self || on ? '#4C259E' : '#211339',
         toggle: () => this.setState({ copyTo: on ? copyTo.filter((x) => x !== i) : [...copyTo, i] })
       };
     });
@@ -407,10 +407,10 @@ class Component extends DCLogic {
       const on = who.includes(o.id);
       return {
         ...o, checked: on, on: on ? 'true' : 'false',
-        border: i === 0 ? '0' : (i === 1 ? '1px solid #C5D8CF' : '1px solid #EAF7F2'),
-        bg: on ? '#D6F4E8' : '#FFFFFF',
-        box: on ? '2px solid #007F78' : '2px solid #718A81',
-        boxBg: on ? '#007F78' : '#FFFFFF',
+        border: i === 0 ? '0' : (i === 1 ? '1px solid #CFC4E2' : '1px solid #F0E9FF'),
+        bg: on ? '#EDE4FF' : '#FFFFFF',
+        box: on ? '2px solid #5C32C9' : '2px solid #8E7FA8',
+        boxBg: on ? '#5C32C9' : '#FFFFFF',
         toggle: () => pick(o.id)
       };
     });
@@ -431,12 +431,12 @@ class Component extends DCLogic {
       toggleList: () => this.setState({ whoOpen: !whoOpen }),
       whoOpen, whoOpenAttr: whoOpen ? 'true' : 'false',
       whoChips: chosen, noWho: nPeople === 0, opts,
-      fieldBorder: whoOpen ? '2px solid #007F78' : '1px solid #718A81',
+      fieldBorder: whoOpen ? '2px solid #5C32C9' : '1px solid #8E7FA8',
       countText: nPeople === 1 ? '1 selecionada' : nPeople + ' selecionadas',
       hasWarn: total > 0,
       warnTitle: total + (total === 1 ? ' horário marcado' : ' horários marcados') + ' nesses dias',
       warnText: parts.join(' e ') + '.',
-      saveLabel, saveBg: nPeople === 0 ? '#718A81' : '#007F78'
+      saveLabel, saveBg: nPeople === 0 ? '#8E7FA8' : '#5C32C9'
     };
   }
 }

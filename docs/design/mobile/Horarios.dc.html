@@ -12,14 +12,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#007F78}a:hover{color:#00665F}
+a{color:#5C32C9}a:hover{color:#4C259E}
 button{font-family:inherit}
 </style>
 </helmet>
-<div style="width: 390px; height: 1740px; box-sizing: border-box; background: #FFFDF9; font-family: Inter, system-ui, sans-serif; color: #203632; position: relative; overflow: hidden">
+<div style="width: 390px; height: 1740px; box-sizing: border-box; background: #FBF9FF; font-family: Inter, system-ui, sans-serif; color: #211339; position: relative; overflow: hidden">
 
-  <header style="display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 4px; background: #FFFFFF; border-bottom: 1px solid #D6E6DE">
-    <a href="#" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #203632">
+  <header style="display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 4px; background: #FFFFFF; border-bottom: 1px solid #DFD5EF">
+    <a href="#" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #211339">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
     </a>
     <h1 style="margin: 0; font-size: 16px; font-weight: 600; flex: 1">Horário</h1>
@@ -27,7 +27,7 @@ button{font-family:inherit}
 
   <div style="display: flex; flex-direction: column; gap: 24px; padding: 16px 16px 140px">
 
-    <section aria-labelledby="resumo-h" style="background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+    <section aria-labelledby="resumo-h" style="background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
       <div style="display: flex; align-items: center; gap: 8px">
         <span style="display: inline-flex; align-items: center; gap: 6px; background: #EAF5EF; color: #1F7A4D; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
@@ -43,13 +43,13 @@ button{font-family:inherit}
 
     <section aria-labelledby="semana-h" style="display: flex; flex-direction: column; gap: 8px">
       <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px">
-        <h2 id="semana-h" style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #435A53">Semana da clínica</h2>
-        <span style="font-size: 11px; color: #52645F">Toque num dia para editar</span>
+        <h2 id="semana-h" style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #544364">Semana da clínica</h2>
+        <span style="font-size: 11px; color: #6A5A7A">Toque num dia para editar</span>
       </div>
-      <ul style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; overflow: hidden">
+      <ul style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; overflow: hidden">
         <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
           <li style="border-top: {{d.border}}">
-            <a href="HorarioEditarDia.dc.html" style="display: grid; grid-template-columns: 48px minmax(0, 1fr) 20px; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 16px; text-decoration: none; color: #203632">
+            <a href="HorarioEditarDia.dc.html" style="display: grid; grid-template-columns: 48px minmax(0, 1fr) 20px; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 16px; text-decoration: none; color: #211339">
               <span style="font-size: 14px; font-weight: 600">{{d.short}}</span>
               <span style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
                 <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: {{d.textColor}}">
@@ -58,40 +58,40 @@ button{font-family:inherit}
                     <span style="font-size: 11px; font-weight: 600; color: #6E4200; background: #FFF7EA; border: 1px solid #EBCB94; padding: 1px 6px; border-radius: 999px">Alterado</span>
                   </sc-if>
                 </span>
-                <span aria-hidden="true" style="position: relative; height: 8px; border-radius: 4px; background: #EAF7F2">
+                <span aria-hidden="true" style="position: relative; height: 8px; border-radius: 4px; background: #F0E9FF">
                   <sc-for list="{{d.segs}}" as="s" hint-placeholder-count="2">
                     <span style="position: absolute; top: 0; bottom: 0; left: {{s.l}}%; width: {{s.w}}%; background: {{s.c}}; border-radius: 4px"></span>
                   </sc-for>
                 </span>
               </span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#718A81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8E7FA8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
             </a>
           </li>
         </sc-for>
       </ul>
-      <div style="display: flex; justify-content: space-between; padding: 0 4px 0 64px; font-size: 11px; color: #52645F" aria-hidden="true">
+      <div style="display: flex; justify-content: space-between; padding: 0 4px 0 64px; font-size: 11px; color: #6A5A7A" aria-hidden="true">
         <span>07h</span><span>11h</span><span>15h</span><span>20h</span>
       </div>
-      <p style="margin: 0; padding: 0 4px; font-size: 11px; color: #52645F; line-height: 1.45">Múltiplos de 15 min, no horário de Brasília.</p>
+      <p style="margin: 0; padding: 0 4px; font-size: 11px; color: #6A5A7A; line-height: 1.45">Múltiplos de 15 min, no horário de Brasília.</p>
     </section>
 
     <section aria-labelledby="folgas-h" style="display: flex; flex-direction: column; gap: 8px">
       <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px">
-        <h2 id="folgas-h" style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #435A53">Folgas e fechamentos</h2>
+        <h2 id="folgas-h" style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #544364">Folgas e fechamentos</h2>
         <a href="HorarioNovaFolga.dc.html" style="display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; font-weight: 600; text-decoration: none">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
           Adicionar
         </a>
       </div>
-      <ul style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; overflow: hidden">
+      <ul style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; overflow: hidden">
         <sc-for list="{{offs}}" as="o" hint-placeholder-count="3">
           <li style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px 8px 16px; border-top: {{o.border}}">
             <span style="width: 36px; height: 36px; flex: none; border-radius: 6px; background: {{o.tint}}; color: {{o.ink}}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600">{{o.badge}}</span>
             <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
               <strong style="font-size: 14px; font-weight: 600">{{o.who}}</strong>
-              <span style="font-size: 13px; color: #435A53">{{o.when}}</span>
+              <span style="font-size: 13px; color: #544364">{{o.when}}</span>
             </span>
-            <button type="button" aria-label="{{o.menuLabel}}" style="width: 44px; height: 44px; border: 0; background: transparent; color: #435A53; border-radius: 8px">
+            <button type="button" aria-label="{{o.menuLabel}}" style="width: 44px; height: 44px; border: 0; background: transparent; color: #544364; border-radius: 8px">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="19" r="1.8"></circle></svg>
             </button>
           </li>
@@ -101,8 +101,8 @@ button{font-family:inherit}
     </section>
 
     <section aria-labelledby="equipe-h" style="display: flex; flex-direction: column; gap: 8px">
-      <h2 id="equipe-h" style="margin: 0; padding: 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #435A53">Quem segue este horário</h2>
-      <div style="background: #FFFFFF; border: 1px solid #D6E6DE; border-radius: 12px; overflow: hidden">
+      <h2 id="equipe-h" style="margin: 0; padding: 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #544364">Quem segue este horário</h2>
+      <div style="background: #FFFFFF; border: 1px solid #DFD5EF; border-radius: 12px; overflow: hidden">
         <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px">
           <span style="display: flex">
             <span style="width: 32px; height: 32px; border-radius: 999px; background: #E3EDF7; color: #1D4F86; border: 2px solid #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">PA</span>
@@ -110,33 +110,33 @@ button{font-family:inherit}
           </span>
           <span style="flex: 1; font-size: 13px; line-height: 1.4"><strong style="font-weight: 600">Paula e Tiago</strong> seguem o horário da clínica e mudam junto.</span>
         </div>
-        <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 12px 8px 16px; border-top: 1px solid #EAF7F2; text-decoration: none; color: #203632">
+        <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 12px 8px 16px; border-top: 1px solid #F0E9FF; text-decoration: none; color: #211339">
           <span style="width: 32px; height: 32px; flex: none; border-radius: 999px; background: #E6F2EA; color: #24603D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">LÍ</span>
           <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
             <strong style="font-size: 14px; font-weight: 600">Lívia · horário próprio</strong>
-            <span style="font-size: 13px; color: #435A53">Ter–sáb 10:00–19:00</span>
+            <span style="font-size: 13px; color: #544364">Ter–sáb 10:00–19:00</span>
           </span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#718A81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8E7FA8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
         </a>
       </div>
     </section>
   </div>
 
   <sc-if value="{{dirty}}" hint-placeholder-val="{{ true }}">
-    <div style="position: absolute; left: 0; right: 0; bottom: 52px; padding: 12px 16px; background: #FFFFFF; border-top: 1px solid #D6E6DE; box-shadow: 0 -6px 16px rgba(20, 38, 37, 0.06); display: flex; flex-direction: column; gap: 10px">
-      <p style="margin: 0; font-size: 13px; color: #435A53; line-height: 1.4"><strong style="color: #6E4200; font-weight: 600">Quarta alterada, ainda não salva.</strong> Vale também para Paula e Tiago.</p>
+    <div style="position: absolute; left: 0; right: 0; bottom: 52px; padding: 12px 16px; background: #FFFFFF; border-top: 1px solid #DFD5EF; box-shadow: 0 -6px 16px rgba(20, 38, 37, 0.06); display: flex; flex-direction: column; gap: 10px">
+      <p style="margin: 0; font-size: 13px; color: #544364; line-height: 1.4"><strong style="color: #6E4200; font-weight: 600">Quarta alterada, ainda não salva.</strong> Vale também para Paula e Tiago.</p>
       <div style="display: flex; gap: 8px">
-        <button type="button" style="flex: 1; height: 36px; border-radius: 8px; border: 1px solid #718A81; background: #FFFFFF; color: #203632; font-size: 14px; font-weight: 600">Descartar</button>
-        <button type="button" style="flex: 2; height: 36px; border-radius: 8px; border: 0; background: #007F78; color: #FFFFFF; font-size: 14px; font-weight: 600">Salvar horário</button>
+        <button type="button" style="flex: 1; height: 36px; border-radius: 8px; border: 1px solid #8E7FA8; background: #FFFFFF; color: #211339; font-size: 14px; font-weight: 600">Descartar</button>
+        <button type="button" style="flex: 2; height: 36px; border-radius: 8px; border: 0; background: #5C32C9; color: #FFFFFF; font-size: 14px; font-weight: 600">Salvar horário</button>
       </div>
     </div>
   </sc-if>
 
-  <nav aria-label="Navegação principal" style="position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: #FFFFFF; border-top: 1px solid #D6E6DE; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr))">
-    <a href="#" style="display: flex; align-items: center; justify-content: center; font-size: 11px; color: #435A53; text-decoration: none">Conversas</a>
-    <a href="#" style="display: flex; align-items: center; justify-content: center; font-size: 11px; color: #435A53; text-decoration: none">Acompanhar</a>
-    <a href="#" style="display: flex; align-items: center; justify-content: center; font-size: 11px; color: #435A53; text-decoration: none">Agenda</a>
-    <a href="#" aria-current="page" style="display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #007F78; text-decoration: none">Clínica</a>
+  <nav aria-label="Navegação principal" style="position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: #FFFFFF; border-top: 1px solid #DFD5EF; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr))">
+    <a href="#" style="display: flex; align-items: center; justify-content: center; font-size: 11px; color: #544364; text-decoration: none">Conversas</a>
+    <a href="#" style="display: flex; align-items: center; justify-content: center; font-size: 11px; color: #544364; text-decoration: none">Acompanhar</a>
+    <a href="#" style="display: flex; align-items: center; justify-content: center; font-size: 11px; color: #544364; text-decoration: none">Agenda</a>
+    <a href="#" aria-current="page" style="display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #5C32C9; text-decoration: none">Clínica</a>
   </nav>
 </div>
 </x-dc>
@@ -144,7 +144,7 @@ button{font-family:inherit}
 class Component extends DCLogic {
   renderVals() {
     const R0 = 7 * 60, R = 13 * 60;
-    const seg = (a, b, c) => ({ l: ((a - R0) / R * 100).toFixed(2), w: ((b - a) / R * 100).toFixed(2), c: c || '#007F78' });
+    const seg = (a, b, c) => ({ l: ((a - R0) / R * 100).toFixed(2), w: ((b - a) / R * 100).toFixed(2), c: c || '#5C32C9' });
     const h = (x) => x * 60;
     const split = [seg(h(8), h(12)), seg(h(13), h(18))];
     const dirty = this.props.dirty ?? true;
@@ -162,14 +162,14 @@ class Component extends DCLogic {
     const days = raw.map((d, i) => ({
       ...d,
       changed: !!d.changed,
-      border: i === 0 ? '0' : '1px solid #EAF7F2',
-      textColor: d.muted ? '#52645F' : '#203632'
+      border: i === 0 ? '0' : '1px solid #F0E9FF',
+      textColor: d.muted ? '#6A5A7A' : '#211339'
     }));
     const offs = [
       { badge: '2/11', who: 'Clínica inteira · Feriado', when: 'Seg, 2 de novembro · dia inteiro', tint: '#FDF1F0', ink: '#B42318' },
       { badge: '6/11', who: 'Tiago · Folga', when: 'Sex, 6 de novembro · 13:00–17:00', tint: '#FBEDE3', ink: '#8A3410' },
       { badge: '10/11', who: 'Lívia · Férias', when: '10 a 20 de novembro · 11 dias', tint: '#E6F2EA', ink: '#24603D' }
-    ].map((o, i) => ({ ...o, border: i === 0 ? '0' : '1px solid #EAF7F2', menuLabel: 'Opções de ' + o.who }));
+    ].map((o, i) => ({ ...o, border: i === 0 ? '0' : '1px solid #F0E9FF', menuLabel: 'Opções de ' + o.who }));
     return { days, offs, dirty };
   }
 }
