@@ -178,6 +178,9 @@ Verificado em 23/11/2026: `astro build` e `astro check` sem erros, e o preview l
 
 Verificado em 23/11/2026: `astro build` e `astro check` sem erros; axe (contraste) sem violações e sem rolagem horizontal em 360, 390 e 1440 px; contrastes calculados nos pontos críticos entre 7,3:1 e 17,3:1. Na revisão visual apareceram os rótulos da tabela de planos no celular (`td::before`), que o axe não mede; ficaram `#DCCBFF` (10,2:1). **Em aberto:** percorrer a página com Tab, ver o lima em celular de verdade e sob sol, Lighthouse, e decidir se o violeta chega à marca, ao app e à imagem de partilha. Mock em `docs/design/landing` e previews seguem na paleta antiga.
 
+
+**Capturas do app na landing (23/11/2026, Confirmado, Paulo: «atualiza os screenshots do app com os novos tokens»):** as três telas (`site/src/assets/app/conversas.png`, `conversa.png`, `agenda.png`) foram geradas de novo com `site/capturas/gerar.sh`. O `capturas.css` deixou de ter cores fixas da marca antiga (petróleo `#0E5A5C`, damasco) e passa a importar `docs/design/tokens.css` (v0.12.0), então as telas acompanham o painel: **Agendar** em lima com contorno (no horário livre da agenda), primário violeta, «Marcado pela IA» em petróleo, «Precisa de alguém» em âmbar, «Agendado» na cor da etapa, avatar da atendente em areia. O conteúdo das telas não mudou. Continuam **provisórias**: desenho em HTML com dados fictícios, não captura do aplicativo real.
+
 ## Badge do hero sem «Em piloto» (19/11/2026)
 
 **Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o pill do hero deixa de dizer «Em piloto · …». Texto final em `site/src/pages/index.astro`: desktop/largo «clínicas de estética e depilação»; abaixo de 520px «estética e depilação».

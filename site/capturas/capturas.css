@@ -1,75 +1,81 @@
-/* Capturas PROVISÓRIAS da landing (04/11/2026): desenho das telas do painel com dados fictícios.
-   Substituir por capturas do aplicativo real com o seed da landing (ver docs/product/landing.md).
-   Roboto do painel (DEC-073), vinda do node_modules da raiz do repositório. */
+/* Capturas PROVISÓRIAS da landing (04/11/2026; cores ligadas aos tokens v0.12.0 em 23/11/2026):
+   desenho das telas do painel com dados fictícios. Só tokens de docs/design/tokens.css, para as telas
+   acompanharem o painel. Substituir por capturas do aplicativo real com o seed da landing
+   (ver docs/product/landing.md). Roboto do painel (DEC-073), vinda do node_modules da raiz. */
+@import url("../../docs/design/tokens.css");
 @import url("../../node_modules/@fontsource/roboto/400.css");
 @import url("../../node_modules/@fontsource/roboto/500.css");
 @import url("../../node_modules/@fontsource/roboto/700.css");
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { font-family: Roboto, system-ui, sans-serif; color: #101817; -webkit-font-smoothing: antialiased; }
+body { font-family: Roboto, system-ui, sans-serif; color: var(--color-text-primary); -webkit-font-smoothing: antialiased; }
 p { margin: 0; }
-.tela { width: 280px; height: 580px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; }
-.tela.creme { background: #F4F3EF; }
+.tela { width: 280px; height: 580px; background: var(--color-surface-card); display: flex; flex-direction: column; overflow: hidden; }
+.tela.creme { background: var(--color-surface-app); }
 
-.topo { display: flex; align-items: center; gap: 10px; padding: 18px 14px 12px; background: #FFFFFF; border-bottom: 1px solid #E4E6E3; }
+.topo { display: flex; align-items: center; gap: 10px; padding: 18px 14px 12px; background: var(--color-surface-card); border-bottom: 1px solid var(--color-line-border); }
 .agenda-topo { justify-content: space-between; border-bottom: 0; padding-bottom: 6px; }
-.logo { width: 30px; height: 30px; border-radius: 8px; background: #0E5A5C; color: #FFFFFF; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.logo { width: 30px; height: 30px; border-radius: 8px; background: var(--color-nav-base); color: var(--color-nav-icon-active); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; }
 .titulo { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.25; }
 .titulo b { font-size: 17px; font-weight: 700; }
-.titulo small { font-size: 12px; color: #4A5352; }
-.vivo { color: #1F7A4D; }
-.eu { width: 30px; height: 30px; border-radius: 50%; background: #E9E4F7; color: #4B2E9A; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.titulo small { font-size: 12px; color: var(--color-text-secondary); }
+.vivo { color: var(--color-success-ink); }
+.eu { width: 30px; height: 30px; border-radius: 50%; background: var(--color-person-avatar); color: var(--color-person-ink); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .voltar, .mais { font-size: 22px; line-height: 1; width: 20px; text-align: center; }
 
 .chips { display: flex; gap: 6px; padding: 10px 14px; overflow: hidden; }
-.chips.branco { background: #FFFFFF; padding-top: 4px; border-bottom: 1px solid #E4E6E3; }
-.chip { flex: none; padding: 5px 10px; border-radius: 999px; border: 1px solid #B8BEBC; font-size: 12px; font-weight: 500; }
-.chip.on { background: #101817; border-color: #101817; color: #FFFFFF; }
+.chips.branco { background: var(--color-surface-card); padding-top: 4px; border-bottom: 1px solid var(--color-line-border); }
+.chip { flex: none; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--color-line-control); font-size: 12px; font-weight: 500; }
+.chip.on { background: var(--color-text-primary); border-color: var(--color-text-primary); color: var(--color-surface-card); }
 
 .lista { flex: 1; }
-.linha { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid #EEF0EE; }
-.linha.alerta { background: #FFF7F2; }
-.av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: #EEF0EE; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.av.damasco { background: #E8875A; }
-.av.petroleo { background: #0E5A5C; color: #FFFFFF; }
+.linha { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--color-line-divider); }
+.linha.alerta { background: var(--color-warning-tint); }
+.av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--color-primary-tint); color: var(--color-primary-ink); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.av.damasco { background: var(--color-attention-base); color: var(--color-attention-on-base); }
+.av.petroleo { background: var(--color-primary-fill); color: var(--color-primary-on-fill); }
 .corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .l1 { align-self: stretch; display: flex; justify-content: space-between; }
 .l1 b { font-size: 14px; }
-.l1 small { font-size: 11px; color: #4A5352; }
-.txt { align-self: stretch; font-size: 13px; color: #4A5352; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tag { margin-top: 3px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; background: #EEF0EE; color: #3D4645; }
-.tag.escura { background: #101817; color: #FFFFFF; }
-.tag.ia { background: #DDECEB; color: #0A4547; margin-top: 0; }
+.l1 small { font-size: 11px; color: var(--color-text-secondary); }
+.txt { align-self: stretch; font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tag { margin-top: 3px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; background: var(--color-surface-sunken); color: var(--color-text-secondary); }
+/* «Precisa de alguém»: atenção (âmbar cheio), como no painel. */
+.tag.escura { background: var(--color-attention-base); color: var(--color-attention-on-base); font-weight: 700; }
+/* «Marcado pela IA»: a cor da IA (petróleo). «Agendado»: a cor da etapa. */
+.tag.ia { background: var(--color-ai-tint); color: var(--color-ai-ink); border: 1px solid var(--color-ai-border); margin-top: 0; }
+.tag.agendado { background: var(--color-stage-agendado-tint); color: var(--color-stage-agendado-ink); margin-top: 0; }
 
-.abas { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #E4E6E3; padding: 12px 4px 16px; font-size: 11px; text-align: center; color: #4A5352; background: #FFFFFF; }
-.abas .on { color: #0E5A5C; font-weight: 700; }
+.abas { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--color-line-border); padding: 12px 4px 16px; font-size: 11px; text-align: center; color: var(--color-text-secondary); background: var(--color-surface-card); }
+.abas .on { color: var(--color-primary-ink); font-weight: 700; }
 
 .mensagens { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px; }
-.dia { align-self: center; padding: 3px 10px; border-radius: 999px; background: #E9E8E2; font-size: 11px; color: #3D4645; }
+.dia { align-self: center; padding: 3px 10px; border-radius: 999px; background: var(--color-surface-sunken); font-size: 11px; color: var(--color-text-secondary); }
 .msg { max-width: 210px; padding: 8px 10px; border-radius: 12px; font-size: 13px; line-height: 1.35; }
-.msg small { display: block; text-align: right; font-size: 10px; color: #4A5352; margin-top: 2px; }
-.msg.dela { align-self: flex-start; background: #FFFFFF; }
-.msg.nossa { align-self: flex-end; background: #E1EFEC; }
-.proposta { align-self: flex-end; width: 200px; background: #FFFFFF; border: 1px solid #CFE2DF; border-radius: 12px; overflow: hidden; font-size: 12px; }
-.proposta div { padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; color: #4A5352; }
-.proposta small { font-size: 11px; color: #0E5A5C; font-weight: 500; }
-.proposta b { font-size: 14px; color: #101817; }
-.proposta p { padding: 6px; text-align: center; border-top: 1px solid #E4E6E3; background: #F1F7F6; color: #0A4547; font-weight: 500; }
-.rodape { padding: 10px 12px 16px; background: #FFFFFF; border-top: 1px solid #E4E6E3; }
-.assumir { display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 999px; background: #0E5A5C; color: #FFFFFF; font-size: 14px; font-weight: 500; }
+.msg small { display: block; text-align: right; font-size: 10px; color: var(--color-text-muted); margin-top: 2px; }
+.msg.dela { align-self: flex-start; background: var(--color-surface-card); border: 1px solid var(--color-line-border); }
+.msg.nossa { align-self: flex-end; background: var(--color-ai-tint); border: 1px solid var(--color-ai-border); }
+.proposta { align-self: flex-end; width: 200px; background: var(--color-surface-card); border: 1px solid var(--color-line-border); border-radius: 12px; overflow: hidden; font-size: 12px; }
+.proposta div { padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; color: var(--color-text-secondary); }
+.proposta small { font-size: 11px; color: var(--color-primary-ink); font-weight: 500; }
+.proposta b { font-size: 14px; color: var(--color-text-primary); }
+.proposta p { padding: 6px; text-align: center; border-top: 1px solid var(--color-line-border); background: var(--color-success-tint); color: var(--color-success-ink); font-weight: 500; }
+.rodape { padding: 10px 12px 16px; background: var(--color-surface-card); border-top: 1px solid var(--color-line-border); }
+.assumir { display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 999px; background: var(--color-primary-fill); color: var(--color-primary-on-fill); font-size: 14px; font-weight: 500; }
 
 .dia-lista { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px; }
 .slot { display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: start; }
 .h { font-size: 12px; font-weight: 500; padding-top: 8px; }
-.h.forte { font-weight: 700; color: #0E5A5C; }
-.ev { padding: 8px 10px; border-radius: 10px; background: #E8F1F0; border: 1px solid #CFE2DF; font-size: 12px; line-height: 1.4; }
+.h.forte { font-weight: 700; color: var(--color-primary-ink); }
+.ev { padding: 8px 10px; border-radius: 10px; background: var(--color-surface-card); border: 1px solid var(--color-line-border); font-size: 12px; line-height: 1.4; }
 .ev b { display: block; font-size: 13px; }
-.ev.destaque { background: #0E5A5C; border-color: #0E5A5C; color: #FFFFFF; }
-.ev.destaque span { color: #DCE9E8; }
-.ev.destaque i { display: inline-block; margin-top: 5px; padding: 1px 7px; border-radius: 5px; background: #E8875A; color: #101817; font-size: 11px; font-weight: 500; font-style: normal; }
-.ev.cinza { background: #EAE9E4; border-color: #DAD8D1; color: #3D4645; }
-.ev.cinza b { color: #101817; }
-.ev.livre { display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border: 1.5px dashed #A9B1AF; color: #4A5352; }
-.ev.livre b { color: #101817; }
-.ev.livre em { font-style: normal; font-weight: 700; color: #0E5A5C; }
+.ev.destaque { background: var(--color-primary-fill); border-color: var(--color-primary-fill); color: var(--color-primary-on-fill); }
+.ev.destaque span { color: var(--color-primary-tint); }
+.ev.destaque i { display: inline-block; margin-top: 5px; padding: 1px 7px; border-radius: 5px; background: var(--color-ai-tint); color: var(--color-ai-ink); font-size: 11px; font-weight: 500; font-style: normal; }
+.ev.cinza { background: var(--color-surface-sunken); border-color: var(--color-line-border); color: var(--color-text-secondary); }
+.ev.cinza b { color: var(--color-text-primary); }
+.ev.livre { display: flex; justify-content: space-between; align-items: center; background: var(--color-surface-card); border: 1.5px dashed var(--color-line-control); color: var(--color-text-secondary); }
+.ev.livre b { color: var(--color-text-primary); }
+/* «Agendar»: a ação principal em lima com contorno (accent.*), como no painel. */
+.ev.livre em { font-style: normal; font-weight: 700; padding: 5px 10px; border-radius: 8px; background: var(--color-accent-fill); color: var(--color-accent-on-fill); box-shadow: inset 0 0 0 1.5px var(--color-accent-border); }
