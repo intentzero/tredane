@@ -2,23 +2,38 @@ import horizontalUrl from '../../../../docs/design/brand/svg/tredane-horizontal-
 import horizontalDarkUrl from '../../../../docs/design/brand/svg/tredane-horizontal-escuro.svg?url'
 import stackedUrl from '../../../../docs/design/brand/svg/tredane-empilhado-cor.svg?url'
 import symbolUrl from '../../../../docs/design/brand/svg/tredane-simbolo-cor.svg?url'
+import symbolDarkUrl from '../../../../docs/design/brand/svg/tredane-simbolo-escuro.svg?url'
 
 /**
  * Logotipo oficial (DEC-050), usado como vem de docs/design/brand: sem alterar cor,
  * proporção nem espaçamento. Símbolo ≥ 16 px; horizontal ≥ 24 px de altura.
  */
 
-/** Símbolo sozinho (cabeçalho do celular e menu do desktop). */
+/**
+ * Símbolo sozinho (cabeçalho do celular e menu do desktop).
+ * Fundo claro: arte `cor`. Fundo escuro: arte `escuro` (traço Lavanda, ponto Lima). O CSS escolhe,
+ * como no BrandHorizontal; sem isso o símbolo violeta mal se lê sobre a placa escura do tema escuro.
+ */
 export function BrandMark({ size = 32, label = 'Tredane' }: { size?: number; label?: string }) {
   return (
-    <img
-      className="brand-mark"
-      src={symbolUrl}
-      width={size}
-      height={size}
-      alt={label}
-      draggable={false}
-    />
+    <span className="brand-swap">
+      <img
+        className="brand-mark brand-on-light"
+        src={symbolUrl}
+        width={size}
+        height={size}
+        alt={label}
+        draggable={false}
+      />
+      <img
+        className="brand-mark brand-on-dark"
+        src={symbolDarkUrl}
+        width={size}
+        height={size}
+        alt={label}
+        draggable={false}
+      />
+    </span>
   )
 }
 

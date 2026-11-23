@@ -4,6 +4,7 @@
 
 - `brand/svg/*-cor.svg`: traço `#5C32C9`, ponto e nome `#211339`. `*-escuro.svg`: traço `#CBB8FF`, ponto `#D5FF55`, nome `#F1ECFA`. Ícone do app e favicon: placa `#211339`, símbolo `#F1ECFA`, ponto `#D5FF55`. `mono-*` iguais. Desenho e proporções iguais.
 - PNG do ícone (1024, 512, 192, 32), `favicon.ico` e o ícone de fundo branco regenerados; `tools/build_brand.py` com as constantes novas. Copiados para `public/` (favicon, ícones do PWA) e `site/public/`.
+- `BrandMark` troca de versão com o tema (símbolo `escuro` sobre a placa escura do menu); sem isso o símbolo violeta mal se lia no tema escuro. Avatares de contato, tom 4: de `ai.tint` para `person.avatar` (pessoas não usam a cor da IA).
 - `index.html`: `theme-color` escuro de `#182628` para `#1B1430` (cartão escuro v0.12.0).
 
 ## 23/11/2026 — Tokens v0.12.0: paleta violeta e lima (**Confirmado**, Paulo «Sim, implementa»)
