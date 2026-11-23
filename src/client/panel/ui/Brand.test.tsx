@@ -18,8 +18,9 @@ describe('logotipo oficial', () => {
     expect(imgs).toHaveLength(4)
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual(
       expect.arrayContaining([
-        // O símbolo é pequeno e o Vite o embute (data URI): confere as cores oficiais.
-        expect.stringMatching(/0E5A5C.*E8875A/),
+        // O símbolo é pequeno e o Vite o embute (data URI): confere as cores oficiais
+        // (Violeta e Tinta, marca revista em 23/11/2026; antes Petróleo e Damasco).
+        expect.stringMatching(/5C32C9.*211339/),
         expect.stringContaining('tredane-horizontal-cor'),
         expect.stringContaining('tredane-horizontal-escuro'),
         expect.stringContaining('tredane-empilhado-cor'),

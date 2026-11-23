@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 23/11/2026 — Marca em violeta e lima: logo e favicon (**Confirmado**, Paulo)
+
+- `brand/svg/*-cor.svg`: traço `#5C32C9`, ponto e nome `#211339`. `*-escuro.svg`: traço `#CBB8FF`, ponto `#D5FF55`, nome `#F1ECFA`. Ícone do app e favicon: placa `#211339`, símbolo `#F1ECFA`, ponto `#D5FF55`. `mono-*` iguais. Desenho e proporções iguais.
+- PNG do ícone (1024, 512, 192, 32), `favicon.ico` e o ícone de fundo branco regenerados; `tools/build_brand.py` com as constantes novas. Copiados para `public/` (favicon, ícones do PWA) e `site/public/`.
+- `index.html`: `theme-color` escuro de `#182628` para `#1B1430` (cartão escuro v0.12.0).
+
 ## 23/11/2026 — Tokens v0.12.0: paleta violeta e lima (**Confirmado**, Paulo «Sim, implementa»)
 
 - Alinha o painel à landing (#1036). Superfícies `#FBF9FF`/`#F0E9FF`, texto `#211339`, primário violeta `#4C259E` (escuro `#7650E0` de preenchimento), navegação `#211339`/`#0E0818`.
