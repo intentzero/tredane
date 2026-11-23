@@ -4788,6 +4788,7 @@ button.panel-auth-inline-link {
   height: 2px;
   background: var(--color-danger-ink);
   z-index: 2;
+  /* Decorativa: nunca captura toque/clique nos blocos por baixo. */
   pointer-events: none;
 }
 
@@ -4808,6 +4809,15 @@ button.panel-auth-inline-link {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+}
+
+/*
+ * Presença por marcar: a faixa Chegou / Não veio fica acima da linha «agora»
+ * (z-index 2). Sem isto a linha pinta por cima dos botões e, em alguns
+ * browsers, o hit-test falha mesmo com pointer-events: none na linha.
+ */
+.agenda-block-wrap--attendance {
+  z-index: 3;
 }
 
 .agenda-block {
