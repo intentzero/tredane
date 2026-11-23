@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgendaAppointmentItem } from '../../api'
@@ -50,6 +52,16 @@ describe('presença por marcar', () => {
     expect(screen.getByText('Não veio')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
     expect(onSet).toHaveBeenCalledWith('a', null)
+  })
+
+  it('CSS: bloco com presença fica acima da linha «agora» (Chegou / Não veio clicáveis)', () => {
+    const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
+    // Linha decorativa: não captura toque.
+    expect(css).toMatch(/\.agenda-now\s*\{[^}]*pointer-events:\s*none/s)
+    // Faixa de presença acima da linha (z-index 2 → wrap com presença em 3).
+    expect(css).toMatch(/\.agenda-block-wrap--attendance\s*\{[^}]*z-index:\s*3/s)
+    expect(css).toMatch(/\.agenda-now\s*\{[^}]*z-index:\s*2/s)
+    expect(css).toMatch(/\.agenda-block-wrap\s*\{[^}]*z-index:\s*1/s)
   })
 
   it('lista do celular: horários já resolvidos recolhem e abrem num toque', () => {

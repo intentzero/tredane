@@ -272,3 +272,44 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     expect(screen.queryByRole('complementary', { name: 'Contexto da agenda' })).toBeNull()
   })
 })
+
+describe('Agenda — presença no grid acima da linha agora', () => {
+  it('horário já começado ganha wrap --attendance e Chegou chama a API', async () => {
+    const setAppointmentAttendance = vi.fn(async () => ({
+      id: 'a1',
+      attendance: 'arrived' as const,
+      version: 2,
+    }))
+    const api = {
+      ...mockApi(),
+      setAppointmentAttendance,
+    } as unknown as PanelApi
+
+    render(
+      <AgendaDayWeek
+        tenantId="t"
+        api={api}
+        generation={1}
+        view="day"
+        canMarkAttendance
+      />,
+    )
+    await screen.findByText(/Laura Pires/)
+    const grid = document.querySelector('.agenda-grid') as HTMLElement
+    // 9:00 e 10:00 (agora = 10:00) pedem presença; o wrap leva --attendance acima da linha.
+    const wraps = grid.querySelectorAll('.agenda-block-wrap--attendance')
+    expect(wraps.length).toBeGreaterThanOrEqual(1)
+    expect(document.querySelector('.agenda-now')).toBeTruthy()
+    const laura = within(grid).getByText(/Laura Pires/).closest('.agenda-block-wrap') as HTMLElement
+    expect(laura.classList.contains('agenda-block-wrap--attendance')).toBe(true)
+    fireEvent.click(within(laura).getByRole('button', { name: 'Chegou' }))
+    await waitFor(() =>
+      expect(setAppointmentAttendance).toHaveBeenCalledWith(
+        't',
+        'a1',
+        'arrived',
+        expect.anything(),
+      ),
+    )
+  })
+})
