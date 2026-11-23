@@ -23,7 +23,24 @@ const whatsappUrl = isReal(import.meta.env.PUBLIC_WHATSAPP_URL)
 const hasAppUrl = isReal(appUrl)
 const hasContact = isReal(contactEmail)
 const hasWhatsapp = true
-const ctaHref = whatsappUrl
+// Proposta E (revisão de CTA, 23/11/2026): uma mensagem pronta por posição, para saber de onde veio a
+// conversa sem cookie nem rastreio. Só troca o ?text= do link; a pessoa pode apagar antes de enviar.
+const waLink = (text: string) => {
+  try {
+    const u = new URL(whatsappUrl)
+    // %20 em vez do «+» do URLSearchParams: alguns clientes do WhatsApp mostram o «+» literal.
+    u.searchParams.delete('text')
+    return `${u.toString()}${u.search ? '&' : '?'}text=${encodeURIComponent(text)}`
+  } catch {
+    return whatsappUrl
+  }
+}
+const wa = {
+  topo: whatsappUrl,
+  abertura: waLink('Quero minha agenda cheia. Como funciona o piloto do Tredane?'),
+  piloto: waLink('Vi os planos do Tredane e quero entrar no piloto'),
+  perguntas: waLink('Tenho uma dúvida sobre o Tredane'),
+}
 // Preços de referência Confirmados (Paulo Santos, 19/11/2026). Mesmos valores do estudo em docs/product/unit-economics-assinatura.md.
 const plans = [
   { name: 'Estúdio', monthly: 'R$ 149', annual: 'R$ 124', fits: '1 profissional, 1 login' },
@@ -74,7 +91,7 @@ const faq = [
 </nav>
 <div class="top-actions">
 {hasAppUrl && <a class="top-link" href={appUrl}>Entrar</a>}
-<a class="btn btn-apricot btn-sm" href={ctaHref}>{hasWhatsapp ? 'Conversar no WhatsApp' : 'Conhecer o piloto'}</a>
+<a class="btn btn-apricot btn-sm" href={wa.topo}><Icon name="message" size={18} stroke={2.2} />Conversar no WhatsApp</a>
 </div>
 </div>
 </header>
@@ -89,8 +106,9 @@ const faq = [
 <h1 class="h1">O atendimento da sua clínica no WhatsApp, <em>do «oi» ao horário marcado.</em></h1>
 <p class="lead">Responde com o seu preço, mostra só horários livres e marca quando a cliente toca em Confirmar.</p>
 <div class="cta-row">
-<a class="btn btn-apricot" href={ctaHref}>{hasWhatsapp && <Icon name="message" size={20} stroke={2.2} />}Quero minha agenda cheia</a>
+<a class="btn btn-apricot" href={wa.abertura}><Icon name="message" size={20} stroke={2.2} />Quero minha agenda cheia</a>
 <a class="hero-link" href="#conversa">Ver na prática</a>
+<p class="cta-note"><Icon name="check" size={16} stroke={2.4} />Abre uma conversa no WhatsApp com o Paulo. Sem formulário.</p>
 </div>
 </div>
 
@@ -225,7 +243,7 @@ const faq = [
 <p class="pilot-status" role="status"><strong>Estado atual:</strong> em piloto.</p>
 <p class="lead">No piloto, conectamos o WhatsApp com você, cadastramos serviços juntos e acompanhamos os primeiros passos. Planos de referência abaixo.</p>
 <div class="cta-row">
-<a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>
+<a class="btn btn-dark" href={wa.piloto}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>
 {hasContact && <a class="pilot-mail" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Prefiro e-mail</a>}
 </div>
 </div>
@@ -254,6 +272,10 @@ const faq = [
 <div class="pilot-box reveal"><h3>A clínica recebe</h3><ul><li>Ajuda para conectar o WhatsApp</li><li>Serviços, preços e agenda configurados junto com você</li><li>Contato direto com quem constrói o produto</li></ul></div>
 <div class="pilot-box reveal"><h3>O que pedimos</h3><ul><li>Um número de WhatsApp Business da clínica</li><li>Sua lista de serviços, profissionais e salas</li><li>Uma conta Pix da clínica, se quiser usar o sinal</li><li>Conversas rápidas sobre o que funcionou</li></ul></div>
 </div>
+<div class="pilot-close reveal">
+<p><strong>Algum plano cabe na sua clínica?</strong><span>Fala direto com quem constrói o produto.</span></p>
+<a class="btn btn-dark" href={wa.piloto}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>
+</div>
 </div>
 </div>
 </section>
@@ -263,8 +285,8 @@ const faq = [
 <div class="stack" style="gap: 16px;">
 <p class="eyebrow">Perguntas frequentes</p>
 <h2 class="h3s">Perguntas que a gente ouve.</h2>
-{hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a> ou <a href={`mailto:${contactEmail}`}>por e-mail</a>.</p>}
-{hasWhatsapp && !hasContact && <p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a>.</p>}
+{hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={wa.perguntas}>Pergunte no WhatsApp</a> ou <a href={`mailto:${contactEmail}`}>por e-mail</a>.</p>}
+{hasWhatsapp && !hasContact && <p class="lead">Outra dúvida? <a href={wa.perguntas}>Pergunte no WhatsApp</a>.</p>}
 {!hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={`mailto:${contactEmail}`}>Escreva para a gente</a>.</p>}
 </div>
 <div class="faq">
@@ -306,7 +328,14 @@ const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const bar = document.querySelector('.topbar')
 const hero = document.getElementById('topo')
 if (bar && hero && 'IntersectionObserver' in window) {
-  new IntersectionObserver(([e]) => bar.classList.toggle('is-stuck', !e.isIntersecting), { rootMargin: '-80px 0px 0px 0px' }).observe(hero)
+  // is-over-hero (proposta A, 23/11/2026): sobre a abertura o botão do topo fica em contorno; sem script fica cheio.
+  new IntersectionObserver(
+    ([e]) => {
+      bar.classList.toggle('is-stuck', !e.isIntersecting)
+      bar.classList.toggle('is-over-hero', e.isIntersecting)
+    },
+    { rootMargin: '-80px 0px 0px 0px' },
+  ).observe(hero)
   const links = new Map(
     [...document.querySelectorAll<HTMLAnchorElement>('.nav a[href^="#"]')].map((a) => [a.hash.slice(1), a]),
   )
