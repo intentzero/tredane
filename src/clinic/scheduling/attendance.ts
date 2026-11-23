@@ -100,7 +100,9 @@ export function setAppointmentAttendanceOp(
       row.id,
       row.version,
     )
-    if (Number(updated.changes ?? 0) !== 1) {
+    // O adaptador do Durable Object devolve -1 quando o runtime não expõe
+    // quantas linhas foram alteradas; a transação síncrona já serializa este write.
+    if (updated.changes !== -1 && updated.changes !== 1) {
       throw new ConflictError('version_conflict', 'O compromisso mudou; atualize a agenda')
     }
 
