@@ -145,6 +145,19 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 
 **Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o botão do header no celular dizia só «WhatsApp» — rótulo vago, sem verbo de acção. Texto final em todo o canal WhatsApp da landing (header, bloco do piloto): **«Conversar no WhatsApp»**. Motivo: a leitora precisa saber que o botão abre uma conversa com o Tredane, não só o nome do app. O hero mantém «Quero minha agenda cheia»; o FAQ mantém «Pergunte no WhatsApp» (link de texto, não botão). Remove a variante curta `cta-short` / `cta-long` em `site/src/styles/global.css`. Número e `wa.me` seguem Confirmados (+55 61 99588 8039).
 
+## Revisão dos CTAs (23/11/2026)
+
+**Confirmado** (Paulo Santos, 23/11/2026, «Yes, implement A–F», sobre a revisão no [canvas privado](https://claude.ai/artifact/DAETgby9hbRzw86nyvrdD1)). Os rótulos confirmados em 19/11 não mudam. Implementado em `site/src/pages/index.astro` e `site/src/styles/coral-menta.css`:
+
+- **A. Um botão principal por vez:** enquanto a abertura está na tela, o botão do topo fica em contorno coral (`#C34334` sobre `#FFFDF9`, 4,95:1). Depois de rolar, volta a ser cheio. O script põe `is-over-hero` no topo; sem script, o botão fica cheio.
+- **B. Para onde o botão leva:** logo abaixo de «Quero minha agenda cheia» aparece «Abre uma conversa no WhatsApp com o Paulo. Sem formulário.» (`#52645F`, 4,95:1 ou mais sobre o fundo da abertura). No celular, a linha fica entre o botão e «Ver na prática».
+- **C. Hover e pressionado:** coral `#C34334` → hover `#A93A2D` (6,31:1) → pressionado `#8F3125` (7,97:1). O escuro fica na mesma família: `#203632` → hover `#2E4B46` (9,5:1) → pressionado `#152622` (15,8:1). Ao pressionar, o botão não se move. O hover para petróleo deixa de valer.
+- **D. Botão no fim do bloco de planos:** «Algum plano cabe na sua clínica?» / «Fala direto com quem constrói o produto.» + «Conversar no WhatsApp».
+- **E. Uma mensagem pronta por posição** (só muda o `?text=` do `wa.me`; sem cookie nem rastreamento): topo «Quero conhecer o piloto do Tredane»; abertura «Quero minha agenda cheia. Como funciona o piloto do Tredane?»; piloto (os dois botões) «Vi os planos do Tredane e quero entrar no piloto»; perguntas «Tenho uma dúvida sobre o Tredane». O texto exato continua **Proposto**, como a mensagem-base.
+- **F. O mesmo ícone de mensagem** em todo botão de WhatsApp, inclusive no topo. No topo, o ícone some abaixo de 400px; abaixo de 420px o rótulo passa a 14px; e abaixo de 375px o logo passa a 24px, para «Conversar no WhatsApp» caber numa linha até 360px. A revisão apontou um hover que se movia com movimento reduzido, mas isso estava errado: `global.css` já anula `transform` nesse caso.
+
+Verificado em 23/11/2026: `astro build` e `astro check` sem erros, e o preview local em 1280px, 375px e 360px sem rolagem horizontal. **Em aberto:** rodar axe e Lighthouse antes de publicar e atualizar o mock em `docs/design/landing`.
+
 ## Badge do hero sem «Em piloto» (19/11/2026)
 
 **Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o pill do hero deixa de dizer «Em piloto · …». Texto final em `site/src/pages/index.astro`: desktop/largo «clínicas de estética e depilação»; abaixo de 520px «estética e depilação».
