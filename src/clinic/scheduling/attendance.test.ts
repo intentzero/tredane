@@ -4,6 +4,7 @@ import { bootClinicDb } from '../test-db'
 import { workerCaller } from '../envelopes'
 import { setAppointmentAttendanceOp } from './attendance'
 import { ConflictError } from '../errors'
+import type { ClinicDb } from '../store'
 
 describe('marcar chegada (DEC-205)', () => {
   it('grava chegou e não veio; limpa; recusa outra coluna', () => {
@@ -38,8 +39,15 @@ describe('marcar chegada (DEC-205)', () => {
         )
       }
 
+      const durableDb: ClinicDb = {
+        ...db,
+        run(sql, ...params) {
+          db.run(sql, ...params)
+          return { changes: -1 }
+        },
+      }
       const arrived = setAppointmentAttendanceOp(
-        db,
+        durableDb,
         caller,
         { appointmentId, attendance: 'arrived' },
         clock,
