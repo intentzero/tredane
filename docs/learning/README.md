@@ -10,6 +10,7 @@ Pacote de conhecimento da iniciativa WhatsApp / núcleo conversacional do Tredan
 | --- | --- |
 | [licoes-arquitectura-tredane.md](licoes-arquitectura-tredane.md) | Síntese durável: problema, decisões, 12 práticas, topologia, anti-padrões, mapa Phase 1 / Flow |
 | [opus-naturalis-artigo-tredane.md](opus-naturalis-artigo-tredane.md) | Artigo aprovado para o PR: arquitetura híbrida, segurança, UX e testes; publicação pendente |
+| [opus-naturalis-arquitetura-conversacional.md](opus-naturalis-arquitetura-conversacional.md) | Artigo Opus Naturalis: intents fechados, FAQ de catálogo, Abrir agenda determinístico, classificador só-rótulo e redator só em abertas; rascunho editorial |
 | [linkedin-post-tredane.md](linkedin-post-tredane.md) | Versão LinkedIn aprovada para o PR; publicação pendente |
 | [opus-naturalis-transferencia.md](opus-naturalis-transferencia.md) | O que reutilizar / adaptar / não copiar para outro produto |
 | [prompt-fragilidade-flow.md](prompt-fragilidade-flow.md) | Anexo: prompt completo da fragilidade da conversa e do Flow |
