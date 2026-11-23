@@ -1,0 +1,112 @@
+/* Violeta e lima — landing, 23/11/2026 (ver docs/product/landing.md, «Direção violeta e lima»).
+   Carregada depois de global.css e coral-menta.css; só a landing. Painel, ícone do app, favicon
+   e imagem de partilha seguem em Petróleo/Damasco (decisão de identidade à parte, DEC-050).
+   Lima só sobre fundo escuro; no cabeçalho claro o botão é violeta profundo (lima sobre #FBF9FF mede 1,10:1). */
+:root {
+  --bg: #FBF9FF; --cream: #FBF9FF; --mint: #F0E9FF; --sunken: #F0E9FF; --line: #DFD5EF;
+  --ink: #211339; --ink-2: #544364;
+  --petrol: #5C32C9; --petrol-dark: #4C259E;
+}
+
+/* Foco: violeta sobre claro (#4C259E, 8,6:1 ou mais), branco sobre escuro (17,3:1). */
+a:focus-visible, summary:focus-visible { outline: 3px solid #4C259E; outline-offset: 4px; }
+.topbar a:focus-visible { outline-color: #4C259E; }
+.hero a:focus-visible, .panel.apricot a:focus-visible, .panel.aurora-panel a:focus-visible { outline-color: #FFFFFF; }
+
+/* Cabeçalho claro */
+.topbar, .topbar.is-stuck { background: #FBF9FFF5; border-bottom-color: #DFD5EF; }
+.topbar.is-stuck { box-shadow: 0 12px 30px -18px #21133955; }
+.topbar .nav a, .topbar .top-link { color: #211339; }
+.topbar .nav a:hover, .topbar .nav a.is-active { color: #4C259E; }
+.topbar .nav a.is-active { box-shadow: inset 0 -2px 0 #4C259E; }
+.topbar .nav a::after { background: #4C259E; }
+
+/* Botões: lima com texto violeta sobre escuro; violeta profundo no cabeçalho claro. */
+.btn-apricot { background: #D5FF55; color: #211339; box-shadow: none; }
+.btn-apricot:hover { background: #E4FF96; color: #211339; }
+.btn-apricot:active { background: #C2EB3C; color: #211339; }
+.topbar .btn-apricot { background: #211339; color: #FFFFFF; }
+.topbar .btn-apricot:hover { background: #3A2560; color: #FFFFFF; }
+.topbar .btn-apricot:active { background: #150C26; color: #FFFFFF; }
+.btn-dark { background: #211339; color: #FFFFFF; }
+.btn-dark:hover { background: #3A2560; color: #FFFFFF; }
+.btn-dark:active { background: #150C26; color: #FFFFFF; }
+
+/* Abertura */
+.hero { background: linear-gradient(115deg, #211339 60%, #291744); color: #FFFFFF; }
+.hero .h1 { color: #FFFFFF; }
+.hero .h1 em { color: #DCCBFF; }
+.hero .lead, .hero-note, .hero .fine, .cta-note { color: #E3D9F6; }
+.cta-note svg { color: #D5FF55; }
+.hero-link { color: #FFFFFF; text-decoration-color: #DCCBFF; }
+.chip { background: #FFFFFF1A; color: #E3D9F6; }
+.chip .dot { background: #D5FF55; }
+.proof { color: #E3D9F6; border-top-color: #FFFFFF38; }
+.hero .aurora i:nth-child(n) { background: #5C32C9; opacity: .24; }
+.silk g { stroke: #DCCBFF; }
+.hero-stage .rings { border-color: #FFFFFF55; box-shadow: 0 0 0 44px #FFFFFF05, 0 0 0 45px #FFFFFF35, 0 0 0 96px #FFFFFF04, 0 0 0 97px #FFFFFF26; }
+.stage-phone, .stage-phone.light { border-color: #DFD5EF; box-shadow: 0 24px 50px -22px #21133966; }
+.hero-toast { box-shadow: 0 20px 40px -16px #21133966; }
+
+/* Seções claras: alternam #FBF9FF e #F0E9FF */
+.eyebrow { color: #4C259E; }
+.bg-cream { background: #FBF9FF; }
+.bg-dots { background-color: #F0E9FF; background-image: none; }
+.glow-corner::before { background: #E4D8FF; opacity: .6; }
+.flower { stroke: #5C32C9; opacity: .16; }
+.help { border: 1px solid #DFD5EF; box-shadow: none; }
+.help:nth-child(1) { border-top: 4px solid #5C32C9; }
+.help:nth-child(2) { border-top: 4px solid #4C259E; }
+.help:nth-child(3) { border-top: 4px solid #DCCBFF; }
+.oi, .oi.warm, .help:nth-child(3) .oi { background: #EDE4FF; color: #4C259E; }
+.help-feature .oi { background: #FFFFFF1F; color: #DCCBFF; }
+.help-tags span { background: #EDE4FF; color: #4C259E; }
+.help-person small { color: #4C259E; }
+.hp-av { background: #EDE4FF; color: #4C259E; }
+.mini-chat { background: #F0E9FF; }
+.mc-out { background: #E4D8FF; }
+.mc-slots span { border-color: #CDBDF0; color: #4C259E; }
+.story-t::after { background: #CDBDF0; }
+.bubble-out { background: #E4D8FF; }
+.story-dark { background: #5C32C9; border-color: #5C32C9; }
+.story-dark p { color: #FFFFFF; }
+.story-dark .story-t b { background: #FFFFFF; color: #4C259E; }
+.story-dark .story-t::after { background: #FFFFFF38; }
+.mini-slot { background: #4C259E; color: #FFFFFF; }
+.mini-proposal { background: #F6F2FF; border-color: #CDBDF0; }
+.mini-proposal small { color: #4C259E; }
+.slot-tag { background: #DCCBFF; color: #211339; }
+.rings-corner { border-color: #DFD5EF; box-shadow: 0 0 0 40px #F0E9FF99, 0 0 0 41px #DFD5EF, 0 0 0 88px #F0E9FF59, 0 0 0 89px #EAE1FA; }
+.pix-stage::before { background: #DCCBFF; opacity: .5; }
+.pix-status .dot { background: #5C32C9; }
+.pix { background: #FBF9FF; }
+.pix-msg, .pix-status { border-color: #DFD5EF; }
+.pix-link { background: #CDBDF0; }
+.team .facts li { border-color: #DFD5EF; }
+.team-shot .disc { background: #F0E9FF; box-shadow: 0 0 0 36px #FBF9FF, 0 0 0 37px #DFD5EF; }
+
+/* «Pode confiar»: o bloco violeta saturado, com sobretítulo branco (7,6:1; o violeta escuro daria 1,33:1). */
+.panel.aurora-panel { background: #5C32C9; color: #FFFFFF; }
+.panel.aurora-panel .eyebrow { color: #FFFFFF; }
+.panel.aurora-panel .lead, .panel.aurora-panel .feats p { color: #FFFFFF; }
+.panel.aurora-panel .feats li { background: #4C259E; }
+.panel.aurora-panel .oi { color: #FFFFFF; background: #FFFFFF20; }
+
+/* Piloto: violeta profundo com o botão lima (a página começa e termina no escuro). */
+.panel.apricot { background: #211339; color: #FFFFFF; }
+.panel.apricot :is(.h2, h3, .pilot-person strong, .pilot-plans th[scope="row"], .pilot-mail) { color: #FFFFFF; }
+.panel.apricot .eyebrow { color: #DCCBFF; }
+.panel.apricot :is(.lead, .fine, .pilot-status, .pilot-person p, .pilot-box ul, .pilot-plans td) { color: #E3D9F6; }
+.panel.apricot .pilot-plans thead th { color: #DCCBFF; }
+/* Rótulos da tabela no celular (td::before): o axe não mede pseudo-elementos; #DCCBFF sobre #2C1D47 = 10,2:1. */
+.panel.apricot .pilot-plans tbody td::before { color: #DCCBFF; }
+.panel.apricot .pilot-plans :is(th, td) { border-color: #FFFFFF2E; }
+.panel.apricot :is(.pilot-person, .pilot-plans, .pilot-box) { background: #2C1D47; }
+.panel.apricot .orb { display: none; }
+.panel.apricot .flower { stroke: #5C32C9; opacity: .55; }
+.panel.apricot .btn-dark { background: #D5FF55; color: #211339; }
+.panel.apricot .btn-dark:hover { background: #E4FF96; color: #211339; }
+.panel.apricot .btn-dark:active { background: #C2EB3C; color: #211339; }
+.pilot-close { background: #2C1D47; }
+.pilot-close strong { color: #FFFFFF; }
+.pilot-close span { color: #E3D9F6; }

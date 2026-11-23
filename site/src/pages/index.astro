@@ -82,7 +82,7 @@ const faq = [
 
 <header class="topbar">
 <div class="wrap">
-<a class="brand" href="#topo" aria-label="Tredane, início"><img src="/tredane-horizontal-cor.svg" alt="Tredane" width="120" height="26" /></a>
+<a class="brand" href="#topo" aria-label="Tredane, início"><img src="/tredane-horizontal-mono-preto.svg" alt="Tredane" width="120" height="26" /></a>
 <nav class="nav" aria-label="Seções">
 <a href="#ajuda">Como ajuda</a>
 <a href="#conversa">Na prática</a>
@@ -304,7 +304,7 @@ const faq = [
 <footer class="footer">
 <div class="wrap">
 <div class="footer-top">
-<img src="/tredane-horizontal-cor.svg" alt="Tredane" width="105" height="24" />
+<img src="/tredane-horizontal-mono-preto.svg" alt="Tredane" width="105" height="24" />
 <nav class="footer-links" aria-label="Rodapé">
 {hasAppUrl && <a href={appUrl}>Entrar</a>}
 <a href="/privacidade">Política de privacidade</a>
@@ -328,14 +328,7 @@ const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const bar = document.querySelector('.topbar')
 const hero = document.getElementById('topo')
 if (bar && hero && 'IntersectionObserver' in window) {
-  // is-over-hero (proposta A, 23/11/2026): sobre a abertura o botão do topo fica em contorno; sem script fica cheio.
-  new IntersectionObserver(
-    ([e]) => {
-      bar.classList.toggle('is-stuck', !e.isIntersecting)
-      bar.classList.toggle('is-over-hero', e.isIntersecting)
-    },
-    { rootMargin: '-80px 0px 0px 0px' },
-  ).observe(hero)
+  new IntersectionObserver(([e]) => bar.classList.toggle('is-stuck', !e.isIntersecting), { rootMargin: '-80px 0px 0px 0px' }).observe(hero)
   const links = new Map(
     [...document.querySelectorAll<HTMLAnchorElement>('.nav a[href^="#"]')].map((a) => [a.hash.slice(1), a]),
   )
