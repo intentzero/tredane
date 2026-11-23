@@ -158,6 +158,26 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 
 Verificado em 23/11/2026: `astro build` e `astro check` sem erros, e o preview local em 1280px, 375px e 360px sem rolagem horizontal. **Em aberto:** rodar axe e Lighthouse antes de publicar e atualizar o mock em `docs/design/landing`.
 
+## Direção violeta e lima (23/11/2026)
+
+**Confirmado** (Paulo Santos, 23/11/2026, «implementa», depois da [avaliação em canvas privado](https://claude.ai/artifact/1L3UWK8Ux8aXHYJ4rhZAAh) da versão ajustada). **Revê** só a paleta «Coral & Menta» da landing (16/11/2026, DEC-044); o texto e a estrutura não mudam. Painel, ícone do app, favicon, imagem de partilha e logo oficial seguem em Petróleo/Damasco: mudar a identidade é uma decisão à parte (DEC-050). Implementado em `site/src/styles/violeta-lima.css` (carregada depois de `coral-menta.css`).
+
+| Papel | Cor |
+| --- | --- |
+| Abertura e piloto | violeta profundo `#211339`; título branco; «do oi ao horário marcado» em lavanda `#DCCBFF` |
+| Botão do WhatsApp sobre fundo escuro | lima `#D5FF55`, texto `#211339` (15,0:1); hover `#E4FF96`, pressionado `#C2EB3C` |
+| Botão do cabeçalho claro | violeta profundo `#211339`, texto branco (17,3:1; 16,5:1 contra o fundo); hover `#3A2560`, pressionado `#150C26` |
+| Seções claras | alternam `#FBF9FF` e `#F0E9FF`; linhas `#DFD5EF`; texto `#211339` e `#544364` |
+| «Pode confiar» | bloco `#5C32C9`, sobretítulo e texto brancos (7,6:1); cartões `#4C259E` |
+| Eyebrow, link e foco no claro | `#4C259E` (8,6:1 ou mais); foco branco sobre fundo escuro |
+
+- **Regras:** o lima só aparece sobre fundo escuro (sobre `#FBF9FF` mede 1,10:1). O texto sobre lima é sempre `#211339`, nunca branco (1,15:1).
+- **Logo:** o cabeçalho e o rodapé usam o **mono-preto oficial** (`site/public/tredane-horizontal-mono-preto.svg`, cópia de `docs/design/brand/svg`), sem recolorir nem redesenhar o símbolo. Não existe variante violeta.
+- **Revê a revisão dos CTAs de 23/11 (acima):** o botão do topo deixa de ficar em contorno sobre a abertura e fica sempre violeta profundo (A); os valores de hover e pressionado do coral (C) deixam de valer, e os do botão escuro mudam para a família violeta. B, D, E e F continuam.
+- **Meta tag** `theme-color`: `#FBF9FF`.
+
+Verificado em 23/11/2026: `astro build` e `astro check` sem erros; axe (contraste) sem violações e sem rolagem horizontal em 360, 390 e 1440 px; contrastes calculados nos pontos críticos entre 7,3:1 e 17,3:1. Na revisão visual apareceram os rótulos da tabela de planos no celular (`td::before`), que o axe não mede; ficaram `#DCCBFF` (10,2:1). **Em aberto:** percorrer a página com Tab, ver o lima em celular de verdade e sob sol, Lighthouse, e decidir se o violeta chega à marca, ao app e à imagem de partilha. Mock em `docs/design/landing` e previews seguem na paleta antiga.
+
 ## Badge do hero sem «Em piloto» (19/11/2026)
 
 **Confirmado** (Paulo Santos, 19/11/2026, America/Sao_Paulo, screenshot): o pill do hero deixa de dizer «Em piloto · …». Texto final em `site/src/pages/index.astro`: desktop/largo «clínicas de estética e depilação»; abaixo de 520px «estética e depilação».

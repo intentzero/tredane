@@ -73,11 +73,6 @@ summary:focus-visible { outline: 3px solid #00665F; outline-offset: 4px; }
 .btn-dark { background: #203632; color: #FFFFFF; }
 .btn-dark:hover { background: #2E4B46; color: #FFFFFF; }
 .btn-dark:active { background: #152622; color: #FFFFFF; transform: none; }
-/* A. Um botão principal por vez: sobre a abertura o topo fica em contorno; depois de rolar, cheio.
-   #C34334 sobre o topo #FFFDF9 mede cerca de 5,0:1. Sem script, a classe não entra e o botão fica cheio. */
-.topbar.is-over-hero .btn-apricot { background: transparent; color: #C34334; box-shadow: inset 0 0 0 1.5px #C34334; }
-.topbar.is-over-hero .btn-apricot:hover { background: #C34334; color: #FFFFFF; }
-.topbar.is-over-hero .btn-apricot:active { background: #8F3125; color: #FFFFFF; }
 /* F. O ícone de mensagem em todo botão de WhatsApp; no topo, sai abaixo de 400px para caber em 360px. */
 @media (max-width: 399px) { .topbar .btn-apricot svg { display: none; } }
 /* O rótulo completo cabe numa linha até 360px (Confirmado 19/11: sem versão curta). */
