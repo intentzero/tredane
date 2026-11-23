@@ -157,15 +157,16 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
       'Vocês abrem amanhã?',
       'cnv_amanha_fer',
     )
-    expect(reply).toMatch(/fechad|fechamos/i)
-    expect(reply).toMatch(/amanh[aã]/i)
-    expect(reply).not.toMatch(/09:00/)
+    expect(reply).toMatch(/amanh[aã] \(sexta-feira\): fechado/i)
+    expect(reply).not.toMatch(/sexta-feira\): 09:00/i)
+    expect(reply).toMatch(/s[aá]bado: 09:00/)
     expect(reply).not.toMatch(/est[aá] aberta/i)
     const viaCatalog = catalogReply(boot.db, tenantId, 'Vocês abrem amanhã?', clock, {
       conversationId: 'cnv_amanha_fer',
     })
-    expect(viaCatalog).toMatch(/fechad|fechamos/i)
-    expect(viaCatalog).not.toMatch(/09:00/)
+    expect(viaCatalog).toMatch(/sexta-feira\): fechado/i)
+    expect(viaCatalog).not.toMatch(/sexta-feira\): 09:00/i)
+    expect(viaCatalog).toMatch(/s[aá]bado: 09:00/)
     boot.close()
   })
 
@@ -203,15 +204,16 @@ describe('opening-hours-reply (deterministic FAQ)', () => {
     const text = 'Bom dia. Gostaria de saber se está atendendo hoje?'
     expect(isOpeningHoursFaqAsk(text)).toBe(true)
     const reply = buildOpeningHoursReply(boot.db, tenantId, clock, text, 'cnv_hoje_fer')
-    expect(reply).toMatch(/fechad|fechamos/i)
-    expect(reply).toMatch(/hoje/i)
-    expect(reply).not.toMatch(/09:00/)
+    expect(reply).toMatch(/hoje \(sexta-feira\): fechado/i)
+    expect(reply).not.toMatch(/sexta-feira\): 09:00/i)
+    expect(reply).toMatch(/amanh[aã] \(s[aá]bado\): 09:00/)
     expect(reply).not.toMatch(/estamos atendendo/i)
     const viaCatalog = catalogReply(boot.db, tenantId, text, clock, {
       conversationId: 'cnv_hoje_fer',
     })
-    expect(viaCatalog).toMatch(/fechad|fechamos/i)
-    expect(viaCatalog).not.toMatch(/09:00/)
+    expect(viaCatalog).toMatch(/hoje \(sexta-feira\): fechado/i)
+    expect(viaCatalog).not.toMatch(/sexta-feira\): 09:00/i)
+    expect(viaCatalog).toMatch(/s[aá]bado\): 09:00/)
     boot.close()
   })
 

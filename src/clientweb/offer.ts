@@ -152,8 +152,19 @@ export function clientWebRouteBody(input: {
   purpose: 'agendar' | 'remarcar' | 'cancelar'
   serviceName?: string | null
   noUpcoming?: boolean
+  /**
+   * Marcação única no dia que a cliente nomeou (`terça 17/11 às 10:00`).
+   * Sem isto, o texto de remarcar fica genérico.
+   */
+  rescheduleWhen?: string | null
 }): string {
-  if (input.purpose === 'remarcar') return CLIENT_WEB_RESCHEDULE_BODY
+  if (input.purpose === 'remarcar') {
+    const when = input.rescheduleWhen?.trim()
+    if (when) {
+      return `Para remarcar o horário de ${when}, toque em «Abrir agenda» e escolha a nova data e hora. Se tiver dúvidas, escreva aqui.`
+    }
+    return CLIENT_WEB_RESCHEDULE_BODY
+  }
   if (input.purpose === 'cancelar') return CLIENT_WEB_CANCEL_BODY
   if (input.noUpcoming) return CLIENT_WEB_NO_UPCOMING_BODY
   const name = input.serviceName?.trim()
@@ -204,8 +215,10 @@ export function isWebScheduleIntentExemptFromLinkLimit(route: {
 }
 
 /**
- * Quantos links «Abrir agenda» o chat já enviou nesta conversa na janela
- * (`ai-web-*` ou `cta_url` no follow-up «Posso ajudar…» / outros).
+ * Quantos pedidos de marcar («quero marcar») já receberam link nesta conversa
+ * na janela. Só `ai-web-agendar:*` conta (DEC-202 / DEC-219): o teto trava o
+ * spam de agendar. Não entram home/informação, «Posso ajudar…», remarcar nem
+ * cancelar — esses também levam «Abrir agenda», mas não são o abuso.
  */
 export function countRecentWebLinks(
   db: ClinicDb,
@@ -219,13 +232,7 @@ export function countRecentWebLinks(
        JOIN messages m ON m.tenant_id = o.tenant_id AND m.id = o.message_id
        WHERE o.tenant_id = ? AND o.conversation_id = ?
          AND m.created_at > ?
-         AND (
-           o.client_request_id LIKE 'ai-web-%'
-           OR (
-             o.interactive_json LIKE '%ctaUrl%'
-             AND o.interactive_json LIKE '%Abrir agenda%'
-           )
-         )`,
+         AND o.client_request_id LIKE 'ai-web-agendar:%'`,
       tenantId,
       conversationId,
       nowMs - CLIENT_WEB_LINKS_WINDOW_MS,

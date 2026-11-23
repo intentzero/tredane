@@ -256,7 +256,7 @@ export function isShortBookingAffirm(text: string): boolean {
  * rsamp_62934e637e4ce0d8: «pode me atender esta tarde?».
  */
 export const SCHEDULING_AVAILABILITY_CUE =
-  /\b(?:pode(?:\s*[-–—])?(?:\s*me\s+)?atender|consegue(?:\s*me\s+)?encaixar|tem\s+hor[aá]rio)\b/i
+  /\b(?:pod(?:e|eria)(?:\s*[-–—])?(?:\s*me\s+)?atender|consegue(?:\s*me\s+)?encaixar|tem\s+hor[aá]rio)\b/i
 
 /**
  * Intenção de marcação / vaga (inclui disponibilidade coloquial).

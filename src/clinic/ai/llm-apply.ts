@@ -383,7 +383,7 @@ export async function applyLlmResultOp(
               : null,
       omitHumanTeamAugment: Boolean(closingCta || infoCta || mapInteractive?.ctaUrl),
       clientRequestId:
-        closingCta || infoCta ? `ai-web-agendar:${job.messageId}` : `ai-reply:${suggestion.id}`,
+        closingCta || infoCta ? `ai-web-home:${job.messageId}` : `ai-reply:${suggestion.id}`,
       authorClerkUserId: AI_ACTOR_ID,
       authorDisplayName: AI_ACTOR_NAME,
       aiSuggestionId: suggestion.id,

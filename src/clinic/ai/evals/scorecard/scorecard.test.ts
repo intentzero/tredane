@@ -115,6 +115,9 @@ describe('INV-03 — scrub do expediente', () => {
   it('apaga só as linhas de expediente exactas', () => {
     const body = 'Funcionamos assim:\nsegunda: 09:00–18:00\nterça: 09:00–12:00 e 14:00–18:00\ndomingo: fechado'
     expect(scrubOpeningHours(body)).not.toMatch(/\d{2}:\d{2}/)
+    const closed =
+      'Abrimos assim:\namanhã (domingo): fechado\nsegunda-feira: 09:00–18:00'
+    expect(scrubOpeningHours(closed)).not.toMatch(/\d{2}:\d{2}/)
   })
   it('NÃO apaga linhas de oferta que começam pelo dia', () => {
     expect(scrubOpeningHours('sexta 06/11 às 23:00')).toContain('23:00')

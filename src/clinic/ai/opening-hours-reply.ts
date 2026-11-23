@@ -180,6 +180,20 @@ export function buildOpeningHoursReply(
   let lista = lines.join('\n')
   let fallback = `Funcionamos assim:\n${lista}`
 
+  const nextOpenAfter = (asked: string): string | null => {
+    for (let i = 1; i <= 14; i++) {
+      const date = addCivilDays(asked, i)
+      if (clinicWideClosureOnCivilDay(db, tenantId, date, civilTz, windows).closed) continue
+      const dow = weekdayOfCivil(date)
+      const weeklyLine = lines[dow - 1]
+      if (!weeklyLine) continue
+      const hours = weeklyLine.slice(weeklyLine.indexOf(':') + 1).trim()
+      if (!hours || hours === 'fechado') continue
+      return `${dayAskLabel(date, today)}: ${hours}`
+    }
+    return null
+  }
+
   if (HOLIDAY_ASK.test(body) && askedDate == null) {
     const closures = formatUpcomingClinicClosures(db, tenantId, clock, civilTz)
     if (closures.length > 0) {
@@ -190,20 +204,29 @@ export function buildOpeningHoursReply(
     const label = dayAskLabel(askedDate, today)
     const closure = clinicWideClosureOnCivilDay(db, tenantId, askedDate, civilTz, windows)
     if (closure.closed) {
-      lista = `${label}: fechado`
+      const next = nextOpenAfter(askedDate)
+      lista = next ? `${label}: fechado\n${next}` : `${label}: fechado`
       const cap = label.charAt(0).toUpperCase() + label.slice(1)
+      const nextSentence = next
+        ? ` A próxima abertura é ${next.replace(': ', ', ')}.`
+        : ''
       fallback = closure.note
-        ? `${cap} a clínica está fechada (${closure.note}).`
-        : `${cap} a clínica está fechada.`
+        ? `${cap} a clínica está fechada (${closure.note}).${nextSentence}`
+        : `${cap} a clínica está fechada.${nextSentence}`
     } else {
       const dow = weekdayOfCivil(askedDate)
       const weeklyLine = lines[dow - 1]
       if (weeklyLine) {
         const hours = weeklyLine.slice(weeklyLine.indexOf(':') + 1).trim()
-        lista = `${label}: ${hours}`
+        const closedDay = hours === 'fechado'
+        const next = closedDay ? nextOpenAfter(askedDate) : null
+        lista = next ? `${label}: fechado\n${next}` : `${label}: ${hours}`
         const cap = label.charAt(0).toUpperCase() + label.slice(1)
-        fallback =
-          hours === 'fechado' ? `${cap}: fechamos.` : `${cap}: atendemos ${hours}.`
+        fallback = closedDay
+          ? next
+            ? `${cap}: fechamos. A próxima abertura é ${next.replace(': ', ', ')}.`
+            : `${cap}: fechamos.`
+          : `${cap}: atendemos ${hours}.`
       }
     }
   }

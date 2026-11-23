@@ -130,12 +130,12 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/fechad|fechamos/i, /amanh[aã]/i],
-          excludes: [/09:00/, /est[aá] aberta/i, /Abrir agenda/i],
+          matches: [/amanh[aã] \(sexta-feira\): fechado/i, /s[aá]bado: 09:00/],
+          excludes: [/sexta-feira\): 09:00/i, /est[aá] aberta/i, /Abrir agenda/i],
         },
       ],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
-      outboundExcludes: [/09:00/, /Abrir agenda/i],
+      outboundExcludes: [/sexta-feira\): 09:00/i, /Abrir agenda/i],
     },
   },
   {
@@ -170,12 +170,12 @@ export const INT_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/fechad|fechamos/i, /hoje/i],
-          excludes: [/09:00/, /estamos atendendo/i, /Abrir agenda/i],
+          matches: [/hoje \(sexta-feira\): fechado/i, /s[aá]bado\): 09:00/],
+          excludes: [/sexta-feira\): 09:00/i, /estamos atendendo/i, /Abrir agenda/i],
         },
       ],
       turnDecided: [{ modelCalled: false, route: 'catalog' }],
-      outboundExcludes: [/09:00/, /Abrir agenda/i],
+      outboundExcludes: [/sexta-feira\): 09:00/i, /Abrir agenda/i],
     },
   },
   {
