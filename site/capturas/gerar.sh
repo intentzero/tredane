@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Gera as capturas PROVISÓRIAS da landing (site/src/assets/app/*.png) a partir dos HTML desta pasta,
 # com o Chrome em modo headless, em 2x (560×1160). O Astro converte para WebP no build.
+# Também gera a imagem de partilha (og-image.png, 1200×630, em 1×) a partir de og-image.html.
 # Quando houver capturas do aplicativo real, substitua os PNG e apague esta pasta.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -12,3 +13,7 @@ for tela in conversas conversa agenda; do
     --window-size=280,580 --screenshot="$out/$tela.png" "file://$PWD/$tela.html" >/dev/null 2>&1
   echo "gerada: $out/$tela.png"
 done
+# Imagem de partilha: usa as capturas acima, por isso vem depois delas.
+"$chrome" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+  --window-size=1200,630 --screenshot="../public/og-image.png" "file://$PWD/og-image.html" >/dev/null 2>&1
+echo "gerada: ../public/og-image.png"
