@@ -14,7 +14,8 @@ interface Props {
 const { title, description, lang = 'pt-BR' } = Astro.props
 const ogLocale = lang === 'en' ? 'en_US' : 'pt_BR'
 const canonical = new URL(Astro.url.pathname, Astro.site)
-const image = new URL('/og-image.png', Astro.site)
+// ?v=: WhatsApp, LinkedIn e Slack guardam a imagem por URL; trocar o valor quando o arquivo mudar.
+const image = new URL('/og-image.png?v=20261123', Astro.site)
 const noIndex =
   import.meta.env.PUBLIC_NOINDEX === '1' ||
   import.meta.env.PUBLIC_NOINDEX === 'true'
@@ -48,7 +49,7 @@ const jsonLd = {
     <meta property="og:image" content={image} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Tredane: do primeiro oi no WhatsApp ao horário marcado" />
+    <meta property="og:image:alt" content="Tredane: o atendimento da sua clínica no WhatsApp, do «oi» ao horário marcado, com as telas da conversa e da agenda" />
     <meta name="twitter:card" content="summary_large_image" />
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </head>
