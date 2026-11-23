@@ -37,7 +37,7 @@ const HUB_OPENING_BODY = /^Olá! Aqui é a .+\. (Hoje funcionamos|O que você pr
  * linhas «segunda: 09:00–18:00». Não é oferta de horário (INV-03).
  */
 const OPENING_HOURS_LINE =
-  /^\s*[-•·]?\s*(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)\s*:\s*(?:fechado|\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}(?:\s+e\s+\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2})*)\s*$/gim
+  /^\s*[-•·]?\s*(?:(?:hoje|amanh[aã])\s+\()?(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(?:-feira)?\)?\s*:\s*(?:fechado|\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}(?:\s+e\s+\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2})*)\s*$/gim
 
 export function scrubOpeningHours(body: string): string {
   return body

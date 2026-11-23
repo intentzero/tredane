@@ -843,7 +843,15 @@ export function catalogReply(
   const carried = sameFunnel && session ? session.audienceLine : heldLineNow
   // Histórico só no funil activo (sessão do serviço). Após DEC-086 a sessão foi limpa.
   const historyLine = sameFunnel ? audienceLineFromClientTexts(inboundNewestFirst) : null
-  const line = mixed ? (explicit ?? carried ?? historyLine) : null
+  // DEC-223: turno que não nomeia o serviço reusa linha/variante do sujeito.
+  // Nome de serviço no texto vence — não herda a variante de outro assunto.
+  const bareSubject =
+    activeSubject && inPlay && activeSubject.serviceId === inPlay.id && !namedPick
+      ? activeSubject
+      : null
+  const line = mixed
+    ? (explicit ?? carried ?? historyLine ?? bareSubject?.audienceLine ?? null)
+    : null
   // DEC-223: preço/duração bare (só sujeito activo) não escreve BookingFrame.
   // Com serviço/zona nomeados no texto (D4 bridge «Quero» após preço) ainda grava serviceId.
   const namedInTurn = Boolean(namedPick || serviceFromNamedZones(services, source))
@@ -886,7 +894,11 @@ export function catalogReply(
   }
 
   // FAQ de preço: faixa do catálogo — não pedir linha só para informar valor (TRE-94).
-  if (active.length > 0 && mixed && !line) {
+  // Com variante já resolvida (DEC-223), o preço bare usa essa opção, não a faixa do serviço.
+  const subjectNamesVariant = (bareSubject?.variantIds.length ?? 0) > 0
+  const priceFollowsSubject =
+    subjectNamesVariant && (asksPrice || pendingPriceEarly || asksDuration)
+  if (active.length > 0 && mixed && !line && !priceFollowsSubject) {
     if (asksPrice || pendingPriceEarly) {
       const overview = replyCatalogPriceOverview(svc, active, cnv, 'range')
       if (overview) return overview
@@ -906,11 +918,10 @@ export function catalogReply(
   // DEC-223: turno bare («Qual o valor?») reusa variantes do sujeito activo.
   const subjectZones =
     namedFromText.length === 0 &&
-    activeSubject &&
-    activeSubject.serviceId === svc.id &&
-    activeSubject.variantIds.length > 0 &&
+    bareSubject &&
+    bareSubject.variantIds.length > 0 &&
     scoped.length > 0
-      ? scoped.filter((zone) => activeSubject.variantIds.includes(zone.id))
+      ? scoped.filter((zone) => bareSubject.variantIds.includes(zone.id))
       : []
   const named = namedFromText.length > 0 ? namedFromText : subjectZones
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)

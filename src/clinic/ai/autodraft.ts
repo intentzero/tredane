@@ -119,7 +119,7 @@ import {
   hasSoftDeclineRequest,
   hasStopRequest,
 } from './nlu/sensitive'
-import { loadUpcomingAppointments } from './upcoming'
+import { loadUpcomingAppointments, pickRescheduleAppointment } from './upcoming'
 import { isConversationPaused } from './protection'
 import { filledSlots, getBookingFrame } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
@@ -141,6 +141,7 @@ import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { formatBookedWhenAt } from '../scheduling/format-booked-when'
 import { generateExceptionReply } from './exception-reply'
 import {
   promiseTeamFollowUp,
@@ -894,7 +895,7 @@ export async function runDueAutoDrafts(
               interactive: cta,
               omitHumanTeamAugment: true,
               clientRequestId: cta
-                ? `ai-web-agendar:${job.messageId}`
+                ? `ai-web-home:${job.messageId}`
                 : `ai-handoff-farewell:${job.messageId}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -992,6 +993,24 @@ export async function runDueAutoDrafts(
       const serviceName = route.serviceId
         ? (turn.catalog.services.find((s) => s.id === route.serviceId)?.name ?? null)
         : null
+      const linkTz = turn.settings.timezone || 'America/Sao_Paulo'
+      const linkToday = clinicCivilDateFromUtc(linkTz, clock.nowMs())
+      const deepLinkPurpose = route.purpose === 'remarcar' || route.purpose === 'cancelar'
+      const upcomingForLink = deepLinkPurpose
+        ? loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 8)
+        : []
+      const namedLinkDate = deepLinkPurpose
+        ? clientWebSchedulePrefsFromText(turnText, linkToday).preferredDate
+        : null
+      const pickedAppointment = deepLinkPurpose
+        ? pickRescheduleAppointment(upcomingForLink, namedLinkDate, (startsAt) =>
+            clinicCivilDateFromUtc(linkTz, startsAt),
+          )
+        : null
+      const rescheduleWhen =
+        route.purpose === 'remarcar' && namedLinkDate && pickedAppointment
+          ? formatBookedWhenAt(linkTz, pickedAppointment.startsAt)
+          : null
       const routeBody =
         bodyOverride ??
         (route.purpose === 'home'
@@ -1000,6 +1019,7 @@ export async function runDueAutoDrafts(
               purpose: route.purpose,
               serviceName,
               noUpcoming: route.noUpcoming,
+              rescheduleWhen,
             }))
       if (route.purpose === 'home' && bodyOverride) {
         if (allowCta && deps.prepareClientWebOffer) {
@@ -1083,7 +1103,6 @@ export async function runDueAutoDrafts(
       } else if (allowCta && deps.prepareClientWebOffer) {
         let offered: Awaited<ReturnType<NonNullable<typeof deps.prepareClientWebOffer>>> = null
         try {
-          const future = loadUpcomingAppointments(db, tenantId, conv.contactId, clock.nowMs(), 2)
           // DEC-220: Abrir agenda (agendar/home) → purpose=home; remarcar/cancelar deep-link.
           const linkPurpose = clientWebAbrirAgendaLinkPurpose(route.purpose)
           const deepLink = linkPurpose === 'remarcar' || linkPurpose === 'cancelar'
@@ -1091,8 +1110,7 @@ export async function runDueAutoDrafts(
             tenantId,
             conversationId: job.conversationId,
             purpose: linkPurpose,
-            appointmentId:
-              deepLink && future.length === 1 ? (future[0]?.id ?? null) : null,
+            appointmentId: deepLink ? (pickedAppointment?.id ?? null) : null,
             serviceId: null,
             audienceLine: null,
             variantIds: [],
@@ -1486,7 +1504,7 @@ export async function runDueAutoDrafts(
             interactive: cta,
             omitHumanTeamAugment: true,
             clientRequestId: cta
-              ? `ai-web-agendar:${job.messageId}`
+              ? `ai-web-home:${job.messageId}`
               : `ai-post-booking-farewell:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -1540,7 +1558,7 @@ export async function runDueAutoDrafts(
             interactive: agendaCta ?? undefined,
             omitHumanTeamAugment: Boolean(agendaCta),
             clientRequestId: agendaCta
-              ? `ai-web-agendar:${job.messageId}`
+              ? `ai-web-home:${job.messageId}`
               : `ai-catalog-list:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -1708,7 +1726,7 @@ export async function runDueAutoDrafts(
               agendaCta || locationInteractive?.ctaUrl || (!isPriceTotal && !locationOffer),
             ),
             clientRequestId: agendaCta
-              ? `ai-web-agendar:${job.messageId}`
+              ? `ai-web-home:${job.messageId}`
               : `ai-catalog:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -2032,7 +2050,7 @@ export async function runDueAutoDrafts(
                     : null,
             omitHumanTeamAugment: Boolean(closingCta || infoCta || mapInteractive?.ctaUrl),
             clientRequestId: closingCta || infoCta
-              ? `ai-web-agendar:${job.messageId}`
+              ? `ai-web-home:${job.messageId}`
               : `ai-reply:${suggestion.id}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
