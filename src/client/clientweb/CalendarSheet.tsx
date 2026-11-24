@@ -8,13 +8,23 @@ type Props = {
   selected: string | null
   /** Primeira hora de cada dia do horizonte (`daysOnly`). */
   loadDays: (from: string, to: string) => Promise<SlotsResult>
-  /** «Tem uma hora em mente?» (HH:MM) e/ou Manhã/Tarde: ambos opcionais (DEC-227). */
+  /** «Que horas lhe dá jeito?»: Qualquer, Manhã, Tarde ou Hora certa (HH:MM), uma só escolha (DEC-227). Só «Ver horários» confirma. */
   onPick: (date: string, wish: { requestedTime: string | null; dayPart: 'manha' | 'tarde' | null }) => void
   onClose: () => void
   onSessionLost: () => void
 }
 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+type Mode = 'any' | 'manha' | 'tarde' | 'exact'
+const MODES: ReadonlyArray<{ id: Mode; label: string; sub: string }> = [
+  { id: 'any', label: 'Qualquer', sub: 'hora' },
+  { id: 'manha', label: 'Manhã', sub: 'até 12h' },
+  { id: 'tarde', label: 'Tarde', sub: '12h–18h' },
+  { id: 'exact', label: 'Hora', sub: 'certa' },
+]
+const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
+const MINUTES = [0, 15, 30, 45]
+const pad2 = (n: number) => String(n).padStart(2, '0')
 const WEEK_HEAD = [
   ['D', 'domingo'],
   ['S', 'segunda'],
@@ -63,9 +73,25 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
   const [days, setDays] = useState<Set<string> | 'loading' | 'error'>('loading')
   const [retry, setRetry] = useState(0)
   const closeRef = useRef<HTMLButtonElement>(null)
-  const [time, setTime] = useState('')
-  const [part, setPart] = useState<'manha' | 'tarde' | null>(null)
-  const requestedTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null
+  const [mode, setMode] = useState<Mode>('any')
+  const [hour, setHour] = useState<number | null>(null)
+  const [minute, setMinute] = useState(0)
+  const [day, setDay] = useState<string | null>(selected)
+  const requestedTime = mode === 'exact' && hour != null ? `${pad2(hour)}:${pad2(minute)}` : null
+  const dayPart = mode === 'manha' || mode === 'tarde' ? mode : null
+  const hint =
+    mode === 'any'
+      ? 'Mostramos as horas que melhor encaixam no dia.'
+      : mode === 'manha'
+        ? 'Mostramos só horas da manhã.'
+        : mode === 'tarde'
+          ? 'Mostramos só horas da tarde.'
+          : requestedTime
+            ? `Se ${requestedTime} estiver livre, aparece primeiro; senão, as mais próximas.`
+            : 'Escolha a hora e os minutos.'
+  const dayLabel = day ? civilDayLabel(day) : null
+  const wishLabel = mode === 'any' ? 'qualquer hora' : mode === 'manha' ? 'de manhã' : mode === 'tarde' ? 'à tarde' : requestedTime ? `às ${requestedTime}` : 'escolha a hora'
+  const canConfirm = !!day && (mode !== 'exact' || hour != null)
 
   useEffect(() => {
     let cancelled = false
@@ -112,6 +138,51 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
             <span aria-hidden="true">×</span>
           </button>
         </div>
+        <fieldset className="cw-wish">
+          <legend className="cw-pref-label">Que horas lhe dá jeito?</legend>
+          <div className="cw-wish-modes">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={mode === m.id}
+                className={`cw-wish-mode${mode === m.id ? ' is-on' : ''}`}
+                onClick={() => {
+                  setMode(m.id)
+                  if (m.id === 'exact' && hour == null) setHour(14)
+                }}
+              >
+                <span>{m.label}</span>
+                <span className="cw-wish-sub">{m.sub}</span>
+              </button>
+            ))}
+          </div>
+          {mode === 'exact' && (
+            <div className="cw-wish-exact">
+              <div className="cw-wish-readout">
+                <span className="cw-muted">Hora</span>
+                <span aria-live="polite" className="cw-wish-time">
+                  {requestedTime ?? '--:--'}
+                </span>
+              </div>
+              <div role="group" aria-label="Hora" className="cw-wish-row">
+                {HOURS.map((h) => (
+                  <button key={h} type="button" aria-pressed={hour === h} className={`cw-wish-small${hour === h ? ' is-on' : ''}`} onClick={() => setHour(h)}>
+                    {h}h
+                  </button>
+                ))}
+              </div>
+              <div role="group" aria-label="Minutos" className="cw-wish-minutes">
+                {MINUTES.map((m) => (
+                  <button key={m} type="button" aria-pressed={minute === m} className={`cw-wish-small${minute === m ? ' is-on' : ''}`} onClick={() => setMinute(m)}>
+                    :{pad2(m)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="cw-caption">{hint}</p>
+        </fieldset>
         <div className="cw-sheet-month">
           <button type="button" className="cw-icon-btn" aria-label="Mês anterior" disabled={month <= firstMonth} onClick={() => setMonth(shiftMonth(month, -1))}>
             ‹
@@ -147,10 +218,10 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
                       {free ? (
                         <button
                           type="button"
-                          className={`cw-cal-day${date === selected ? ' is-on' : ''}`}
+                          className={`cw-cal-day${date === day ? ' is-on' : ''}`}
                           aria-label={`${l.weekday} ${l.dayMonth}, com horários`}
-                          aria-pressed={date === selected}
-                          onClick={() => onPick(date, { requestedTime, dayPart: part })}
+                          aria-pressed={date === day}
+                          onClick={() => setDay(date)}
                         >
                           {num}
                           <span aria-hidden="true" className="cw-cal-dot" />
@@ -167,32 +238,6 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
             ))}
           </tbody>
         </table>
-        <div className="cw-time-wish">
-          <label htmlFor="cw-wish-time" className="cw-pref-label">
-            Tem uma hora em mente? <span className="cw-muted">(opcional)</span>
-          </label>
-          <input
-            id="cw-wish-time"
-            type="time"
-            step={900}
-            className="cw-time-input"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-          <div role="group" aria-label="Ou um período" className="cw-pref-chips">
-            {([['manha', 'Manhã'], ['tarde', 'Tarde']] as const).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={part === id}
-                className={`cw-pref-chip${part === id ? ' is-on' : ''}`}
-                onClick={() => setPart(part === id ? null : id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
         {days === 'loading' && (
           <p role="status" className="cw-muted">
             A procurar datas…
@@ -215,14 +260,20 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
         )}
         {days instanceof Set && days.size > 0 && (
           <p className="cw-muted">
-            <span aria-hidden="true" className="cw-cal-dot cw-cal-dot-inline" /> Com horários livres. Os outros dias estão cheios ou fechados.
+            <span aria-hidden="true" className="cw-cal-dot cw-cal-dot-inline" /> Dias com vaga. Os outros estão cheios ou fechados.
           </p>
         )}
-        {firstLabel && first && (
-          <button type="button" className="cw-btn cw-btn-secondary" onClick={() => onPick(first, { requestedTime, dayPart: part })}>
-            Primeira data livre: {firstLabel.weekday} {firstLabel.dayMonth}
-          </button>
-        )}
+        <div className="cw-cal-foot">
+          {firstLabel && first && (
+            <button type="button" className="cw-link" onClick={() => { setDay(first); setMonth(monthOf(first)) }}>
+              Primeira livre: {firstLabel.weekday} {firstLabel.dayMonth}
+            </button>
+          )}
+        </div>
+        <button type="button" className="cw-btn cw-btn-primary cw-wish-cta" disabled={!canConfirm} onClick={() => day && onPick(day, { requestedTime, dayPart })}>
+          <span>Ver horários</span>
+          <span className="cw-wish-cta-sub">{dayLabel ? `${dayLabel.weekday} ${dayLabel.dayMonth} · ${wishLabel}` : 'Toque num dia com vaga'}</span>
+        </button>
         <p className="cw-caption cw-center-text">Pode marcar até {catalog.horizonDays} dias à frente.</p>
       </section>
     </div>
