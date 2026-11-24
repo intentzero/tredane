@@ -8,8 +8,8 @@ type Props = {
   selected: string | null
   /** Primeira hora de cada dia do horizonte (`daysOnly`). */
   loadDays: (from: string, to: string) => Promise<SlotsResult>
-  /** `requestedTime` = «Tem uma hora em mente?» (HH:MM), opcional. */
-  onPick: (date: string, requestedTime: string | null) => void
+  /** «Tem uma hora em mente?» (HH:MM) e/ou Manhã/Tarde: ambos opcionais (DEC-227). */
+  onPick: (date: string, wish: { requestedTime: string | null; dayPart: 'manha' | 'tarde' | null }) => void
   onClose: () => void
   onSessionLost: () => void
 }
@@ -64,6 +64,7 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
   const [retry, setRetry] = useState(0)
   const closeRef = useRef<HTMLButtonElement>(null)
   const [time, setTime] = useState('')
+  const [part, setPart] = useState<'manha' | 'tarde' | null>(null)
   const requestedTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
                           className={`cw-cal-day${date === selected ? ' is-on' : ''}`}
                           aria-label={`${l.weekday} ${l.dayMonth}, com horários`}
                           aria-pressed={date === selected}
-                          onClick={() => onPick(date, requestedTime)}
+                          onClick={() => onPick(date, { requestedTime, dayPart: part })}
                         >
                           {num}
                           <span aria-hidden="true" className="cw-cal-dot" />
@@ -178,6 +179,19 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
             value={time}
             onChange={(e) => setTime(e.target.value)}
           />
+          <div role="group" aria-label="Ou um período" className="cw-pref-chips">
+            {([['manha', 'Manhã'], ['tarde', 'Tarde']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={part === id}
+                className={`cw-pref-chip${part === id ? ' is-on' : ''}`}
+                onClick={() => setPart(part === id ? null : id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         {days === 'loading' && (
           <p role="status" className="cw-muted">
@@ -205,7 +219,7 @@ export function CalendarSheet({ catalog, selected, loadDays, onPick, onClose, on
           </p>
         )}
         {firstLabel && first && (
-          <button type="button" className="cw-btn cw-btn-secondary" onClick={() => onPick(first, requestedTime)}>
+          <button type="button" className="cw-btn cw-btn-secondary" onClick={() => onPick(first, { requestedTime, dayPart: part })}>
             Primeira data livre: {firstLabel.weekday} {firstLabel.dayMonth}
           </button>
         )}

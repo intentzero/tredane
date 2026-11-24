@@ -254,6 +254,7 @@ export function TimeStep({
               Próximo livre: {nextFreeWhen(done.nextAvailable.date, catalog.today)}, {done.nextAvailable.time}
             </button>
           )}
+          <p className="cw-muted">Nenhum serve? Fale com a equipe no WhatsApp.</p>
         </div>
       )}
       {done && <p className="cw-muted cw-margin">Nada fica marcado antes de Confirmar.</p>}
@@ -264,10 +265,10 @@ export function TimeStep({
           loadDays={stableLoadDays}
           onSessionLost={onSessionLost}
           onClose={() => setCalendarOpen(false)}
-          onPick={(date, time) => {
+          onPick={(date, wish) => {
             setCalendarOpen(false)
-            setRequestedTime(time)
-            setWhen({ date })
+            setRequestedTime(wish.requestedTime)
+            setWhen({ date, dayPart: wish.dayPart })
           }}
         />
       )}

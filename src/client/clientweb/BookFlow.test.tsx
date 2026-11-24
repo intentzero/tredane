@@ -352,6 +352,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
     expect(await screen.findByText('Sem horários nesta altura.')).toBeTruthy()
     expect(document.querySelectorAll('.cw-time')).toHaveLength(0)
     expect(screen.getByText('Nada fica marcado antes de Confirmar.')).toBeTruthy()
+    expect(screen.getByText('Nenhum serve? Fale com a equipe no WhatsApp.')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Próximo livre: sexta 20, 09:30' }))
     expect(await screen.findByRole('heading', { name: 'Confirme o horário' })).toBeTruthy()
   })
@@ -549,13 +550,28 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(free)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(await screen.findByRole('button', { name: '10:00' })).toBeTruthy()
-    expect(picks(calls).pop()!.body).toMatchObject({ when: { date: '2026-11-19' }, requestedTime: '10:15' })
+    expect(picks(calls).pop()!.body).toMatchObject({ when: { date: '2026-11-19', dayPart: null }, requestedTime: '10:15' })
     expect(screen.getByRole('button', { name: 'qui 19/11' }).getAttribute('aria-pressed')).toBe('true')
     // Escape fecha.
     await user.click(screen.getByRole('button', { name: 'qui 19/11' }))
     await screen.findByRole('dialog', { name: 'Escolher data' })
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('calendário: Manhã/Tarde opcionais acompanham a data escolhida (DEC-227)', async () => {
+    const calls = mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await screen.findByRole('button', { name: '14:15' })
+    await user.click(screen.getByRole('button', { name: 'Outra data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Escolher data' })
+    const tarde = within(dialog).getByRole('button', { name: 'Tarde' })
+    await user.click(tarde)
+    expect(tarde.getAttribute('aria-pressed')).toBe('true')
+    await user.click(await within(dialog).findByRole('button', { name: 'qui 19/11, com horários' }))
+    await waitFor(() => expect(picks(calls).pop()!.body).toMatchObject({ when: { date: '2026-11-19', dayPart: 'tarde' }, requestedTime: null }))
   })
 
   it('calendário: «Primeira data livre», mês seguinte só até ao horizonte e sem violações (axe)', async () => {
