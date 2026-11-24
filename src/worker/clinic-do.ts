@@ -172,12 +172,14 @@ import {
   appendWebCancelChatEffects,
   cancelFromWeb,
   listRescheduleSlots,
+  pickRescheduleSlots,
   planWebReschedule,
   rescheduleAlreadyAt,
   WEB_CANCEL_ACTOR,
   type RescheduleSlotsResult,
   type WebCancelResult,
 } from '../clientweb/manage'
+import { pickClientWebSlots, type ClientWebPickResult, type ClientWebWhen } from '../clientweb/pick'
 import {
   findRecentWebBooking,
   listClientWebSlots,
@@ -1205,6 +1207,43 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (execution.status === 'slot_refused') return { status: 'slot_taken' }
     if (execution.reason === 'capability_disabled') return { status: 'paused' }
     return { status: 'error', error: execution.authorizationReason === 'expired' ? 'expired' : 'not_allowed' }
+  }
+
+  /** Página web da cliente (DEC-227): horas escolhidas para a conveniência pedida. */
+  async clientWebPick(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    serviceId: string
+    variantIds: string[]
+    professionalId?: string | null
+    when: ClientWebWhen
+    requestedTime?: string | null
+    offset?: number
+    wantChips?: boolean
+  }): Promise<ClientWebPickResult | null> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    return pickClientWebSlots(this.#db, input.tenantId, this.#clock, input)
+  }
+
+  /** Página web da cliente (DEC-227): horas escolhidas para remarcar. */
+  async clientWebReschedulePick(input: {
+    tenantId: string
+    contactId: string
+    conversationId: string
+    appointmentId: string
+    professionalId?: string | null
+    when: ClientWebWhen
+    requestedTime?: string | null
+    offset?: number
+    wantChips?: boolean
+  }): Promise<ReturnType<typeof pickRescheduleSlots> | null> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    if (!sessionOwnsConversation(this.#db, input)) return null
+    return pickRescheduleSlots(this.#db, input.tenantId, this.#clock, input, input)
   }
 
   /** Página web da cliente: horas livres para remarcar (a própria marcação não ocupa a vaga). */

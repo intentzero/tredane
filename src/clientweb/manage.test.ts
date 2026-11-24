@@ -17,6 +17,7 @@ import {
   hasPaidSignal,
   listRescheduleSlots,
   loadWebAppointment,
+  pickRescheduleSlots,
   planWebReschedule,
   rescheduleAlreadyAt,
   WEB_CANCEL_RECEIPT_SENTENCE,
@@ -90,6 +91,30 @@ describe('remarcar pela página (REQ-113, DEC-198)', () => {
       expect(times).not.toContain('10:00')
       expect(times).toContain('10:15') // só livre porque a própria marcação deixa de ocupar
       expect(times).toContain('14:00')
+    } finally {
+      close()
+    }
+  })
+
+  it('remarcar escolhe poucas horas (DEC-227): nunca a própria hora, e a própria vaga não conta como ocupada', async () => {
+    const { db, close, clock, marina, book } = seed()
+    try {
+      const apt = await book(marina, '2024-01-08T10:00')
+      const res = pickRescheduleSlots(db, TENANT, clock, marina, {
+        appointmentId: apt.id,
+        when: { date: '2024-01-08' },
+        requestedTime: '10:15',
+      })
+      if (!res.ok) throw new Error(res.error)
+      const times = res.slots.map((s) => s.time)
+      expect(times.length).toBeLessThanOrEqual(3)
+      expect(times).not.toContain('10:00')
+      // 10:15 só está livre porque a própria marcação deixa de ocupar; hora pedida sai primeiro.
+      expect(times).toContain('10:15')
+      expect(pickRescheduleSlots(db, TENANT, clock, marina, { appointmentId: 'nao-existe', when: 'amanha' })).toEqual({
+        ok: false,
+        error: 'appointment_not_found',
+      })
     } finally {
       close()
     }

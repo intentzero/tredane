@@ -14,6 +14,9 @@ import { quoteVisit } from '../clinic/config/zones'
 import { ensureClinicSettings } from '../clinic/config/settings'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../clinic/scheduling/timezone'
 import { queryAvailability } from '../clinic/scheduling/query'
+import { listDayAttractors } from '../clinic/scheduling/attractors'
+import { bestProfessionalByGravity } from '../clinic/scheduling/pick-slots'
+import { clinicDayBounds } from '../clinic/scheduling/timezone'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import type { AbuseLimits } from '../clinic/ai/abuse-limits'
 import type { ClinicDb } from '../clinic/store'
@@ -182,7 +185,7 @@ export function readClientWebCatalog(db: ClinicDb, tenantId: string, clock: Cloc
 
 export type ClientWebSlot = { id: string; date: string; time: string }
 
-function visitDurationMinutes(db: ClinicDb, tenantId: string, service: ServiceRow, zoneIds: string[]): number {
+export function visitDurationMinutes(db: ClinicDb, tenantId: string, service: ServiceRow, zoneIds: string[]): number {
   if (zoneIds.length === 0 && service.zones.every((z) => !z.active)) return service.durationMinutes
   return quoteVisit(db, tenantId, service, zoneIds.length > 0 ? zoneIds : null).durationMinutes
 }
@@ -458,6 +461,7 @@ export async function planWebProposal(
       const orderedIds = catalogSvc.professionals.map((p) => p.id)
       const freeIds = new Set<string>()
       let startsAt: number | undefined
+      let occupiesUntil: number | undefined
       for (const proId of orderedIds) {
         const avail = queryAvailability(
           db,
@@ -476,16 +480,32 @@ export async function planWebProposal(
         if (hit) {
           freeIds.add(proId)
           startsAt = hit.startsAt
+          occupiesUntil = hit.occupiesUntil
         }
       }
-      const picked = pickRoundRobinProfessional(
-        orderedIds,
-        freeIds,
-        readRrLastProfessional(db, tenantId, service.id),
-      )
+      // DEC-227: a gravidade das marcações confirmadas vem antes do rodízio; sem nenhuma
+      // marcação perto (pontuação 0) o rodízio da DEC-218 decide como antes.
+      let gravityPick: string | null = null
+      if (startsAt != null && occupiesUntil != null && freeIds.size > 1) {
+        const attractors = listDayAttractors(db, tenantId, clinicDayBounds(catalog.timezone, date))
+        const best = bestProfessionalByGravity(
+          startsAt,
+          occupiesUntil,
+          orderedIds.filter((id) => freeIds.has(id)),
+          attractors,
+        )
+        if (best && best.score > 0) gravityPick = best.professionalId
+      }
+      const picked =
+        gravityPick ??
+        pickRoundRobinProfessional(
+          orderedIds,
+          freeIds,
+          readRrLastProfessional(db, tenantId, service.id),
+        )
       if (picked && startsAt != null) {
         slot = { startsAt, professionalId: picked }
-        usedRoundRobin = true
+        usedRoundRobin = gravityPick == null
       }
     }
   } catch {

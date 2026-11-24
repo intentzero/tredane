@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   bookSlot,
   fetchCatalog,
+  fetchPick,
   fetchSlots,
   type Catalog,
   type CatalogCombo,
@@ -19,7 +20,7 @@ import {
   serviceNeedsLine,
   servicesForLine,
   visitTotals,
-  weekStartForDay,
+  whenFromPreset,
   zonesForLine,
 } from './booking-model'
 import { TimeStep } from './TimeStep'
@@ -62,15 +63,14 @@ export function BookFlow({
   const [step, setStep] = useState<Step>('service')
   const [service, setService] = useState<CatalogService | null>(null)
   const [zoneIds, setZoneIds] = useState<string[]>([])
-  const [weekStart, setWeekStart] = useState('')
-  const [day, setDay] = useState<string | null>(null)
   const [slot, setSlot] = useState<Slot | null>(null)
   const [slotNotice, setSlotNotice] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [bookedProfessionalName, setBookedProfessionalName] = useState<string | null>(null)
   /** null = Sem preferência (DEC-218). */
   const [preferredProfessionalId, setPreferredProfessionalId] = useState<string | null>(null)
-  const [preferredDayPart, setPreferredDayPart] = useState<import('./booking-model').DayPart | null>(null)
+  /** DEC-227: conveniência pedida no chat (data e período); null = a primeira com vaga. */
+  const [initialWhen, setInitialWhen] = useState<import('./api').PickWhen | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -83,10 +83,7 @@ export function BookFlow({
         preferredDate: initialPreferredDate,
         dayPart: initialDayPart,
       })
-      setPreferredDayPart(schedule.preferredDayPart)
-      const week0 = schedule.preferredDate ? weekStartForDay(schedule.preferredDate, res.today) : res.today
-      setWeekStart(week0)
-      if (schedule.preferredDate) setDay(schedule.preferredDate)
+      setInitialWhen(whenFromPreset(schedule, res.today))
       const preset = resolveBookingPreset(res, {
         serviceId: initialServiceId,
         audienceLine: initialAudienceLine,
@@ -169,7 +166,6 @@ export function BookFlow({
   function chooseService(s: CatalogService, preselectZoneIds?: string[]) {
     setService(s)
     setZoneIds(preselectZoneIds?.length ? [...new Set(preselectZoneIds)] : [])
-    setDay(null)
     setSlot(null)
     setSlotNotice(null)
     setPreferredProfessionalId(null)
@@ -282,12 +278,12 @@ export function BookFlow({
           catalog={catalog}
           subtitle={`${service.name} · ${visitTotals(service, zoneIds).minutes} min`}
           depsKey={`${service.id}:${zoneIds.join(',')}:${preferredProfessionalId ?? 'any'}`}
-          load={(from, to) =>
-            fetchSlots({
+          initialWhen={initialWhen}
+          pick={(q) =>
+            fetchPick({
               serviceId: service.id,
               variantIds: zoneIds,
-              from,
-              to,
+              ...q,
               professionalId: preferredProfessionalId,
             })
           }
@@ -301,13 +297,8 @@ export function BookFlow({
               professionalId: preferredProfessionalId,
             })
           }
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
-          day={day}
-          setDay={setDay}
           notice={slotNotice}
           onSessionLost={onSessionLost}
-          preferredDayPart={preferredDayPart}
           professionals={service.professionals ?? []}
           preferredProfessionalId={preferredProfessionalId}
           onPreferredProfessionalChange={(id) => {

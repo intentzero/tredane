@@ -494,6 +494,7 @@ describe('preferência de profissional (DEC-218)', () => {
         clock,
       )
 
+      // DEC-227: a hora colada à marcação das 09:00 fica com quem já atende (gravidade antes do rodízio).
       const second = await planWebProposal(db, TENANT, clock, session, {
         serviceId: service.id,
         variantIds: [],
@@ -502,7 +503,24 @@ describe('preferência de profissional (DEC-218)', () => {
       })
       expect(second.ok).toBe(true)
       if (!second.ok) return
-      expect(second.proposal.professionalId).toBe(ordered[1]!.id)
+      expect(second.proposal.professionalId).toBe(ordered[0]!.id)
+      await executeProposalConfirmOp(
+        db,
+        caller,
+        { handoff: second.handoff, capability: true, channel: 'web' },
+        clock,
+      )
+
+      // Longe de qualquer marcação (a mais de 3 h) não há gravidade: o rodízio avança como antes.
+      const third = await planWebProposal(db, TENANT, clock, session, {
+        serviceId: service.id,
+        variantIds: [],
+        line: null,
+        slotId: '2024-01-08T16:00',
+      })
+      expect(third.ok).toBe(true)
+      if (!third.ok) return
+      expect(third.proposal.professionalId).toBe(ordered[1]!.id)
 
       const preferred = await planWebProposal(db, TENANT, clock, session, {
         serviceId: service.id,

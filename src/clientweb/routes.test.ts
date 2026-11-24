@@ -215,6 +215,19 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
           seen.push({ kind: 'slots', session, input })
           return { ok: true, slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }], from: input.from, to: input.to, emptyDays: [] }
         },
+        pickLookup: async (_e, session, input) => {
+          seen.push({ kind: 'pick', session, input })
+          return {
+            ok: true,
+            date: '2026-11-18',
+            slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }],
+            hasMore: false,
+            earliestPossible: null,
+            emptyReason: null,
+            nextAvailable: null,
+            chips: null,
+          }
+        },
         bookLookup: async (_e, session, input) => {
           seen.push({ kind: 'book', session, input })
           return {
@@ -298,6 +311,60 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
         { serviceId: 's', variantIds: new Array(21).fill('z'), line: null, slotId: '2026-11-18T10:00' },
       ]
       for (const b of badBook) expect((await call('POST', '/api/c/book', cookie, b)).status).toBe(400)
+    } finally {
+      close()
+    }
+  })
+
+  it('«Quando prefere?» (DEC-227): aceita as conveniências, ignora ids do corpo e não devolve `ok`', async () => {
+    const { call, login, seen, close } = setupGateway()
+    try {
+      const cookie = await login()
+      for (const when of ['agora', 'hoje_manha', 'hoje_tarde', 'amanha', { date: '2026-11-20', dayPart: 'tarde' }, { date: '2026-11-20' }]) {
+        const res = await call('POST', '/api/c/availability', cookie, {
+          serviceId: 'svc-1', variantIds: [], when, requestedTime: '10:15', offset: 3, wantChips: true, tenantId: 'clinic-evil', contactId: 'ctc-evil',
+        })
+        expect(res.status).toBe(200)
+        const body = (await res.json()) as Record<string, unknown>
+        expect(body).toMatchObject({ date: '2026-11-18', slots: [{ id: '2026-11-18T10:00' }], hasMore: false })
+        expect('ok' in body).toBe(false)
+      }
+      const last = seen.filter((x) => x.kind === 'pick').pop()!
+      expect(last.input).toMatchObject({ serviceId: 'svc-1', requestedTime: '10:15', offset: 3, wantChips: true })
+      expect(JSON.stringify(last.input)).not.toMatch(/evil/)
+      expect(last.session).toMatchObject({ tenantId: 'clinic-a', contactId: 'ctc-1' })
+    } finally {
+      close()
+    }
+  })
+
+  it('«Quando prefere?»: conveniência, hora ou página inválidas dão 400', async () => {
+    const { call, login, close } = setupGateway()
+    try {
+      const cookie = await login()
+      const base = { serviceId: 'svc-1', variantIds: [] }
+      const bad = [
+        { ...base, when: 'ontem' },
+        { ...base, when: { date: 'amanhã' } },
+        { ...base, when: { date: '2026-11-20', dayPart: 'madrugada' } },
+        { ...base, when: 'agora', requestedTime: '25:00' },
+        { ...base, when: 'agora', requestedTime: '9h' },
+        { ...base, when: 'agora', offset: 2 },
+        { ...base, when: 'agora', offset: -3 },
+        { ...base, when: 'agora', offset: 3.5 },
+        { variantIds: [], when: 'agora' },
+        { ...base, variantIds: 'z1', when: 'agora' },
+      ]
+      for (const b of bad) expect((await call('POST', '/api/c/availability', cookie, b)).status, JSON.stringify(b)).toBe(400)
+    } finally {
+      close()
+    }
+  })
+
+  it('«Quando prefere?» sem sessão dá 401', async () => {
+    const { call, close } = setupGateway()
+    try {
+      expect((await call('POST', '/api/c/availability', undefined, { serviceId: 's', variantIds: [], when: 'agora' })).status).toBe(401)
     } finally {
       close()
     }

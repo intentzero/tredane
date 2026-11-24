@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>C-13 Agendar — Agora</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#5C32C9}a:hover{color:#4C259E}
+button,input{font:inherit}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #5C32C9;outline-offset:2px}
+</style>
+</head><body>
+<!-- DEC-227 (Proposto): cenário fictício — quarta 25/11, 09:10; antecedência mínima da clínica 30 min.
+     «Agora» escolhido: 09:15 e 09:30 ficam cortadas; a página explica o corte e mostra 3 horas a partir de 09:45. -->
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF9FF; color: #211339; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+<header style="display: flex; align-items: center; gap: 4px; padding: 4px 16px 4px 4px; min-height: 56px; box-sizing: border-box; background: #FFFFFF">
+<a href="C-03-Variantes.html" aria-label="Voltar" style="flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #211339"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></a>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-size: 11px; color: #544364">Clínica Aurora · passo 3 de 4</span>
+<h1 style="margin: 0; font-size: 18px; font-weight: 600">Quando?</h1>
+</div>
+</header>
+<div role="progressbar" aria-label="Progresso" aria-valuemin="1" aria-valuemax="4" aria-valuenow="3" style="height: 4px; background: #DFD5EF"><div style="width: 75%; height: 4px; background: #5C32C9"></div></div>
+<div style="padding: 10px 16px 0; font-size: 13px; color: #544364">Depilação a laser · Axilas, Virilha · 30 min</div>
+<div style="padding: 10px 16px 0; display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 13px; font-weight: 600; color: #544364" id="cw-pref-label">Quem prefere?</p>
+<div role="radiogroup" aria-labelledby="cw-pref-label" style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" role="radio" aria-checked="true" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #5C32C9; background: #EDE4FF; color: #211339; font-weight: 600">Sem preferência</button>
+<button type="button" role="radio" aria-checked="false" style="min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500; display: inline-flex; align-items: center; gap: 8px"><span aria-hidden="true" style="width: 24px; height: 24px; border-radius: 999px; background: #211339; color: #FFFFFF; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">Gi</span>Gi</button>
+<button type="button" role="radio" aria-checked="false" style="min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500; display: inline-flex; align-items: center; gap: 8px"><span aria-hidden="true" style="width: 24px; height: 24px; border-radius: 999px; background: #211339; color: #FFFFFF; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">P</span>Paula</button>
+</div>
+</div>
+<div style="padding: 16px 16px 0; display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 13px; font-weight: 600; color: #544364" id="cw-when-label">Quando prefere?</p>
+<div role="radiogroup" aria-labelledby="cw-when-label" style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" role="radio" aria-checked="true" style="min-height: 40px; padding: 0 14px; box-sizing: border-box; border-radius: 999px; border: 2px solid #5C32C9; background: #EDE4FF; color: #211339; font-weight: 600; display: inline-flex; align-items: center">Agora</button>
+<button type="button" role="radio" aria-checked="false" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500">Hoje de manhã</button>
+<a href="C-04-Horario.html" role="radio" aria-checked="false" style="min-height: 40px; padding: 0 14px; box-sizing: border-box; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500; display: inline-flex; align-items: center; text-decoration: none">Hoje à tarde</a>
+<button type="button" role="radio" aria-checked="false" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500">Amanhã</button>
+<a href="C-12-Calendario.html" role="radio" aria-checked="false" style="min-height: 40px; padding: 0 12px; box-sizing: border-box; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5C32C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16"></path><path d="M9 3v4"></path><path d="M15 3v4"></path></svg>Outra data</a>
+</div>
+</div>
+<main style="flex: 1; overflow: hidden; padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+<section aria-labelledby="cw-times-label" style="display: flex; flex-direction: column; gap: 8px">
+<h2 id="cw-times-label" style="margin: 0; font-size: 13px; font-weight: 600; color: #544364">Hoje, quarta 25</h2>
+<p role="status" style="margin: 0; padding: 8px 12px; border-radius: 8px; background: #F0E9FF; color: #211339; font-size: 13px; display: flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5C32C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>O mais cedo possível é às 09:45.</p>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<a href="C-05-Revisao.html" style="min-height: 56px; border: 1px solid #8E7FA8; border-radius: 12px; background: #FFFFFF; color: #211339; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">09:45</a>
+<a href="C-05-Revisao.html" style="min-height: 56px; border: 1px solid #8E7FA8; border-radius: 12px; background: #FFFFFF; color: #211339; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">10:15</a>
+<a href="C-05-Revisao.html" style="min-height: 56px; border: 1px solid #8E7FA8; border-radius: 12px; background: #FFFFFF; color: #211339; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">10:45</a>
+</div>
+</section>
+<button type="button" style="align-self: flex-start; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: #4C259E; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer">Outros horários<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+<p style="margin: 0; font-size: 13px; color: #6A5A7A">Tocar numa hora leva à revisão. Nada fica marcado antes de Confirmar.</p>
+</main>
+</div>
+</body></html>

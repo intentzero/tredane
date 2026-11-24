@@ -18,31 +18,25 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #5C32
 </div>
 </header>
 <div style="padding: 10px 16px 0; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #544364"><span>Limpeza de pele · 45 min · Dra. Ana</span><span>Agora: <strong style="color: #211339">qua 25/11, 14:15</strong></span></div>
-<div role="radiogroup" aria-label="Dia" style="display: flex; gap: 8px; padding: 10px 16px 12px; overflow-x: auto; border-bottom: 1px solid #DFD5EF">
-<label style="flex: none; width: 52px; min-height: 56px; box-sizing: border-box; border: 1px solid #DFD5EF; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer"><input type="radio" name="dia" style="position: absolute; opacity: 0; width: 1px; height: 1px"><span style="font-size: 11px; color: #544364">qua</span><span style="font-weight: 600">25</span></label>
-<label style="flex: none; width: 52px; min-height: 56px; box-sizing: border-box; border: 2px solid #5C32C9; border-radius: 12px; background: #EDE4FF; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer"><input type="radio" name="dia" checked style="position: absolute; opacity: 0; width: 1px; height: 1px"><span style="font-size: 11px; color: #544364">qui</span><span style="font-weight: 600">26</span></label>
-<label style="flex: none; width: 52px; min-height: 56px; box-sizing: border-box; border: 1px solid #DFD5EF; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer"><input type="radio" name="dia" style="position: absolute; opacity: 0; width: 1px; height: 1px"><span style="font-size: 11px; color: #544364">sex</span><span style="font-weight: 600">27</span></label>
-<label style="flex: none; width: 52px; min-height: 56px; box-sizing: border-box; border: 1px solid #DFD5EF; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer"><input type="radio" name="dia" style="position: absolute; opacity: 0; width: 1px; height: 1px"><span style="font-size: 11px; color: #544364">sáb</span><span style="font-weight: 600">28</span></label>
-<label style="flex: none; width: 52px; min-height: 56px; box-sizing: border-box; border: 1px solid #DFD5EF; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer"><input type="radio" name="dia" style="position: absolute; opacity: 0; width: 1px; height: 1px"><span style="font-size: 11px; color: #544364">seg</span><span style="font-weight: 600">30</span></label>
-<label style="flex: none; width: 52px; min-height: 56px; box-sizing: border-box; border: 1px solid #DFD5EF; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer"><input type="radio" name="dia" style="position: absolute; opacity: 0; width: 1px; height: 1px"><span style="font-size: 11px; color: #544364">ter</span><span style="font-weight: 600">01</span></label>
+<div style="padding: 12px 16px 0; display: flex; flex-direction: column; gap: 8px">
+<p id="cw-when-label" style="margin: 0; font-size: 13px; font-weight: 600; color: #544364">Quando prefere?</p>
+<div role="group" aria-labelledby="cw-when-label" style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500">Agora</button>
+<button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500">Hoje à tarde</button>
+<button type="button" aria-pressed="true" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #5C32C9; background: #EDE4FF; color: #211339; font-weight: 600">Amanhã</button>
+<button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DFD5EF; background: #FFFFFF; color: #211339; font-weight: 500">Outra data</button>
 </div>
-<main style="flex: 1; overflow: hidden; padding: 12px 16px; display: flex; flex-direction: column; gap: 16px">
+</div>
+<main style="flex: 1; overflow: hidden; padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 12px">
 <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
-<legend style="font-size: 13px; font-weight: 600; color: #544364; padding: 0 0 8px">Manhã</legend>
-<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
-<label style="min-height: 44px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">09:00</label>
-<label style="min-height: 44px; box-sizing: border-box; border: 2px solid #5C32C9; border-radius: 8px; background: #EDE4FF; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer"><input type="radio" name="hora" checked style="position: absolute; opacity: 0; width: 1px; height: 1px">10:15</label>
-<label style="min-height: 44px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">11:00</label>
+<legend style="font-size: 13px; font-weight: 600; color: #544364; padding: 0 0 8px">Amanhã, quinta 26</legend>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<label style="min-height: 56px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">09:30</label>
+<label style="min-height: 56px; box-sizing: border-box; border: 2px solid #5C32C9; border-radius: 12px; background: #EDE4FF; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; cursor: pointer"><input type="radio" name="hora" checked style="position: absolute; opacity: 0; width: 1px; height: 1px">10:15</label>
+<label style="min-height: 56px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">11:00</label>
 </div>
 </fieldset>
-<fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
-<legend style="font-size: 13px; font-weight: 600; color: #544364; padding: 0 0 8px">Tarde</legend>
-<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
-<label style="min-height: 44px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">15:00</label>
-<label style="min-height: 44px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">16:30</label>
-<label style="min-height: 44px; box-sizing: border-box; border: 1px solid #8E7FA8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer"><input type="radio" name="hora" style="position: absolute; opacity: 0; width: 1px; height: 1px">17:15</label>
-</div>
-</fieldset>
+<button type="button" style="align-self: flex-start; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: #4C259E; font-weight: 600; cursor: pointer">Outros horários ▾</button>
 <p style="margin: 0; font-size: 13px; color: #6A5A7A">Remarcar não gera novo sinal. O serviço e as zonas ficam iguais.</p>
 </main>
 <footer style="background: #FFFFFF; border-top: 1px solid #DFD5EF; padding: 10px 16px 16px; display: flex; align-items: center; gap: 16px">

@@ -164,6 +164,48 @@ export function dayPart(time: string): DayPart {
   return h < 12 ? 'Manhã' : h < 18 ? 'Tarde' : 'Noite'
 }
 
+/** «quarta» (dia da semana por extenso; o dia civil não tem fuso). */
+export function civilWeekdayLong(date: string): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number]
+  return new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(y, m - 1, d)))
+    .replace('-feira', '')
+}
+
+/** Título por cima das horas: «Hoje, quarta 25», «Amanhã, quinta 26» ou «sexta, 27/11». */
+export function pickHeading(date: string, today: string): string {
+  const l = civilDayLabel(date)
+  const weekday = civilWeekdayLong(date)
+  if (date === today) return `Hoje, ${weekday} ${l.short}`
+  if (date === addDays(today, 1)) return `Amanhã, ${weekday} ${l.short}`
+  return `${weekday}, ${l.dayMonth}`
+}
+
+/** «hoje», «amanhã» ou «sexta 27»: para o botão «Próximo livre: …». */
+export function nextFreeWhen(date: string, today: string): string {
+  const l = civilDayLabel(date)
+  if (date === today) return 'hoje'
+  if (date === addDays(today, 1)) return 'amanhã'
+  return `${civilWeekdayLong(date)} ${l.short}`
+}
+
+/**
+ * Conveniência inicial vinda do link do chat: data (e período) pedidos; só o período vale «hoje».
+ * `null` = nada pedido: a página escolhe a primeira conveniência com vaga.
+ */
+export function whenFromPreset(
+  preset: { preferredDate: string | null; preferredDayPart: DayPart | null },
+  today: string,
+): import('./api').PickWhen | null {
+  const part =
+    preset.preferredDayPart === 'Manhã' ? 'manha' : preset.preferredDayPart === 'Tarde' ? 'tarde' : preset.preferredDayPart === 'Noite' ? 'noite' : null
+  if (preset.preferredDate) return { date: preset.preferredDate, dayPart: part }
+  if (part === 'manha') return 'hoje_manha'
+  if (part === 'tarde') return 'hoje_tarde'
+  if (part === 'noite') return { date: today, dayPart: 'noite' }
+  return null
+}
+
 /** Rótulo civil «qua 25/11» (o dia civil não tem fuso). */
 export function civilDayLabel(date: string): { weekday: string; short: string; dayMonth: string } {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]

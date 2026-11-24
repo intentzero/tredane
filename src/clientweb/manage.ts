@@ -33,6 +33,7 @@ import type { AppointmentProposalRow } from '../clinic/proposals/types'
 import type { ProposalConfirmHandoff } from '../clinic/proposals/buttons'
 import { clampDateRange, CLIENT_WEB_MAX_SLOTS, readClientWebCatalog, type ClientWebSlot } from './booking'
 import { emptyDaysForRange, type ClientWebEmptyDay } from './empty-day-reason'
+import { pickWebSlots, type ClientWebPickResult, type PickRequest } from './pick'
 import {
   pickRoundRobinProfessional,
   readRrLastProfessional,
@@ -195,6 +196,43 @@ export async function listRescheduleSlots(
     to: range.to,
     emptyDays: emptyDaysForRange(db, tenantId, clock, catalog.timezone, datesWithoutSlots),
   }
+}
+
+/** Remarcar: as horas escolhidas para a conveniência pedida (DEC-227); a própria hora não se oferece. */
+export function pickRescheduleSlots(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  session: { contactId: string },
+  input: { appointmentId: string; professionalId?: string | null } & PickRequest,
+): ClientWebPickResult | { ok: false; error: 'appointment_not_found' } {
+  const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
+  if (!apt) return { ok: false, error: 'appointment_not_found' }
+  const service = getService(db, tenantId, apt.serviceId)
+  if (!service || !service.active) return { ok: false, error: 'service_unavailable' }
+  const catalog = readClientWebCatalog(db, tenantId, clock)
+  const catalogSvc = catalog.services.find((s) => s.id === apt.serviceId)
+  const preferredId = input.professionalId?.trim() || null
+  const allowed = catalogSvc?.professionals.some((p) => p.id === preferredId) || preferredId === apt.professionalId
+  if (preferredId && !allowed) return { ok: false, error: 'professional_invalid' }
+  return pickWebSlots(
+    db,
+    tenantId,
+    clock,
+    {
+      serviceId: apt.serviceId,
+      durationMinutes: appointmentMinutes(apt),
+      professionalIds: (catalogSvc?.professionals.map((p) => p.id) ?? [apt.professionalId]).filter(
+        (id, i, arr) => arr.indexOf(id) === i,
+      ),
+      preferredId,
+      excludeAppointmentId: apt.id,
+      excludeStartsAt: apt.startsAt,
+      timezone: catalog.timezone,
+      today: catalog.today,
+    },
+    input,
+  )
 }
 
 export type WebRescheduleError =

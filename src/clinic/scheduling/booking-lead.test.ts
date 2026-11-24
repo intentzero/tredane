@@ -5,7 +5,7 @@ import { bootClinicDb } from '../test-db'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { ensureClinicSettings } from '../config/settings'
 import { zonedCivilToUtc } from './timezone'
-import { queryAvailabilityOp } from './index'
+import { checkSlotAvailabilityOp, queryAvailabilityOp } from './index'
 
 const TZ = 'America/Sao_Paulo'
 
@@ -41,6 +41,23 @@ describe('bookingLeadMinutes', () => {
         .map((s) => s.startsAt)
       expect(slots).not.toContain(zonedCivilToUtc(TZ, 2026, 11, 12, 10, 45))
       expect(slots.some((t) => t >= zonedCivilToUtc(TZ, 2026, 11, 12, 11, 15))).toBe(true)
+
+      // DEC-227: a equipe no painel ignora a antecedência, mas nunca o passado.
+      const staff = queryAvailabilityOp(
+        boot.db,
+        caller,
+        { serviceId: svc.id, date: '2026-11-12', applyBookingLead: false },
+        clock,
+      ).slots.map((s) => s.startsAt)
+      expect(staff).toContain(zonedCivilToUtc(TZ, 2026, 11, 12, 10, 45))
+      expect(staff).not.toContain(zonedCivilToUtc(TZ, 2026, 11, 12, 10, 30))
+
+      const within = zonedCivilToUtc(TZ, 2026, 11, 12, 10, 45)
+      const checkInput = { serviceId: svc.id, professionalId: pro.id, startsAt: within }
+      expect(checkSlotAvailabilityOp(boot.db, caller, checkInput, clock).reasons).toContain('past_slot')
+      expect(
+        checkSlotAvailabilityOp(boot.db, caller, { ...checkInput, applyBookingLead: false }, clock).available,
+      ).toBe(true)
     } finally {
       boot.close()
     }
