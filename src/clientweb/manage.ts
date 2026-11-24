@@ -15,7 +15,9 @@ import { readZoneSnapshots, zoneLabel } from '../clinic/config/zones'
 import { PROPOSAL_SEND_ACTOR, PROPOSAL_SEND_ACTOR_DISPLAY } from '../clinic/constants'
 import { appendPostCancelFollowup } from '../clinic/followup/post-booking'
 import { sendOutboundMessageOp } from '../clinic/inbox/operations'
-import { zonedCivilToUtc } from '../clinic/scheduling/timezone'
+import { clinicDayBounds, zonedCivilToUtc } from '../clinic/scheduling/timezone'
+import { listDayAttractors } from '../clinic/scheduling/attractors'
+import { bestProfessionalByGravity } from '../clinic/scheduling/pick-slots'
 import { formatBookedWhenAt } from '../clinic/scheduling/format-booked-when'
 import { queryAvailability } from '../clinic/scheduling/query'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
@@ -309,6 +311,7 @@ export async function planWebReschedule(
       )
       const freeIds = new Set<string>()
       let startsAt: number | undefined
+      let occupiesUntil: number | undefined
       for (const proId of orderedIds) {
         const avail = queryAvailability(
           db,
@@ -331,16 +334,32 @@ export async function planWebReschedule(
         if (hit) {
           freeIds.add(proId)
           startsAt = hit.startsAt
+          occupiesUntil = hit.occupiesUntil
         }
       }
-      const picked = pickRoundRobinProfessional(
-        orderedIds,
-        freeIds,
-        readRrLastProfessional(db, tenantId, apt.serviceId),
-      )
+      // DEC-227: como ao agendar, a gravidade das marcações confirmadas vem antes do rodízio.
+      // A própria marcação que se move não atrai (`excludeAppointmentId`).
+      let gravityPick: string | null = null
+      if (startsAt != null && occupiesUntil != null && freeIds.size > 1) {
+        const attractors = listDayAttractors(db, tenantId, clinicDayBounds(catalog.timezone, date), apt.id)
+        const best = bestProfessionalByGravity(
+          startsAt,
+          occupiesUntil,
+          orderedIds.filter((id) => freeIds.has(id)),
+          attractors,
+        )
+        if (best && best.score > 0) gravityPick = best.professionalId
+      }
+      const picked =
+        gravityPick ??
+        pickRoundRobinProfessional(
+          orderedIds,
+          freeIds,
+          readRrLastProfessional(db, tenantId, apt.serviceId),
+        )
       if (picked && startsAt != null) {
         slot = { startsAt, professionalId: picked }
-        usedRoundRobin = true
+        usedRoundRobin = gravityPick == null
       }
     }
   } catch {
