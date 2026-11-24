@@ -3,6 +3,7 @@ import type { ClinicDb } from '../store'
 import { getService } from '../config/services'
 import { CLINIC_SCOPE_ID, type WeeklyWindowRow } from '../config/types'
 import type { UnavailabilityReason } from './types'
+import type { HoldNeed } from './hold-fit'
 
 export type Interval = { startsAt: number; endsAt: number }
 
@@ -116,6 +117,12 @@ export type OccupancyDayIndex = {
   excludeAppointmentId?: string | null
   byResource: Map<string, OccupyingAppointment[]>
   serviceBufferCache: ServiceBufferCache
+  /** Bloqueios do recurso (e da clínica) que tocam o dia: uma leitura por recurso (DEC-227, custo). */
+  blocksByResource: Map<string, BlockSql[]>
+  /** Holds activos da profissional que tocam o dia: uma leitura por profissional. */
+  holdsByProfessional: Map<string, HoldNeed[]>
+  /** Tipo e capacidade do recurso: uma leitura por recurso. */
+  resourceMeta: Map<string, { kind: string; capacity: number | null } | null>
 }
 
 export function createOccupancyDayIndex(
@@ -127,7 +134,59 @@ export function createOccupancyDayIndex(
     excludeAppointmentId,
     byResource: new Map(),
     serviceBufferCache: new Map(),
+    blocksByResource: new Map(),
+    holdsByProfessional: new Map(),
+    resourceMeta: new Map(),
   }
+}
+
+function rangeWithinDay(range: Interval, day: Interval): boolean {
+  return range.startsAt >= day.startsAt && range.endsAt <= day.endsAt
+}
+
+/**
+ * Bloqueios que tocam `range`. Com índice de dia, lê-os uma vez por recurso e filtra em memória
+ * (igual à consulta directa quando `range` cabe no dia; senão cai na consulta directa).
+ */
+export function blocksForRange(
+  db: ClinicDb,
+  tenantId: string,
+  resourceId: string,
+  range: Interval,
+  index?: OccupancyDayIndex,
+): BlockSql[] {
+  if (!index || !rangeWithinDay(range, index.dayRange)) {
+    return listBlocksOverlapping(db, tenantId, resourceId, range)
+  }
+  let day = index.blocksByResource.get(resourceId)
+  if (!day) {
+    day = listBlocksOverlapping(db, tenantId, resourceId, index.dayRange)
+    index.blocksByResource.set(resourceId, day)
+  }
+  return day.filter((b) => b.starts_at < range.endsAt && b.ends_at > range.startsAt)
+}
+
+/** Tipo e capacidade do recurso, lidos uma vez por índice de dia. */
+export function resourceKindAndCapacity(
+  db: ClinicDb,
+  tenantId: string,
+  resourceId: string,
+  index?: OccupancyDayIndex,
+): { kind: string; capacity: number | null } | null {
+  if (index?.resourceMeta.has(resourceId)) return index.resourceMeta.get(resourceId) ?? null
+  const row =
+    db.get<{ kind: string; capacity: number | null }>(
+      `SELECT kind, capacity FROM resources WHERE tenant_id = ? AND id = ?`,
+      tenantId,
+      resourceId,
+    ) ?? null
+  index?.resourceMeta.set(resourceId, row)
+  return row
+}
+
+function capacityOf(meta: { kind: string; capacity: number | null } | null): number {
+  if (!meta || meta.kind !== 'room') return 1
+  return Math.max(1, meta.capacity ?? 1)
 }
 
 function loadOccupyingForResourceDay(
@@ -305,7 +364,7 @@ export function resourceBusyReasons(
   if (windows !== null && !weeklyCovers(windows, dayOfWeek, startMinute, occupiedMins)) {
     reasons.push('outside_weekly_hours')
   }
-  if (listBlocksOverlapping(db, tenantId, resourceId, range).length > 0) {
+  if (blocksForRange(db, tenantId, resourceId, range, occupancyIndex).length > 0) {
     reasons.push('resource_block')
   }
   let occupying = occupyingForRange(
@@ -321,15 +380,11 @@ export function resourceBusyReasons(
   }
   if (occupying.length === 0) return reasons
 
-  const kindRow = db.get<{ kind: string }>(
-    `SELECT kind FROM resources WHERE tenant_id = ? AND id = ?`,
-    tenantId,
-    resourceId,
-  )
-  const kind = kindRow?.kind ?? ''
+  const meta = resourceKindAndCapacity(db, tenantId, resourceId, occupancyIndex)
+  const kind = meta?.kind ?? ''
+  const capacity = capacityOf(meta)
 
   if (kind === 'room') {
-    const capacity = resourceCapacity(db, tenantId, resourceId)
     if (
       capacity <= 1
       || peakConcurrentPeople(
@@ -356,7 +411,6 @@ export function resourceBusyReasons(
     }
   }
 
-  const capacity = resourceCapacity(db, tenantId, resourceId)
   // DEC-075: pico de pessoas distintas (mesmo contacto = 1) por bloco de 15 min.
   if (
     capacity <= 1
