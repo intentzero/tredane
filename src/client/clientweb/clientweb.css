@@ -287,5 +287,21 @@
 .cw-lead-note { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--color-surface-sunken); color: var(--color-text-primary); font-size: var(--font-size-small); }
 .cw-empty-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 16px; border: 1px dashed var(--color-line-control); border-radius: 12px; background: var(--color-surface-card); }
 .cw-empty-pick-title { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); }
-.cw-time-wish { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--color-line-divider); }
-.cw-time-input { min-height: 44px; padding: 0 12px; border: 1px solid var(--color-line-control); border-radius: 12px; background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; align-self: flex-start; }
+/* «Que horas lhe dá jeito?» na folha do calendário (DEC-227, C-12). */
+.cw-wish { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cw-wish > legend { padding: 0; margin-bottom: 10px; }
+.cw-wish-modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.cw-wish-mode { min-height: 56px; box-sizing: border-box; padding: 6px 4px; border-radius: 12px; border: 1px solid var(--color-line-control); background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; font-weight: var(--font-weight-semibold); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; }
+.cw-wish-mode.is-on { background: var(--color-primary-tint); border: 2px solid var(--color-primary-base); color: var(--color-primary-fill); padding: 5px 3px; }
+.cw-wish-sub { font-size: var(--font-size-caption); font-weight: var(--font-weight-regular); }
+.cw-wish-exact { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: var(--color-surface-sunken); }
+.cw-wish-readout { display: flex; align-items: center; justify-content: space-between; }
+.cw-wish-time { font-size: 22px; font-weight: 700; color: var(--color-primary-fill); font-variant-numeric: tabular-nums; }
+.cw-wish-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.cw-wish-minutes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.cw-wish-small { flex: none; min-width: 48px; min-height: 44px; box-sizing: border-box; border-radius: 8px; border: 1px solid var(--color-line-border); background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cw-wish-minutes .cw-wish-small { width: 100%; }
+.cw-wish-small.is-on { background: var(--color-primary-fill); border-color: var(--color-primary-fill); color: var(--color-primary-on-fill); }
+.cw-cal-foot { display: flex; justify-content: flex-end; }
+.cw-wish-cta { flex-direction: column; min-height: 60px; gap: 2px; border-radius: 12px; width: 100%; }
+.cw-wish-cta-sub { font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }

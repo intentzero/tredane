@@ -18,6 +18,6 @@ Mobile first (390×844), com o **layout compacto Confirmado** (Paulo, 17/11/2026
 | C-10 | `C-10-Busca.html` | Procurar: zonas e serviços encontrados, termo destacado | JRN-21 · REQ-117 |
 | C-11 | `C-11-BuscaVazia.html` | Procurar: nada encontrado, com «Perguntar no WhatsApp» | JRN-21 · REQ-117 |
 | C-13 | `C-13-Agora.html` | Agendar 3 de 4 com «Agora»: antecedência mínima explicada só quando corta («O mais cedo possível é às 09:45.») (DEC-227, **Confirmado**) | JRN-21 · REQ-112 |
-| C-12 | `C-12-Calendario.html` | Escolher data: calendário do mês com dias livres marcados e «Primeira data livre»; **«Tem uma hora em mente?»** e Manhã/Tarde, opcionais (DEC-227) | JRN-21, JRN-22 · REQ-112, REQ-113 |
+| C-12 | `C-12-Calendario.html` | Escolher data: calendário do mês com dias livres marcados e «Primeira livre»; **«Que horas lhe dá jeito?»** em cima (Qualquer · Manhã · Tarde · Hora certa, uma só escolha) e **«Ver horários»** confirma dia + hora (DEC-227, revisão 24/11/2026) | JRN-21, JRN-22 · REQ-112, REQ-113 |
 
 Estados que a UI real ainda precisa (não desenhados): carregando, sem horários na conveniência («Próximo livre: …», DEC-227),  vaga perdida ao confirmar, erro de rede, sessão expirada, página pausada pela owner, «Pedir à equipe» enquanto a janela de crédito não é aplicada (DEC-198), lista vazia em C-01, pesquisa a carregar.
