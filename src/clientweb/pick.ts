@@ -8,10 +8,9 @@
  * Nada aqui marca.
  */
 import type { Clock } from '../db/clock'
-import { ensureClinicSettings } from '../clinic/config/settings'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import { clinicDayBounds, zonedCivilToUtc } from '../clinic/scheduling/timezone'
-import { queryAvailability } from '../clinic/scheduling/query'
+import { prepareAvailabilityShared, queryAvailability, type AvailabilityShared } from '../clinic/scheduling/query'
 import { listDayAttractors } from '../clinic/scheduling/attractors'
 import { pickSlots, type PickCandidate } from '../clinic/scheduling/pick-slots'
 import type { ClinicDb } from '../clinic/store'
@@ -135,6 +134,7 @@ function dayCandidates(
   ctx: PickContext,
   date: string,
   applyBookingLead: boolean,
+  shared: AvailabilityShared,
 ): PickCandidate[] {
   const now = clock.nowMs()
   // Anel do rodízio (DEC-218) como desempate: começa na profissional seguinte à última atribuída.
@@ -160,6 +160,7 @@ function dayCandidates(
           ...(applyBookingLead ? {} : { applyBookingLead: false }),
         },
         clock,
+        shared,
       )
     } catch {
       continue
@@ -190,10 +191,11 @@ export function pickWebSlots(
   const now = clock.nowMs()
   const win = resolveWhen(req.when, ctx, now)
   if (!clampDateRange(ctx.today, win.date, win.date)) return { ok: false, error: 'range_invalid' }
-  const settings = ensureClinicSettings(db, tenantId, clock)
-  const lead = settings.bookingLeadMinutes
+  // Definições e prontidão lidas uma vez: o pedido consulta vários dias e profissionais.
+  const shared = prepareAvailabilityShared(db, tenantId, clock)
+  const lead = shared.settings.bookingLeadMinutes
 
-  const all = dayCandidates(db, tenantId, clock, ctx, win.date, true)
+  const all = dayCandidates(db, tenantId, clock, ctx, win.date, true, shared)
   const inWindow = all.filter((c) => c.startsAt >= win.fromMs && c.startsAt < win.toMs)
   const day = clinicDayBounds(ctx.timezone, win.date)
   const attractors = listDayAttractors(db, tenantId, day, ctx.excludeAppointmentId)
@@ -213,7 +215,7 @@ export function pickWebSlots(
   // Antecedência: só explica quando cortou a primeira hora que haveria sem ela.
   let earliestPossible: string | null = null
   if (lead > 0 && (req.offset ?? 0) === 0 && win.date === ctx.today) {
-    const noLead = dayCandidates(db, tenantId, clock, ctx, win.date, false).filter(
+    const noLead = dayCandidates(db, tenantId, clock, ctx, win.date, false, shared).filter(
       (c) => c.startsAt >= win.fromMs && c.startsAt < win.toMs,
     )
     const firstNoLead = noLead[0]?.startsAt
@@ -231,12 +233,12 @@ export function pickWebSlots(
     else if (all.length === 0) {
       emptyReason = emptyDaysForRange(db, tenantId, clock, ctx.timezone, [win.date])[0]?.reason ?? 'full'
     } else emptyReason = 'full'
-    nextAvailable = findNextAvailable(db, tenantId, clock, ctx, win.date, win.toMs, all)
+    nextAvailable = findNextAvailable(db, tenantId, clock, ctx, win.date, win.toMs, all, shared)
   }
 
   let chips: ClientWebChips | null = null
   if (req.wantChips) {
-    const todayAll = win.date === ctx.today ? all : dayCandidates(db, tenantId, clock, ctx, ctx.today, true)
+    const todayAll = win.date === ctx.today ? all : dayCandidates(db, tenantId, clock, ctx, ctx.today, true, shared)
     const agora = resolveWhen('agora', ctx, now)
     const manha = resolveWhen('hoje_manha', ctx, now)
     const tarde = resolveWhen('hoje_tarde', ctx, now)
@@ -256,10 +258,11 @@ function findNextAvailable(
   date: string,
   afterMs: number,
   dayAll: PickCandidate[],
+  shared: AvailabilityShared,
 ): ClientWebSlot | null {
   const last = addCivilDays(ctx.today, CLIENT_WEB_HORIZON_DAYS - 1)
   for (let d = date; d <= last; d = addCivilDays(d, 1)) {
-    const cands = (d === date ? dayAll : dayCandidates(db, tenantId, clock, ctx, d, true)).filter(
+    const cands = (d === date ? dayAll : dayCandidates(db, tenantId, clock, ctx, d, true, shared)).filter(
       (c) => c.startsAt >= afterMs,
     )
     if (cands.length === 0) continue
