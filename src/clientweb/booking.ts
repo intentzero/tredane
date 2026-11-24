@@ -13,7 +13,7 @@ import { listServices, getService } from '../clinic/config/services'
 import { quoteVisit } from '../clinic/config/zones'
 import { ensureClinicSettings } from '../clinic/config/settings'
 import { clinicCivilDateFromUtc, zonedCivilToUtc } from '../clinic/scheduling/timezone'
-import { queryAvailability } from '../clinic/scheduling/query'
+import { prepareAvailabilityShared, queryAvailability } from '../clinic/scheduling/query'
 import { listDayAttractors } from '../clinic/scheduling/attractors'
 import { bestProfessionalByGravity } from '../clinic/scheduling/pick-slots'
 import { clinicDayBounds } from '../clinic/scheduling/timezone'
@@ -244,6 +244,7 @@ export async function listClientWebSlots(
   }
   const slots: ClientWebSlot[] = []
   const datesWithoutSlots: string[] = []
+  const shared = prepareAvailabilityShared(db, tenantId, clock)
   for (let date = range.from; date <= range.to; date = addCivilDays(date, 1)) {
     if (!input.daysOnly && slots.length >= CLIENT_WEB_MAX_SLOTS) break
     let avail: { slots: Array<{ startsAt: number }> }
@@ -258,6 +259,7 @@ export async function listClientWebSlots(
           ...(preferredId ? { professionalId: preferredId } : {}),
         },
         clock,
+        shared,
       )
     } catch {
       break

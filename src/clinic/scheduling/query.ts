@@ -21,6 +21,7 @@ import {
   resourceBusyReasons,
   resourceCapacity,
   serviceOfferingAllows,
+  weeklyCovers,
   type OccupancyDayIndex,
 } from './occupancy'
 import { earliestBookableStartsAt } from './booking-lead'
@@ -148,7 +149,11 @@ export function placementBlockers(
       pro.id,
       ctx.range,
       { timezone: ctx.timezone, windows: windowsByResource(ctx.allWindows, pro.id), nowMs: ctx.asOf },
-      { excludeAppointmentId: ctx.excludeAppointmentId, excludeHoldId: ctx.excludeHoldId },
+      {
+        excludeAppointmentId: ctx.excludeAppointmentId,
+        excludeHoldId: ctx.excludeHoldId,
+        ...(occIndex ? { index: occIndex } : {}),
+      },
     )
   ) {
     reasons.push('hold_conflict')
@@ -208,6 +213,22 @@ function windowsByResource(
 }
 
 /**
+ * Leituras que não mudam durante um pedido (definições e prontidão da clínica). Quem consulta
+ * vários dias ou profissionais seguidos (página da cliente, calendário) lê-as uma vez.
+ */
+export type AvailabilityShared = {
+  settings: ReturnType<typeof ensureClinicSettings>
+  readiness: ReturnType<typeof computeConfigReadiness>
+}
+
+export function prepareAvailabilityShared(db: ClinicDb, tenantId: string, clock: Clock): AvailabilityShared {
+  return {
+    settings: ensureClinicSettings(db, tenantId, clock),
+    readiness: computeConfigReadiness(db, tenantId, clock),
+  }
+}
+
+/**
  * Consulta horários livres (leitura pura — nunca cria reserva).
  * Grade de 15 min no fuso da clínica; buffer ocupa profissional e sala (DEC-008).
  */
@@ -216,10 +237,11 @@ export function queryAvailability(
   tenantId: string,
   input: AvailabilityQueryInput,
   clock: Clock,
+  shared?: AvailabilityShared,
 ): AvailabilityQueryResult {
-  const settings = ensureClinicSettings(db, tenantId, clock)
+  const settings = shared?.settings ?? ensureClinicSettings(db, tenantId, clock)
   const timezone = settings.timezone
-  const readiness = computeConfigReadiness(db, tenantId, clock)
+  const readiness = shared?.readiness ?? computeConfigReadiness(db, tenantId, clock)
   const asOf = clock.nowMs()
   const earliest = earliestBookableStartsAt(
     asOf,
@@ -273,6 +295,18 @@ export function queryAvailability(
   }
 
   const allWindows = listEffectiveWeeklyWindows(db, tenantId)
+  // Sem expediente neste dia da semana nenhuma hora pode sair («outside_weekly_hours» bloqueia sempre):
+  // poupa as ~96 horas do dia e as suas consultas (DEC-227, custo do «Próximo livre»).
+  const proWindows = new Map(professionals.map((p) => [p.id, windowsByResource(allWindows, p.id)]))
+  const openProfessionals = professionals.filter((p) =>
+    proWindows.get(p.id)!.some((w) => w.dayOfWeek === dayOfWeek),
+  )
+  if (
+    openProfessionals.length === 0
+    || (service.weeklyWindows.length > 0 && !service.weeklyWindows.some((w) => w.dayOfWeek === dayOfWeek))
+  ) {
+    return empty([])
+  }
   const roomCandidates: Array<ResourceRow | null> =
     service.roomRequirement.mode === 'none'
       ? [null]
@@ -299,7 +333,9 @@ export function queryAvailability(
 
     let chosen: AvailableSlot | null = null
 
-    for (const pro of professionals) {
+    for (const pro of openProfessionals) {
+      // Fora do expediente desta profissional: nem consulta o resto.
+      if (!weeklyCovers(proWindows.get(pro.id)!, dayOfWeek, startMinute, occMins)) continue
       for (const room of roomCandidates) {
         const blockers = placementBlockers(
           db,

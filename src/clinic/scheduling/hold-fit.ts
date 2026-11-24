@@ -21,6 +21,7 @@ import {
   listConfirmedOccupyingResource,
   weeklyCovers,
   type Interval,
+  type OccupancyDayIndex,
 } from './occupancy'
 import { clinicDayOfWeek, clinicMinuteOfDay } from './timezone'
 
@@ -218,8 +219,26 @@ export function candidateBreaksHolds(
   professionalId: string,
   candidate: Interval,
   ctx: FitContext,
-  opts: { excludeAppointmentId?: string | null; excludeHoldId?: string | null } = {},
+  opts: {
+    excludeAppointmentId?: string | null
+    excludeHoldId?: string | null
+    /** Consulta de disponibilidade: lê os holds do dia uma vez por profissional. */
+    index?: OccupancyDayIndex
+  } = {},
 ): boolean {
+  // Nenhum hold toca o candidato → nada a partir (igual ao caminho completo, sem consultas por hora).
+  const index = opts.index
+  if (index && candidate.startsAt >= index.dayRange.startsAt && candidate.endsAt <= index.dayRange.endsAt) {
+    let day = index.holdsByProfessional.get(professionalId)
+    if (!day) {
+      day = listActiveHoldNeeds(db, tenantId, professionalId, index.dayRange, ctx.nowMs, opts.excludeHoldId)
+      index.holdsByProfessional.set(professionalId, day)
+    }
+    const touching = day.some(
+      (n) => n.windowStartsAt < candidate.endsAt && n.windowEndsAt > candidate.startsAt,
+    )
+    if (!touching) return false
+  }
   const { needs, span } = collectHoldCluster(
     db,
     tenantId,
