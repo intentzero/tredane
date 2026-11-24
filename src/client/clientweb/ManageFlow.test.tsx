@@ -73,11 +73,12 @@ function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknow
           return json({
             date,
             slots: ['09:00', '14:15'].map((t) => ({ id: `${date}T${t}`, date, time: t })),
-            hasMore: false,
+            hasEarlier: false,
+            hasLater: false,
             earliestPossible: null,
             emptyReason: null,
             nextAvailable: null,
-            chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true } : null,
+            chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true, amanhaManha: true, amanhaTarde: true } : null,
           })
         }
         return json({ slots: SLOTS })
@@ -140,7 +141,6 @@ describe('remarcar pela página (C-07)', () => {
       appointmentId: 'apt-1',
       when: 'agora',
       requestedTime: null,
-      offset: 0,
       wantChips: true,
       professionalId: 'pro-gi',
     })

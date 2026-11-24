@@ -1219,7 +1219,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     professionalId?: string | null
     when: ClientWebWhen
     requestedTime?: string | null
-    offset?: number
+    direction?: 'earlier' | 'later'
+    pivot?: string | null
     wantChips?: boolean
   }): Promise<ClientWebPickResult | null> {
     this.#ensureReady()
@@ -1237,7 +1238,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     professionalId?: string | null
     when: ClientWebWhen
     requestedTime?: string | null
-    offset?: number
+    direction?: 'earlier' | 'later'
+    pivot?: string | null
     wantChips?: boolean
   }): Promise<ReturnType<typeof pickRescheduleSlots> | null> {
     this.#ensureReady()

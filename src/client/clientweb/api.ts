@@ -277,16 +277,19 @@ export type PickWhen =
   | 'hoje_manha'
   | 'hoje_tarde'
   | 'amanha'
+  | 'amanha_manha'
+  | 'amanha_tarde'
   | { date: string; dayPart?: 'manha' | 'tarde' | 'noite' | null }
 
-export type PickChips = { agora: boolean; hojeManha: boolean; hojeTarde: boolean }
+export type PickChips = { agora: boolean; hojeManha: boolean; hojeTarde: boolean; amanhaManha: boolean; amanhaTarde: boolean }
 
 export type PickQuery = {
   when: PickWhen
   /** `HH:MM` em múltiplos de 15 min. */
   requestedTime?: string | null
-  /** Múltiplo de 3: «Outros horários». */
-  offset?: number
+  /** «Mais cedo» / «Mais tarde»: as 3 vagas seguintes do mesmo dia, antes ou depois de `pivot` (HH:MM). */
+  direction?: 'earlier' | 'later'
+  pivot?: string | null
   /** Pede também que chips de hoje têm vaga. */
   wantChips?: boolean
   professionalId?: string | null
@@ -295,7 +298,9 @@ export type PickQuery = {
 export type PickPage = {
   date: string
   slots: Slot[]
-  hasMore: boolean
+  /** Há vagas no mesmo dia antes / depois das mostradas. */
+  hasEarlier: boolean
+  hasLater: boolean
   /** Antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
   earliestPossible: string | null
   emptyReason: 'closed' | 'full' | 'past' | null
@@ -311,7 +316,8 @@ function parsePick(body: Partial<PickPage> | null): PickResult {
     kind: 'ok',
     date: body.date,
     slots: body.slots,
-    hasMore: body.hasMore === true,
+    hasEarlier: body.hasEarlier === true,
+    hasLater: body.hasLater === true,
     earliestPossible: typeof body.earliestPossible === 'string' ? body.earliestPossible : null,
     emptyReason:
       body.emptyReason === 'closed' || body.emptyReason === 'full' || body.emptyReason === 'past' ? body.emptyReason : null,
@@ -326,7 +332,8 @@ function emptyPick(): PickResult {
     kind: 'ok',
     date: '',
     slots: [],
-    hasMore: false,
+    hasEarlier: false,
+    hasLater: false,
     earliestPossible: null,
     emptyReason: 'full',
     nextAvailable: null,

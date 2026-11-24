@@ -59,20 +59,21 @@ type Calls = Array<{ url: string; method: string; body: Record<string, unknown> 
 
 type PickBody = Record<string, unknown>
 
-/** Resposta de «Quando prefere?»: 3 horas por pedido; «Outros horários» (offset 3) traz mais 3 e acaba. */
+/** Resposta de «Quando prefere?»: 3 horas por pedido; «Mais tarde» (direction later) traz as 3 seguintes e acaba. */
 function defaultPick(body: PickBody) {
   const when = body.when as string | { date: string }
-  const date = typeof when === 'object' ? when.date : when === 'amanha' ? '2026-11-18' : '2026-11-17'
+  const date = typeof when === 'object' ? when.date : String(when).startsWith('amanha') ? '2026-11-18' : '2026-11-17'
   const first = typeof when === 'object' ? ['10:00', '11:00', '15:00'] : ['09:00', '14:15', '16:30']
-  const times = body.offset === 3 ? ['12:00', '12:30', '13:00'] : first
+  const times = body.direction === 'later' ? ['17:00', '17:30', '18:00'] : body.direction === 'earlier' ? ['07:00', '07:30', '08:00'] : first
   return {
     date,
     slots: times.map((t) => ({ id: `${date}T${t}`, date, time: t })),
-    hasMore: body.offset !== 3,
+    hasEarlier: body.direction == null || body.direction === 'earlier' ? body.direction == null : true,
+    hasLater: body.direction !== 'later',
     earliestPossible: null,
     emptyReason: null,
     nextAvailable: null,
-    chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true } : null,
+    chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true, amanhaManha: true, amanhaTarde: true } : null,
   }
 }
 
@@ -277,26 +278,32 @@ describe('agendar pela página (C-02 a C-06)', () => {
   const picks = (calls: Calls) =>
     calls.filter((c) => c.url.endsWith('/api/c/availability') && c.body && 'when' in c.body)
 
-  it('Quando prefere? (DEC-227): 3 horas por pedido; «Outros horários» acrescenta sem repetir; nunca a grade inteira', async () => {
+  it('Quando prefere? (DEC-227): 3 horas por pedido; «Mais cedo» / «Mais tarde» trocam as 3 no mesmo dia; nunca a grade inteira', async () => {
     const calls = mockApi()
     const user = await openBooking()
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
     expect(await screen.findByText('Quando prefere?')).toBeTruthy()
     await screen.findByRole('button', { name: '14:15' })
-    expect(picks(calls)[0]!.body).toMatchObject({ when: 'agora', wantChips: true, offset: 0 })
+    expect(picks(calls)[0]!.body).toMatchObject({ when: 'agora', wantChips: true })
     expect(document.querySelectorAll('.cw-time')).toHaveLength(3)
     expect(screen.queryByRole('button', { name: 'Semana anterior' })).toBeNull()
     expect(screen.getByText('Hoje, terça 17')).toBeTruthy()
 
-    await user.click(screen.getByRole('button', { name: /Outros horários/ }))
-    await screen.findByRole('button', { name: '12:30' })
-    expect(document.querySelectorAll('.cw-time')).toHaveLength(6)
-    expect(picks(calls).pop()!.body).toMatchObject({ when: 'agora', offset: 3 })
     expect(screen.queryByRole('button', { name: /Outros horários/ })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /Mais tarde/ }))
+    await screen.findByRole('button', { name: '17:30' })
+    // Troca as 3 (não acrescenta) e manda a última hora mostrada como pivô.
+    expect(document.querySelectorAll('.cw-time')).toHaveLength(3)
+    expect(picks(calls).pop()!.body).toMatchObject({ when: 'agora', direction: 'later', pivot: '16:30' })
+    expect(screen.queryByRole('button', { name: /Mais tarde/ })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /Mais cedo/ }))
+    await screen.findByRole('button', { name: '07:30' })
+    expect(picks(calls).pop()!.body).toMatchObject({ direction: 'earlier', pivot: '17:00' })
 
-    await user.click(screen.getByRole('button', { name: 'Amanhã' }))
-    await waitFor(() => expect(picks(calls).pop()!.body).toMatchObject({ when: 'amanha', offset: 0 }))
+    await user.click(screen.getByRole('button', { name: 'Amanhã de manhã' }))
+    await waitFor(() => expect(picks(calls).pop()!.body).toMatchObject({ when: 'amanha_manha' }))
+    expect(screen.getByRole('button', { name: 'Amanhã à tarde' })).toBeTruthy()
     expect(await screen.findByText('Amanhã, quarta 18')).toBeTruthy()
     expect(document.querySelectorAll('.cw-time')).toHaveLength(3)
   })
@@ -305,7 +312,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
     const calls = mockApi({
       pick: (body) => ({
         ...defaultPick(body),
-        chips: body.wantChips ? { agora: false, hojeManha: false, hojeTarde: true } : null,
+        chips: body.wantChips ? { agora: false, hojeManha: false, hojeTarde: true, amanhaManha: true, amanhaTarde: true } : null,
       }),
     })
     const user = await openBooking()
@@ -315,7 +322,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
     expect(screen.queryByRole('button', { name: 'Agora' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Hoje de manhã' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Hoje à tarde' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Amanhã' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Amanhã de manhã' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Outra data' })).toBeTruthy()
   })
 
@@ -341,7 +348,8 @@ describe('agendar pela página (C-02 a C-06)', () => {
       pick: (body) => ({
         ...defaultPick(body),
         slots: [],
-        hasMore: false,
+        hasEarlier: false,
+        hasLater: false,
         emptyReason: 'full',
         nextAvailable: { id: '2026-11-20T09:30', date: '2026-11-20', time: '09:30' },
       }),
@@ -365,7 +373,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
       cleanup()
       resetExchangesForTest()
       window.history.replaceState(null, '', '/c/cw1_exemplo')
-      mockApi({ pick: (body) => ({ ...defaultPick(body), slots: [], hasMore: false, emptyReason: reason }) })
+      mockApi({ pick: (body) => ({ ...defaultPick(body), slots: [], hasEarlier: false, hasLater: false, emptyReason: reason }) })
       const user = await openBooking()
       await user.click(await screen.findByRole('button', { name: 'Feminino' }))
       await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))

@@ -9,7 +9,7 @@ import { pickClientWebSlots, resolveWhen, type PickRequest } from './pick'
 const TENANT = 'clinic-demo-a'
 const TZ = 'America/Sao_Paulo'
 /** Segunda 08/01/2024, hora de Brasília. */
-const at = (h: number, m = 0) => zonedCivilToUtc(TZ, 2024, 1, 8, h, m)
+const at = (h: number, m = 0, plusDays = 0) => zonedCivilToUtc(TZ, 2024, 1, 8 + plusDays, h, m)
 
 /** Segunda 08/01/2024 `h:m` (Brasília); expediente 09–18, duas profissionais, serviço de 30 min. */
 function seed(nowH: number, nowM = 0, leadMinutes = 0) {
@@ -59,6 +59,7 @@ describe('resolveWhen (DEC-227)', () => {
     expect(resolveWhen('hoje_manha', ctx, now)).toMatchObject({ date: '2024-01-08', fromMs: at(0), toMs: at(12) })
     expect(resolveWhen('hoje_tarde', ctx, now)).toMatchObject({ fromMs: at(12), toMs: at(18) })
     expect(resolveWhen('amanha', ctx, now).date).toBe('2024-01-09')
+    expect(resolveWhen('amanha_manha', ctx, now)).toMatchObject({ date: '2024-01-09', fromMs: at(0, 0, 1), toMs: at(12, 0, 1) })
     expect(resolveWhen({ date: '2024-01-10', dayPart: 'tarde' }, ctx, now)).toMatchObject({ date: '2024-01-10' })
   })
 })
@@ -69,7 +70,9 @@ describe('pickClientWebSlots', () => {
     try {
       const r = pick(s, { when: 'hoje_tarde' })
       expect(r.ok && r.slots.map((x) => x.time)).toEqual(['12:00', '12:30', '13:00'])
-      expect(r.ok && r.hasMore).toBe(true)
+      // Há vagas de manhã no mesmo dia: «Mais cedo» aparece.
+      expect(r.ok && r.hasEarlier).toBe(true)
+      expect(r.ok && r.hasLater).toBe(true)
     } finally {
       s.close()
     }
@@ -108,17 +111,18 @@ describe('pickClientWebSlots', () => {
     }
   })
 
-  it('«Outros horários» não repete', () => {
+  it('«Mais cedo» / «Mais tarde»: as 3 vagas seguintes do mesmo dia, sem repetir', () => {
     const s = seed(8)
     try {
-      const a = pick(s, { when: 'hoje_tarde', offset: 0 })
-      const b = pick(s, { when: 'hoje_tarde', offset: 3 })
-      expect(a.ok && b.ok).toBe(true)
-      if (a.ok && b.ok) {
-        const seen = new Set(a.slots.map((x) => x.id))
-        expect(b.slots.length).toBeGreaterThan(0)
-        for (const x of b.slots) expect(seen.has(x.id)).toBe(false)
-      }
+      const a = pick(s, { when: 'hoje_tarde' })
+      expect(a.ok && a.slots.map((x) => x.time)).toEqual(['12:00', '12:30', '13:00'])
+      const later = pick(s, { when: 'hoje_tarde', direction: 'later', pivot: '13:00' })
+      expect(later.ok && later.slots.map((x) => x.time)).toEqual(['13:30', '14:00', '14:30'])
+      expect(later.ok && later.hasEarlier).toBe(true)
+      const earlier = pick(s, { when: 'hoje_tarde', direction: 'earlier', pivot: '12:00' })
+      // Mais cedo atravessa o período: vem da manhã do mesmo dia.
+      expect(earlier.ok && earlier.slots.map((x) => x.time)).toEqual(['10:30', '11:00', '11:30'])
+      expect(earlier.ok && earlier.hasLater).toBe(true)
     } finally {
       s.close()
     }
@@ -162,7 +166,8 @@ describe('pickClientWebSlots', () => {
     const s = seed(16, 50)
     try {
       const r = pick(s, { when: 'amanha', wantChips: true })
-      expect(r.ok && r.chips).toEqual({ agora: true, hojeManha: false, hojeTarde: true })
+      // 16:00: «Hoje à tarde» repetiria «Agora» e some; amanhã tem os dois períodos.
+      expect(r.ok && r.chips).toEqual({ agora: true, hojeManha: false, hojeTarde: false, amanhaManha: true, amanhaTarde: true })
     } finally {
       s.close()
     }

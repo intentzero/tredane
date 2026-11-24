@@ -16,13 +16,14 @@ function emptyCopy(reason: PickPage['emptyReason']): string {
   return 'Sem horários nesta altura.'
 }
 
-type Preset = 'agora' | 'hoje_manha' | 'hoje_tarde' | 'amanha'
+type Preset = 'agora' | 'hoje_manha' | 'hoje_tarde' | 'amanha_manha' | 'amanha_tarde'
 
 const CHIPS: Array<{ id: Preset; label: string; chip?: keyof PickChips }> = [
   { id: 'agora', label: 'Agora', chip: 'agora' },
   { id: 'hoje_manha', label: 'Hoje de manhã', chip: 'hojeManha' },
   { id: 'hoje_tarde', label: 'Hoje à tarde', chip: 'hojeTarde' },
-  { id: 'amanha', label: 'Amanhã' },
+  { id: 'amanha_manha', label: 'Amanhã de manhã', chip: 'amanhaManha' },
+  { id: 'amanha_tarde', label: 'Amanhã à tarde', chip: 'amanhaTarde' },
 ]
 
 function whenKey(w: PickWhen | null): string {
@@ -71,7 +72,7 @@ export function TimeStep({
   const [page, setPage] = useState<PickPage | 'loading' | 'error'>('loading')
   const [shown, setShown] = useState<Slot[]>([])
   const [chips, setChips] = useState<PickChips | null>(null)
-  const [more, setMore] = useState<'idle' | 'loading'>('idle')
+  const [stepping, setStepping] = useState(false)
   const [retry, setRetry] = useState(0)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const pickRef = useRef(pick)
@@ -93,7 +94,7 @@ export function TimeStep({
     let cancelled = false
     setPage('loading')
     void pickRef
-      .current({ when: when ?? 'agora', requestedTime, offset: 0, wantChips: true })
+      .current({ when: when ?? 'agora', requestedTime, wantChips: true })
       .then((res) => {
         if (cancelled) return
         if (res.kind === 'unauthorized') return onSessionLost()
@@ -102,7 +103,7 @@ export function TimeStep({
         if (when == null) {
           // Sem conveniência pedida: «Agora» se houver vaga, senão a primeira que tiver.
           const c = res.chips
-          const fallback: Preset = !c || c.agora ? 'agora' : c.hojeManha ? 'hoje_manha' : c.hojeTarde ? 'hoje_tarde' : 'amanha'
+          const fallback: Preset = !c || c.agora ? 'agora' : c.hojeManha ? 'hoje_manha' : c.hojeTarde ? 'hoje_tarde' : c.amanhaManha ? 'amanha_manha' : 'amanha_tarde'
           if (fallback !== 'agora') return setWhen(fallback)
           setWhen('agora')
         }
@@ -115,15 +116,17 @@ export function TimeStep({
     // `when` e a hora pedida são o pedido; `retry` refaz depois de um erro.
   }, [depsKey, whenKey(when), requestedTime, retry, onSessionLost])
 
-  async function loadMore() {
-    if (page === 'loading' || page === 'error' || more === 'loading') return
-    setMore('loading')
-    const res = await pickRef.current({ when: when ?? 'agora', requestedTime, offset: shown.length })
-    setMore('idle')
+  /** «Mais cedo» / «Mais tarde»: as 3 vagas seguintes do mesmo dia, em ordem de hora. */
+  async function step(direction: 'earlier' | 'later') {
+    if (page === 'loading' || page === 'error' || stepping || shown.length === 0) return
+    const pivot = direction === 'earlier' ? shown[0]!.time : shown[shown.length - 1]!.time
+    setStepping(true)
+    const res = await pickRef.current({ when: when ?? 'agora', requestedTime, direction, pivot })
+    setStepping(false)
     if (res.kind === 'unauthorized') return onSessionLost()
-    if (res.kind === 'error') return
-    setShown((cur) => [...cur, ...res.slots.filter((s) => !cur.some((c) => c.id === s.id))])
-    setPage({ ...page, hasMore: res.hasMore })
+    if (res.kind === 'error' || res.slots.length === 0) return
+    setShown(res.slots)
+    setPage({ ...page, hasEarlier: res.hasEarlier, hasLater: res.hasLater })
   }
 
   const showPref = professionals.length > 1 && onPreferredProfessionalChange
@@ -241,10 +244,21 @@ export function TimeStep({
           </div>
         </section>
       )}
-      {done && shown.length > 0 && done.hasMore && (
-        <button type="button" className="cw-more cw-margin" disabled={more === 'loading'} onClick={() => void loadMore()}>
-          Outros horários <span aria-hidden="true">▾</span>
-        </button>
+      {done && shown.length > 0 && (done.hasEarlier || done.hasLater) && (
+        <div className="cw-step cw-margin">
+          {done.hasEarlier ? (
+            <button type="button" className="cw-more" disabled={stepping} onClick={() => void step('earlier')}>
+              <span aria-hidden="true">‹</span> Mais cedo
+            </button>
+          ) : (
+            <span />
+          )}
+          {done.hasLater && (
+            <button type="button" className="cw-more" disabled={stepping} onClick={() => void step('later')}>
+              Mais tarde <span aria-hidden="true">›</span>
+            </button>
+          )}
+        </div>
       )}
       {done && shown.length === 0 && (
         <div className="cw-empty-pick cw-margin" role="status">
