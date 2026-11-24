@@ -42,6 +42,11 @@ export type AvailabilityQueryInput = {
   excludeAppointmentId?: string | null
   /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
   durationMinutesOverride?: number | null
+  /**
+   * Antecedência mínima da clínica (DEC-182). Padrão `true`; a equipe marcando à mão no painel
+   * passa `false` (DEC-227): o passado continua recusado, só a antecedência é ignorada.
+   */
+  applyBookingLead?: boolean
 }
 
 export type AvailableSlot = {
@@ -93,6 +98,11 @@ export type CheckSlotInput = {
   excludeHoldId?: string | null
   /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
   durationMinutesOverride?: number | null
+  /**
+   * Antecedência mínima da clínica (DEC-182). Padrão `true`; a equipe marcando à mão no painel
+   * passa `false` (DEC-227): o passado continua recusado, só a antecedência é ignorada.
+   */
+  applyBookingLead?: boolean
 }
 
 export type CheckSlotResult = {

@@ -173,6 +173,8 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           professionalId,
           excludeHoldId,
           durationMinutesOverride,
+          // DEC-227: a equipe vê e marca dentro da antecedência mínima.
+          applyBookingLead: false,
         },
       )
       return c.json(serializeAvailability(result))
@@ -215,6 +217,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           excludeHoldId: body.excludeHoldId ?? null,
           durationMinutesOverride:
             body.durationMinutes == null ? null : finiteNumber(body.durationMinutes, 'durationMinutes'),
+          applyBookingLead: false,
         },
       )
       return c.json(serializeCheckSlot(result))
@@ -424,6 +427,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           appliedDurationMinutes:
             body.durationMinutes == null ? null : finiteNumber(body.durationMinutes, 'durationMinutes'),
           zoneIds: parseZoneIds(body.zoneIds),
+          applyBookingLead: false,
         },
       )
       return c.json(
@@ -536,6 +540,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
             actorClerkUserId: actor,
             expectedVersion: body.expectedVersion ?? null,
             zoneIds: parseZoneIds(body.zoneIds),
+            applyBookingLead: false,
           },
         )
         return c.json({

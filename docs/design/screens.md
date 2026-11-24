@@ -135,14 +135,15 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 
 ## Página web da cliente (mobile first 390×844, Proposto)
 
-Página pública pessoal aberta pelo link do chat (DEC-196 a DEC-199; [ADR-0018](../adr/0018-pagina-web-cliente.md)), fora do painel e sem Clerk. Mocks `C-01` a `C-12` em [cliente/](cliente/README.md), com previews em `cliente/previews/`. Não usam a numeração `M-xx` nem o `canvas.json`.
+Página pública pessoal aberta pelo link do chat (DEC-196 a DEC-199; [ADR-0018](../adr/0018-pagina-web-cliente.md)), fora do painel e sem Clerk. Mocks `C-01` a `C-13` em [cliente/](cliente/README.md), com previews em `cliente/previews/`. Não usam a numeração `M-xx` nem o `canvas.json`.
 
 | ID | Tela | Jornadas · requisitos | O que mostra |
 | --- | --- | --- | --- |
 | C-01 | Início | JRN-20 · REQ-115 | Marcações futuras (zonas/combo · preço), Agendar, Falar com a equipe |
 | C-02 a C-05 | Agendar (4 passos) | JRN-21 · REQ-112, REQ-117 | Serviço (com pesquisa e «Para quem é?»), zonas (com pesquisa), horário, revisão e **Confirmar** |
 | C-10, C-11 | Procurar | JRN-21 · REQ-117 | Resultados com termo destacado; nada encontrado |
-| C-12 | Escolher data | JRN-21, JRN-22 · REQ-112, REQ-113 | Calendário do mês em folha inferior; dias com horários marcados; primeira data livre |
+| C-13 | Horário · Agora (**Confirmado**, DEC-227) | JRN-21 · REQ-112 | «Quando prefere?» com Agora; aviso «O mais cedo possível é às HH:MM» quando a antecedência corta; 3 horas + «Outros horários» |
+| C-12 | Escolher data | JRN-21, JRN-22 · REQ-112, REQ-113 | Calendário do mês em folha inferior; dias com horários marcados; primeira data livre; «Tem uma hora em mente?» e Manhã/Tarde opcionais (DEC-227) |
 | C-06 | Feito | JRN-21 · REQ-116 | Resultado e aviso do recibo no WhatsApp |
 | C-07 | Remarcar | JRN-22 · REQ-113 | Nova hora para o mesmo serviço e zonas |
 | C-08 | Cancelar | JRN-22 · REQ-114 | Política do sinal e aceite explícito |

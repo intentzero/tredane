@@ -271,6 +271,94 @@ export async function fetchSlots(input: {
   }
 }
 
+/** DEC-227: «Quando prefere?» — a conveniência pedida; o servidor escolhe até 3 horas. */
+export type PickWhen =
+  | 'agora'
+  | 'hoje_manha'
+  | 'hoje_tarde'
+  | 'amanha'
+  | { date: string; dayPart?: 'manha' | 'tarde' | 'noite' | null }
+
+export type PickChips = { agora: boolean; hojeManha: boolean; hojeTarde: boolean }
+
+export type PickQuery = {
+  when: PickWhen
+  /** `HH:MM` em múltiplos de 15 min. */
+  requestedTime?: string | null
+  /** Múltiplo de 3: «Outros horários». */
+  offset?: number
+  /** Pede também que chips de hoje têm vaga. */
+  wantChips?: boolean
+  professionalId?: string | null
+}
+
+export type PickPage = {
+  date: string
+  slots: Slot[]
+  hasMore: boolean
+  /** Antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
+  earliestPossible: string | null
+  emptyReason: 'closed' | 'full' | 'past' | null
+  nextAvailable: Slot | null
+  chips: PickChips | null
+}
+
+export type PickResult = ({ kind: 'ok' } & PickPage) | { kind: 'unauthorized' } | { kind: 'error' }
+
+function parsePick(body: Partial<PickPage> | null): PickResult {
+  if (!body || !Array.isArray(body.slots) || typeof body.date !== 'string') return { kind: 'error' }
+  return {
+    kind: 'ok',
+    date: body.date,
+    slots: body.slots,
+    hasMore: body.hasMore === true,
+    earliestPossible: typeof body.earliestPossible === 'string' ? body.earliestPossible : null,
+    emptyReason:
+      body.emptyReason === 'closed' || body.emptyReason === 'full' || body.emptyReason === 'past' ? body.emptyReason : null,
+    nextAvailable: body.nextAvailable && typeof body.nextAvailable.id === 'string' ? body.nextAvailable : null,
+    chips: body.chips ?? null,
+  }
+}
+
+/** Pedido recusado (fora do horizonte, serviço que deixou de estar marcável): sem horas, sem alarme. */
+function emptyPick(): PickResult {
+  return {
+    kind: 'ok',
+    date: '',
+    slots: [],
+    hasMore: false,
+    earliestPossible: null,
+    emptyReason: 'full',
+    nextAvailable: null,
+    chips: null,
+  }
+}
+
+async function postPick(body: Record<string, unknown>): Promise<PickResult> {
+  try {
+    const res = await fetch('/api/c/availability', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.status === 401) return { kind: 'unauthorized' }
+    if (res.status === 404 || res.status === 422) return emptyPick()
+    if (!res.ok) return { kind: 'error' }
+    return parsePick(await json<Partial<PickPage>>(res))
+  } catch {
+    return { kind: 'error' }
+  }
+}
+
+export function fetchPick(input: { serviceId: string; variantIds: string[] } & PickQuery): Promise<PickResult> {
+  return postPick(input)
+}
+
+export function fetchReschedulePick(input: { appointmentId: string } & PickQuery): Promise<PickResult> {
+  return postPick(input)
+}
+
 export async function bookSlot(input: BookInput): Promise<BookResult | 'unauthorized' | 'error'> {
   try {
     const res = await fetch('/api/c/book', {

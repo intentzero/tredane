@@ -221,7 +221,10 @@ export function queryAvailability(
   const timezone = settings.timezone
   const readiness = computeConfigReadiness(db, tenantId, clock)
   const asOf = clock.nowMs()
-  const earliest = earliestBookableStartsAt(asOf, settings.bookingLeadMinutes)
+  const earliest = earliestBookableStartsAt(
+    asOf,
+    input.applyBookingLead === false ? 0 : settings.bookingLeadMinutes,
+  )
 
   const service = getService(db, tenantId, input.serviceId)
   if (!service || !service.active) {

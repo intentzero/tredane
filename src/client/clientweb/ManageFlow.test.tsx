@@ -65,7 +65,23 @@ function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknow
         return json({ clinicName: 'Clínica Aurora', firstName: 'Marina', timezone: 'America/Sao_Paulo', appointments: [{ ...APT, hasPaidSignal: opts.signal === true }], sessionExpiresAt: 1 })
       }
       if (url.endsWith('/api/c/catalog')) return json(CATALOG)
-      if (url.endsWith('/api/c/availability')) return json({ slots: SLOTS })
+      if (url.endsWith('/api/c/availability')) {
+        // DEC-227: remarcar usa «Quando prefere?» como agendar; o dia é o de hoje (17/11) ou o pedido.
+        if (body && 'when' in body) {
+          const when = body.when as string | { date: string }
+          const date = typeof when === 'object' ? when.date : when === 'amanha' ? '2026-11-18' : '2026-11-17'
+          return json({
+            date,
+            slots: ['09:00', '14:15'].map((t) => ({ id: `${date}T${t}`, date, time: t })),
+            hasMore: false,
+            earliestPossible: null,
+            emptyReason: null,
+            nextAvailable: null,
+            chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true } : null,
+          })
+        }
+        return json({ slots: SLOTS })
+      }
       if (url.endsWith('/api/c/reschedule')) {
         return json(
           opts.reschedule ?? {
@@ -122,13 +138,15 @@ describe('remarcar pela página (C-07)', () => {
     const avail = calls.find((c) => c.url.endsWith('/api/c/availability'))!
     expect(avail.body).toEqual({
       appointmentId: 'apt-1',
-      from: '2026-11-17',
-      to: '2026-11-23',
+      when: 'agora',
+      requestedTime: null,
+      offset: 0,
+      wantChips: true,
       professionalId: 'pro-gi',
     })
     expect(calls.find((c) => c.url.endsWith('/api/c/reschedule'))!.body).toEqual({
       appointmentId: 'apt-1',
-      slotId: '2026-11-18T14:15',
+      slotId: '2026-11-17T14:15',
       professionalId: 'pro-gi',
     })
     expect(calls.some((c) => JSON.stringify(c.body ?? {}).match(/tenant|contact/i))).toBe(false)

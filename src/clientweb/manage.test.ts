@@ -17,6 +17,7 @@ import {
   hasPaidSignal,
   listRescheduleSlots,
   loadWebAppointment,
+  pickRescheduleSlots,
   planWebReschedule,
   rescheduleAlreadyAt,
   WEB_CANCEL_RECEIPT_SENTENCE,
@@ -90,6 +91,30 @@ describe('remarcar pela página (REQ-113, DEC-198)', () => {
       expect(times).not.toContain('10:00')
       expect(times).toContain('10:15') // só livre porque a própria marcação deixa de ocupar
       expect(times).toContain('14:00')
+    } finally {
+      close()
+    }
+  })
+
+  it('remarcar escolhe poucas horas (DEC-227): nunca a própria hora, e a própria vaga não conta como ocupada', async () => {
+    const { db, close, clock, marina, book } = seed()
+    try {
+      const apt = await book(marina, '2024-01-08T10:00')
+      const res = pickRescheduleSlots(db, TENANT, clock, marina, {
+        appointmentId: apt.id,
+        when: { date: '2024-01-08' },
+        requestedTime: '10:15',
+      })
+      if (!res.ok) throw new Error(res.error)
+      const times = res.slots.map((s) => s.time)
+      expect(times.length).toBeLessThanOrEqual(3)
+      expect(times).not.toContain('10:00')
+      // 10:15 só está livre porque a própria marcação deixa de ocupar; hora pedida sai primeiro.
+      expect(times).toContain('10:15')
+      expect(pickRescheduleSlots(db, TENANT, clock, marina, { appointmentId: 'nao-existe', when: 'amanha' })).toEqual({
+        ok: false,
+        error: 'appointment_not_found',
+      })
     } finally {
       close()
     }
@@ -301,6 +326,70 @@ describe('cancelar pela página (REQ-114, DEC-198)', () => {
       const res = cancelFromWeb(db, caller, clock, marina, apt.id)
       expect(res.result).toEqual({ status: 'needs_team' })
       expect(db.get('SELECT status FROM appointments WHERE id = ?', apt.id)).toMatchObject({ status: 'confirmed' })
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('remarcar com «Sem preferência» (DEC-227): gravidade antes do rodízio', () => {
+  /** Segunda 08/01/2024 09–18; Gi e Paula fazem o mesmo serviço de 60 min. */
+  function seedTwoPros() {
+    const clock = createControllableClock(Date.UTC(2024, 0, 7, 15))
+    const { db, close } = bootClinicDb({ clock })
+    const caller = workerCaller(TENANT, 'user_synth_owner_a')
+    const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+    const gi = upsertResourceOp(db, caller, { kind: 'professional', name: 'Gi', homeRoomId: room.id }, clock)
+    const paula = upsertResourceOp(db, caller, { kind: 'professional', name: 'Paula', homeRoomId: room.id }, clock)
+    for (const resourceId of [gi.id, paula.id, room.id]) {
+      setWeeklyWindowsOp(db, caller, { resourceId, windows: [{ dayOfWeek: 1, startMinute: 9 * 60, endMinute: 18 * 60 }] }, clock)
+    }
+    const svc = upsertServiceOp(
+      db,
+      caller,
+      { name: 'Limpeza de pele', durationMinutes: 60, bufferMinutes: 0, priceCents: 12_000, professionalIds: [gi.id, paula.id], roomRequirement: { mode: 'none' } },
+      clock,
+    )
+    syncWhatsappChannel(db, TENANT, { status: 'connected', bindingId: 'b1', phoneNumberId: 'pn1', wabaId: 'w1', displayPhone: '+1555', action: 'channel_connected' }, clock)
+    seedSyntheticWhatsappTemplates(db, TENANT, clock)
+    const mk = (wa: string, name: string, key: string) => {
+      const ing = ingestContactMessage(db, workerCaller(TENANT, 'system:ai-autodraft'), { providerEventKey: key, waId: wa, body: 'oi' }, clock)
+      const c = upsertContact(db, { tenantId: TENANT, waId: wa, displayName: name }, clock)
+      return { contactId: c.id, conversationId: ing.conversation!.id }
+    }
+    const marina = mk('5511900001111', 'Marina Souza', 'wa:m1')
+    const outra = mk('5511900002222', 'Outra Pessoa', 'wa:o1')
+    const book = async (who: typeof marina, slotId: string, professionalId: string) => {
+      const planned = await planWebProposal(db, TENANT, clock, who, { serviceId: svc.id, variantIds: [], line: null, slotId, professionalId })
+      if (!planned.ok) throw new Error(`plano falhou: ${planned.error}`)
+      const done = await executeProposalConfirmOp(db, caller, { handoff: planned.handoff, capability: true, channel: 'web' }, clock)
+      if (done.status !== 'booked') throw new Error(`não marcou: ${done.status}`)
+      return done.appointment
+    }
+    return { db, close, clock, gi, paula, marina, outra, book }
+  }
+
+  it('a hora colada à marcação confirmada de outra cliente fica com essa profissional, não com a primeira do rodízio', async () => {
+    const { db, close, clock, paula, marina, outra, book } = seedTwoPros()
+    try {
+      const apt = await book(marina, '2024-01-08T09:00', (db.get("SELECT id FROM resources WHERE name = 'Gi'") as { id: string }).id)
+      await book(outra, '2024-01-08T14:00', paula.id)
+      const planned = await planWebReschedule(db, TENANT, clock, marina, { appointmentId: apt.id, slotId: '2024-01-08T15:00' })
+      if (!planned.ok) throw new Error(planned.error)
+      expect(planned.proposal.professionalId).toBe(paula.id)
+    } finally {
+      close()
+    }
+  })
+
+  it('a própria marcação que se move não atrai: sem outra marcação por perto vale o rodízio', async () => {
+    const { db, close, clock, gi, paula, marina, book } = seedTwoPros()
+    try {
+      const apt = await book(marina, '2024-01-08T09:00', paula.id)
+      // Se a marcação da Paula (a mover) atraísse, 10:00 ficaria com ela; sem atractor o rodízio escolhe a Gi.
+      const planned = await planWebReschedule(db, TENANT, clock, marina, { appointmentId: apt.id, slotId: '2024-01-08T10:00' })
+      if (!planned.ok) throw new Error(planned.error)
+      expect(planned.proposal.professionalId).toBe(gi.id)
     } finally {
       close()
     }

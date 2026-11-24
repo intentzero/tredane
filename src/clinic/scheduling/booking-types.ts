@@ -47,6 +47,8 @@ export type ConfirmAppointmentInput = {
   /** Combo já cobrado (DEC-080): vem da cobrança Pix junto com as variantes. */
   frozenCombo?: ComboSnapshot | null
   actorDisplayName?: string | null
+  /** DEC-227: a equipe no painel ignora a antecedência mínima (padrão: aplica). */
+  applyBookingLead?: boolean
 }
 
 export type CancelAppointmentInput = {
@@ -77,6 +79,8 @@ export type RescheduleAppointmentInput = {
   zoneIds?: string[] | null
   /** DEC-091: o botão da proposta já avisa. O aviso do painel (DEC-097) não sai. */
   skipRescheduleNotice?: boolean
+  /** DEC-227: a equipe no painel ignora a antecedência mínima (padrão: aplica). */
+  applyBookingLead?: boolean
 }
 
 export type AppointmentDetail = AppointmentRow & {

@@ -57,7 +57,34 @@ const SLOTS = [
 
 type Calls = Array<{ url: string; method: string; body: Record<string, unknown> | null }>
 
-function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[]; exchange?: unknown } = {}) {
+type PickBody = Record<string, unknown>
+
+/** Resposta de «Quando prefere?»: 3 horas por pedido; «Outros horários» (offset 3) traz mais 3 e acaba. */
+function defaultPick(body: PickBody) {
+  const when = body.when as string | { date: string }
+  const date = typeof when === 'object' ? when.date : when === 'amanha' ? '2026-11-18' : '2026-11-17'
+  const first = typeof when === 'object' ? ['10:00', '11:00', '15:00'] : ['09:00', '14:15', '16:30']
+  const times = body.offset === 3 ? ['12:00', '12:30', '13:00'] : first
+  return {
+    date,
+    slots: times.map((t) => ({ id: `${date}T${t}`, date, time: t })),
+    hasMore: body.offset !== 3,
+    earliestPossible: null,
+    emptyReason: null,
+    nextAvailable: null,
+    chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true } : null,
+  }
+}
+
+function mockApi(
+  opts: {
+    book?: unknown
+    bookStatus?: number
+    slots?: unknown[]
+    exchange?: unknown
+    pick?: (body: PickBody) => unknown
+  } = {},
+) {
   const calls: Calls = []
   vi.stubGlobal(
     'fetch',
@@ -70,6 +97,7 @@ function mockApi(opts: { book?: unknown; bookStatus?: number; slots?: unknown[];
       if (url.endsWith('/api/c/state')) return json(STATE)
       if (url.endsWith('/api/c/catalog')) return json(CATALOG)
       if (url.endsWith('/api/c/availability')) {
+        if (body && 'when' in body) return json((opts.pick ?? defaultPick)(body))
         const all = (opts.slots ?? SLOTS) as Array<{ date: string }>
         const only = body?.daysOnly === true
         return json({ slots: only ? all.filter((x, i) => all.findIndex((y) => y.date === x.date) === i) : all })
@@ -176,7 +204,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
       serviceId: 'svc-limpeza',
       variantIds: [],
       line: 'feminino',
-      slotId: '2026-11-18T14:15',
+      slotId: '2026-11-17T14:15',
       professionalId: null,
     })
     expect(calls.some((c) => JSON.stringify(c.body ?? {}).match(/tenant|contact/i))).toBe(false)
@@ -246,20 +274,131 @@ describe('agendar pela página (C-02 a C-06)', () => {
     expect(calls.find((c) => c.url.endsWith('/api/c/book'))!.body).toMatchObject({ variantIds: ['z-ax', 'z-vi'], line: 'feminino' })
   })
 
-  it('horas livres de semanas seguintes: setas pedem o intervalo da semana', async () => {
+  const picks = (calls: Calls) =>
+    calls.filter((c) => c.url.endsWith('/api/c/availability') && c.body && 'when' in c.body)
+
+  it('Quando prefere? (DEC-227): 3 horas por pedido; «Outros horários» acrescenta sem repetir; nunca a grade inteira', async () => {
     const calls = mockApi()
     const user = await openBooking()
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    expect(await screen.findByText('Quando prefere?')).toBeTruthy()
     await screen.findByRole('button', { name: '14:15' })
-    const prev = screen.getByRole('button', { name: 'Semana anterior' }) as HTMLButtonElement
-    expect(prev.disabled).toBe(true)
-    await user.click(screen.getByRole('button', { name: 'Próxima semana' }))
-    await waitFor(() => {
-      const reqs = calls.filter((c) => c.url.endsWith('/api/c/availability'))
-      expect(reqs[reqs.length - 1]!.body).toMatchObject({ from: '2026-11-24', to: '2026-11-30' })
+    expect(picks(calls)[0]!.body).toMatchObject({ when: 'agora', wantChips: true, offset: 0 })
+    expect(document.querySelectorAll('.cw-time')).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: 'Semana anterior' })).toBeNull()
+    expect(screen.getByText('Hoje, terça 17')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: /Outros horários/ }))
+    await screen.findByRole('button', { name: '12:30' })
+    expect(document.querySelectorAll('.cw-time')).toHaveLength(6)
+    expect(picks(calls).pop()!.body).toMatchObject({ when: 'agora', offset: 3 })
+    expect(screen.queryByRole('button', { name: /Outros horários/ })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Amanhã' }))
+    await waitFor(() => expect(picks(calls).pop()!.body).toMatchObject({ when: 'amanha', offset: 0 }))
+    expect(await screen.findByText('Amanhã, quarta 18')).toBeTruthy()
+    expect(document.querySelectorAll('.cw-time')).toHaveLength(3)
+  })
+
+  it('chips de hoje sem vaga não aparecem; sem pedido do chat abre na primeira conveniência com vaga', async () => {
+    const calls = mockApi({
+      pick: (body) => ({
+        ...defaultPick(body),
+        chips: body.wantChips ? { agora: false, hojeManha: false, hojeTarde: true } : null,
+      }),
     })
-    expect((screen.getByRole('button', { name: 'Semana anterior' }) as HTMLButtonElement).disabled).toBe(false)
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await waitFor(() => expect(picks(calls).some((c) => c.body!.when === 'hoje_tarde')).toBe(true))
+    expect(screen.queryByRole('button', { name: 'Agora' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Hoje de manhã' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Hoje à tarde' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Amanhã' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Outra data' })).toBeTruthy()
+  })
+
+  it('a antecedência mínima só é explicada quando corta a primeira hora', async () => {
+    mockApi({ pick: (body) => ({ ...defaultPick(body), earliestPossible: '14:30' }) })
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    expect(await screen.findByText('O mais cedo possível é às 14:30.')).toBeTruthy()
+    cleanup()
+    resetExchangesForTest()
+    window.history.replaceState(null, '', '/c/cw1_exemplo')
+    mockApi()
+    const user2 = await openBooking()
+    await user2.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user2.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await screen.findByRole('button', { name: '14:15' })
+    expect(screen.queryByText(/O mais cedo possível/)).toBeNull()
+  })
+
+  it('sem horas na conveniência: motivo e «Próximo livre» que segue para a revisão', async () => {
+    mockApi({
+      pick: (body) => ({
+        ...defaultPick(body),
+        slots: [],
+        hasMore: false,
+        emptyReason: 'full',
+        nextAvailable: { id: '2026-11-20T09:30', date: '2026-11-20', time: '09:30' },
+      }),
+    })
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    expect(await screen.findByText('Sem horários nesta altura.')).toBeTruthy()
+    expect(document.querySelectorAll('.cw-time')).toHaveLength(0)
+    expect(screen.getByText('Nada fica marcado antes de Confirmar.')).toBeTruthy()
+    expect(screen.getByText('Nenhum serve? Fale com a equipe no WhatsApp.')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Próximo livre: sexta 20, 09:30' }))
+    expect(await screen.findByRole('heading', { name: 'Confirme o horário' })).toBeTruthy()
+  })
+
+  it('motivos de vazio: fechada e período que já passou', async () => {
+    for (const [reason, text] of [
+      ['closed', 'A clínica está fechada neste dia.'],
+      ['past', 'Esse período já passou.'],
+    ] as const) {
+      cleanup()
+      resetExchangesForTest()
+      window.history.replaceState(null, '', '/c/cw1_exemplo')
+      mockApi({ pick: (body) => ({ ...defaultPick(body), slots: [], hasMore: false, emptyReason: reason }) })
+      const user = await openBooking()
+      await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+      await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+      expect(await screen.findByText(text)).toBeTruthy()
+    }
+  })
+
+  it('link do chat com data e período abre nessa conveniência (DEC-227)', async () => {
+    const calls = mockApi({
+      exchange: {
+        ok: true,
+        purpose: 'agendar',
+        appointmentId: null,
+        serviceId: 'svc-limpeza',
+        preferredDate: '2026-11-19',
+        dayPart: 'tarde',
+      },
+    })
+    render(<ClientWebApp />)
+    await screen.findByRole('heading', { name: 'Quando?' })
+    await waitFor(() => expect(picks(calls).length).toBeGreaterThan(0))
+    expect(picks(calls)[0]!.body).toMatchObject({ when: { date: '2026-11-19', dayPart: 'tarde' } })
+    expect((await screen.findByRole('button', { name: 'qui 19/11' })).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('link do chat só com período («de manhã») abre em «Hoje de manhã»', async () => {
+    const calls = mockApi({
+      exchange: { ok: true, purpose: 'agendar', appointmentId: null, serviceId: 'svc-limpeza', dayPart: 'manha' },
+    })
+    render(<ClientWebApp />)
+    await screen.findByRole('heading', { name: 'Quando?' })
+    await waitFor(() => expect(picks(calls).length).toBeGreaterThan(0))
+    expect(picks(calls)[0]!.body).toMatchObject({ when: 'hoje_manha' })
   })
 
   it('hora ocupada ao confirmar: volta às horas com aviso e não marca', async () => {
@@ -304,79 +443,6 @@ describe('agendar pela página (C-02 a C-06)', () => {
       expect(await screen.findByRole('heading', { name: title })).toBeTruthy()
       expect(screen.queryByRole('heading', { name: 'Horário marcado' })).toBeNull()
     }
-  })
-
-  it('dia sem slots selecciona-se e mostra o motivo no lugar da grade (TRE-33)', async () => {
-    mockApi({
-      slots: [
-        { id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' },
-        { id: '2026-11-18T14:15', date: '2026-11-18', time: '14:15' },
-      ],
-    })
-    // Substitui o mock de availability para incluir emptyDays (closed vs full).
-    const prev = globalThis.fetch
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input)
-        if (!url.endsWith('/api/c/availability')) return prev(input, init)
-        const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
-        const only = body?.daysOnly === true
-        const slots = only
-          ? [{ id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' }]
-          : [
-              { id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' },
-              { id: '2026-11-18T14:15', date: '2026-11-18', time: '14:15' },
-            ]
-        return new Response(
-          JSON.stringify({
-            slots,
-            emptyDays: [
-              { date: '2026-11-17', reason: 'closed' },
-              { date: '2026-11-19', reason: 'full' },
-              { date: '2026-11-20', reason: 'closed' },
-              { date: '2026-11-21', reason: 'closed' },
-              { date: '2026-11-22', reason: 'closed' },
-              { date: '2026-11-23', reason: 'closed' },
-            ],
-          }),
-          { status: 200 },
-        )
-      }),
-    )
-    const user = await openBooking()
-    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
-    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
-    await screen.findByRole('button', { name: '14:15' })
-
-    const closedDay = screen.getByRole('button', { name: /ter 17\/11, clínica fechada/ })
-    expect((closedDay as HTMLButtonElement).disabled).toBe(false)
-    await user.click(closedDay)
-    expect(await screen.findByText('Clínica fechada neste dia.')).toBeTruthy()
-    expect(screen.getByText(/Escolha outro dia na semana/)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: '14:15' })).toBeNull()
-    expect(screen.getByText('Nada fica marcado antes de Confirmar.')).toBeTruthy()
-
-    const fullDay = screen.getByRole('button', { name: /qui 19\/11, sem horários/ })
-    await user.click(fullDay)
-    expect(await screen.findByText('Sem horários disponíveis neste dia.')).toBeTruthy()
-    expect(screen.getByText(/não há vagas livres para este serviço/)).toBeTruthy()
-
-    await user.click(screen.getByRole('button', { name: /qua 18\/11/ }))
-    expect(await screen.findByRole('button', { name: '14:15' })).toBeTruthy()
-    expect(screen.queryByText('Clínica fechada neste dia.')).toBeNull()
-  })
-
-  it('semana sem horas: dia seleccionável com motivo genérico', async () => {
-    mockApi({ slots: [] })
-    const user = await openBooking()
-    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
-    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
-    expect(await screen.findByText('Sem horários disponíveis neste dia.')).toBeTruthy()
-    expect(screen.getByText('Nada fica marcado antes de Confirmar.')).toBeTruthy()
-    const emptyDay = screen.getByRole('button', { name: /ter 17\/11, sem horários/ })
-    expect((emptyDay as HTMLButtonElement).disabled).toBe(false)
-    expect(emptyDay.getAttribute('aria-pressed')).toBe('true')
   })
 
   it('o botão Voltar percorre os passos e sai para as marcações', async () => {
@@ -473,20 +539,39 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
     await screen.findByRole('button', { name: '14:15' })
-    await user.click(screen.getByRole('button', { name: /novembro de 2026/i }))
+    await user.click(screen.getByRole('button', { name: 'Outra data' }))
     const dialog = await screen.findByRole('dialog', { name: 'Escolher data' })
     const free = await within(dialog).findByRole('button', { name: 'qui 19/11, com horários' })
     expect(within(dialog).getByLabelText('sex 20/11, sem horários')).toBeTruthy()
-    const daysCall = calls.filter((c) => c.url.endsWith('/api/c/availability')).pop()!
+    const daysCall = calls.filter((c) => c.url.endsWith('/api/c/availability') && c.body?.daysOnly === true).pop()!
     expect(daysCall.body).toMatchObject({ daysOnly: true, from: '2026-11-17', to: '2026-12-16' })
+    // «Tem uma hora em mente?» (opcional, DEC-227) acompanha a data escolhida.
+    await user.type(within(dialog).getByLabelText(/Tem uma hora em mente/), '10:15')
     await user.click(free)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(await screen.findByRole('button', { name: '10:00' })).toBeTruthy()
+    expect(picks(calls).pop()!.body).toMatchObject({ when: { date: '2026-11-19', dayPart: null }, requestedTime: '10:15' })
+    expect(screen.getByRole('button', { name: 'qui 19/11' }).getAttribute('aria-pressed')).toBe('true')
     // Escape fecha.
-    await user.click(screen.getByRole('button', { name: /novembro de 2026/i }))
+    await user.click(screen.getByRole('button', { name: 'qui 19/11' }))
     await screen.findByRole('dialog', { name: 'Escolher data' })
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('calendário: Manhã/Tarde opcionais acompanham a data escolhida (DEC-227)', async () => {
+    const calls = mockApi()
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    await screen.findByRole('button', { name: '14:15' })
+    await user.click(screen.getByRole('button', { name: 'Outra data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Escolher data' })
+    const tarde = within(dialog).getByRole('button', { name: 'Tarde' })
+    await user.click(tarde)
+    expect(tarde.getAttribute('aria-pressed')).toBe('true')
+    await user.click(await within(dialog).findByRole('button', { name: 'qui 19/11, com horários' }))
+    await waitFor(() => expect(picks(calls).pop()!.body).toMatchObject({ when: { date: '2026-11-19', dayPart: 'tarde' }, requestedTime: null }))
   })
 
   it('calendário: «Primeira data livre», mês seguinte só até ao horizonte e sem violações (axe)', async () => {
@@ -495,7 +580,7 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(await screen.findByRole('button', { name: 'Feminino' }))
     await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
     await screen.findByRole('button', { name: '14:15' })
-    await user.click(screen.getByRole('button', { name: /novembro de 2026/i }))
+    await user.click(screen.getByRole('button', { name: 'Outra data' }))
     const dialog = await screen.findByRole('dialog', { name: 'Escolher data' })
     await within(dialog).findByRole('button', { name: /Primeira data livre: qua 18\/11/ })
     expect((within(dialog).getByRole('button', { name: 'Mês anterior' }) as HTMLButtonElement).disabled).toBe(true)

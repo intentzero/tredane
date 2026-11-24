@@ -15,7 +15,8 @@ import { clinicDurableObjectName } from '../clinic/demo/do-name'
 import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import type { ClientWebBookResult, ClientWebCatalog, ClientWebSlotsResult, WebBookingInput } from './booking'
-import type { RescheduleSlotsResult, WebCancelResult } from './manage'
+import type { RescheduleSlotsResult, WebCancelResult, pickRescheduleSlots } from './manage'
+import type { ClientWebPickResult, ClientWebWhen } from './pick'
 import {
   CLIENT_WEB_EXCHANGE_LIMIT,
   CLIENT_WEB_STATE_LIMIT,
@@ -82,6 +83,18 @@ export type ClientWebRouteOptions = {
       professionalId?: string | null
     },
   ) => Promise<ClientWebSlotsResult | null>
+  /** DEC-227: horas escolhidas para a conveniência pedida (agendar). */
+  pickLookup?: (
+    env: WorkerBindings,
+    session: ClientWebSession,
+    input: PickBody & { serviceId: string; variantIds: string[]; professionalId?: string | null },
+  ) => Promise<ClientWebPickResult | null>
+  /** DEC-227: o mesmo para remarcar. */
+  reschedulePickLookup?: (
+    env: WorkerBindings,
+    session: ClientWebSession,
+    input: PickBody & { appointmentId: string; professionalId?: string | null },
+  ) => Promise<ReturnType<typeof pickRescheduleSlots> | null>
   bookLookup?: (env: WorkerBindings, session: ClientWebSession, input: WebBookingInput) => Promise<ClientWebBookResult | null>
   rescheduleSlotsLookup?: (
     env: WorkerBindings,
@@ -101,6 +114,45 @@ export type ClientWebRouteOptions = {
   ) => Promise<ClientWebBookResult | null>
   cancelLookup?: (env: WorkerBindings, session: ClientWebSession, input: { appointmentId: string }) => Promise<WebCancelResult | null>
   askTeamLookup?: (env: WorkerBindings, session: ClientWebSession) => Promise<{ status: 'asked' | 'after_hours' } | null>
+}
+
+type PickBody = {
+  when: ClientWebWhen
+  requestedTime?: string | null
+  offset?: number
+  wantChips?: boolean
+}
+
+const WHEN_WORDS = new Set(['agora', 'hoje_manha', 'hoje_tarde', 'amanha'])
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+
+/** `when` da página: uma palavra fixa ou `{ date, dayPart? }`. Qualquer outra coisa é pedido inválido. */
+function parsePickBody(body: Record<string, unknown>): PickBody | null {
+  const w = body.when
+  let when: ClientWebWhen | null = null
+  if (typeof w === 'string' && WHEN_WORDS.has(w)) when = w as ClientWebWhen
+  else if (w && typeof w === 'object') {
+    const o = w as { date?: unknown; dayPart?: unknown }
+    if (typeof o.date === 'string' && DATE_RE.test(o.date)) {
+      const dayPart = o.dayPart === 'manha' || o.dayPart === 'tarde' || o.dayPart === 'noite' ? o.dayPart : null
+      if (o.dayPart != null && !dayPart) return null
+      when = { date: o.date, dayPart }
+    }
+  }
+  if (!when) return null
+  const requestedTime =
+    body.requestedTime == null ? null : typeof body.requestedTime === 'string' && HHMM_RE.test(body.requestedTime) ? body.requestedTime : undefined
+  if (requestedTime === undefined) return null
+  const offset = body.offset == null ? 0 : body.offset
+  if (typeof offset !== 'number' || !Number.isInteger(offset) || offset < 0 || offset > 60 || offset % 3 !== 0) return null
+  return { when, requestedTime, offset, ...(body.wantChips === true ? { wantChips: true } : {}) }
+}
+
+/** O corpo da resposta não leva o discriminante `ok` (o estado HTTP já o diz). */
+function withoutOk<T extends { ok: true }>(r: T): Omit<T, 'ok'> {
+  const { ok, ...rest } = r
+  void ok
+  return rest
 }
 
 const MAX_ID = 120
@@ -310,6 +362,41 @@ export function createClientWebRoutes(opts: ClientWebRouteOptions = {}) {
         : str(body.professionalId)
     if (body.professionalId !== undefined && body.professionalId !== null && !professionalId) {
       return c.json({ error: 'invalid_request' }, 400)
+    }
+    // DEC-227: «Quando prefere?» — até 3 horas escolhidas pelo servidor; sem `from`/`to`.
+    if (body.when !== undefined) {
+      const pick = parsePickBody(body)
+      if (!pick) return c.json({ error: 'invalid_request' }, 400)
+      if (body.appointmentId !== undefined) {
+        if (!appointmentId) return c.json({ error: 'invalid_request' }, 400)
+        const rinput = { ...pick, appointmentId, ...(professionalId ? { professionalId } : {}) }
+        const rres = opts.reschedulePickLookup
+          ? await opts.reschedulePickLookup(c.env, got.session, rinput)
+          : await clinicStub(c.env, got.session).clientWebReschedulePick({
+              tenantId: got.session.tenantId,
+              contactId: got.session.contactId,
+              conversationId: got.session.conversationId,
+              ...rinput,
+            })
+        if (!rres) return c.json({ error: 'session_required' }, 401)
+        if (!rres.ok) return c.json({ error: rres.error }, rres.error === 'appointment_not_found' ? 404 : 422)
+        return c.json(withoutOk(rres))
+      }
+      const pserviceId = str(body.serviceId)
+      const pvariantIds = strList(body.variantIds)
+      if (!pserviceId || !pvariantIds) return c.json({ error: 'invalid_request' }, 400)
+      const pinput = { ...pick, serviceId: pserviceId, variantIds: pvariantIds, ...(professionalId ? { professionalId } : {}) }
+      const pres = opts.pickLookup
+        ? await opts.pickLookup(c.env, got.session, pinput)
+        : await clinicStub(c.env, got.session).clientWebPick({
+            tenantId: got.session.tenantId,
+            contactId: got.session.contactId,
+            conversationId: got.session.conversationId,
+            ...pinput,
+          })
+      if (!pres) return c.json({ error: 'session_required' }, 401)
+      if (!pres.ok) return c.json({ error: pres.error }, 422)
+      return c.json(withoutOk(pres))
     }
     if (body.appointmentId !== undefined) {
       if (!appointmentId || !from || !to) return c.json({ error: 'invalid_request' }, 400)

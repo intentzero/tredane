@@ -63,7 +63,10 @@ export function checkSlotAvailability(
   const range = { startsAt, endsAt: occupiesUntil }
 
   // Passado ou antes da antecedência mínima (coerente com queryAvailability).
-  if (startsAt < earliestBookableStartsAt(asOf, settings.bookingLeadMinutes)) {
+  if (
+    startsAt <
+    earliestBookableStartsAt(asOf, input.applyBookingLead === false ? 0 : settings.bookingLeadMinutes)
+  ) {
     reasons.push('past_slot')
   }
 

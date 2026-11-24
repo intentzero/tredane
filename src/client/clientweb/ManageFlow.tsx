@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   askTeam,
   cancelAppointment,
+  fetchReschedulePick,
   fetchRescheduleSlots,
   rescheduleSlot,
   type Catalog,
@@ -52,8 +53,6 @@ function ResultScreen({ title, body, tone, onExit }: { title: string; body: stri
 
 /** Remarcar (C-07): mesmo serviço e zonas, outra hora; sem sinal novo. DEC-218: reabre com a profissional anterior. */
 export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, catalog }: Common & { catalog: Catalog }) {
-  const [weekStart, setWeekStart] = useState(catalog.today)
-  const [day, setDay] = useState<string | null>(null)
   const [slot, setSlot] = useState<Slot | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -148,11 +147,10 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
         catalog={catalog}
         subtitle={`${appointment.serviceName} · hoje ${formatAppointmentWhen(appointment.startsAt, timezone)}`}
         depsKey={`resched:${appointment.id}:${preferredProfessionalId ?? 'any'}`}
-        load={(from, to) =>
-          fetchRescheduleSlots({
+        pick={(q) =>
+          fetchReschedulePick({
             appointmentId: appointment.id,
-            from,
-            to,
+            ...q,
             professionalId: preferredProfessionalId,
           })
         }
@@ -165,10 +163,6 @@ export function RescheduleFlow({ appointment, timezone, onExit, onSessionLost, c
             professionalId: preferredProfessionalId,
           })
         }
-        weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        day={day}
-        setDay={setDay}
         notice={notice}
         onSessionLost={onSessionLost}
         professionals={professionals}

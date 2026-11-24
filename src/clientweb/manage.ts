@@ -15,7 +15,9 @@ import { readZoneSnapshots, zoneLabel } from '../clinic/config/zones'
 import { PROPOSAL_SEND_ACTOR, PROPOSAL_SEND_ACTOR_DISPLAY } from '../clinic/constants'
 import { appendPostCancelFollowup } from '../clinic/followup/post-booking'
 import { sendOutboundMessageOp } from '../clinic/inbox/operations'
-import { zonedCivilToUtc } from '../clinic/scheduling/timezone'
+import { clinicDayBounds, zonedCivilToUtc } from '../clinic/scheduling/timezone'
+import { listDayAttractors } from '../clinic/scheduling/attractors'
+import { bestProfessionalByGravity } from '../clinic/scheduling/pick-slots'
 import { formatBookedWhenAt } from '../clinic/scheduling/format-booked-when'
 import { queryAvailability } from '../clinic/scheduling/query'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
@@ -33,6 +35,7 @@ import type { AppointmentProposalRow } from '../clinic/proposals/types'
 import type { ProposalConfirmHandoff } from '../clinic/proposals/buttons'
 import { clampDateRange, CLIENT_WEB_MAX_SLOTS, readClientWebCatalog, type ClientWebSlot } from './booking'
 import { emptyDaysForRange, type ClientWebEmptyDay } from './empty-day-reason'
+import { pickWebSlots, type ClientWebPickResult, type PickRequest } from './pick'
 import {
   pickRoundRobinProfessional,
   readRrLastProfessional,
@@ -197,6 +200,43 @@ export async function listRescheduleSlots(
   }
 }
 
+/** Remarcar: as horas escolhidas para a conveniência pedida (DEC-227); a própria hora não se oferece. */
+export function pickRescheduleSlots(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  session: { contactId: string },
+  input: { appointmentId: string; professionalId?: string | null } & PickRequest,
+): ClientWebPickResult | { ok: false; error: 'appointment_not_found' } {
+  const apt = loadWebAppointment(db, tenantId, clock, session, input.appointmentId)
+  if (!apt) return { ok: false, error: 'appointment_not_found' }
+  const service = getService(db, tenantId, apt.serviceId)
+  if (!service || !service.active) return { ok: false, error: 'service_unavailable' }
+  const catalog = readClientWebCatalog(db, tenantId, clock)
+  const catalogSvc = catalog.services.find((s) => s.id === apt.serviceId)
+  const preferredId = input.professionalId?.trim() || null
+  const allowed = catalogSvc?.professionals.some((p) => p.id === preferredId) || preferredId === apt.professionalId
+  if (preferredId && !allowed) return { ok: false, error: 'professional_invalid' }
+  return pickWebSlots(
+    db,
+    tenantId,
+    clock,
+    {
+      serviceId: apt.serviceId,
+      durationMinutes: appointmentMinutes(apt),
+      professionalIds: (catalogSvc?.professionals.map((p) => p.id) ?? [apt.professionalId]).filter(
+        (id, i, arr) => arr.indexOf(id) === i,
+      ),
+      preferredId,
+      excludeAppointmentId: apt.id,
+      excludeStartsAt: apt.startsAt,
+      timezone: catalog.timezone,
+      today: catalog.today,
+    },
+    input,
+  )
+}
+
 export type WebRescheduleError =
   | 'appointment_not_found'
   | 'service_unavailable'
@@ -271,6 +311,7 @@ export async function planWebReschedule(
       )
       const freeIds = new Set<string>()
       let startsAt: number | undefined
+      let occupiesUntil: number | undefined
       for (const proId of orderedIds) {
         const avail = queryAvailability(
           db,
@@ -293,16 +334,32 @@ export async function planWebReschedule(
         if (hit) {
           freeIds.add(proId)
           startsAt = hit.startsAt
+          occupiesUntil = hit.occupiesUntil
         }
       }
-      const picked = pickRoundRobinProfessional(
-        orderedIds,
-        freeIds,
-        readRrLastProfessional(db, tenantId, apt.serviceId),
-      )
+      // DEC-227: como ao agendar, a gravidade das marcações confirmadas vem antes do rodízio.
+      // A própria marcação que se move não atrai (`excludeAppointmentId`).
+      let gravityPick: string | null = null
+      if (startsAt != null && occupiesUntil != null && freeIds.size > 1) {
+        const attractors = listDayAttractors(db, tenantId, clinicDayBounds(catalog.timezone, date), apt.id)
+        const best = bestProfessionalByGravity(
+          startsAt,
+          occupiesUntil,
+          orderedIds.filter((id) => freeIds.has(id)),
+          attractors,
+        )
+        if (best && best.score > 0) gravityPick = best.professionalId
+      }
+      const picked =
+        gravityPick ??
+        pickRoundRobinProfessional(
+          orderedIds,
+          freeIds,
+          readRrLastProfessional(db, tenantId, apt.serviceId),
+        )
       if (picked && startsAt != null) {
         slot = { startsAt, professionalId: picked }
-        usedRoundRobin = true
+        usedRoundRobin = gravityPick == null
       }
     }
   } catch {

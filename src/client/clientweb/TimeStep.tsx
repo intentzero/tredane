@@ -1,16 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Catalog, CatalogProfessional, EmptyDay, EmptyDayReason, Slot, SlotsResult } from './api'
+import type { Catalog, CatalogProfessional, PickChips, PickPage, PickQuery, PickResult, PickWhen, Slot, SlotsResult } from './api'
 import { CalendarSheet } from './CalendarSheet'
-import {
-  addDays,
-  canGoNextWeek,
-  canGoPrevWeek,
-  civilDayLabel,
-  dayPart,
-  prevWeekStart,
-  weekDays,
-  type DayPart,
-} from './booking-model'
+import { civilDayLabel, nextFreeWhen, pickHeading } from './booking-model'
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -19,57 +10,39 @@ function initials(name: string): string {
   return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase()
 }
 
-function emptyReasonCopy(reason: EmptyDayReason | null): { title: string; body: string; icon: 'calendar' | 'clock' } {
-  if (reason === 'closed') {
-    return {
-      title: 'Clínica fechada neste dia.',
-      body: 'Escolha outro dia na semana para ver os horários disponíveis.',
-      icon: 'calendar',
-    }
-  }
-  // `full` ou motivo ausente (API antiga / calendário): sem afirmar abertura.
-  return {
-    title: 'Sem horários disponíveis neste dia.',
-    body:
-      reason === 'full'
-        ? 'A clínica está aberta, mas não há vagas livres para este serviço. Tente outro dia.'
-        : 'Escolha outro dia na semana para ver os horários disponíveis.',
-    icon: 'clock',
-  }
+function emptyCopy(reason: PickPage['emptyReason']): string {
+  if (reason === 'closed') return 'A clínica está fechada neste dia.'
+  if (reason === 'past') return 'Esse período já passou.'
+  return 'Sem horários nesta altura.'
 }
 
-function ReasonIcon({ kind }: { kind: 'calendar' | 'clock' }) {
-  if (kind === 'calendar') {
-    return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <path d="M16 2v4M8 2v4M3 10h18" />
-        <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
-      </svg>
-    )
-  }
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  )
+type Preset = 'agora' | 'hoje_manha' | 'hoje_tarde' | 'amanha'
+
+const CHIPS: Array<{ id: Preset; label: string; chip?: keyof PickChips }> = [
+  { id: 'agora', label: 'Agora', chip: 'agora' },
+  { id: 'hoje_manha', label: 'Hoje de manhã', chip: 'hojeManha' },
+  { id: 'hoje_tarde', label: 'Hoje à tarde', chip: 'hojeTarde' },
+  { id: 'amanha', label: 'Amanhã' },
+]
+
+function whenKey(w: PickWhen | null): string {
+  return w == null ? 'auto' : typeof w === 'string' ? w : `date:${w.date}:${w.dayPart ?? ''}`
 }
 
+/**
+ * Passo «Quando?» (DEC-227, Proposto): «Quando prefere?» e até 3 horas escolhidas pelo servidor
+ * (marcações confirmadas atraem as seguintes; hora pedida primeiro). Nunca mostra a grade do dia.
+ */
 export function TimeStep({
   catalog,
   subtitle,
   depsKey,
-  load,
+  pick,
   loadDays,
-  weekStart,
-  setWeekStart,
-  day,
-  setDay,
   notice,
   onPick,
   onSessionLost,
-  preferredDayPart = null,
+  initialWhen = null,
   professionals = [],
   preferredProfessionalId = null,
   onPreferredProfessionalChange,
@@ -77,78 +50,90 @@ export function TimeStep({
   catalog: Catalog
   /** Linha por baixo do título: serviço e duração. */
   subtitle: string
-  /** Muda quando o pedido de horas muda (serviço, zonas, marcação, preferência). */
+  /** Muda quando o pedido muda (serviço, zonas, marcação, preferência): volta ao início. */
   depsKey: string
-  load: (from: string, to: string) => Promise<SlotsResult>
+  pick: (q: PickQuery) => Promise<PickResult>
   /** Calendário do mês: primeira hora de cada dia do horizonte. */
   loadDays: (from: string, to: string) => Promise<SlotsResult>
-  weekStart: string
-  setWeekStart: (d: string) => void
-  day: string | null
-  setDay: (d: string | null) => void
   notice: string | null
   onPick: (s: Slot) => void
   onSessionLost: () => void
-  /** Período pedido no chat: mostra-o primeiro. */
-  preferredDayPart?: DayPart | null
+  /** Conveniência pedida no chat; null = a primeira com vaga. */
+  initialWhen?: PickWhen | null
   /** DEC-218: profissionais do serviço; com 0–1 o bloco «Quem prefere?» esconde-se. */
   professionals?: CatalogProfessional[]
   /** null = Sem preferência. */
   preferredProfessionalId?: string | null
   onPreferredProfessionalChange?: (id: string | null) => void
 }) {
-  const [slots, setSlots] = useState<Slot[] | 'loading' | 'error'>('loading')
-  const [emptyDays, setEmptyDays] = useState<EmptyDay[]>([])
-  const days = useMemo(() => weekDays(weekStart, catalog.today, catalog.horizonDays), [weekStart, catalog])
+  const [when, setWhen] = useState<PickWhen | null>(initialWhen)
+  const [requestedTime, setRequestedTime] = useState<string | null>(null)
+  const [page, setPage] = useState<PickPage | 'loading' | 'error'>('loading')
+  const [shown, setShown] = useState<Slot[]>([])
+  const [chips, setChips] = useState<PickChips | null>(null)
+  const [more, setMore] = useState<'idle' | 'loading'>('idle')
   const [retry, setRetry] = useState(0)
-  const loadRef = useRef(load)
-  loadRef.current = load
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const pickRef = useRef(pick)
+  pickRef.current = pick
   const loadDaysRef = useRef(loadDays)
   loadDaysRef.current = loadDays
   const stableLoadDays = useCallback((from: string, to: string) => loadDaysRef.current(from, to), [])
-  const [calendarOpen, setCalendarOpen] = useState(false)
+  const seenDeps = useRef(depsKey)
+
+  // O pedido mudou (outro serviço, zonas, preferência): recomeça pela primeira conveniência com vaga.
+  useEffect(() => {
+    if (seenDeps.current === depsKey) return
+    seenDeps.current = depsKey
+    setWhen(initialWhen)
+    setRequestedTime(null)
+  }, [depsKey, initialWhen])
 
   useEffect(() => {
     let cancelled = false
-    setSlots('loading')
-    void loadRef.current(days[0] ?? weekStart, days[days.length - 1] ?? weekStart).then((res) => {
-      if (cancelled) return
-      if (res.kind === 'unauthorized') return onSessionLost()
-      if (res.kind === 'error') return setSlots('error')
-      setSlots(res.slots)
-      setEmptyDays(res.emptyDays)
-      const inWeek = day != null && days.includes(day)
-      const firstFree = res.slots[0]?.date ?? null
-      setDay(inWeek ? day : firstFree ?? days[0] ?? null)
-    })
+    setPage('loading')
+    void pickRef
+      .current({ when: when ?? 'agora', requestedTime, offset: 0, wantChips: true })
+      .then((res) => {
+        if (cancelled) return
+        if (res.kind === 'unauthorized') return onSessionLost()
+        if (res.kind === 'error') return setPage('error')
+        setChips(res.chips)
+        if (when == null) {
+          // Sem conveniência pedida: «Agora» se houver vaga, senão a primeira que tiver.
+          const c = res.chips
+          const fallback: Preset = !c || c.agora ? 'agora' : c.hojeManha ? 'hoje_manha' : c.hojeTarde ? 'hoje_tarde' : 'amanha'
+          if (fallback !== 'agora') return setWhen(fallback)
+          setWhen('agora')
+        }
+        setShown(res.slots)
+        setPage(res)
+      })
     return () => {
       cancelled = true
     }
-    // `day` fica de fora de propósito: só reescolhe o dia quando a semana ou o pedido mudam.
-  }, [depsKey, weekStart, retry, onSessionLost])
+    // `when` e a hora pedida são o pedido; `retry` refaz depois de um erro.
+  }, [depsKey, whenKey(when), requestedTime, retry, onSessionLost])
 
-  const daySlots = Array.isArray(slots) ? slots.filter((s) => s.date === day) : []
-  const orderedParts = (['Manhã', 'Tarde', 'Noite'] as DayPart[]).sort((a, b) => {
-    if (preferredDayPart && a === preferredDayPart && b !== preferredDayPart) return -1
-    if (preferredDayPart && b === preferredDayPart && a !== preferredDayPart) return 1
-    return 0
-  })
-  const parts = orderedParts
-    .map((p) => ({ part: p, items: daySlots.filter((s) => dayPart(s.time) === p) }))
-    .filter((g) => g.items.length > 0)
-  const withSlots = new Set(Array.isArray(slots) ? slots.map((s) => s.date) : [])
-  const emptyReasonByDate = useMemo(() => {
-    const map = new Map<string, EmptyDayReason>()
-    for (const row of emptyDays) map.set(row.date, row.reason)
-    return map
-  }, [emptyDays])
-  const month = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(`${weekStart}T00:00:00Z`),
-  )
+  async function loadMore() {
+    if (page === 'loading' || page === 'error' || more === 'loading') return
+    setMore('loading')
+    const res = await pickRef.current({ when: when ?? 'agora', requestedTime, offset: shown.length })
+    setMore('idle')
+    if (res.kind === 'unauthorized') return onSessionLost()
+    if (res.kind === 'error') return
+    setShown((cur) => [...cur, ...res.slots.filter((s) => !cur.some((c) => c.id === s.id))])
+    setPage({ ...page, hasMore: res.hasMore })
+  }
 
   const showPref = professionals.length > 1 && onPreferredProfessionalChange
-  const showDayEmpty = Array.isArray(slots) && day != null && !withSlots.has(day)
-  const dayEmptyCopy = showDayEmpty ? emptyReasonCopy(emptyReasonByDate.get(day) ?? null) : null
+  const selectedPreset = typeof when === 'string' ? when : null
+  const dateChoice = when != null && typeof when !== 'string' ? when.date : null
+  const visibleChips = useMemo(
+    () => CHIPS.filter((c) => !c.chip || !chips || chips[c.chip] || selectedPreset === c.id),
+    [chips, selectedPreset],
+  )
+  const done = typeof page === 'object' ? page : null
 
   return (
     <main className="cw-main cw-flush">
@@ -184,11 +169,6 @@ export function TimeStep({
               </button>
             ))}
           </div>
-          <p className="cw-pref-hint">
-            {preferredProfessionalId == null
-              ? 'Sem preferência: a clínica escolhe entre quem estiver livre (rodízio).'
-              : 'Horários só desta profissional neste serviço.'}
-          </p>
         </div>
       )}
       {notice && (
@@ -196,60 +176,43 @@ export function TimeStep({
           {notice}
         </p>
       )}
-      <div className="cw-week-nav cw-margin">
-        <button type="button" className="cw-month-btn" aria-haspopup="dialog" aria-expanded={calendarOpen} onClick={() => setCalendarOpen(true)}>
-          <span className="cw-month">{month}</span>
-          <span aria-hidden="true"> ▾</span>
-        </button>
-        <span className="cw-spacer" />
-        <button
-          type="button"
-          className="cw-icon-btn"
-          aria-label="Semana anterior"
-          disabled={!canGoPrevWeek(weekStart, catalog.today)}
-          onClick={() => setWeekStart(prevWeekStart(weekStart, catalog.today))}
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          className="cw-icon-btn"
-          aria-label="Próxima semana"
-          disabled={!canGoNextWeek(weekStart, catalog.today, catalog.horizonDays)}
-          onClick={() => setWeekStart(addDays(weekStart, 7))}
-        >
-          ›
-        </button>
-      </div>
-      <div role="group" aria-label="Dia" className="cw-days cw-margin">
-        {days.map((d) => {
-          const l = civilDayLabel(d)
-          const free = withSlots.has(d)
-          const empty = !free && Array.isArray(slots)
-          const reason = emptyReasonByDate.get(d)
-          const emptyHint =
-            reason === 'closed' ? ', clínica fechada' : empty ? ', sem horários' : ''
-          return (
+      <div className="cw-pref cw-when cw-margin">
+        <p className="cw-pref-label" id="cw-when-label">
+          Quando prefere?
+        </p>
+        <div className="cw-pref-chips" role="group" aria-labelledby="cw-when-label" style={{ flexWrap: 'wrap' }}>
+          {visibleChips.map((c) => (
             <button
-              key={d}
+              key={c.id}
               type="button"
-              className={`cw-day${d === day ? ' is-on' : ''}${empty ? ' is-empty' : ''}`}
-              aria-pressed={d === day}
-              aria-label={`${l.weekday} ${l.dayMonth}${emptyHint}`}
-              onClick={() => setDay(d)}
+              aria-pressed={selectedPreset === c.id}
+              className={`cw-pref-chip${selectedPreset === c.id ? ' is-on' : ''}`}
+              onClick={() => {
+                setRequestedTime(null)
+                setWhen(c.id)
+              }}
             >
-              <span className="cw-caption">{l.weekday}</span>
-              <strong>{l.short}</strong>
+              {c.label}
             </button>
-          )
-        })}
+          ))}
+          <button
+            type="button"
+            aria-pressed={dateChoice != null}
+            aria-haspopup="dialog"
+            aria-expanded={calendarOpen}
+            className={`cw-pref-chip${dateChoice != null ? ' is-on' : ''}`}
+            onClick={() => setCalendarOpen(true)}
+          >
+            {dateChoice ? `${civilDayLabel(dateChoice).weekday} ${civilDayLabel(dateChoice).dayMonth}` : 'Outra data'}
+          </button>
+        </div>
       </div>
-      {slots === 'loading' && (
+      {page === 'loading' && (
         <p role="status" className="cw-muted cw-margin">
           A procurar horários…
         </p>
       )}
-      {slots === 'error' && (
+      {page === 'error' && (
         <div className="cw-margin">
           <p role="alert" className="cw-alert">
             Não foi possível carregar os horários.
@@ -259,43 +222,53 @@ export function TimeStep({
           </button>
         </div>
       )}
-      {dayEmptyCopy && (
-        <div className="cw-reason cw-margin" role="status">
-          <span className="cw-reason-icon" aria-hidden="true">
-            <ReasonIcon kind={dayEmptyCopy.icon} />
-          </span>
-          <p className="cw-reason-title">{dayEmptyCopy.title}</p>
-          <p className="cw-reason-body">{dayEmptyCopy.body}</p>
-        </div>
+      {done && done.earliestPossible && shown.length > 0 && (
+        <p role="status" className="cw-lead-note cw-margin">
+          O mais cedo possível é às {done.earliestPossible}.
+        </p>
       )}
-      {parts.map((g) => (
-        <section
-          key={g.part}
-          aria-label={g.part}
-          className={`cw-margin cw-part${preferredDayPart === g.part ? ' is-preferred' : ''}`}
-        >
-          <h2 className="cw-caption-title">{g.part}</h2>
-          <div className="cw-times">
-            {g.items.map((s) => (
+      {done && shown.length > 0 && (
+        <section className="cw-margin" aria-labelledby="cw-pick-title">
+          <h2 id="cw-pick-title" className="cw-caption-title">
+            {pickHeading(done.date, catalog.today)}
+          </h2>
+          <div className="cw-times cw-times-pick">
+            {shown.map((s) => (
               <button key={s.id} type="button" className="cw-time" onClick={() => onPick(s)}>
                 {s.time}
               </button>
             ))}
           </div>
         </section>
-      ))}
-      {Array.isArray(slots) && <p className="cw-muted cw-margin">Nada fica marcado antes de Confirmar.</p>}
+      )}
+      {done && shown.length > 0 && done.hasMore && (
+        <button type="button" className="cw-more cw-margin" disabled={more === 'loading'} onClick={() => void loadMore()}>
+          Outros horários <span aria-hidden="true">▾</span>
+        </button>
+      )}
+      {done && shown.length === 0 && (
+        <div className="cw-empty-pick cw-margin" role="status">
+          <p className="cw-empty-pick-title">{emptyCopy(done.emptyReason)}</p>
+          {done.nextAvailable && (
+            <button type="button" className="cw-btn cw-btn-secondary" onClick={() => onPick(done.nextAvailable!)}>
+              Próximo livre: {nextFreeWhen(done.nextAvailable.date, catalog.today)}, {done.nextAvailable.time}
+            </button>
+          )}
+          <p className="cw-muted">Nenhum serve? Fale com a equipe no WhatsApp.</p>
+        </div>
+      )}
+      {done && <p className="cw-muted cw-margin">Nada fica marcado antes de Confirmar.</p>}
       {calendarOpen && (
         <CalendarSheet
           catalog={catalog}
-          selected={day}
+          selected={dateChoice}
           loadDays={stableLoadDays}
           onSessionLost={onSessionLost}
           onClose={() => setCalendarOpen(false)}
-          onPick={(date) => {
+          onPick={(date, wish) => {
             setCalendarOpen(false)
-            setDay(date)
-            setWeekStart(date)
+            setRequestedTime(wish.requestedTime)
+            setWhen({ date, dayPart: wish.dayPart })
           }}
         />
       )}

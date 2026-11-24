@@ -382,6 +382,7 @@ export function confirmAppointmentInTransaction(
       startsAt: input.startsAt,
       excludeHoldId: input.excludeHoldId,
       durationMinutesOverride: durationOverride,
+      ...(input.applyBookingLead === false ? { applyBookingLead: false } : {}),
     },
     clock,
   )
@@ -934,6 +935,7 @@ export function rescheduleAppointmentOp(
         roomResourceId: input.roomResourceId,
         startsAt: input.startsAt,
         excludeAppointmentId: before.id,
+        ...(input.applyBookingLead === false ? { applyBookingLead: false } : {}),
         // DEC-076 / DEC-078: reagendar mantém a duração gravada. Com zonas,
         // o conjunto antigo permanece até o pedido trazer outro.
         durationMinutesOverride:

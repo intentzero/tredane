@@ -266,6 +266,9 @@ export function processPixPaymentOp(
           roomResourceId: charge.roomResourceId,
           startsAt: charge.startsAt,
           ...(paidMinutes != null ? { durationMinutesOverride: paidMinutes } : {}),
+          // A antecedência regula o que se oferece; o pagamento honra uma hora já oferecida
+          // (e a equipe pode ter marcado dentro dela, DEC-227).
+          applyBookingLead: false,
         },
         clock,
       )
