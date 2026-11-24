@@ -98,11 +98,16 @@ function dayHourMs(tz: string, date: string, hour: number): number {
   return zonedCivilToUtc(tz, y, m, d, hour, 0)
 }
 
-/** Converte a conveniência num dia civil e numa janela [de, até) em ms UTC. */
+/**
+ * Converte a conveniência num dia civil e numa janela [de, até) em ms UTC.
+ * `leadMinutes` = antecedência mínima da clínica: «Agora» mostra as 2 h **a seguir** a ela,
+ * senão uma antecedência de 1 h comia metade da janela e as 3 horas saíam coladas.
+ */
 export function resolveWhen(
   when: ClientWebWhen,
   ctx: { timezone: string; today: string },
   nowMs: number,
+  leadMinutes = 0,
 ): { date: string; fromMs: number; toMs: number } {
   const { timezone: tz, today } = ctx
   const part = (date: string, p: ClientWebDayPart) => ({
@@ -111,7 +116,11 @@ export function resolveWhen(
     toMs: dayHourMs(tz, date, PART_HOURS[p][1]),
   })
   if (when === 'agora') {
-    return { date: today, fromMs: nowMs, toMs: Math.min(nowMs + NOW_WINDOW_MINUTES * 60_000, dayHourMs(tz, today, 24)) }
+    return {
+      date: today,
+      fromMs: nowMs,
+      toMs: Math.min(nowMs + (Math.max(0, leadMinutes) + NOW_WINDOW_MINUTES) * 60_000, dayHourMs(tz, today, 24)),
+    }
   }
   if (when === 'hoje_manha') return part(today, 'manha')
   if (when === 'hoje_tarde') return part(today, 'tarde')
@@ -189,11 +198,11 @@ export function pickWebSlots(
   req: PickRequest,
 ): ClientWebPickResult {
   const now = clock.nowMs()
-  const win = resolveWhen(req.when, ctx, now)
-  if (!clampDateRange(ctx.today, win.date, win.date)) return { ok: false, error: 'range_invalid' }
   // Definições e prontidão lidas uma vez: o pedido consulta vários dias e profissionais.
   const shared = prepareAvailabilityShared(db, tenantId, clock)
   const lead = shared.settings.bookingLeadMinutes
+  const win = resolveWhen(req.when, ctx, now, lead)
+  if (!clampDateRange(ctx.today, win.date, win.date)) return { ok: false, error: 'range_invalid' }
 
   const all = dayCandidates(db, tenantId, clock, ctx, win.date, true, shared)
   const inWindow = all.filter((c) => c.startsAt >= win.fromMs && c.startsAt < win.toMs)
@@ -239,7 +248,7 @@ export function pickWebSlots(
   let chips: ClientWebChips | null = null
   if (req.wantChips) {
     const todayAll = win.date === ctx.today ? all : dayCandidates(db, tenantId, clock, ctx, ctx.today, true, shared)
-    const agora = resolveWhen('agora', ctx, now)
+    const agora = resolveWhen('agora', ctx, now, lead)
     const manha = resolveWhen('hoje_manha', ctx, now)
     const tarde = resolveWhen('hoje_tarde', ctx, now)
     const has = (w: { fromMs: number; toMs: number }) => todayAll.some((c) => c.startsAt >= w.fromMs && c.startsAt < w.toMs)

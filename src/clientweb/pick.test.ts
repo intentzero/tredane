@@ -61,6 +61,14 @@ describe('resolveWhen (DEC-227)', () => {
     expect(resolveWhen('amanha', ctx, now).date).toBe('2024-01-09')
     expect(resolveWhen({ date: '2024-01-10', dayPart: 'tarde' }, ctx, now)).toMatchObject({ date: '2024-01-10' })
   })
+
+  it('«Agora» conta as 2 h a seguir à antecedência da clínica', () => {
+    const now = at(10, 7)
+    expect(resolveWhen('agora', ctx, now, 60)).toEqual({ date: '2024-01-08', fromMs: now, toMs: now + 180 * 60_000 })
+    expect(resolveWhen('agora', ctx, now, 0).toMs).toBe(now + 120 * 60_000)
+    // Nunca passa da meia-noite.
+    expect(resolveWhen('agora', ctx, at(23, 0), 60).toMs).toBe(at(24, 0))
+  })
 })
 
 describe('pickClientWebSlots', () => {
@@ -130,6 +138,8 @@ describe('pickClientWebSlots', () => {
       const r = pick(s, { when: 'agora' })
       expect(r.ok && r.slots[0]?.time).toBe('11:15')
       expect(r.ok && r.earliestPossible).toBe('11:15')
+      // A janela é antecedência + 2 h: sobra espaço para 3 horas a ≥ 30 min umas das outras.
+      expect(r.ok && r.slots.map((s) => s.time)).toEqual(['11:15', '11:45', '12:15'])
     } finally {
       s.close()
     }
