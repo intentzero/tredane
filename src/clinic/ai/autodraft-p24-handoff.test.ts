@@ -7,7 +7,7 @@ import { createControllableClock } from '../../db/clock'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
-import { workerCaller } from '../index'
+import { queueCaller, workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import {
@@ -297,6 +297,98 @@ describe('P24 — client_request falso', () => {
         s.cnv.id,
       )
       expect(sent?.interactive_json).toBeNull()
+    } finally {
+      s.close()
+    }
+  })
+
+  it('DEC-228: fila real fecha «Quero agendar» → «Tchau» com ator de sistema', async () => {
+    const s = seed()
+    try {
+      const opportunity = ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      ).opportunity
+      moveOpportunityStageOp(
+        s.db,
+        s.caller,
+        {
+          opportunityId: opportunity.id,
+          toStage: 'em_atendimento',
+          actorClerkUserId: 'user_p24_owner',
+          actorDisplayName: 'Responsável',
+        },
+        s.clock,
+      )
+      const queue = queueCaller(s.tenantId)
+      const web = createClientWebHarness()
+
+      const schedule = s.say('Quero agendar')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.cnv.id, messageId: schedule.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      const scheduled = await runDueAutoDrafts(s.db, queue, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        prepareClientWebOffer: web.prepareOffer,
+        clinicName: 'Clínica Fictícia',
+      })
+      expect(scheduled[0]?.reason).toBe('web_agendar_link')
+
+      const farewell = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'Tchau',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.cnv.id, messageId: farewell.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      const ended = await runDueAutoDrafts(s.db, queue, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        prepareClientWebOffer: web.prepareOffer,
+        clinicName: 'Clínica Fictícia',
+      })
+
+      expect(ended[0]?.reason).toBe('post_booking_farewell')
+      expect(web.issued()).toHaveLength(1)
+      expect(
+        s.db.get<{ stage: string; status: string }>(
+          `SELECT stage, status FROM opportunities WHERE tenant_id = ? AND id = ?`,
+          s.tenantId,
+          opportunity.id,
+        ),
+      ).toMatchObject({ stage: 'perdido', status: 'closed' })
+      const last = s.db.get<{ interactive_json: string | null }>(
+        `SELECT o.interactive_json AS interactive_json
+         FROM outbound_messages o
+         JOIN messages m ON m.id = o.message_id
+         WHERE o.tenant_id = ? AND m.conversation_id = ?
+         ORDER BY o.created_at DESC LIMIT 1`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(last?.interactive_json).toBeNull()
     } finally {
       s.close()
     }

@@ -22,6 +22,10 @@ import { readComboSnapshot } from '../../../config/combos'
 import { ValidationError } from '../../../errors'
 import { workerCaller } from '../../../envelopes'
 import { POST_BOOKING_BODY, sendPostBookingFollowupOp } from '../../../followup/post-booking'
+import {
+  ensureOpenOpportunity,
+  moveOpportunityStageOp,
+} from '../../../pipeline/operations'
 import { createOrSupersedeProposal } from '../../../proposals/proposals'
 import { queryAvailability, zonedCivilToUtc } from '../../../scheduling'
 import {
@@ -868,6 +872,89 @@ export const GU_DIALOG_CASES: DialogCase[] = [
           return [`GU-28: despedida não deve ter interactivo, veio ${row.interactive_json}`]
         }
         return []
+      },
+    },
+  },
+  {
+    id: 'GU-33',
+    title:
+      '«Quero agendar» seguido de «Tchau»: despedida sem CTA e oportunidade Perdido (DEC-228)',
+    turnosIdeais: 2,
+    prepare: (s) => {
+      const opportunity = ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contactId,
+          conversationId: s.conversationId,
+        },
+        s.clock,
+      ).opportunity
+      moveOpportunityStageOp(
+        s.db,
+        workerCaller(s.tenantId, 'user_dialog_owner'),
+        {
+          opportunityId: opportunity.id,
+          toStage: 'em_atendimento',
+          actorClerkUserId: 'user_dialog_owner',
+          actorDisplayName: 'Responsável',
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quero agendar' },
+      { role: 'client', text: 'Tchau' },
+    ],
+    expect: {
+      ...NEVER_BOOKS,
+      appointments: 0,
+      clientWebOffers: 1,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Para agendar/i, /Abrir agenda/i],
+        },
+        {
+          turn: 1,
+          matches: [
+            /Perfeito\. Qualquer coisa|Até lá|Combinado\. (Bom dia|Boa tarde|Boa noite)/,
+          ],
+          excludes: [/Abrir agenda/i, /Falar com a equipe/i],
+        },
+      ],
+      turnDecided: [
+        { modelCalled: false, route: 'skip:web_agendar_link' },
+        { modelCalled: false, route: 'skip:post_booking_farewell' },
+      ],
+      assert: (s) => {
+        const failures: string[] = []
+        const last = s.db.get<{ interactive_json: string | null }>(
+          `SELECT o.interactive_json AS interactive_json
+           FROM outbound_messages o
+           JOIN messages m ON m.id = o.message_id
+           WHERE o.tenant_id = ? AND m.conversation_id = ?
+           ORDER BY o.created_at DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (!last) failures.push('GU-33: despedida sem outbound')
+        else if (last.interactive_json) {
+          failures.push(`GU-33: despedida não deve ter interactivo, veio ${last.interactive_json}`)
+        }
+        const opportunity = s.db.get<{ stage: string; status: string }>(
+          `SELECT stage, status FROM opportunities
+           WHERE tenant_id = ? AND conversation_id = ?
+           ORDER BY cycle_number DESC LIMIT 1`,
+          s.tenantId,
+          s.conversationId,
+        )
+        if (opportunity?.stage !== 'perdido' || opportunity.status !== 'closed') {
+          failures.push(
+            `GU-33: esperava oportunidade perdido/closed, veio ${opportunity?.stage ?? 'ausente'}/${opportunity?.status ?? 'ausente'}`,
+          )
+        }
+        return failures
       },
     },
   },
