@@ -1,6 +1,6 @@
 # Etapa automática na conversa — plano de implementação
 
-**Estado:** plano **Proposto** (28/10/2026). As decisões que o motivam estão **Confirmadas**: [DEC-062](../product/decisions.md) (a etapa muda sozinha), DEC-064 (um só «Agendar»), DEC-065 (folha do Pix) e DEC-066 (encerrar não move a etapa). Nada deste plano está implementado. Mocks: [M-02](../design/screens.md), M-40, M-45 a M-48.
+**Estado:** plano histórico **Substituído pela DEC-228** em 24/11/2026. A implementação atual mantém `horario_proposto` apenas para compatibilidade de persistência, projeta-o em **Em atendimento**, mostra Pix pendente como **Aguardando Pix** e faz **Encerrar** sem compromisso futuro fechar em **Perdido**. As regras abaixo descrevem a proposta de 28/10/2026 e não são fonte vigente.
 
 ## O que existe hoje (verificado no código)
 

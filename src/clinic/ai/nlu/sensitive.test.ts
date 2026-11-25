@@ -251,7 +251,7 @@ describe('classifySensitive (#409)', () => {
     {
       id: 'D-03',
       text: 'obrigado',
-      labels: ['desistir'],
+      labels: [],
       pause: false,
     },
     {
@@ -338,4 +338,36 @@ describe('classifySensitive (#409)', () => {
       if (row.labels.includes('rejeitar_oferta')) expect(hasSlotRejectRequest(hits)).toBe(true)
     })
   }
+
+  it.each([
+    'tchau',
+    'xau',
+    'adeus',
+    'até logo',
+    'até mais',
+    'até breve',
+    'até amanhã',
+    'falamos depois',
+    'nos falamos',
+    'era só isso',
+    'só isso por enquanto',
+    'não preciso de mais nada',
+    'Obrigada, tchau!',
+  ])('DEC-228 reconhece despedida ancorada: %s', (text) => {
+    expect(hasSoftDeclineRequest(classifySensitive(text))).toBe(true)
+  })
+
+  it.each([
+    'obrigado',
+    'obrigada',
+    'valeu',
+    'bom dia',
+    'boa noite',
+    'o serviço valeu cada centavo',
+    'falamos depois do preço',
+    'até amanhã tem horário?',
+    'não preciso de mais nada no rosto, só pernas',
+  ])('DEC-228 não fecha mensagem ambígua ou com sobra: %s', (text) => {
+    expect(hasSoftDeclineRequest(classifySensitive(text))).toBe(false)
+  })
 })

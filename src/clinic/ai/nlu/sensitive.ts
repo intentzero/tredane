@@ -158,17 +158,27 @@ export const EXPLICIT_ABANDON_RE = new RegExp(
 )
 
 /**
- * Classe B DEC-147 — despedida / agradecimento curto.
- * Com proposta aberta **não** retira o Confirmar (CF-23); só abandona
- * com slots/pending abertos ou serviço em coleta sem proposta.
+ * Classe B DEC-147 / DEC-228 — despedida determinística.
+ *
+ * A mensagem inteira precisa casar: nunca fechar por substring. Agradecimentos
+ * isolados são ambíguos durante um atendimento activo; só podem anteceder uma
+ * despedida inequívoca («obrigada, tchau»).
  */
 export const FAREWELL_RE = new RegExp(
-  [
-    String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|vlw|bye|obrigad[oa]|valeu)(?:[,.\s]+(?:por\s+(?:agora|enquanto)\s+)?(?:[eé]\s+)?s[oó](?:\s+isso)?)?[.!?\s]*$`,
-    String.raw`\b(?:tchau|adeus)\b`,
-    String.raw`\bdeus\s+te\s+aben[cç][oõ]e\b`,
-    String.raw`\b(?:am[eé]m|aben[cç]oada)\b`,
-  ].join('|'),
+  String.raw`^(?:(?:ok|beleza|obrigad[oa]|valeu)[,.\s!]*)*(?:`
+    + [
+      String.raw`tchau`,
+      String.raw`xau`,
+      String.raw`adeus`,
+      String.raw`at[eé]\s+(?:logo|mais|breve|amanh[aã])`,
+      String.raw`falamos\s+depois`,
+      String.raw`nos\s+falamos`,
+      String.raw`era\s+s[oó]\s+isso`,
+      String.raw`s[oó]\s+isso\s+por\s+enquanto`,
+      String.raw`por\s+(?:agora|enquanto)\s+(?:[eé]\s+)?s[oó]`,
+      String.raw`n[aã]o\s+preciso\s+de\s+mais\s+nada`,
+    ].join('|')
+    + String.raw`)[.!?…\s]*$`,
   'i',
 )
 

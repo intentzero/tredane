@@ -10,11 +10,26 @@ import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
+import {
+  ensureOpenOpportunity,
+  getOpportunityOp,
+  moveOpportunityStageOp,
+} from '../pipeline/operations'
+import {
+  createProposal,
+  getActiveProposalForConversation,
+  markProposalSent,
+} from '../proposals/proposals'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { zonedCivilToUtc } from '../scheduling'
 import { createClientWebHarness } from './evals/dialogs/clientweb-driver'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
+import {
+  getActiveCatalogSubject,
+  setActiveCatalogSubject,
+} from './active-catalog-subject'
+import { getBookingFrame, saveBookingFrame } from './schedule-session'
 import {
   HUMAN_HANDOFF_TEXT,
   OFF_TOPIC_SMALL_TALK_TEXT,
@@ -108,7 +123,20 @@ function seed() {
       return null
     },
   }
-  return { db, caller, tenantId, clock, cnv, contact, say, adapter, close: boot.close }
+  return {
+    db,
+    caller,
+    tenantId,
+    clock,
+    cnv,
+    contact,
+    pro: bia,
+    service: peeling,
+    startsAt,
+    say,
+    adapter,
+    close: boot.close,
+  }
 }
 
 describe('P24 — client_request falso', () => {
@@ -178,6 +206,158 @@ describe('P24 — client_request falso', () => {
       })
       expect(out[0]?.reason).toBe('human_handoff')
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)?.reason).toBe('human_only')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('DEC-228: despedida fecha em Perdido, limpa estado e não envia Abrir agenda', async () => {
+    const s = seed()
+    try {
+      const opportunity = ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      ).opportunity
+      moveOpportunityStageOp(
+        s.db,
+        s.caller,
+        {
+          opportunityId: opportunity.id,
+          toStage: 'em_atendimento',
+          actorClerkUserId: 'user_p24_owner',
+          actorDisplayName: 'Responsável',
+        },
+        s.clock,
+      )
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: s.service.id, phase: 'coletando', catalogVersion: '1' },
+        s.clock,
+      )
+      setActiveCatalogSubject(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: s.service.id, source: 'named_turn', catalogVersion: '1' },
+        s.clock,
+      )
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          serviceId: s.service.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt,
+        },
+        s.clock,
+      )
+      markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+
+      const web = createClientWebHarness()
+      const inbound = s.say('tchau')
+      enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: inbound.id }, s.clock)
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        prepareClientWebOffer: web.prepareOffer,
+        clinicName: 'Clínica Fictícia',
+      })
+
+      expect(out[0]?.reason).toBe('post_booking_farewell')
+      expect(web.issued()).toHaveLength(0)
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      expect(getActiveCatalogSubject(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      expect(
+        getActiveProposalForConversation(s.db, s.tenantId, s.cnv.id, s.clock),
+      ).toBeNull()
+      expect(
+        s.db.get<{ stage: string; status: string }>(
+          `SELECT stage, status FROM opportunities WHERE tenant_id = ? AND id = ?`,
+          s.tenantId,
+          opportunity.id,
+        ),
+      ).toMatchObject({ stage: 'perdido', status: 'closed' })
+      const sent = s.db.get<{ interactive_json: string | null }>(
+        `SELECT o.interactive_json AS interactive_json
+         FROM outbound_messages o
+         JOIN messages m ON m.id = o.message_id
+         WHERE o.tenant_id = ? AND m.conversation_id = ?
+         ORDER BY o.created_at DESC LIMIT 1`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(sent?.interactive_json).toBeNull()
+    } finally {
+      s.close()
+    }
+  })
+
+  it('DEC-228: com horário futuro preserva Agendado e limpa o gémeo', async () => {
+    const s = seed()
+    try {
+      const opportunity = ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      ).opportunity
+      moveOpportunityStageOp(
+        s.db,
+        s.caller,
+        {
+          opportunityId: opportunity.id,
+          toStage: 'agendado',
+          actorClerkUserId: 'user_p24_owner',
+          actorDisplayName: 'Responsável',
+        },
+        s.clock,
+      )
+      s.db.run(
+        `UPDATE appointments
+         SET conversation_id = ?, opportunity_id = ?
+         WHERE tenant_id = ? AND id = 'apt_p24_1'`,
+        s.cnv.id,
+        opportunity.id,
+        s.tenantId,
+      )
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: s.service.id, phase: 'coletando', catalogVersion: '1' },
+        s.clock,
+      )
+
+      const inbound = s.say('até amanhã')
+      enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.cnv.id, messageId: inbound.id }, s.clock)
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        clinicName: 'Clínica Fictícia',
+      })
+
+      expect(
+        s.db.get<{ stage: string; status: string }>(
+          `SELECT stage, status FROM opportunities WHERE tenant_id = ? AND id = ?`,
+          s.tenantId,
+          opportunity.id,
+        ),
+      ).toMatchObject({ stage: 'agendado', status: 'open' })
+      expect(getOpportunityOp(s.db, s.caller, opportunity.id, s.clock).hasOpenAttendance).toBe(false)
     } finally {
       s.close()
     }

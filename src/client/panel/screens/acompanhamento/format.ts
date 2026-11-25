@@ -4,7 +4,6 @@ import { getClinicTimezone } from '../../clinicTimezone'
 export const STAGE_ORDER: OpportunityStage[] = [
   'novo_contato',
   'em_atendimento',
-  'horario_proposto',
   'agendado',
   'concluido',
   'perdido',
@@ -13,7 +12,7 @@ export const STAGE_ORDER: OpportunityStage[] = [
 export const STAGE_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo contato',
   em_atendimento: 'Em atendimento',
-  horario_proposto: 'Horário proposto',
+  horario_proposto: 'Em atendimento',
   agendado: 'Agendado',
   concluido: 'Concluído',
   perdido: 'Perdido',
@@ -23,7 +22,7 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
 export const STAGE_TAB_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo',
   em_atendimento: 'Em atendimento',
-  horario_proposto: 'Horário proposto',
+  horario_proposto: 'Em atendimento',
   agendado: 'Agendado',
   concluido: 'Concluído',
   perdido: 'Perdido',

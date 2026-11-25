@@ -13,7 +13,7 @@
  * GU-23: «Posso ajudar…» com cta_url Abrir agenda (um toque; DEC-220).
  * GU-24–26: ver/listar agendamentos e cancelar fora do expediente → link (TRE-74).
  * GU-32: «Tenho agendamentos?» → Abrir agenda home, sem copy insegura do redator (TRE-128).
- * GU-28: fecho «por agora é só» → despedida + cta_url Abrir agenda (TRE-82).
+ * GU-28: fecho «por agora é só» → despedida sem CTA + ciclo encerrado (DEC-228).
  * GU-29: remarcar fora do expediente → Abrir agenda, sem handoff DEC-113 (TRE-83).
  * GU-30: remarca sob teto → cta_url (não reply).
  */
@@ -835,15 +835,14 @@ export const GU_DIALOG_CASES: DialogCase[] = [
   {
     id: 'GU-28',
     title:
-      'Fecho «por agora é só»: despedida + cta_url Abrir agenda (sem reply Equipe) (TRE-82)',
+      'Fecho «por agora é só»: despedida sem CTA e ciclo encerrado (DEC-228)',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Obrigada, por agora é só' }],
     expect: {
       ...NEVER_BOOKS,
       appointments: 0,
-      clientWebOffers: 1,
-      clientWebPurposes: [{ purpose: 'home', serviceId: null }],
-      outboundExcludes: [/Falar com a equipe/i],
+      clientWebOffers: 0,
+      outboundExcludes: [/Falar com a equipe/i, /Abrir agenda/i],
       turns: [
         {
           turn: 0,
@@ -864,16 +863,9 @@ export const GU_DIALOG_CASES: DialogCase[] = [
           s.tenantId,
           s.conversationId,
         )
-        if (!row?.interactive_json) return ['GU-28: despedida sem interactivo']
-        const parsed = JSON.parse(row.interactive_json) as {
-          buttons?: Array<{ id: string; title: string }>
-          ctaUrl?: { displayText?: string; url?: string }
-        }
-        if (parsed.ctaUrl?.displayText !== CLIENT_WEB_CTA_TEXT) {
-          return [`GU-28: esperava cta_url Abrir agenda, veio ${row.interactive_json}`]
-        }
-        if (parsed.buttons?.length) {
-          return [`GU-28: não devia ter reply buttons, veio ${JSON.stringify(parsed.buttons)}`]
+        if (!row) return ['GU-28: despedida sem outbound']
+        if (row.interactive_json) {
+          return [`GU-28: despedida não deve ter interactivo, veio ${row.interactive_json}`]
         }
         return []
       },

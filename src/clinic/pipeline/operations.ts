@@ -155,7 +155,8 @@ export function getOpportunityOp(
 
 /**
  * Mover etapa — NÃO cria nem altera compromisso (DEC-040).
- * «Horário proposto» não reserva recursos; «Agendado» pode ficar sem vínculo.
+ * `horario_proposto` legado não reserva recursos e projeta em Em atendimento;
+ * «Agendado» pode ficar sem vínculo.
  * Falha de concorrência (expectedUpdatedAt) preserva estado anterior.
  */
 export function moveOpportunityStageOp(

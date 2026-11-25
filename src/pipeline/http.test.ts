@@ -121,7 +121,7 @@ describe('HTTP — Acompanhamento (#30)', () => {
       const moved = (await move.json()) as {
         opportunity: { stage: string; history: Array<{ toStage: string }> }
       }
-      expect(moved.opportunity.stage).toBe('horario_proposto')
+      expect(moved.opportunity.stage).toBe('em_atendimento')
       expect(
         moved.opportunity.history.some((h) => h.toStage === 'horario_proposto'),
       ).toBe(true)

@@ -24,7 +24,6 @@ import {
 const MAIN_STAGES: OpportunityStage[] = [
   'novo_contato',
   'em_atendimento',
-  'horario_proposto',
   'agendado',
   'concluido',
 ]
@@ -321,6 +320,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                   const isAttendanceTwin = card.cardKind === 'open_attendance'
                   const aptCount = card.futureAppointmentCount ?? 0
                   const needsPerson = card.needsPerson === true
+                  const pendingPix = card.stage === 'em_atendimento' && card.hasPendingPix === true
                   return (
                     <button
                       key={card.boardKey ?? card.id}
@@ -373,13 +373,17 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                       <span className="acomp-card-foot">
                         {needsPerson ? (
                           <span className="acomp-chip-needs-person">Precisa de alguém</span>
-                        ) : isAiActorId(card.assigneeClerkUserId) ? (
+                        ) : null}
+                        {pendingPix ? (
+                          <span className="acomp-chip-pix">Aguardando Pix</span>
+                        ) : null}
+                        {!needsPerson && !pendingPix && isAiActorId(card.assigneeClerkUserId) ? (
                           <span className="acomp-chip-ai">IA</span>
-                        ) : card.assigneeDisplayName ? (
+                        ) : !needsPerson && !pendingPix && card.assigneeDisplayName ? (
                           <span>{card.assigneeDisplayName}</span>
-                        ) : (
+                        ) : !needsPerson && !pendingPix ? (
                           <span className="acomp-card-unassigned">Sem responsável</span>
-                        )}
+                        ) : null}
                       </span>
                     </button>
                   )

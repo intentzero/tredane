@@ -33,8 +33,7 @@ export const defaultMessage =
 
 export const stages = [
   { id: 'novo', label: 'Novo', count: 1 },
-  { id: 'atendimento', label: 'Em atendimento', count: 2 },
-  { id: 'proposto', label: 'Horário proposto', count: 1 },
+  { id: 'atendimento', label: 'Em atendimento', count: 3 },
   { id: 'agendado', label: 'Agendado', count: 2 },
   { id: 'concluido', label: 'Concluído', count: 1 },
   { id: 'perdido', label: 'Perdido', count: 0 },
@@ -46,12 +45,14 @@ export const pipelineCards = [
     name: 'Beatriz Rocha',
     meta: 'Ana · há 1 h · Sem compromisso',
     fail: false,
+    pendingPix: true,
   },
   {
     id: 'masked',
     name: '+55 11 9••••-0042',
     meta: 'Bruno · ontem',
     fail: true,
+    pendingPix: false,
   },
 ] as const
 
@@ -66,12 +67,6 @@ export type MoveOption = {
 
 export const moveOptions: MoveOption[] = [
   { id: 'novo', label: 'Novo contato' },
-  {
-    id: 'proposto',
-    label: 'Horário proposto',
-    hint: 'Não reserva horário na agenda',
-    highlight: true,
-  },
   {
     id: 'agendado',
     label: 'Agendado',

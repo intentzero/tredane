@@ -65,6 +65,8 @@ export type OpportunityListItem = OpportunityRow & {
   hasOpenAttendance: boolean
   /** Mesmo critério do Conversas (DEC-083 / DEC-156) — feedback no quadro. */
   needsPerson: boolean
+  /** DEC-228 — cobrança Pix ainda por pagar; chip no cartão em Em atendimento. */
+  hasPendingPix: boolean
 }
 
 export type OpportunityDetail = OpportunityListItem & {

@@ -135,8 +135,9 @@ describe('Pipeline / Acompanhamento (#30)', () => {
       )!.n
       expect(afterAptCount).toBe(beforeAptCount)
 
-      // Horário proposto também não cria compromisso
-      moveOpportunityStageOp(
+      // DEC-228: registo legado continua persistido, mas é projectado em
+      // Em atendimento e somado nessa contagem.
+      const legacy = moveOpportunityStageOp(
         db,
         workerCaller('clinic-demo-a', 'user_synth_attendant_a'),
         {
@@ -147,6 +148,23 @@ describe('Pipeline / Acompanhamento (#30)', () => {
         },
         clock,
       )
+      expect(legacy.value.stage).toBe('em_atendimento')
+      expect(
+        db.get<{ stage: string }>(
+          `SELECT stage FROM opportunities WHERE tenant_id = ? AND id = ?`,
+          'clinic-demo-a',
+          opp.id,
+        )?.stage,
+      ).toBe('horario_proposto')
+      const projected = listOpportunitiesOp(
+        db,
+        workerCaller('clinic-demo-a'),
+        { stage: 'em_atendimento' },
+        clock,
+      )
+      expect(projected.items.some((item) => item.id === opp.id && item.stage === 'em_atendimento')).toBe(true)
+      expect(projected.counts.find((c) => c.stage === 'em_atendimento')?.count).toBe(1)
+      expect(projected.counts.find((c) => c.stage === 'horario_proposto')?.count).toBe(0)
       expect(
         db.get<{ n: number }>(
           `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`,

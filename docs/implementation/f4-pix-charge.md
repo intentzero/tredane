@@ -24,7 +24,7 @@
 1. **Prepare (TX):** intent + charge `pending` + snapshot; sem I/O externo.
 2. **Provedor (fora TX):** `adapter.createCharge` (Woovi ou Simulated); `uncertain`/`timeout` → `provider_create_state=uncertain` (reconciliar sem nova cobrança cega).
 3. **WhatsApp:** `sendOutboundMessageOp` com `clientRequestId` distinto (`…:wa`); falha WA **não** cancela cobrança.
-4. UI / conversa: «Aguardando sinal — horário não reservado»; etapa permanece/move para `horario_proposto` (badge, sem nova etapa CHECK).
+4. UI / conversa: «Aguardando Pix — horário não reservado»; cartão permanece em `em_atendimento`, com chip derivado da cobrança pendente (DEC-228). `horario_proposto` legado só é projetado em `em_atendimento`.
 
 ## APIs
 
@@ -41,7 +41,7 @@
 | Path | Comportamento |
 | --- | --- |
 | `…/agenda/agendar?conversationId=` | Serviço com sinal → **Enviar sinal** / **Confirmar sem sinal** |
-| Conversa (M-31) | Cartão **Aguardando sinal** + Copiar Pix |
+| Conversa (M-31) | Cartão **Aguardando Pix** + Copiar Pix |
 
 ## Em aberto / fora deste PR
 

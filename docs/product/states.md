@@ -28,9 +28,9 @@
 
 Texto em edição antes do envio é estado da interface; não é mensagem enviada. Uma sugestão de IA também não é mensagem até que uma pessoa escolha e confirme o envio.
 
-## Oportunidade no pipeline (proposta)
+## Oportunidade no pipeline
 
-Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído**, com saída possível para **Perdido**. Mover manualmente para “Agendado” **pode ocorrer sem compromisso vinculado** (DEC-040), exibindo “Sem compromisso vinculado” e a ação “Agendar horário”; a mudança de etapa nunca cria um compromisso. Cancelamento ou reagendamento não apaga etapas anteriores. **Confirmado (DEC-092, revisão 31/10/2026):** cancelar o último horário futuro da conversa volta a etapa a Em atendimento e o próximo compromisso fica «Sem horário marcado»; outro horário futuro mantém Agendado e aponta para esse. A exceção é **Não compareceu**: sem outro horário futuro, o cartão vai para Concluído e mostra «Não compareceu» com a data. **Confirmado (DEC-094):** quando o fim do compromisso confirmado passa e não há outro horário futuro, a etapa vai para Concluído sem marca de falta; outro horário futuro mantém Agendado. **Confirmado (revisão DEC-086):** «Não, obrigado» não muda a etapa. **Confirmado (DEC-091):** o cartão mostra IA como responsável enquanto ninguém assumiu; Assumir grava a pessoa; a pausa da DEC-083 volta o cartão a Sem responsável.
+Etapas visíveis: **Novo contato → Em atendimento → Agendado → Concluído**, com saída possível para **Perdido** (DEC-228). `horario_proposto` legado é projetado em Em atendimento e conta nessa coluna; não se altera destrutivamente o histórico. Pix pendente aparece como chip **Aguardando Pix** no cartão em Em atendimento. Mover manualmente para “Agendado” **pode ocorrer sem compromisso vinculado** (DEC-040), exibindo “Sem compromisso vinculado” e a ação “Agendar horário”; a mudança de etapa nunca cria um compromisso. Cancelamento ou reagendamento não apaga etapas anteriores. **Confirmado (DEC-092, revisão 31/10/2026):** cancelar o último horário futuro da conversa volta a etapa a Em atendimento e o próximo compromisso fica «Sem horário marcado»; outro horário futuro mantém Agendado e aponta para esse. A exceção é **Não compareceu**: sem outro horário futuro, o cartão vai para Concluído e mostra «Não compareceu» com a data. **Confirmado (DEC-094):** quando o fim do compromisso confirmado passa e não há outro horário futuro, a etapa vai para Concluído sem marca de falta; outro horário futuro mantém Agendado. **Confirmado (DEC-228):** despedida determinística ou **Encerrar** da equipe fecha em Perdido quando não há compromisso futuro; se houver, preserva Agendado e elimina o gémeo de atendimento. **Confirmado (revisão DEC-086):** «Não, obrigado» não muda a etapa. **Confirmado (DEC-091):** o cartão mostra IA como responsável enquanto ninguém assumiu; Assumir grava a pessoa; a pausa da DEC-083 volta o cartão a Sem responsável.
 
 **Em aberto:** se o pipeline representa uma oportunidade por conversa, por serviço ou por ciclo de compra; se etapas podem ser puladas; quando uma oportunidade “Perdida” reabre; e o que “Concluído” significa para a clínica. Essas respostas bloqueiam a máquina de estados definitiva.
 
@@ -42,13 +42,13 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Cancelado | Compromisso não ocupa mais recursos. | Preserva quem cancelou, quando, o motivo (obrigatório, DEC-008) e o vínculo com a conversa. Não há prazo mínimo. |
 | Concluído | Serviço/atendimento ocorreu. | Validar se esta marcação é necessária no MVP e quem a faz. |
 
-“Horário proposto” é uma etapa da negociação; **não reserva** recursos da agenda (Confirmado, DEC-008). Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Duração e intervalo vêm do serviço e o intervalo ocupa sala/equipamento **e** profissional; expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min estão confirmados (DEC-008). Valores reais vêm da clínica piloto.
+Uma cobrança Pix pendente **não reserva** recursos da agenda (DEC-047 e DEC-228). Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Duração e intervalo vêm do serviço e o intervalo ocupa sala/equipamento **e** profissional; expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min estão confirmados (DEC-008). Valores reais vêm da clínica piloto.
 
 ## Sinal por Pix (DEC-047)
 
 | Estado | Significado | Regra |
 | --- | --- | --- |
-| Aguardando sinal | Cobrança criada e enviada; horário **não** reservado. | Expira no prazo (padrão 2 horas, ajustável pela responsável). |
+| Aguardando Pix | Cobrança criada e enviada; horário **não** reservado. Na UI é chip do cartão em Em atendimento, não etapa/coluna do pipeline (DEC-228). | Expira no prazo (padrão 2 horas, ajustável pela responsável). |
 | Paga | Provedor confirmou o pagamento. | Confirma automaticamente o compromisso se o horário ainda estiver livre (Confirmado, DEC-047); se estiver ocupado, passa a Pago sem horário. |
 | Pago sem horário | Pago, mas o horário foi ocupado antes. | Alerta até a equipe escolher outro horário ou devolver. |
 | Expirada | Prazo venceu sem pagamento. | Não aceita pagamento; aviso posterior vira Pago sem horário. |

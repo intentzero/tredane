@@ -170,14 +170,14 @@ export function getConversationDetailOp(
     contactHasPendingPix: contactHasPendingPix(db, meta.tenantId, item.contactId, clock.nowMs()),
     opportunity: (() => {
       const opp = findOpenOpportunityForConversation(db, meta.tenantId, input.conversationId)
-      return opp
-        ? {
-            id: opp.id,
-            stage: opp.stage,
-            label: OPPORTUNITY_STAGE_LABELS[opp.stage],
-            updatedAt: opp.updatedAt,
-          }
-        : null
+      if (!opp) return null
+      const stage = opp.stage === 'horario_proposto' ? 'em_atendimento' : opp.stage
+      return {
+        id: opp.id,
+        stage,
+        label: OPPORTUNITY_STAGE_LABELS[stage],
+        updatedAt: opp.updatedAt,
+      }
     })(),
     activeProposal: (() => {
       const p = getActiveProposalForConversation(
@@ -939,7 +939,7 @@ export function closeConversationOp(
   )
 
   // Sem horário futuro: Perdido (parity Terminar / #989). Com futuro: Agendado
-  // permanece (DEC-066); o gémeo «Atendimento em curso» some porque a conversa
+  // permanece (DEC-228); o gémeo «Atendimento em curso» some porque a conversa
   // está closed (`hasOpenAttendance`).
   const closedOpp = closeOpenOpportunityIfNoFuture(
     db,

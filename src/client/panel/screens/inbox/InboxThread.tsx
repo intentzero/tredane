@@ -572,8 +572,8 @@ export function InboxThread({
     if (relevant) void load({ quiet: true });
   });
 
-  // Correção manual da etapa (DEC-062): usa o mesmo caminho do Acompanhamento; nunca mexe na agenda (DEC-040).
-  async function correctStage(toStage: "horario_proposto" | "perdido") {
+  // Correção manual para Perdido (DEC-062/228); nunca mexe na agenda (DEC-040).
+  async function correctStage(toStage: "perdido") {
     const opp = detail?.opportunity;
     if (!opp) return;
     setBusy(true);
@@ -1069,18 +1069,9 @@ export function InboxThread({
   const threadActions: ThreadAction[] = [
     // Folha mobile: atalho à ficha (no desktop a ficha abre pelo nome, DEC-161).
     { id: "contact", label: "Ver contato", group: "contato" },
-    // DEC-062: a etapa muda sozinha; aqui só as duas correções manuais.
+    // DEC-062/228: a etapa muda sozinha; só Perdido permanece como correção manual.
     ...(detail.opportunity && detail.status !== "closed" && !blocked
       ? [
-          ...(detail.opportunity.stage !== "horario_proposto"
-            ? [
-                {
-                  id: "stage-proposed",
-                  label: "Marcar como «Horário proposto»",
-                  group: "etapa" as const,
-                },
-              ]
-            : []),
           ...(detail.opportunity.stage !== "perdido"
             ? [
                 {
@@ -1143,7 +1134,6 @@ export function InboxThread({
         contactId: detail!.contactId,
       });
     }
-    if (id === "stage-proposed") void correctStage("horario_proposto");
     if (id === "stage-lost") void correctStage("perdido");
     if (id === "transfer") setTransferOpen(true);
     if (id === "close") setConfirmClose(true);

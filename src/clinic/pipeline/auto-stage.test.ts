@@ -80,7 +80,7 @@ function stageOf(ctx: ReturnType<typeof setup>) {
   return findOpenOpportunityForConversation(ctx.db, 'clinic-demo-a', ctx.conversationId)!
 }
 
-describe('Etapa automática (DEC-062, DEC-066)', () => {
+describe('Etapa automática (DEC-062, DEC-228)', () => {
   it('o detalhe da conversa devolve a oportunidade com a etapa', () => {
     const ctx = setup()
     try {
@@ -168,8 +168,8 @@ describe('Etapa automática (DEC-062, DEC-066)', () => {
   })
 
   it('Encerrar sem horário futuro fecha em Perdido (parity Terminar / #989)', () => {
-    // DEC-066: Encerrar não vai para Concluído. Sem horário futuro alinha ao
-    // Terminar (DEC-087): Perdido. Com futuro, Agendado permanece (testes #992).
+    // DEC-228: Encerrar sem horário futuro vai para Perdido; com futuro,
+    // Agendado permanece (testes #992).
     const ctx = setup()
     try {
       assume(ctx, { id: ANA, name: 'Ana' })

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | DEC-045 | UI: **Acompanhamento** / **contacto em andamento**; «pipeline»/«oportunidade» só em docs/código | Confirmado |
 | DEC-040 | **Agendado** sem compromisso permitido; aviso + **Agendar horário**; mover etapa **não** cria reserva | Confirmado |
-| DEC-008 | **Horário proposto** não reserva recursos | Confirmado |
+| DEC-228 | «Horário proposto» não é coluna; `horario_proposto` legado projeta em **Em atendimento**; Pix pendente é chip **Aguardando Pix** | Confirmado |
 | REQ-023 | Etapa, responsável, última interação, próximo compromisso + histórico | Proposto / entregue no MVP-16 |
 | AC-08 / AC-16 | Owner e attendant vêem e movem; evento só no tenant | Confirmado na implementação |
 
@@ -25,7 +25,7 @@ Registado explicitamente no seed e nos testes (não é decisão aprovada):
 
 ## DEC-187 — cartão gémeo (Confirmado; revisão 16/11/2026)
 
-Com horário futuro + atendimento aberto (sessão `booking_sessions`, proposta, quadro activo/`remarcando`, **«Precisa de alguém»** DEC-156, **ou inbound após a última confirmação**), `listPipelineOpportunities` devolve o ciclo em **Agendado** e um cartão projectado (`cardKind: open_attendance`) em **Em atendimento** / **Horário proposto**. Ao confirmar a nova marcação o gémeo some (merge). `futureAppointmentCount` alimenta o badge N>1 no Agendado. Contagens de coluna incluem o gémeo; o subtítulo largo usa contactos distintos. Colunas vazias do quadro largo: sem «Ninguém aqui». Cartões expõem `needsPerson`; o Acompanhar mostra chip + filtro; a faixa e o título do separador ficam no shell (DEC-156 A+E).
+Com horário futuro + atendimento aberto (sessão `booking_sessions`, proposta, quadro activo/`remarcando`, **«Precisa de alguém»** DEC-156, **ou inbound após a última confirmação**), `listPipelineOpportunities` devolve o ciclo em **Agendado** e um cartão projectado (`cardKind: open_attendance`) em **Em atendimento**. Ao confirmar a nova marcação o gémeo some (merge). `futureAppointmentCount` alimenta o badge N>1 no Agendado. Contagens de coluna incluem o gémeo; o subtítulo largo usa contactos distintos. Colunas vazias do quadro largo: sem «Ninguém aqui». Cartões expõem `needsPerson` e `hasPendingPix`; o Acompanhar mostra os chips e filtros aplicáveis.
 
 ## Schema SQLite (migração 5)
 
@@ -33,7 +33,7 @@ Tabelas: `opportunities`, `opportunity_stage_history`.
 Colunas de vínculo em `appointments`: `contact_id`, `conversation_id`, `opportunity_id`.  
 `CLINIC_SCHEMA_VERSION = 5`.
 
-Etapas (Proposto em states.md): `novo_contato` → `em_atendimento` → `horario_proposto` → `agendado` → `concluido` / `perdido`.
+Etapas visíveis (DEC-228): `novo_contato` → `em_atendimento` → `agendado` → `concluido` / `perdido`. O valor persistido `horario_proposto` permanece aceito apenas por compatibilidade e projeta em `em_atendimento`.
 
 ## APIs
 
