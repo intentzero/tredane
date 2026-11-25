@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createControllableClock } from '../../db/clock'
 import { ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { ConflictError } from '../errors'
@@ -289,6 +290,149 @@ describe('Pipeline / Acompanhamento (#30)', () => {
           clock,
         ),
       ).toThrow(ConflictError)
+    } finally {
+      close()
+    }
+  })
+
+  it('DEC-229: Perdido projecta só o estado actual do contacto', () => {
+    const controllableClock = createControllableClock()
+    const { db, clock, close } = bootClinicDb({ clock: controllableClock })
+    const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
+    try {
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:lost-projection:1',
+          waId: '5511987002099',
+          displayName: 'Paulo',
+          body: 'Oi',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      const contactId = ingested.contact!.id
+      const loseOpenCycle = () => {
+        const open = findOpenOpportunityForConversation(
+          db,
+          'clinic-demo-a',
+          conversationId,
+        )!
+        controllableClock.advance(1)
+        moveOpportunityStageOp(
+          db,
+          caller,
+          {
+            opportunityId: open.id,
+            toStage: 'perdido',
+            actorClerkUserId: 'user_synth_owner_a',
+            actorDisplayName: 'Responsável',
+          },
+          clock,
+        )
+        return open.id
+      }
+      const reopen = () =>
+        reopenOpportunityCycleOp(
+          db,
+          caller,
+          {
+            conversationId,
+            actorClerkUserId: 'user_synth_owner_a',
+            actorDisplayName: 'Responsável',
+          },
+          clock,
+        )
+
+      loseOpenCycle()
+      controllableClock.advance(1)
+      reopen()
+      loseOpenCycle()
+      controllableClock.advance(1)
+      reopen()
+      const latestLostId = loseOpenCycle()
+
+      const lost = listOpportunitiesOp(
+        db,
+        caller,
+        { stage: 'perdido', includeClosed: true },
+        clock,
+      )
+      expect(lost.items.map((item) => item.id)).toEqual([latestLostId])
+      expect(lost.counts.find((count) => count.stage === 'perdido')?.count).toBe(1)
+
+      controllableClock.advance(1)
+      reopen()
+      const duringNewAttendance = listOpportunitiesOp(
+        db,
+        caller,
+        { stage: 'perdido', includeClosed: true },
+        clock,
+      )
+      expect(duringNewAttendance.items).toEqual([])
+      expect(
+        duringNewAttendance.counts.find((count) => count.stage === 'perdido')?.count,
+      ).toBe(0)
+
+      const lostBeforeBookingId = loseOpenCycle()
+      const startsAt = clock.nowMs() + 60 * 60_000
+      db.run(
+        `INSERT INTO appointments (
+           id, tenant_id, service_id, professional_id, starts_at, ends_at, status,
+           created_at, contact_id, conversation_id, confirmed_by
+         ) VALUES (?, ?, 'svc_fake', 'pro_fake', ?, ?, 'confirmed', ?, ?, ?, ?)`,
+        'apt_lost_projection',
+        'clinic-demo-a',
+        startsAt,
+        startsAt + 40 * 60_000,
+        clock.nowMs(),
+        contactId,
+        conversationId,
+        'user_synth_owner_a',
+      )
+      const afterBooking = listOpportunitiesOp(
+        db,
+        caller,
+        { stage: 'perdido', includeClosed: true },
+        clock,
+      )
+      expect(afterBooking.items).toEqual([])
+      expect(afterBooking.counts.find((count) => count.stage === 'perdido')?.count).toBe(0)
+
+      db.run(
+        `UPDATE appointments SET status = 'cancelled' WHERE tenant_id = ? AND id = ?`,
+        'clinic-demo-a',
+        'apt_lost_projection',
+      )
+      const afterCancellation = listOpportunitiesOp(
+        db,
+        caller,
+        { stage: 'perdido', includeClosed: true },
+        clock,
+      )
+      expect(afterCancellation.items.map((item) => item.id)).toEqual([
+        lostBeforeBookingId,
+      ])
+
+      db.run(
+        `UPDATE appointments
+         SET status = 'confirmed', starts_at = ?, ends_at = ?
+         WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs() - 60 * 60_000,
+        clock.nowMs() - 20 * 60_000,
+        'clinic-demo-a',
+        'apt_lost_projection',
+      )
+      const afterAppointmentEnded = listOpportunitiesOp(
+        db,
+        caller,
+        { stage: 'perdido', includeClosed: true },
+        clock,
+      )
+      expect(afterAppointmentEnded.items.map((item) => item.id)).toEqual([
+        lostBeforeBookingId,
+      ])
     } finally {
       close()
     }
