@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 25/11/2026 — Token `font.size.hero` (28 px) (**Proposto**, DEC-227)
+
+- Título do cabeçalho dos passos da página web da cliente (C-04, C-07, C-13); `--font-size-hero` em `tokens.css`. Cabeçalho relaxado, «encerrado» e fila neutra: ver DEC-227, revisão 25/11/2026.
+
 ## 23/11/2026 — Marca em violeta e lima: logo e favicon (**Confirmado**, Paulo)
 
 - `brand/svg/*-cor.svg`: traço `#5C32C9`, ponto e nome `#211339`. `*-escuro.svg`: traço `#CBB8FF`, ponto `#D5FF55`, nome `#F1ECFA`. Ícone do app e favicon: placa `#211339`, símbolo `#F1ECFA`, ponto `#D5FF55`. `mono-*` iguais. Desenho e proporções iguais.
