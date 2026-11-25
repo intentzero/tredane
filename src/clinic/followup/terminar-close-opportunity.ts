@@ -44,14 +44,22 @@ export function closeOpenOpportunityIfNoFuture(
     return { closedOpportunityId: null, outbox: [] }
   }
 
+  const actorClerkUserId = actors?.actorClerkUserId ?? TERMINAR_ACTOR
+  const actorDisplayName = actors?.actorDisplayName ?? TERMINAR_ACTOR_DISPLAY
+  // O webhook/consumer usa `queueCaller`, que não representa uma pessoa e por
+  // isso não traz actorId. Esta operação, porém, tem um ator de sistema fechado
+  // e auditável. Propague-o também no envelope exigido pela mutação do pipeline.
+  const mutationCaller = caller.actorId
+    ? caller
+    : { ...caller, actorId: actorClerkUserId }
   const moved = moveOpportunityStageOp(
     db,
-    caller,
+    mutationCaller,
     {
       opportunityId: opp.id,
       toStage: 'perdido',
-      actorClerkUserId: actors?.actorClerkUserId ?? TERMINAR_ACTOR,
-      actorDisplayName: actors?.actorDisplayName ?? TERMINAR_ACTOR_DISPLAY,
+      actorClerkUserId,
+      actorDisplayName,
       note,
     },
     clock,
