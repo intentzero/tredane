@@ -4818,6 +4818,10 @@ button.panel-auth-inline-link {
  */
 .agenda-block-wrap--attendance {
   z-index: 3;
+  /* O menu «Desfazer» flutua por cima da grade; o próprio bloco recorta o texto. */
+  overflow: visible;
+  container-type: inline-size;
+  container-name: agenda-block;
 }
 
 .agenda-block {
@@ -4839,9 +4843,13 @@ button.panel-auth-inline-link {
   cursor: pointer;
 }
 
-.agenda-block-wrap--attendance .agenda-block {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
+/* Reserva, à direita do texto, o espaço da presença (que fica dentro do bloco). */
+.agenda-block-wrap--att-pending .agenda-block {
+  padding-inline-end: 284px;
+}
+
+.agenda-block-wrap--att-done .agenda-block {
+  padding-inline-end: 124px;
 }
 
 .agenda-block:focus-visible {
@@ -12264,9 +12272,138 @@ button.panel-auth-inline-link {
   outline-offset: calc(-1 * var(--size-focus-ring-width));
 }
 
-.agenda-attendance-bar--grid .agenda-attendance-btn {
-  min-height: var(--size-control-md);
+/*
+ * Grade do desktop (Proposto, 25/11/2026): a presença vive dentro do bloco e nunca muda a sua
+ * altura. Por marcar: «Presença:» + Chegou (cheio) + Não veio (contorno). Marcada: selo + menu.
+ */
+.agenda-attendance-bar--grid {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-top: 0;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.agenda-attendance-label {
   font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.agenda-attendance-pill,
+.agenda-attendance-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.agenda-block-wrap--short .agenda-attendance-pill,
+.agenda-block-wrap--short .agenda-attendance-chip {
+  height: 28px;
+}
+
+.agenda-attendance-pill--yes {
+  border: var(--size-border-width) solid var(--color-primary-fill);
+  background: var(--color-primary-fill);
+  color: var(--color-primary-on-fill);
+}
+
+.agenda-attendance-pill--no {
+  border: var(--size-border-width) solid var(--color-danger-border);
+  background: var(--color-surface-card);
+  color: var(--color-danger-ink);
+}
+
+.agenda-attendance-chip--arrived {
+  border: var(--size-border-width) solid var(--color-success-ink);
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+
+.agenda-attendance-chip--no_show {
+  border: var(--size-border-width) solid var(--color-danger-border);
+  background: var(--color-danger-tint);
+  color: var(--color-danger-ink);
+}
+
+.agenda-attendance-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 5;
+  min-width: 160px;
+  padding: var(--space-1);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-divider);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(33 19 57 / 0.16);
+}
+
+.agenda-attendance-menu-item {
+  appearance: none;
+  width: 100%;
+  min-height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agenda-attendance-menu-item:hover {
+  background: var(--color-surface-sunken);
+}
+
+.agenda-attendance-pill:focus-visible,
+.agenda-attendance-chip:focus-visible,
+.agenda-attendance-menu-item:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+/* Colunas estreitas: primeiro cai o «Presença:», depois o texto dos botões (ficam os ícones, com dica). */
+@container agenda-block (max-width: 420px) {
+  .agenda-attendance-label {
+    display: none;
+  }
+  .agenda-block-wrap--att-pending .agenda-block {
+    padding-inline-end: 196px;
+  }
+}
+
+@container agenda-block (max-width: 260px) {
+  .agenda-attendance-pill-text {
+    display: none;
+  }
+  .agenda-attendance-pill {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+  }
+  .agenda-block-wrap--att-pending .agenda-block {
+    padding-inline-end: 80px;
+  }
+  .agenda-block-wrap--att-done .agenda-block {
+    padding-inline-end: 100px;
+  }
 }
 
 .agenda-attendance-bar--done {

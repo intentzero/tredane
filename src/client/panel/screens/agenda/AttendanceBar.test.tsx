@@ -54,6 +54,35 @@ describe('presença por marcar', () => {
     expect(onSet).toHaveBeenCalledWith('a', null)
   })
 
+  it('grade (desktop): botões com texto dentro do bloco; marcada vira selo e «Desfazer» fica num menu', () => {
+    const onSet = vi.fn()
+    const { rerender } = render(<AttendanceBar item={apt('a', 0)} now={BASE + H} onSet={onSet} variant="grid" />)
+    expect(screen.getByText('Presença:')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Não veio' }))
+    expect(onSet).toHaveBeenCalledWith('a', 'no_show')
+    rerender(<AttendanceBar item={apt('a', 0, 'arrived')} now={BASE + H} onSet={onSet} variant="grid" />)
+    // Sem «Desfazer» solto: só aparece no menu do selo.
+    expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull()
+    const chip = screen.getByRole('button', { name: /Chegou/ })
+    expect(chip.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(chip)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Desfazer' }))
+    expect(onSet).toHaveBeenLastCalledWith('a', null)
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.click(chip)
+    expect(screen.getByRole('menu')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('CSS: a presença na grade não aumenta o bloco e o menu pode flutuar por cima', () => {
+    const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
+    const week = readFileSync(join(__dirname, 'AgendaDayWeek.tsx'), 'utf8')
+    expect(week).not.toMatch(/GRID_(MARK|DONE)_HEIGHT/)
+    expect(css).toMatch(/\.agenda-block-wrap--attendance\s*\{[^}]*overflow:\s*visible/s)
+    expect(css).toMatch(/\.agenda-attendance-bar--grid\s*\{[^}]*position:\s*absolute/s)
+  })
+
   it('CSS: bloco com presença fica acima da linha «agora» (Chegou / Não veio clicáveis)', () => {
     const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
     // Linha decorativa: não captura toque.
