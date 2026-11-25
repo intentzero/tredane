@@ -281,31 +281,26 @@ export type PickWhen =
   | 'amanha_tarde'
   | { date: string; dayPart?: 'manha' | 'tarde' | 'noite' | null }
 
-export type PickChips = { agora: boolean; hojeManha: boolean; hojeTarde: boolean; amanhaManha: boolean; amanhaTarde: boolean }
-
 export type PickQuery = {
   when: PickWhen
   /** `HH:MM` em múltiplos de 15 min. */
   requestedTime?: string | null
-  /** «Mais cedo» / «Mais tarde»: as 3 vagas seguintes do mesmo dia, antes ou depois de `pivot` (HH:MM). */
-  direction?: 'earlier' | 'later'
-  pivot?: string | null
-  /** Pede também que chips de hoje têm vaga. */
-  wantChips?: boolean
+  /** «Outra hora?»: `HH:MM` perguntada; a resposta traz só essa hora ou a mais próxima. */
+  askTime?: string | null
   professionalId?: string | null
 }
 
 export type PickPage = {
   date: string
   slots: Slot[]
-  /** Há vagas no mesmo dia antes / depois das mostradas. */
-  hasEarlier: boolean
-  hasLater: boolean
+  /** Fila curada do dia (inclui as sugeridas): poucas horas por período, nunca a agenda toda. */
+  rail: Slot[]
+  /** Só com `askTime`. */
+  ask: { slot: Slot; exact: boolean } | null
   /** Antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
   earliestPossible: string | null
   emptyReason: 'closed' | 'full' | 'past' | null
   nextAvailable: Slot | null
-  chips: PickChips | null
 }
 
 export type PickResult = ({ kind: 'ok' } & PickPage) | { kind: 'unauthorized' } | { kind: 'error' }
@@ -316,13 +311,12 @@ function parsePick(body: Partial<PickPage> | null): PickResult {
     kind: 'ok',
     date: body.date,
     slots: body.slots,
-    hasEarlier: body.hasEarlier === true,
-    hasLater: body.hasLater === true,
+    rail: Array.isArray(body.rail) ? body.rail : body.slots,
+    ask: body.ask && typeof body.ask.slot?.id === 'string' ? { slot: body.ask.slot, exact: body.ask.exact === true } : null,
     earliestPossible: typeof body.earliestPossible === 'string' ? body.earliestPossible : null,
     emptyReason:
       body.emptyReason === 'closed' || body.emptyReason === 'full' || body.emptyReason === 'past' ? body.emptyReason : null,
     nextAvailable: body.nextAvailable && typeof body.nextAvailable.id === 'string' ? body.nextAvailable : null,
-    chips: body.chips ?? null,
   }
 }
 
@@ -332,12 +326,11 @@ function emptyPick(): PickResult {
     kind: 'ok',
     date: '',
     slots: [],
-    hasEarlier: false,
-    hasLater: false,
+    rail: [],
+    ask: null,
     earliestPossible: null,
     emptyReason: 'full',
     nextAvailable: null,
-    chips: null,
   }
 }
 

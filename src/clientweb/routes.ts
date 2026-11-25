@@ -119,9 +119,7 @@ export type ClientWebRouteOptions = {
 type PickBody = {
   when: ClientWebWhen
   requestedTime?: string | null
-  direction?: 'earlier' | 'later'
-  pivot?: string | null
-  wantChips?: boolean
+  askTime?: string | null
 }
 
 const WHEN_WORDS = new Set(['agora', 'hoje_manha', 'hoje_tarde', 'amanha', 'amanha_manha', 'amanha_tarde'])
@@ -144,16 +142,10 @@ function parsePickBody(body: Record<string, unknown>): PickBody | null {
   const requestedTime =
     body.requestedTime == null ? null : typeof body.requestedTime === 'string' && HHMM_RE.test(body.requestedTime) ? body.requestedTime : undefined
   if (requestedTime === undefined) return null
-  const direction = body.direction == null ? null : body.direction === 'earlier' || body.direction === 'later' ? body.direction : undefined
-  if (direction === undefined) return null
-  const pivot = body.pivot == null ? null : typeof body.pivot === 'string' && HHMM_RE.test(body.pivot) ? body.pivot : undefined
-  if (pivot === undefined || (direction && !pivot)) return null
-  return {
-    when,
-    requestedTime,
-    ...(direction ? { direction, pivot } : {}),
-    ...(body.wantChips === true ? { wantChips: true } : {}),
-  }
+  const askTime =
+    body.askTime == null ? null : typeof body.askTime === 'string' && HHMM_RE.test(body.askTime) ? body.askTime : undefined
+  if (askTime === undefined) return null
+  return { when, requestedTime, ...(askTime ? { askTime } : {}) }
 }
 
 /** O corpo da resposta não leva o discriminante `ok` (o estado HTTP já o diz). */
