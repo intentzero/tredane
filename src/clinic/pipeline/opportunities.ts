@@ -182,6 +182,74 @@ function loadOpenAgendado(
 }
 
 /**
+ * DEC-229: Perdido é a situação comercial actual do contacto, não o arquivo
+ * de todos os ciclos que terminaram sem marcação.
+ *
+ * Conservamos cada ciclo no histórico, mas projectamos no quadro apenas o
+ * último ciclo do contacto, desde que ainda seja Perdido, não exista outro
+ * ciclo aberto e não haja compromisso futuro confirmado.
+ */
+const VISIBLE_LOST_WHERE = `
+  lost.tenant_id = ?
+  AND lost.status = 'closed'
+  AND lost.stage = 'perdido'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM opportunities active
+    WHERE active.tenant_id = lost.tenant_id
+      AND active.contact_id = lost.contact_id
+      AND active.status = 'open'
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM opportunities newer
+    WHERE newer.tenant_id = lost.tenant_id
+      AND newer.contact_id = lost.contact_id
+      AND (
+        newer.updated_at > lost.updated_at
+        OR (newer.updated_at = lost.updated_at AND newer.id > lost.id)
+      )
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM appointments future
+    WHERE future.tenant_id = lost.tenant_id
+      AND future.contact_id = lost.contact_id
+      AND future.status = 'confirmed'
+      AND future.ends_at > ?
+  )`
+
+function loadVisibleLost(
+  db: ClinicDb,
+  tenantId: string,
+  limit: number,
+  clock: Clock,
+): OpportunityListItem[] {
+  const rows = db.all<OppSql>(
+    `SELECT lost.*
+     FROM opportunities lost
+     WHERE ${VISIBLE_LOST_WHERE}
+     ORDER BY lost.updated_at DESC, lost.id DESC
+     LIMIT ?`,
+    tenantId,
+    clock.nowMs(),
+    limit,
+  )
+  return rows.map((row) => toListItem(db, mapOpportunity(row), clock))
+}
+
+function countVisibleLost(db: ClinicDb, tenantId: string, clock: Clock): number {
+  const row = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n
+     FROM opportunities lost
+     WHERE ${VISIBLE_LOST_WHERE}`,
+    tenantId,
+    clock.nowMs(),
+  )
+  return row?.n ?? 0
+}
+
+/**
  * DEC-187: com Agendado + horários futuros + atendimento aberto (sessão,
  * proposta, quadro, handoff ou inbound pós-confirmação), projecta cartão
  * gémeo em Em atendimento. Ao confirmar a nova marcação
@@ -230,6 +298,12 @@ export function listOpportunities(
     input.stage === 'horario_proposto'
       ? { ...input, stage: 'em_atendimento' }
       : input
+  if (viewInput.stage === 'perdido' && viewInput.includeClosed) {
+    return {
+      items: loadVisibleLost(db, tenantId, limit, clock),
+      counts: countByStage(db, tenantId, clock),
+    }
+  }
   const params: SqlValue[] = [tenantId]
   let where = `tenant_id = ?`
   if (!viewInput.includeClosed) {
@@ -281,6 +355,7 @@ export function countByStage(
     (map.get('em_atendimento') ?? 0) + (map.get('horario_proposto') ?? 0),
   )
   map.set('horario_proposto', 0)
+  map.set('perdido', countVisibleLost(db, tenantId, clock))
   // DEC-187: gémeos de atendimento entram nas contagens das colunas cedo.
   for (const cycle of loadOpenAgendado(db, tenantId, clock)) {
     if (!shouldProjectOpenAttendance(cycle)) continue

@@ -400,3 +400,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-100 — Despedida e Encerrar fecham sem CTA (DEC-228)
 
 **Dado** uma oportunidade aberta sem compromisso futuro; **quando** a cliente envia uma despedida exata do léxico da DEC-228, **então** recebe só a despedida determinística, sem «Abrir agenda», e a oportunidade passa a **Perdido**, com proposta, contexto de marcação e assunto ativo limpos. **Quando** a equipe usa **Encerrar**, **então** aplica-se o mesmo destino. **Dado** um compromisso futuro; **então** **Agendado** é preservado e qualquer gémeo de atendimento é removido. Isolados «obrigado/obrigada», «valeu», «bom dia» e «boa noite» não acionam este aceite. **Requisito:** REQ-023.
+
+### AC-101 — Um Perdido atual por contato (DEC-229)
+
+**Dado** o mesmo contato com três ciclos encerrados em Perdido; **quando** o quadro carrega, **então** a coluna e a sua contagem incluem só o ciclo perdido mais recente. **Quando** chega nova mensagem e começa outro ciclo, **então** o cartão Perdido desaparece. **Quando** o contato tem compromisso futuro confirmado, **então** também não aparece em Perdido. Os três ciclos continuam legíveis no histórico/auditoria; compromisso cancelado ou já terminado não oculta uma perda posterior. **Requisito:** REQ-023.
