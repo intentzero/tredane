@@ -1,18 +1,19 @@
 /**
  * «Quando prefere?» na página da cliente (DEC-227, Proposto).
  *
- * Em vez da grade do dia, devolve até 3 horas escolhidas pelo servidor para a conveniência
- * pedida (Agora, Hoje de manhã, Hoje à tarde, Amanhã ou uma data), mais «Outros horários».
- * Usa o mesmo motor da agenda (`queryAvailability`, grade de 15 min); a escolha é do
- * `pickSlots`: marcações confirmadas atraem as seguintes e a hora pedida sai primeiro.
- * Nada aqui marca.
+ * Em vez da grade do dia, devolve até 3 horas sugeridas pelo servidor para a conveniência
+ * pedida e uma fila curada do dia (`rail`: poucas horas por período, afastadas entre si). A
+ * agenda completa nunca sai daqui: uma clínica com poucas marcações não parece vazia. A pergunta
+ * pontual «Outra hora?» (`askTime`) responde só sobre essa hora. Usa o mesmo motor da agenda
+ * (`queryAvailability`, grade de 15 min); a escolha é do `pickSlots`: marcações confirmadas
+ * atraem as seguintes e a hora pedida sai primeiro. Nada aqui marca.
  */
 import type { Clock } from '../db/clock'
 import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import { clinicDayBounds, zonedCivilToUtc } from '../clinic/scheduling/timezone'
 import { prepareAvailabilityShared, queryAvailability, type AvailabilityShared } from '../clinic/scheduling/query'
 import { listDayAttractors } from '../clinic/scheduling/attractors'
-import { PICK_MIN_GAP_MINUTES, PICK_PAGE_SIZE, pickSlots, type PickCandidate } from '../clinic/scheduling/pick-slots'
+import { pickSlots, type PickCandidate } from '../clinic/scheduling/pick-slots'
 import type { ClinicDb } from '../clinic/store'
 import { emptyDaysForRange } from './empty-day-reason'
 import { readRrLastProfessional } from './round-robin'
@@ -44,17 +45,10 @@ const PART_HOURS: Record<ClientWebDayPart, [number, number]> = {
   noite: [18, 24],
 }
 
-/**
- * Chips com vaga. Um chip de período de hoje que coincide com o período em que já estamos
- * (e «Agora» está disponível) fica `false`: mostraria as mesmas horas que «Agora».
- */
-export type ClientWebChips = {
-  agora: boolean
-  hojeManha: boolean
-  hojeTarde: boolean
-  amanhaManha: boolean
-  amanhaTarde: boolean
-}
+/** Fila curada (DEC-227, revisão 24/11/2026): no máximo `RAIL_PER_PART` horas por período. */
+export const RAIL_PER_PART = 4
+/** Afastamento mínimo entre horas da fila, para a fila não parecer uma grade. */
+export const RAIL_MIN_GAP_MINUTES = 45
 
 export type ClientWebPickResult =
   | {
@@ -62,17 +56,16 @@ export type ClientWebPickResult =
       /** Dia civil pedido. */
       date: string
       slots: ClientWebSlot[]
-      /** Há vagas no mesmo dia antes / depois das mostradas («Mais cedo» / «Mais tarde»). */
-      hasEarlier: boolean
-      hasLater: boolean
+      /** Fila curada do dia (inclui as sugeridas), em ordem de hora. Nunca é a lista completa. */
+      rail: ClientWebSlot[]
+      /** Só com `askTime`: a hora pedida se livre, senão a mais próxima do dia; null se o dia não tem vaga. */
+      ask: { slot: ClientWebSlot; exact: boolean } | null
       /** Só quando a antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
       earliestPossible: string | null
       /** Sem horas na conveniência: porquê. */
       emptyReason: 'closed' | 'full' | 'past' | null
       /** Sem horas na conveniência: a primeira vaga depois dela, dentro do horizonte. */
       nextAvailable: ClientWebSlot | null
-      /** Só com `wantChips`: que chips de hoje têm vaga. */
-      chips: ClientWebChips | null
     }
   | { ok: false; error: 'range_invalid' | 'professional_invalid' | 'service_unavailable' | 'variants_invalid' }
 
@@ -94,14 +87,8 @@ export type PickRequest = {
   when: ClientWebWhen
   /** `HH:MM` pedida pela cliente (chat ou calendário). */
   requestedTime?: string | null
-  /**
-   * «Mais cedo» / «Mais tarde» (DEC-227, revisão 24/11/2026): as 3 vagas seguintes, em ordem de
-   * hora, antes (`earlier`) ou depois (`later`) de `pivot` (`HH:MM`: a primeira ou a última mostrada),
-   * dentro do mesmo dia. Sem `direction`, é a escolha por gravidade da conveniência.
-   */
-  direction?: 'earlier' | 'later'
-  pivot?: string | null
-  wantChips?: boolean
+  /** «Outra hora?»: `HH:MM` perguntada pela cliente; a resposta é só essa hora ou a mais próxima. */
+  askTime?: string | null
 }
 
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -203,21 +190,51 @@ function hhmmMs(t: string): number {
 }
 
 /**
- * «Mais cedo» / «Mais tarde»: as vagas do dia mais próximas de `pivotMs`, antes ou depois dele,
- * em ordem de hora, a ≥ 30 min umas das outras. `pivotMs` não entra (é a hora já mostrada).
+ * Fila curada do dia: por período (manhã, tarde, noite) até `RAIL_PER_PART` horas escolhidas pela
+ * gravidade, a `RAIL_MIN_GAP_MINUTES` ou mais umas das outras, mais as já sugeridas. Dias com
+ * pouca ou muita agenda dão filas de tamanho parecido; a lista completa nunca sai.
  */
-function stepSlots(day: readonly PickCandidate[], pivotMs: number, dir: 'earlier' | 'later', limit: number): PickCandidate[] {
-  const gapMs = PICK_MIN_GAP_MINUTES * 60_000
-  const ordered = dir === 'later' ? day.filter((c) => c.startsAt > pivotMs) : day.filter((c) => c.startsAt < pivotMs).reverse()
-  const out: PickCandidate[] = []
-  let edge = pivotMs
-  for (const c of ordered) {
-    if (out.length >= limit) break
-    if (Math.abs(c.startsAt - edge) < gapMs) continue
-    out.push(c)
-    edge = c.startsAt
+function curatedRail(
+  tz: string,
+  date: string,
+  day: readonly PickCandidate[],
+  attractors: ReturnType<typeof listDayAttractors>,
+  nowMs: number,
+  suggestedStarts: readonly number[],
+): ClientWebSlot[] {
+  const starts = new Set<number>(suggestedStarts)
+  for (const part of ['manha', 'tarde', 'noite'] as const) {
+    const fromMs = dayHourMs(tz, date, PART_HOURS[part][0])
+    const toMs = dayHourMs(tz, date, PART_HOURS[part][1])
+    const cands = day.filter((c) => c.startsAt >= fromMs && c.startsAt < toMs)
+    if (cands.length === 0) continue
+    for (const s of pickSlots(cands, attractors, {
+      anchorMs: Math.max(fromMs, nowMs),
+      limit: RAIL_PER_PART,
+      minGapMinutes: RAIL_MIN_GAP_MINUTES,
+    }).slots) {
+      starts.add(s.startsAt)
+    }
   }
-  return out.sort((a, b) => a.startsAt - b.startsAt)
+  return [...starts].sort((a, b) => a - b).map((t) => toSlot(tz, date, t))
+}
+
+/** «Outra hora?»: a hora perguntada se livre, senão a mais próxima do dia (a anterior em caso de empate). */
+function nearestTo(
+  tz: string,
+  date: string,
+  day: readonly PickCandidate[],
+  askTime: string,
+): { slot: ClientWebSlot; exact: boolean } | null {
+  if (day.length === 0) return null
+  const target = dayHourMs(tz, date, 0) + hhmmMs(askTime)
+  let best = day[0]!
+  for (const c of day) {
+    const d = Math.abs(c.startsAt - target)
+    const bd = Math.abs(best.startsAt - target)
+    if (d < bd) best = c
+  }
+  return { slot: toSlot(tz, date, best.startsAt), exact: best.startsAt === target }
 }
 
 function toSlot(tz: string, date: string, startsAt: number): ClientWebSlot {
@@ -249,21 +266,17 @@ export function pickWebSlots(
       ? dayHourMs(ctx.timezone, win.date, 0) +
         (Number(req.requestedTime.slice(0, 2)) * 60 + Number(req.requestedTime.slice(3))) * 60_000
       : null
-  const nav = req.direction && req.pivot && TIME.test(req.pivot) ? req.direction : null
-  const picked = nav
-    ? stepSlots(all, dayHourMs(ctx.timezone, win.date, 0) + hhmmMs(req.pivot!), nav, PICK_PAGE_SIZE)
-    : pickSlots(inWindow, attractors, {
-        anchorMs: Math.max(win.fromMs, now),
-        requestedStartMs: requested,
-      }).slots
+  const picked = pickSlots(inWindow, attractors, {
+    anchorMs: Math.max(win.fromMs, now),
+    requestedStartMs: requested,
+  }).slots
   const slots = picked.map((s) => toSlot(ctx.timezone, win.date, s.startsAt))
-  const shownStarts = picked.map((s) => s.startsAt)
-  const hasEarlier = shownStarts.length > 0 && stepSlots(all, Math.min(...shownStarts), 'earlier', 1).length > 0
-  const hasLater = shownStarts.length > 0 && stepSlots(all, Math.max(...shownStarts), 'later', 1).length > 0
+  const rail = curatedRail(ctx.timezone, win.date, all, attractors, now, picked.map((s) => s.startsAt))
+  const ask = req.askTime && TIME.test(req.askTime) ? nearestTo(ctx.timezone, win.date, all, req.askTime) : null
 
   // Antecedência: só explica quando cortou a primeira hora que haveria sem ela.
   let earliestPossible: string | null = null
-  if (lead > 0 && !nav && win.date === ctx.today) {
+  if (lead > 0 && win.date === ctx.today) {
     const noLead = dayCandidates(db, tenantId, clock, ctx, win.date, false, shared).filter(
       (c) => c.startsAt >= win.fromMs && c.startsAt < win.toMs,
     )
@@ -277,7 +290,7 @@ export function pickWebSlots(
 
   let emptyReason: 'closed' | 'full' | 'past' | null = null
   let nextAvailable: ClientWebSlot | null = null
-  if (slots.length === 0 && !nav) {
+  if (slots.length === 0) {
     if (win.toMs <= now) emptyReason = 'past'
     else if (all.length === 0) {
       emptyReason = emptyDaysForRange(db, tenantId, clock, ctx.timezone, [win.date])[0]?.reason ?? 'full'
@@ -285,30 +298,7 @@ export function pickWebSlots(
     nextAvailable = findNextAvailable(db, tenantId, clock, ctx, win.date, win.toMs, all, shared)
   }
 
-  let chips: ClientWebChips | null = null
-  if (req.wantChips) {
-    const todayAll = win.date === ctx.today ? all : dayCandidates(db, tenantId, clock, ctx, ctx.today, true, shared)
-    const tomorrow = addCivilDays(ctx.today, 1)
-    const tomorrowAll = clampDateRange(ctx.today, tomorrow, tomorrow)
-      ? dayCandidates(db, tenantId, clock, ctx, tomorrow, true, shared)
-      : []
-    const inRange = (list: PickCandidate[], w: { fromMs: number; toMs: number }) =>
-      list.some((c) => c.startsAt >= w.fromMs && c.startsAt < w.toMs)
-    const agora = inRange(todayAll, resolveWhen('agora', ctx, now))
-    // Período em que já estamos: o chip «Hoje …» dele repetiria «Agora».
-    const hour = Number(localHHMM(ctx.timezone, now).slice(0, 2))
-    const manhaRange = resolveWhen('hoje_manha', ctx, now)
-    const tardeRange = resolveWhen('hoje_tarde', ctx, now)
-    chips = {
-      agora,
-      hojeManha: inRange(todayAll, manhaRange) && !(agora && hour < 12),
-      hojeTarde: inRange(todayAll, tardeRange) && !(agora && hour >= 12 && hour < 18),
-      amanhaManha: inRange(tomorrowAll, resolveWhen('amanha_manha', ctx, now)),
-      amanhaTarde: inRange(tomorrowAll, resolveWhen('amanha_tarde', ctx, now)),
-    }
-  }
-
-  return { ok: true, date: win.date, slots, hasEarlier, hasLater, earliestPossible, emptyReason, nextAvailable, chips }
+  return { ok: true, date: win.date, slots, rail, ask, earliestPossible, emptyReason, nextAvailable }
 }
 
 /** Primeira vaga depois da conveniência pedida, até ao fim do horizonte. */

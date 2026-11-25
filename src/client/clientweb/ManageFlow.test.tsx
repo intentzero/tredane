@@ -73,12 +73,11 @@ function mockApi(opts: { signal?: boolean; reschedule?: unknown; cancel?: unknow
           return json({
             date,
             slots: ['09:00', '14:15'].map((t) => ({ id: `${date}T${t}`, date, time: t })),
-            hasEarlier: false,
-            hasLater: false,
+            rail: [],
+            ask: null,
             earliestPossible: null,
             emptyReason: null,
             nextAvailable: null,
-            chips: body.wantChips ? { agora: true, hojeManha: true, hojeTarde: true, amanhaManha: true, amanhaTarde: true } : null,
           })
         }
         return json({ slots: SLOTS })
@@ -136,12 +135,11 @@ describe('remarcar pela página (C-07)', () => {
     expect(await screen.findByRole('heading', { name: 'Marcação remarcada' })).toBeTruthy()
     expect(screen.getByText(/Se não foi você quem remarcou/)).toBeTruthy()
 
-    const avail = calls.find((c) => c.url.endsWith('/api/c/availability'))!
+    const avail = calls.find((c) => c.url.endsWith('/api/c/availability') && c.body && 'when' in c.body)!
     expect(avail.body).toEqual({
       appointmentId: 'apt-1',
       when: 'agora',
       requestedTime: null,
-      wantChips: true,
       professionalId: 'pro-gi',
     })
     expect(calls.find((c) => c.url.endsWith('/api/c/reschedule'))!.body).toEqual({

@@ -221,12 +221,11 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
             ok: true,
             date: '2026-11-18',
             slots: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }],
-            hasEarlier: false,
-            hasLater: false,
+            rail: [{ id: '2026-11-18T10:00', date: '2026-11-18', time: '10:00' }],
+            ask: null,
             earliestPossible: null,
             emptyReason: null,
             nextAvailable: null,
-            chips: null,
           }
         },
         bookLookup: async (_e, session, input) => {
@@ -323,15 +322,15 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
       const cookie = await login()
       for (const when of ['agora', 'hoje_manha', 'hoje_tarde', 'amanha', 'amanha_manha', 'amanha_tarde', { date: '2026-11-20', dayPart: 'tarde' }, { date: '2026-11-20' }]) {
         const res = await call('POST', '/api/c/availability', cookie, {
-          serviceId: 'svc-1', variantIds: [], when, requestedTime: '10:15', direction: 'later', pivot: '10:00', wantChips: true, tenantId: 'clinic-evil', contactId: 'ctc-evil',
+          serviceId: 'svc-1', variantIds: [], when, requestedTime: '10:15', askTime: '11:15', tenantId: 'clinic-evil', contactId: 'ctc-evil',
         })
         expect(res.status).toBe(200)
         const body = (await res.json()) as Record<string, unknown>
-        expect(body).toMatchObject({ date: '2026-11-18', slots: [{ id: '2026-11-18T10:00' }], hasEarlier: false, hasLater: false })
+        expect(body).toMatchObject({ date: '2026-11-18', slots: [{ id: '2026-11-18T10:00' }], rail: [{ id: '2026-11-18T10:00' }], ask: null })
         expect('ok' in body).toBe(false)
       }
       const last = seen.filter((x) => x.kind === 'pick').pop()!
-      expect(last.input).toMatchObject({ serviceId: 'svc-1', requestedTime: '10:15', direction: 'later', pivot: '10:00', wantChips: true })
+      expect(last.input).toMatchObject({ serviceId: 'svc-1', requestedTime: '10:15', askTime: '11:15' })
       expect(JSON.stringify(last.input)).not.toMatch(/evil/)
       expect(last.session).toMatchObject({ tenantId: 'clinic-a', contactId: 'ctc-1' })
     } finally {
@@ -350,9 +349,8 @@ describe('catálogo, horas e Confirmar (Fase 2)', () => {
         { ...base, when: { date: '2026-11-20', dayPart: 'madrugada' } },
         { ...base, when: 'agora', requestedTime: '25:00' },
         { ...base, when: 'agora', requestedTime: '9h' },
-        { ...base, when: 'agora', direction: 'sideways', pivot: '10:00' },
-        { ...base, when: 'agora', direction: 'later' },
-        { ...base, when: 'agora', direction: 'later', pivot: '10h' },
+        { ...base, when: 'agora', askTime: '10h' },
+        { ...base, when: 'agora', askTime: '25:00' },
         { variantIds: [], when: 'agora' },
         { ...base, variantIds: 'z1', when: 'agora' },
       ]

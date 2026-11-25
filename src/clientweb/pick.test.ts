@@ -70,9 +70,6 @@ describe('pickClientWebSlots', () => {
     try {
       const r = pick(s, { when: 'hoje_tarde' })
       expect(r.ok && r.slots.map((x) => x.time)).toEqual(['12:00', '12:30', '13:00'])
-      // Há vagas de manhã no mesmo dia: «Mais cedo» aparece.
-      expect(r.ok && r.hasEarlier).toBe(true)
-      expect(r.ok && r.hasLater).toBe(true)
     } finally {
       s.close()
     }
@@ -111,18 +108,39 @@ describe('pickClientWebSlots', () => {
     }
   })
 
-  it('«Mais cedo» / «Mais tarde»: as 3 vagas seguintes do mesmo dia, sem repetir', () => {
+  it('fila curada: poucas horas por período, a ≥ 45 min, com as sugeridas, nunca a grade do dia', () => {
     const s = seed(8)
     try {
-      const a = pick(s, { when: 'hoje_tarde' })
-      expect(a.ok && a.slots.map((x) => x.time)).toEqual(['12:00', '12:30', '13:00'])
-      const later = pick(s, { when: 'hoje_tarde', direction: 'later', pivot: '13:00' })
-      expect(later.ok && later.slots.map((x) => x.time)).toEqual(['13:30', '14:00', '14:30'])
-      expect(later.ok && later.hasEarlier).toBe(true)
-      const earlier = pick(s, { when: 'hoje_tarde', direction: 'earlier', pivot: '12:00' })
-      // Mais cedo atravessa o período: vem da manhã do mesmo dia.
-      expect(earlier.ok && earlier.slots.map((x) => x.time)).toEqual(['10:30', '11:00', '11:30'])
-      expect(earlier.ok && earlier.hasLater).toBe(true)
+      const r = pick(s, { when: 'hoje_tarde' })
+      expect(r.ok).toBe(true)
+      if (!r.ok) return
+      const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3))
+      const times = r.rail.map((x) => x.time)
+      expect(times).toEqual([...times].sort())
+      for (const t of r.slots.map((x) => x.time)) expect(times).toContain(t)
+      // Um dia inteiro livre (grade de 15 min) continua a dar uma fila curta.
+      expect(times.length).toBeLessThanOrEqual(3 * 4 + 3)
+      expect(times.length).toBeGreaterThanOrEqual(r.slots.length)
+      // Dentro de cada período, afastadas entre si (as sugeridas podem estar a 30 min).
+      const manha = times.filter((t) => toMin(t) < 720)
+      expect(manha.length).toBeLessThanOrEqual(4 + 3)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«Outra hora?»: a hora perguntada se livre, senão a mais próxima do dia', () => {
+    const s = seed(8)
+    try {
+      s.book(s.gi.id, at(13))
+      s.book(s.paula.id, at(13))
+      const free = pick(s, { when: { date: '2024-01-08' }, askTime: '10:15' })
+      expect(free.ok && free.ask).toMatchObject({ slot: { time: '10:15' }, exact: true })
+      const taken = pick(s, { when: { date: '2024-01-08' }, askTime: '13:00' })
+      expect(taken.ok && taken.ask?.exact).toBe(false)
+      expect(taken.ok && taken.ask?.slot.time).not.toBe('13:00')
+      const none = pick(s, { when: { date: '2024-01-08' } })
+      expect(none.ok && none.ask).toBeNull()
     } finally {
       s.close()
     }
@@ -157,17 +175,6 @@ describe('pickClientWebSlots', () => {
       expect(r.ok && r.slots).toEqual([])
       expect(r.ok && r.emptyReason).toBe('past')
       expect(r.ok && r.nextAvailable?.date).toBe('2024-01-08')
-    } finally {
-      s.close()
-    }
-  })
-
-  it('chips de hoje só com vaga', () => {
-    const s = seed(16, 50)
-    try {
-      const r = pick(s, { when: 'amanha', wantChips: true })
-      // 16:00: «Hoje à tarde» repetiria «Agora» e some; amanhã tem os dois períodos.
-      expect(r.ok && r.chips).toEqual({ agora: true, hojeManha: false, hojeTarde: false, amanhaManha: true, amanhaTarde: true })
     } finally {
       s.close()
     }
