@@ -12,7 +12,7 @@ import { addCivilDays, localHHMM } from '../clinic/ai/slot-offer'
 import { clinicDayBounds, zonedCivilToUtc } from '../clinic/scheduling/timezone'
 import { prepareAvailabilityShared, queryAvailability, type AvailabilityShared } from '../clinic/scheduling/query'
 import { listDayAttractors } from '../clinic/scheduling/attractors'
-import { pickSlots, type PickCandidate } from '../clinic/scheduling/pick-slots'
+import { PICK_MIN_GAP_MINUTES, PICK_PAGE_SIZE, pickSlots, type PickCandidate } from '../clinic/scheduling/pick-slots'
 import type { ClinicDb } from '../clinic/store'
 import { emptyDaysForRange } from './empty-day-reason'
 import { readRrLastProfessional } from './round-robin'
@@ -31,6 +31,8 @@ export type ClientWebWhen =
   | 'hoje_manha'
   | 'hoje_tarde'
   | 'amanha'
+  | 'amanha_manha'
+  | 'amanha_tarde'
   | { date: string; dayPart?: ClientWebDayPart | null }
 
 /** Janela de «Agora»: do instante actual até daqui a 2 h (DEC-227). */
@@ -42,7 +44,17 @@ const PART_HOURS: Record<ClientWebDayPart, [number, number]> = {
   noite: [18, 24],
 }
 
-export type ClientWebChips = { agora: boolean; hojeManha: boolean; hojeTarde: boolean }
+/**
+ * Chips com vaga. Um chip de período de hoje que coincide com o período em que já estamos
+ * (e «Agora» está disponível) fica `false`: mostraria as mesmas horas que «Agora».
+ */
+export type ClientWebChips = {
+  agora: boolean
+  hojeManha: boolean
+  hojeTarde: boolean
+  amanhaManha: boolean
+  amanhaTarde: boolean
+}
 
 export type ClientWebPickResult =
   | {
@@ -50,7 +62,9 @@ export type ClientWebPickResult =
       /** Dia civil pedido. */
       date: string
       slots: ClientWebSlot[]
-      hasMore: boolean
+      /** Há vagas no mesmo dia antes / depois das mostradas («Mais cedo» / «Mais tarde»). */
+      hasEarlier: boolean
+      hasLater: boolean
       /** Só quando a antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
       earliestPossible: string | null
       /** Sem horas na conveniência: porquê. */
@@ -80,8 +94,13 @@ export type PickRequest = {
   when: ClientWebWhen
   /** `HH:MM` pedida pela cliente (chat ou calendário). */
   requestedTime?: string | null
-  /** Múltiplo de 3: 0 = primeira página. */
-  offset?: number
+  /**
+   * «Mais cedo» / «Mais tarde» (DEC-227, revisão 24/11/2026): as 3 vagas seguintes, em ordem de
+   * hora, antes (`earlier`) ou depois (`later`) de `pivot` (`HH:MM`: a primeira ou a última mostrada),
+   * dentro do mesmo dia. Sem `direction`, é a escolha por gravidade da conveniência.
+   */
+  direction?: 'earlier' | 'later'
+  pivot?: string | null
   wantChips?: boolean
 }
 
@@ -115,6 +134,9 @@ export function resolveWhen(
   }
   if (when === 'hoje_manha') return part(today, 'manha')
   if (when === 'hoje_tarde') return part(today, 'tarde')
+  if (when === 'amanha_manha' || when === 'amanha_tarde') {
+    return part(addCivilDays(today, 1), when === 'amanha_manha' ? 'manha' : 'tarde')
+  }
   if (when === 'amanha') {
     const date = addCivilDays(today, 1)
     return { date, fromMs: dayHourMs(tz, date, 0), toMs: dayHourMs(tz, date, 24) }
@@ -176,6 +198,28 @@ function dayCandidates(
   return [...byStart.values()].sort((a, b) => a.startsAt - b.startsAt)
 }
 
+function hhmmMs(t: string): number {
+  return (Number(t.slice(0, 2)) * 60 + Number(t.slice(3))) * 60_000
+}
+
+/**
+ * «Mais cedo» / «Mais tarde»: as vagas do dia mais próximas de `pivotMs`, antes ou depois dele,
+ * em ordem de hora, a ≥ 30 min umas das outras. `pivotMs` não entra (é a hora já mostrada).
+ */
+function stepSlots(day: readonly PickCandidate[], pivotMs: number, dir: 'earlier' | 'later', limit: number): PickCandidate[] {
+  const gapMs = PICK_MIN_GAP_MINUTES * 60_000
+  const ordered = dir === 'later' ? day.filter((c) => c.startsAt > pivotMs) : day.filter((c) => c.startsAt < pivotMs).reverse()
+  const out: PickCandidate[] = []
+  let edge = pivotMs
+  for (const c of ordered) {
+    if (out.length >= limit) break
+    if (Math.abs(c.startsAt - edge) < gapMs) continue
+    out.push(c)
+    edge = c.startsAt
+  }
+  return out.sort((a, b) => a.startsAt - b.startsAt)
+}
+
 function toSlot(tz: string, date: string, startsAt: number): ClientWebSlot {
   const time = localHHMM(tz, startsAt)
   return { id: `${date}T${time}`, date, time }
@@ -205,16 +249,21 @@ export function pickWebSlots(
       ? dayHourMs(ctx.timezone, win.date, 0) +
         (Number(req.requestedTime.slice(0, 2)) * 60 + Number(req.requestedTime.slice(3))) * 60_000
       : null
-  const picked = pickSlots(inWindow, attractors, {
-    anchorMs: Math.max(win.fromMs, now),
-    requestedStartMs: requested,
-    offset: req.offset ?? 0,
-  })
-  const slots = picked.slots.map((s) => toSlot(ctx.timezone, win.date, s.startsAt))
+  const nav = req.direction && req.pivot && TIME.test(req.pivot) ? req.direction : null
+  const picked = nav
+    ? stepSlots(all, dayHourMs(ctx.timezone, win.date, 0) + hhmmMs(req.pivot!), nav, PICK_PAGE_SIZE)
+    : pickSlots(inWindow, attractors, {
+        anchorMs: Math.max(win.fromMs, now),
+        requestedStartMs: requested,
+      }).slots
+  const slots = picked.map((s) => toSlot(ctx.timezone, win.date, s.startsAt))
+  const shownStarts = picked.map((s) => s.startsAt)
+  const hasEarlier = shownStarts.length > 0 && stepSlots(all, Math.min(...shownStarts), 'earlier', 1).length > 0
+  const hasLater = shownStarts.length > 0 && stepSlots(all, Math.max(...shownStarts), 'later', 1).length > 0
 
   // Antecedência: só explica quando cortou a primeira hora que haveria sem ela.
   let earliestPossible: string | null = null
-  if (lead > 0 && (req.offset ?? 0) === 0 && win.date === ctx.today) {
+  if (lead > 0 && !nav && win.date === ctx.today) {
     const noLead = dayCandidates(db, tenantId, clock, ctx, win.date, false, shared).filter(
       (c) => c.startsAt >= win.fromMs && c.startsAt < win.toMs,
     )
@@ -228,7 +277,7 @@ export function pickWebSlots(
 
   let emptyReason: 'closed' | 'full' | 'past' | null = null
   let nextAvailable: ClientWebSlot | null = null
-  if (slots.length === 0 && (req.offset ?? 0) === 0) {
+  if (slots.length === 0 && !nav) {
     if (win.toMs <= now) emptyReason = 'past'
     else if (all.length === 0) {
       emptyReason = emptyDaysForRange(db, tenantId, clock, ctx.timezone, [win.date])[0]?.reason ?? 'full'
@@ -239,14 +288,27 @@ export function pickWebSlots(
   let chips: ClientWebChips | null = null
   if (req.wantChips) {
     const todayAll = win.date === ctx.today ? all : dayCandidates(db, tenantId, clock, ctx, ctx.today, true, shared)
-    const agora = resolveWhen('agora', ctx, now)
-    const manha = resolveWhen('hoje_manha', ctx, now)
-    const tarde = resolveWhen('hoje_tarde', ctx, now)
-    const has = (w: { fromMs: number; toMs: number }) => todayAll.some((c) => c.startsAt >= w.fromMs && c.startsAt < w.toMs)
-    chips = { agora: has(agora), hojeManha: has(manha), hojeTarde: has(tarde) }
+    const tomorrow = addCivilDays(ctx.today, 1)
+    const tomorrowAll = clampDateRange(ctx.today, tomorrow, tomorrow)
+      ? dayCandidates(db, tenantId, clock, ctx, tomorrow, true, shared)
+      : []
+    const inRange = (list: PickCandidate[], w: { fromMs: number; toMs: number }) =>
+      list.some((c) => c.startsAt >= w.fromMs && c.startsAt < w.toMs)
+    const agora = inRange(todayAll, resolveWhen('agora', ctx, now))
+    // Período em que já estamos: o chip «Hoje …» dele repetiria «Agora».
+    const hour = Number(localHHMM(ctx.timezone, now).slice(0, 2))
+    const manhaRange = resolveWhen('hoje_manha', ctx, now)
+    const tardeRange = resolveWhen('hoje_tarde', ctx, now)
+    chips = {
+      agora,
+      hojeManha: inRange(todayAll, manhaRange) && !(agora && hour < 12),
+      hojeTarde: inRange(todayAll, tardeRange) && !(agora && hour >= 12 && hour < 18),
+      amanhaManha: inRange(tomorrowAll, resolveWhen('amanha_manha', ctx, now)),
+      amanhaTarde: inRange(tomorrowAll, resolveWhen('amanha_tarde', ctx, now)),
+    }
   }
 
-  return { ok: true, date: win.date, slots, hasMore: picked.hasMore, earliestPossible, emptyReason, nextAvailable, chips }
+  return { ok: true, date: win.date, slots, hasEarlier, hasLater, earliestPossible, emptyReason, nextAvailable, chips }
 }
 
 /** Primeira vaga depois da conveniência pedida, até ao fim do horizonte. */

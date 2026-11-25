@@ -283,6 +283,7 @@
 .cw-when { padding-top: 8px; }
 .cw-times-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cw-times-pick .cw-time { min-height: 56px; border-radius: 12px; font-size: var(--font-size-headline); }
+.cw-step { display: flex; justify-content: space-between; align-items: center; }
 .cw-more { align-self: flex-start; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--color-primary-ink); font: inherit; font-weight: var(--font-weight-semibold); cursor: pointer; }
 .cw-lead-note { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--color-surface-sunken); color: var(--color-text-primary); font-size: var(--font-size-small); }
 .cw-empty-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 16px; border: 1px dashed var(--color-line-control); border-radius: 12px; background: var(--color-surface-card); }
