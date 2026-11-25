@@ -8,11 +8,14 @@ import {
   listProfessionalOpeningWindows,
   type OpeningWindow,
 } from '../clinic/ai/opening-source'
-import { weekdayOfCivil } from '../clinic/ai/slot-offer'
+import { localHHMM, weekdayOfCivil } from '../clinic/ai/slot-offer'
 import type { ClinicDb } from '../clinic/store'
 
-/** `closed` = sem expediente / fechamento da clínica; `full` = aberta sem vagas livres. */
-export type ClientWebEmptyDayReason = 'closed' | 'full'
+/**
+ * `closed` = sem expediente / fechamento da clínica; `ended` = hoje, já depois do fim do expediente
+ * (DEC-227, revisão 25/11/2026: não é «cheio»); `full` = aberta sem vagas livres.
+ */
+export type ClientWebEmptyDayReason = 'closed' | 'ended' | 'full'
 
 export type ClientWebEmptyDay = { date: string; reason: ClientWebEmptyDayReason }
 
@@ -39,8 +42,17 @@ export function emptyDaysForRange(
 ): ClientWebEmptyDay[] {
   if (datesWithoutSlots.length === 0) return []
   const windows = listProfessionalOpeningWindows(db, tenantId, clock)
-  return datesWithoutSlots.map((date) => ({
-    date,
-    reason: classifyEmptyDayReason(db, tenantId, date, tz, windows),
-  }))
+  const now = clock.nowMs()
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  const hhmm = localHHMM(tz, now)
+  const nowMinute = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3))
+  return datesWithoutSlots.map((date) => {
+    const reason = classifyEmptyDayReason(db, tenantId, date, tz, windows)
+    if (reason === 'full' && date === today) {
+      const dow = weekdayOfCivil(date)
+      const lastEnd = Math.max(...windows.filter((w) => w.dayOfWeek === dow).map((w) => w.endMinute))
+      if (nowMinute >= lastEnd) return { date, reason: 'ended' as const }
+    }
+    return { date, reason }
+  })
 }

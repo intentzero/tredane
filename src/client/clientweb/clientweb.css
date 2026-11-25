@@ -156,12 +156,17 @@
 .cw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cw-caption { font-size: var(--font-size-caption); color: var(--color-text-secondary); }
 .cw-caption-title { margin: 0 0 8px; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
-.cw-step-header { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 4px 16px 4px 4px; box-sizing: border-box; background: var(--color-surface-card); }
-.cw-step-title { display: flex; flex-direction: column; min-width: 0; }
+/* Cabeçalho relaxado (DEC-227, revisão 25/11/2026): Voltar e passo numa linha, título grande, progresso em segmentos. */
+.cw-stepbar { background: var(--color-surface-card); padding-bottom: 4px; }
+.cw-step-header { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 8px 16px 0 4px; box-sizing: border-box; }
+.cw-step-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px 16px 20px; }
+.cw-clinic { font-size: var(--font-size-body); color: var(--color-text-secondary); }
+.cw-step-title .cw-title { font-size: var(--font-size-display); line-height: 1.15; }
 .cw-icon-btn { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--color-text-primary); font-size: 24px; line-height: 1; cursor: pointer; border-radius: 8px; }
 .cw-icon-btn:disabled { color: var(--color-line-disabled); cursor: default; }
-.cw-progress { height: 4px; background: var(--color-line-divider); }
-.cw-progress-bar { height: 4px; background: var(--color-primary-base); }
+.cw-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 16px 12px; }
+.cw-progress-seg { height: 4px; border-radius: 8px; background: var(--color-line-divider); }
+.cw-progress-seg.is-done { background: var(--color-primary-base); }
 .cw-btn { min-height: 48px; padding: 0 16px; border-radius: 8px; border: 0; font: inherit; font-size: var(--font-size-button); font-weight: var(--font-weight-semibold); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .cw-btn-primary { background: var(--color-primary-fill); color: var(--color-primary-on-fill); }
 .cw-btn-primary:disabled { background: var(--color-line-disabled); color: var(--color-text-secondary); cursor: default; }
@@ -187,7 +192,7 @@
 .cw-bar-sum { display: flex; flex-direction: column; }
 .cw-week-nav { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
 .cw-month { flex: 1; font-weight: var(--font-weight-semibold); text-transform: capitalize; }
-.cw-days { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; }
+.cw-days { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 12px; }
 .cw-day { flex: none; width: 52px; min-height: 56px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--color-surface-card); border: 1px solid var(--color-line-border); border-radius: 12px; font: inherit; color: var(--color-text-primary); cursor: pointer; }
 /* Dia sem vagas: tracejado até seleccionar (TRE-33). */
 .cw-day.is-empty:not(.is-on) { background: var(--color-surface-sunken); border-style: dashed; color: var(--color-text-muted); }
@@ -306,9 +311,9 @@
 .cw-wish-cta-sub { font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
 
 /* DEC-227 (rev. 24/11/2026): faixa de dias, fila curada de horas e «Outra hora?». */
-.cw-days { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.cw-days { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
 .cw-days::-webkit-scrollbar, .cw-rail::-webkit-scrollbar { display: none; }
-.cw-day { flex: none; width: 72px; min-height: 76px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--color-line-control); background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; }
+.cw-day { flex: none; width: 72px; min-height: 84px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--color-line-control); background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
 .cw-day.is-on { background: var(--color-primary-tint); border: 2px solid var(--color-primary-base); color: var(--color-primary-fill); }
 .cw-day.is-full { background: transparent; border-color: var(--color-line-disabled); color: var(--color-text-secondary); cursor: default; }
 .cw-day-wd { font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
@@ -321,12 +326,21 @@
 .cw-rail-wrap::before, .cw-rail-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; pointer-events: none; z-index: 1; }
 .cw-rail-wrap::before { left: 0; width: 16px; background: linear-gradient(to right, var(--color-surface-app), transparent); }
 .cw-rail-wrap::after { right: 0; width: 28px; background: linear-gradient(to left, var(--color-surface-app), transparent); }
-.cw-rail { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; padding: 0 16px 4px; -webkit-overflow-scrolling: touch; }
-.cw-rail-item { flex: none; width: 76px; display: flex; flex-direction: column; gap: 4px; scroll-snap-align: start; }
-.cw-rail-head { height: 16px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); white-space: nowrap; }
-.cw-rail .cw-time { min-height: 52px; border-radius: 12px; font-size: var(--font-size-title); font-variant-numeric: tabular-nums; }
-.cw-rail .cw-time.is-suggested { border: 2px solid var(--color-primary-base); color: var(--color-primary-fill); }
-.cw-rail-ask { width: 96px; }
+.cw-rail { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; padding: 0 16px 4px; -webkit-overflow-scrolling: touch; }
+.cw-rail-item { flex: none; width: 80px; display: flex; flex-direction: column; gap: 8px; scroll-snap-align: start; }
+.cw-rail-head { height: 20px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); white-space: nowrap; }
+.cw-rail .cw-time { min-height: 56px; border-radius: 12px; font-size: var(--font-size-title); font-variant-numeric: tabular-nums; }
+.cw-rail-ask { width: 100px; }
 .cw-rail .cw-time-ask { border-style: dashed; color: var(--color-primary-ink); font-size: var(--font-size-body); }
 .cw-ask-answer { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--color-surface-sunken); }
 .cw-ask-answer p { margin: 0; }
+
+/* Respiro entre blocos do passo «Quando?» (DEC-227, revisão 25/11/2026). */
+.cw-main.cw-flush { gap: 0; padding-top: 20px; }
+.cw-flush > .cw-when { padding-top: 24px; }
+.cw-flush > section.cw-margin { margin-top: 32px; padding-top: 32px; border-top: 1px solid var(--color-line-divider); }
+.cw-flush .cw-caption-title { margin: 0 0 12px; font-size: var(--font-size-title); color: var(--color-text-primary); }
+.cw-flush .cw-times-pick { gap: 10px; }
+.cw-flush .cw-times-pick .cw-time { min-height: 60px; }
+.cw-parts { gap: 10px; margin-bottom: 16px; }
+.cw-flush > .cw-muted:last-child, .cw-flush > p.cw-muted { margin-top: 28px; }

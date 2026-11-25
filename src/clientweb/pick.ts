@@ -63,7 +63,7 @@ export type ClientWebPickResult =
       /** Só quando a antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
       earliestPossible: string | null
       /** Sem horas na conveniência: porquê. */
-      emptyReason: 'closed' | 'full' | 'past' | null
+      emptyReason: 'closed' | 'ended' | 'full' | 'past' | null
       /** Sem horas na conveniência: a primeira vaga depois dela, dentro do horizonte. */
       nextAvailable: ClientWebSlot | null
     }
@@ -288,7 +288,7 @@ export function pickWebSlots(
     }
   }
 
-  let emptyReason: 'closed' | 'full' | 'past' | null = null
+  let emptyReason: 'closed' | 'ended' | 'full' | 'past' | null = null
   let nextAvailable: ClientWebSlot | null = null
   if (slots.length === 0) {
     if (win.toMs <= now) emptyReason = 'past'

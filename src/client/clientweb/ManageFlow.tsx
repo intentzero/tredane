@@ -22,15 +22,15 @@ type Common = {
 
 function StepHeader({ title, caption, onBack }: { title: string; caption: string; onBack: () => void }) {
   return (
-    <header>
+    <header className="cw-stepbar">
       <div className="cw-step-header">
         <button type="button" className="cw-icon-btn" onClick={onBack} aria-label="Voltar">
           <span aria-hidden="true">‹</span>
         </button>
-        <div className="cw-step-title">
-          <span className="cw-caption">{caption}</span>
-          <h1 className="cw-title">{title}</h1>
-        </div>
+      </div>
+      <div className="cw-step-title">
+        <span className="cw-clinic">{caption}</span>
+        <h1 className="cw-title">{title}</h1>
       </div>
     </header>
   )
