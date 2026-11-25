@@ -283,8 +283,6 @@
 .cw-when { padding-top: 8px; }
 .cw-times-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cw-times-pick .cw-time { min-height: 56px; border-radius: 12px; font-size: var(--font-size-headline); }
-.cw-step { display: flex; justify-content: space-between; align-items: center; }
-.cw-more { align-self: flex-start; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--color-primary-ink); font: inherit; font-weight: var(--font-weight-semibold); cursor: pointer; }
 .cw-lead-note { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--color-surface-sunken); color: var(--color-text-primary); font-size: var(--font-size-small); }
 .cw-empty-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 16px; border: 1px dashed var(--color-line-control); border-radius: 12px; background: var(--color-surface-card); }
 .cw-empty-pick-title { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); }
@@ -306,3 +304,29 @@
 .cw-cal-foot { display: flex; justify-content: flex-end; }
 .cw-wish-cta { flex-direction: column; min-height: 60px; gap: 2px; border-radius: 12px; width: 100%; }
 .cw-wish-cta-sub { font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
+
+/* DEC-227 (rev. 24/11/2026): faixa de dias, fila curada de horas e «Outra hora?». */
+.cw-days { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.cw-days::-webkit-scrollbar, .cw-rail::-webkit-scrollbar { display: none; }
+.cw-day { flex: none; width: 72px; min-height: 76px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--color-line-control); background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; }
+.cw-day.is-on { background: var(--color-primary-tint); border: 2px solid var(--color-primary-base); color: var(--color-primary-fill); }
+.cw-day.is-full { background: transparent; border-color: var(--color-line-disabled); color: var(--color-text-secondary); cursor: default; }
+.cw-day-wd { font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
+.cw-day-num { font-size: var(--font-size-display); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cw-day-note { font-size: var(--font-size-caption); min-height: 14px; }
+.cw-day-other { border-style: dashed; color: var(--color-primary-ink); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); gap: 4px; }
+.cw-parts { display: flex; gap: 8px; }
+.cw-parts .cw-pref-chip:disabled { border-color: var(--color-line-disabled); color: var(--color-text-secondary); cursor: default; }
+.cw-rail-wrap { position: relative; }
+.cw-rail-wrap::before, .cw-rail-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; pointer-events: none; z-index: 1; }
+.cw-rail-wrap::before { left: 0; width: 16px; background: linear-gradient(to right, var(--color-surface-app), transparent); }
+.cw-rail-wrap::after { right: 0; width: 28px; background: linear-gradient(to left, var(--color-surface-app), transparent); }
+.cw-rail { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; padding: 0 16px 4px; -webkit-overflow-scrolling: touch; }
+.cw-rail-item { flex: none; width: 76px; display: flex; flex-direction: column; gap: 4px; scroll-snap-align: start; }
+.cw-rail-head { height: 16px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); white-space: nowrap; }
+.cw-rail .cw-time { min-height: 52px; border-radius: 12px; font-size: var(--font-size-title); font-variant-numeric: tabular-nums; }
+.cw-rail .cw-time.is-suggested { border: 2px solid var(--color-primary-base); color: var(--color-primary-fill); }
+.cw-rail-ask { width: 96px; }
+.cw-rail .cw-time-ask { border-style: dashed; color: var(--color-primary-ink); font-size: var(--font-size-body); }
+.cw-ask-answer { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--color-surface-sunken); }
+.cw-ask-answer p { margin: 0; }
