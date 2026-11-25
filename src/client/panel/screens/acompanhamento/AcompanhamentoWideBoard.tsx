@@ -1,5 +1,5 @@
 import { CalendarDays, Search } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
@@ -20,12 +20,13 @@ import {
   relativeTime,
 } from './format'
 
-/** Etapas com coluna própria; «Perdido» só aparece quando a pessoa pede. */
+/** Etapas com coluna própria, incluindo o destino terminal DEC-228. */
 const MAIN_STAGES: OpportunityStage[] = [
   'novo_contato',
   'em_atendimento',
   'agendado',
   'concluido',
+  'perdido',
 ]
 
 type Filter = 'all' | 'mine' | 'unassigned' | 'needs_person'
@@ -57,7 +58,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   const [viewerId, setViewerId] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [q, setQ] = useState('')
-  const [showLost, setShowLost] = useState(false)
   const [professionals, setProfessionals] = useState<Array<{ id: string; name: string }>>([])
   const [profFilter, setProfFilter] = useState<string[]>([])
   const returnFocus = useRef<HTMLElement | null>(null)
@@ -66,16 +66,11 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   const { captureBeforeUpdate } = useKanbanFlip(boardRef, byStage)
   useOutsideClose(panelRef, () => closePanel(), openId != null)
 
-  const stages = useMemo<OpportunityStage[]>(
-    () => (showLost ? [...MAIN_STAGES, 'perdido'] : MAIN_STAGES),
-    [showLost],
-  )
-
   async function load(opts?: { keep?: boolean }) {
     setError(null)
     try {
       const results = await Promise.all(
-        stages.map((stage) =>
+        MAIN_STAGES.map((stage) =>
           api.listPipelineOpportunities(
             tenantId,
             // Concluído e Perdido são etapas finais (oportunidade «closed»): sem isto vêm sempre vazias.
@@ -85,7 +80,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
         ),
       )
       const next: Partial<Record<OpportunityStage, PipelineOpportunity[]>> = {}
-      stages.forEach((stage, i) => {
+      MAIN_STAGES.forEach((stage, i) => {
         next[stage] = results[i]?.opportunities ?? []
       })
       captureBeforeUpdate()
@@ -99,7 +94,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
 
   useEffect(() => {
     void load()
-  }, [tenantId, generation, stages])
+  }, [tenantId, generation])
 
   // Debounce maior no wide (várias colunas): coalescer rajadas sem jitter.
   useInboxRealtime((signals) => {
@@ -205,7 +200,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   }
   if (!byStage) return <ListSkeleton label="Carregando acompanhamento…" />
 
-  const all = stages.flatMap((s) => byStage[s] ?? [])
+  const all = MAIN_STAGES.flatMap((s) => byStage[s] ?? [])
   // DEC-187: «contatos em andamento» = contactos distintos (gémeo não duplica o total).
   const total = new Set(
     all
@@ -257,13 +252,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
               </span>
             </Button>
           ))}
-          <Button
-            className="panel-chip"
-            aria-pressed={showLost}
-            onPress={() => setShowLost((v) => !v)}
-          >
-            Perdidos
-          </Button>
         </div>
         {professionals.length > 1 ? (
           <div className="acomp-wide-filters" role="group" aria-label="Filtrar por profissional">
@@ -300,7 +288,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
       ) : null}
 
       <div ref={boardRef} className="acomp-wide-board" role="group" aria-label="Quadro por etapa">
-        {stages.map((stage) => {
+          {MAIN_STAGES.map((stage) => {
           const cards = (byStage[stage] ?? []).filter(visible)
           return (
             <section

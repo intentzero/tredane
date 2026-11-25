@@ -96,7 +96,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
   })
   afterEach(cleanup)
 
-  it('mostra uma coluna por etapa com a contagem; «Perdido» fica de fora', async () => {
+  it('mostra as cinco colunas por etapa com a contagem, incluindo Perdido', async () => {
     mount()
     const board = await screen.findByRole('group', { name: 'Quadro por etapa' })
     const cols = within(board).getAllByRole('region')
@@ -105,16 +105,15 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
       'Em atendimento, 2',
       'Agendado, 1',
       'Concluído, 0',
+      'Perdido, 1',
     ])
-    expect(screen.queryByText('Renata Lopes')).toBeNull()
+    expect(screen.getByText('Renata Lopes')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Perdidos' })).toBeNull()
   })
 
   it('pede ao servidor as oportunidades encerradas só para Concluído e Perdido', async () => {
     const api = makeApi()
     mount(undefined, api)
-    const user = userEvent.setup()
-    await screen.findByText('Maria Souza')
-    await user.click(screen.getByRole('button', { name: 'Perdidos' }))
     await screen.findByText('Renata Lopes')
     const calls = (api.listPipelineOpportunities as ReturnType<typeof vi.fn>).mock.calls as Array<
       [string, { stage: string; includeClosed?: boolean }]
@@ -136,7 +135,7 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(maria.querySelector('.inbox-avatar')?.textContent).toBe('MS')
     expect(maria.querySelector('.acomp-card-unassigned')?.textContent).toBe('Sem responsável')
     const dots = Array.from(board.querySelectorAll('.acomp-col-dot')).map((d) => d.getAttribute('data-stage'))
-    expect(dots).toEqual(['novo_contato', 'em_atendimento', 'agendado', 'concluido'])
+    expect(dots).toEqual(['novo_contato', 'em_atendimento', 'agendado', 'concluido', 'perdido'])
     const empty = within(board).getByRole('region', { name: 'Concluído, 0' })
     expect(within(empty).queryByText('Ninguém aqui')).toBeNull()
     expect(empty.querySelector('.acomp-col-empty')).toBeNull()
@@ -182,14 +181,6 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     } finally {
       DATA.agendado = previous
     }
-  })
-
-  it('«Perdidos» acrescenta a coluna Perdido', async () => {
-    mount()
-    const user = userEvent.setup()
-    await screen.findByText('Maria Souza')
-    await user.click(screen.getByRole('button', { name: 'Perdidos' }))
-    expect(await screen.findByText('Renata Lopes')).toBeTruthy()
   })
 
   it('filtros: Minhas e Sem responsável (sem «Parados há mais de 2 dias» — DEC-208)', async () => {
@@ -491,6 +482,7 @@ describe('AcompanhamentoWideBoard — cartões ao vivo', () => {
         'Em atendimento, 1',
         'Agendado, 1',
         'Concluído, 0',
+        'Perdido, 1',
       ])
       // Mesmo contacto nas duas colunas → «1 contato em andamento».
       expect(screen.getByText('1 contatos em andamento')).toBeTruthy()
