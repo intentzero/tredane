@@ -64,10 +64,6 @@ type Props = {
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
-/** Bloco com presença por marcar: texto de duas linhas + botões sem cortar. */
-const GRID_MARK_HEIGHT = 84
-/** Presença já marcada: estado + Desfazer numa linha só. */
-const GRID_DONE_HEIGHT = 76
 
 function shiftCivil(date: string, delta: number): string {
   const [y, m, d] = date.split('-').map(Number)
@@ -941,10 +937,10 @@ function DayGrid({
           <div
             key={item.id}
             role="listitem"
-            className={`agenda-block-wrap${mark ? ' agenda-block-wrap--attendance' : ''}`}
+            className={`agenda-block-wrap${mark ? ` agenda-block-wrap--attendance agenda-block-wrap--att-${attendanceMarked(item) ? 'done' : 'pending'}${height < 60 ? ' agenda-block-wrap--short' : ''}` : ''}`}
             style={{
               top,
-              height: mark ? Math.max(height, attendanceMarked(item) ? GRID_DONE_HEIGHT : GRID_MARK_HEIGHT) : height,
+              height,
               left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
               width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
             }}
