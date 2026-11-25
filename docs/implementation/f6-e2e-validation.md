@@ -80,7 +80,7 @@ Ambiente: `npm run dev` + auth sintético (`AUTH_MODE=synthetic`). Clínicas `cl
 | 3 | Attendant A | Responder manualmente; pedir sugestão IA; **não** enviar sugestão directa | Bloco «Sugestão»; compositor separado |
 | 4 | Attendant A | Mover para «Em atendimento» | Segunda sessão A actualiza (se aberta) |
 | 5a | Attendant A | Agendar serviço **sem** sinal → Confirmar | Compromisso confirmado; etapa Agendado |
-| 5b | Attendant A | Serviço **com** sinal → Enviar sinal | Cartão Aguardando sinal; horário ainda livre |
+| 5b | Attendant A | Serviço **com** sinal → Enviar sinal | Cartão em Em atendimento com chip Aguardando Pix; horário ainda livre |
 | 6 | — | Simular pagamento Pix (`PIX_MODE=synthetic`) | Confirmação automática ou alerta «Pago sem horário» |
 | 7 | Owner A | Revogar attendant | Sessão A do attendant perde acesso; B do multi ok |
 | 8 | Owner A | Excluir contacto de demo | Mensagens sumidas; compromisso anónimo |

@@ -3,9 +3,9 @@
  * pós-agendamento/pós-cancelamento DEC-086, T3 preço) e Encerrar no painel
  * (staff `closeConversationOp`).
  *
- * Com horário futuro confirmado: não muda a etapa (DEC-086 / DEC-066 — cartão
+ * Com horário futuro confirmado: não muda a etapa (DEC-086 / DEC-228 — cartão
  * fica Agendado). Sem horário futuro: move para Perdido e fecha o ciclo
- * (DEC-087 / JRN-19; alinhamento Encerrar↔Terminar) — remove o cartão de
+ * (DEC-228; alinhamento Encerrar↔Terminar) — remove o cartão de
  * «Em atendimento».
  */
 import type { Clock } from '../../db/clock'

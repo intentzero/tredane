@@ -17,6 +17,11 @@ import { upsertContact } from '../contacts'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { seedSyntheticWhatsappTemplates } from '../inbox/templates'
+import {
+  ensureOpenOpportunity,
+  listOpportunitiesOp,
+  moveOpportunityStageOp,
+} from '../pipeline/operations'
 import { queryAvailabilityOp, zonedCivilToUtc } from '../scheduling'
 import {
   connectPixAccountOp,
@@ -213,6 +218,26 @@ describe('sinal Pix na conversa sem reservar (#38)', () => {
     try {
       const ctx = await seedSignalClinic(db, clock)
       const beforeAlloc = countAppointmentAllocations(db, ctx.tenantId)
+      const opportunity = ensureOpenOpportunity(
+        db,
+        {
+          tenantId: ctx.tenantId,
+          contactId: ctx.contact.id,
+          conversationId: ctx.conversation.id,
+        },
+        clock,
+      ).opportunity
+      moveOpportunityStageOp(
+        db,
+        ctx.caller,
+        {
+          opportunityId: opportunity.id,
+          toStage: 'em_atendimento',
+          actorClerkUserId: 'user_synth_owner_a',
+          actorDisplayName: 'Responsável',
+        },
+        clock,
+      )
 
       const result = await createSignalChargeAndSendOp(
         db,
@@ -225,6 +250,7 @@ describe('sinal Pix na conversa sem reservar (#38)', () => {
           professionalId: ctx.pro.id,
           roomResourceId: ctx.room.id,
           startsAt: ctx.startsAt,
+          opportunityId: opportunity.id,
           actorClerkUserId: 'user_synth_owner_a',
         },
         clock,
@@ -267,6 +293,23 @@ describe('sinal Pix na conversa sem reservar (#38)', () => {
       )
       expect(listed).toHaveLength(1)
       expect(listed[0]?.id).toBe(result.charge.id)
+      const board = listOpportunitiesOp(
+        db,
+        ctx.caller,
+        { stage: 'em_atendimento' },
+        clock,
+      )
+      expect(board.items.find((item) => item.id === opportunity.id)).toMatchObject({
+        stage: 'em_atendimento',
+        hasPendingPix: true,
+      })
+      expect(
+        db.get<{ stage: string }>(
+          `SELECT stage FROM opportunities WHERE tenant_id = ? AND id = ?`,
+          ctx.tenantId,
+          opportunity.id,
+        )?.stage,
+      ).toBe('em_atendimento')
     } finally {
       close()
     }

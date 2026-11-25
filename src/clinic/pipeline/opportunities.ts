@@ -9,6 +9,7 @@ import {
 import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { conversationNeedsPerson, loadContactSummary } from '../inbox/conversations'
+import { contactHasPendingPix } from '../inbox/pending-pix'
 import type { ClinicDb, SqlValue } from '../store'
 import {
   boardKeyFor,
@@ -144,8 +145,14 @@ function toListItem(
   )
   const openAtt = hasOpenAttendance(db, opp.tenantId, opp.conversationId, clock)
   const needsPerson = conversationNeedsPerson(db, opp.tenantId, opp.conversationId)
+  const hasPendingPix = contactHasPendingPix(db, opp.tenantId, opp.contactId, now)
+  // DEC-228: `horario_proposto` permanece no schema/histórico, mas a leitura
+  // operacional projecta esses registos legados em Em atendimento.
+  const viewStage: OpportunityStage =
+    opp.stage === 'horario_proposto' ? 'em_atendimento' : opp.stage
   const base: OpportunityListItem = {
     ...opp,
+    stage: viewStage,
     contact,
     missingAppointment,
     linkedAppointment,
@@ -155,6 +162,7 @@ function toListItem(
     futureAppointmentCount,
     hasOpenAttendance: openAtt,
     needsPerson,
+    hasPendingPix,
   }
   return base
 }
@@ -176,7 +184,7 @@ function loadOpenAgendado(
 /**
  * DEC-187: com Agendado + horários futuros + atendimento aberto (sessão,
  * proposta, quadro, handoff ou inbound pós-confirmação), projecta cartão
- * gémeo em Em atendimento / Horário proposto. Ao confirmar a nova marcação
+ * gémeo em Em atendimento. Ao confirmar a nova marcação
  * o gémeo some (merge no Agendado).
  */
 function expandBoardCards(
@@ -186,8 +194,7 @@ function expandBoardCards(
   input: ListOpportunitiesInput,
   clock: Clock,
 ): OpportunityListItem[] {
-  const wantAttendance =
-    !input.stage || input.stage === 'em_atendimento' || input.stage === 'horario_proposto'
+  const wantAttendance = !input.stage || input.stage === 'em_atendimento'
   if (!wantAttendance) return items
 
   const agendadoSources =
@@ -198,14 +205,14 @@ function expandBoardCards(
   const twins: OpportunityListItem[] = []
   for (const cycle of agendadoSources) {
     if (!shouldProjectOpenAttendance(cycle)) continue
-    const stage = openAttendanceBoardStage(db, tenantId, cycle.conversationId, clock)
+    const stage = openAttendanceBoardStage()
     if (input.stage && input.stage !== stage) continue
     twins.push(toOpenAttendanceCard(cycle, stage))
   }
 
   if (twins.length === 0) return items
   // Gémeos à frente na coluna de atendimento (actividade recente primeiro).
-  if (input.stage === 'em_atendimento' || input.stage === 'horario_proposto') {
+  if (input.stage === 'em_atendimento') {
     return [...twins, ...items]
   }
   return [...items, ...twins]
@@ -218,17 +225,26 @@ export function listOpportunities(
   clock: Clock = { nowMs: () => Date.now() },
 ): { items: OpportunityListItem[]; counts: StageCount[] } {
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 200)
+  // Alias de compatibilidade para clientes antigos que ainda peçam a coluna removida.
+  const viewInput: ListOpportunitiesInput =
+    input.stage === 'horario_proposto'
+      ? { ...input, stage: 'em_atendimento' }
+      : input
   const params: SqlValue[] = [tenantId]
   let where = `tenant_id = ?`
-  if (!input.includeClosed) {
+  if (!viewInput.includeClosed) {
     where += ` AND status = 'open'`
   }
-  if (input.stage) {
-    if (!isOpportunityStage(input.stage)) {
-      throw new ValidationError('invalid_stage', `Etapa inválida: ${input.stage}`)
+  if (viewInput.stage) {
+    if (!isOpportunityStage(viewInput.stage)) {
+      throw new ValidationError('invalid_stage', `Etapa inválida: ${viewInput.stage}`)
     }
-    where += ` AND stage = ?`
-    params.push(input.stage)
+    if (viewInput.stage === 'em_atendimento') {
+      where += ` AND stage IN ('em_atendimento', 'horario_proposto')`
+    } else {
+      where += ` AND stage = ?`
+      params.push(viewInput.stage)
+    }
   }
   params.push(limit)
   const rows = db.all<OppSql>(
@@ -242,7 +258,7 @@ export function listOpportunities(
     db,
     tenantId,
     rows.map((r) => toListItem(db, mapOpportunity(r), clock)),
-    input,
+    viewInput,
     clock,
   )
   return { items, counts: countByStage(db, tenantId, clock) }
@@ -260,10 +276,15 @@ export function countByStage(
     tenantId,
   )
   const map = new Map(rows.map((r) => [r.stage, r.n]))
+  map.set(
+    'em_atendimento',
+    (map.get('em_atendimento') ?? 0) + (map.get('horario_proposto') ?? 0),
+  )
+  map.set('horario_proposto', 0)
   // DEC-187: gémeos de atendimento entram nas contagens das colunas cedo.
   for (const cycle of loadOpenAgendado(db, tenantId, clock)) {
     if (!shouldProjectOpenAttendance(cycle)) continue
-    const stage = openAttendanceBoardStage(db, tenantId, cycle.conversationId, clock)
+    const stage = openAttendanceBoardStage()
     map.set(stage, (map.get(stage) ?? 0) + 1)
   }
   return OPPORTUNITY_STAGES.map((stage) => ({

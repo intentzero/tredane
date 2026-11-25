@@ -25,6 +25,7 @@ import { handleIdleTextReply, lastOutboundIsIdleAutoClose } from '../followup/id
 import { POST_BOOKING_BODY } from '../followup/post-booking'
 import { pickTerminarFarewell } from '../followup/terminar-farewell'
 import { suppressFollowupsAfterClientEnd } from '../followup/suppress-after-end'
+import { closeOpenOpportunityIfNoFuture } from '../followup/terminar-close-opportunity'
 import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { isHumanStaffAuthor } from '../inbox/human-prefix'
@@ -121,7 +122,8 @@ import {
 } from './nlu/sensitive'
 import { loadUpcomingAppointments, pickRescheduleAppointment } from './upcoming'
 import { isConversationPaused } from './protection'
-import { filledSlots, getBookingFrame } from './schedule-session'
+import { clearBookingFrame, filledSlots, getBookingFrame } from './schedule-session'
+import { retireActiveProposal } from '../proposals/proposals'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import {
@@ -476,6 +478,36 @@ async function preferAbrirAgendaCta(input: {
   } catch {
     return null
   }
+}
+
+/** DEC-228: todo fecho por despedida limpa estado e fecha o ciclo sem CTA. */
+function finalizeFarewellState(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+  note: string,
+): OutboxRow[] {
+  const outbox = suppressFollowupsAfterClientEnd(
+    db,
+    tenantId,
+    conversationId,
+    clock,
+  )
+  const closed = closeOpenOpportunityIfNoFuture(
+    db,
+    caller,
+    tenantId,
+    conversationId,
+    clock,
+    note,
+  )
+  outbox.push(...closed.outbox)
+  retireActiveProposal(db, tenantId, conversationId, clock)
+  const frameOutbox = clearBookingFrame(db, tenantId, conversationId, clock)
+  if (frameOutbox) outbox.push(frameOutbox)
+  return outbox
 }
 
 /** Processa os jobs vencidos. Chamado pelo alarme do DO. */
@@ -871,20 +903,19 @@ export async function runDueAutoDrafts(
         }
       } else if (isFarewellWhileHandoffPaused(inboundBody, pauseReason)) {
         // TRE-39: «Adeus»/«Tchau» com alerta aberto não repetem HANDOFF_PAUSED_ACK.
-        // Mesmo adeus do Terminar + limpa timeout/alerta (suppressFollowupsAfterClientEnd).
-        // TRE-82: com URL, `cta_url` Abrir agenda (um toque; sem reply Equipe).
+        // DEC-228: mesmo fecho de Terminar, com limpeza total e sem CTA.
         await signalTyping()
         const settings = ensureClinicSettings(db, tenantId, clock)
         const tz = settings.timezone || 'America/Sao_Paulo'
         const farewell = pickTerminarFarewell({ timezone: tz, nowMs: clock.nowMs() })
-        const endOutbox = suppressFollowupsAfterClientEnd(db, tenantId, job.conversationId, clock)
-        let replyOutbox: OutboxRow[] = [...endOutbox]
-        const cta = await preferAbrirAgendaCta({
-          prepare: deps.prepareClientWebOffer,
-          paused: deps.autoBookPaused === true,
+        let replyOutbox = finalizeFarewellState(
+          db,
+          caller,
           tenantId,
-          conversationId: job.conversationId,
-        })
+          job.conversationId,
+          clock,
+          'Cliente: despedida durante handoff',
+        )
         try {
           const sent = sendOutboundMessageOp(
             db,
@@ -892,11 +923,8 @@ export async function runDueAutoDrafts(
             {
               conversationId: job.conversationId,
               body: farewell,
-              interactive: cta,
               omitHumanTeamAugment: true,
-              clientRequestId: cta
-                ? `ai-web-home:${job.messageId}`
-                : `ai-handoff-farewell:${job.messageId}`,
+              clientRequestId: `ai-handoff-farewell:${job.messageId}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,
             },
@@ -1485,15 +1513,14 @@ export async function runDueAutoDrafts(
       const settings = ensureClinicSettings(db, tenantId, clock)
       const tz = settings.timezone || 'America/Sao_Paulo'
       const farewell = pickTerminarFarewell({ timezone: tz, nowMs: clock.nowMs() })
-      const endOutbox = suppressFollowupsAfterClientEnd(db, tenantId, job.conversationId, clock)
-      let replyOutbox: OutboxRow[] = [...endOutbox]
-      // TRE-82 / #990: fecho com `cta_url` Abrir agenda quando há URL (sem reply Equipe).
-      const cta = await preferAbrirAgendaCta({
-        prepare: deps.prepareClientWebOffer,
-        paused: deps.autoBookPaused === true,
+      let replyOutbox = finalizeFarewellState(
+        db,
+        caller,
         tenantId,
-        conversationId: job.conversationId,
-      })
+        job.conversationId,
+        clock,
+        'Cliente: despedida determinística',
+      )
       try {
         const sent = sendOutboundMessageOp(
           db,
@@ -1501,11 +1528,8 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: farewell,
-            interactive: cta,
             omitHumanTeamAugment: true,
-            clientRequestId: cta
-              ? `ai-web-home:${job.messageId}`
-              : `ai-post-booking-farewell:${job.messageId}`,
+            clientRequestId: `ai-post-booking-farewell:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
           },

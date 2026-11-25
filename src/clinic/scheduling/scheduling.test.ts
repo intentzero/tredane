@@ -356,7 +356,7 @@ describe('queryAvailability (#35 / REQ-030)', () => {
     }
   })
 
-  it('Horário proposto / compromisso cancelado não reservam; confirmado reserva', () => {
+  it('etapa legada / compromisso cancelado não reservam; confirmado reserva', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -377,7 +377,7 @@ describe('queryAvailability (#35 / REQ-030)', () => {
         clock,
       )
       // Sem compromisso confirmado — 09:00 livre (pipeline horario_proposto
-      // não cria appointments; Aguardando sinal idem — DEC-008/047).
+      // não cria appointments; Aguardando Pix idem — DEC-008/047/228).
       let result = queryAvailabilityOp(
         db,
         caller,

@@ -58,6 +58,9 @@ export function ReactAriaAcompanhamento() {
               </Button>
             </div>
             <span className="panel-meta">{card.meta}</span>
+            {card.pendingPix ? (
+              <span className="acomp-chip acomp-chip-pix">Aguardando Pix</span>
+            ) : null}
             {card.fail ? (
               <span className="panel-fail">
                 <CircleAlert aria-hidden="true" size={14} strokeWidth={2.4} />

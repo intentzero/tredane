@@ -13762,6 +13762,17 @@ button.panel-auth-inline-link {
   font-weight: var(--font-weight-semibold);
 }
 
+.acomp-chip-pix {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
 /* DEC-187: badge com N horários futuros no cartão Agendado. */
 .acomp-apt-count {
   display: inline-flex;

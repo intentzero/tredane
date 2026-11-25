@@ -144,10 +144,10 @@ export function seedSyntheticPipelineOp(
       id: 'opp_seed_beatriz',
       historyNote: 'Agendado sem compromisso (DEC-040)',
     })
-    // Horário proposto não reserva recursos (DEC-008)
+    // Fixture legada: não reserva e projeta em Em atendimento (DEC-228).
     placeStage(db, byId, meta.tenantId, clock, t0, 'cnv_seed_patricia', 'horario_proposto', {
       id: 'opp_seed_patricia',
-      historyNote: 'Horário proposto — não reserva (DEC-008)',
+      historyNote: 'Etapa legada — não reserva (DEC-228)',
     })
 
     const count = db.get<{ n: number }>(

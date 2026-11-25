@@ -82,6 +82,17 @@ describe('AcompanhamentoBoard (celular) — etapas finais', () => {
     await waitFor(() => expect(list).toHaveBeenCalled())
     const tabs = container.querySelector('.panel-tabs.acomp-tabs')
     expect(tabs).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: /Horário proposto/i })).toBeNull()
+  })
+
+  it('mostra «Aguardando Pix» no cartão em Em atendimento', async () => {
+    const list = vi.fn(async () => ({
+      opportunities: [card({ hasPendingPix: true })],
+      counts: [{ stage: 'em_atendimento', count: 1 }],
+    }))
+    const api = { listPipelineOpportunities: list } as unknown as PanelApi
+    render(<AcompanhamentoBoard tenantId="t" api={api} generation={1} />)
+    expect(await screen.findByText('Aguardando Pix')).toBeTruthy()
   })
 })
 

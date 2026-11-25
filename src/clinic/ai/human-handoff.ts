@@ -49,6 +49,7 @@ import {
 import {
   HEALTH_RE,
   OFF_TOPIC_RE,
+  FAREWELL_RE,
   isOffTopicSmallTalk,
   PIX_OFF_PURPOSE_RE,
   classifySensitive,
@@ -649,20 +650,6 @@ export function shouldAcknowledgeWhileHandoffPaused(reason: AiReplyPauseReason):
   return reason === 'off_purpose' || reason === 'customer_requested'
 }
 
-/**
- * Despedida clara com alerta/pausa DEC-083 aberto (TRE-39 / staging Paulo).
- * «tchau» / «adeus» / «bye» / «flw» e abandono explícito (Terminar, deixa estar…);
- * **não** inclui só «obrigada»/«valeu» (agradecimento após pedir a equipe — G-11).
- * Com `staff_active` a pessoa já conduz: sem adeus automático.
- */
-const FAREWELL_WHILE_HANDOFF_PAUSED_RE = new RegExp(
-  [
-    String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|bye)[.!?\s]*$`,
-    String.raw`\b(?:tchau|adeus)\b`,
-  ].join('|'),
-  'i',
-)
-
 export function isFarewellWhileHandoffPaused(
   text: string,
   reason: AiReplyPauseReason,
@@ -670,7 +657,8 @@ export function isFarewellWhileHandoffPaused(
   if (reason === 'staff_active') return false
   const body = text.trim()
   if (!body) return false
-  if (FAREWELL_WHILE_HANDOFF_PAUSED_RE.test(body)) return true
+  // DEC-228: exactamente o mesmo léxico ancorado do caminho sem handoff.
+  if (FAREWELL_RE.test(body)) return true
   // Classe A DEC-147 — «Terminar», «deixa estar», «não quero», …
   const hits = classifySensitive(body)
   return hasSoftDeclineRequest(hits) && isExplicitAbandonText(body)

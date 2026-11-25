@@ -43,8 +43,8 @@ describe('Banner', () => {
 
 describe('Badge', () => {
   it('sempre tem texto, nunca só cor', () => {
-    render(<Badge tone="wait">Aguardando sinal</Badge>)
-    const el = screen.getByText('Aguardando sinal')
+    render(<Badge tone="wait">Aguardando Pix</Badge>)
+    const el = screen.getByText('Aguardando Pix')
     expect(el.className).toContain('panel-badge-wait')
   })
 })

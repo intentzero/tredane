@@ -68,11 +68,9 @@ export function MoveSheet({
                   key={stage}
                   className={`panel-sheet-option${stage === 'perdido' ? ' danger' : ''}`}
                   style={
-                    stage === 'horario_proposto'
-                      ? { background: 'var(--color-primary-tint)', minHeight: 56 }
-                      : stage === 'agendado'
-                        ? { minHeight: 56 }
-                        : undefined
+                    stage === 'agendado'
+                      ? { minHeight: 56 }
+                      : undefined
                   }
                   isDisabled={busy}
                   onPress={() => {
@@ -80,9 +78,6 @@ export function MoveSheet({
                   }}
                 >
                   <span>{STAGE_LABELS[stage]}</span>
-                  {stage === 'horario_proposto' ? (
-                    <span className="hint">Não reserva horário na agenda</span>
-                  ) : null}
                   {stage === 'agendado' ? (
                     <span className="hint-warn">
                       Sem compromisso vinculado — agende depois

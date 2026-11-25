@@ -87,7 +87,7 @@ Origem: perguntas do responsável pelo produto («header sticky?», «podemos ad
 - **Header fixo «Petróleo translúcido»:** fica no topo ao rolar; Petróleo sólido sobre a abertura e translúcido, com desfoque e sombra, depois dela. O botão do topo passa a Damasco. O item do menu da seção em que a pessoa está ganha um sublinhado Damasco claro. Sem encolher nem esconder ao rolar.
 - **Abertura:** título, texto, botão e celulares deslizam 18 px na carga, em sequência. Sem opacidade, para que o título nunca fique invisível.
 - **Entrada ao rolar:** títulos e cartões sobem 16 px e aparecem uma vez, ao entrar na tela, com 80 ms entre cartões.
-- **Cenas:** Na prática mostra a conversa em sequência (pergunta, resposta, toque em Confirmar, horário na agenda), com o cartão ativo contornado; Sinal Pix passa de «Aguardando sinal» a «Sinal pago · quinta 14:00 garantida». Cada cena roda uma vez.
+- **Cenas:** Na prática mostra a conversa em sequência (pergunta, resposta, toque em Confirmar, horário na agenda), com o cartão ativo contornado; Sinal Pix passa de «Aguardando Pix» a «Sinal pago · quinta 14:00 garantida». Cada cena roda uma vez.
 - **Ao toque:** botões sobem 2 px; cartões ganham sombra; o «+» das perguntas gira.
 - **Limites:** CSS mais um script de poucas linhas (`IntersectionObserver`), sem biblioteca. O CSS só esconde conteúdo depois que o script marca a página; sem script, ou com `prefers-reduced-motion`, tudo aparece pronto e parado.
 - **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; header, destaque do menu e as duas cenas conferidos em 1440px. axe e Lighthouse **não** foram rodados.

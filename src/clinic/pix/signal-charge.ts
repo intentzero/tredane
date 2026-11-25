@@ -24,7 +24,6 @@ import { messagingWindowForConversation } from '../inbox/window'
 import { touchConversationMessage } from '../inbox/conversations'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
-import { moveOpportunityStageOp } from '../pipeline/operations'
 import { confirmAppointmentOp } from '../scheduling/booking'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
@@ -534,7 +533,7 @@ export async function createSignalChargeAndSendOp(
             tenantId: meta.tenantId,
             conversationId: prepared.intent.conversationId,
             direction: 'system',
-            body: 'Aguardando sinal — horário não reservado',
+            body: 'Aguardando Pix — horário não reservado',
             deliveryState: 'delivered',
             authorClerkUserId: actorId,
             createdAt: clock.nowMs(),
@@ -572,25 +571,8 @@ export async function createSignalChargeAndSendOp(
       })
       charge = applied
 
-      if (input.opportunityId) {
-        try {
-          const moved = moveOpportunityStageOp(
-            db,
-            caller,
-            {
-              opportunityId: input.opportunityId,
-              toStage: 'horario_proposto',
-              actorClerkUserId: actorId,
-              actorDisplayName: input.authorDisplayName ?? 'Atendente',
-              note: 'Aguardando sinal (horário não reservado)',
-            },
-            clock,
-          )
-          outbox.push(...moved.outbox)
-        } catch {
-          // Oportunidade inválida/fechada não bloqueia cobrança.
-        }
-      }
+      // DEC-228: Pix pendente é estado do cartão em Em atendimento, não etapa.
+      // A leitura do pipeline deriva o chip directamente de `pix_charges`.
     } else {
       charge = getPixCharge(db, meta.tenantId, prepared.charge.id)!
     }

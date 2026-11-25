@@ -199,10 +199,12 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
             const isAttendanceTwin = card.cardKind === 'open_attendance'
             const aptCount = card.futureAppointmentCount ?? 0
             const needsPerson = card.needsPerson === true
+            const pendingPix = card.stage === 'em_atendimento' && card.hasPendingPix === true
             const meta = [
               needsPerson
                 ? 'Precisa de alguém'
                 : (card.assigneeDisplayName ?? 'Sem responsável'),
+              pendingPix ? 'Aguardando Pix' : null,
               relativeTime(card.lastInteractionAt),
               isAttendanceTwin
                 ? 'Atendimento em curso'
@@ -211,7 +213,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                     card.missingAppointment,
                     card.linkedAppointment?.changeReason,
                   ),
-            ].join(' · ')
+            ].filter(Boolean).join(' · ')
             return (
               <article
                 key={card.boardKey ?? card.id}
@@ -265,6 +267,9 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                   )}
                 </div>
                 <span className="panel-meta">{meta}</span>
+                {pendingPix ? (
+                  <span className="acomp-chip-pix">Aguardando Pix</span>
+                ) : null}
                 <Button
                   className="panel-btn-secondary"
                   aria-label={`Abrir conversa de ${name}`}

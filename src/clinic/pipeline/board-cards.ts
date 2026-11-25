@@ -117,20 +117,11 @@ export function hasOpenAttendance(
   return false
 }
 
-/** Etapa do cartão gémeo de atendimento (não mexe na oportunidade real). */
-export function openAttendanceBoardStage(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-  clock: Clock,
-): Extract<OpportunityStage, 'em_atendimento' | 'horario_proposto'> {
-  if (getActiveProposalForConversation(db, tenantId, conversationId, clock)) {
-    return 'horario_proposto'
-  }
-  const frame = getBookingFrame(db, tenantId, conversationId)
-  if (frame && (frame.phase === 'proposto' || frame.phase === 'pix_pendente' || frame.phase === 'ofertado')) {
-    return 'horario_proposto'
-  }
+/** Etapa do cartão gémeo de atendimento (DEC-228; não mexe na oportunidade real). */
+export function openAttendanceBoardStage(): Extract<
+  OpportunityStage,
+  'em_atendimento'
+> {
   return 'em_atendimento'
 }
 
@@ -140,7 +131,7 @@ export function boardKeyFor(item: Pick<OpportunityListItem, 'id' | 'cardKind'>):
 
 export function toOpenAttendanceCard(
   cycle: OpportunityListItem,
-  stage: Extract<OpportunityStage, 'em_atendimento' | 'horario_proposto'>,
+  stage: Extract<OpportunityStage, 'em_atendimento'>,
 ): OpportunityListItem {
   return {
     ...cycle,

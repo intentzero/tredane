@@ -2721,6 +2721,8 @@ export type PipelineOpportunity = {
   hasOpenAttendance?: boolean
   /** DEC-156 — mesmo critério do Conversas; chip no quadro Acompanhar. */
   needsPerson?: boolean
+  /** DEC-228 — cobrança Pix pendente; chip em Em atendimento. */
+  hasPendingPix?: boolean
 }
 
 export type PipelineStageHistory = {

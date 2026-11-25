@@ -6,9 +6,9 @@
 
 | DEC / REQ | Comportamento |
 | --- | --- |
-| DEC-008 | Duração + intervalo (buffer) ocupam **profissional e sala/equipamento**; grade 15 min; fuso por clínica; «Horário proposto» não reserva |
+| DEC-008 / DEC-228 | Duração + intervalo (buffer) ocupam **profissional e sala/equipamento**; grade 15 min; fuso por clínica; cobrança Pix pendente não reserva |
 | DEC-014 | Serviço exige profissionais ligados + sala/equipamento (categoria ou recurso) |
-| DEC-047 | «Aguardando sinal» não reserva (sem linha de compromisso até confirmar) |
+| DEC-047 / DEC-228 | «Aguardando Pix» não reserva (sem linha de compromisso até confirmar) |
 | REQ-030 / AC-09 / AC-38 | Conflito em qualquer recurso exigido remove o horário; IDs de outro tenant negados |
 | REQ-052 | Sem config mínima → `schedulingAllowed=false` → lista vazia |
 

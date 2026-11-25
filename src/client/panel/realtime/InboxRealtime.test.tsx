@@ -135,7 +135,7 @@ describe('helpers contact.deleted / agenda', () => {
     ).toBe(false)
   })
 
-  it('isAcompanhamentoEvent cobre gaps do isInboxEvent (opportunity.* e appointment.*)', () => {
+  it('isAcompanhamentoEvent cobre oportunidade, agenda e estado Pix', () => {
     const base = {
       type: 'event' as const,
       seq: 1,
@@ -152,6 +152,10 @@ describe('helpers contact.deleted / agenda', () => {
     )
     expect(isAcompanhamentoEvent({ ...base, eventType: 'appointment.confirmed' })).toBe(true)
     expect(isAcompanhamentoEvent({ ...base, eventType: 'appointment.rescheduled' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'cobranca.criada' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'cobranca.expirada' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'cobranca.cancelada' })).toBe(true)
+    expect(isAcompanhamentoEvent({ ...base, eventType: 'cobranca.paga' })).toBe(true)
     expect(isAcompanhamentoEvent({ ...base, eventType: 'contact.deleted' })).toBe(true)
     // Gaps vs inbox: appointment.* e opportunity.created não passam em isInboxEvent.
     expect(isInboxEvent({ ...base, eventType: 'appointment.confirmed' })).toBe(false)

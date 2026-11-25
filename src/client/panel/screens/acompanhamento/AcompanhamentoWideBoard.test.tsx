@@ -62,14 +62,13 @@ function card(
 const DATA: Record<string, PipelineOpportunity[]> = {
   novo_contato: [card('a', 'Maria Souza', 'novo_contato', { assigneeClerkUserId: null, assigneeDisplayName: null })],
   em_atendimento: [
-    card('b', 'Sérgio Teixeira', 'em_atendimento'),
+    card('b', 'Sérgio Teixeira', 'em_atendimento', { hasPendingPix: true }),
     card('c', 'Fernanda Araújo', 'em_atendimento', {
       assigneeClerkUserId: 'user_outra',
       assigneeDisplayName: 'Camila',
       lastInteractionAt: NOW - 3 * DAY,
     }),
   ],
-  horario_proposto: [],
   agendado: [card('d', 'Carla Mendes', 'agendado')],
   concluido: [],
   perdido: [card('e', 'Renata Lopes', 'perdido')],
@@ -104,7 +103,6 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(cols.map((c) => c.getAttribute('aria-label'))).toEqual([
       'Novo contato, 1',
       'Em atendimento, 2',
-      'Horário proposto, 0',
       'Agendado, 1',
       'Concluído, 0',
     ])
@@ -125,7 +123,6 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(closedFlag).toMatchObject({
       novo_contato: false,
       em_atendimento: false,
-      horario_proposto: false,
       agendado: false,
       concluido: true,
       perdido: true,
@@ -139,11 +136,13 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(maria.querySelector('.inbox-avatar')?.textContent).toBe('MS')
     expect(maria.querySelector('.acomp-card-unassigned')?.textContent).toBe('Sem responsável')
     const dots = Array.from(board.querySelectorAll('.acomp-col-dot')).map((d) => d.getAttribute('data-stage'))
-    expect(dots).toEqual(['novo_contato', 'em_atendimento', 'horario_proposto', 'agendado', 'concluido'])
-    const empty = within(board).getByRole('region', { name: 'Horário proposto, 0' })
+    expect(dots).toEqual(['novo_contato', 'em_atendimento', 'agendado', 'concluido'])
+    const empty = within(board).getByRole('region', { name: 'Concluído, 0' })
     expect(within(empty).queryByText('Ninguém aqui')).toBeNull()
     expect(empty.querySelector('.acomp-col-empty')).toBeNull()
     expect(within(empty).getByText('0')).toBeTruthy()
+    const sergio = within(board).getByRole('button', { name: 'Abrir Sérgio Teixeira' })
+    expect(within(sergio).getByText('Aguardando Pix')).toBeTruthy()
   })
 
   it('cartão: data da marcação em chip e «IA» em chip (DEC-184)', async () => {
@@ -261,7 +260,6 @@ describe('AcompanhamentoWideBoard — filtro «Profissional» (#254)', () => {
   const BY_STAGE: Record<string, PipelineOpportunity[]> = {
     novo_contato: [card('a', 'Maria Souza', 'novo_contato')],
     em_atendimento: [card('b', 'Sérgio Teixeira', 'em_atendimento')],
-    horario_proposto: [],
     agendado: [
       card('d', 'Carla Mendes', 'agendado', { linkedAppointment: appt('ap1', 'p_paula') }),
       card('f', 'Ana Beatriz', 'agendado', { linkedAppointment: appt('ap2', 'p_livia') }),
@@ -491,7 +489,6 @@ describe('AcompanhamentoWideBoard — cartões ao vivo', () => {
       expect(cols.map((c) => c.getAttribute('aria-label'))).toEqual([
         'Novo contato, 0',
         'Em atendimento, 1',
-        'Horário proposto, 0',
         'Agendado, 1',
         'Concluído, 0',
       ])

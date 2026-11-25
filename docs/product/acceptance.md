@@ -206,11 +206,11 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 ### AC-46 — Cobrança enviada não reserva horário
 
-**Dado** quinta 14:00 livre e serviço com sinal; **quando** a atendente envia o sinal para a cliente A; **então** a conversa mostra a mensagem com valor, prazo e política e o estado Aguardando sinal, e o mesmo horário continua disponível para outra pessoa. **Requisito:** REQ-078.
+**Dado** quinta 14:00 livre e serviço com sinal; **quando** a atendente envia o sinal para a cliente A; **então** a conversa mostra a mensagem com valor, prazo e política, o cartão permanece em **Em atendimento** com chip **Aguardando Pix**, e o mesmo horário continua disponível para outra pessoa. **Requisito:** REQ-078.
 
 ### AC-47 — Pagamento processado uma vez
 
-**Dado** uma cobrança Aguardando sinal da clínica A; **quando** o provedor envia o aviso de pago duas vezes e um aviso com assinatura inválida; **então** a cobrança fica Paga uma única vez, o aviso inválido é recusado e registrado, e um aviso com identificador da clínica B não altera nada em A. **Requisito:** REQ-079.
+**Dado** uma cobrança Aguardando Pix da clínica A; **quando** o provedor envia o aviso de pago duas vezes e um aviso com assinatura inválida; **então** a cobrança fica Paga uma única vez, o aviso inválido é recusado e registrado, e um aviso com identificador da clínica B não altera nada em A. **Requisito:** REQ-079.
 
 ### AC-48 — Pago sem horário
 
@@ -396,3 +396,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-99 — «Quando prefere?» e poucas horas escolhidas (DEC-227)
 
 **Dado** a cliente em Quando?; **quando** o passo abre, **então** vê «Quando prefere?» com Agora, Hoje de manhã, Hoje à tarde, Amanhã e Outra data (os chips de hoje sem vaga não aparecem), e **no máximo 3 horas**, nunca a grade do dia; **quando** toca «Outros horários», **então** chegam mais 3 horas sem repetir as já vistas; **quando** a clínica tem uma marcação confirmada às 14:00–15:00, **então** as horas coladas (13:30, 15:00) saem antes de horas soltas e, com «Sem preferência», na profissional dessa marcação; **quando** a cliente pede uma hora livre (no calendário), **então** ela sai em primeiro; **quando** a antecedência mínima corta a primeira hora, **então** a página diz «O mais cedo possível é às HH:MM» e, sem corte, não diz nada; **quando** a equipe marca à mão no painel dentro da antecedência, **então** a marcação é aceite (o passado continua recusado). Sem vaga na conveniência: motivo e «Próximo livre: …». **Testes:** `pick-slots.test.ts`, `pick.test.ts`, `booking-lead.test.ts`, `routes.test.ts`, `BookFlow.test.tsx`.
+
+### AC-100 — Despedida e Encerrar fecham sem CTA (DEC-228)
+
+**Dado** uma oportunidade aberta sem compromisso futuro; **quando** a cliente envia uma despedida exata do léxico da DEC-228, **então** recebe só a despedida determinística, sem «Abrir agenda», e a oportunidade passa a **Perdido**, com proposta, contexto de marcação e assunto ativo limpos. **Quando** a equipe usa **Encerrar**, **então** aplica-se o mesmo destino. **Dado** um compromisso futuro; **então** **Agendado** é preservado e qualquer gémeo de atendimento é removido. Isolados «obrigado/obrigada», «valeu», «bom dia» e «boa noite» não acionam este aceite. **Requisito:** REQ-023.

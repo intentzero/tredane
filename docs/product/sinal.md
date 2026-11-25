@@ -31,7 +31,7 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 
 1. A atendente escolhe serviço, profissional, sala e horário na tela Agendar (M-04). Se o serviço exige sinal, o botão principal passa a ser **Enviar sinal de R$ X**.
 2. O Tredane cria a cobrança Pix no provedor, na conta da clínica, e envia na conversa uma mensagem com o valor, o horário pretendido, o prazo para pagar, a política de cancelamento e o link ou o código Pix copia-e-cola. Fora da janela de 24 h, o envio usa um modelo aprovado pela Meta (DEC-040).
-3. A conversa e a etapa do contato mostram **Aguardando sinal**. O horário continua livre para outras pessoas.
+3. A conversa e o cartão em **Em atendimento** mostram o chip **Aguardando Pix** (DEC-228). Não há etapa/coluna própria. O horário continua livre para outras pessoas.
 4. O provedor avisa o pagamento (webhook). O Tredane valida o aviso, marca a cobrança como **Paga** e:
    - se o horário ainda estiver livre, confirma o compromisso (Confirmado, acima) e avisa a equipe em tempo real;
    - se o horário foi ocupado, marca **Pago sem horário** e mostra o alerta (M-32).
@@ -39,7 +39,7 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 
 ## Alternativas e erros
 
-- **Prazo vencido sem pagamento:** a cobrança passa a **Expirada** e não aceita mais pagamento; a etapa volta a Horário proposto. Um novo envio cria nova cobrança. Prazo padrão de 30 min (15 ou 30), ajustável pela responsável (DEC-182).
+- **Prazo vencido sem pagamento:** a cobrança passa a **Expirada** e não aceita mais pagamento; o chip **Aguardando Pix** desaparece e o cartão permanece em **Em atendimento**. Um novo envio cria nova cobrança. Prazo padrão de 30 min (15 ou 30), ajustável pela responsável (DEC-182).
 - **Cancelar a cobrança antes do pagamento:** a atendente cancela; a cobrança fica **Cancelada** no provedor e na conversa.
 - **Pago sem horário:** alerta para a equipe, com **Escolher outro horário** e **Devolver sinal**.
 - **Cancelamento depois de pago:** o diálogo de cancelamento (motivo obrigatório, DEC-008) pergunta **Devolver** ou **Reter sinal**, mostrando a política da clínica.
