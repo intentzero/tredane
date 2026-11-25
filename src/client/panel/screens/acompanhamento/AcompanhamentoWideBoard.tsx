@@ -344,7 +344,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                         <span className="acomp-card-line">Atendimento em curso</span>
                       ) : card.linkedAppointment?.startsAt != null &&
                         !card.missingAppointment &&
-                        !card.linkedAppointment.changeReason ? (
+                        card.linkedAppointment.changeReason !== 'nao_compareceu' ? (
                         <span className="acomp-card-when">
                           <CalendarDays aria-hidden size={13} strokeWidth={2.2} />
                           {appointmentLine(card.linkedAppointment.startsAt, false)}
