@@ -168,6 +168,32 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     }
   })
 
+  it('mantém o chip de data e o calendário depois de remarcar', async () => {
+    const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
+    DATA.agendado = [
+      card('d', 'Carla Mendes', 'agendado', {
+        linkedAppointmentId: 'ap1',
+        linkedAppointment: {
+          id: 'ap1',
+          startsAt: NOW + DAY,
+          endsAt: NOW + DAY + 3_600_000,
+          status: 'confirmed',
+          changeReason: 'contato_remarcou',
+        } as never,
+      }),
+    ]
+    try {
+      mount()
+      const carla = await screen.findByRole('button', { name: 'Abrir Carla Mendes' })
+      const when = carla.querySelector('.acomp-card-when')
+      expect(when).not.toBeNull()
+      expect(when?.querySelector('svg')).not.toBeNull()
+      expect(carla.querySelector('.acomp-card-line')).toBeNull()
+    } finally {
+      DATA.agendado = previous
+    }
+  })
+
   it('«IA» em chip só pelo id do responsável, não pelo texto do nome (DEC-184)', async () => {
     const previous: PipelineOpportunity[] = [...(DATA.agendado ?? [])]
     DATA.agendado = [
