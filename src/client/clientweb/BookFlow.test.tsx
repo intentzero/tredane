@@ -290,7 +290,8 @@ describe('agendar pela página (C-02 a C-06)', () => {
     // Fila: as horas do servidor (sugeridas marcadas) + «Outra hora?». Sem contagens nem «Mais cedo/tarde».
     const railEl = document.querySelector('.cw-rail')!
     expect(railEl.querySelectorAll('.cw-time:not(.cw-time-ask)')).toHaveLength(6)
-    expect(railEl.querySelectorAll('.cw-time.is-suggested')).toHaveLength(3)
+    // As sugeridas não levam cor própria na fila (leitura de «ocupado» em teste de utilizador).
+    expect(railEl.querySelectorAll('.is-suggested')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: /Mais cedo|Mais tarde/ })).toBeNull()
     expect(screen.queryByText(/vagas|livres/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Tarde' }).hasAttribute('disabled')).toBe(false)
@@ -300,6 +301,30 @@ describe('agendar pela página (C-02 a C-06)', () => {
     await user.click(screen.getByRole('button', { name: /qua.*18|Amanhã/ }))
     await waitFor(() => expect(picks(calls).pop()!.body).toMatchObject({ when: { date: '2026-11-18' } }))
     expect(await screen.findByText('Amanhã, quarta 18')).toBeTruthy()
+  })
+
+  it('faixa de dias: «encerrado» hoje depois do fecho, «fechado» sem expediente e «cheio» só com a clínica aberta', async () => {
+    const empty = [
+      { date: '2026-11-17', reason: 'ended' },
+      { date: '2026-11-19', reason: 'full' },
+      { date: '2026-11-20', reason: 'closed' },
+    ]
+    mockApi()
+    const orig = globalThis.fetch as unknown as (i: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    vi.stubGlobal('fetch', async (i: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      if (String(i).endsWith('/api/c/availability') && body?.daysOnly === true) {
+        return new Response(JSON.stringify({ slots: [{ id: '2026-11-18T09:00', date: '2026-11-18', time: '09:00' }], emptyDays: empty }), { status: 200 })
+      }
+      return orig(i, init)
+    })
+    const user = await openBooking()
+    await user.click(await screen.findByRole('button', { name: 'Feminino' }))
+    await user.click(await screen.findByRole('button', { name: /Limpeza de pele/ }))
+    expect((await screen.findByRole('button', { name: /Hoje.*encerrado/ })).getAttribute('aria-disabled')).toBe('true')
+    expect(screen.getByRole('button', { name: /qui.*cheio/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /sex.*fechado/ })).toBeTruthy()
+    expect(screen.queryByText('cheio', { selector: '.cw-day-note' })).toBeTruthy()
   })
 
   it('«Outra hora?»: pergunta uma hora ao servidor e escolhe a resposta', async () => {

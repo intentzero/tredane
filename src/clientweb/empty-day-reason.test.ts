@@ -32,6 +32,29 @@ describe('empty-day-reason (TRE-33)', () => {
     }
   })
 
+  it('hoje depois do fim do expediente é ended, não full (DEC-227)', () => {
+    // 2024-01-08 (segunda) 21:45 em São Paulo; expediente 9h–18h.
+    const clock = createControllableClock(Date.UTC(2024, 0, 9, 0, 45))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const caller = workerCaller(TENANT, 'user_synth_owner_a')
+      const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+      const pro = upsertResourceOp(db, caller, { kind: 'professional', name: 'Paula', homeRoomId: room.id }, clock)
+      setWeeklyWindowsOp(
+        db,
+        caller,
+        { resourceId: pro.id, windows: [1, 2].map((d) => ({ dayOfWeek: d, startMinute: 9 * 60, endMinute: 18 * 60 })) },
+        clock,
+      )
+      expect(emptyDaysForRange(db, TENANT, clock, TZ, ['2024-01-08', '2024-01-09'])).toEqual([
+        { date: '2024-01-08', reason: 'ended' },
+        { date: '2024-01-09', reason: 'full' },
+      ])
+    } finally {
+      close()
+    }
+  })
+
   it('bloqueio __clinic__ no dia civil conta como closed sem devolver o nome', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 7, 15))
     const { db, close } = bootClinicDb({ clock })

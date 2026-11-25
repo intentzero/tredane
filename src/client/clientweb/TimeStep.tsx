@@ -13,6 +13,7 @@ function initials(name: string): string {
 
 function emptyCopy(reason: PickPage['emptyReason']): string {
   if (reason === 'closed') return 'A clínica está fechada neste dia.'
+  if (reason === 'ended') return 'A clínica já encerrou hoje.'
   if (reason === 'past') return 'Esse período já passou.'
   return 'Sem horários nesta altura.'
 }
@@ -156,13 +157,12 @@ export function TimeStep({
   const showPref = professionals.length > 1 && onPreferredProfessionalChange
   const selectedDate = done?.date ?? null
   const dateChoice = when != null && typeof when !== 'string' ? when.date : null
-  const stripDates = Array.from({ length: STRIP_DAYS }, (_, i) => addDays(catalog.today, i)).filter((d) => {
-    if (!days) return d === catalog.today
-    return days.slotDates.has(d) || days.empty.some((e) => e.date === d && e.reason === 'full')
-  })
+  const emptyReasonOf = (d: string) => (days && !days.slotDates.has(d) ? days.empty.find((e) => e.date === d)?.reason ?? null : null)
+  const stripDates = Array.from({ length: STRIP_DAYS }, (_, i) => addDays(catalog.today, i)).filter(
+    (d) => !days || days.slotDates.has(d) || emptyReasonOf(d) != null || d === catalog.today,
+  )
   const outsideStrip = selectedDate != null && !stripDates.includes(selectedDate) ? selectedDate : null
   const railParts = new Set(rail.map((r) => partOf(r.time)))
-  const suggestedIds = new Set(shown.map((x) => x.id))
 
   return (
     <main className="cw-main cw-flush">
@@ -212,7 +212,9 @@ export function TimeStep({
         <div className="cw-days" role="group" aria-labelledby="cw-when-label">
           {stripDates.map((d) => {
             const label = civilDayLabel(d)
-            const full = days?.empty.some((e) => e.date === d && e.reason === 'full') && !days.slotDates.has(d)
+            const off = emptyReasonOf(d)
+            const full = off != null
+            const note = off === 'ended' ? 'encerrado' : off === 'closed' ? 'fechado' : off === 'full' ? 'cheio' : ''
             const on = selectedDate === d
             return (
               <button
@@ -229,7 +231,7 @@ export function TimeStep({
               >
                 <span className="cw-day-wd">{d === catalog.today ? 'Hoje' : d === addDays(catalog.today, 1) ? 'Amanhã' : label.weekday}</span>
                 <span className="cw-day-num">{label.short}</span>
-                <span className="cw-day-note">{full ? 'cheio' : ''}</span>
+                <span className="cw-day-note">{note}</span>
               </button>
             )
           })}
@@ -318,7 +320,7 @@ export function TimeStep({
               return (
                 <div key={s.id} className="cw-rail-item" data-time={s.time} data-first={first ? part : undefined}>
                   <span className="cw-rail-head">{first ? PART_LABEL[part] : ''}</span>
-                  <button type="button" className={`cw-time${suggestedIds.has(s.id) ? ' is-suggested' : ''}`} onClick={() => onPick(s)}>
+                  <button type="button" className="cw-time" onClick={() => onPick(s)}>
                     {s.time}
                   </button>
                 </div>

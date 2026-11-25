@@ -81,7 +81,7 @@ export type Catalog = {
 export type Slot = { id: string; date: string; time: string }
 
 /** Dia sem vagas: fechada (sem expediente / bloqueio clínica) ou cheia. Sem nome de feriado. */
-export type EmptyDayReason = 'closed' | 'full'
+export type EmptyDayReason = 'closed' | 'ended' | 'full'
 export type EmptyDay = { date: string; reason: EmptyDayReason }
 
 export type Line = 'feminino' | 'masculino'
@@ -237,7 +237,7 @@ function parseEmptyDays(raw: unknown): EmptyDay[] {
     if (!row || typeof row !== 'object') continue
     const date = (row as { date?: unknown }).date
     const reason = (row as { reason?: unknown }).reason
-    if (typeof date !== 'string' || (reason !== 'closed' && reason !== 'full')) continue
+    if (typeof date !== 'string' || (reason !== 'closed' && reason !== 'ended' && reason !== 'full')) continue
     out.push({ date, reason })
   }
   return out
@@ -299,7 +299,7 @@ export type PickPage = {
   ask: { slot: Slot; exact: boolean } | null
   /** Antecedência mínima cortou a primeira hora: «O mais cedo possível é às HH:MM.» */
   earliestPossible: string | null
-  emptyReason: 'closed' | 'full' | 'past' | null
+  emptyReason: 'closed' | 'ended' | 'full' | 'past' | null
   nextAvailable: Slot | null
 }
 
@@ -315,7 +315,7 @@ function parsePick(body: Partial<PickPage> | null): PickResult {
     ask: body.ask && typeof body.ask.slot?.id === 'string' ? { slot: body.ask.slot, exact: body.ask.exact === true } : null,
     earliestPossible: typeof body.earliestPossible === 'string' ? body.earliestPossible : null,
     emptyReason:
-      body.emptyReason === 'closed' || body.emptyReason === 'full' || body.emptyReason === 'past' ? body.emptyReason : null,
+      body.emptyReason === 'closed' || body.emptyReason === 'ended' || body.emptyReason === 'full' || body.emptyReason === 'past' ? body.emptyReason : null,
     nextAvailable: body.nextAvailable && typeof body.nextAvailable.id === 'string' ? body.nextAvailable : null,
   }
 }

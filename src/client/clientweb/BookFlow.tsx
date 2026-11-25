@@ -203,17 +203,18 @@ export function BookFlow({
 
   return (
     <>
-      <header>
+      <header className="cw-stepbar">
         <div className="cw-step-header">
           <button type="button" className="cw-icon-btn" onClick={back} aria-label="Voltar">
             <span aria-hidden="true">‹</span>
           </button>
-          <div className="cw-step-title">
-            <span className="cw-caption">
-              {clinicName} · passo {position} de {totalSteps}
-            </span>
-            <h1 className="cw-title">{titles[step as Exclude<Step, 'done'>]}</h1>
-          </div>
+          <span className="cw-caption">
+            Passo {position} de {totalSteps}
+          </span>
+        </div>
+        <div className="cw-step-title">
+          <span className="cw-clinic">{clinicName}</span>
+          <h1 className="cw-title">{titles[step as Exclude<Step, 'done'>]}</h1>
         </div>
         <div
           role="progressbar"
@@ -223,7 +224,9 @@ export function BookFlow({
           aria-valuenow={position}
           className="cw-progress"
         >
-          <div className="cw-progress-bar" style={{ width: `${(position / totalSteps) * 100}%` }} />
+          {Array.from({ length: totalSteps }, (_, i) => (
+            <span key={i} className={`cw-progress-seg${i < position ? ' is-done' : ''}`} />
+          ))}
         </div>
       </header>
 
