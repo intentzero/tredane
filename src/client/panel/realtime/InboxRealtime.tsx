@@ -50,7 +50,8 @@ export function isInboxEvent(event: RealtimeServerEvent): boolean {
 /**
  * Eventos que invalidam o quadro Acompanhar (cartões: última atividade, responsável, horário).
  * Mais amplo que `isInboxEvent`: inclui `opportunity.*` (created / appointment_linked) e
- * `appointment.*` (confirmado / cancelado / remarcado) sem canal dedicado.
+ * `appointment.*` (confirmado / cancelado / remarcado) e `cobranca.*` (chip Pix)
+ * sem canal dedicado.
  */
 export function isAcompanhamentoEvent(event: RealtimeServerEvent): boolean {
   return (
@@ -58,6 +59,7 @@ export function isAcompanhamentoEvent(event: RealtimeServerEvent): boolean {
     event.eventType.startsWith('conversation.') ||
     event.eventType.startsWith('opportunity.') ||
     event.eventType.startsWith('appointment.') ||
+    event.eventType.startsWith('cobranca.') ||
     event.eventType.startsWith('contact.')
   )
 }
