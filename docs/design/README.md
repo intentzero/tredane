@@ -28,6 +28,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | `mobile/canvas.json` | Posição e título de cada tela no canvas do editor de design |
 | `desktop/` | Telas largas: exploração antiga (Conversas/`Main`, Pipeline, Agenda, Estados) e propostas recentes (`Entrar`, `ConversasDesktopProposta` · empty/thread). Ver [aviso](#desktop) |
 | `cliente/` | **Página web da cliente** (DEC-196 a DEC-199, **Proposto**), mobile first 390×844: `C-01` a `C-12` em `.html` estático, com `previews/` e [README](cliente/README.md). Fora do painel e sem Clerk. |
+| `marketing/` | **Material de go to market** (não é especificação): mocks de história para anúncios, com dados fictícios. Hoje: [lia-agendamento](marketing/lia-agendamento/README.md), nove ecrãs em PNG com HTML e fonte editável |
 | `admin/` | **Platform Admin** (DEC-192), mocks **Confirmados** 16/11/2026, desktop primeiro 1440×900: `PA-01` a `PA-11` (Confirmados; PA-08 a PA-11 são as abas do detalhe) em `.dc.html`, `previews/` e `canvas.json`. Índice em [screens.md](screens.md#platform-admin-desktop-1440900-confirmado); spec em [platform-admin.md](../product/platform-admin.md) |
 | [brand/](brand/README.md) | Identidade visual (DEC-050): símbolo, nome, versões, ícone do app, favicon e paleta da marca |
 | `landing/` | Mocks históricos (`Main.dc.html`, `Celular.dc.html`) e [paleta Coral & Menta aprovada em 16/11/2026](landing/paleta-viva/README.md), com comparação e previews da implementação; spec em [landing.md](../product/landing.md) |
