@@ -44,7 +44,7 @@ Os ecrãs misturam funcionalidades em estados diferentes. Como na [central de aj
 | `png/` | Imagens finais (acima) |
 | `html/` | A mesma tela em HTML estático, sem dependências além das fontes do Google Fonts (precisam de rede). Servem para refazer o PNG |
 | `canvas/` | Fonte editável: um `.dc.html` por tela e o `canvas.json` com a posição de cada uma, para reabrir no editor de design (Design canvas) |
-| `tools/render-static.js` | Converte um `.dc.html` em HTML estático (Node, sem pacotes) |
+| `tools/render-static.cjs` | Converte um `.dc.html` em HTML estático (Node, sem pacotes) |
 
 ### Refazer os PNG
 
@@ -52,7 +52,7 @@ A partir da raiz do repositório, com o Chrome instalado (macOS):
 
 ```bash
 cd docs/design/marketing/lia-agendamento
-node tools/render-static.js canvas/Main.dc.html html/01-ecra-de-bloqueio.html
+node tools/render-static.cjs canvas/Main.dc.html html/01-ecra-de-bloqueio.html
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
   --force-device-scale-factor=3 --window-size=390,844 --virtual-time-budget=8000 \
   --screenshot="$PWD/png/01-ecra-de-bloqueio.png" "file://$PWD/html/01-ecra-de-bloqueio.html"
