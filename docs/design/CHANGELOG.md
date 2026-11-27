@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 27/11/2026 — Mocks de marketing «Lia» (**Proposto**, Paulo)
+
+- Novo `marketing/lia-agendamento/`: nove ecrãs (bloqueio com notificações, notificação expandida, agenda celular e desktop, conversas celular e desktop, conversa celular e desktop, WhatsApp) em PNG, HTML estático e fonte do canvas. Dados fictícios (Maison Lótus). Não altera tokens nem telas do produto.
+
 ## 25/11/2026 — Token `font.size.hero` (28 px) (**Proposto**, DEC-227)
 
 - Título do cabeçalho dos passos da página web da cliente (C-04, C-07, C-13); `--font-size-hero` em `tokens.css`. Cabeçalho relaxado, «encerrado» e fila neutra: ver DEC-227, revisão 25/11/2026.
